@@ -44,8 +44,8 @@ namespace StingTools.Core.Drawing
                     return (int)Convert.ToDouble(reader.Value);
                 case JsonToken.String:
                     var s = (reader.Value as string ?? string.Empty).Trim();
-                    return int.TryParse(s, System.Globalization.NumberStyles.Integer,
-                        System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0;
+                    return int.TryParse(s, global::System.Globalization.NumberStyles.Integer,
+                        global::System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0;
                 case JsonToken.Null:
                     return 0;
                 default:
@@ -111,6 +111,17 @@ namespace StingTools.Core.Drawing
         [JsonProperty("discipline")]  public string Discipline { get; set; } = "*";
         [JsonProperty("phase")]       public string Phase { get; set; } = "*";
 
+        /// <summary>
+        /// P4 — MEP system / service code for this profile (STING SysMap
+        /// vocabulary: DCW, DHW, LTHW, HVAC, LV, LTG, MGPS…). Deterministic
+        /// per-profile value that flows into the <c>{sys}</c> token, so an MEP
+        /// design sheet carries its system in the title-block SYSTEM cell (and
+        /// optionally its number/name). Null for arch/struct/non-MEP profiles;
+        /// a null/empty value collapses cleanly (blank cell, no stray tokens).
+        /// </summary>
+        [JsonProperty("system", NullValueHandling = NullValueHandling.Ignore)]
+        public string System { get; set; }
+
         // Sheet
         [JsonProperty("paperSize")]        public string PaperSize { get; set; } = "A1";
         [JsonProperty("titleBlockFamily")] public string TitleBlockFamily { get; set; }
@@ -131,6 +142,66 @@ namespace StingTools.Core.Drawing
         [JsonProperty("scale")]
         [JsonConverter(typeof(TolerantScaleConverter))]
         public int Scale { get; set; } = 100; // 1:N  (0 = not applicable, e.g. "NA" for 3D/presentation)
+
+        /// <summary>Tag text height in mm for this drawing type. 0 = derive from Scale via
+        /// <see cref="EffectiveTagTextSizeMm"/>. Selects the tag size-variant family (label text
+        /// types 1mm … 5mm) the drawing producer should place for this drawing.</summary>
+        [JsonProperty("tagTextSizeMm")] public double TagTextSizeMm { get; set; } = 0;
+
+        /// <summary>Resolve the tag text size (mm): explicit <see cref="TagTextSizeMm"/> if set,
+        /// else a sensible default from the view Scale. Always returns one of the 8 canonical
+        /// authored sizes (1.0/1.5/2.0/2.5/3.0/3.5/4.0/5.0 mm). ISO default is 2.5 mm at 1:50.</summary>
+        public double EffectiveTagTextSizeMm()
+        {
+            if (TagTextSizeMm > 0) return TagTextSizeMm;
+            int n = Scale;
+            if (n <= 0)   return 2.5;   // NA (3D / presentation) → ISO default
+            if (n <= 5)   return 5.0;
+            if (n <= 10)  return 4.0;
+            if (n <= 20)  return 3.5;
+            if (n <= 25)  return 3.0;
+            if (n <= 50)  return 2.5;
+            if (n <= 100) return 2.0;
+            if (n <= 150) return 1.5;
+            return 1.0;                 // 1:200 and smaller
+        }
+
+        /// <summary>The 8 canonical authored tag text sizes (mm). A size-variant tag family and a
+        /// Label text-type is authored for each. Used to snap a scale-derived size to a size that
+        /// actually exists when fewer than 8 variants have been built.</summary>
+        public static readonly double[] CanonicalTagSizesMm = { 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0 };
+
+        /// <summary>Canonical label text-type / size token for a mm size (e.g. 2.5 → "2.5mm",
+        /// 2 → "2mm"), matching the authored tag text-type names ("1mm", "1.5mm", … "5mm").
+        /// Trailing ".0" is trimmed so whole-number sizes read as "2mm", not "2.0mm".</summary>
+        public static string TagSizeToken(double mm) =>
+            mm.ToString("0.###", global::System.Globalization.CultureInfo.InvariantCulture) + "mm";
+
+        /// <summary>Snap <see cref="EffectiveTagTextSizeMm"/> to the nearest size that has actually
+        /// been authored, so a 1:200 view never asks for a 1mm family that was never built. Pass the
+        /// mm sizes you have built (e.g. new[]{2.5, 3.5}); ties resolve to the larger (more legible)
+        /// size. Null/empty <paramref name="availableSizesMm"/> means "assume all 8 exist" and returns
+        /// the raw effective size.</summary>
+        public double NearestAvailableTagSizeMm(System.Collections.Generic.IEnumerable<double> availableSizesMm)
+        {
+            double want = EffectiveTagTextSizeMm();
+            if (availableSizesMm == null) return want;
+            double best = 0; double bestDelta = double.MaxValue;
+            foreach (double s in availableSizesMm)
+            {
+                if (s <= 0) continue;
+                double d = global::System.Math.Abs(s - want);
+                // Nearest wins; on a tie prefer the larger size (more legible on the sheet).
+                if (d < bestDelta || (d == bestDelta && s > best)) { best = s; bestDelta = d; }
+            }
+            return best > 0 ? best : want;
+        }
+
+        /// <summary>Token of the nearest authored size (see <see cref="NearestAvailableTagSizeMm"/>) —
+        /// this is what the drawing producer looks up when placing the size-variant tag family.</summary>
+        public string ResolveTagSizeToken(System.Collections.Generic.IEnumerable<double> availableSizesMm) =>
+            TagSizeToken(NearestAvailableTagSizeMm(availableSizesMm));
+
         [JsonProperty("detailLevel")]      public string DetailLevel { get; set; } = "Medium"; // Coarse | Medium | Fine
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }
@@ -364,8 +435,24 @@ namespace StingTools.Core.Drawing
 
     // ─────────────────────────────────────────────────────────────────────
     //  SLOT — where a view of a given ViewType lands on the sheet.
-    //  Coordinates are fractions of the drawable zone (0..1) so the same
-    //  DrawingType works across A1 / A2 / A3 title blocks without edits.
+    //
+    //  Two ways to place a slot, resolved by SheetPlacementBridge in this
+    //  precedence order (P1 — unified slot model):
+    //
+    //    1. PurposeTag  — join into the live title-block family's own slot
+    //                     grid (TitleBlockSpec.SlotSpec.purposeTag). This is
+    //                     the SINGLE source of truth for where views land:
+    //                     the family's real drawing zones drive placement,
+    //                     not an independent guess. Semantic + stable across
+    //                     A1 / A0 / A3 (all expose "main-plan", "key-plan"…).
+    //    2. SlotRef     — join by exact family slot id ("S01", "KP"…) when a
+    //                     specific positional pocket is wanted.
+    //    3. normX/Y/W/H — legacy fallback: fractions (0..1) of the drawable
+    //                     zone, subdividing the title-block bounding box. Used
+    //                     when neither PurposeTag nor SlotRef resolves against
+    //                     the family, so historic profiles keep working
+    //                     unchanged.
+    //
     //  DrawingSlot is a superset of the existing Docs/TemplateViewSlot;
     //  future work folds SheetTemplateEngine into this engine.
     // ─────────────────────────────────────────────────────────────────────
@@ -374,6 +461,34 @@ namespace StingTools.Core.Drawing
     {
         [JsonProperty("label")]    public string Label { get; set; }
         [JsonProperty("viewType")] public string ViewType { get; set; } // Plan | Section | Elevation | 3D | ISO | Schedule | Legend | RCP | Detail
+
+        /// <summary>
+        /// P1 — preferred join key. Matches a <c>TitleBlockSpec.SlotSpec.purposeTag</c>
+        /// on the live title-block family placed on the sheet (e.g. "main-plan",
+        /// "key-plan", "quad-top-left"). When it resolves, placement uses the
+        /// family's own slot bounds — the one source of truth — and the
+        /// <c>norm*</c> fractions below are ignored. Exact match first, then the
+        /// alias chain in STING_VIEWPORT_PLACEMENT_RULES.json. Null / unmatched
+        /// falls back to <see cref="SlotRef"/> then <c>norm*</c>.
+        /// </summary>
+        [JsonProperty("purposeTag", NullValueHandling = NullValueHandling.Ignore)]
+        public string PurposeTag { get; set; }
+
+        /// <summary>
+        /// P1 — secondary join key. Matches a <c>TitleBlockSpec.SlotSpec.id</c>
+        /// ("S01", "KP"…) exactly. Use to pin a specific family pocket when the
+        /// semantic <see cref="PurposeTag"/> is ambiguous. Null / unmatched
+        /// falls back to <c>norm*</c>.
+        /// </summary>
+        [JsonProperty("slotRef", NullValueHandling = NullValueHandling.Ignore)]
+        public string SlotRef { get; set; }
+
+        // P12.E — norm* fractions and TitleBlockSpec.SlotSpec.FracAnchor/FracSize
+        // share IDENTICAL semantics: both are 0..1 fractions of the title-block
+        // family's ONE drawable rect (TitleBlockSpec.Drawable), resolved the same
+        // way by SheetPlacementBridge. A slot therefore lands in the same place
+        // regardless of which POCO declares it. (Legacy families with no drawable
+        // rect fall back to the historic title-block-bbox−25 mm frame.)
         [JsonProperty("normX")]    public double NormX { get; set; }
         [JsonProperty("normY")]    public double NormY { get; set; }
         [JsonProperty("normW")]    public double NormW { get; set; }

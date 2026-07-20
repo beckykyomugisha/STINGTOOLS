@@ -1,26 +1,38 @@
-// StingTools — Title Block Revision Strip Syncer (Gap 4)
+// StingTools — Title Block Revision Syncer (Gap 4)
 //
-// Bridges Revit's Revision system and the title-block parameter layer.
-// For every sheet that has a stamped DrawingType, reads the sheet's
-// issued Revision sequence, writes SHT_REV_TXT (the closest equivalent
-// to ASS_REV_TXT for sheets) shared params on the sheet, and ensures
-// the revision strip explicit five-row table cells PRJ_TB_REV_COL_n /
-// PRJ_TB_REV_DATE_n / PRJ_TB_REV_DESC_n (n = 1..5) on the title-block
-// FamilyInstance are kept in sync with the live Revit revision sequence.
+// THE single engine bridging Revit's Revision system and the title-block
+// parameter layer. Both the "Rev Sync" (tag RevisionSync) and "Sync Rev"
+// (tag DrawingTypes_SyncRevisions) dock buttons route here, as does
+// Phase C of Produce & Export and IssueSheetsForRevisionCommand.
 //
-// For projects using a live ScheduleSheetInstance (the Revit-native
-// revision schedule), the five-row write is still performed so title
-// blocks that carry both a schedule region AND discrete text cells
-// remain consistent.
+// For every non-placeholder sheet it reads the newest Revision by
+// SequenceNumber and writes:
+//   - on the ViewSheet:            SHT_REV_TXT, SHT_REV_DATE_TXT
+//   - on each title-block instance: PRJ_TB_REVISION_NR_TXT,
+//                                   PRJ_TB_REVISION_DATE_TXT,
+//                                   PRJ_TB_REVISION_DESCRIPTION_TXT,
+//                                   PRJ_TB_ISSUE_SUMMARY_TXT
+// Those four TB params are the ones STING_TITLE_BLOCKS.json actually
+// binds labels to, so the writes are visible on the drawing.
+//
+// The value written is Revision.RevisionNumber (e.g. "P01"), NEVER the
+// internal SequenceNumber (1, 2, 3...). A "R{SequenceNumber}" fallback
+// applies only when RevisionNumber is empty or unreadable.
 //
 // Key design choices:
 //   - SyncAll runs inside a single Transaction; per-sheet failures are
 //     caught and recorded as warnings, never aborting the batch.
 //   - WriteIfChanged / WriteParamIfExists are skip-if-equal so the
 //     undo stack is not polluted by no-op re-runs.
-//   - Revisions are sorted newest-first so row 1 always carries the
-//     most recent revision (standard UK practice for revision strips).
+//   - Sheets with no revisions have their values cleared, so stale data
+//     from a prior revision is never left on the drawing.
 //   - The syncer is idempotent — safe to call repeatedly.
+//
+// Historical note: this class used to also write a five-row revision
+// strip to per-row column/date/description parameters. Those parameters
+// were declared nowhere — not in STING_TITLE_BLOCKS.json, not in
+// MR_PARAMETERS, with no labels bound — so every write was a silent
+// no-op. That path has been removed.
 
 using System;
 using System.Collections.Generic;
@@ -44,19 +56,10 @@ namespace StingTools.Core.Drawing
 
     /// <summary>
     /// Syncs Revit revision data onto sheet shared parameters and the
-    /// explicit five-row revision table cells on title-block instances.
+    /// revision-box parameters on title-block instances.
     /// </summary>
     public static class TitleBlockRevisionSyncer
     {
-        // Max revision rows supported in the explicit 5-row table approach.
-        private const int MaxRevRows = 5;
-
-        // Param name templates for the explicit rev table cells on the
-        // title-block FamilyInstance (n = 1..MaxRevRows).
-        private static string RevColParam(int n)  => $"PRJ_TB_REV_COL_{n}";
-        private static string RevDateParam(int n) => $"PRJ_TB_REV_DATE_{n}";
-        private static string RevDescParam(int n) => $"PRJ_TB_REV_DESC_{n}";
-
         // Shared parameter names written onto the ViewSheet itself.
         // SHT_REV_TXT is the canonical sheet-level revision param.
         // We derive a revision date param name from the same SHT_ prefix
@@ -64,13 +67,19 @@ namespace StingTools.Core.Drawing
         private const string SheetRevParam     = ParamRegistry.SHT_REV;           // "SHT_REV_TXT"
         private const string SheetRevDateParam = "SHT_REV_DATE_TXT";
 
+        // Title-block instance params that STING_TITLE_BLOCKS.json binds
+        // revision-box labels to.
+        private const string TbRevNrParam   = "PRJ_TB_REVISION_NR_TXT";
+        private const string TbRevDateParam = "PRJ_TB_REVISION_DATE_TXT";
+        private const string TbRevDescParam = "PRJ_TB_REVISION_DESCRIPTION_TXT";
+
         /// <summary>
-        /// Syncs revision data for all stamped sheets in the document.
-        /// A sheet is "stamped" when it carries a non-empty
-        /// STING_DRAWING_TYPE_ID_TXT value written by
-        /// <see cref="DrawingTypeStamper"/>.
+        /// Syncs revision data for every non-placeholder sheet in the document.
         /// </summary>
-        public static RevisionSyncResult SyncAll(Document doc)
+        /// <param name="stampedOnly">When true, restrict the sweep to sheets
+        /// carrying a non-empty STING_DRAWING_TYPE_ID_TXT stamp written by
+        /// <see cref="DrawingTypeStamper"/>. Default false — all sheets.</param>
+        public static RevisionSyncResult SyncAll(Document doc, bool stampedOnly = false)
         {
             var result = new RevisionSyncResult();
             if (doc == null) return result;
@@ -78,10 +87,13 @@ namespace StingTools.Core.Drawing
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
                 .Cast<ViewSheet>()
-                .Where(s => !string.IsNullOrEmpty(DrawingTypeStamper.Read(s)))
+                .Where(s => !s.IsPlaceholder)
+                .Where(s => !stampedOnly || !string.IsNullOrEmpty(DrawingTypeStamper.Read(s)))
+                .OrderBy(s => s.SheetNumber)
                 .ToList();
 
-            StingLog.Info($"TitleBlockRevisionSyncer.SyncAll: {sheets.Count} stamped sheet(s).");
+            StingLog.Info($"TitleBlockRevisionSyncer.SyncAll: {sheets.Count} sheet(s) " +
+                $"(stampedOnly={stampedOnly}).");
 
             using (var tx = new Transaction(doc, "STING Sync Revision Strip"))
             {
@@ -142,67 +154,59 @@ namespace StingTools.Core.Drawing
             try { revIds = sheet.GetAllRevisionIds(); }
             catch { revIds = null; }
 
-            if (revIds == null || revIds.Count == 0)
+            string revNr = "", revDate = "", revDesc = "";
+
+            if (revIds != null && revIds.Count > 0)
             {
-                // No revisions — clear any previously written values so stale
-                // data from a prior revision is not left in the cells.
-                WriteIfChanged(sheet, SheetRevParam,     "");
-                WriteIfChanged(sheet, SheetRevDateParam, "");
-                result.ParamsWritten += 2;
-                ClearRevRowsOnTitleBlocks(doc, sheet, result);
-                result.SheetsProcessed++;
-                return;
+                // Sort newest-first: Revit assigns SequenceNumber in creation
+                // order; higher SequenceNumber == more recent.
+                var latest = revIds
+                    .Select(id => doc.GetElement(id))
+                    .OfType<Revision>()
+                    .OrderByDescending(r => r.SequenceNumber)
+                    .FirstOrDefault();
+
+                if (latest != null)
+                {
+                    revNr   = ResolveRevisionNumber(latest);
+                    revDate = latest.RevisionDate ?? "";
+                    revDesc = latest.Description  ?? "";
+                }
             }
 
-            // Sort newest-first: Revit assigns SequenceNumber in creation order;
-            // higher SequenceNumber == more recent.
-            var revisions = revIds
-                .Select(id => doc.GetElement(id))
-                .OfType<Revision>()
-                .OrderByDescending(r => r.SequenceNumber)
-                .ToList();
+            // Sheet-level params. When there are no revisions these are written
+            // as empty, clearing stale values from a prior revision.
+            if (WriteIfChanged(sheet, SheetRevParam,     revNr))   result.ParamsWritten++;
+            if (WriteIfChanged(sheet, SheetRevDateParam, revDate)) result.ParamsWritten++;
 
-            // Write the most recent revision onto the sheet shared params.
-            var latest = revisions[0];
-            WriteIfChanged(sheet, SheetRevParam,     latest.RevisionNumber ?? "");
-            WriteIfChanged(sheet, SheetRevDateParam, latest.RevisionDate   ?? "");
-            result.ParamsWritten += 2;
-
-            // Write the explicit 5-row table onto every title-block instance.
-            var tbInstances = CollectTitleBlocks(doc, sheet);
-
-            for (int n = 1; n <= MaxRevRows; n++)
+            // Revision box on every title-block instance on this sheet.
+            foreach (var tb in CollectTitleBlocks(doc, sheet))
             {
-                var rev = n <= revisions.Count ? revisions[n - 1] : null;
-                string col  = rev?.RevisionNumber ?? "";
-                string date = rev?.RevisionDate   ?? "";
-                string desc = rev?.Description    ?? "";
-
-                foreach (var tb in tbInstances)
-                {
-                    if (WriteParamIfExists(tb, RevColParam(n),  col))  result.ParamsWritten++;
-                    if (WriteParamIfExists(tb, RevDateParam(n), date)) result.ParamsWritten++;
-                    if (WriteParamIfExists(tb, RevDescParam(n), desc)) result.ParamsWritten++;
-                }
+                if (WriteParamIfExists(tb, TbRevNrParam,   revNr))   result.ParamsWritten++;
+                if (WriteParamIfExists(tb, TbRevDateParam, revDate)) result.ParamsWritten++;
+                if (WriteParamIfExists(tb, TbRevDescParam, revDesc)) result.ParamsWritten++;
+                if (WriteParamIfExists(tb, ParamRegistry.TB_ISSUE_SUMMARY, revDesc)) result.ParamsWritten++;
             }
 
             result.SheetsProcessed++;
         }
 
-        // Clears all PRJ_TB_REV_COL/DATE/DESC rows (called when a sheet has
-        // no revisions, so leftover data from a prior revision is erased).
-        private static void ClearRevRowsOnTitleBlocks(Document doc, ViewSheet sheet, RevisionSyncResult result)
+        // The user-facing revision number ("P01", "C02", ...) — never the
+        // internal SequenceNumber. Falls back to "R{SequenceNumber}" only when
+        // RevisionNumber is empty or unreadable.
+        private static string ResolveRevisionNumber(Revision rev)
         {
-            var tbInstances = CollectTitleBlocks(doc, sheet);
-            for (int n = 1; n <= MaxRevRows; n++)
+            try
             {
-                foreach (var tb in tbInstances)
-                {
-                    if (WriteParamIfExists(tb, RevColParam(n),  "")) result.ParamsWritten++;
-                    if (WriteParamIfExists(tb, RevDateParam(n), "")) result.ParamsWritten++;
-                    if (WriteParamIfExists(tb, RevDescParam(n), "")) result.ParamsWritten++;
-                }
+                string n = rev.RevisionNumber;
+                if (!string.IsNullOrWhiteSpace(n)) return n;
             }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TitleBlockRevisionSyncer: RevisionNumber unreadable — {ex.Message}");
+            }
+            try { return "R" + rev.SequenceNumber.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+            catch { return ""; }
         }
 
         // Writes value to a String parameter if it exists, is writable,

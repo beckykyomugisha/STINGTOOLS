@@ -9,6 +9,16 @@ namespace StingTools.Core.Licensing
         private static string _cached;
         public static string Current => _cached ??= FingerprintComposer.Compute(Factors());
 
+        private static string _stable;
+        /// <summary>
+        /// Stability-anchored code — derived ONLY from the registry MachineGuid, the most
+        /// stable hardware factor. Immune to transient WMI failures on the CPU / board /
+        /// BIOS serials that flip <see cref="Current"/> and silently invalidate a valid
+        /// license. Licenses issued against Stable survive those flips; the gate accepts
+        /// Current OR Stable (see LicenseGate.VerifyEither).
+        /// </summary>
+        public static string Stable => _stable ??= FingerprintComposer.Compute(new List<string> { MachineGuid() });
+
         /// <summary>True when at least MachineGuid + 1 hardware factor are real.</summary>
         public static bool IsTrustworthy => FingerprintComposer.RealFactorCount(Factors()) >= 2;
 

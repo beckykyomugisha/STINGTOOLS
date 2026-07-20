@@ -36,7 +36,14 @@ async function send(
       }),
     });
     if (!res.ok) {
-      console.error(`Resend send failed (${res.status}) for "${subject}"`);
+      // Log Resend's own message, not just the status. The status alone is not
+      // actionable: 401 means a bad API key, 422 usually means the From: domain
+      // is unverified — and since a failed send never surfaces to the user
+      // (see the catch below), this log is the ONLY evidence anything is wrong.
+      const detail = await res.text().catch(() => "");
+      console.error(
+        `Resend send failed (${res.status}) for "${subject}" from "${env.EMAIL_FROM || DEFAULT_FROM}": ${detail.slice(0, 300)}`
+      );
     }
   } catch (e) {
     // Never let an email failure break the request.

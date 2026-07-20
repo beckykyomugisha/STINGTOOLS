@@ -44,6 +44,17 @@ services:
         value: Production
       - key: ASPNETCORE_URLS
         value: http://+:8080
+      # Schema management: the EF migration set is incomplete by design
+      # (Program.cs:1318-1380 — EnsureCreated + idempotent patchers is the
+      # official mechanism). Without this flag a FRESH database takes the
+      # Migrate() branch and comes up nearly empty.
+      - key: PLANSCAPE_USE_ENSURE_CREATED
+        value: "true"
+      # Cloud handoff shared secret — MUST equal the value set on the
+      # planscape.build Cloudflare Pages project. See
+      # docs/PLANSCAPE_IDENTITY_HANDOFF.md.
+      - key: PLANSCAPE_HANDOFF_SECRET
+        sync: false
       # Database — injected automatically from planscape-db below.
       - key: ConnectionStrings__Default
         fromDatabase:
@@ -84,6 +95,18 @@ services:
         value: http://+:8080          # Kestrel still binds; the worker just isn't HTTP-routed
       - key: PLANSCAPE_ROLE
         value: worker
+      # REQUIRED on the worker too — the schema block in Program.cs (~line 1341)
+      # is NOT gated by `isWorker`, so both roles run it. Without this flag the
+      # worker (ASPNETCORE_ENVIRONMENT=Production ⇒ IsDevelopment() false) takes
+      # the db.Database.Migrate() branch, collides with the API's EnsureCreated
+      # schema on the non-idempotent 20260626203153_SustainabilitySnapshots
+      # CreateTable, and crash-loops. Keep in lockstep with planscape-api.
+      - key: PLANSCAPE_USE_ENSURE_CREATED
+        value: "true"
+      # Same shared secret as the API — the worker resolves handoff-provisioned
+      # identities in background jobs. See docs/PLANSCAPE_IDENTITY_HANDOFF.md.
+      - key: PLANSCAPE_HANDOFF_SECRET
+        sync: false
       - key: ConnectionStrings__Default
         fromDatabase:
           name: planscape-db
@@ -131,7 +154,9 @@ services:
     branch: main
     region: frankfurt
     plan: starter
-    healthCheckPath: /health
+    # NB: pserv (private service) types cannot carry healthCheckPath — the
+    # Blueprint validator rejects it. The sidecar still exposes /health for
+    # the API's own liveness probing over the private network.
     autoDeploy: true
     envVars:
       - key: PORT
@@ -173,10 +198,10 @@ services:
     image:
       url: docker.io/minio/minio:latest
     dockerCommand: server /data --console-address ":9001"
-    branch: main
     region: frankfurt
     plan: starter
-    healthCheckPath: /minio/health/live    # MinIO liveness (port 9000)
+    # (no healthCheckPath — pserv types cannot carry one; MinIO liveness is
+    # still available to peers at /minio/health/live on port 9000)
     disk:
       name: minio-data
       mountPath: /data
@@ -282,7 +307,10 @@ databases:
     databaseName: planscape
     user: planscape
     region: frankfurt
-    plan: starter               # £6/mo — 1GB storage, daily backups
+    # Render retired the legacy Postgres plan names (starter/standard/pro) —
+    # new databases must use the current instance types. basic-256mb is the
+    # ~£6/mo entry tier; move to basic-1gb when data outgrows it.
+    plan: basic-256mb
 
 # ── Indicative cost (Frankfurt starter tiers) ───────────────────────────────
 # api £6 + worker £6 + web £6 + converter £6 + redis ~£6 + minio £6 + 10GB disk

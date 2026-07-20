@@ -90,6 +90,39 @@ export function isBillingCycle(c: string): c is BillingCycle {
   return c === "monthly" || c === "annual";
 }
 
+// EU-27 member states (ISO 3166-1 alpha-2). Used only by currencyForCountry to
+// route eurozone + non-eurozone EU members to EUR billing on the Stripe rail.
+const EU_27 = new Set([
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+  "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
+  "SI", "ES", "SE",
+]);
+
+// Map an ISO 3166-1 alpha-2 country code to the billing currency a new tenant
+// from that country should transact in. This is the single source that turns a
+// signup's `country` into a payable currency, so its result MUST always route
+// to a provider (Stripe or Pesapal) — an unpayable currency would strand the
+// tenant. NG/ZA are intentionally billed in USD until NGN/ZAR are launched
+// (see the deferred note above); anything unknown falls back to USD.
+export function currencyForCountry(country: string | null | undefined): string {
+  const c = (country ?? "").toUpperCase();
+  let currency = "USD";
+  switch (c) {
+    case "UG": currency = "UGX"; break; // Pesapal
+    case "KE": currency = "KES"; break; // Pesapal
+    case "TZ": currency = "TZS"; break; // Pesapal
+    case "RW": currency = "RWF"; break; // Pesapal
+    case "GB": currency = "GBP"; break; // Stripe
+    default:
+      if (EU_27.has(c)) currency = "EUR"; // Stripe
+      // US / CA / AU / NG / ZA / unknown / null all fall through to USD.
+  }
+  // Invariant: never hand back a currency with no payment provider. If a future
+  // edit maps a country to an unsupported currency, degrade to USD rather than
+  // create a tenant that can never check out.
+  return providerForCurrency(currency) ? currency : "USD";
+}
+
 // Resolve a plan entry, or null if the product/tier pair is unknown.
 export function getPlan(product: string, tier: string): PlanEntry | null {
   if (!isProduct(product)) return null;

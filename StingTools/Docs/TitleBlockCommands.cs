@@ -1052,53 +1052,24 @@ namespace StingTools.Docs
             { TaskDialog.Show("STING Title Block", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .OrderBy(s => s.SheetNumber)
-                .ToList();
+            // Phase 195: this command is now a thin front-end over the single
+            // revision-sync engine, StingTools.Core.Drawing.TitleBlockRevisionSyncer.
+            // The tag "RevisionSync" and this class are retained for back-compat
+            // so both dock buttons ("Rev Sync" and "Sync Rev") do the same
+            // correct thing.
+            var result = StingTools.Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
 
-            int synced = 0, noRev = 0, noTb = 0;
-            using (var tx = new Transaction(doc, "STING Revision Sync"))
-            {
-                tx.Start();
-                foreach (var sheet in sheets)
-                {
-                    var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, sheet);
-                    if (tb == null) { noTb++; continue; }
-                    var revIds = sheet.GetAllRevisionIds();
-                    if (revIds == null || revIds.Count == 0) { noRev++; continue; }
-                    // Pick the most recent revision that is not yet Issued
-                    Revision chosen = null;
-                    foreach (var id in revIds)
-                    {
-                        if (doc.GetElement(id) is Revision r)
-                        {
-                            if (!r.Issued) { chosen = r; /* keep scanning; last non-issued wins */ }
-                            else if (chosen == null) chosen = r;
-                        }
-                    }
-                    if (chosen == null) { noRev++; continue; }
-                    string seq = (chosen.SequenceNumber > 0)
-                        ? chosen.SequenceNumber.ToString(CultureInfo.InvariantCulture)
-                        : (chosen.RevisionNumber ?? "");
-                    string rdate = chosen.RevisionDate ?? "";
-                    ParameterHelpers.SetString(tb, "PRJ_TB_REVISION_NR_TXT", seq, overwrite: true);
-                    ParameterHelpers.SetString(tb, "PRJ_TB_REVISION_DATE_TXT", rdate, overwrite: true);
-                    if (!string.IsNullOrEmpty(chosen.Description))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_ISSUE_SUMMARY,
-                            chosen.Description, overwrite: true);
-                    synced++;
-                }
-                tx.Commit();
-            }
+            string warn = result.Warnings.Count > 0
+                ? $"\n\nWarnings ({result.Warnings.Count}):\n  " +
+                  string.Join("\n  ", result.Warnings.Take(10))
+                : "";
 
-            StingLog.Info($"TB RevisionSync: {synced} synced, {noRev} no revision, {noTb} no TB");
             TaskDialog.Show("STING Revision Sync",
-                $"Synced {synced} sheet(s).\n" +
-                $"Skipped: {noRev} with no revision, {noTb} without a title block.\n\n" +
-                "Wrote PRJ_TB_REVISION_NR_TXT, PRJ_TB_REVISION_DATE_TXT, and PRJ_TB_ISSUE_SUMMARY_TXT.");
+                $"Synced {result.SheetsProcessed} sheet(s), {result.ParamsWritten} parameter(s) written.\n" +
+                $"Skipped: {result.SheetsSkipped}.\n\n" +
+                "Wrote SHT_REV_TXT / SHT_REV_DATE_TXT on sheets and\n" +
+                "PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT / PRJ_TB_ISSUE_SUMMARY_TXT\n" +
+                "on title blocks." + warn);
             return Result.Succeeded;
         }
     }

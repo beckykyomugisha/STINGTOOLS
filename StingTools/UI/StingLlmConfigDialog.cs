@@ -340,8 +340,9 @@ namespace StingTools.UI
             };
         }
 
-        /// <summary>Open the Copilot Settings dialog modally. Returns true when saved.</summary>
-        public static bool Show()
+        /// <summary>Open the Copilot Settings dialog modally. Returns true when saved.
+        /// Intentionally hides Window.Show() — this static helper is the only entry point.</summary>
+        public static new bool Show()
         {
             var dlg = new StingLlmConfigDialog();
             try { StingWindowHelper.ApplyOwner(dlg); } catch { /* owner is best-effort */ }

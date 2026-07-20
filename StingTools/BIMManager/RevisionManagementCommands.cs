@@ -63,6 +63,64 @@ namespace StingTools.BIMManager
             return max + 1;
         }
 
+        /// <summary>
+        /// Finds or creates the Revit RevisionNumberingSequence for the series
+        /// an ISO code belongs to ("P01" → the "STING P-series" sequence whose
+        /// values are P01…P99). Assigning a revision to that sequence makes
+        /// Revit's own RevisionNumber BE the ISO code — so native revision
+        /// schedules, Current Revision labels, and the title-block sync all
+        /// show "P01" instead of the internal "3", and the code no longer has
+        /// to be smuggled into the Description.
+        ///
+        /// Must be called inside an active Transaction. Returns
+        /// ElementId.InvalidElementId for codes with no numbered series
+        /// (status stamps, bare letters, plain numerics, bespoke codes) or on
+        /// any API failure — callers fall back to default numbering.
+        /// </summary>
+        internal static ElementId EnsureNumberingSequence(Document doc, string isoCode)
+        {
+            try
+            {
+                if (!Core.RevisionSeries.TryParseSeriesPrefix(isoCode, out string prefix, out string label))
+                    return ElementId.InvalidElementId;
+
+                string seqName = $"STING {prefix}-series ({label})";
+
+                var existing = new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevisionNumberingSequence))
+                    .Cast<RevisionNumberingSequence>()
+                    .FirstOrDefault(s => string.Equals(s.Name, seqName, StringComparison.OrdinalIgnoreCase));
+                if (existing != null) return existing.Id;
+
+                try
+                {
+                    var settings = new AlphanumericRevisionSettings();
+                    settings.SetSequence(Core.RevisionSeries.BuildSequenceCodes(prefix));
+                    var seq = RevisionNumberingSequence.CreateAlphanumericSequence(doc, seqName, settings);
+                    StingLog.Info($"RevisionEngine: created numbering sequence '{seqName}'");
+                    return seq?.Id ?? ElementId.InvalidElementId;
+                }
+                catch (Exception createEx)
+                {
+                    // Creation can fail if another session/path minted the same
+                    // sequence between our lookup and create (name-in-use), or
+                    // on a version-specific settings quirk. Re-search before
+                    // giving up so a survivable race still lands on the series.
+                    StingLog.Warn($"EnsureNumberingSequence create '{seqName}': {createEx.Message} — re-searching.");
+                    var retry = new FilteredElementCollector(doc)
+                        .OfClass(typeof(RevisionNumberingSequence))
+                        .Cast<RevisionNumberingSequence>()
+                        .FirstOrDefault(s => string.Equals(s.Name, seqName, StringComparison.OrdinalIgnoreCase));
+                    return retry?.Id ?? ElementId.InvalidElementId;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EnsureNumberingSequence('{isoCode}'): {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
         /// <summary>Get the revision data directory.</summary>
         internal static string GetRevisionDir(Document doc)
         {
@@ -362,17 +420,11 @@ namespace StingTools.BIMManager
         /// </summary>
         internal static string ValidateRevisionNumber(string revNum)
         {
-            if (string.IsNullOrWhiteSpace(revNum)) return "Revision number is empty";
-            revNum = revNum.Trim().ToUpper();
-            // P## pattern (preliminary)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^P\d{2}$")) return null;
-            // C## pattern (construction)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^C\d{2}$")) return null;
-            // Single letter A-Z (as-built)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^[A-Z]$")) return null;
-            // Numeric (legacy)
-            if (System.Text.RegularExpressions.Regex.IsMatch(revNum, @"^\d+$")) return null;
-            return $"Non-standard revision number '{revNum}'. Expected P01-P99, C01-C99, or A-Z.";
+            // Delegates to the canonical series table (StingTools.Core.RevisionSeries)
+            // so what the BCC Revisions dropdown offers is exactly what validates:
+            // all 9 series plus status stamps, single-letter as-built and legacy
+            // numeric codes.
+            return RevisionSeries.Validate(revNum);
         }
 
         /// <summary>
@@ -569,11 +621,16 @@ namespace StingTools.BIMManager
                 var doc = _ctx.Doc;
                 int nextSeq = RevisionEngine.GetNextRevisionSeq(doc);
 
-                // Parse params forwarded from BCC inline form: "CreateRevision|P01|M|Coordination update"
+                // Parse params forwarded from BCC inline form:
+                // "CreateRevision|P01|M|Coordination update|J. Approver"
                 // _pendingAction is set by CoordinationCenterCommands before invoking this command.
+                // Part 5 (Issued by) feeds Revision.IssuedBy — the "Issued by" column of the
+                // native revision schedules embedded in the title-block families. Falls back
+                // to the current Windows user so the column is never left blank.
                 string isoCode   = $"P{nextSeq:D2}";
                 string discipline = "ALL";
                 string userDesc   = "";
+                string issuedBy   = "";
                 try
                 {
                     string pending = CoordinationCenterCommands.BccPendingAction ?? "";
@@ -583,10 +640,12 @@ namespace StingTools.BIMManager
                         if (parts.Length >= 2 && !string.IsNullOrWhiteSpace(parts[1])) isoCode    = parts[1].Trim();
                         if (parts.Length >= 3 && !string.IsNullOrWhiteSpace(parts[2])) discipline = parts[2].Trim();
                         if (parts.Length >= 4 && !string.IsNullOrWhiteSpace(parts[3])) userDesc   = parts[3].Trim();
+                        if (parts.Length >= 5 && !string.IsNullOrWhiteSpace(parts[4])) issuedBy   = parts[4].Trim();
                         CoordinationCenterCommands.BccPendingAction = null;
                     }
                 }
                 catch (Exception pEx) { StingLog.Warn($"CreateRevision param parse: {pEx.Message}"); }
+                if (string.IsNullOrEmpty(issuedBy)) issuedBy = Environment.UserName;
 
                 // Phase 101: the stepped TaskDialog picker that used to live here
                 // has been removed — the BCC Revisions tab is now the only entry
@@ -616,6 +675,12 @@ namespace StingTools.BIMManager
                 string description = string.IsNullOrEmpty(userDesc)
                     ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
                     : $"{isoCode} \u2014 {userDesc}";
+                // When the ISO code maps to a numbered series, the code becomes
+                // the ACTUAL Revit revision number via a numbering sequence, so
+                // the description no longer needs the code smuggled in.
+                string plainDescription = string.IsNullOrEmpty(userDesc)
+                    ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
+                    : userDesc;
 
                 // Phase 103: the stepped Pre-Revision Compliance Gate TaskDialog
                 // has been REMOVED. Revit TaskDialogs parent to the main Revit
@@ -643,43 +708,61 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
 
-                // Phase 103: the stepped Pre-Revision Compliance Gate TaskDialog
-                // has been REMOVED. Revit TaskDialogs parent to the main Revit
-                // window, not to BCC, so they opened behind the coordination
-                // centre and broke the user's flow. The BCC Revisions tab now
-                // shows an inline compliance banner before the user clicks
-                // Create (with a checkbox "Create anyway if below threshold"),
-                // so the decision is made IN the inline panel with no popup.
-                //
-                // When this command is invoked with an ACK flag
-                // (UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck")
-                // == "true") we skip the gate entirely; otherwise we still
-                // emit a warning to the STING log for audit traceability.
-                try
-                {
-                    var preRevScan = ComplianceScan.Scan(doc);
-                    if (preRevScan.CompliancePercent < 80)
-                    {
-                        string ack = UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck") ?? "";
-                        StingLog.Warn(
-                            $"Pre-revision compliance gate: {preRevScan.CompliancePercent:F0}% " +
-                            $"(below 80%). Tagged={preRevScan.TaggedComplete} Untagged={preRevScan.Untagged} " +
-                            $"Stale={preRevScan.StaleCount}. User ack='{ack}'. Proceeding.");
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
-
-                // Take pre-revision snapshot
+                // Take the pre-revision snapshot now (it must capture the state
+                // BEFORE the revision exists) but save it after the transaction,
+                // when `prefix` holds the code the numbering sequence actually
+                // assigned — so the file label matches the revision (pre_rev_P02,
+                // not the picked-but-superseded P01).
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
-                RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
 
                 using (var tx = new Transaction(doc, "STING Create Revision"))
                 {
                     tx.Start();
 
                     var rev = Revision.Create(doc);
-                    rev.Description = description;
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+
+                    // ISO numbering: assign the revision to the series' numbering
+                    // sequence so Revit's RevisionNumber IS the ISO code ("P01"),
+                    // shown natively in revision schedules, Current Revision
+                    // labels and the title-block sync. Falls back to default
+                    // numbering (code embedded in the description) for status
+                    // stamps / bespoke codes / API failure.
+                    bool seqAssigned = false;
+                    var seqId = RevisionEngine.EnsureNumberingSequence(doc, isoCode);
+                    if (seqId != ElementId.InvalidElementId)
+                    {
+                        try
+                        {
+                            rev.RevisionNumberingSequenceId = seqId;
+                            seqAssigned = true;
+                        }
+                        catch (Exception seqEx) { StingLog.Warn($"CreateRevision sequence assign: {seqEx.Message}"); }
+                    }
+                    rev.Description = seqAssigned ? plainDescription : description;
+                    description = rev.Description;   // keep downstream (BOQ hook, notification, log) in sync
+
+                    // The sequence hands out the NEXT free code (first P-revision
+                    // gets P01, second P02) regardless of which preset the user
+                    // picked — read back the number Revit actually assigned so
+                    // everything downstream (element stamps, BOQ baseline,
+                    // notifications, issue cross-links) carries the real code.
+                    if (seqAssigned)
+                    {
+                        try
+                        {
+                            string assigned = rev.RevisionNumber;
+                            if (!string.IsNullOrWhiteSpace(assigned)) prefix = assigned;
+                        }
+                        catch (Exception numEx) { StingLog.Warn($"CreateRevision number readback: {numEx.Message}"); }
+                    }
+
+                    // Stamp the approver onto the Revision itself so the "Issued by"
+                    // column of the native title-block revision schedules populates.
+                    // Must happen while the revision is un-issued — Revit locks
+                    // revision properties once Issued = true.
+                    try { rev.IssuedBy = issuedBy; }
+                    catch (Exception ibEx) { StingLog.Warn($"CreateRevision IssuedBy stamp: {ibEx.Message}"); }
 
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
 
@@ -687,12 +770,15 @@ namespace StingTools.BIMManager
 
                     TaskDialog.Show("StingTools Revision",
                         $"Revision created successfully.\n\n" +
-                        $"Number: {prefix}\n" +
-                        $"Description: {description}\n" +
-                        $"Date: {rev.RevisionDate}\n\n" +
+                        $"Number: {prefix}" + (seqAssigned ? "  (native ISO numbering)" : "") + "\n" +
+                        $"Description: {rev.Description}\n" +
+                        $"Date: {rev.RevisionDate}\n" +
+                        $"Issued by: {issuedBy}\n\n" +
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
+
+                RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
 
                 // Phase 108k Item 3 — BOQ × BCC integration. Auto-save a BOQ
                 // snapshot labelled with the revision so every revision has a
@@ -749,76 +835,47 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception clEx) { StingLog.Warn($"CrossLinkEngine revision↔issue: {clEx.Message}"); }
 
-                // GAP-FIX: Auto-save warning baseline on revision creation
-                if (TagConfig.AutoSaveBaselineOnRevision)
+                // GAP-R9: OPT-IN blanket REV propagation. When
+                // TagConfig.PropagateRevOnCreate is true, ASS_REV_TXT on every tagged
+                // element is overwritten with the new revision code — i.e. REV is
+                // treated as a project-wide "current revision" mirror.
+                //
+                // Default is FALSE. The default semantics of REV are "the revision this
+                // element last CHANGED in", written per-element by
+                // RevisionEngine.StampAffectedElements and RevisionTagIntegrationCommand.
+                // Blanket propagation conflicts with that, and makes
+                // ComplianceScan.RevisionPercent trivially ~100%.
+                if (TagConfig.PropagateRevOnCreate)
                 {
                     try
                     {
-                        WarningsEngine.SaveExtendedBaseline(doc);
-                        StingLog.Info($"Auto-saved warning baseline on revision creation ({prefix})");
-                    }
-                    catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }
-                }
-
-                // GAP-R9: Auto-propagate new REV to all tagged elements
-                // so tags reflect the current revision immediately
-                try
-                {
-                    int revUpdated = 0;
-                    using (var revTx = new Transaction(doc, "STING Propagate REV"))
-                    {
-                        revTx.Start();
-                        var catEnums = SharedParamGuids.AllCategoryEnums;
-                        var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType();
-                        if (catEnums != null && catEnums.Length > 0)
-                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
-                        foreach (var el in allTagged)
+                        int revUpdated = 0;
+                        using (var revTx = new Transaction(doc, "STING Propagate REV"))
                         {
-                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            if (string.IsNullOrEmpty(tag1)) continue;
-                            if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
-                                revUpdated++;
+                            revTx.Start();
+                            var catEnums = SharedParamGuids.AllCategoryEnums;
+                            var allTagged = new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType();
+                            if (catEnums != null && catEnums.Length > 0)
+                                allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
+                            foreach (var el in allTagged)
+                            {
+                                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                if (string.IsNullOrEmpty(tag1)) continue;
+                                if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
+                                    revUpdated++;
+                            }
+                            revTx.Commit();
                         }
-                        revTx.Commit();
+                        StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
                     }
-                    StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
+                    catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
                 }
-                catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
 
                 // Invalidate compliance cache ONCE after all rev-related transactions
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
-
-                // GAP-R9: Auto-propagate new REV to all tagged elements
-                // so tags reflect the current revision immediately
-                try
-                {
-                    int revUpdated = 0;
-                    using (var revTx = new Transaction(doc, "STING Propagate REV"))
-                    {
-                        revTx.Start();
-                        var catEnums = SharedParamGuids.AllCategoryEnums;
-                        var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType();
-                        if (catEnums != null && catEnums.Length > 0)
-                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
-                        foreach (var el in allTagged)
-                        {
-                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            if (string.IsNullOrEmpty(tag1)) continue;
-                            if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
-                                revUpdated++;
-                        }
-                        revTx.Commit();
-                    }
-                    StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
-                }
-                catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
-
-                // Invalidate compliance cache ONCE after all rev-related transactions
-                ComplianceScan.InvalidateCache();
-                StingAutoTagger.InvalidateContext();
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
 
                 // NTF-03: Notify team that revision is open
                 try
@@ -855,26 +912,8 @@ namespace StingTools.BIMManager
         /// label — the full code still appears verbatim in the description.</summary>
         private static string InferSeriesName(string code)
         {
-            if (string.IsNullOrWhiteSpace(code)) return "Custom";
-            string c = code.Trim().ToUpperInvariant();
-            // Multi-character prefixes first (must match before single-letter checks).
-            if (c.StartsWith("CO")) return "Contract";
-            if (c.StartsWith("AB")) return "As-Built";
-            if (c.StartsWith("IF") || c == "WD" || c == "SS" || c == "OB") return "Status Stamp";
-            // Single-letter series.
-            switch (c[0])
-            {
-                case 'T': return "Tender";
-                case 'P': return "Preliminary";
-                case 'C': return "Construction";
-                case 'R': return "Revision";
-                case 'B': return "Building";
-                case 'D': return "Digital";
-                case 'A': return "Approved";
-            }
-            // Plain single-letter as-built codes (A–Z without suffix).
-            if (c.Length == 1 && c[0] >= 'A' && c[0] <= 'Z') return "As-Built";
-            return "Custom";
+            // Delegates to the canonical series table (StingTools.Core.RevisionSeries).
+            return RevisionSeries.InferSeriesName(code);
         }
     }
 
@@ -1494,13 +1533,42 @@ namespace StingTools.BIMManager
                     }
                 }
 
+                // BCC inline form: "IssueSheetsForRevision|A-001,A-100|2026-07-19|S1"
+                // — the sheets the user TICKED in the Issue Sheets panel. Those
+                // are issued in addition to sheets detected via revision clouds,
+                // so a cloud-less coordination issue still lands on the chosen
+                // sheets instead of reporting "0 sheets updated".
+                var pickedNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    string pending = CoordinationCenterCommands.BccPendingAction ?? "";
+                    if (pending.StartsWith("IssueSheetsForRevision|"))
+                    {
+                        var parts = pending.Split('|');
+                        if (parts.Length >= 2 && !string.IsNullOrWhiteSpace(parts[1]))
+                            foreach (var n in parts[1].Split(','))
+                                if (!string.IsNullOrWhiteSpace(n)) pickedNumbers.Add(n.Trim());
+                        // parts[2] (issue date) and parts[3] (suitability) are logged
+                        // for audit; the revision's own date remains authoritative.
+                        if (parts.Length >= 4)
+                            StingLog.Info($"IssueSheets BCC form: {pickedNumbers.Count} sheet(s) picked, date={parts[2]}, suitability={parts[3]}");
+                        CoordinationCenterCommands.BccPendingAction = null;
+                    }
+                }
+                catch (Exception pEx) { StingLog.Warn($"IssueSheets param parse: {pEx.Message}"); }
+
+                var targetSheetIds = new HashSet<ElementId>(sheetsWithClouds);
+                foreach (var sheet in sheets)
+                    if (pickedNumbers.Contains(sheet.SheetNumber ?? ""))
+                        targetSheetIds.Add(sheet.Id);
+
                 int sheetsIssued = 0;
                 using (var tx = new Transaction(doc, "STING Issue Sheets for Revision"))
                 {
                     tx.Start();
 
-                    // Add revision to sheets with clouds
-                    foreach (ElementId sheetId in sheetsWithClouds)
+                    // Add revision to sheets with clouds + sheets picked in the BCC form
+                    foreach (ElementId sheetId in targetSheetIds)
                     {
                         var sheet = doc.GetElement(sheetId) as ViewSheet;
                         if (sheet == null) continue;
@@ -1513,17 +1581,112 @@ namespace StingTools.BIMManager
                         }
                     }
 
+                    // Backfill the approver BEFORE marking issued — Revit locks
+                    // revision properties once Issued = true, and the "Issued by"
+                    // column of the native title-block revision schedules reads
+                    // this field. Existing values are respected.
+                    try
+                    {
+                        if (string.IsNullOrWhiteSpace(targetRev.IssuedBy))
+                            targetRev.IssuedBy = Environment.UserName;
+                    }
+                    catch (Exception ibEx) { StingLog.Warn($"IssueSheets IssuedBy stamp: {ibEx.Message}"); }
+
                     // Mark revision as issued
                     targetRev.Issued = true;
 
                     tx.Commit();
                 }
 
+                // Refresh title blocks at the exact moment sheets are issued, so
+                // the revision box on the drawing matches the issue without the
+                // user having to click "Rev Sync" separately.
+                string syncLine;
+                try
+                {
+                    var syncResult = Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
+                    syncLine = $"Title blocks synced: {syncResult.SheetsProcessed} sheet(s)";
+                    if (syncResult.Warnings.Count > 0)
+                        syncLine += $" ({syncResult.Warnings.Count} warning(s) — see log)";
+                }
+                catch (Exception syncEx)
+                {
+                    syncLine = "Title blocks synced: FAILED (see log)";
+                    StingLog.Warn($"Title block sync after issue: {syncEx.Message}");
+                }
+
+                // Roll the cycle over: an Issued revision is locked by Revit —
+                // no new clouds can be drawn against it. Opening the next DRAFT
+                // revision in the same numbering sequence means the team is
+                // never blocked from clouding the next round of changes.
+                // Disable with AUTO_NEXT_REVISION_ON_ISSUE = false in project_config.json.
+                string nextRevLine = "";
+                if (TagConfig.AutoNextRevisionOnIssue)
+                {
+                    // Only open a fresh draft when NONE remains — otherwise every
+                    // issue would pile up unused drafts. If drafts exist, point
+                    // the user at them instead.
+                    List<string> openDrafts = null;
+                    try
+                    {
+                        openDrafts = new FilteredElementCollector(doc)
+                            .OfClass(typeof(Revision))
+                            .Cast<Revision>()
+                            .Where(r => !r.Issued)
+                            .OrderBy(r => r.SequenceNumber)
+                            .Select(r =>
+                            {
+                                try { return string.IsNullOrWhiteSpace(r.RevisionNumber) ? $"Seq {r.SequenceNumber}" : r.RevisionNumber; }
+                                catch (Exception rnEx) { StingLog.Warn($"Draft number read: {rnEx.Message}"); return $"Seq {r.SequenceNumber}"; }
+                            })
+                            .ToList();
+                    }
+                    catch (Exception odEx) { StingLog.Warn($"Open-draft scan: {odEx.Message}"); }
+
+                    if (openDrafts != null && openDrafts.Count > 0)
+                    {
+                        nextRevLine = $"\nOpen draft(s) remain: {string.Join(", ", openDrafts)} — clouds go there.";
+                    }
+                    else
+                    try
+                    {
+                        using (var nx = new Transaction(doc, "STING Open Next Revision"))
+                        {
+                            nx.Start();
+                            var nextRev = Revision.Create(doc);
+                            try
+                            {
+                                if (targetRev.RevisionNumberingSequenceId != ElementId.InvalidElementId)
+                                    nextRev.RevisionNumberingSequenceId = targetRev.RevisionNumberingSequenceId;
+                            }
+                            catch (Exception sqEx) { StingLog.Warn($"Next revision sequence copy: {sqEx.Message}"); }
+                            nextRev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                            nextRev.Description = $"WIP — opened after issue of {revNum}";
+                            try { nextRev.IssuedBy = Environment.UserName; }
+                            catch (Exception nibEx) { StingLog.Warn($"Next revision IssuedBy: {nibEx.Message}"); }
+                            nx.Commit();
+
+                            string nextNum = "";
+                            try { nextNum = nextRev.RevisionNumber; } catch (Exception nnEx) { StingLog.Warn($"Next revision number read: {nnEx.Message}"); }
+                            nextRevLine = $"\nNext revision opened: {(string.IsNullOrEmpty(nextNum) ? $"Seq {nextRev.SequenceNumber}" : nextNum)} (draft — clouds go here now)";
+                            StingLog.Info($"IssueSheets: opened next revision {nextNum} after issuing {revNum}");
+                        }
+                    }
+                    catch (Exception nrEx)
+                    {
+                        StingLog.Warn($"Auto-open next revision: {nrEx.Message}");
+                    }
+                }
+
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
+
                 TaskDialog.Show("StingTools Issue Sheets",
                     $"Revision {revNum} issued.\n\n" +
+                    $"Sheets picked in BCC form: {pickedNumbers.Count}\n" +
                     $"Sheets with revision clouds: {sheetsWithClouds.Count}\n" +
                     $"Sheets updated: {sheetsIssued}\n" +
-                    $"Revision marked as Issued: Yes");
+                    $"Revision marked as Issued: Yes\n" +
+                    syncLine + nextRevLine);
 
                 StingLog.Info($"Revision {revNum} issued to {sheetsIssued} sheets");
 
@@ -1597,7 +1760,7 @@ namespace StingTools.BIMManager
                     .OrderBy(r => r.SequenceNumber)
                     .ToList();
 
-                int valid = 0, invalid = 0, fixed_ = 0;
+                int valid = 0, invalid = 0, fixed_ = 0, noIssuedBy = 0;
                 var issues = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING Revision Naming Enforcement"))
@@ -1605,6 +1768,19 @@ namespace StingTools.BIMManager
                     tx.Start();
                     foreach (var rev in revisions)
                     {
+                        // Audit: issued revisions with a blank "Issued by" leave the
+                        // approver column of native title-block revision schedules
+                        // empty, and the field is locked once Issued = true.
+                        try
+                        {
+                            if (rev.Issued && string.IsNullOrWhiteSpace(rev.IssuedBy))
+                            {
+                                noIssuedBy++;
+                                issues.Add($"Seq {rev.SequenceNumber}: issued with blank 'Issued by' — un-issue, fill it, re-issue.");
+                            }
+                        }
+                        catch (Exception ibEx) { StingLog.Warn($"IssuedBy audit: {ibEx.Message}"); }
+
                         string numStr = "";
                         try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                         string error = RevisionEngine.ValidateRevisionNumber(numStr);
@@ -1636,6 +1812,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"Total revisions: {revisions.Count}");
                 sb.AppendLine($"Valid naming: {valid}");
                 sb.AppendLine($"Invalid naming: {invalid}");
+                sb.AppendLine($"Issued with blank 'Issued by': {noIssuedBy}");
                 sb.AppendLine($"Auto-fixed descriptions: {fixed_}\n");
                 if (issues.Count > 0)
                 {
@@ -1643,13 +1820,13 @@ namespace StingTools.BIMManager
                     foreach (string issue in issues.Take(15))
                         sb.AppendLine($"  • {issue}");
                 }
-                sb.AppendLine("\nISO 19650 Naming Convention:");
-                sb.AppendLine("  P01-P99: Preliminary issues");
-                sb.AppendLine("  C01-C99: Construction issues");
-                sb.AppendLine("  A-Z: As-built issues");
+                sb.AppendLine("\nRecognised series (see RevisionSeries):");
+                sb.AppendLine("  T## Tender · P## Preliminary · Co## Contract · C## Construction");
+                sb.AppendLine("  R## Revision · B## Building · D## Digital · A1/A2 Approved · AB## As-Built");
+                sb.AppendLine("  A-Z single-letter as-built · IFC/IFA/IFR/IFT/IFP/IFI/IFPT/WD/SS/OB · numeric");
 
                 TaskDialog.Show("StingTools Revision Naming", sb.ToString());
-                StingLog.Info($"Revision naming audit: {valid} valid, {invalid} invalid, {fixed_} fixed");
+                StingLog.Info($"Revision naming audit: {valid} valid, {invalid} invalid, {fixed_} fixed, {noIssuedBy} blank IssuedBy");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -2128,6 +2305,22 @@ namespace StingTools.BIMManager
                     rev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
 
+                    // Auto-created revision: record who triggered it so the
+                    // "Issued by" column of native title-block revision
+                    // schedules is never blank.
+                    try { rev.IssuedBy = Environment.UserName; }
+                    catch (Exception ibEx) { StingLog.Warn($"AutoRevision IssuedBy stamp: {ibEx.Message}"); }
+
+                    // Same ISO numbering as CreateRevision — auto revisions join
+                    // the P-series sequence so their number reads "P0n" natively.
+                    try
+                    {
+                        var autoSeqId = RevisionEngine.EnsureNumberingSequence(doc, revCode);
+                        if (autoSeqId != ElementId.InvalidElementId)
+                            rev.RevisionNumberingSequenceId = autoSeqId;
+                    }
+                    catch (Exception sqEx) { StingLog.Warn($"AutoRevision sequence assign: {sqEx.Message}"); }
+
                     // Get the actual revision number assigned by Revit
                     try
                     {
@@ -2160,6 +2353,7 @@ namespace StingTools.BIMManager
                 // Invalidate compliance cache so dashboard shows fresh data
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
 
                 TaskDialog.Show("StingTools Auto Revision",
                     $"Auto-Revision Created!\n\n" +
@@ -2260,10 +2454,20 @@ namespace StingTools.BIMManager
                     using (var tx = new Transaction(doc, "STING Revision Approval"))
                     {
                         tx.Start();
+                        // Record the approver before Issued = true locks the
+                        // revision — feeds the "Issued by" column of native
+                        // title-block revision schedules. Existing values win.
+                        try
+                        {
+                            if (string.IsNullOrWhiteSpace(latest.IssuedBy))
+                                latest.IssuedBy = Environment.UserName;
+                        }
+                        catch (Exception ibEx) { StingLog.Warn($"Approval IssuedBy stamp: {ibEx.Message}"); }
                         latest.Issued = true;
                         tx.Commit();
                     }
 
+                    BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
                     TaskDialog.Show("Revision Approval",
                         $"Revision {latest.SequenceNumber} ({latest.Description}) marked as ISSUED.");
                     StingLog.Info($"Revision {latest.SequenceNumber} issued via approval workflow");
@@ -2276,8 +2480,11 @@ namespace StingTools.BIMManager
                         var newRev = Revision.Create(doc);
                         newRev.Description = $"Review — {DateTime.Now:yyyy-MM-dd}";
                         newRev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                        try { newRev.IssuedBy = Environment.UserName; }
+                        catch (Exception ibEx) { StingLog.Warn($"Review revision IssuedBy stamp: {ibEx.Message}"); }
                         tx.Commit();
 
+                        BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
                         TaskDialog.Show("Revision Approval",
                             $"Created review revision: Seq {newRev.SequenceNumber}");
                         StingLog.Info($"Review revision created: Seq {newRev.SequenceNumber}");
@@ -2637,6 +2844,497 @@ namespace StingTools.BIMManager
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+    }
+
+    /// <summary>
+    /// Purge Revisions (start afresh) — deletes ALL revision clouds and every
+    /// revision except one seed, clears revisions from all sheets, and re-syncs
+    /// title blocks. Intended for test/sandbox models; on production models the
+    /// typed-"PURGE" confirmation is the only thing between the user and their
+    /// revision history, so the gate is deliberately strict.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionPurgeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
+
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+                var cloudIds = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds()
+                    .ToList();
+
+                if (revisions.Count <= 1 && cloudIds.Count == 0)
+                {
+                    TaskDialog.Show("STING Purge Revisions",
+                        "Nothing to purge — the project already has at most the single seed revision and no clouds.");
+                    return Result.Succeeded;
+                }
+
+                if (!ConfirmPurge(revisions.Count, cloudIds.Count, out bool deleteSnapshots))
+                    return Result.Cancelled;
+
+                var keeper = revisions.First();   // Revit requires at least one revision
+                int revsDeleted = 0, sheetsCleared = 0;
+
+                using (var tx = new Transaction(doc, "STING Purge Revisions"))
+                {
+                    tx.Start();
+
+                    // 1. Un-issue everything — Issued revisions lock their clouds
+                    //    and properties, blocking every step below.
+                    foreach (var rev in revisions)
+                    {
+                        try { if (rev.Issued) rev.Issued = false; }
+                        catch (Exception unEx) { StingLog.Warn($"Purge un-issue seq {rev.SequenceNumber}: {unEx.Message}"); }
+                    }
+
+                    // 2. Delete every revision cloud.
+                    if (cloudIds.Count > 0)
+                    {
+                        try { doc.Delete(cloudIds); }
+                        catch (Exception clEx) { StingLog.Warn($"Purge cloud delete: {clEx.Message}"); }
+                    }
+
+                    // 3. Clear revisions off every sheet so the keeper does not
+                    //    linger on any title-block revision schedule.
+                    foreach (var sheet in new FilteredElementCollector(doc)
+                                 .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+                    {
+                        try
+                        {
+                            if (sheet.GetAdditionalRevisionIds().Count > 0)
+                            {
+                                sheet.SetAdditionalRevisionIds(new List<ElementId>());
+                                sheetsCleared++;
+                            }
+                        }
+                        catch (Exception shEx) { StingLog.Warn($"Purge sheet {sheet.SheetNumber}: {shEx.Message}"); }
+                    }
+
+                    // 4. Delete every revision except the seed.
+                    var deleteIds = revisions.Skip(1).Select(r => r.Id).ToList();
+                    if (deleteIds.Count > 0)
+                    {
+                        try { revsDeleted = doc.Delete(deleteIds).Count > 0 ? deleteIds.Count : 0; }
+                        catch (Exception rdEx) { StingLog.Warn($"Purge revision delete: {rdEx.Message}"); }
+                    }
+
+                    // 5. Reset the seed to a neutral state, off the STING series
+                    //    sequences so the next Create Revision starts at P01.
+                    try
+                    {
+                        keeper.Description  = "Revision 1";
+                        keeper.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                        try { keeper.IssuedBy = ""; } catch (Exception ibEx) { StingLog.Warn($"Purge seed IssuedBy: {ibEx.Message}"); }
+                        var defaultSeq = new FilteredElementCollector(doc)
+                            .OfClass(typeof(RevisionNumberingSequence))
+                            .Cast<RevisionNumberingSequence>()
+                            .FirstOrDefault(s => !(s.Name ?? "").StartsWith("STING", StringComparison.OrdinalIgnoreCase));
+                        if (defaultSeq != null && keeper.RevisionNumberingSequenceId != defaultSeq.Id)
+                            keeper.RevisionNumberingSequenceId = defaultSeq.Id;
+                    }
+                    catch (Exception kEx) { StingLog.Warn($"Purge seed reset: {kEx.Message}"); }
+
+                    tx.Commit();
+                }
+
+                // 6. Optionally clear the sidecar tag-snapshot history.
+                int snapshotsDeleted = 0;
+                if (deleteSnapshots)
+                {
+                    try
+                    {
+                        string dir = RevisionEngine.GetRevisionDir(doc);
+                        foreach (var f in Directory.GetFiles(dir, "snapshot_*.json"))
+                        {
+                            try { File.Delete(f); snapshotsDeleted++; }
+                            catch (Exception fEx) { StingLog.Warn($"Purge snapshot '{Path.GetFileName(f)}': {fEx.Message}"); }
+                        }
+                    }
+                    catch (Exception sdEx) { StingLog.Warn($"Purge snapshots: {sdEx.Message}"); }
+                }
+
+                // 7. Re-sync title blocks — with no revisions on any sheet this
+                //    clears the revision boxes and SHT_REV values.
+                string syncLine;
+                try
+                {
+                    var syncResult = Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
+                    syncLine = $"Title blocks re-synced: {syncResult.SheetsProcessed} sheet(s)";
+                }
+                catch (Exception syEx)
+                {
+                    syncLine = "Title block re-sync FAILED (see log)";
+                    StingLog.Warn($"Purge title-block sync: {syEx.Message}");
+                }
+
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
+
+                TaskDialog.Show("STING Purge Revisions",
+                    $"Purge complete.\n\n" +
+                    $"Clouds deleted: {cloudIds.Count}\n" +
+                    $"Revisions deleted: {revsDeleted}\n" +
+                    $"Sheets cleared: {sheetsCleared}\n" +
+                    (deleteSnapshots ? $"Snapshots deleted: {snapshotsDeleted}\n" : "") +
+                    $"Seed kept: Seq {keeper.SequenceNumber} — \"{keeper.Description}\"\n" +
+                    syncLine + "\n\n" +
+                    "The next Create Revision starts the series fresh (P01 …).");
+
+                StingLog.Info($"RevisionPurge: {cloudIds.Count} clouds, {revsDeleted} revisions, " +
+                    $"{sheetsCleared} sheets cleared, {snapshotsDeleted} snapshots deleted");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionPurgeCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        // Typed-confirmation gate: OK stays disabled until the user types PURGE.
+        internal static bool ConfirmPurge(int revisionCount, int cloudCount, out bool deleteSnapshots)
+        {
+            deleteSnapshots = false;
+            bool confirmed = false;
+
+            var win = new System.Windows.Window
+            {
+                Title = "STING — Purge Revisions",
+                Width = 480,
+                SizeToContent = System.Windows.SizeToContent.Height,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize
+            };
+            try
+            {
+                new System.Windows.Interop.WindowInteropHelper(win).Owner =
+                    System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ownEx) { StingLog.Warn($"Purge dialog owner: {ownEx.Message}"); }
+
+            var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+            stack.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = $"This will DELETE {cloudCount} revision cloud(s) and " +
+                       $"{Math.Max(0, revisionCount - 1)} of {revisionCount} revision(s) " +
+                       "(one seed is kept — Revit requires it), clear revisions from every sheet, " +
+                       "and re-sync all title blocks.\n\n" +
+                       "This cannot be undone from this dialog. Intended for test / sandbox models.",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            });
+            var snapChk = new System.Windows.Controls.CheckBox
+            {
+                Content = "Also delete tag-snapshot history (_BIM_COORD/Revisions/snapshot_*.json)",
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            };
+            stack.Children.Add(snapChk);
+            stack.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Type PURGE to confirm:",
+                FontWeight = System.Windows.FontWeights.SemiBold
+            });
+            var confirmBox = new System.Windows.Controls.TextBox
+            {
+                Margin = new System.Windows.Thickness(0, 4, 0, 12),
+                FontSize = 14
+            };
+            stack.Children.Add(confirmBox);
+
+            var btnRow = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            var okBtn = new System.Windows.Controls.Button
+            {
+                Content = "Purge", Width = 90, Height = 28, IsEnabled = false,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            var cancelBtn = new System.Windows.Controls.Button { Content = "Cancel", Width = 90, Height = 28 };
+            confirmBox.TextChanged += (s, e) =>
+                okBtn.IsEnabled = string.Equals(confirmBox.Text?.Trim(), "PURGE", StringComparison.Ordinal);
+            okBtn.Click += (s, e) => { confirmed = true; win.Close(); };
+            cancelBtn.Click += (s, e) => { win.Close(); };
+            btnRow.Children.Add(okBtn);
+            btnRow.Children.Add(cancelBtn);
+            stack.Children.Add(btnRow);
+
+            win.Content = stack;
+            win.ShowDialog();
+
+            deleteSnapshots = confirmed && snapChk.IsChecked == true;
+            return confirmed;
+        }
+    }
+
+    /// <summary>
+    /// Delete Revision(s) — targeted removal of ONE or more chosen revisions:
+    /// un-issues them, deletes their clouds, removes them from every sheet,
+    /// then deletes the revision elements. Invoked either from the BCC
+    /// register's right-click ("Delete This Revision" → ExtraParam
+    /// "DeleteRevisionId") or bare, which opens a multi-select picker.
+    /// Revit requires at least one revision in the project — deleting ALL of
+    /// them is blocked (use Purge Revisions, which keeps a seed).
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionDeleteCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
+
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+                if (revisions.Count == 0)
+                {
+                    TaskDialog.Show("STING Delete Revision", "No revisions in the project.");
+                    return Result.Succeeded;
+                }
+
+                // Cloud counts per revision — shown in the picker and used for deletion.
+                var cloudsByRev = new Dictionary<ElementId, List<ElementId>>();
+                foreach (var cl in new FilteredElementCollector(doc)
+                             .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                             .WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        var rid = cl.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
+                        if (rid == null || rid == ElementId.InvalidElementId) continue;
+                        if (!cloudsByRev.TryGetValue(rid, out var list))
+                            cloudsByRev[rid] = list = new List<ElementId>();
+                        list.Add(cl.Id);
+                    }
+                    catch (Exception cEx) { StingLog.Warn($"Delete revision cloud scan: {cEx.Message}"); }
+                }
+
+                // Target selection: BCC context menu passes the element id via
+                // ExtraParam; a bare invocation opens the multi-select picker.
+                var targets = new List<Revision>();
+                string idParam = UI.StingCommandHandler.GetExtraParam("DeleteRevisionId") ?? "";
+                UI.StingCommandHandler.SetExtraParam("DeleteRevisionId", "");
+                if (long.TryParse(idParam, out long revIdVal))
+                {
+                    var hit = revisions.FirstOrDefault(r => r.Id.Value == revIdVal);
+                    if (hit != null) targets.Add(hit);
+                }
+                if (targets.Count == 0)
+                {
+                    targets = PickRevisions(revisions, cloudsByRev);
+                    if (targets.Count == 0) return Result.Cancelled;
+                }
+
+                if (targets.Count >= revisions.Count)
+                {
+                    TaskDialog.Show("STING Delete Revision",
+                        "Revit requires at least one revision in the project — deselect one,\n" +
+                        "or use ⚠ Purge Revisions, which keeps a clean seed automatically.");
+                    return Result.Cancelled;
+                }
+
+                int cloudTotal = targets.Sum(t => cloudsByRev.TryGetValue(t.Id, out var l) ? l.Count : 0);
+                var confirm = new TaskDialog("STING Delete Revision")
+                {
+                    MainInstruction = $"Delete {targets.Count} revision(s)?",
+                    MainContent = string.Join("\n", targets.Select(t =>
+                        {
+                            string n = ""; try { n = t.RevisionNumber; } catch (Exception nEx) { StingLog.Warn($"Rev number read: {nEx.Message}"); }
+                            int cc = cloudsByRev.TryGetValue(t.Id, out var l) ? l.Count : 0;
+                            return $"  • Seq {t.SequenceNumber} [{n}] {t.Description} — {(t.Issued ? "ISSUED" : "draft")}, {cc} cloud(s)";
+                        })) +
+                        $"\n\nTheir {cloudTotal} revision cloud(s) are deleted with them and the revisions\n" +
+                        "are removed from every sheet. This cannot be undone from this dialog.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No
+                };
+                if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+                var targetIds = new HashSet<ElementId>(targets.Select(t => t.Id));
+                int sheetsTouched = 0, revsDeleted = 0;
+
+                using (var tx = new Transaction(doc, "STING Delete Revision(s)"))
+                {
+                    tx.Start();
+
+                    // 1. Un-issue — issued revisions lock their clouds and membership.
+                    foreach (var rev in targets)
+                    {
+                        try { if (rev.Issued) rev.Issued = false; }
+                        catch (Exception unEx) { StingLog.Warn($"Delete un-issue seq {rev.SequenceNumber}: {unEx.Message}"); }
+                    }
+
+                    // 2. Delete their clouds.
+                    var cloudIds = targets
+                        .Where(t => cloudsByRev.ContainsKey(t.Id))
+                        .SelectMany(t => cloudsByRev[t.Id])
+                        .ToList();
+                    if (cloudIds.Count > 0)
+                    {
+                        try { doc.Delete(cloudIds); }
+                        catch (Exception clEx) { StingLog.Warn($"Delete clouds: {clEx.Message}"); }
+                    }
+
+                    // 3. Remove the targets from every sheet's revision list.
+                    foreach (var sheet in new FilteredElementCollector(doc)
+                                 .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+                    {
+                        try
+                        {
+                            var addl = sheet.GetAdditionalRevisionIds().ToList();
+                            var kept = addl.Where(id => !targetIds.Contains(id)).ToList();
+                            if (kept.Count != addl.Count)
+                            {
+                                sheet.SetAdditionalRevisionIds(kept);
+                                sheetsTouched++;
+                            }
+                        }
+                        catch (Exception shEx) { StingLog.Warn($"Delete sheet {sheet.SheetNumber}: {shEx.Message}"); }
+                    }
+
+                    // 4. Delete the revision elements themselves.
+                    try
+                    {
+                        doc.Delete(targetIds.ToList());
+                        revsDeleted = targetIds.Count;
+                    }
+                    catch (Exception rdEx) { StingLog.Warn($"Delete revisions: {rdEx.Message}"); }
+
+                    tx.Commit();
+                }
+
+                // 5. Re-sync so title-block boxes reflect what remains.
+                string syncLine;
+                try
+                {
+                    var syncResult = Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
+                    syncLine = $"Title blocks re-synced: {syncResult.SheetsProcessed} sheet(s)";
+                }
+                catch (Exception syEx)
+                {
+                    syncLine = "Title block re-sync FAILED (see log)";
+                    StingLog.Warn($"Delete revision sync: {syEx.Message}");
+                }
+
+                BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
+
+                TaskDialog.Show("STING Delete Revision",
+                    $"Deleted {revsDeleted} revision(s) and {cloudTotal} cloud(s).\n" +
+                    $"Sheets updated: {sheetsTouched}\n" +
+                    syncLine);
+                StingLog.Info($"RevisionDelete: {revsDeleted} revisions, {cloudTotal} clouds, {sheetsTouched} sheets");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionDeleteCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        // Multi-select picker: one checkbox per revision, newest first.
+        private static List<Revision> PickRevisions(List<Revision> revisions,
+            Dictionary<ElementId, List<ElementId>> cloudsByRev)
+        {
+            var picked = new List<Revision>();
+            bool confirmed = false;
+
+            var win = new System.Windows.Window
+            {
+                Title = "STING — Delete Revision(s)",
+                Width = 520,
+                SizeToContent = System.Windows.SizeToContent.Height,
+                MaxHeight = 560,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize
+            };
+            try
+            {
+                new System.Windows.Interop.WindowInteropHelper(win).Owner =
+                    System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ownEx) { StingLog.Warn($"Delete dialog owner: {ownEx.Message}"); }
+
+            var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+            stack.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Tick the revision(s) to delete. Their clouds are deleted with them and " +
+                       "they are removed from every sheet. At least one revision must remain.",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Margin = new System.Windows.Thickness(0, 0, 0, 10)
+            });
+
+            var listPanel = new System.Windows.Controls.StackPanel();
+            var checkByRev = new Dictionary<System.Windows.Controls.CheckBox, Revision>();
+            foreach (var rev in revisions.OrderByDescending(r => r.SequenceNumber))
+            {
+                string n = ""; try { n = rev.RevisionNumber; } catch (Exception nEx) { StingLog.Warn($"Rev number read: {nEx.Message}"); }
+                int cc = cloudsByRev.TryGetValue(rev.Id, out var l) ? l.Count : 0;
+                var chk = new System.Windows.Controls.CheckBox
+                {
+                    Content = $"Seq {rev.SequenceNumber}  [{n}]  {rev.Description}  — {(rev.Issued ? "ISSUED" : "draft")}, {cc} cloud(s)",
+                    Margin = new System.Windows.Thickness(0, 2, 0, 2)
+                };
+                checkByRev[chk] = rev;
+                listPanel.Children.Add(chk);
+            }
+            stack.Children.Add(new System.Windows.Controls.ScrollViewer
+            {
+                Content = listPanel,
+                MaxHeight = 340,
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            });
+
+            var btnRow = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            var okBtn = new System.Windows.Controls.Button
+            {
+                Content = "Delete Selected", Width = 120, Height = 28,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            var cancelBtn = new System.Windows.Controls.Button { Content = "Cancel", Width = 90, Height = 28 };
+            okBtn.Click += (s, e) => { confirmed = true; win.Close(); };
+            cancelBtn.Click += (s, e) => { win.Close(); };
+            btnRow.Children.Add(okBtn);
+            btnRow.Children.Add(cancelBtn);
+            stack.Children.Add(btnRow);
+
+            win.Content = stack;
+            win.ShowDialog();
+
+            if (confirmed)
+                foreach (var kv in checkByRev)
+                    if (kv.Key.IsChecked == true)
+                        picked.Add(kv.Value);
+            return picked;
         }
     }
 }

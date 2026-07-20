@@ -359,3 +359,32 @@ CREATE INDEX        IF NOT EXISTS idx_discount_active   ON discount_codes(active
 -- Step 3 — (re-)apply this schema file; idx_subs_provider_unique now creates:
 --   cd marketing-site && npm run schema:remote
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Issued plugin licences (self-serve licence automation).
+--
+-- The STING Tools licence is verified entirely offline by the plugin: a signed
+-- payload bound to one machine fingerprint, with an expiry. There is no
+-- call-home, so once issued a licence cannot be revoked remotely — it simply
+-- expires. That makes the seat check at ISSUE time the only enforcement point,
+-- which is why we record every machine we have licensed.
+--
+-- One row per (tenant, machine_code). Re-issuing for a machine we have already
+-- licensed updates the row and does NOT consume another seat, so a user who
+-- reinstalls or loses their .lic file is not punished for it.
+CREATE TABLE IF NOT EXISTS licenses (
+  id            TEXT    PRIMARY KEY,            -- uuid v4, also the licenseId in the payload
+  tenant_id     TEXT    NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id       TEXT,                           -- who requested it (audit only)
+  machine_code  TEXT    NOT NULL,               -- e.g. ADD3-E01C-3412-14C8-175E
+  licensee      TEXT    NOT NULL,               -- shown in the plugin's About box
+  issued_at     TEXT    NOT NULL,               -- ISO 8601 UTC
+  expires_at    TEXT    NOT NULL,               -- ISO 8601 UTC
+  revoked_at    TEXT,                           -- set to stop it counting against seats
+  created_at    TEXT    NOT NULL,
+  updated_at    TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_tenant_machine
+  ON licenses(tenant_id, machine_code);
+CREATE INDEX IF NOT EXISTS idx_licenses_tenant ON licenses(tenant_id);

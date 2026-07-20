@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import time
+from . import hot_folder
 from pathlib import Path
 from threading import Thread
 from typing import Callable
@@ -151,6 +152,7 @@ class IFCDropHandler:
         sync_payloads = []
         token_map: dict[str, dict] = {}  # guid → tokens (for write-back)
 
+        rows: list[tuple[dict, dict]] = []
         for el in elements:
             tokens = map_element_to_tokens(
                 element_type=el["ifc_type"],
@@ -159,6 +161,22 @@ class IFCDropHandler:
                 storey_elevation_m=el["storey_elevation_m"],
                 library_part_name=el.get("type_name", ""),
             )
+            rows.append((el, tokens))
+
+        # SB-2 — mint the 8th tag segment from the server's per-key counters,
+        # in one batched call for the whole file. Elements that already carry a
+        # SEQ are skipped, so re-dropping the same IFC neither renumbers them
+        # nor consumes counter values. If the server cannot reserve, tags stay
+        # 7-segment rather than the file failing to process.
+        from ..sync.seq_minter import assign_sequences
+        try:
+            minted = assign_sequences(self._ps, [t for _, t in rows])
+            if minted:
+                self._emit(f"Minted {minted} SEQ number(s)")
+        except Exception as e:  # noqa: BLE001 — numbering must never fail an ingest
+            self._emit(f"SEQ minting skipped: {e}")
+
+        for el, tokens in rows:
             is_complete = bool(
                 tokens.get("disc") and tokens.get("lvl") and
                 tokens.get("sys") and tokens.get("prod")
@@ -498,9 +516,13 @@ def _find_ifc_convert() -> str | None:
 class _IFCEventHandler:
     """watchdog FileSystemEventHandler that debounces IFC file events."""
 
-    def __init__(self, handler: IFCDropHandler, debounce_s: float = 3.0):
+    def __init__(self, handler: IFCDropHandler, debounce_s: float = 3.0,
+                 drop_root: Path | None = None):
         self._handler = handler
         self._debounce = debounce_s
+        # When set, files move through processing/ -> done/|failed/ (SB-4).
+        # None keeps the legacy in-place behaviour for one-off processing.
+        self._drop_root = drop_root
         self._pending: dict[str, float] = {}
         self._lock = __import__("threading").Lock()
         self._thread: Thread | None = None
@@ -511,9 +533,20 @@ class _IFCEventHandler:
         if getattr(event, "is_directory", False):
             return
         src = getattr(event, "src_path", "")
-        if src.lower().endswith(".ifc") and "_sting" not in Path(src).stem:
-            with self._lock:
-                self._pending[src] = time.monotonic()
+        if not src.lower().endswith(".ifc"):
+            return
+        if "_sting" in Path(src).stem:
+            return  # our own output
+        if self._drop_root is not None and hot_folder.is_in_managed_subfolder(
+                Path(src), self._drop_root):
+            return  # already claimed, archived, or failed
+        with self._lock:
+            self._pending[src] = time.monotonic()
+
+    def enqueue(self, path: str) -> None:
+        """Queue a path directly (start-up sweep), bypassing watchdog."""
+        with self._lock:
+            self._pending.setdefault(path, time.monotonic())
 
     def start_drainer(self) -> None:
         self._running = True
@@ -531,12 +564,64 @@ class _IFCEventHandler:
                 for path in ready:
                     del self._pending[path]
             for path in ready:
-                try:
-                    result = self._handler.process(path)
-                    _save_result(path, result)
-                except Exception as exc:
-                    log.exception("IFC processing failed for %s: %s", path, exc)
+                self._process_one(Path(path))
             time.sleep(0.5)
+
+    def _process_one(self, src: Path) -> None:
+        """Run one file through the processing/ -> done/|failed/ lifecycle.
+
+        SB-4 — this mirrors StingBridge/src/IFC/IfcDropWatcher.cs so both
+        watchers leave the same folder in the same state. Claiming into
+        processing/ first is what makes "still outstanding" answerable and stops
+        a re-run reprocessing everything.
+        """
+        root = self._drop_root
+        if root is None:
+            # No managed root (single-file `process-ifc`): keep the old
+            # in-place behaviour, sidecar included.
+            try:
+                result = self._handler.process(str(src))
+                _save_result(str(src), result)
+            except Exception as exc:
+                log.exception("IFC processing failed for %s: %s", src, exc)
+            return
+
+        claimed = hot_folder.claim(src, root)
+        if claimed is None:
+            return  # someone else owns it, or it vanished
+
+        try:
+            result = self._handler.process(str(claimed))
+            _save_result(str(claimed), result)
+            if _is_failure(result):
+                # process() reports parse/sync failures in result["errors"]
+                # rather than raising, so routing on exceptions alone would
+                # archive an unopenable file as a success.
+                hot_folder.fail(claimed, root, "; ".join(result.get("errors") or []))
+            else:
+                hot_folder.complete(claimed, root)
+        except Exception as exc:
+            log.exception("IFC processing failed for %s: %s", claimed.name, exc)
+            try:
+                hot_folder.fail(claimed, root, f"{type(exc).__name__}: {exc}")
+            except OSError as move_exc:
+                # Leave it in processing/ — recover_orphans will return it to the
+                # root on the next start rather than the file being lost.
+                log.error("Could not move %s to failed/: %s", claimed.name, move_exc)
+
+
+def _is_failure(result: dict) -> bool:
+    """True when a drop produced nothing usable and should land in failed/.
+
+    The bar is "errors AND nothing synced": a file that yielded elements is a
+    successful drop even if something secondary (write-back, GLB conversion)
+    complained — the sidecar records those. A file that parsed to nothing, or
+    whose elements were all rejected, is a failure the operator needs to see
+    in failed/ rather than buried in a done/ sidecar.
+    """
+    if not (result.get("errors") or []):
+        return False
+    return int(result.get("synced") or 0) == 0
 
 
 def _save_result(ifc_path: str, result: dict) -> None:
@@ -566,21 +651,35 @@ def watch_drop_folder(
         raise RuntimeError("watchdog is not installed. Run: pip install watchdog")
 
     _patch_ifcopenshell_del()  # suppress upstream __del__ KeyError before any model opens
+    drop_path = Path(drop_dir)
+    hot_folder.ensure_layout(drop_path)
+    # A run killed mid-file leaves that file invisible to every future run:
+    # gone from the root, and nothing moves it out of processing/.
+    recovered = hot_folder.recover_orphans(drop_path)
+    if recovered and on_progress:
+        on_progress(f"Recovered {recovered} file(s) left in processing/ by a previous run")
+
     handler = IFCDropHandler(planscape_client, config, on_progress)
-    ev_handler = _IFCEventHandler(handler)
+    ev_handler = _IFCEventHandler(handler, drop_root=drop_path)
 
     # Make watchdog call our dispatch method
     class _Adapter(FileSystemEventHandler):
         def dispatch(self, event):
             ev_handler.dispatch(event)
 
-    drop_path = Path(drop_dir)
-    drop_path.mkdir(parents=True, exist_ok=True)
-
     observer = Observer()
     observer.schedule(_Adapter(), str(drop_path), recursive=False)
     observer.start()
     ev_handler.start_drainer()
+
+    # Sweep files that were already sitting in the root — dropped while the
+    # watcher was down, or present before it started. watchdog only reports
+    # *events*, so without this they would wait for someone to touch them again.
+    # Safe now that processed files move out of the root (SB-4): before that,
+    # a start-up sweep would have reprocessed the entire folder every run.
+    for existing in sorted(drop_path.glob("*.ifc")):
+        if existing.is_file() and "_sting" not in existing.stem:
+            ev_handler.enqueue(str(existing))
 
     log.info("Watching for IFC files in: %s", drop_path)
     if on_progress:

@@ -367,7 +367,9 @@ namespace StingTools.Core
             "AuditTagsCSV", "ModelHealthDashboard", "FullComplianceDashboard", "ExportModelHealth",
             "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
             "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
-            "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp",
+            "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp", "RevisionSync",
+            "RevisionApprovalWorkflow", "RevisionDistribution", "Revision_CloudAudit", "Revision_Purge",
+            "Revision_Delete",
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
@@ -1691,6 +1693,10 @@ namespace StingTools.Core
                 case "AutoPopulate": return new Temp.AutoPopulateCommand();
                 case "CombineParameters": return new Tags.CombineParametersCommand();
                 case "RetagStale": return new Organise.RetagStaleCommand();
+                case "SelectStaleFlagged": return new Select.SelectStaleFlaggedCommand();
+                case "HighlightStale": return new Select.HighlightStaleCommand();
+                case "ClearStaleHighlight": return new Select.ClearStaleHighlightCommand();
+                case "StaleCountAction": return new Select.StaleCountActionCommand();
                 case "AnomalyAutoFix": return new Organise.AnomalyAutoFixCommand();
                 case "ResolveAllIssues": return new Tags.ResolveAllIssuesCommand();
                 case "SmartPlaceTags": return new Tags.SmartPlaceTagsCommand();
@@ -1772,6 +1778,12 @@ namespace StingTools.Core
                 case "RevisionCompare":         return new BIMManager.RevisionCompareCommand();
                 case "TrackElementRevisions":   return new BIMManager.TrackElementRevisionsCommand();
                 case "IssueSheetsForRevision":  return new BIMManager.IssueSheetsForRevisionCommand();
+                case "RevisionSync":            return new Docs.RevisionSyncCommand();
+                case "RevisionApprovalWorkflow": return new BIMManager.RevisionApprovalWorkflowCommand();
+                case "RevisionDistribution":    return new BIMManager.RevisionDistributionCommand();
+                case "Revision_CloudAudit":     return new BIMManager.RevisionCloudAuditCommand();
+                case "Revision_Purge":          return new BIMManager.RevisionPurgeCommand();
+                case "Revision_Delete":         return new BIMManager.RevisionDeleteCommand();
                 case "RevisionNamingEnforce":   return new BIMManager.RevisionNamingEnforceCommand();
                 case "BulkRevisionStamp":       return new BIMManager.BulkRevisionStampCommand();
                 case "PlatformSync":            return new BIMManager.PlatformSyncCommand();
@@ -2072,6 +2084,10 @@ namespace StingTools.Core
                 case "Sustain_EpdRegister":    return new Commands.Sustainability.SustainEpdAssignCommand();   // friendly alias
                 case "Sustain_LeedScorecard":  return new Commands.Sustainability.SustainLeedScorecardCommand();
                 case "Sustain_Scorecard":      return new Commands.Sustainability.SustainLeedScorecardCommand(); // friendly alias
+
+                // Phase 195 — Universal Tag: refresh the stamped status gates
+                // (data + QA) so QA workflows never surface stale badges.
+                case "Gate_StampStatus":       return new Commands.TagStudio.StampGateStatusCommand();
 
                 default: return null;
             }

@@ -1,0 +1,4886 @@
+{
+ "ARCH/Architectural Column": {
+  "bundle": "ARCH",
+  "family": "Architectural Column",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_STRUCT_COLUMN_SZ_TXT",
+   "BLE_COLUMN_SLENDERNESS",
+   "BLE_MATERIAL_TXT",
+   "BLE_FINISH_TXT",
+   "PER_FIRE_RATING_HR",
+   "ASS_GRID_REF_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_STRUCT_COLUMN_SZ_TXT",
+   "BLE_COLUMN_SLENDERNESS",
+   "BLE_MATERIAL_TXT",
+   "BLE_FINISH_TXT",
+   "PER_FIRE_RATING_HR",
+   "ARCH_TAG_7_PARA_COLUMNS_TXT",
+   "ASS_GRID_REF_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Architectural Sheet": {
+  "bundle": "ARCH",
+  "family": "Architectural Sheet",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_NUMBER_TXT",
+   "SHT_NAME_TXT",
+   "SHT_TAG_7_TXT"
+  ],
+  "full_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_NUMBER_TXT",
+   "SHT_NAME_TXT",
+   "SHT_TAG_7_TXT"
+  ]
+ },
+ "ARCH/Areas": {
+  "bundle": "ARCH",
+  "family": "Areas",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+   "ARCH_TAG_7_PARA_ROOM_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "ARCH/Casework": {
+  "bundle": "ARCH",
+  "family": "Casework",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_CASEWORK_TYPE_TXT",
+   "BLE_CASEWORK_MATERIAL_TXT",
+   "BLE_CASEWORK_COUNTERTOP_TXT",
+   "BLE_CASEWORK_HARDWARE_TXT",
+   "BLE_CASEWORK_ACCESSIBLE_BOOL",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_CASEWORK_TYPE_TXT",
+   "BLE_CASEWORK_MATERIAL_TXT",
+   "BLE_CASEWORK_COUNTERTOP_TXT",
+   "ARCH_TAG_7_PARA_CASEWORK_TXT",
+   "BLE_CASEWORK_HARDWARE_TXT",
+   "BLE_CASEWORK_ACCESSIBLE_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Ceiling": {
+  "bundle": "ARCH",
+  "family": "Ceiling",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_CEILING_TYPE_CLASSIFICATION_TXT",
+   "BLE_CEILING_HEIGHT_MM",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR",
+   "BLE_WALL_INTERIOR_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_CEILING_TYPE_CLASSIFICATION_TXT",
+   "BLE_CEILING_HEIGHT_MM",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR",
+   "BLE_WALL_INTERIOR_FINISH_TXT",
+   "ARCH_TAG_7_PARA_CEIL_TXT",
+   "BLE_CEILING_MAT_TXT",
+   "BLE_CEILING_GRID_TXT",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Curtain Panel": {
+  "bundle": "ARCH",
+  "family": "Curtain Panel",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_PANEL_WIDTH_MM",
+   "BLE_PANEL_HEIGHT_MM",
+   "PER_THERM_U_VALUE_W_M2K",
+   "BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR",
+   "BLE_PANEL_GLASS_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_PANEL_WIDTH_MM",
+   "BLE_PANEL_HEIGHT_MM",
+   "PER_THERM_U_VALUE_W_M2K",
+   "BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR",
+   "ARCH_TAG_7_PARA_CURTAIN_TXT",
+   "BLE_PANEL_GLASS_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ARC_FACTORY_ORDER_REF_TXT",
+   "ARC_GLAZING_SPEC_TXT",
+   "ASS_WARRANTY_DURATION_PARTS_YRS"
+  ]
+ },
+ "ARCH/Curtain Wall Mullion": {
+  "bundle": "ARCH",
+  "family": "Curtain Wall Mullion",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_MULLION_DEPTH_MM",
+   "BLE_MULLION_MATERIAL_TXT",
+   "BLE_MULLION_FINISH_TXT",
+   "BLE_PANEL_GLASS_TYPE_TXT",
+   "BLE_PANEL_HEIGHT_MM",
+   "BLE_PANEL_WIDTH_MM",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_MULLION_DEPTH_MM",
+   "BLE_MULLION_MATERIAL_TXT",
+   "BLE_MULLION_FINISH_TXT",
+   "BLE_PANEL_GLASS_TYPE_TXT",
+   "BLE_PANEL_HEIGHT_MM",
+   "BLE_PANEL_WIDTH_MM",
+   "ARCH_TAG_7_PARA_MULLION_TXT",
+   "PER_THERM_U_VALUE_W_M2K",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Door": {
+  "bundle": "ARCH",
+  "family": "Door",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_DOOR_WIDTH_MM",
+   "BLE_DOOR_HEIGHT_MM",
+   "BLE_DOOR_TYPE_TXT",
+   "BLE_DOOR_OPERATION_TYPE_TXT",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_DOOR_WIDTH_MM",
+   "BLE_DOOR_HEIGHT_MM",
+   "BLE_DOOR_TYPE_TXT",
+   "BLE_DOOR_OPERATION_TYPE_TXT",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "ARCH_TAG_7_PARA_DOOR_TXT",
+   "BLE_DOOR_MAT_TXT",
+   "BLE_DOOR_HARDWARE_SPECIFICATION_TXT",
+   "BLE_DOOR_GLAZING_BOOL",
+   "BLE_DOOR_THRESHOLD_TXT",
+   "BLE_DOOR_CLOSER_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ARC_FACTORY_ORDER_REF_TXT",
+   "ARC_GLAZING_SPEC_TXT",
+   "ASS_WARRANTY_DURATION_PARTS_YRS"
+  ]
+ },
+ "ARCH/Entourage": {
+  "bundle": "ARCH",
+  "family": "Entourage",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ARCH_TAG_7_PARA_FURNITURE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Fascia": {
+  "bundle": "ARCH",
+  "family": "Fascia",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_ROOF_COVERING_MAT_TXT",
+   "BLE_WALL_EXTERIOR_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_ROOF_COVERING_MAT_TXT",
+   "BLE_WALL_EXTERIOR_FINISH_TXT",
+   "ARCH_TAG_7_PARA_ROOF_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Floor": {
+  "bundle": "ARCH",
+  "family": "Floor",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_FLR_TYPE_TXT",
+   "BLE_FLR_THICKNESS_MM",
+   "BLE_FLR_AREA_SQ_M",
+   "PER_THERM_U_VALUE_W_M2K",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_INTERIOR_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_FLR_TYPE_TXT",
+   "BLE_FLR_THICKNESS_MM",
+   "BLE_FLR_AREA_SQ_M",
+   "PER_THERM_U_VALUE_W_M2K",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_INTERIOR_FINISH_TXT",
+   "BLE_FLOOR_SLIP_RESISTANCE_TXT",
+   "ARCH_TAG_7_PARA_FLOOR_TXT",
+   "BLE_FLR_FINISH_MAT_TXT",
+   "BLE_FLOOR_LOAD_KN_M2",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "BLE_FLR_STRUCTURAL_SYSTEM_TXT",
+   "BLE_FLOOR_WATERPROOF_TXT",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Food Service Equipment": {
+  "bundle": "ARCH",
+  "family": "Food Service Equipment",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PER_FIRE_RATING_HR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ARCH_TAG_7_PARA_FURNITURE_TXT",
+   "PER_FIRE_RATING_HR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Furniture Systems": {
+  "bundle": "ARCH",
+  "family": "Furniture Systems",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_FURNITURE_FINISH_TXT",
+   "PER_FIRE_RATING_HR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_FURNITURE_FINISH_TXT",
+   "ARCH_TAG_7_PARA_FURNITURE_TXT",
+   "PER_FIRE_RATING_HR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Furniture": {
+  "bundle": "ARCH",
+  "family": "Furniture",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_FURNITURE_FINISH_TXT",
+   "PER_FIRE_RATING_HR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_FURNITURE_FINISH_TXT",
+   "ARCH_TAG_7_PARA_FURNITURE_TXT",
+   "PER_FIRE_RATING_HR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Gutter": {
+  "bundle": "ARCH",
+  "family": "Gutter",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT",
+   "BLE_ROOF_COVERING_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT",
+   "BLE_ROOF_COVERING_MAT_TXT",
+   "ARCH_TAG_7_PARA_ROOF_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Handrails": {
+  "bundle": "ARCH",
+  "family": "Handrails",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_RAILING_HEIGHT_MM",
+   "BLE_RAILING_MATERIAL_TXT",
+   "BLE_RAILING_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "BLE_RAILING_HEIGHT_MM",
+   "BLE_RAILING_MATERIAL_TXT",
+   "BLE_RAILING_TYPE_TXT",
+   "ARCH_TAG_7_PARA_RAILING_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/LPS Natural Air Termination ": {
+  "bundle": "ARCH",
+  "family": "LPS Natural Air Termination ",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+   "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+   "ELC_LPS_BOND_TYPE_TXT",
+   "ELC_LPS_RISK_ASSESSMENT_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+   "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+   "ELC_LPS_BOND_TYPE_TXT",
+   "ELC_LPS_RISK_ASSESSMENT_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Mass": {
+  "bundle": "ARCH",
+  "family": "Mass",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "ARCH_TAG_7_PARA_WALL_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Medical Equipment": {
+  "bundle": "ARCH",
+  "family": "Medical Equipment",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ARCH_TAG_7_PARA_FURNITURE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Parking": {
+  "bundle": "ARCH",
+  "family": "Parking",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_PARK_BAY_WIDTH_MM",
+   "BLE_PARK_BAY_LENGTH_MM",
+   "BLE_PARK_TYPE_TXT",
+   "BLE_PARK_ACCESSIBLE_BOOL",
+   "BLE_PARK_EV_CHARGING_BOOL",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_PARK_BAY_WIDTH_MM",
+   "BLE_PARK_BAY_LENGTH_MM",
+   "BLE_PARK_TYPE_TXT",
+   "ARCH_TAG_7_PARA_PARKING_TXT",
+   "BLE_PARK_ACCESSIBLE_BOOL",
+   "BLE_PARK_EV_CHARGING_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Railing": {
+  "bundle": "ARCH",
+  "family": "Railing",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_RAILING_HEIGHT_MM",
+   "BLE_RAILING_TYPE_TXT",
+   "BLE_RAILING_MATERIAL_TXT",
+   "BLE_RAILING_INFILL_TXT",
+   "BLE_RAILING_BALUSTER_SPACING_MM",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_RAILING_HEIGHT_MM",
+   "BLE_RAILING_TYPE_TXT",
+   "BLE_RAILING_MATERIAL_TXT",
+   "ARCH_TAG_7_PARA_RAILING_TXT",
+   "BLE_RAILING_INFILL_TXT",
+   "BLE_RAILING_BALUSTER_SPACING_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Ramp": {
+  "bundle": "ARCH",
+  "family": "Ramp",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_RAMP_SLOPE_PCT",
+   "BLE_RAMP_WIDTH_MM",
+   "BLE_RAMP_LENGTH_MM",
+   "BLE_RAMP_LANDING_TXT",
+   "BLE_RAMP_HANDRAIL_BOOL",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_RAMP_SLOPE_PCT",
+   "BLE_RAMP_WIDTH_MM",
+   "BLE_RAMP_LENGTH_MM",
+   "ARCH_TAG_7_PARA_RAMP_TXT",
+   "BLE_RAMP_LANDING_TXT",
+   "BLE_RAMP_HANDRAIL_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Roof Soffits": {
+  "bundle": "ARCH",
+  "family": "Roof Soffits",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_CEILING_MAT_TXT",
+   "BLE_WALL_INTERIOR_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_CEILING_MAT_TXT",
+   "BLE_WALL_INTERIOR_FINISH_TXT",
+   "ARCH_TAG_7_PARA_ROOF_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Roof": {
+  "bundle": "ARCH",
+  "family": "Roof",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_ROOF_TYPE_TXT",
+   "BLE_ROOF_THICKNESS_MM",
+   "PER_THERM_U_VALUE_W_M2K",
+   "PER_FIRE_RATING_HR",
+   "BLE_ROOF_SLOPE_DEG",
+   "BLE_ROOF_AREA_SQ_M",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_ROOF_TYPE_TXT",
+   "BLE_ROOF_THICKNESS_MM",
+   "PER_THERM_U_VALUE_W_M2K",
+   "PER_FIRE_RATING_HR",
+   "BLE_ROOF_SLOPE_DEG",
+   "BLE_ROOF_AREA_SQ_M",
+   "ARCH_TAG_7_PARA_ROOF_TXT",
+   "BLE_ROOF_COVERING_MAT_TXT",
+   "BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT",
+   "PER_CONDENSATION_RISK_BOOL",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "BLE_ROOF_WATERPROOFING_SYSTEM_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Room": {
+  "bundle": "ARCH",
+  "family": "Room",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+   "BLE_ROOM_OCCUPANCY_NR",
+   "BLE_HEADROOM_MM",
+   "BLE_ROOM_VENTILATION_RATE_LPS",
+   "ASS_DESIGN_LTG_LVL_LUX_NR",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "ASS_DEPARTMENT_ASSIGNMENT_TXT",
+   "BLE_ROOM_OCCUPANCY_NR",
+   "BLE_HEADROOM_MM",
+   "BLE_ROOM_VENTILATION_RATE_LPS",
+   "ASS_DESIGN_LTG_LVL_LUX_NR",
+   "ARCH_TAG_7_PARA_ROOM_TXT",
+   "BLE_FLR_FINISH_TXT",
+   "BLE_WALL_FINISH_TXT",
+   "BLE_CEILING_FINISH_TXT",
+   "BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "ARCH/Signage": {
+  "bundle": "ARCH",
+  "family": "Signage",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_SIGN_TYPE_TXT",
+   "BLE_SIGN_ILLUMINATED_BOOL",
+   "MNT_HGT_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "BLE_SIGN_TYPE_TXT",
+   "BLE_SIGN_ILLUMINATED_BOOL",
+   "MNT_HGT_MM",
+   "ARCH_TAG_7_PARA_SIGNAGE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Slab Edges": {
+  "bundle": "ARCH",
+  "family": "Slab Edges",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_FLR_TYPE_TXT",
+   "BLE_FLR_THICKNESS_MM",
+   "BLE_FLR_FINISH_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "BLE_FLR_TYPE_TXT",
+   "BLE_FLR_THICKNESS_MM",
+   "ARCH_TAG_7_PARA_FLOOR_TXT",
+   "BLE_FLR_FINISH_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Stair Landings": {
+  "bundle": "ARCH",
+  "family": "Stair Landings",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_STAIR_WIDTH_MM",
+   "BLE_STAIR_TREAD_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_STAIR_WIDTH_MM",
+   "BLE_STAIR_TREAD_FINISH_TXT",
+   "ARCH_TAG_7_PARA_STAIR_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Stair Runs": {
+  "bundle": "ARCH",
+  "family": "Stair Runs",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_STAIR_RISE_MM",
+   "BLE_STAIR_GOING_MM",
+   "BLE_STAIR_WIDTH_MM",
+   "BLE_STAIR_TREAD_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT"
+  ],
+  "full_columns": [
+   "BLE_STAIR_RISE_MM",
+   "BLE_STAIR_GOING_MM",
+   "BLE_STAIR_WIDTH_MM",
+   "ARCH_TAG_7_PARA_STAIR_TXT",
+   "BLE_STAIR_TREAD_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Stair Supports": {
+  "bundle": "ARCH",
+  "family": "Stair Supports",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_RAILING_MATERIAL_TXT",
+   "PER_FIRE_RATING_HR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_RAILING_MATERIAL_TXT",
+   "PER_FIRE_RATING_HR",
+   "ARCH_TAG_7_PARA_STAIR_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Stair": {
+  "bundle": "ARCH",
+  "family": "Stair",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_STAIR_WIDTH_MM",
+   "BLE_STAIR_RISE_MM",
+   "BLE_STAIR_GOING_MM",
+   "PER_FIRE_RATING_HR",
+   "BLE_STAIR_HEADROOM_MM",
+   "BLE_STAIR_HANDRAIL_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_STAIR_WIDTH_MM",
+   "BLE_STAIR_RISE_MM",
+   "BLE_STAIR_GOING_MM",
+   "PER_FIRE_RATING_HR",
+   "BLE_STAIR_HEADROOM_MM",
+   "ARCH_TAG_7_PARA_STAIR_TXT",
+   "BLE_STAIR_HANDRAIL_MAT_TXT",
+   "BLE_STAIR_NOSING_TYPE_TXT",
+   "BLE_STAIR_TREAD_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Top Rails": {
+  "bundle": "ARCH",
+  "family": "Top Rails",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_RAILING_HEIGHT_MM",
+   "BLE_RAILING_MATERIAL_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_RAILING_HEIGHT_MM",
+   "BLE_RAILING_MATERIAL_TXT",
+   "ARCH_TAG_7_PARA_RAILING_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Vertical Circulation": {
+  "bundle": "ARCH",
+  "family": "Vertical Circulation",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ARCH_TAG_7_PARA_STAIR_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Wall Sweeps": {
+  "bundle": "ARCH",
+  "family": "Wall Sweeps",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_WALL_TYPE_CLASSIFICATION_TXT",
+   "BLE_WALL_PRIMARY_WALL_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_WALL_TYPE_CLASSIFICATION_TXT",
+   "BLE_WALL_PRIMARY_WALL_MAT_TXT",
+   "ARCH_TAG_7_PARA_WALL_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Wall": {
+  "bundle": "ARCH",
+  "family": "Wall",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_WALL_TYPE_CLASSIFICATION_TXT",
+   "BLE_WALL_THICKNESS_MM",
+   "BLE_ELE_AREA_SQ_M",
+   "PER_THERM_U_VALUE_W_M2K",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_WALL_TYPE_CLASSIFICATION_TXT",
+   "BLE_WALL_THICKNESS_MM",
+   "BLE_ELE_AREA_SQ_M",
+   "PER_THERM_U_VALUE_W_M2K",
+   "PER_FIRE_RATING_HR",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "BLE_WALL_EXTERIOR_FINISH_TXT",
+   "BLE_WALL_CST_METHOD_TXT",
+   "ARCH_TAG_7_PARA_WALL_TXT",
+   "BLE_WALL_PRIMARY_WALL_MAT_TXT",
+   "BLE_WALL_CORE_MATERIAL_TXT",
+   "BLE_WALL_INSULATION_TXT",
+   "PER_CONDENSATION_RISK_BOOL",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "BLE_WALL_WATERPROOF_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "ARCH/Window": {
+  "bundle": "ARCH",
+  "family": "Window",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_WINDOW_WIDTH_MM",
+   "BLE_WINDOW_HEIGHT_MM",
+   "BLE_WINDOW_TYPE_CLASSIFICATION_TXT",
+   "BLE_WINDOW_OPERATION_TYPE_TXT",
+   "PER_THERM_U_VALUE_W_M2K",
+   "BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_WINDOW_WIDTH_MM",
+   "BLE_WINDOW_HEIGHT_MM",
+   "BLE_WINDOW_TYPE_CLASSIFICATION_TXT",
+   "BLE_WINDOW_OPERATION_TYPE_TXT",
+   "PER_THERM_U_VALUE_W_M2K",
+   "BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR",
+   "ARCH_TAG_7_PARA_WIN_TXT",
+   "BLE_WINDOW_FRAME_MAT_TXT",
+   "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT",
+   "BLE_WINDOW_AREA_SQ_M",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ARC_FACTORY_ORDER_REF_TXT",
+   "ARC_GLAZING_SPEC_TXT",
+   "ASS_WARRANTY_DURATION_PARTS_YRS"
+  ]
+ },
+ "GEN/Analytical Links": {
+  "bundle": "GEN",
+  "family": "Analytical Links",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_TAG_7_PARA_ANLYT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Analytical Nodes": {
+  "bundle": "GEN",
+  "family": "Analytical Nodes",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_TAG_7_PARA_ANLYT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Analytical Openings": {
+  "bundle": "GEN",
+  "family": "Analytical Openings",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_TAG_7_PARA_ANLYT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Analytical Panels": {
+  "bundle": "GEN",
+  "family": "Analytical Panels",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_MATERIAL_GRADE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_MATERIAL_GRADE_TXT",
+   "STR_TAG_7_PARA_ANLYT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Area Loads": {
+  "bundle": "GEN",
+  "family": "Area Loads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_AREA_LOAD_KN_M2",
+   "STR_LOAD_CASE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_AREA_LOAD_KN_M2",
+   "STR_LOAD_CASE_TXT",
+   "STR_TAG_7_PARA_LOAD_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Assemblies": {
+  "bundle": "GEN",
+  "family": "Assemblies",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_PRODCT_COD_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_PRODCT_COD_TXT",
+   "GEN_TAG_7_PARA_MISC_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Bolt": {
+  "bundle": "GEN",
+  "family": "Bolt",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_BOLT_GRADE_TXT",
+   "STR_BOLT_DIAMETER_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "STR_BOLT_GRADE_TXT",
+   "STR_BOLT_DIAMETER_MM",
+   "STR_TAG_7_PARA_CONN_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Detail Items": {
+  "bundle": "GEN",
+  "family": "Detail Items",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "GEN_TAG_7_PARA_MISC_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Hardscape": {
+  "bundle": "GEN",
+  "family": "Hardscape",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_WALL_EXTERIOR_FINISH_TXT",
+   "BLE_WALL_THICKNESS_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_WALL_EXTERIOR_FINISH_TXT",
+   "BLE_WALL_THICKNESS_MM",
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/LPS Generic Component": {
+  "bundle": "GEN",
+  "family": "LPS Generic Component",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_COMPLIANCE_STATUS_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_COMPLIANCE_STATUS_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Line Loads": {
+  "bundle": "GEN",
+  "family": "Line Loads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_LINE_LOAD_KN_M",
+   "STR_LOAD_CASE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_LINE_LOAD_KN_M",
+   "STR_LOAD_CASE_TXT",
+   "STR_TAG_7_PARA_LOAD_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Model Groups": {
+  "bundle": "GEN",
+  "family": "Model Groups",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "GEN_TAG_7_PARA_MISC_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Pads": {
+  "bundle": "GEN",
+  "family": "Pads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_WALL_THICKNESS_MM",
+   "STR_BEARING_CAPACITY_KN_M2",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_WALL_THICKNESS_MM",
+   "STR_BEARING_CAPACITY_KN_M2",
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Parts": {
+  "bundle": "GEN",
+  "family": "Parts",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_PRODCT_COD_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_PRODCT_COD_TXT",
+   "GEN_TAG_7_PARA_MISC_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Planting": {
+  "bundle": "GEN",
+  "family": "Planting",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "GEN_SPECIES_TXT",
+   "GEN_HEIGHT_AT_MATURITY_M",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "GEN_SPECIES_TXT",
+   "GEN_HEIGHT_AT_MATURITY_M",
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Point Loads": {
+  "bundle": "GEN",
+  "family": "Point Loads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_POINT_LOAD_KN",
+   "STR_LOAD_CASE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_POINT_LOAD_KN",
+   "STR_LOAD_CASE_TXT",
+   "STR_TAG_7_PARA_LOAD_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Profiles": {
+  "bundle": "GEN",
+  "family": "Profiles",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "GEN_TAG_7_PARA_MISC_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Property Line Segments": {
+  "bundle": "GEN",
+  "family": "Property Line Segments",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Property Lines": {
+  "bundle": "GEN",
+  "family": "Property Lines",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "RGL_PLOT_AREA_SQ_M",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "RGL_PLOT_AREA_SQ_M",
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/RVT Links": {
+  "bundle": "GEN",
+  "family": "RVT Links",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "GEN_TAG_7_PARA_MISC_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Roads": {
+  "bundle": "GEN",
+  "family": "Roads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "GEN_ROAD_TYPE_TXT",
+   "BLE_WALL_THICKNESS_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "GEN_ROAD_TYPE_TXT",
+   "BLE_WALL_THICKNESS_MM",
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Sheet Document": {
+  "bundle": "GEN",
+  "family": "Sheet Document",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_ORIGINATOR_TXT",
+   "SHT_REV_TXT",
+   "SHT_NUMBER_TXT"
+  ],
+  "full_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_ORIGINATOR_TXT",
+   "SHT_REV_TXT",
+   "SHT_NUMBER_TXT",
+   "SHT_NAME_TXT",
+   "SHT_TAG_7_TXT"
+  ]
+ },
+ "GEN/Site": {
+  "bundle": "GEN",
+  "family": "Site",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_LOC_TXT",
+   "GEN_ROAD_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ASS_LOC_TXT",
+   "GEN_ROAD_TYPE_TXT",
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Tie-In Gas Pipe": {
+  "bundle": "GEN",
+  "family": "Tie-In Gas Pipe",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [],
+  "full_columns": []
+ },
+ "GEN/Toposolid Links": {
+  "bundle": "GEN",
+  "family": "Toposolid Links",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "GEN/Toposolid": {
+  "bundle": "GEN",
+  "family": "Toposolid",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_MAT_ELEM_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_MAT_ELEM_TYPE_TXT",
+   "ARCH_TAG_7_PARA_SITE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Weld": {
+  "bundle": "GEN",
+  "family": "Weld",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_WELD_TYPE_TXT",
+   "STR_WELD_SIZE_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "STR_WELD_TYPE_TXT",
+   "STR_WELD_SIZE_MM",
+   "STR_TAG_7_PARA_CONN_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "GEN/Wire": {
+  "bundle": "GEN",
+  "family": "Wire",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_WIRE_SIZE_TXT",
+   "ELC_CBL_INS_TYPE_TXT",
+   "ELC_VOLTAGE_V",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "ELC_WIRE_SIZE_TXT",
+   "ELC_CBL_INS_TYPE_TXT",
+   "ELC_VOLTAGE_V",
+   "ELC_TAG_7_PARA_CIRCUIT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "HEALTH/Healthcare Warnings": {
+  "bundle": "HEALTH",
+  "family": "Healthcare Warnings",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "AIIR room not under negative pressure",
+   "Protective Environment room not under positive pressure",
+   "AIIR or PE room missing linked anteroom ID",
+   "OR-CONV or OR-HYBRID ACH below 20 minimum",
+   "Ultra-clean OR ACH below 300 minimum",
+   "HEPA grade not H13/H14/U15/U16"
+  ],
+  "full_columns": [
+   "AIIR room not under negative pressure",
+   "Protective Environment room not under positive pressure",
+   "AIIR or PE room missing linked anteroom ID",
+   "OR-CONV or OR-HYBRID ACH below 20 minimum",
+   "Ultra-clean OR ACH below 300 minimum",
+   "HEPA grade not H13/H14/U15/U16",
+   "Anti-ligature room has fitting with no product rating",
+   "RTLS or IoT tag last seen > staleness threshold",
+   "Room Data Sheet mandatory parameters incomplete",
+   "Clinical space has no RTLS reader within coverage radius",
+   "Clinical waste route conflicts with clean corridor",
+   "Clinical room STC below minimum for use class",
+   "Clinical asset missing GMDN classification code",
+   "Terminal unit or pipeline missing gas type",
+   "Medical gas pipework must be inert-gas brazed",
+   "NFPA 99 §5.1.12 MGPS verification test failed",
+   "Zone Valve Box has no reference code",
+   "Calculated flow rate below NFPA 99 diversity requirement",
+   "Pipeline segment pressure drop exceeds allowable limit",
+   "EES branch designation not LIFE-SAF / CRIT / EQP-BR / NORMAL",
+   "ATS transfer time >10 s for LS/CR branch",
+   "Sentinel point dead-leg exceeds 1 m",
+   "Augmented-care outlet missing point-of-use filter",
+   "Lead-equivalent shielding below minimum 2 mm",
+   "Primary barrier missing Qualified Expert sign-off",
+   "Radiation-controlled access door missing interlock specification",
+   "Controlled area has no regulatory signage element placed",
+   "Controlled area boundary has no dosimetry monitoring post",
+   "Generic model in MRI suite area has no zone classification",
+   "MRI Faraday cage panel has no RF shielding method specified",
+   "Imaging equipment slab load not verified against structural model"
+  ]
+ },
+ "HEALTH/5-Gauss Marker": {
+  "bundle": "HEALTH",
+  "family": "5-Gauss Marker",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_MRI_ZONE_INT"
+  ],
+  "full_columns": [
+   "CLN_MRI_ZONE_INT",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/AED Cabinet": {
+  "bundle": "HEALTH",
+  "family": "AED Cabinet",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/AGS Plant": {
+  "bundle": "HEALTH",
+  "family": "AGS Plant",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/AGV Dock": {
+  "bundle": "HEALTH",
+  "family": "AGV Dock",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Anti-Ligature (Door)": {
+  "bundle": "HEALTH",
+  "family": "Anti-Ligature (Door)",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "LIG_PRODUCT_RATING_TXT",
+   "LIG_AREA_OBS_LOS_TXT"
+  ],
+  "full_columns": [
+   "LIG_PRODUCT_RATING_TXT",
+   "LIG_AREA_OBS_LOS_TXT",
+   "LIG_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Anti-Ligature (Lighting Fixt": {
+  "bundle": "HEALTH",
+  "family": "Anti-Ligature (Lighting Fixt",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "LIG_PRODUCT_RATING_TXT"
+  ],
+  "full_columns": [
+   "LIG_PRODUCT_RATING_TXT",
+   "LIG_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Anti-Ligature (Plumbing Fixt": {
+  "bundle": "HEALTH",
+  "family": "Anti-Ligature (Plumbing Fixt",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "LIG_PRODUCT_RATING_TXT"
+  ],
+  "full_columns": [
+   "LIG_PRODUCT_RATING_TXT",
+   "LIG_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Area Alarm Panel": {
+  "bundle": "HEALTH",
+  "family": "Area Alarm Panel",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Autoclave": {
+  "bundle": "HEALTH",
+  "family": "Autoclave",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Bariatric": {
+  "bundle": "HEALTH",
+  "family": "Bariatric",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_BARI_DESIGN_KG_NR"
+  ],
+  "full_columns": [
+   "CLN_BARI_DESIGN_KG_NR",
+   "CLN_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Bedhead Trunking": {
+  "bundle": "HEALTH",
+  "family": "Bedhead Trunking",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Bedpan Washer": {
+  "bundle": "HEALTH",
+  "family": "Bedpan Washer",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Biosafety Cabinet": {
+  "bundle": "HEALTH",
+  "family": "Biosafety Cabinet",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Birth Pool": {
+  "bundle": "HEALTH",
+  "family": "Birth Pool",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Clinical Room": {
+  "bundle": "HEALTH",
+  "family": "Clinical Room",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_ROOM_CLASS_TXT",
+   "CLN_PRESS_REGIME_TXT",
+   "CLN_DESIGN_ACH_INT",
+   "CLN_DESIGN_PRESSURE_DELTA_PA_INT",
+   "CLN_DESIGN_TEMP_C_DBL",
+   "CLN_DESIGN_RH_PCT_INT"
+  ],
+  "full_columns": [
+   "CLN_ROOM_CLASS_TXT",
+   "CLN_PRESS_REGIME_TXT",
+   "CLN_DESIGN_ACH_INT",
+   "CLN_DESIGN_PRESSURE_DELTA_PA_INT",
+   "CLN_DESIGN_TEMP_C_DBL",
+   "CLN_DESIGN_RH_PCT_INT",
+   "CLN_NOISE_NR_NR",
+   "CLN_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Controlled Area Sign": {
+  "bundle": "HEALTH",
+  "family": "Controlled Area Sign",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "RAD_BARRIER_TYPE_TXT"
+  ],
+  "full_columns": [
+   "RAD_BARRIER_TYPE_TXT",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Crash Cart": {
+  "bundle": "HEALTH",
+  "family": "Crash Cart",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Cytotoxic Hood": {
+  "bundle": "HEALTH",
+  "family": "Cytotoxic Hood",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Dialysis Station": {
+  "bundle": "HEALTH",
+  "family": "Dialysis Station",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Dosimetry Post": {
+  "bundle": "HEALTH",
+  "family": "Dosimetry Post",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [],
+  "full_columns": [
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Endoscope Reprocessor": {
+  "bundle": "HEALTH",
+  "family": "Endoscope Reprocessor",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Examination Light": {
+  "bundle": "HEALTH",
+  "family": "Examination Light",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/HBO Chamber": {
+  "bundle": "HEALTH",
+  "family": "HBO Chamber",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Hand-Rub Dispenser": {
+  "bundle": "HEALTH",
+  "family": "Hand-Rub Dispenser",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Hoist Track": {
+  "bundle": "HEALTH",
+  "family": "Hoist Track",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_HOIST_TRACK_BOOL",
+   "CLN_BARI_DESIGN_KG_NR"
+  ],
+  "full_columns": [
+   "CLN_HOIST_TRACK_BOOL",
+   "CLN_BARI_DESIGN_KG_NR",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/IVF Workstation": {
+  "bundle": "HEALTH",
+  "family": "IVF Workstation",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Imaging Modality": {
+  "bundle": "HEALTH",
+  "family": "Imaging Modality",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT",
+   "RAD_LEAD_MM_NR"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "RAD_LEAD_MM_NR",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Incubator": {
+  "bundle": "HEALTH",
+  "family": "Incubator",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Infection Class": {
+  "bundle": "HEALTH",
+  "family": "Infection Class",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_INFECT_CLASS_TXT",
+   "CLN_PRESS_REGIME_TXT"
+  ],
+  "full_columns": [
+   "CLN_INFECT_CLASS_TXT",
+   "CLN_PRESS_REGIME_TXT",
+   "CLN_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Lab Fume Hood": {
+  "bundle": "HEALTH",
+  "family": "Lab Fume Hood",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Linac Maze": {
+  "bundle": "HEALTH",
+  "family": "Linac Maze",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "RAD_BARRIER_TYPE_TXT",
+   "RAD_LEAD_MM_NR"
+  ],
+  "full_columns": [
+   "RAD_BARRIER_TYPE_TXT",
+   "RAD_LEAD_MM_NR",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/MRI Faraday Cage": {
+  "bundle": "HEALTH",
+  "family": "MRI Faraday Cage",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_MRI_ZONE_INT"
+  ],
+  "full_columns": [
+   "CLN_MRI_ZONE_INT",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/MRI Zone": {
+  "bundle": "HEALTH",
+  "family": "MRI Zone",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_MRI_ZONE_INT"
+  ],
+  "full_columns": [
+   "CLN_MRI_ZONE_INT",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Manifold": {
+  "bundle": "HEALTH",
+  "family": "Manifold",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Master Alarm Panel": {
+  "bundle": "HEALTH",
+  "family": "Master Alarm Panel",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Medical Air Plant": {
+  "bundle": "HEALTH",
+  "family": "Medical Air Plant",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Medical Gas Pipeline": {
+  "bundle": "HEALTH",
+  "family": "Medical Gas Pipeline",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "PLM_PPE_SZ_MM"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "PLM_PPE_SZ_MM",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Medical Gas Terminal Unit": {
+  "bundle": "HEALTH",
+  "family": "Medical Gas Terminal Unit",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_OUTLET_ZONE_TXT",
+   "MGS_WORKING_PRESSURE_KPA"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_OUTLET_ZONE_TXT",
+   "MGS_WORKING_PRESSURE_KPA",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Medical Refrigerator": {
+  "bundle": "HEALTH",
+  "family": "Medical Refrigerator",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Medical Vacuum Plant": {
+  "bundle": "HEALTH",
+  "family": "Medical Vacuum Plant",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Mortuary Fridge": {
+  "bundle": "HEALTH",
+  "family": "Mortuary Fridge",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Nurse Call": {
+  "bundle": "HEALTH",
+  "family": "Nurse Call",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_NURSECALL_TYPE_TXT"
+  ],
+  "full_columns": [
+   "CLN_NURSECALL_TYPE_TXT",
+   "NCL_TAG_7_PARA_NURSECALL_TXT"
+  ]
+ },
+ "HEALTH/Operating Light": {
+  "bundle": "HEALTH",
+  "family": "Operating Light",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/PTS Station": {
+  "bundle": "HEALTH",
+  "family": "PTS Station",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Patient Monitor": {
+  "bundle": "HEALTH",
+  "family": "Patient Monitor",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Pendant": {
+  "bundle": "HEALTH",
+  "family": "Pendant",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Pharmacy Isolator": {
+  "bundle": "HEALTH",
+  "family": "Pharmacy Isolator",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Pressure Regime": {
+  "bundle": "HEALTH",
+  "family": "Pressure Regime",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CLN_PRESS_REGIME_TXT",
+   "CLN_INFECT_CLASS_TXT"
+  ],
+  "full_columns": [
+   "CLN_PRESS_REGIME_TXT",
+   "CLN_INFECT_CLASS_TXT",
+   "CLN_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/RTLS Reader": {
+  "bundle": "HEALTH",
+  "family": "RTLS Reader",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Scrub Trough": {
+  "bundle": "HEALTH",
+  "family": "Scrub Trough",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Surgical Robot Bay": {
+  "bundle": "HEALTH",
+  "family": "Surgical Robot Bay",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/VIE": {
+  "bundle": "HEALTH",
+  "family": "VIE",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Warming Cot": {
+  "bundle": "HEALTH",
+  "family": "Warming Cot",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Washer Disinfector": {
+  "bundle": "HEALTH",
+  "family": "Washer Disinfector",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "CEQ_CATEGORY_TXT"
+  ],
+  "full_columns": [
+   "CEQ_CATEGORY_TXT",
+   "CEQ_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/X-ray Barrier": {
+  "bundle": "HEALTH",
+  "family": "X-ray Barrier",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "RAD_LEAD_MM_NR",
+   "RAD_BARRIER_TYPE_TXT"
+  ],
+  "full_columns": [
+   "RAD_LEAD_MM_NR",
+   "RAD_BARRIER_TYPE_TXT",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/X-ray Door": {
+  "bundle": "HEALTH",
+  "family": "X-ray Door",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "RAD_LEAD_MM_NR"
+  ],
+  "full_columns": [
+   "RAD_LEAD_MM_NR",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/X-ray Window": {
+  "bundle": "HEALTH",
+  "family": "X-ray Window",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "RAD_LEAD_MM_NR"
+  ],
+  "full_columns": [
+   "RAD_LEAD_MM_NR",
+   "RAD_TAG_7_PARA_TXT"
+  ]
+ },
+ "HEALTH/Zone Valve Box": {
+  "bundle": "HEALTH",
+  "family": "Zone Valve Box",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MGS_GAS_TYPE_TXT"
+  ],
+  "full_columns": [
+   "MGS_GAS_TYPE_TXT",
+   "MGS_TAG_7_PARA_TXT"
+  ]
+ },
+ "MEP/Air Terminal": {
+  "bundle": "MEP",
+  "family": "Air Terminal",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "HVC_DCT_FLW_CFM",
+   "HVC_VEL_MPS",
+   "MNT_HGT_MM",
+   "HVC_DCT_TERMINAL_TYPE_SD_RG_EG_VAV_TXT",
+   "HVC_DCT_TERMINAL_SZ_TXT",
+   "HVC_TERMINAL_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "HVC_DCT_FLW_CFM",
+   "HVC_VEL_MPS",
+   "MNT_HGT_MM",
+   "HVC_TAG_7_PARA_AT_TXT",
+   "HVC_DCT_TERMINAL_TYPE_SD_RG_EG_VAV_TXT",
+   "HVC_DCT_TERMINAL_SZ_TXT",
+   "HVC_TERMINAL_MAT_TXT",
+   "HVC_TERMINAL_FINISH_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT"
+  ]
+ },
+ "MEP/Audio Visual Devices": {
+  "bundle": "MEP",
+  "family": "Audio Visual Devices",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MNT_HGT_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "MNT_HGT_MM",
+   "ELC_TAG_7_PARA_COMM_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Cable Tray Fitting": {
+  "bundle": "MEP",
+  "family": "Cable Tray Fitting",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_CTR_MAT_TXT",
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "ELC_CTR_MAT_TXT",
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ELC_TAG_7_PARA_TRAY_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Cable Tray": {
+  "bundle": "MEP",
+  "family": "Cable Tray",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_CTR_MAT_TXT",
+   "MNT_HGT_MM",
+   "ELC_CBT_SHOP_DRAWING_REQ_BOOL",
+   "ELC_CTR_SZ_TXT",
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ELC_CTR_MAT_TXT",
+   "MNT_HGT_MM",
+   "ELC_CBT_SHOP_DRAWING_REQ_BOOL",
+   "ELC_CTR_SZ_TXT",
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ELC_TAG_7_PARA_TRAY_TXT",
+   "ELC_CTR_WIDTH_MM",
+   "ELC_CTR_FILL_PCT",
+   "ELC_CTR_TAG_01_TXT",
+   "ELC_CBT_FAB_TYPE_TXT",
+   "ELC_CBT_SUPPORT_SPACING_MM",
+   "CST_CALC_LENGTH_M",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Communication Device": {
+  "bundle": "MEP",
+  "family": "Communication Device",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "COM_C_PROTOCOL_TXT",
+   "COM_C_NETWORK_ADDRESS_TXT",
+   "MNT_HGT_MM",
+   "COM_DEV_TAG_01_TXT",
+   "COM_C_DEV_TYPE_TXT",
+   "COM_C_MEASUREMENT_RANGE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "COM_C_PROTOCOL_TXT",
+   "COM_C_NETWORK_ADDRESS_TXT",
+   "MNT_HGT_MM",
+   "COM_TAG_7_PARA_BMS_TXT",
+   "COM_DEV_TAG_01_TXT",
+   "COM_C_DEV_TYPE_TXT",
+   "COM_C_MEASUREMENT_RANGE_TXT",
+   "COM_C_PWR_SUPPLY_V",
+   "COM_BMS_RANGE_TXT",
+   "COM_C_DEV_BACNET_INSTANCE_INT",
+   "COM_C_DEV_CONTROLLER_NAME_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Conduit Fitting": {
+  "bundle": "MEP",
+  "family": "Conduit Fitting",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_CDT_SZ_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL"
+  ],
+  "full_columns": [
+   "ELC_CDT_SZ_MM",
+   "ELC_TAG_7_PARA_CONDUIT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Conduit": {
+  "bundle": "MEP",
+  "family": "Conduit",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_CKT_NR",
+   "ELC_CDT_MAT_TXT",
+   "ELC_CBL_SOURCE_TXT",
+   "ELC_CBL_DEST_TXT",
+   "ELC_CBL_INSTALL_METHOD_TXT",
+   "ELC_CDT_INSTALL_METHOD_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ELC_CKT_NR",
+   "ELC_CDT_MAT_TXT",
+   "ELC_CBL_SOURCE_TXT",
+   "ELC_CBL_DEST_TXT",
+   "ELC_CBL_INSTALL_METHOD_TXT",
+   "ELC_TAG_7_PARA_CONDUIT_TXT",
+   "ELC_CDT_INSTALL_METHOD_TXT",
+   "ELC_CDT_CBL_FILL_PCT",
+   "ELC_CDT_TAG_01_TXT",
+   "ELC_CDT_TAG_02_TXT",
+   "ELC_CBL_NUM_OF_CORES_NR",
+   "ELC_CKT_PHASE_COUNT_NR",
+   "ELC_CDT_FAB_METHOD_TXT",
+   "ELC_CDT_BEND_RADIUS_MM",
+   "ELC_CDT_SUPPORT_SPACING_MM",
+   "CST_CALC_LENGTH_M",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Data Device": {
+  "bundle": "MEP",
+  "family": "Data Device",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ICT_OUTLET_TYPE_TXT",
+   "MNT_HGT_MM",
+   "ICT_DEV_TAG_01_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "ICT_OUTLET_TYPE_TXT",
+   "MNT_HGT_MM",
+   "ICT_TAG_7_PARA_DATA_TXT",
+   "ICT_DEV_TAG_01_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Duct Accessory": {
+  "bundle": "MEP",
+  "family": "Duct Accessory",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "HVC_DCT_PROPERTY_TXT",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT",
+   "ASS_TERM_CAPPED_BOOL"
+  ],
+  "full_columns": [
+   "HVC_DCT_PROPERTY_TXT",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "HVC_TAG_7_PARA_DCTACC_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Duct Fitting": {
+  "bundle": "MEP",
+  "family": "Duct Fitting",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "HVC_DCT_PROPERTY_TXT",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "HVC_DUCT_CLASS_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT"
+  ],
+  "full_columns": [
+   "HVC_DCT_PROPERTY_TXT",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "HVC_TAG_7_PARA_DCTACC_TXT",
+   "HVC_DUCT_CLASS_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Duct Insulation": {
+  "bundle": "MEP",
+  "family": "Duct Insulation",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "INS_MATERIAL_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT"
+  ],
+  "full_columns": [
+   "INS_MATERIAL_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT"
+  ]
+ },
+ "MEP/Duct Lining": {
+  "bundle": "MEP",
+  "family": "Duct Lining",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "INS_MATERIAL_TXT",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "INS_MATERIAL_TXT",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "HVC_TAG_7_PARA_DUCT_LINING_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Duct": {
+  "bundle": "MEP",
+  "family": "Duct",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "HVC_DCT_FLW_CFM",
+   "HVC_VEL_MPS",
+   "HVC_PIPE_PRESSURE_KPA",
+   "HVC_DCT_MAT_TXT",
+   "HVC_INSULATION_TXT",
+   "HVC_DCT_SHOP_DRAWING_REQ_BOOL",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "HVC_DCT_FLW_CFM",
+   "HVC_VEL_MPS",
+   "HVC_PIPE_PRESSURE_KPA",
+   "HVC_DCT_MAT_TXT",
+   "HVC_INSULATION_TXT",
+   "HVC_DCT_SHOP_DRAWING_REQ_BOOL",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "HVC_TAG_7_PARA_DUCT_TXT",
+   "HVC_DUCT_CLASS_TXT",
+   "HVC_DUCT_LINING_TXT",
+   "HVC_DUCT_AREA_SQ_M",
+   "HVC_DUCT_FLOWRATE_M3H",
+   "HVC_DCT_TAG_01_TXT",
+   "HVC_DCT_TAG_02_TXT",
+   "HVC_DCT_TAG_03_TXT",
+   "HVC_PIPE_LENGTH_M",
+   "HVC_AIR_CHANGES_PER_HR",
+   "HVC_DCT_FAB_METHOD_TXT",
+   "HVC_DCT_SEAM_TYPE_TXT",
+   "HVC_DCT_SUPPORTS_SPACING_MM",
+   "HVC_DCT_HANGER_TYPE_TXT",
+   "CST_CALC_LENGTH_M",
+   "CST_CALC_AREA_M2",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Electrical Connectors": {
+  "bundle": "MEP",
+  "family": "Electrical Connectors",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_CKT_BRK_RATING_A",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ELC_CKT_BRK_RATING_A",
+   "ELC_TAG_7_PARA_ELC_CONNECTORS_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Electrical Equipment": {
+  "bundle": "MEP",
+  "family": "Electrical Equipment",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_PNL_VLT_V",
+   "ELC_PNL_PHS_COUNT_NR",
+   "ELC_PNL_NUM_OF_WAYS_NR",
+   "ELC_PNL_RATED_KW",
+   "ELC_PNL_CONNECTED_LOAD_KW",
+   "ELC_PNL_MAIN_BRK_A",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ELC_PNL_VLT_V",
+   "ELC_PNL_PHS_COUNT_NR",
+   "ELC_PNL_NUM_OF_WAYS_NR",
+   "ELC_PNL_RATED_KW",
+   "ELC_PNL_CONNECTED_LOAD_KW",
+   "ELC_PNL_MAIN_BRK_A",
+   "ELC_PNL_SPARE_WAYS_NR",
+   "ELC_VLT_DROP_PCT",
+   "ELC_PNL_SHORT_CIRCUIT_KA",
+   "ELC_CBL_FEEDER_SZ_MM2",
+   "ELC_PNL_IP_RATING_TXT",
+   "RGL_UMEME_APPROVAL_REQ_BOOL",
+   "ELC_VOLTAGE_V",
+   "ELC_CONN_TYPE_TXT",
+   "ELC_TAG_7_PARA_PANEL_TXT",
+   "ELC_EQP_TAG_01_TXT",
+   "ELC_EQP_TAG_02_TXT",
+   "ELC_PNL_FED_FROM_PNL_TXT",
+   "ELC_SPARE_WAYS_NR",
+   "ELC_DIV_FCT_NR",
+   "ELC_IP_RATING_TXT",
+   "ASS_SERIAL_NR_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ELC_CBL_AMPACITY_A",
+   "ELC_CBL_LENGTH_M",
+   "RGL_UMEME_APPROVAL_BOOL",
+   "RGL_NEMA_APPROVAL_REQ_BOOL",
+   "RGL_UMEME_CERT_NR",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_IMPORT_REQUIRED_BOOL",
+   "CST_ENERGY_ANNUAL_UGX_NUM_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ELC_PANEL_SCHEDULE_REF_TXT",
+   "ELC_FAT_CERT_REF_TXT",
+   "ELC_FACTORY_QR_TXT"
+  ]
+ },
+ "MEP/Electrical Fixture": {
+  "bundle": "MEP",
+  "family": "Electrical Fixture",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_PWR_KW",
+   "ELC_VLT_PRIMARY_RATING_V",
+   "ELC_CKT_NR",
+   "ELC_PNL_DESIGNATION_NAME_TXT",
+   "MNT_HGT_MM",
+   "ELC_VOLTAGE_V",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ELC_PWR_KW",
+   "ELC_VLT_PRIMARY_RATING_V",
+   "ELC_CKT_NR",
+   "ELC_PNL_DESIGNATION_NAME_TXT",
+   "MNT_HGT_MM",
+   "ELC_VOLTAGE_V",
+   "EV_CHARGER_TYPE_TXT",
+   "EV_CHARGER_KW",
+   "EV_CHARGER_CIRCUIT_REF",
+   "ELC_TAG_7_PARA_CIRCUIT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Fire Alarm Device": {
+  "bundle": "MEP",
+  "family": "Fire Alarm Device",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "FLS_SFTY_DEV_TYPE_TXT",
+   "FLS_SFTY_DEV_ZONE_TXT",
+   "MNT_HGT_MM",
+   "RGL_KCCA_APPROVAL_REQ_BOOL",
+   "FLS_SFTY_DEV_LOOP_TXT",
+   "FLS_SFTY_DEV_ADDRESS_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "FLS_SFTY_DEV_TYPE_TXT",
+   "FLS_SFTY_DEV_ZONE_TXT",
+   "MNT_HGT_MM",
+   "RGL_KCCA_APPROVAL_REQ_BOOL",
+   "FLS_TAG_7_PARA_FA_TXT",
+   "FLS_SFTY_DEV_LOOP_TXT",
+   "FLS_SFTY_DEV_ADDRESS_TXT",
+   "FLS_SFTY_DEV_DETECTOR_SENSITIVITY_TXT",
+   "FLS_ALARM_CIRCUIT_COUNT_NR",
+   "FLS_DETECTOR_COUNT_NR",
+   "FLS_DETECTION_COST_UGX",
+   "RGL_QA_TST_REPORT_REF_TXT",
+   "RGL_KCCA_CERT_NR",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Fire Protection": {
+  "bundle": "MEP",
+  "family": "Fire Protection",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "FLS_PROT_PRODUCT_TXT",
+   "FLS_PROT_CORROSION_PROT_LVL_NR",
+   "FLS_PROT_FLS_ESCAPE_STAIR_TXT",
+   "FLS_EXIT_TRAVEL_DIST_M",
+   "FLS_EVACUATION_TIME_MIN",
+   "FLS_PROT_FLS_RESISTANCE_MINUTES_CALC",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "FLS_PROT_PRODUCT_TXT",
+   "FLS_PROT_CORROSION_PROT_LVL_NR",
+   "FLS_PROT_FLS_ESCAPE_STAIR_TXT",
+   "FLS_EXIT_TRAVEL_DIST_M",
+   "FLS_EVACUATION_TIME_MIN",
+   "FLS_PROT_FLS_RESISTANCE_MINUTES_CALC",
+   "RGL_OCCUPANCY_CERT_REQ_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Flex Duct": {
+  "bundle": "MEP",
+  "family": "Flex Duct",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "HVC_DCT_FLW_CFM",
+   "HVC_DCT_SZ_TXT",
+   "INS_MATERIAL_TXT",
+   "HVC_DUCT_FLOWRATE_M3H",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT"
+  ],
+  "full_columns": [
+   "HVC_DCT_FLW_CFM",
+   "HVC_DCT_SZ_TXT",
+   "INS_MATERIAL_TXT",
+   "HVC_TAG_7_PARA_FLEXDUCT_TXT",
+   "HVC_DUCT_FLOWRATE_M3H",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_SEGMENT_ROLE_TXT",
+   "HVC_PRESSURE_CLASS_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT"
+  ]
+ },
+ "MEP/Flex Pipe": {
+  "bundle": "MEP",
+  "family": "Flex Pipe",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_PPE_MAT_TXT",
+   "PLM_SYS_TXT",
+   "PLM_PPE_LENGTH_M",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT"
+  ],
+  "full_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_PPE_MAT_TXT",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_PIPE_TXT",
+   "PLM_PPE_LENGTH_M",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Generic Model": {
+  "bundle": "MEP",
+  "family": "Generic Model",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MNT_HGT_MM",
+   "ASS_CAT_TXT",
+   "ASS_SERIAL_NR_TXT",
+   "ASS_CST_QUANTITY_NR",
+   "ASS_CST_UNIT_PRICE_UGX_NR",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "MNT_HGT_MM",
+   "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+   "ASS_CAT_TXT",
+   "ASS_SERIAL_NR_TXT",
+   "ASS_CST_QUANTITY_NR",
+   "ASS_CST_UNIT_PRICE_UGX_NR",
+   "CST_LOCAL_MAT_BOOL",
+   "CST_IMPORT_REQUIRED_BOOL",
+   "PER_SUST_EPD_REF_TXT",
+   "RGL_QA_STD_COMPLY_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/LPS Air Terminal": {
+  "bundle": "MEP",
+  "family": "LPS Air Terminal",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_PROTECTION_ANGLE_DEG",
+   "ELC_LPS_AIR_TERMINAL_COUNT_NR",
+   "ELC_LPS_ROLLING_SPHERE_RADIUS_M",
+   "ELC_LPS_MESH_SIZE_M"
+  ],
+  "full_columns": [
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_PROTECTION_ANGLE_DEG",
+   "ELC_LPS_AIR_TERMINAL_COUNT_NR",
+   "ELC_LPS_ROLLING_SPHERE_RADIUS_M",
+   "ELC_LPS_MESH_SIZE_M",
+   "ELC_LPS_RISK_ASSESSMENT_TXT",
+   "ELC_LPS_COMPLIANCE_STATUS_TXT",
+   "ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT",
+   "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ELC_LPS_INSPECTION_INTERVAL_MONTHS",
+   "ELC_LPS_CERT_REF_TXT"
+  ]
+ },
+ "MEP/LPS Bond": {
+  "bundle": "MEP",
+  "family": "LPS Bond",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_BOND_TYPE_TXT",
+   "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+   "ELC_LPS_ZONE_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_BOND_TYPE_TXT",
+   "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+   "ELC_LPS_ZONE_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/LPS Down Conductor": {
+  "bundle": "MEP",
+  "family": "LPS Down Conductor",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR",
+   "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+   "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+   "ELC_LPS_SEPARATION_DISTANCE_MM",
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR",
+   "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+   "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+   "ELC_LPS_SEPARATION_DISTANCE_MM",
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/LPS Earth Electrode": {
+  "bundle": "MEP",
+  "family": "LPS Earth Electrode",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_EARTH_TYPE_TXT",
+   "ELC_LPS_EARTH_RESISTANCE_OHM",
+   "ELC_LPS_EARTH_ELECTRODE_COUNT_NR",
+   "ELC_LPS_TEST_DATE_TXT",
+   "ELC_LPS_INSPECTION_INTERVAL_MONTHS",
+   "ELC_LPS_CERT_REF_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_EARTH_TYPE_TXT",
+   "ELC_LPS_EARTH_RESISTANCE_OHM",
+   "ELC_LPS_EARTH_ELECTRODE_COUNT_NR",
+   "ELC_LPS_TEST_DATE_TXT",
+   "ELC_LPS_INSPECTION_INTERVAL_MONTHS",
+   "ELC_LPS_CERT_REF_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/LPS SPD": {
+  "bundle": "MEP",
+  "family": "LPS SPD",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_SURGE_PROTECTION_LVL_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_BOND_TYPE_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_SURGE_PROTECTION_LVL_TXT",
+   "ELC_LPS_ZONE_TXT",
+   "ELC_LPS_BOND_TYPE_TXT"
+  ]
+ },
+ "MEP/LPS Test Clamp": {
+  "bundle": "MEP",
+  "family": "LPS Test Clamp",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_TEST_DATE_TXT",
+   "ELC_LPS_EARTH_RESISTANCE_OHM",
+   "ELC_LPS_INSPECTION_INTERVAL_MONTHS",
+   "ELC_LPS_CERT_REF_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_TEST_DATE_TXT",
+   "ELC_LPS_EARTH_RESISTANCE_OHM",
+   "ELC_LPS_INSPECTION_INTERVAL_MONTHS",
+   "ELC_LPS_CERT_REF_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Lighting Device": {
+  "bundle": "MEP",
+  "family": "Lighting Device",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_CKT_NR",
+   "ELC_PNL_DESIGNATION_NAME_TXT",
+   "MNT_HGT_MM",
+   "LTG_CTRL_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT"
+  ],
+  "full_columns": [
+   "ELC_CKT_NR",
+   "ELC_PNL_DESIGNATION_NAME_TXT",
+   "MNT_HGT_MM",
+   "ELC_TAG_7_PARA_CIRCUIT_TXT",
+   "LTG_CTRL_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Lighting Fixture": {
+  "bundle": "MEP",
+  "family": "Lighting Fixture",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "LTG_FIX_LMP_WATTAGE_W",
+   "CST_FIX_LUMEN_OUTPUT_LM",
+   "LTG_CLR_TEMP_K",
+   "LTG_EFFICACY_LM_W",
+   "ELC_CKT_NR",
+   "MNT_HGT_MM",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "LTG_FIX_LMP_WATTAGE_W",
+   "CST_FIX_LUMEN_OUTPUT_LM",
+   "LTG_CLR_TEMP_K",
+   "LTG_EFFICACY_LM_W",
+   "ELC_CKT_NR",
+   "MNT_HGT_MM",
+   "ELC_TAG_7_PARA_CIRCUIT_TXT",
+   "LTG_FIX_TAG_01_TXT",
+   "LTG_FIX_TAG_02_TXT",
+   "LTG_EMRG_TYPE_TXT",
+   "LTG_CLR_RENDERING_INDEX_NR",
+   "LTG_CKT_NR_TXT",
+   "LTG_CTRL_TYPE_TXT",
+   "LTG_DESIGN_ILLUMINANCE_LUX",
+   "PER_SUST_ENERGY_RATING_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/MEP Fabrication Containment": {
+  "bundle": "MEP",
+  "family": "MEP Fabrication Containment",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/MEP Fabrication Ductwork Sti": {
+  "bundle": "MEP",
+  "family": "MEP Fabrication Ductwork Sti",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "FAB_DCT_W_MM",
+   "FAB_DCT_H_MM",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "FAB_DCT_W_MM",
+   "FAB_DCT_H_MM",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/MEP Fabrication Ductwork": {
+  "bundle": "MEP",
+  "family": "MEP Fabrication Ductwork",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL"
+  ],
+  "full_columns": [
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/MEP Fabrication Hangers": {
+  "bundle": "MEP",
+  "family": "MEP Fabrication Hangers",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "FAB_HANGER_LOAD_KN",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "FAB_HANGER_LOAD_KN",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/MEP Fabrication Pipework": {
+  "bundle": "MEP",
+  "family": "MEP Fabrication Pipework",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PLM_SYS_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "PLM_PRESSURE_TEST_REF_TXT",
+   "PLM_WELD_MAP_REF_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL"
+  ],
+  "full_columns": [
+   "PLM_SYS_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "PLM_PRESSURE_TEST_REF_TXT",
+   "PLM_WELD_MAP_REF_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/MEP Sheet": {
+  "bundle": "MEP",
+  "family": "MEP Sheet",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_NUMBER_TXT",
+   "SHT_NAME_TXT",
+   "SHT_TAG_7_TXT"
+  ],
+  "full_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_NUMBER_TXT",
+   "SHT_NAME_TXT",
+   "SHT_TAG_7_TXT"
+  ]
+ },
+ "MEP/MEP Sleeve": {
+  "bundle": "MEP",
+  "family": "MEP Sleeve",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "SLV_SZ_MM",
+   "SLV_FIRE_RATING_TXT",
+   "SLV_SERVICE_TXT",
+   "SLV_STATUS_TXT",
+   "SLV_MAT_TXT",
+   "SLV_SEAL_TYPE_TXT"
+  ],
+  "full_columns": [
+   "SLV_SZ_MM",
+   "SLV_FIRE_RATING_TXT",
+   "SLV_SERVICE_TXT",
+   "SLV_STATUS_TXT",
+   "SLV_MAT_TXT",
+   "SLV_SEAL_TYPE_TXT",
+   "SLV_WALL_TYPE_TXT",
+   "SLV_FIRESTOP_PRODUCT_TXT",
+   "SLV_TESTED_TO_TXT",
+   "SLV_INSPECTION_DATE_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Materials": {
+  "bundle": "MEP",
+  "family": "Materials",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MAT_MANUFACTURER",
+   "MAT_STANDARD",
+   "MAT_CODE",
+   "PROP_DENSITY_KG_M3",
+   "PROP_FIRE_RATING",
+   "PROP_THERMAL_COND_W_MK",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "MAT_MANUFACTURER",
+   "MAT_STANDARD",
+   "MAT_CODE",
+   "PROP_DENSITY_KG_M3",
+   "PROP_FIRE_RATING",
+   "PROP_THERMAL_COND_W_MK",
+   "PROP_THERMAL_RES_M2K_W",
+   "PROP_SPECIFIC_HEAT_J_KGK",
+   "PROP_ACOUSTIC_ABS",
+   "PROP_SOUND_RED_DB",
+   "PROP_CARBON_KG_M3",
+   "PROP_COMP_STRENGTH_MPA",
+   "PROP_TENS_STRENGTH_MPA",
+   "MAT_DURABILITY",
+   "MAT_APPLICATION",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Mechanical Control Devices": {
+  "bundle": "MEP",
+  "family": "Mechanical Control Devices",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MEC_CTRL_SIGNAL_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "MEC_CTRL_SIGNAL_TXT",
+   "HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Mechanical Equipment Sets": {
+  "bundle": "MEP",
+  "family": "Mechanical Equipment Sets",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MEC_SET_CAPACITY_KW",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT",
+   "HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT",
+   "HVC_FACTORY_FLASH_TEST_DATE_TXT"
+  ],
+  "full_columns": [
+   "MEC_SET_CAPACITY_KW",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT",
+   "HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT",
+   "HVC_FACTORY_FLASH_TEST_DATE_TXT",
+   "HVC_FACTORY_QR_TXT",
+   "HVC_CAPACITY_KW",
+   "HVC_REFRIGERANT_TYPE_TXT",
+   "HVC_REFRIGERANT_KG_NR",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT"
+  ]
+ },
+ "MEP/Mechanical Equipment": {
+  "bundle": "MEP",
+  "family": "Mechanical Equipment",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "HVC_CAP_KW",
+   "HVC_PWR_KW",
+   "HVC_DCT_FLW_CFM",
+   "HVC_REFRIGERANT_TXT",
+   "HVC_EFF_RATIO_NR",
+   "HVC_BMS_CONTROL_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "HVC_CAP_KW",
+   "HVC_PWR_KW",
+   "HVC_DCT_FLW_CFM",
+   "HVC_REFRIGERANT_TXT",
+   "HVC_EFF_RATIO_NR",
+   "HVC_BMS_CONTROL_TYPE_TXT",
+   "MNT_HGT_MM",
+   "MEC_SET_CAPACITY_KW",
+   "HVC_TAG_7_PARA_SPEC_TXT",
+   "HVC_EQP_TAG_01_TXT",
+   "HVC_EQP_TAG_02_TXT",
+   "HVC_EQP_TAG_03_TXT",
+   "HVC_CAP_TR",
+   "HVC_VLT_V",
+   "HVC_CONTROL_TYPE_TXT",
+   "ASS_SERIAL_NR_TXT",
+   "ASS_SYSTEM_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_MAINTENANCE_FREQUENCY_MONTHS",
+   "RGL_NEMA_APPROVAL_REQ_BOOL",
+   "RGL_QA_APVD_VENDOR_TXT",
+   "RGL_NEMA_CERT_NR",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_IMPORT_REQUIRED_BOOL",
+   "CST_ENERGY_ANNUAL_UGX_NUM_NR",
+   "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
+   "CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT",
+   "HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT",
+   "HVC_FACTORY_FLASH_TEST_DATE_TXT",
+   "HVC_FACTORY_QR_TXT",
+   "HVC_CAPACITY_KW",
+   "HVC_REFRIGERANT_TYPE_TXT",
+   "HVC_REFRIGERANT_KG_NR",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT"
+  ]
+ },
+ "MEP/Nurse Call Device": {
+  "bundle": "MEP",
+  "family": "Nurse Call Device",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "NCL_ZONE_TXT",
+   "MNT_HGT_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "NCL_ZONE_TXT",
+   "MNT_HGT_MM",
+   "NCL_TAG_7_PARA_NURSECALL_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Pipe Accessory": {
+  "bundle": "MEP",
+  "family": "Pipe Accessory",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_SYS_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ],
+  "full_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_PIPEACC_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Pipe Fitting": {
+  "bundle": "MEP",
+  "family": "Pipe Fitting",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_PPE_MAT_TXT",
+   "PLM_SYS_TXT",
+   "PLM_PPE_PSR_RATING_BAR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT"
+  ],
+  "full_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_PPE_MAT_TXT",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_PIPEACC_TXT",
+   "PLM_PPE_PSR_RATING_BAR",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Pipe Insulation": {
+  "bundle": "MEP",
+  "family": "Pipe Insulation",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "INS_MATERIAL_TXT",
+   "PLM_SYS_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ],
+  "full_columns": [
+   "INS_MATERIAL_TXT",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_PIPE_INSULATION_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Pipe": {
+  "bundle": "MEP",
+  "family": "Pipe",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PLM_PPE_FLW_LPS",
+   "PLM_VEL_MPS",
+   "PLM_PSR_KPA",
+   "PLM_PPE_MAT_TXT",
+   "PLM_INSULATION_TXT",
+   "PLM_PPE_SHOP_DRAWING_REQ_BOOL",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "PLM_PPE_FLW_LPS",
+   "PLM_VEL_MPS",
+   "PLM_PSR_KPA",
+   "PLM_PPE_MAT_TXT",
+   "PLM_INSULATION_TXT",
+   "PLM_PPE_SHOP_DRAWING_REQ_BOOL",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_PIPE_TXT",
+   "PLM_PPE_JOINT_TYPE_TXT",
+   "PLM_PPE_PSR_RATING_BAR",
+   "PLM_PPE_INS_TYPE_TXT",
+   "PLM_PPE_INS_THK_MM",
+   "PLM_PPE_LENGTH_M",
+   "PLM_EQP_TAG_01_TXT",
+   "PLM_EQP_TAG_02_TXT",
+   "PLM_VLV_END_CONNECTION_TXT",
+   "PLM_VLV_PSR_CLASS_TXT",
+   "PLM_PPE_FAB_METHOD_TXT",
+   "PLM_PPE_WELD_TYPE_TXT",
+   "PLM_PPE_SUPPORTS_SPACING_MM",
+   "PLM_PPE_HANGER_TYPE_TXT",
+   "CST_CALC_LENGTH_M",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Plumbing Equipment": {
+  "bundle": "MEP",
+  "family": "Plumbing Equipment",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PLM_EQP_CAPACITY_L",
+   "PLM_EQP_PRESSURE_KPA",
+   "PLM_HOTWTR_STORAGE_CAP_GAL_NR",
+   "PLM_HOTWTR_INPUT_PWR_KW",
+   "PLM_HOTWTR_TEMP_C",
+   "PLM_CAP_CU_M",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "PLM_EQP_CAPACITY_L",
+   "PLM_TAG_7_PARA_PLM_EQUIP_TXT",
+   "PLM_EQP_PRESSURE_KPA",
+   "PLM_HOTWTR_STORAGE_CAP_GAL_NR",
+   "PLM_HOTWTR_INPUT_PWR_KW",
+   "PLM_HOTWTR_TEMP_C",
+   "PLM_CAP_CU_M",
+   "PLM_HED_M",
+   "PLM_PWR_KW",
+   "ASS_SERIAL_NR_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_MAINTENANCE_FREQUENCY_MONTHS",
+   "RGL_NWSC_APPROVAL_BOOL",
+   "RGL_QA_APVD_VENDOR_TXT",
+   "PLM_PRESSURE_TEST_REF_TXT",
+   "PLM_WELD_MAP_REF_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Plumbing Fixture": {
+  "bundle": "MEP",
+  "family": "Plumbing Fixture",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_PPE_FLW_LPS",
+   "RGL_NWSC_APPROVAL_REQ_BOOL",
+   "PLM_SYS_TXT",
+   "PLM_VLV_ACTUATION_TYPE_TXT",
+   "PLM_VLV_BODY_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "PLM_PPE_SZ_MM",
+   "PLM_PPE_FLW_LPS",
+   "RGL_NWSC_APPROVAL_REQ_BOOL",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_FIXTURE_TXT",
+   "PLM_VLV_ACTUATION_TYPE_TXT",
+   "PLM_VLV_BODY_MAT_TXT",
+   "PLM_VLV_CV_NR",
+   "PLM_ACC_CONNECTION_SZ_NR",
+   "PLM_VNT_SZ_NR",
+   "PER_SUST_WTR_RATING_NR",
+   "RGL_NWSC_CERT_NR",
+   "PER_SUST_WATER_RATING_TXT",
+   "CST_LOCAL_MAT_BOOL",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "ASS_CST_TOTAL_UGX_NR",
+   "HVC_PIPE_SERVICE_TXT",
+   "HVC_SIZE_STALE_BOOL",
+   "HVC_SIZE_MODIFIED_DT",
+   "HVC_SIZE_PREV_TXT",
+   "HVC_SIZE_RULE_ID_TXT"
+  ]
+ },
+ "MEP/Security Device": {
+  "bundle": "MEP",
+  "family": "Security Device",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "SEC_DEV_ZONE_TXT",
+   "MNT_HGT_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "SEC_DEV_ZONE_TXT",
+   "MNT_HGT_MM",
+   "SEC_TAG_7_PARA_SECURITY_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Spaces": {
+  "bundle": "MEP",
+  "family": "Spaces",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "BLE_ROOM_VENTILATION_RATE_LPS",
+   "HVC_AIR_CHANGES_PER_HR",
+   "BLE_ROOM_OCCUPANCY_NR",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "BLE_ROOM_VENTILATION_RATE_LPS",
+   "HVC_AIR_CHANGES_PER_HR",
+   "HVC_TAG_7_PARA_SPEC_TXT",
+   "BLE_ROOM_OCCUPANCY_NR",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "MEP/Specialty Equipment": {
+  "bundle": "MEP",
+  "family": "Specialty Equipment",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "MNT_HGT_MM",
+   "ASS_SERIAL_NR_TXT",
+   "ASS_SYSTEM_TYPE_TXT",
+   "ASS_CAT_TXT",
+   "ASS_ID_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "MNT_HGT_MM",
+   "ASS_TAG_7_PARA_EQUIPMENT_TXT",
+   "ASS_SERIAL_NR_TXT",
+   "ASS_SYSTEM_TYPE_TXT",
+   "ASS_CAT_TXT",
+   "ASS_ID_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_MAINTENANCE_FREQUENCY_MONTHS",
+   "RGL_QA_APVD_VENDOR_TXT",
+   "RGL_QA_TST_REPORT_REF_TXT",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_IMPORT_REQUIRED_BOOL",
+   "CST_SPECIAL_EQUIPMENT_TXT",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Specialty Equipment Asset": {
+  "bundle": "MEP",
+  "family": "Specialty Equipment Asset",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_SERIAL_NR_TXT",
+   "ASS_ID_TXT",
+   "MNT_HGT_MM",
+   "ASS_MAINTENANCE_FREQUENCY_MONTHS",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "ASS_SERIAL_NR_TXT",
+   "ASS_ID_TXT",
+   "MNT_HGT_MM",
+   "ASS_MAINTENANCE_FREQUENCY_MONTHS",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Specialty Equipment General": {
+  "bundle": "MEP",
+  "family": "Specialty Equipment General",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_FUNC_TXT",
+   "ASS_SYSTEM_TYPE_TXT",
+   "MNT_HGT_MM",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ],
+  "full_columns": [
+   "ASS_FUNC_TXT",
+   "ASS_SYSTEM_TYPE_TXT",
+   "MNT_HGT_MM",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Sprinkler": {
+  "bundle": "MEP",
+  "family": "Sprinkler",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "FLS_SFTY_COVERAGE_AREA_SQ_M",
+   "FLS_SFTY_K_FACTOR_NR",
+   "MNT_HGT_MM",
+   "RGL_KCCA_APPROVAL_REQ_BOOL",
+   "FLS_SFTY_TEMP_RATING_C",
+   "FLS_PROT_SPRINKLER_HED_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "FLS_SFTY_COVERAGE_AREA_SQ_M",
+   "FLS_SFTY_K_FACTOR_NR",
+   "MNT_HGT_MM",
+   "RGL_KCCA_APPROVAL_REQ_BOOL",
+   "FLS_TAG_7_PARA_SPR_TXT",
+   "FLS_SFTY_TEMP_RATING_C",
+   "FLS_PROT_SPRINKLER_HED_TYPE_TXT",
+   "FLS_SFTY_FLW_RATE_LPM_NR",
+   "FLS_DEV_TAG_01_TXT",
+   "FLS_DEV_TAG_02_TXT",
+   "FLS_DETECTION_COST_UGX",
+   "FLS_DETECTOR_COUNT_NR",
+   "FLS_SFTY_HEADS_OPERATING_NR",
+   "RGL_KCCA_CERT_NR",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Telephone Devices": {
+  "bundle": "MEP",
+  "family": "Telephone Devices",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ICT_OUTLET_TYPE_TXT",
+   "ICT_PORT_NR_TXT",
+   "ICT_PATCH_PANEL_TXT",
+   "MNT_HGT_MM",
+   "ICT_TEL_OUTLET_QTY_NR",
+   "ICT_TEL_PORT_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ICT_OUTLET_TYPE_TXT",
+   "ICT_PORT_NR_TXT",
+   "ICT_PATCH_PANEL_TXT",
+   "MNT_HGT_MM",
+   "ICT_TAG_7_PARA_TEL_TXT",
+   "ICT_TEL_OUTLET_QTY_NR",
+   "ICT_TEL_PORT_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Tie-In FP Pipe": {
+  "bundle": "MEP",
+  "family": "Tie-In FP Pipe",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [],
+  "full_columns": []
+ },
+ "MEP/Tie-In Point (Cable Tray — E": {
+  "bundle": "MEP",
+  "family": "Tie-In Point (Cable Tray — E",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ELC_CTR_MAT_TXT",
+   "ELC_CTR_FILL_PCT",
+   "ASS_TIEIN_ELEV_TXT",
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ELC_CTR_MAT_TXT",
+   "ELC_CTR_FILL_PCT",
+   "ASS_TIEIN_ELEV_TXT",
+   "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
+   "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
+   "ELC_TAG_7_PARA_TIEIN_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_TIEIN_BY_TXT",
+   "ASS_TIEIN_IFC_REF_TXT",
+   "ASS_TIEIN_CONNECTED_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "MEP/Tie-In Point (Conduit — Elec": {
+  "bundle": "MEP",
+  "family": "Tie-In Point (Conduit — Elec",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ELC_CDT_MAT_TXT",
+   "ASS_TIEIN_ELEV_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_TIEIN_BY_TXT",
+   "ASS_TIEIN_IFC_REF_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ELC_CDT_MAT_TXT",
+   "ASS_TIEIN_ELEV_TXT",
+   "ELC_TAG_7_PARA_TIEIN_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_TIEIN_BY_TXT",
+   "ASS_TIEIN_IFC_REF_TXT",
+   "ELC_CDT_CBL_FILL_PCT",
+   "ASS_TIEIN_CONNECTED_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Tie-In Point (Duct — HVAC)": {
+  "bundle": "MEP",
+  "family": "Tie-In Point (Duct — HVAC)",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ASS_TIEIN_FLOW_DIR_TXT",
+   "HVC_DCT_FLW_CFM",
+   "HVC_VEL_MPS",
+   "ASS_TIEIN_ELEV_TXT",
+   "HVC_DCT_MAT_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ASS_TIEIN_FLOW_DIR_TXT",
+   "HVC_DCT_FLW_CFM",
+   "HVC_VEL_MPS",
+   "ASS_TIEIN_ELEV_TXT",
+   "HVC_DCT_MAT_TXT",
+   "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
+   "HVC_TAG_7_PARA_TIEIN_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_TIEIN_BY_TXT",
+   "ASS_TIEIN_IFC_REF_TXT",
+   "HVC_DUCT_CLASS_TXT",
+   "ASS_TIEIN_CONNECTED_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Tie-In Point (Fire Protectio": {
+  "bundle": "MEP",
+  "family": "Tie-In Point (Fire Protectio",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "PLM_PPE_FLW_LPS",
+   "PLM_PSR_KPA",
+   "ASS_TIEIN_ELEV_TXT",
+   "PLM_SYS_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "PLM_PPE_FLW_LPS",
+   "PLM_PSR_KPA",
+   "ASS_TIEIN_ELEV_TXT",
+   "PLM_SYS_TXT",
+   "FLS_TAG_7_PARA_TIEIN_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_TIEIN_BY_TXT",
+   "ASS_TIEIN_IFC_REF_TXT",
+   "PLM_PPE_PSR_RATING_BAR",
+   "ASS_TIEIN_CONNECTED_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Tie-In Point (Gas — Medical ": {
+  "bundle": "MEP",
+  "family": "Tie-In Point (Gas — Medical ",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "PLM_PSR_KPA",
+   "ASS_TIEIN_FLOW_DIR_TXT",
+   "ASS_TIEIN_ELEV_TXT",
+   "PLM_PPE_MAT_TXT",
+   "PLM_SYS_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "PLM_PSR_KPA",
+   "ASS_TIEIN_FLOW_DIR_TXT",
+   "ASS_TIEIN_ELEV_TXT",
+   "PLM_PPE_MAT_TXT",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_TIEIN_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_TIEIN_BY_TXT",
+   "ASS_TIEIN_IFC_REF_TXT",
+   "PLM_PPE_PSR_RATING_BAR",
+   "ASS_TIEIN_CONNECTED_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Tie-In Point (Pipe — Plumbin": {
+  "bundle": "MEP",
+  "family": "Tie-In Point (Pipe — Plumbin",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ASS_TIEIN_FLOW_DIR_TXT",
+   "PLM_PPE_FLW_LPS",
+   "PLM_PSR_KPA",
+   "ASS_TIEIN_ELEV_TXT",
+   "PLM_SYS_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_TIEIN_STATUS_TXT",
+   "ASS_TIEIN_FLOW_DIR_TXT",
+   "PLM_PPE_FLW_LPS",
+   "PLM_PSR_KPA",
+   "ASS_TIEIN_ELEV_TXT",
+   "PLM_SYS_TXT",
+   "PLM_TAG_7_PARA_TIEIN_TXT",
+   "ASS_TIEIN_PHASE_TXT",
+   "ASS_TIEIN_BY_TXT",
+   "ASS_TIEIN_IFC_REF_TXT",
+   "PLM_PPE_MAT_TXT",
+   "PLM_PPE_PSR_RATING_BAR",
+   "ASS_TIEIN_CONNECTED_BOOL",
+   "ASS_CST_TOTAL_UGX_NR",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT",
+   "ASS_TERM_CAPPED_BOOL",
+   "ASS_TERM_REASON_TXT"
+  ]
+ },
+ "MEP/Zones": {
+  "bundle": "MEP",
+  "family": "Zones",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "HVC_CONTROL_TYPE_TXT",
+   "HVC_BMS_CONTROL_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "ASS_ROOM_AREA_SQ_M",
+   "HVC_CONTROL_TYPE_TXT",
+   "HVC_BMS_CONTROL_TYPE_TXT",
+   "HVC_TAG_7_PARA_SPEC_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ]
+ },
+ "STR/Analytical Members": {
+  "bundle": "STR",
+  "family": "Analytical Members",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_SECTION_PROFILE_TXT",
+   "STR_MATERIAL_GRADE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ],
+  "full_columns": [
+   "STR_SECTION_PROFILE_TXT",
+   "STR_MATERIAL_GRADE_TXT",
+   "STR_TAG_7_PARA_ANLYT_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ]
+ },
+ "STR/Brace - Truss": {
+  "bundle": "STR",
+  "family": "Brace - Truss",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_BRACE_SECTION_TXT",
+   "STR_BRACE_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_BRACE_LENGTH_MM",
+   "STR_BRACE_CONNECTION_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_BRACE_SECTION_TXT",
+   "STR_BRACE_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_BRACE_LENGTH_MM",
+   "STR_TAG_7_PARA_BRACE_TXT",
+   "STR_BRACE_CONNECTION_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Columns": {
+  "bundle": "STR",
+  "family": "Columns",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_COL_SECTION_TXT",
+   "STR_COL_MATERIAL_TXT",
+   "PER_FIRE_RATING_HR",
+   "STR_FIRE_PROTECTION_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS"
+  ],
+  "full_columns": [
+   "STR_COL_SECTION_TXT",
+   "STR_COL_MATERIAL_TXT",
+   "PER_FIRE_RATING_HR",
+   "STR_TAG_7_PARA_COL_TXT",
+   "STR_FIRE_PROTECTION_TYPE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Internal Area Loads": {
+  "bundle": "STR",
+  "family": "Internal Area Loads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_AREA_LOAD_KN_M2",
+   "STR_LOAD_CASE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ],
+  "full_columns": [
+   "STR_AREA_LOAD_KN_M2",
+   "STR_LOAD_CASE_TXT",
+   "STR_TAG_7_PARA_LOAD_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ]
+ },
+ "STR/Internal Line Loads": {
+  "bundle": "STR",
+  "family": "Internal Line Loads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_LINE_LOAD_KN_M",
+   "STR_LOAD_CASE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ],
+  "full_columns": [
+   "STR_LINE_LOAD_KN_M",
+   "STR_LOAD_CASE_TXT",
+   "STR_TAG_7_PARA_LOAD_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ]
+ },
+ "STR/Internal Point Loads": {
+  "bundle": "STR",
+  "family": "Internal Point Loads",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_POINT_LOAD_KN",
+   "STR_LOAD_CASE_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ],
+  "full_columns": [
+   "STR_POINT_LOAD_KN",
+   "STR_LOAD_CASE_TXT",
+   "STR_TAG_7_PARA_LOAD_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL"
+  ]
+ },
+ "STR/LPS Foundation Earth (Struct": {
+  "bundle": "STR",
+  "family": "LPS Foundation Earth (Struct",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "ELC_LPS_EARTH_TYPE_TXT",
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_EARTH_RESISTANCE_OHM",
+   "ELC_LPS_TEST_DATE_TXT",
+   "ELC_LPS_BOND_TYPE_TXT",
+   "ELC_LPS_CERT_REF_TXT"
+  ],
+  "full_columns": [
+   "ELC_LPS_EARTH_TYPE_TXT",
+   "ELC_LPS_CLASS_TXT",
+   "ELC_LPS_EARTH_RESISTANCE_OHM",
+   "ELC_LPS_TEST_DATE_TXT",
+   "ELC_LPS_BOND_TYPE_TXT",
+   "ELC_LPS_CERT_REF_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Area Reinforcemen": {
+  "bundle": "STR",
+  "family": "Structural Area Reinforcemen",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_GRADE_TXT",
+   "CST_S_REI_COVER_MM",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT"
+  ],
+  "full_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_GRADE_TXT",
+   "CST_S_REI_COVER_MM",
+   "STR_TAG_7_PARA_REBAR_TXT",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT",
+   "STR_CUTTING_LIST_REF_TXT",
+   "ASBUILT_COVER_DEVIATION_MM_DISP_TXT"
+  ]
+ },
+ "STR/Structural Beam Systems": {
+  "bundle": "STR",
+  "family": "Structural Beam Systems",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_SPAN_MM",
+   "STR_LOAD_UDL_KN_M",
+   "STR_BEAM_DEFLECTION_LIM_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS"
+  ],
+  "full_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_SPAN_MM",
+   "STR_LOAD_UDL_KN_M",
+   "STR_TAG_7_PARA_BEAM_TXT",
+   "STR_BEAM_DEFLECTION_LIM_TXT",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Column": {
+  "bundle": "STR",
+  "family": "Structural Column",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_COL_SECTION_TXT",
+   "STR_COL_SIZE_MM",
+   "STR_COL_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_COL_HEIGHT_MM",
+   "STR_LOAD_AXIAL_KN",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_COL_SECTION_TXT",
+   "STR_COL_SIZE_MM",
+   "STR_COL_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_COL_HEIGHT_MM",
+   "STR_LOAD_AXIAL_KN",
+   "PER_FIRE_RATING_HR",
+   "STR_TAG_7_PARA_COL_TXT",
+   "STR_COL_GRID_REF_TXT",
+   "STR_COL_SPLICE_DETAIL_TXT",
+   "STR_FIRE_PROTECTION_TYPE_TXT",
+   "STR_COL_BASE_PLATE_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "STR_COL_MOMENT_CAPACITY_KNM",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Connection": {
+  "bundle": "STR",
+  "family": "Structural Connection",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_CONN_TYPE_TXT",
+   "STR_CONN_CAPACITY_KN",
+   "STR_CONN_BOLT_SIZE_TXT",
+   "STR_CONN_WELD_TYPE_TXT",
+   "STR_CONN_PLATE_THICKNESS_MM",
+   "STR_CONN_ROTATION_CAPACITY_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_CONN_TYPE_TXT",
+   "STR_CONN_CAPACITY_KN",
+   "STR_CONN_BOLT_SIZE_TXT",
+   "STR_TAG_7_PARA_CONN_TXT",
+   "STR_CONN_WELD_TYPE_TXT",
+   "STR_CONN_PLATE_THICKNESS_MM",
+   "STR_CONN_ROTATION_CAPACITY_TXT",
+   "STR_FIRE_PROTECTION_TYPE_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "STR_WELD_PROCEDURE_REF_TXT",
+   "STR_BOLT_TORQUE_NM_NR_DISP_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Fabric Reinforcem": {
+  "bundle": "STR",
+  "family": "Structural Fabric Reinforcem",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_COVER_MM",
+   "CST_S_REI_WEIGHT_KG",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT"
+  ],
+  "full_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_COVER_MM",
+   "STR_TAG_7_PARA_REBAR_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT",
+   "STR_CUTTING_LIST_REF_TXT",
+   "ASBUILT_COVER_DEVIATION_MM_DISP_TXT"
+  ]
+ },
+ "STR/Structural Foundation": {
+  "bundle": "STR",
+  "family": "Structural Foundation",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_FDN_TYPE_TXT",
+   "STR_FDN_SIZE_MM",
+   "STR_FDN_DEPTH_MM",
+   "STR_FDN_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_FDN_BEARING_KN_M2",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_FDN_TYPE_TXT",
+   "STR_FDN_SIZE_MM",
+   "STR_FDN_DEPTH_MM",
+   "STR_FDN_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_FDN_BEARING_KN_M2",
+   "FOUND_SOIL_CLASS_TXT",
+   "FOUND_BEAR_UTIL_TXT",
+   "FOUND_SUMMARY_TXT",
+   "STR_TAG_7_PARA_FDN_TXT",
+   "STR_FDN_REBAR_TXT",
+   "STR_FDN_COVER_MM",
+   "STR_FDN_WATERPROOF_TXT",
+   "STR_FDN_EXPOSURE_CLASS_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "STR_FDN_SETTLEMENT_MM",
+   "STR_FDN_PILE_TYPE_TXT",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Framing": {
+  "bundle": "STR",
+  "family": "Structural Framing",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_DEPTH_MM",
+   "STR_BEAM_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_BEAM_SPAN_MM",
+   "STR_LOAD_UDL_KN_M",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_DEPTH_MM",
+   "STR_BEAM_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_BEAM_SPAN_MM",
+   "STR_LOAD_UDL_KN_M",
+   "PER_FIRE_RATING_HR",
+   "STR_TAG_7_PARA_BEAM_TXT",
+   "STR_BEAM_CONNECTION_TYPE_TXT",
+   "STR_BEAM_CAMBER_MM",
+   "STR_BEAM_DEFLECTION_LIM_TXT",
+   "STR_FIRE_PROTECTION_TYPE_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "STR_BEAM_MOMENT_CAPACITY_KNM",
+   "STR_BEAM_WEB_OPENING_TXT",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "RGL_QA_COMMISSIONING_REQ_TXT",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Path Reinforcemen": {
+  "bundle": "STR",
+  "family": "Structural Path Reinforcemen",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_COVER_MM",
+   "CST_S_REI_OVERLAP_LENGTH_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS"
+  ],
+  "full_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_COVER_MM",
+   "STR_TAG_7_PARA_REBAR_TXT",
+   "CST_S_REI_OVERLAP_LENGTH_MM",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT",
+   "STR_CUTTING_LIST_REF_TXT",
+   "ASBUILT_COVER_DEVIATION_MM_DISP_TXT"
+  ]
+ },
+ "STR/Structural Rebar Couplers": {
+  "bundle": "STR",
+  "family": "Structural Rebar Couplers",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_GRADE_TXT",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT",
+   "STR_CUTTING_LIST_REF_TXT",
+   "ASBUILT_COVER_DEVIATION_MM_DISP_TXT"
+  ],
+  "full_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_GRADE_TXT",
+   "STR_TAG_7_PARA_REBAR_TXT",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT",
+   "STR_CUTTING_LIST_REF_TXT",
+   "ASBUILT_COVER_DEVIATION_MM_DISP_TXT"
+  ]
+ },
+ "STR/Structural Rebar": {
+  "bundle": "STR",
+  "family": "Structural Rebar",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_GRADE_TXT",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_COVER_MM",
+   "STR_REBAR_SHAPE_TXT",
+   "CST_S_REI_OVERLAP_LENGTH_MM",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_REBAR_SIZE_MM",
+   "CST_S_REI_GRADE_TXT",
+   "CST_S_REI_SPACING_MM",
+   "CST_S_REI_COVER_MM",
+   "STR_TAG_7_PARA_REBAR_TXT",
+   "STR_REBAR_SHAPE_TXT",
+   "CST_S_REI_OVERLAP_LENGTH_MM",
+   "STR_REBAR_HOOK_TYPE_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "STR_BAR_MARK_TXT",
+   "STR_BEND_SCHEDULE_REF_TXT",
+   "STR_CUTTING_LIST_REF_TXT",
+   "ASBUILT_COVER_DEVIATION_MM_DISP_TXT"
+  ]
+ },
+ "STR/Structural Sheet": {
+  "bundle": "STR",
+  "family": "Structural Sheet",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_NUMBER_TXT",
+   "SHT_NAME_TXT",
+   "SHT_TAG_7_TXT"
+  ],
+  "full_columns": [
+   "SHT_DISC_TXT",
+   "SHT_FORM_TXT",
+   "SHT_LEVEL_TXT",
+   "SHT_NUMBER_TXT",
+   "SHT_NAME_TXT",
+   "SHT_TAG_7_TXT"
+  ]
+ },
+ "STR/Structural Slab": {
+  "bundle": "STR",
+  "family": "Structural Slab",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_STRUCT_SLAB_THICKNESS_MM",
+   "STR_SLAB_TYPE_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_SLAB_LOAD_KN_M2",
+   "PER_FIRE_RATING_HR",
+   "STR_SLAB_REBAR_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_STRUCT_SLAB_THICKNESS_MM",
+   "STR_SLAB_TYPE_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_SLAB_LOAD_KN_M2",
+   "PER_FIRE_RATING_HR",
+   "STR_TAG_7_PARA_SLAB_TXT",
+   "STR_SLAB_REBAR_TXT",
+   "STR_SLAB_MESH_TXT",
+   "STR_SLAB_COVER_MM",
+   "STR_SLAB_DEFLECTION_LIMIT_TXT",
+   "BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Stiffeners": {
+  "bundle": "STR",
+  "family": "Structural Stiffeners",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT"
+  ],
+  "full_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_TAG_7_PARA_BEAM_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Trusses": {
+  "bundle": "STR",
+  "family": "Structural Trusses",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_SPAN_MM",
+   "STR_BEAM_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "PER_FIRE_RATING_HR",
+   "STR_BEAM_DEFLECTION_LIM_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "STR_BEAM_SECTION_TXT",
+   "STR_BEAM_SPAN_MM",
+   "STR_BEAM_MATERIAL_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "PER_FIRE_RATING_HR",
+   "STR_TAG_7_PARA_BEAM_TXT",
+   "STR_BEAM_DEFLECTION_LIM_TXT",
+   "STR_FIRE_PROTECTION_TYPE_TXT",
+   "CST_S_REI_WEIGHT_KG",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ },
+ "STR/Structural Wall": {
+  "bundle": "STR",
+  "family": "Structural Wall",
+  "col1_tag": "ASS_TAG_1_TXT",
+  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "last_comments": "Comments",
+  "sheet_columns": [
+   "BLE_WALL_THICKNESS_MM",
+   "STR_WALL_TYPE_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_LOAD_AXIAL_KN",
+   "PER_FIRE_RATING_HR",
+   "STR_WALL_REBAR_TXT",
+   "ASS_CST_TOTAL_UGX_NR"
+  ],
+  "full_columns": [
+   "BLE_WALL_THICKNESS_MM",
+   "STR_WALL_TYPE_TXT",
+   "BLE_STRUCT_STEEL_GRADE_TXT",
+   "STR_LOAD_AXIAL_KN",
+   "PER_FIRE_RATING_HR",
+   "STR_TAG_7_PARA_WALL_TXT",
+   "STR_WALL_REBAR_TXT",
+   "STR_WALL_COVER_MM",
+   "PER_SUST_EMBODIED_CARBON_KG",
+   "ASS_CST_TOTAL_UGX_NR",
+   "CST_DELIVERY_LEAD_TIME_DAYS",
+   "CST_LOCAL_MAT_BOOL",
+   "ASS_SPOOL_NR_TXT",
+   "ASS_FAB_STATUS_TXT",
+   "ASS_QC_INSPECTOR_TXT"
+  ]
+ }
+}

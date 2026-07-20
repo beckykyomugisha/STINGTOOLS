@@ -83,7 +83,7 @@ The **STING Electrical Panel** (`UI/StingElectricalPanel.xaml` — 1,304 lines �
 
 | Sub-system | Key files | What it does |
 |---|---|---|
-| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 / IEC 60364 cable sizing with derating; writes `ELC_CABLE_SIZE_TXT` |
+| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 / IEC 60364 cable sizing with derating; reports results (read-only — writes no parameters) |
 | **Voltage Drop** | `VoltageDrop/VoltageDropCommand.cs` + `VoltageDropSolver.cs` + `VoltageDropScheduleCommand.cs` | Calculates and schedules voltage drop per circuit |
 | **Feeder Sizing** | `FeederSizing/FeederSizerCommand.cs` + `FeederSizerEngine.cs` | Feeder cable sizing with diversity factor |
 | **Fault Current** | `FaultCurrent/FaultCurrentCommand.cs` + `FaultCurrentEngine.cs` + `FaultCurrentScheduleCommand.cs` | Prospective fault current calculation; PSC / PSCC schedules |
@@ -129,14 +129,14 @@ The **STING Electrical Panel** (`UI/StingElectricalPanel.xaml` — 1,304 lines �
 
 ## Plumbing Center (Phase 179)
 
-The **STING Plumbing Center** is a third standalone dockable panel (`UI/Plumbing/StingPlumbingPanel.cs` — 297 lines + `StingPlumbingPanelProvider.cs` + `StingPlumbingCommandHandler.cs` — 159 lines) with 8 tabs, 37 commands, and 15 engines across `Commands/Plumbing/` and `Core/Plumbing/`.
+The **STING Plumbing Center** is a third standalone dockable panel (`UI/Plumbing/StingPlumbingPanel.xaml(.cs)` + `StingPlumbingPanelProvider.cs` + `StingPlumbingCommandHandler.cs`) with 8 tabs, 37 commands, and 15 engines across `Commands/Plumbing/` and `Core/Plumbing/`.
 
 ### Core Plumbing Engines (15)
 
 | Engine | File (lines) | Standards |
 |---|---|---|
 | `WaterSupplySizer` | `Core/Plumbing/WaterSupplySizer.cs` (298) | Hazen-Williams + Hunter's method + BS EN 806-3; velocity / Pa-per-m audit |
-| `DrainageSizer` | `Core/Plumbing/DrainageSizer.cs` (234) | Maguire formula + BS EN 12056-2 / BS EN 752 |
+| `DrainageSizer` | `Core/Plumbing/DrainageSizer.cs` | Chezy-Manning + BS EN 12056-2 |
 | `FixtureUnitScanner` | `Core/Plumbing/FixtureUnitScanner.cs` (136) | Per-type histogram; writes `PLM_DRN_DU` / `PLM_SUP_LU` / `PLM_SUP_WSFU` |
 | `FixtureUnitAggregator` | `Core/Plumbing/FixtureUnitAggregator.cs` (202) | System-level DU/LU rollup |
 | `ExpansionVesselSizer` | `Core/Plumbing/ExpansionVesselSizer.cs` (76) | BS 7074-1 |
@@ -300,7 +300,7 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 
 | File | Lines | Purpose |
 |---|---|---|
-| `MeasurementStandards.cs` | 303 | NRM2 / SMM7 / CESMM rule set implementations; resolves unit, description, grouping per item |
+| `MeasurementStandards.cs` | 303 | NRM2 / CESMM4 / POMI / ICMS 3 / MMHW rule set implementations; resolves unit, description, grouping per item |
 | `Icms3PhaseMap.cs` | 192 | Maps STING BOQ sections to ICMS 3rd edition cost breakdown structure |
 | `IMeasurementStandard.cs` | 55 | Interface contract: `MeasureItem`, `GroupItems`, `ResolveParagraph` |
 
@@ -827,7 +827,7 @@ Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.Sub
 | `Core.Drawing.DrawingDispatcher` | `Resolve(doc, disc, phase, docType)` + `CandidatesForDiscipline` |
 | `Core.Drawing.DrawingTypeValidator` | Pre-flight: missing title block / view template / viewport type / section-marker / tag family + slot geometry sanity |
 
-### Built-in corporate catalogue (40)
+### Built-in corporate catalogue (93 types / 118 routing rules)
 
 Shipped in `Data/STING_DRAWING_TYPES.json`. Core 15 (phase 113 foundation): `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
 
@@ -850,7 +850,7 @@ Presentation + clarification pack adds 8 client-facing types (all print with `co
 | Client presentation | `pres-3d-axon-A1` (3D + key plan + caption), `pres-perspective-A1` (full-bleed perspective), `pres-exterior-elev-A1` (material callouts, mono halftone), `pres-render-board-A1` (4-up renders), `pres-context-site-A1` (aerial + legend + caption) |
 | Clarification       | `clar-markup-A1` (plan + query log + revision strip), `clar-rfi-A3` (single-issue A3 sketch + question + revision), `clar-design-intent-A1` (plan + 3D + narrative + materials strip) |
 
-Routing table grew to 43 rules covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
+Routing table grew to 43 rules at that phase (now 118 rules across 93 types — count them in `Data/STING_DRAWING_TYPES.json`) covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
 
 ### Project-scoped overrides
 
@@ -1510,7 +1510,7 @@ Example: `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003`
 
 | Panel | Provider | Tabs / Sections | Dispatcher |
 |---|---|---|---|
-| **Main STING Panel** | `StingDockPanelProvider` | 9 (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS) | `StingCommandHandler` — 1,100+ button tags |
+| **Main STING Panel** | `StingDockPanelProvider` | 10 (SELECT / TAGGING / DOCS / SETUP / CREATE TAGS / MODEL / BIM / TAG STUDIO / INTEROP / HEALTHCARE) | `StingCommandHandler` — 1,100+ button tags |
 | **STING Electrical Panel** | `StingElectricalPanelProvider` | Multi-section (Circuits/Cables/Calculations/Coordination/Reports/SLD) | `StingElectricalCommandHandler` — 54 command files |
 | **STING Plumbing Panel** | `StingPlumbingPanelProvider` | 8 (SYSTEM/SUPPLY/DRAINAGE/ROUTE/STORM/SPECIALTY/AUDIT/DOCS) | `StingPlumbingCommandHandler` — 37 commands |
 | **Placement Center** | IDockablePaneProvider (modeless) | Single (rule browser + history + family picker) | `PlacementCenterBridge` |
@@ -1568,7 +1568,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (2,163 lines) | WPF markup: 9-tab layout (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS), ~610 buttons, colour swatches, bulk parameter controls |
+| `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (2,163 lines) | WPF markup: 10-tab layout (SELECT / TAGGING / DOCS / SETUP / CREATE TAGS / MODEL / BIM / TAG STUDIO / INTEROP / HEALTHCARE); TAG STUDIO carries 13 sub-tabs, ~610 buttons, colour swatches, bulk parameter controls |
 | `StingDockPanel.xaml.cs` | `UI/StingDockPanel.xaml.cs` (377 lines) | Code-behind: button dispatch via `IExternalEventHandler`, colour swatch builder, status bar |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,817 lines) | `IExternalEventHandler` — maps 590+ button Tag strings to 374 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` (37 lines) | `IDockablePaneProvider` — registers panel with Revit, sets initial dock position (Right, 320×400 min) |
@@ -1668,7 +1668,7 @@ calculation kernels that move STING from "Revit organiser" toward
 | Path | Purpose | LoC |
 |---|---|---|
 | `StingTools/Core/Climate/ClimateRegistry.cs` | ASHRAE 2021 / CIBSE Guide A design-day site registry, NASA ISA elevation-corrected air density, per-doc cache, project override at `<project>/_BIM_COORD/climate_data.json` | ~200 |
-| `StingTools/Data/STING_CLIMATE_DATA.json` | 41 cities (UK + EU + US + AU + Asia + Africa) with cooling 0.4 % DB + MCWB, heating 99.6 % DB, HDD18, CDD10, elevation | — |
+| `StingTools/Data/STING_CLIMATE_DATA.json` | 42 cities (UK + EU + US + AU + Asia + Africa) with cooling 0.4 % DB + MCWB, heating 99.6 % DB, HDD18, CDD10, elevation | — |
 | `StingTools/Core/Hvac/Loads/LoadInputs.cs` | `LoadZone` / `EnvelopeSegment` / `ZoneLoadResult` / `BlockLoadResult` POCOs + ASHRAE 90.1 default schedules | ~120 |
 | `StingTools/Core/Hvac/Loads/BlockLoadEngine.cs` | Hour-by-hour 24-h design-day load calc with peak-pick at the SYSTEM level (not Σ zone peaks). Conduction + solar (ASHRAE Clear Sky) + occupants + lighting + equipment + vent + infiltration. Reports diversity = block / Σpeaks. | ~250 |
 | `StingTools/Core/Acoustic/OctaveBand.cs` | 8-band Lw / Lp container + NC curve evaluator (NC-15 → NC-65) | ~140 |
@@ -1718,7 +1718,7 @@ the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
 2. **`BlockLoadEngine` is sensible-load focused.** Latent is calculated but the design-day model is simplified (single sinusoid for outdoor temp, ASHRAE Clear Sky for solar, no thermal-mass storage / RTS lag). For comparison-grade results against TRACE / HAP, fold in a per-orientation Radiant Time Series — the input data structures already support per-segment orientation.
 3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators. Breakout (TL through duct walls) is NOT yet implemented — the engine's docstring previously claimed it; references are now phrased as attenuation + regen only.
 4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc. Negative-lift (liquid going DOWN) doesn't credit the recovered head back to the ΔP budget yet.
-5. **Climate site list ships 41 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
+5. **Climate site list ships 42 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
 6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
 7. **Block-load `HVC_PEAK_*` stamps are TEXT-typed.** Reads via SetString; future projects that want to drive Revit schedules with HVACPower-typed params will need a SetDouble path + matching MR_PARAMETERS rebinding.
 
@@ -1779,7 +1779,7 @@ The Cost Management module extends the BOQ system into a full construction cost 
 | `CostCommands.cs` | `Cost_ValidateAll`, `Cost_ClearStale`, `Cost_RunWorkflow`, `Cost_ToggleStaleMarker`, `Cost_MigrateCurrencyParams`, `Cost_ReloadRules` |
 | `CostPlanCommands.cs` | `CostPlan_Create`, `CostPlan_Update`, `CostPlan_Export`, `CostPlan_CompareStages`, `CostPlan_SetBudget` |
 | `IfcAndIcmsCommands.cs` | `ICMS_Export`, `IFC_CostIngest`, `ICMS_Validate`, `IFC_CostBridge` |
-| `MeasurementStandardCommands.cs` | `Meas_SetNRM`, `Meas_SetSMM7`, `Meas_SetCIOS`, `Meas_Audit`, `Meas_RuleReport` |
+| `MeasurementStandardCommands.cs` | `Cost_SetMeasurementStandard` (pick the active standard: NRM2 / CESMM4 / POMI / ICMS 3 / MMHW), `Cost_StandardInspect` |
 | `PaymentCertCommands.cs` | `PayCert_Create`, `PayCert_Export`, `PayCert_Reconcile`, `PayCert_Sign` |
 | `VariationAndEvmCommands.cs` | `Var_Create`, `Var_Approve`, `EVM_Dashboard`, `EVM_Export`, `EVM_Forecast` |
 
@@ -1787,7 +1787,7 @@ The Cost Management module extends the BOQ system into a full construction cost 
 
 | Path | Purpose |
 |---|---|
-| `Core/CostPlan/` | Cost plan POCO + rate engine + NRM2/SMM7/CESMM rule sets + ICMS mapping |
+| `Core/CostPlan/` | Cost plan POCO + rate engine + NRM2/CESMM4/POMI/MMHW rule sets + ICMS 3 mapping |
 | `Core/Evm/` | Earned Value Management: PV / EV / AC / SPI / CPI + S-curve + forecast-at-completion |
 | `Core/PaymentCert/` | Payment certificate lifecycle: draft → reviewed → certified → paid + retention calc |
 | `Core/Variation/` | Variation order workflow: create → quote → assess → approve + budget impact |
@@ -1942,7 +1942,7 @@ databases:
 ### Production Domain
 
 - **API**: `api.planscape.build` → Render planscape-api service
-- **Web app**: `app.planscape.build` → Planscape React/Expo web build
+- **Web app**: `app.planscape.build` → `planscape-web` (Next.js) — see `render.yaml` + `docs/DEPLOY_RUNBOOK.md`
 - **Marketing**: `planscape.build` → `marketing-site/`
 - **Platform owner**: `davis@planscape.build`
 

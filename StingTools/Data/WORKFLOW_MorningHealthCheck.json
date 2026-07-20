@@ -25,6 +25,11 @@
       "condition": "has_untagged"
     },
     {
+      "commandTag": "Gate_StampStatus",
+      "label": "3b. Refresh universal-tag status gates (data + QA) before validation",
+      "optional": true
+    },
+    {
       "commandTag": "ValidateTags",
       "label": "4. Validate tag completeness and ISO 19650 codes",
       "optional": false

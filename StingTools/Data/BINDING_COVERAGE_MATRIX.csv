@@ -1,7 +1,9 @@
+# v5.6 | 20260708 | HVC_TERMINAL_* rows corrected to Air Terminals only (removed Ducts/Duct Fittings/Duct Accessories/Generic Models/Mechanical Equipment)
 # v5.5 | 20260630 | +28 Tier-2 params (sheet/view params omitted — matrix has no Sheets/Views columns)
 # v5.4 | 20260630 | +9 material + fixture params (Materials col / Plumbing Fixtures col)
 # v5.3 | 20260520 | BIM Template binding_coverage_matrix (+22 Phase 188-190 params; Flex Pipes and Site bindings recorded in CATEGORY_BINDINGS.csv only — matrix header lacks columns for them)
 # v5.2 | 20260517 | BIM Template binding_coverage_matrix (consolidated 3 truncated WARN_*_W aliases into canonical WARN_BLE_*_WIDTH_MM forms — Phase 180 alignment)
+# Phase 184 P0.2 + P5 cost / payment / variation + Phase 182-183 HVAC sizing audit
 Parameter_Name,Air Terminals,Cable Tray Fittings,Cable Trays,Casework,Ceilings,Communication Devices,Conduit Fittings,Conduits,Curtain Panels,Curtain Wall Mullions,Data Devices,Doors,Duct Accessories,Duct Fittings,Ducts,Electrical Circuits,Electrical Equipment,Electrical Fixtures,Fire Alarm Devices,Flex Ducts,Floors,Furniture,Generic Models,Lighting Devices,Lighting Fixtures,Materials,Mechanical Equipment,Nurse Call Devices,Pipe Accessories,Pipe Fittings,Pipes,Plumbing Equipment,Plumbing Fixtures,Project Information,Ramps,Roofs,Rooms,Security Devices,Specialty Equipment,Sprinklers,Stairs,Structural Columns,Structural Foundations,Structural Framing,Telephone Devices,Walls,Windows
 ASS_CAT_TXT,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,1,1,1
 ASS_CRITICALITY_RATING_NR,1,0,1,1,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,1,0,0
@@ -576,10 +578,10 @@ HVC_PIPE_LENGTH_M,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,
 HVC_PIPE_PRESSURE_KPA,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 HVC_PWR_KW,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 HVC_REFRIGERANT_TXT,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-HVC_TERMINAL_DAMPER_TXT,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-HVC_TERMINAL_FINISH_TXT,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-HVC_TERMINAL_MAT_TXT,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-HVC_TERMINAL_PATTERN_TXT,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+HVC_TERMINAL_DAMPER_TXT,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+HVC_TERMINAL_FINISH_TXT,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+HVC_TERMINAL_MAT_TXT,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+HVC_TERMINAL_PATTERN_TXT,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 HVC_VEL_MPS,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 HVC_VLT_V,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 ICT_DEV_TAG_01_TXT,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0
@@ -1470,7 +1472,6 @@ BLE_CBL_TRAY_WIDTH_MM,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 BLE_CBL_TRAY_DEPTH_MM,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 MEC_SYS_TXT,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 PLM_SYS_TXT,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0
-# Phase 184 P0.2 + P5 cost / payment / variation + Phase 182-183 HVAC sizing audit
 ASS_CST_UNIT_RATE_NR,1,0,1,1,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,1,0,0
 ASS_CST_CURRENCY_TXT,1,0,1,1,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,1,0,0
 ASS_CST_FX_TO_BASE_NR,1,0,1,1,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,1,0,0

@@ -2,6 +2,202 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Revision system — deferred items (Phase 199)
+
+Recorded while aligning the revision subsystem (see CHANGELOG Phase 199).
+
+- **Rebind title-block revision labels to built-in parameters, then delete the TB half of the
+  syncer.** The revision box currently reads STING shared params (`PRJ_TB_REVISION_NR_TXT` /
+  `_DATE_TXT` / `_DESCRIPTION_TXT`) that a command must keep in sync. Revit exposes built-in
+  **Current Revision / Current Revision Date / Current Revision Description** parameters on
+  title blocks that it maintains itself. Rebinding the catalogue's revision-box labels to those
+  built-ins makes the drawing correct with **zero sync** — no command run, no drift window, no
+  stale box if someone forgets to click. Once rebound, `TitleBlockRevisionSyncer` can drop its
+  title-block writes entirely and keep only the `SHT_REV_TXT` / `SHT_REV_DATE_TXT` sheet stamps
+  (which feed schedules and exports, and have no built-in equivalent). Scope: a catalogue
+  migration across the affected families plus a factory change — deliberately out of scope for
+  Phase 199, which did not mass-edit the 206-family catalogue.
+- **Consolidate the three revision-cloud implementations.** `AutoRevisionCloudCommand`
+  (`BIMManager`), `DocAutomationExtCommands.RevisionCloudAuto` (`Docs`), and
+  `MaterialRevisionCloudJob` (`Core`) each independently decide what "changed" means, how clouds
+  are grouped, and which view they land in. Fold them onto one shared engine (change-set in →
+  clouds out) so the three entry points stay behaviourally identical and a fix to cloud grouping
+  lands once.
+- **Data-drive the LG-03 per-discipline auto-revision thresholds.** `AutoRevisionOnTagChangeCommand`
+  carries a hardcoded per-discipline threshold dictionary. Move it into a JSON data file with a
+  project override (same corporate-baseline + `_BIM_COORD` override pattern the drawing types and
+  sizing rules already use), so a project can tune how many tag changes trigger an auto-revision
+  without a code change.
+
+## MEP print-readiness — deferred items (Phase 198)
+
+Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198).
+
+- **Fire suppression drawing types (fast-follow).** Only fire *detection* exists today. There are no
+  sprinkler / suppression **layout**, **section**, or **detail** drawing types (corporate DrawingType +
+  routing + a fire style pack). Author them as a fast-follow so a fire-suppression package is
+  drop-a-view print-ready like M/E/P. Scope: a `corp-standard-fire` style pack (sprinklers + fire-alarm
+  bold `#C00000`, other MEP + arch/struct halftone), `fire-sprinkler-layout` / `fire-section` /
+  `fire-detail` types with `${PRJ_ORG_*}` title-block params + `tagFamilies` (`STING - Sprinkler Tag`,
+  `STING - Fire Alarm Device Tag`), and `F/*/SPRINKLER|SECTION|DETAIL` routing rules.
+- **SEQ zero-pad is project-global by design (not per-DrawingType).** SEQ pad lives in
+  `TagConfig.SeqPadWidth` / `EffectiveSeqPad`, set from the Tag Studio → Tokens & Depth dock tab, and
+  applies project-wide. It was **deliberately not** made an `AnnotationTokenProfile` field, so a
+  DrawingType cannot override it per drawing. If per-type SEQ pad is ever wanted, add a `seqPad` field to
+  `AnnotationTokenProfile` and push it on the produce path (mirroring how paragraph depth already flows),
+  with the project-global value as the fallback.
+- **Arch / structural / health `tagFamilies` debt (NOT fixed — separate scope).** The Phase-198 punch-list
+  cross-check found the same key-alignment + family-existence defects the MEP fix cleared, still present on
+  **non-MEP** drawing types: ~87 `tagFamilies` key↔AutoTag-category mismatches (camelCase keys like
+  `StructuralColumns` that never match the display-name rule category), **19 `STING_TAG_*`
+  non-existent family values across ~14 arch/structural types**, and `STING - Generic Tag` (should be
+  `STING - Generic Model Tag`) on ~22 healthcare types. So "MEP print-ready" ≠ "whole file fixed". Real
+  target families exist (`STING - Door/Window/Room Tag`, `STING - Structural Column/Rebar Tag`,
+  `STING - Generic Model Tag`), so the same mechanical fix applies — do it only when explicitly scoped as
+  an arch/struct/health pass (out of scope for the MEP runner).
+
+## Ambiguous parameter bindings — needs SME confirmation (Phase 196)
+
+The Phase 196 binding-accuracy fix narrowed every confidently-classifiable discipline family and
+preserved the universal set. The parameters below remain bound to the **broad core set** (they had no
+per-param `CATEGORY_BINDINGS.csv` row and no group override) and are logged as coverage **GAPs** by
+`LoadSharedParamsCommand`. They are semantically mis-located (space/zone/landscape/structural-cost
+params filed under the `COM_DAT` communications group) — narrowing them requires an SME decision on the
+correct element domain, so they were **not** guessed. Recommended categories noted for review; once
+confirmed, add rows to `CATEGORY_BINDINGS.csv` (+ `PARAMETER_CATEGORIES.csv`) and re-run
+`Bindings_PruneToSpec`.
+
+| Param(s) | Group | Recommended domain (needs confirmation) |
+|---|---|---|
+| `SPC_GROSS_AREA_M2`, `SPC_CEILING_HEIGHT_M`, `SPC_MIN_HEADROOM_M`, `SPC_FINISH_FLOOR/CEILING/WALLS_TXT`, `SPC_PUBLIC_ACCESSIBLE_BOOL` | COM_DAT | Rooms, Spaces |
+| `ZON_CATEGORY_NAME/CODE_TXT`, `ZON_NET/GROSS_AREA_M2`, `ZON_VOLUME_M3`, `ZON_OCCUPANTS_NR` | COM_DAT | Areas, Spaces, HVAC Zones |
+| `GEN_SPECIES_TXT`, `GEN_HEIGHT_AT_MATURITY_M`, `GEN_ROAD_TYPE_TXT`, `GEN_TAG_7_PARA_MISC_TXT` | COM_DAT | Planting, Site, Roads |
+| `CST_S_FRM_FORMWORK_AREA_SQ_M`, `CST_S_MAS_BLOCKS_NR`, `CST_S_MAS_NET_WALL_AREA_SQ_M`, `CST_S_REI_LAP_LENGTH_MM`, `CST_S_REI_TOTAL_WEIGHT_KG`, `CST_S_SUPPLIER_TXT`, `CST_FORMWORK_TYPE_TXT`, `CST_PLYWOOD_SIZE_TXT`, `CST_SAND_MOISTURE_TXT` | COM_DAT | Structural Framing/Columns/Foundations, Walls, Floors |
+| `SLV_TAG`, `SLV_TAG_7_PARA_TXT` | SLV_SLEEVE_PARAMS | Generic Models (matches rest of `SLV_*` family) |
+| `COMP_TAG_1_TXT` | COM_DAT | universal composite tag — likely keep broad |
+
+Additionally, the healthcare families `MGS_` / `RAD_` / `CLN_` / `CEQ_` were bound to reasoned
+discipline domains (medical-gas piped set, radiation-shielding set, clinical room/equipment set) that
+exclude all cross-discipline conveyance categories, but the **precise per-param category refinement**
+(e.g. which exact device vs. room vs. equipment category each WARN_/DESIGN_/TAG param belongs to)
+should be SME-confirmed against HTM/HBN modelling conventions. See `docs/binding_audit_report.csv`.
+
+## Universal Tag pivot — Task 4 legacy cleanup (DEFERRED, branch `feature/universal-tag-system`)
+
+Tasks 1-3 of the universal-tag pivot landed (propagation command, status gates, tag-expander
+schedules). **Staged cutover steps 1-3 are now done** — step 1-2 in Phase 196
+(`claude/universal-tag-finalize`) and the **teardown in Phase 197** (`claude/universal-tag-teardown`):
+`TagFamilyCreatorCommand` ("Create Tag Fams") was gutted of its CSV tier-authoring path (labels now
+come from `Propagate_UniversalTag`), which removed the last live callers of `FamilyLabelAuthor` and
+`TagConfigPlanResolver`; both files were then **deleted** (0 callers verified). **Steps 4-5 remain**
+(repurpose `HandoverModeHelper` DC/HO; deprecate the colour-scheme commands) — those still have live
+callers and are separately gated.
+
+| Candidate | Status | Notes |
+|---|---|---|
+| ~~`Tags/FamilyLabelAuthor.cs`~~ | **DELETED (Phase 197)** | 0 code callers after the Create Tag Fams gut. Nested `Options`/`ModePlan` went with it. |
+| ~~`Tags/TagConfigPlanResolver.cs`~~ | **DELETED (Phase 197)** | 0 code callers after the gut. `TierPlan`/`TierState` live in `Core/PerFamilyTierMap.cs` (retained). |
+| `Core/TagConfigCsvReader.cs` + `Data/STING_TAG_CONFIG_v5_0_*.csv` | **RETAINED** | The reader's `TierPlan` API (`LoadFile`/`LoadFiles`/`Parse`) is now caller-less (its consumer `TagConfigPlanResolver` was deleted), but the **v5.0 CSV data** it parses is the canonical *synced* source (per `reference-tag-config-sources`) and is still read by `ParamRegistry` / `TagConfig` / `HandoverModeHelper` / `PresentationModeCommand` / `FamilyParamCreatorCommand` / `LpsValidator` via their own paths. Marked `LEGACY(universal-tag)` in-file; a future pass can rewire a reader onto the typed parser or retire it with the CSVs together. **Do NOT delete the data files — still parsed.** |
+| `Core/HandoverModeHelper.cs` (DC/HO) | **RETAINED** | Live callers: `StingToolsApp.GetAllTagConfigCsvs`, `TagConfig.GetTagConfigCsv` (×3), `ApplyParagraphPresetCommand.GetSelectorBool`/`ModeSelectorBool`; `GetActiveMode` used internally. It's a mode/CSV resolver, not pure-legacy. Step 4 (repurpose DC/HO → `PARA_STATE` view preset) still open. |
+| `Core/TagStyleCatalogue` colour dims + `Tags/TagStyleEngine.cs` + `Tags/TagStyleCommands.cs` | **RETAINED** | `TagStyleEngine.ResolveTagTypeForPlacement` used by `StingAutoTagger` + `SmartTagPlacement` (6 sites); colour commands wired to live buttons. Keep DEPTH-variant logic (also in `TagTypeVariantWriter`). Step 5 (colour-scheme deprecation) is a separate surgical refactor. |
+| ~~`MigrateTagFamiliesCommand` tier-authoring path~~ | **DONE (Phase 196)** | Trimmed to param + type-variant migrator. |
+| ~~`TagFamilyCreatorCommand` tier-authoring path~~ | **DONE (Phase 197)** | Gutted to mint (shell + params + variants); label via `Propagate_UniversalTag`. Dead alias helpers (`CsvFamilyNameCandidates`/`TryGetTierPlan`/`ContainsPlanForFamily`) removed. |
+
+**Prerequisites now in-repo (tracked):**
+- `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` — the consolidated manual walkthrough: what to
+  DELETE (T3 + discipline + warning rows), how to BUILD the 65 rows, and the status-badge system.
+- `docs/UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` — the authoritative 62-row master-label build guide
+  (human-authored in the Family Editor; the API can't do it).
+- `docs/UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` — the precise Duct smoke-test checklist (the step-1 gate).
+- `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md` — the ready-to-apply step-2 trim of
+  `MigrateTagFamiliesCommand` (staged; apply only after the smoke test passes).
+
+**Staged cutover (do in order, each gated):**
+1. ~~Prove the universal path in Revit (Duct smoke test for `Propagate_UniversalTag`)~~ —
+   **DONE.** Recategorise preserves labels/formulas/breaks (proven live on Duct).
+2. ~~Retire the OLD authoring ENTRY POINTS: trim `MigrateTagFamiliesCommand`'s tier-authoring
+   call~~ — **DONE (Phase 196).** Applied `docs/UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`; build +
+   Tags.Tests green. The remaining entry point is `TagFamilyCreatorCommand` (step 3).
+3. ~~Once nothing calls them, delete the `FamilyLabelAuthor` / `TagConfigPlanResolver` cluster~~ —
+   **DONE (Phase 197).** `TagFamilyCreatorCommand` was gutted off the CSV path first (removing the
+   last callers), then both files deleted (0 callers verified). The v5.0-CSV **reader** and **data**
+   are RETAINED (still the canonical synced source, still parsed elsewhere) — see the table above.
+4. Repurpose `HandoverModeHelper` DC/HO → `PARA_STATE` view preset (Task-3-adjacent); remove
+   the dual-CSV authoring path only. **Still open** (helper has live callers).
+5. Deprecate the colour-scheme commands separately (keep depth-variant creation everywhere).
+   **Still open** (live buttons + placement).
+
+**Consistency findings (Phase 196 sweep) — both APPLIED in Phase 197:**
+- ~~**`FamilyParamCreatorCommand` injects STATE/style params as INSTANCE.**~~ **FIXED (Phase 197).**
+  `InjectSharedParams` now uses an `IsTypeParam` predicate: `TagFamilyConfig.VisibilityParams` ∪
+  `StyleParams` ∪ `{ TAG_DEPTH_TIER, TAG_BOX_*, TAG_LEADER_*, TAG_POS }` bind as TYPE; container
+  values (`ASS_TAG_*`, tokens, description, label params) stay INSTANCE. `TAG_POS` preserved as type
+  (drives its offset formula). Depth-setting on "Inject Params"-built families now works.
+- ~~**SEQ zero-pad has two sources of truth.**~~ **FIXED (Phase 197).** New `TagConfig.EffectiveSeqPad`
+  (`SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad`); `BuildSeqString` and `BuildAndWriteTag`
+  route through it. Panel still writes `SeqPadWidth` (live driver); `NumPad` write kept in
+  `ApplyTagFormatOverrides` (fallback + `num_pad` export). Single accessor — can't desync.
+
+
+## Universal Tag badge/gate ↔ drawing-pipeline integration (branch `feature/universal-tag-system`)
+
+Follow-on to the badge/gate system: wired the stamped status gates into the AEC filters,
+View Style Packs, and QA workflows (see CHANGELOG "Universal-tag badge/gate integration").
+Open items surfaced while doing it — recorded rather than force-fixed:
+
+**QA-filter rationalization (runner Task 4 — DOCS ONLY, nothing deleted).**
+The stamped **data gate** (`STING_GATE_DATA_STATUS_INT`) now computes the same completeness
+signal the old ad-hoc completeness filters derive per-view. Once `coord-qa` + the four
+`qa-gate-*` filters are proven in Revit, deprecate the overlapping completeness filters in
+favour of the gate-based ones (single source of truth = the stamped gate, not a re-derived
+per-view rule). Overlapping legacy ids in `STING_AEC_FILTERS.json`:
+`qa-untagged` (⊆ data-gate red), `qa-incomplete-tag` (⊆ data-gate amber "TAG INCOMPLETE"),
+`qa-missing-disc` / `qa-missing-loc` (⊆ data-gate amber container/ISO reasons),
+`qa-stale-element` (orthogonal — keep; staleness is not a gate input). These have live
+callers/packs, so **not deleted** — deprecate only after the Revit smoke test.
+
+**Drawing-Type tag-binding audit (runner Task 5 — reported, no change made).**
+`STING_DRAWING_TYPES.json` annotation rule packs bind `tagFamilies` per category. 22 bindings
+reference `"STING - Generic Tag"`; the rest reference specific `STING_TAG_*` families. Finding:
+`"STING - Generic Tag"` is a **placeholder generic-tag family name** (spaces / "STING - " prefix),
+NOT the universal master — the universal label is propagated *into* the 206 named `STING_TAG_*`
+families, so the specific bindings already carry it. Repointing the 22 generic bindings to a
+"universal master" would therefore be wrong. **No bindings changed.** Revisit only if a single
+universal `.rfa` master is ever loaded per-category and the names are proven to resolve.
+
+**Integration follow-ups (need Revit validation before merge — repo norm):**
+1. **View Style Pack catalogue now loads at runtime.** `ViewStylePackLibrary` gained a `stylePacks`
+   alias (it previously bound only `viewStylePacks`, so the 31-pack corporate file + editor-written
+   project overrides were runtime-dead and the registry used 3 hard-coded `BuildDefaults` packs).
+   This activates the full corporate catalogue at runtime for the first time — **validate drawing
+   production in Revit** (managed-template minting + authored vgOverrides now apply). Treat like the
+   Duct smoke test: prove before merge.
+2. **Managed issue packs still show badges.** `corp-standard-plan`, `corp-fabrication-shop`,
+   `corp-coordination` are `templateMode: managed` with `managedFields` that exclude `vgOverrides`,
+   so their `STING_TagStatus: {visible:false}` hide does not apply through the managed path. Either
+   add `"vgOverrides"` to those packs' `managedFields` (note: this also applies their existing
+   authored vgOverrides, a visible appearance change) or leave as-is (badges are opt-in —
+   `TAG_WARN_VISIBLE_BOOL` defaults off — so this is belt-and-braces). Deferred pending the Revit
+   validation in (1).
+3. **Style-pack `routing[]` is not consumed by `ViewStylePackRegistry`** (resolution is by explicit
+   pack id). The added `{purpose:QA → coord-qa}` entry (and all existing routing entries) are
+   declarative until routing consumption is wired. Low priority.
+4. **Guide edits live on a different branch.** The runner's Task 6.1 (rename badge visibility params
+   to UPPERCASE `VIS_DATA_*` / `VIS_QA_*`; document the message labels + view-driven control) targets
+   `docs/UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` + `docs/UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md`, which do
+   **not exist on `feature/universal-tag-system`** — they live on branch `claude/tag-tier-review-94c78a`
+   (worktree `awesome-kirch-94c78a`), together with the runner itself. This branch implemented the
+   *enabling* code (the `STING_GATE_*_MSG_TXT` params + message computation + stamping, and the
+   filters/packs/workflows); the guide edits must be applied on that branch (or when the two branches
+   merge). Not forked here to avoid divergent guide copies.
+
+**Smoke-test survival (carry forward):** when the Duct smoke test runs, additionally verify the
+badge subsystem survives recategorise-propagation — the 6 family-local `VIS_DATA_GREEN/AMBER/RED` +
+`VIS_QA_GREEN/AMBER/RED` Yes/No params, the `STING_TagStatus` annotation subcategory, and the coloured
+glyphs must all survive `Propagate_UniversalTag`, and `Gate_StampStatus` must repopulate the four
+`STING_GATE_*` params (2 INT + 2 MSG) so badges + message labels render.
+
+
 ## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
 
 PM-1 landed (the §2 correctness bugs + the do-once shared helpers
@@ -120,6 +316,39 @@ retention release and the sign-off guard. Still open:
   %; no 4D / cost-loaded-schedule wiring yet.
 - **QS import per-row accept/reject.** The import diff is whole-batch
   Apply/Cancel; per-row checkboxes would let a QS accept a subset.
+
+## StingBridge — remaining gaps (post 0.1.0-beta.2)
+
+Shipped self-serve on planscape.build/downloads. **0.1.0-beta.2 is live** (SB-2, SB-3 and SB-4 closed; PATs added). Remaining gaps, roughly in value order:
+
+| # | Gap | Detail |
+|---|---|---|
+| SB-1 | **Live-ArchiCAD verification** | Two documented-but-unverified assumptions need one session against real ArchiCAD (AC 28/29): (a) `_ifc_global_id_from_acguid` presumes ArchiCAD derives the IFC-export GlobalId from the JSON-API element GUID — if wrong, the live-sync and IFC-watcher paths mint two mapping rows per element; (b) zone labels read from `Zone_ZoneNumber`/`Zone_ZoneName` built-ins. Both degrade gracefully today. |
+| SB-2 | ~~SEQ minting~~ **DONE Phase 202** | New atomic `POST /api/projects/{id}/seq/reserve` (INSERT … ON CONFLICT … RETURNING) plus `StingBridge/sync/seq_minter.py`, which ports `SeqAssigner.BuildSeqKey` exactly so both hosts draw from the same per-key counters. Wired into live sync + the IFC watcher, batched per run, idempotent, degrades to 7-segment rather than failing. Verified collision-free under 8-way concurrency. **Follow-on:** the Revit plugin still uses the older max-merge `/seq/sync` and could adopt `/reserve` to drop its local-allocation dance. |
+| SB-3 | ~~Token inference single-sourcing~~ **DONE Phase 205** | ArchiCAD vocabulary moved to `stingtools_core/hosts/archicad.py`; the bridge modules are re-export shims. The two level-derivation functions disagreed on 13 of 31 storey names and the ArchiCAD one collapsed every numbered basement to `B1` — now one implementation, union of both, bug fixed. `ArchiCadHostAdapter` implements the HostAdapter contract. **Follow-on:** the IFC watcher still uses its own extraction rather than `IfcFileHostAdapter`; swapping it needs equivalence coverage first. |
+| SB-4 | ~~Hot-folder contract mismatch~~ **DONE Phase 203** | The Python watcher now follows the C# `processing/ → done/YYYYMMDD_<name>` \| `failed/` + `.log` contract (`StingBridge/watch/hot_folder.py`), keeping the sidecars and moving the `_sting.ifc` output with the source. Also added a start-up sweep of the inbox and `processing/` orphan recovery, both only safe once processed files leave the root. Failure routing reads `result["errors"]`, not just exceptions — routing on exceptions alone archived unopenable files as successes. |
+| SB-5 | **Multi-host Phase B/C** — engine DONE Phase 206, wiring open | The change feed (`GET /api/projects/{id}/changes`), `PullClient`/`CursorStore` and the `ReconcileEngine` are landed and verified two-way against real Postgres. Remaining: **SB-5a** wire the IFC-watcher path to pull→reconcile→push (testable today without ArchiCAD — the sensible first cut); **SB-5b** wire the live-ArchiCAD path and delete the 60-second grace heuristic in `sync/engine.py` (needs a licence to exercise the local-index read, so blocked behind SB-1). Also open: §1.4.4 client-side push chunking, §1.4.5 the GlobalId-stability CI fixture, and the Part 2 LoGeoRef coordinate engine. |
+| SB-6 | **macOS notarized binary** | `any` zip covers macOS today; a signed native build is deliberate future work. |
+| SB-7 | **Beta feedback loop** | Optional `download_log` table (D1) on the gated endpoint so beta testers can be followed up without the old request-by-email list. |
+
+## Planscape Server — deployment gaps (Phase 200)
+
+The blueprint is validated and the owner package is written; what remains is
+owner-side or follow-on work. Status verified 2026-07-20.
+
+| # | Gap | Detail |
+|---|---|---|
+| DEP-1 | **Server is not deployed** | `api.planscape.build` does not resolve. Owner-only: apply the Render Blueprint, paste secrets, add the custom domain + registrar CNAME. Prep is complete — see [`SERVER_GO_LIVE.md`](SERVER_GO_LIVE.md) and the local package at `C:\Dev\planscape-render-golive\`. |
+| DEP-2 | **`PLANSCAPE_HANDOFF_SECRET` unset on Cloudflare** | `wrangler pages secret list --project-name planscape-marketing` returns 12 secrets and this is not one of them, so cloud→server handoff cannot work in production yet. It is a *shared* secret: set the identical value on Render (`planscape-api` **and** `planscape-worker`) and on Cloudflare Pages. Rotate both sides together. |
+| DEP-3 | ~~Handoff provisions no Project~~ **DONE Phase 201** | `EnsureStarterProjectAsync` now creates a project + `ProjectMember` when the tenant has none. Idempotent (gate is "zero projects"), best-effort so a failure never costs the session. |
+| DEP-4 | ~~Handoff accounts have no headless credential~~ **DONE Phase 201** | Personal access tokens: `POST/GET/DELETE /api/auth/tokens` + `POST /api/auth/token/exchange`, wired into StingBridge as `STING_PLANSCAPE_TOKEN`. A PAT is exchanged for a normal JWT, never accepted as a bearer token, so the API stays single-scheme. The unusable password hash on handoff accounts remains, by design. |
+| DEP-5 | **`/api/auth/license/activate` is unrate-limited** | It is the only `AuthController` endpoint without `[EnableRateLimiting("auth")]`, leaving the licence-key space brute-forceable. It returns entitlement facts (`Valid`, `Tier`, `MimEnabled`, `ServerUrl`, `ExpiresAt`) rather than a JWT, so the blast radius is disclosure + activation-count burn, not session theft. |
+| DEP-6 | **Handoff single-use check fails open** | The `jti` replay guard is a Redis `SET … When.NotExists`; when Redis is unavailable the exchange logs a warning and proceeds, so a captured ticket could be replayed within its 120 s TTL during a Redis outage. Acceptable given the TTL, but it is an availability-over-integrity choice worth making deliberately. |
+| DEP-7 | **`PLANSCAPE_IDENTITY_HANDOFF.md` status line is stale** | It reads "design agreed 2026-07-18, not yet implemented"; the feature is in fact implemented on all three sides (Cloudflare Pages Function, `AuthController`, Next.js `/handoff` page). The doc's own line references still resolve, so only the status line drifted. Its role table also says `project_lead` → `ProjectLead`, but `UserRole` has no such member and the code maps it to `Manager`. |
+| DEP-8 | ~~StingBridge token-expiry constant is wrong~~ **DONE Phase 201** | Was 55 min against a 30-min server token, so the proactive refresh only fired ~25 min after expiry. Now 30 min with a 5-min margin, pinned by a regression test. |
+| DEP-9 | **No UI for minting access tokens** | The API exists (`POST /api/auth/tokens`) and the guides document the `curl`, but the cloud app has no screen for it. A subscriber currently needs a terminal to get a StingBridge credential. |
+| DEP-10 | **Integration-test suite has 73 pre-existing failures** | Down from 129 after the Phase 201 harness repair, and no longer blocked at startup. The remainder are assertions that drifted from current behaviour (e.g. `HealthCheck_ReturnsHealthy` expects 200 but gets 403; `Register_NewOrg_Returns201WithToken` reads a response property that no longer exists), not infrastructure faults. Each needs reading against the endpoint it covers. |
+| DEP-11 | **`Jwt__Key` is an undocumented prerequisite for running the tests** | Without it every `WebApplicationFactory` test fails at host construction with a message about docker-compose. Worth either defaulting a throwaway key in the test factory or documenting it in the test project README. |
 
 ## Sub-system reviews
 
@@ -505,8 +734,7 @@ A holistic review of the tagging subsystem was performed covering the full pipel
 | GAP-NLP-02 | NLP patterns for healthcare commands added in Phase 176 ("run pressure audit", "mgps verify", etc.) | 19 patterns were added to NLPCommandProcessor in the Healthcare Pack. Verify they are still present after this session's append. |
 | GAP-UI-01 | No UI surface for `AUTO_CORRECT_STATUS_FROM_PHASE` toggle | `ConfigEditorCommand` should expose this boolean alongside the existing toggle controls. Low risk but requires XAML + command handler changes. |
 | GAP-UI-02 | No UI surface for `LEADER_CLEARANCE_MARGIN_FT` | Same as above — could be added to the Smart Placement wizard or Config Editor as a numeric text box. |
-
-| GAP-STRUCT-01 | StructuralAnalysisEngine subchecks need per-subcheck phases | `StructuralAnalysisEngine` general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. (Note rescued during merge of `claude/stingtools-bim-research-8Kkwv` into `claude/continue-model-viewer-updates-4GJR4`; previously orphaned in a truncated CHANGELOG.md.) |
+| GAP-STRUCT-01 | StructuralAnalysisEngine subchecks need per-subcheck phases | `StructuralAnalysisEngine` general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit. (Note rescued during merge of `claude/stingtools-bim-research-8Kkwv` into `claude/continue-model-viewer-updates-4GJR4`; previously orphaned in a truncated CHANGELOG.md.) |
 
 #### Symbol library — Phase 188 closure status
 
@@ -538,3 +766,110 @@ family authoring — no geometry / connector topology was invented.
 |---|---|---|---|
 | GAP-SYM-08 | **Seed connector coverage** — 12 MEP-category seeds ship with zero connectors, so their instances cannot be inserted inline into a duct/pipe/tray run or auto-routed. (Duct + Pipe accessory seeds were fixed in this pass; the rest need per-device connector specs — many are face-hosted annotation devices that may legitimately need only an electrical connector, or none.) Seeds: `STING_SEED_AudioVisualDevice`, `STING_SEED_CommunicationDevice`, `STING_SEED_DataDevice`, `STING_SEED_ElectricalFixture`, `STING_SEED_FireAlarmDevice`, `STING_SEED_FireDamper`, `STING_SEED_LightingDevice`, `STING_SEED_LightingFixture`, `STING_SEED_MechanicalControlDevice`, `STING_SEED_NurseCallDevice`, `STING_SEED_SecurityDevice`, `STING_SEED_TelephoneDevice`. | 1–2 days | Each device class has a different connector topology (electrical power vs data vs none vs airflow for the fire damper). Connector count/domain/systemType must be specified per device by an engineer; guessing risks wrong-domain connectors that break routing. Use the `offsetX/offsetY/offsetZ` + `facing` bindable fields (NOT `x/y/z/direction`, which do not bind). |
 | GAP-SYM-09 | **Symbol authoring backlog** — 53 unique family names referenced by concept `standardMappings` are not defined in any catalogue (of 799 concept refs, 276 dangle: 0 prefix-fixable after this pass, 218 view-context overrides that now degrade to the base family via P8a, and 58 genuinely-absent refs → 53 unique). These are specialty glyphs that must be hand-authored per standard plate: **Hazardous-area (19)** ATEX 2014/34/EU + IEC/BS EN 60079 + DSEAR zone/Ex markers (concepts `ELEC_ATEX_*`, `SLD_ATEX_*`); **Medical gas (16)** HTM 02-01 / ISO 7396 / NFPA 99 O₂·N₂O·Air·Vac·CO₂·AGSS outlets (`ELEC_MG_*`); **Lightning protection (7)** BS EN 62305 / NFPA 780 air-terminal / down-conductor / earth-electrode / bonding-bar (`SLD_LPS_*` under BS/NFPA); **Phase sequence (4)** IEC 60034-8 / BS 7671 ABC/ACB (`SLD_PHASE_SEQUENCE_*`); **Other (7)** `ELEC_DB`, `ELEC_FCU_DEVICE`, `SLD_DB_DOWNSTREAM` (+IEEE), `PLM_PUMP_INLINE`, `SLD_RCBO_COMPOUND`, `SLD_STAR_DELTA_STARTER`. | 1–2 weeks | Requires authoring ~53 standard-accurate symbol definitions across ATEX / medical-gas / LPS / motor-control domains, each verified against its standard plate. `Symbols_Validate` (check 1b) is the tracking mechanism — the "absent" count should trend to 0 as these are authored. |
+
+### Tag text-size variants (Option 2 — per-drawing sizing)
+`DrawingType.TagTextSizeMm` (0 = derive) + `EffectiveTagTextSizeMm()` resolve a per-view tag size
+from the drawing scale, returning one of 8 canonical sizes (1.0/1.5/2.0/2.5/3.0/3.5/4.0/5.0 mm;
+ISO default 2.5 mm at 1:50). `DrawingType.TagSizeToken(mm)` → the "2.5mm" text-type/size-family token.
+**Pending (needs Revit + propagation):**
+- Human authors the 8 label **text types** (`1.0mm`…`5.0mm`) on the universal master; because a
+  single label's text size is a Type property (not param-drivable), selectable size = **one
+  size-variant family per size** (build once, SaveAs per size changing only the label Text Size,
+  propagate each). 8 sizes is generous — 2.5 mm + 3.5 mm cover most output; author the rest as needed.
+- Consumer not yet wired: `DrawingProducer`/`AnnotationRunner` should pick the size-variant tag
+  family via `EffectiveTagTextSizeMm()`/`TagSizeToken` when placing tags. Add once the size families exist.
+
+### Status delivery — in-tag badges ABANDONED, replaced by the Status Register
+The coloured status-badge glyphs cannot work in Revit: a tag family's **formulas can only
+reference the family's own parameters, not the tagged element's** (confirmed live — `vis_data_green`
+= `and(TAG_WARN_VISIBLE_BOOL, STING_GATE_DATA_STATUS_INT = 2)` errors "not a valid parameter",
+because `STING_GATE_DATA_STATUS_INT` is an element param). Only LABELS can surface element data,
+and label text is monochrome. So per-element coloured badges are impossible.
+
+**Replacement (shipped):** `Status_Register` command (`Commands/TagStudio/StatusRegisterCommand.cs`,
+"Status Register" button) exports a colour-coded Excel register (Register + Summary sheets, reds
+sorted to top, auto-filtered) from `ComplianceScan.ComputeElementGates` — read-only, no stamp run
+needed. Element-level at-a-glance colour still available via the `coord-qa` view filters.
+
+**Now-vestigial (keep for now, no harm):** the four `STING_GATE_*_MSG_TXT` params + `Stamp Gates`
+still feed the register's message columns (useful). The `STING_TagStatus` subcategory rules in the
+view style packs are moot without in-tag glyphs but harmless. The badge-glyph sections of
+UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md / UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md are superseded — status is
+a register/view concern, not an in-family one. User deletes the drawn glyph fills + vis_* params in Revit.
+
+
+#### Title-block family — base-split debt (2026-07-06, branch `claude/tb-rest-autonomous`)
+
+Structural end-state that P10 / P11 / P12 deferred. Logged here rather than done
+because it is a data-model refactor of `STING_TITLE_BLOCKS.json` inheritance, not a
+behavioural change, and every concrete family + the leaf-wins merge logic depend on
+the current shape.
+
+| ID | Gap | Effort | Why open |
+|---|---|---|---|
+| GAP-TB-01 | **Split `A1_common` into a params-only identity base + a separate A1-geometry base.** Today `A1_common_v2.0` is the single root every size/portrait/fab/presentation family extends, and it carries BOTH the ~40-param identity-data universe (Group A/C, shared by all sizes) AND A1-landscape-specific geometry (lines, static text, labels, filled regions, the drawable rect, and the S01–S07/KP slots). Because A0/A3/portrait bases must override that A1 geometry, the merge had to be made leaf-wins (P10 static-text/labels, P11 params/slots, P12 drawable) so a size base can shadow the root's A1 values. The clean end-state is two roots: `STING_TB_identity_common` (params only, no geometry) and `STING_TB_A1_geom_common` (A1 landscape geometry) that the A1 concrete families extend, with A0/A3/portrait bases extending only the identity base. That removes the need for size bases to re-declare-to-override A1 geometry, shrinks the JSON, and makes "what geometry does this family inherit" answerable without running the leaf-wins fold. | 2–3 days | Touches the inheritance root every one of the ~30 title-block specs extends; requires re-parenting all size/portrait/fab/presentation/specialty families and re-verifying each builds identically (per-family slot/param/label counts unchanged) via `TitleBlock_CreateAll`. Best done as a focused refactor session with a before/after build-report diff, not folded into a feature change. The leaf-wins merge added by P10/P11/P12 keeps the current single-root shape correct in the meantime, so this is a cleanliness/maintainability debt, not a correctness bug. |
+
+
+#### Title-block param namespace standardisation — P2 (2026-07-06, branch `claude/tb-rest-autonomous`)
+
+**SKIPPED in the autonomous P12/P5 run** — the clean subset is real but execution
+needs an owner decision (which naming system is canonical for title-block CELL
+keys) plus a Revit-verified family rebuild, and the blast radius (shared param
+file + 90 drawing types + 8 title-block families) is too high to land unverified.
+Full analysis preserved here so a focused session can execute it safely.
+
+**Three unreconciled naming systems** (the "PRJ_ORG_* / PRJ_TB_* / STING_SHEET_*"
+divergence, made concrete):
+1. `STING_DRAWING_TYPES.json` `titleBlockParams` **keys** are friendly cell names
+   (`"Client Name"`, `"Company Name"`, `"Project Code"` — 998 entries across the
+   90 profiles), with **values** read from `${PRJ_ORG_*}` on ProjectInformation.
+2. The built `STING_TB_*` families expose **parameters** named `PRJ_TB_*` (36) and
+   `PRJ_ORG_*` (16) — NOT the friendly cell names.
+3. `TitleBlockParamApplier.Apply` does `tb.LookupParameter(key)` with key = the
+   friendly name, so it only writes to a family whose params are literally named
+   `"Client Name"`. Against the `STING_TB_*` families (params `PRJ_TB_CLIENT_NAME_TXT`
+   etc.) the write warn-and-skips. **This friendly-name vs param-name mismatch must
+   be decided first** — it is independent of, and blocks, the PRJ_TB_→PRJ_ORG_ move.
+
+**Clean org-identity twin map** (project-level, same value across every sheet →
+belong on ProjectInformation as `PRJ_ORG_*`):
+
+| PRJ_TB_* (legacy) | PRJ_ORG_* twin | twin status |
+|---|---|---|
+| PRJ_TB_CLIENT_NAME_TXT | PRJ_ORG_CLIENT_NAME_TXT | exists |
+| PRJ_TB_CLIENT_ADDRESS_TXT | PRJ_ORG_CLIENT_ADDRESS_TXT | add |
+| PRJ_TB_COMPANY_NAME_TXT | PRJ_ORG_COMPANY_NAME_TXT | exists |
+| PRJ_TB_COMPANY_ADDRESS_TXT | PRJ_ORG_COMPANY_ADDRESS_TXT | exists |
+| PRJ_TB_CONTRACTOR_NAME_TXT | PRJ_ORG_CONTRACTOR_NAME_TXT | add |
+| PRJ_TB_CONTRACTOR_ADDRESS_TXT | PRJ_ORG_CONTRACTOR_ADDRESS_TXT | add |
+| PRJ_TB_MEP_CONSULTANTS_NAME_TXT | PRJ_ORG_MEP_CONSULTANTS_NAME_TXT | add |
+| PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT | PRJ_ORG_MEP_CONSULTANTS_ADDRESS_TXT | add |
+| PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT | PRJ_ORG_STRUCTURAL_CONSULTANTS_NAME_TXT | add |
+| PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT | PRJ_ORG_STRUCTURAL_CONSULTANTS_ADDRESS_TXT | add |
+| PRJ_TB_LOGO_PATH_TXT | PRJ_ORG_LOGO_PATH_TXT | add |
+
+**NOT twins — leave on `PRJ_TB_*` (legitimately per-sheet / workflow, not org identity):**
+`PRJ_TB_SHEET_NR_TXT`, `PRJ_TB_PAPER_SZ_TXT`, `PRJ_TB_SCALE_OVERRIDE_TXT`,
+`PRJ_TB_TOTAL_NO_SHEETS_TXT`, `PRJ_TB_VARIANT_TXT`, `PRJ_TB_DISCIPLINE_TXT`,
+`PRJ_TB_REVISION_NR_TXT`, `PRJ_TB_REVISION_DATE_TXT`, `PRJ_TB_REVISION_DESCRIPTION_TXT`,
+`PRJ_TB_DRAWN_BY_TXT`, `PRJ_TB_CHECKED_BY_TXT`, `PRJ_TB_APVD_BY_TXT`,
+`PRJ_TB_DATE_DRAWN_TXT`, `PRJ_TB_DATE_CHECKED_TXT`, `PRJ_TB_DATE_APVD_TXT`,
+`PRJ_TB_DELIVERABLE_*` (4), `PRJ_TB_LAST_TRANSMITTAL_*` (2), `PRJ_TB_LAST_SYNC_*` (2),
+`PRJ_TB_ISSUE_SUMMARY_TXT`, `PRJ_TB_DESIGN_STAGE_TXT` (ambiguous vs PRJ_ORG_PHASE),
+`PRJ_TB_SHOW_*_BOOL` (4), `PRJ_TB_LOCK_BOOL`, `PRJ_TB_NOTES_LEGEND_REF_TXT`,
+`PRJ_TB_SCHEMA_VERSION_TXT`.
+
+**De-risked:** the `PRJ_ORG_*` GUID scheme is deterministic —
+`uuidv5(namespace = a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a, "PRJ_ORG_<NAME>_TXT")`
+(verified against PRJ_ORG_CLIENT_NAME_TXT / _COMPANY_NAME_TXT / _PROJECT_CODE_TXT).
+So the 8 new twins' GUIDs can be generated correctly-by-construction.
+
+**Focused-session plan:** (1) decide the canonical `titleBlockParams` cell-key
+convention (recommend: keys = the family param name, e.g. `PRJ_ORG_CLIENT_NAME_TXT`,
+so LookupParameter hits directly), and rekey the 998 entries; (2) add the 8 new
+`PRJ_ORG_*` twins to MR_PARAMETERS.txt (uuidv5, GROUP 13 PRJ_INFORMATION, TEXT);
+(3) rebind the 11 org-identity labels in STING_TITLE_BLOCKS.json from `PRJ_TB_*` to
+`PRJ_ORG_*`; keep `PRJ_TB_*` as deprecated aliases; (4) add a `TitleBlock_MigrateParams`
+command copying `PRJ_TB_* -> PRJ_ORG_*` on ProjectInformation (SetIfEmpty);
+(5) regenerate STING_TITLE_BLOCK_PARAMETERS.txt; (6) run TitleBlock_CreateAll +
+verify the stamp fills from PRJ_ORG_* in Revit.

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 270" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0.5" y="0.5" width="819" height="269" rx="10" fill="#ffffff" stroke="#CFD8DC"/>
+  <text x="24" y="34" font-size="18" font-weight="700" fill="#263238">Creating the wire-label text types &#8212; the one per-project setup task</text>
+  <text x="24" y="55" font-size="12.5" fill="#607D8B">No Family Editor. This is done with Revit's ordinary Text tool.</text>
+
+  <!-- Panel 1 -->
+  <rect x="20" y="72" width="240" height="168" rx="8" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+  <path d="M20 80 a8 8 0 0 1 8 -8 h224 a8 8 0 0 1 8 8 v24 h-240 z" fill="#1565C0"/>
+  <text x="140" y="97" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">&#9312;  Annotate &#8594; Text</text>
+  <rect x="95" y="125" width="90" height="46" rx="5" fill="#ffffff" stroke="#1565C0"/>
+  <text x="140" y="146" font-size="20" font-weight="700" fill="#1565C0" text-anchor="middle">A</text>
+  <text x="140" y="163" font-size="11" fill="#455A64" text-anchor="middle">Text</text>
+  <text x="140" y="205" font-size="12" fill="#37474F" text-anchor="middle">Click the Text tool on</text>
+  <text x="140" y="221" font-size="12" fill="#37474F" text-anchor="middle">the Annotate ribbon</text>
+
+  <!-- Panel 2 -->
+  <rect x="290" y="72" width="240" height="168" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5"/>
+  <path d="M290 80 a8 8 0 0 1 8 -8 h224 a8 8 0 0 1 8 8 v24 h-240 z" fill="#2E7D32"/>
+  <text x="410" y="97" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">&#9313;  Edit Type &#8594; Duplicate</text>
+  <rect x="312" y="122" width="196" height="30" rx="4" fill="#ffffff" stroke="#2E7D32"/>
+  <text x="322" y="142" font-size="12.5" fill="#37474F">STING - Wire Annotation</text>
+  <rect x="392" y="162" width="116" height="28" rx="4" fill="#2E7D32"/>
+  <text x="450" y="181" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle">Duplicate&#8230;</text>
+  <text x="410" y="215" font-size="12" fill="#37474F" text-anchor="middle">Duplicate the type and</text>
+  <text x="410" y="231" font-size="12" fill="#37474F" text-anchor="middle">give it this exact name</text>
+
+  <!-- Panel 3 -->
+  <rect x="560" y="72" width="240" height="168" rx="8" fill="#E0F2F1" stroke="#00897B" stroke-width="1.5"/>
+  <path d="M560 80 a8 8 0 0 1 8 -8 h224 a8 8 0 0 1 8 8 v24 h-240 z" fill="#00897B"/>
+  <text x="680" y="97" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">&#9314;  Set values &#8594; OK</text>
+  <g font-size="12.5" fill="#37474F">
+    <text x="580" y="128">Font</text><text x="780" y="128" text-anchor="end" font-weight="600">Arial</text>
+    <text x="580" y="150">Size</text><text x="780" y="150" text-anchor="end" font-weight="600">2.0 mm</text>
+    <text x="580" y="172">Background</text><text x="780" y="172" text-anchor="end" font-weight="600">Transparent</text>
+  </g>
+  <line x1="580" y1="182" x2="780" y2="182" stroke="#B2DFDB"/>
+  <rect x="722" y="196" width="60" height="28" rx="4" fill="#00897B"/>
+  <text x="752" y="215" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle">OK</text>
+
+  <!-- arrows -->
+  <g fill="#B0BEC5">
+    <path d="M262 156 l14 0 l0 -6 l12 8 l-12 8 l0 -6 l-14 0 z"/>
+    <path d="M532 156 l14 0 l0 -6 l12 8 l-12 8 l0 -6 l-14 0 z"/>
+  </g>
+</svg>

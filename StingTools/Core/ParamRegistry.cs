@@ -165,8 +165,12 @@ namespace StingTools.Core
         /// <summary>
         /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
         /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
+        /// Defaults to 5 (full 8-segment): ASS_DISPLAY_TXT is the on-drawing tag and
+        /// must start from the full string so a segment mask (TAG_SEG_MASK_TXT /
+        /// STING_VIEW_TOKEN_MASK_TXT / UI "TokenMask") has all 8 segments to shorten.
+        /// Masks only apply in modes 0/5 — the only modes that carry every segment.
         /// </summary>
-        public static int DisplayModeDefault = 2;
+        public static int DisplayModeDefault = 5;
         public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
         public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
         public const string TAG_POS = "STING_TAG_POS";
@@ -495,6 +499,11 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        // P4 — MEP system/service code shown on the title block SYSTEM cell.
+        // Instance param on OST_TitleBlocks; filled from DrawingType.System via
+        // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
+        public const string PRJ_SHEET_SYSTEM       = "PRJ_SHEET_SYSTEM_TXT";
+        public const string PRJ_SHEET_SYSTEM_GUID  = "972024c1-53c5-5b57-b9f7-98e89fa53572";
         // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
         // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
         // constants below are kept on ViewSheet for backwards compat with sheets that
@@ -508,6 +517,10 @@ namespace StingTools.Core
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
         public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
         public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        // Gates the revision-history zone (the native Revit revision schedule
+        // created by TitleBlockFactory for slots with purposeTag "revision-history").
+        public const string TB_SHOW_REV_TABLE      = "TB_SHOW_REV_TABLE_BOOL";
+        public const string TB_SHOW_REV_TABLE_GUID = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
         public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
@@ -527,11 +540,14 @@ namespace StingTools.Core
         public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
 
-        /// <summary>All 19 PRJ_TB_* parameters added in STING Title Block System v1.0.</summary>
+        /// <summary>All 20 title-block parameters added in STING Title Block System v1.0
+        /// (19 originals plus TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
+        /// schedule created by TitleBlockFactory).</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
             TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SHOW_REV_TABLE,
             TB_SCALE_OVERRIDE, TB_ISSUE_SUMMARY,
             TB_DELIVERABLE_DATADROP, TB_DELIVERABLE_STATUS, TB_DELIVERABLE_DUE, TB_DELIVERABLE_CDE,
             TB_LAST_TRANSMITTAL, TB_LAST_TRANSMITTAL_DATE, TB_NOTES_LEGEND_REF
@@ -540,7 +556,8 @@ namespace StingTools.Core
         /// <summary>Subset of TB params that are YESNO flags (for TitleBlockPopulate type coercion).</summary>
         public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
         {
-            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SHOW_REV_TABLE
         };
 
         // ── Organisation parameters (v1.1 template engine + workflow) ──
@@ -1280,6 +1297,20 @@ namespace StingTools.Core
         public static string TAG_SCALE_TIER_AUTO { get; private set; } = "TAG_SCALE_TIER_AUTO_BOOL";
         /// <summary>Active depth tier cached on tag family type (1-10, type INTEGER).</summary>
         public static string TAG_DEPTH_TIER { get; private set; } = "TAG_DEPTH_TIER_INT";
+
+        // ── Universal-tag status gates (Phase 195 Task 2) ────────────────
+        // Instance INTEGER params stamped on model elements by ComplianceScan
+        // and read by the universal tag's two status badges (left = data gate,
+        // right = QA gate) via and(TAG_WARN_VISIBLE_BOOL, STING_GATE_x = n).
+        // 0 = red, 1 = amber, 2 = green.
+        /// <summary>Data-completeness gate status (instance INTEGER, 0/1/2).</summary>
+        public static string GATE_DATA_STATUS { get; private set; } = "STING_GATE_DATA_STATUS_INT";
+        /// <summary>QA / sign-off gate status (instance INTEGER, 0/1/2).</summary>
+        public static string GATE_QA_STATUS { get; private set; } = "STING_GATE_QA_STATUS_INT";
+        /// <summary>Data gate terse reason for the label next to the left badge (instance TEXT, blank when green).</summary>
+        public static string GATE_DATA_MSG { get; private set; } = "STING_GATE_DATA_MSG_TXT";
+        /// <summary>QA gate terse reason for the label next to the right badge (instance TEXT, blank when green).</summary>
+        public static string GATE_QA_MSG { get; private set; } = "STING_GATE_QA_MSG_TXT";
 
         // ── Semantic color meaning registry ──────────────────────────────
         // Maps colors to what they represent in each context:

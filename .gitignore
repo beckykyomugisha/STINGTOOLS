@@ -84,6 +84,7 @@ build/
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
 *.pyd
 
 # IFC drop folder — runtime files, not source

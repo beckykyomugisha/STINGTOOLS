@@ -167,6 +167,14 @@ namespace StingTools.Core.Drawing
             if (opts.CreateSheet)
                 result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
 
+            // P1 — resolve the title-block family's slot grid once for this
+            // sheet (null for norm-only profiles / no sheet) and reuse it across
+            // every production rule instead of re-opening the family per view.
+            SheetPlacementBridge.FamilySlotContext famCtx = null;
+            if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
+                famCtx = SheetPlacementBridge.BuildFamilySlotContext(
+                    doc, doc.GetElement(result.SheetId) as ViewSheet, dt, result);
+
             foreach (var rule in rules)
             {
                 if (rule == null) continue;
@@ -178,7 +186,7 @@ namespace StingTools.Core.Drawing
 
                 if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
                 {
-                    var vpId = PlaceViewOnSheet(doc, result.SheetId, viewId, dt, rule, result);
+                    var vpId = PlaceViewOnSheet(doc, result.SheetId, viewId, dt, rule, result, famCtx);
                     if (vpId != ElementId.InvalidElementId)
                     {
                         result.ViewportIds.Add(vpId);
@@ -514,13 +522,27 @@ namespace StingTools.Core.Drawing
             try
             {
                 var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
-                var familyMatches = new FilteredElementCollector(doc)
+                // P5 — map the profile's logical / dangling family name to the
+                // concrete built family (STING_TB_<size>[_PORT]_<BIM|NONBIM>_v2.0
+                // / …_ASSEMBLY_*_v1.0 / …_PRESENT_A1_v1.0) before looking it up.
+                tbFamily = TitleBlockResolver.ToConcreteFamily(doc, dt, tbFamily);
+
+                List<FamilySymbol> CollectMatches() => new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol))
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .Cast<FamilySymbol>()
                     .Where(s => string.IsNullOrEmpty(tbFamily) ||
                                 string.Equals(s.FamilyName, tbFamily, StringComparison.OrdinalIgnoreCase))
                     .ToList();
+
+                var familyMatches = CollectMatches();
+                // P5 delivery — if the concrete family was built but not yet
+                // loaded, load it from Families/TitleBlocks/ on demand so the
+                // producer never falls back to an arbitrary title block.
+                if (familyMatches.Count == 0 && !string.IsNullOrEmpty(tbFamily)
+                    && TitleBlockResolver.EnsureFamilyLoaded(doc, tbFamily))
+                    familyMatches = CollectMatches();
+
                 FamilySymbol picked = null;
                 if (!string.IsNullOrWhiteSpace(tbSymbol))
                     picked = familyMatches.FirstOrDefault(s =>
@@ -623,18 +645,24 @@ namespace StingTools.Core.Drawing
             return sheet.Id;
         }
 
-        private static ElementId PlaceViewOnSheet(Document doc, ElementId sheetId, ElementId viewId, DrawingType dt, ProductionRule rule, ProduceResult result)
+        private static ElementId PlaceViewOnSheet(Document doc, ElementId sheetId, ElementId viewId, DrawingType dt, ProductionRule rule, ProduceResult result, SheetPlacementBridge.FamilySlotContext famCtx = null)
         {
             try
             {
-                var pt = SheetPlacementBridge.GetSlotPosition(doc, sheetId, dt,
-                    rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result);
+                var sp = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
+                    rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
+                var pt = sp?.Center;
                 if (pt == null)
                 {
                     var sheet = doc.GetElement(sheetId) as ViewSheet;
                     var bb = sheet?.Outline;
                     pt = bb != null ? new XYZ((bb.Min.U + bb.Max.U) / 2.0, (bb.Min.V + bb.Max.V) / 2.0, 0) : XYZ.Zero;
                 }
+                // P12.A — fit the view to its slot before placement, unless the
+                // production rule pins an explicit scale override.
+                if (sp != null && !rule.ScaleOverride.HasValue
+                    && doc.GetElement(viewId) is View vFit)
+                    SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
                 var vp = Viewport.Create(doc, sheetId, viewId, pt);
                 return vp?.Id ?? ElementId.InvalidElementId;
             }
@@ -739,7 +767,7 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(pattern)) return pattern;
             string disc  = dt?.Discipline ?? "";
             string lvl   = ctx?.Level?.Name ?? "";
-            string sys   = "";
+            string sys   = dt?.System ?? "";   // P4 — system code into {sys} for number/name patterns
             string mark  = ctx?.Tag ?? "";
             string spool = ctx?.Tag ?? "";
 

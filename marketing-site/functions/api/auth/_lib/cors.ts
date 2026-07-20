@@ -7,11 +7,26 @@ const ALLOWED_ORIGINS = new Set([
   "https://app.planscape.build",
 ]);
 
+// True when the caller is the very deployment serving this request — the page
+// and the Function share an origin. Covers local dev (http://localhost:8788) and
+// Cloudflare Pages preview URLs (https://<hash>.planscape-marketing.pages.dev)
+// without wildcarding *.pages.dev, which would let any Pages site call us.
+// Cross-origin callers still have to be in ALLOWED_ORIGINS above.
+function isSameOrigin(request: Request): boolean {
+  const origin = request.headers.get("Origin");
+  if (!origin) return false;
+  try {
+    return origin === new URL(request.url).origin;
+  } catch {
+    return false;
+  }
+}
+
 // Echo back the request origin only if it is allow-listed; otherwise fall back
 // to the canonical site so the browser blocks the disallowed origin.
 export function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("Origin") || "";
-  const allowed = ALLOWED_ORIGINS.has(origin);
+  const allowed = ALLOWED_ORIGINS.has(origin) || isSameOrigin(request);
   return {
     "Access-Control-Allow-Origin": allowed ? origin : "https://planscape.build",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -26,7 +41,7 @@ export function isAllowedOrigin(request: Request): boolean {
   const origin = request.headers.get("Origin");
   // Non-browser callers (curl, server-to-server) send no Origin — allow them.
   if (!origin) return true;
-  return ALLOWED_ORIGINS.has(origin);
+  return ALLOWED_ORIGINS.has(origin) || isSameOrigin(request);
 }
 
 // Shared preflight responder. Wire as `onRequestOptions` in each Function.

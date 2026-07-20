@@ -267,7 +267,9 @@ namespace StingTools.Tags
                 FamilyManager fm = fdoc.FamilyManager;
                 using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — bind tier params"))
                 {
+                    TagParamInjector.InstallSwallower(tx); // Phase 196 — before Start
                     tx.Start();
+                    var idx = TagParamInjector.BuildIndex(fdoc);
                     foreach (string name in paramNames)
                     {
                         ExternalDefinition ext = FindSharedDefinition(defFile, name);
@@ -276,15 +278,17 @@ namespace StingTools.Tags
                             result.Warnings.Add($"Shared param '{name}' not in {Path.GetFileName(opts.SharedParamFile)}");
                             continue;
                         }
-                        if (HasParameter(fm, name)) continue;
-                        try
+                        // Phase 196: pre-skip TEXT↔YESNO conflicts so a stale MR file
+                        // can't raise the unrecoverable "cannot be added" modal here.
+                        switch (TagParamInjector.EnsureFamilyParam(fm, ext, idx, GroupTypeId.General, true))
                         {
-                            fm.AddParameter(ext, GroupTypeId.General, true); // instance
-                            added++;
-                        }
-                        catch (Exception ex)
-                        {
-                            result.Warnings.Add($"AddParameter('{name}') failed: {ex.Message}");
+                            case TagParamInjector.InjectResult.Added:
+                                added++;
+                                break;
+                            case TagParamInjector.InjectResult.SkippedConflict:
+                                result.Warnings.Add($"'{name}': type conflict with the family's existing definition — kept existing (TEXT↔YESNO drift)");
+                                break;
+                            // SkippedExists / Failed: no-op (Failed already logged by the injector).
                         }
                     }
                     tx.Commit();
@@ -451,11 +455,22 @@ namespace StingTools.Tags
             return null;
         }
 
-        private static bool HasParameter(FamilyManager fm, string name)
+        /// <summary>
+        /// Locate an already-bound family parameter by name, or null. Exposed
+        /// <c>internal</c> so the title-block seed-augment path
+        /// (<see cref="StingTools.Core.Drawing.TitleBlockFactory"/>) can reuse
+        /// the same idempotency check when opening a pre-authored seed .rfa that
+        /// already carries its shared parameters — see the shared-param binding
+        /// idiom in <see cref="BindSharedParameters"/>.
+        /// </summary>
+        internal static FamilyParameter FindParameter(FamilyManager fm, string name)
         {
             foreach (FamilyParameter fp in fm.Parameters)
-                if (fp.Definition?.Name == name) return true;
-            return false;
+                if (fp.Definition?.Name == name) return fp;
+            return null;
         }
+
+        internal static bool HasParameter(FamilyManager fm, string name)
+            => FindParameter(fm, name) != null;
     }
 }

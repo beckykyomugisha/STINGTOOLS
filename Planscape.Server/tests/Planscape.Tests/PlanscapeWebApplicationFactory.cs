@@ -1,3 +1,6 @@
+using Hangfire;
+using Microsoft.Extensions.Configuration;
+using Hangfire.InMemory;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +25,37 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
 
+        // xunit runs test classes in parallel and every request originates from the
+        // same loopback IP, so the production "auth" policy (5 attempts / 5 min per
+        // IP) is exhausted almost immediately and unrelated tests fail with 429
+        // instead of their real assertion. Rate limiting stays ON everywhere else.
+        // Program.cs fail-fasts when Jwt:Key is absent (Program.cs:104-115), so
+        // EVERY host-building test died unless the developer happened to have
+        // Jwt__Key exported in their shell — which is exactly why an earlier
+        // "the suite is fixed" claim did not reproduce on a clean machine
+        // (265 passed/155 failed clean, vs 347/73 with the var set).
+        //
+        // This MUST go through UseSetting, not ConfigureAppConfiguration.
+        // Program.cs reads builder.Configuration["Jwt:Key"] while the host is
+        // still being *built*; ConfigureAppConfiguration callbacks are applied
+        // after that read, so injecting there leaves the fail-fast untouched
+        // (verified — the run was byte-identical at 265/155).  UseSetting feeds
+        // DeferredHostBuilder's settings, which land as an in-memory source
+        // before any user code reads configuration.
+        //
+        // TEST-ONLY VALUE. Never leaves the in-process test host: it signs
+        // tokens for an in-memory database discarded when the factory is
+        // disposed. It must still clear Program.cs's guards — 32+ chars, not in
+        // the banned list, 4+ distinct characters — hence the random-looking
+        // literal rather than something readable like "test-key-padding-...".
+        builder.UseSetting("Jwt:Key", "qZ7v3Kx9TmR2wLp8Nc5FhJd6Bs4YgVt1Ae0UnXiOrEz");
+
+        builder.ConfigureAppConfiguration(cfg =>
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RateLimiting:Enabled"] = "false"
+            }));
+
         builder.ConfigureServices(services =>
         {
             // Remove the real DbContext registration
@@ -29,12 +63,29 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
                 d => d.ServiceType == typeof(DbContextOptions<PlanscapeDbContext>));
             if (dbDescriptor != null) services.Remove(dbDescriptor);
 
-            // Remove Hangfire services (they require PostgreSQL)
+            // Replace Hangfire's PostgreSQL storage with in-memory storage.
+            //
+            // This used to REMOVE every Hangfire descriptor, which broke the whole
+            // WebApplicationFactory suite at startup in three separate places:
+            // UseHangfireDashboard threw "Unable to find the required services",
+            // and the ~40 static RecurringJob.AddOrUpdate registrations threw
+            // "Current JobStorage instance has not been initialized yet". Both are
+            // unconditional in Program.cs, so no test could construct a host.
+            //
+            // Substituting storage rather than deleting the feature keeps the
+            // production startup path under test instead of routing around it.
+            // No Hangfire *server* is started, so jobs are registered but never
+            // executed — exactly what a controller test wants.
             var hangfireDescriptors = services
                 .Where(d => d.ServiceType.FullName?.Contains("Hangfire") == true
                          || d.ImplementationType?.FullName?.Contains("Hangfire") == true)
                 .ToList();
             foreach (var d in hangfireDescriptors) services.Remove(d);
+
+            services.AddHangfire(cfg => cfg.UseInMemoryStorage());
+            // Static RecurringJob.* APIs read JobStorage.Current, which the DI
+            // registration alone does not set.
+            Hangfire.JobStorage.Current = new Hangfire.InMemory.InMemoryStorage();
 
             // Add InMemory database
             services.AddDbContext<PlanscapeDbContext>(options =>

@@ -37,6 +37,17 @@ binding       = "WAITLIST_DB"
 database_name = "planscape-waitlist"
 database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
 
+# R2 binding for the gated download area (functions/api/downloads/*).
+# Created via: wrangler r2 bucket create planscape-downloads
+# The bucket is PRIVATE — files are streamed through a Function that checks the
+# caller's subscription entitlement first, so a download link cannot be forwarded
+# to someone who has not paid. Never make this bucket public.
+# Upload a build:
+#   wrangler r2 object put planscape-downloads/<tool>/<version>/<file>.zip --file <path>
+[[r2_buckets]]
+binding     = "DOWNLOADS"
+bucket_name = "planscape-downloads"
+
 # Per-environment overrides
 [env.preview]
 name = "planscape-marketing-preview"
@@ -49,6 +60,10 @@ binding       = "WAITLIST_DB"
 database_name = "planscape-waitlist"
 database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
 
+[[env.preview.r2_buckets]]
+binding     = "DOWNLOADS"
+bucket_name = "planscape-downloads"
+
 [env.production]
 name = "planscape-marketing"
 
@@ -59,3 +74,7 @@ SITE_URL = "https://planscape.build"
 binding       = "WAITLIST_DB"
 database_name = "planscape-waitlist"
 database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
+
+[[env.production.r2_buckets]]
+binding     = "DOWNLOADS"
+bucket_name = "planscape-downloads"

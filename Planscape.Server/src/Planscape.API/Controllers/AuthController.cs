@@ -936,6 +936,480 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password has been reset. Please log in." });
     }
 
+    // ── Cloud handoff (planscape.build → this API) ──────────────────────────
+    //
+    // planscape.build (Cloudflare D1) owns signup, passwords and billing. This
+    // API owns project data. A customer who signed up there has no AppUser row
+    // here, so the marketing site mints a short-lived single-use HMAC ticket
+    // and the web app exchanges it here for a NORMAL session — same JWT, same
+    // refresh flow as /login. Design: docs/PLANSCAPE_IDENTITY_HANDOFF.md.
+    //
+    // The ticket is NOT a password and no password ever transits this path.
+    // Mirror accounts are created with a random unusable hash; they can only
+    // ever be entered via a fresh ticket.
+
+    /// <summary>Exchange a planscape.build handoff ticket for a session.</summary>
+    /// <response code="200">Session issued.</response>
+    /// <response code="401">Ticket invalid, expired, or already used.</response>
+    [AllowAnonymous]
+    [HttpPost("handoff/exchange")]
+    [EnableRateLimiting("auth")]
+    public async Task<ActionResult> HandoffExchange([FromBody] HandoffExchangeRequest req)
+    {
+        var secret = Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
+        if (string.IsNullOrEmpty(secret))
+        {
+            _logger.LogError("Handoff exchange attempted but PLANSCAPE_HANDOFF_SECRET is unset");
+            return StatusCode(500, new { message = "Handoff is not configured." });
+        }
+
+        var ticket = req.Ticket ?? "";
+        var dot = ticket.IndexOf('.');
+        if (dot <= 0 || dot == ticket.Length - 1)
+            return Unauthorized(new { message = "Invalid ticket." });
+
+        byte[] payloadBytes, sig;
+        try
+        {
+            payloadBytes = Base64UrlDecodeHandoff(ticket[..dot]);
+            sig          = Base64UrlDecodeHandoff(ticket[(dot + 1)..]);
+        }
+        catch { return Unauthorized(new { message = "Invalid ticket." }); }
+
+        using (var hmac = new System.Security.Cryptography.HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+        {
+            var expected = hmac.ComputeHash(payloadBytes);
+            if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(expected, sig))
+                return Unauthorized(new { message = "Invalid ticket." });
+        }
+
+        HandoffTicketPayload? p;
+        try { p = System.Text.Json.JsonSerializer.Deserialize<HandoffTicketPayload>(payloadBytes); }
+        catch { p = null; }
+        if (p == null || string.IsNullOrWhiteSpace(p.Jti)
+                      || string.IsNullOrWhiteSpace(p.Email)
+                      || string.IsNullOrWhiteSpace(p.TenantSlug))
+            return Unauthorized(new { message = "Invalid ticket." });
+
+        // TTL is 120s at mint; enforce expiry here so clock skew on the minting
+        // side cannot extend a ticket's life.
+        if (p.Exp <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+            return Unauthorized(new { message = "Ticket expired — go back to planscape.build and try again." });
+
+        // Single use. A ticket travels in a URL, so anything that replays the
+        // URL (prefetch, back button, shared link) must not mint a second
+        // session. Redis-down fails OPEN with a warning, consistent with the
+        // other Redis-degraded paths in this controller: the worst case is a
+        // duplicate session for the same legitimate user inside a 120s window.
+        try
+        {
+            var redisDb = _redis.GetDatabase();
+            var fresh = await redisDb.StringSetAsync(
+                $"handoff:jti:{p.Jti}", 1, TimeSpan.FromMinutes(5), When.NotExists);
+            if (!fresh)
+                return Unauthorized(new { message = "Ticket already used — go back to planscape.build and try again." });
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex, "Redis unavailable during handoff jti check; single-use protection degraded.");
+        }
+
+        var email = p.Email.Trim().ToLowerInvariant();
+        var slug  = p.TenantSlug.Trim().ToLowerInvariant();
+
+        // Email is the join key. An existing user keeps their existing tenant —
+        // the handoff never moves a user between tenants. Match regardless of
+        // IsActive (only exclude soft-deleted): filtering on IsActive here made
+        // the lookup miss a deactivated account and then collide with the
+        // (TenantId, Email) unique index trying to create a duplicate.
+        var user = await _db.Users
+            .IgnoreQueryFilters()
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted);
+
+        if (user != null && !user.IsActive)
+        {
+            // D1 is the entitlement authority and it just vouched for this
+            // user by minting the ticket — reactivate rather than refuse.
+            user.IsActive = true;
+        }
+
+        if (user == null)
+        {
+            var tenant = await _db.Tenants.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(t => t.Slug == slug);
+            if (tenant == null)
+            {
+                var limits = BillingPlanLimits.For(BillingPlan.Network);
+                tenant = new Tenant
+                {
+                    Name         = string.IsNullOrWhiteSpace(p.TenantName) ? slug : p.TenantName!,
+                    Slug         = slug,
+                    ContactEmail = email,
+                    Tier         = LicenseTier.Starter,
+                    // Billing truth lives in planscape.build's D1, not here —
+                    // the handoff endpoint refuses cancelled/read_only tenants
+                    // before minting a ticket. Provision the mirror generously
+                    // so this side never locks out a customer D1 considers
+                    // paid; reconciliation is deliberately out of scope
+                    // (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
+                    Plan           = BillingPlan.Trial,
+                    Currency       = "USD",
+                    BillingCycle   = BillingCycle.Monthly,
+                    MaxUsers       = limits.MaxAuthors + limits.MaxCoordinators,
+                    MaxProjects    = limits.MaxProjects,
+                    MimEnabled     = false,
+                    TrialExpiresAt = DateTime.UtcNow.AddDays(365)
+                };
+                _db.Tenants.Add(tenant);
+            }
+
+            // Explicit map, defaulting DOWN. Never pass the role string
+            // through — a rename on the D1 side must not escalate here.
+            var role = (p.Role ?? "").ToLowerInvariant() switch
+            {
+                "owner"        => UserRole.Owner,
+                "admin"        => UserRole.Admin,
+                "project_lead" => UserRole.Manager,
+                "coordinator"  => UserRole.Coordinator,
+                _              => UserRole.Viewer
+            };
+
+            var display = ($"{p.FirstName} {p.LastName}").Trim();
+            user = new AppUser
+            {
+                TenantId     = tenant.Id,
+                Tenant       = tenant,
+                Email        = email,
+                DisplayName  = string.IsNullOrWhiteSpace(display) ? email : display,
+                // Random, never disclosed, never usable: this account can only
+                // be entered via a handoff ticket.
+                PasswordHash = HashPassword(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+                Role         = role,
+                Iso19650Role = "A"
+            };
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+        }
+
+        // Provision a starter project so a freshly handed-off subscriber does not
+        // land in an empty account. Runs for existing users too: the gate is
+        // "this tenant has no projects", not "we just created this user", so a
+        // tenant whose only project was deleted gets one back on next handoff.
+        await EnsureStarterProjectAsync(user);
+
+        // From here, identical to a successful /login.
+        var token = GenerateJwt(user);
+        var refreshToken = Guid.NewGuid().ToString("N");
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            await _redis.GetDatabase().StringSetAsync(
+                RefreshActivityKey(refreshToken),
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                TimeSpan.FromDays(7));
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex, "Redis unavailable while seeding refresh activity for handoff session.");
+        }
+
+        return Ok(new
+        {
+            accessToken  = token,
+            refreshToken,
+            expiresAt    = DateTime.UtcNow.Add(AccessTokenLifetime),
+            userName     = user.DisplayName,
+            role         = user.Role.ToString(),
+            tier         = user.Tenant?.Tier.ToString() ?? "Starter",
+            mimEnabled   = user.Tenant?.MimEnabled ?? false,
+            tenantSlug   = user.Tenant?.Slug ?? slug
+        });
+    }
+
+    /// <summary>
+    /// Give a tenant its first project if it has none, and make <paramref name="user"/>
+    /// a member of it.
+    ///
+    /// Idempotent by design: the gate is "this tenant has zero projects", so a
+    /// second handoff for the same tenant is a no-op. Membership is granted
+    /// separately (and also idempotently) because a tenant can have a project
+    /// the handed-off user is not yet a member of — projects are private to
+    /// author + invited members + tenant admins.
+    ///
+    /// Best-effort: a failure here must never cost the user their session. The
+    /// handoff has already succeeded by this point; landing in an account with
+    /// no starter project is a far better outcome than a 500 on login.
+    /// </summary>
+    private async Task EnsureStarterProjectAsync(AppUser user)
+    {
+        try
+        {
+            var existing = await _db.Projects.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(p => p.TenantId == user.TenantId);
+
+            if (existing == null)
+            {
+                existing = new Project
+                {
+                    TenantId    = user.TenantId,
+                    Name        = "My First Project",
+                    // ISO 19650-ish placeholder the user is expected to rename.
+                    Code        = "PRJ-001",
+                    Description = "Starter project created automatically when your "
+                                + "planscape.build account was linked. Rename it or "
+                                + "create your own — it is an ordinary project.",
+                    Phase       = "Design",
+                    Status      = ProjectStatus.Active,
+                    CreatedById = user.Id
+                };
+                _db.Projects.Add(existing);
+                await _db.SaveChangesAsync();
+                _logger.LogInformation(
+                    "Handoff provisioned starter project {ProjectId} for tenant {TenantId}.",
+                    existing.Id, user.TenantId);
+            }
+
+            var isMember = await _db.ProjectMembers.IgnoreQueryFilters()
+                .AnyAsync(m => m.ProjectId == existing.Id && m.UserId == user.Id);
+            if (!isMember)
+            {
+                _db.ProjectMembers.Add(new ProjectMember
+                {
+                    TenantId     = user.TenantId,
+                    ProjectId    = existing.Id,
+                    UserId       = user.Id,
+                    ProjectRole  = "Owner",
+                    Iso19650Role = user.Iso19650Role,
+                    IsActive     = true
+                });
+                await _db.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Starter-project provisioning failed for user {UserId} (tenant {TenantId}); "
+                + "handoff session still issued.", user.Id, user.TenantId);
+        }
+    }
+
+    // ── Personal access tokens ─────────────────────────────────────────────────
+    //
+    // Headless clients (StingBridge, CI, scripts) need a credential they can hold
+    // on disk. Password login is not available to handoff-provisioned accounts —
+    // those are created with a deliberately unusable random password hash — so
+    // without this such a user could not authenticate a bridge at all.
+    //
+    // A PAT is NOT accepted as a bearer token anywhere in the API. It is traded
+    // for an ordinary short-lived JWT at POST /api/auth/token/exchange, exactly
+    // as a password is at /api/auth/login. That keeps the API single-scheme:
+    // no endpoint's authorisation behaviour changes, and there is no second
+    // credential type for authorisation code to reason about.
+
+    /// <summary>Prefix that makes a leaked token greppable in logs and repos.</summary>
+    private const string PatPrefix = "psat_";
+
+    private static string HashPat(string raw) => HashForKey(raw);
+
+    /// <summary>Mint a personal access token. The plaintext is returned ONCE.</summary>
+    /// <response code="200">Token created. <c>token</c> is unrecoverable after this response.</response>
+    /// <response code="400">Name missing, or the active-token cap is reached.</response>
+    [Authorize]
+    [HttpPost("tokens")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> CreatePersonalAccessToken([FromBody] CreatePatRequest req)
+    {
+        var userId = CurrentUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(req?.Name))
+            return BadRequest(new { message = "A token name is required." });
+
+        // Cap active tokens per user. Without a ceiling a compromised session
+        // could mint unlimited long-lived credentials that survive its own
+        // revocation — the cap bounds that blast radius and forces cleanup.
+        var activeCount = await _db.PersonalAccessTokens
+            .CountAsync(t => t.UserId == userId && t.RevokedAt == null);
+        if (activeCount >= 20)
+            return BadRequest(new { message = "Token limit reached (20 active). Revoke one first." });
+
+        // 32 bytes of CSPRNG entropy, base64url so the token is copy-paste safe.
+        var raw = PatPrefix + Convert.ToBase64String(
+            System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        DateTime? expiresAt = req.ExpiresInDays is > 0
+            ? DateTime.UtcNow.AddDays(req.ExpiresInDays.Value)
+            : null;
+
+        var pat = new PersonalAccessToken
+        {
+            TenantId    = user.TenantId,
+            UserId      = user.Id,
+            Name        = req.Name.Trim(),
+            TokenHash   = HashPat(raw),
+            TokenPrefix = raw[..Math.Min(raw.Length, 12)],
+            ExpiresAt   = expiresAt
+        };
+        _db.PersonalAccessTokens.Add(pat);
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("PAT {PatId} minted for user {UserId}.", pat.Id, user.Id);
+
+        return Ok(new
+        {
+            id     = pat.Id,
+            name   = pat.Name,
+            token  = raw,          // ← only time this is ever visible
+            prefix = pat.TokenPrefix,
+            createdAt = pat.CreatedAt,
+            expiresAt = pat.ExpiresAt
+        });
+    }
+
+    /// <summary>List this user's tokens. Never returns secrets.</summary>
+    [Authorize]
+    [HttpGet("tokens")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult> ListPersonalAccessTokens()
+    {
+        var userId = CurrentUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+
+        var rows = await _db.PersonalAccessTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => new
+            {
+                t.Id, t.Name, prefix = t.TokenPrefix,
+                t.CreatedAt, t.LastUsedAt, t.ExpiresAt
+            })
+            .ToListAsync();
+
+        return Ok(rows);
+    }
+
+    /// <summary>Revoke a token. Soft delete, so the audit trail survives.</summary>
+    [Authorize]
+    [HttpDelete("tokens/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> RevokePersonalAccessToken(Guid id)
+    {
+        var userId = CurrentUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+
+        // Scoped to the caller's own tokens — a user must never be able to
+        // revoke a colleague's credential by guessing an id.
+        var pat = await _db.PersonalAccessTokens
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId && t.RevokedAt == null);
+        if (pat == null) return NotFound();
+
+        pat.RevokedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("PAT {PatId} revoked by user {UserId}.", pat.Id, userId);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Exchange a personal access token for an ordinary session, identical in
+    /// shape to <c>/api/auth/login</c>.
+    /// </summary>
+    /// <response code="200">Access token, refresh token, and user info.</response>
+    /// <response code="401">Unknown, revoked, expired, or deactivated token.</response>
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("token/exchange")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> ExchangePersonalAccessToken([FromBody] ExchangePatRequest req)
+    {
+        // One message for every failure mode below: an attacker probing this
+        // endpoint must not learn whether a token exists, is expired, or is
+        // revoked. The logs distinguish them; the response does not.
+        const string denied = "Invalid or expired token.";
+
+        if (string.IsNullOrWhiteSpace(req?.Token))
+            return Unauthorized(new { message = denied });
+
+        var hash = HashPat(req.Token.Trim());
+        var pat = await _db.PersonalAccessTokens.IgnoreQueryFilters()
+            .Include(t => t.User).ThenInclude(u => u!.Tenant)
+            .FirstOrDefaultAsync(t => t.TokenHash == hash);
+
+        if (pat == null || !pat.IsUsable(DateTime.UtcNow))
+        {
+            _logger.LogWarning("PAT exchange rejected (unknown/revoked/expired).");
+            return Unauthorized(new { message = denied });
+        }
+
+        var user = pat.User;
+        if (user == null || user.IsDeleted || !user.IsActive)
+        {
+            _logger.LogWarning("PAT {PatId} exchange rejected — user missing or inactive.", pat.Id);
+            return Unauthorized(new { message = denied });
+        }
+
+        pat.LastUsedAt = DateTime.UtcNow;
+
+        // From here, identical to a successful /login.
+        var token = GenerateJwt(user);
+        var refreshToken = Guid.NewGuid().ToString("N");
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            await _redis.GetDatabase().StringSetAsync(
+                RefreshActivityKey(refreshToken),
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                TimeSpan.FromDays(7));
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex, "Redis unavailable while seeding refresh activity for PAT session.");
+        }
+
+        return Ok(new
+        {
+            accessToken  = token,
+            refreshToken,
+            expiresAt    = DateTime.UtcNow.Add(AccessTokenLifetime),
+            userName     = user.DisplayName,
+            role         = user.Role.ToString(),
+            tier         = user.Tenant?.Tier.ToString() ?? "Starter",
+            mimEnabled   = user.Tenant?.MimEnabled ?? false,
+            tenantSlug   = user.Tenant?.Slug ?? ""
+        });
+    }
+
+    /// <summary>Current user id from the JWT. <see cref="Guid.Empty"/> when absent.</summary>
+    private Guid CurrentUserId()
+    {
+        // JWT middleware maps "sub" to ClaimTypes.NameIdentifier by default, so check both.
+        var sub = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        return Guid.TryParse(sub, out var id) ? id : Guid.Empty;
+    }
+
+    private static byte[] Base64UrlDecodeHandoff(string s)
+    {
+        var b64 = s.Replace('-', '+').Replace('_', '/');
+        switch (b64.Length % 4) { case 2: b64 += "=="; break; case 3: b64 += "="; break; }
+        return Convert.FromBase64String(b64);
+    }
+
     private string GenerateJwt(Core.Entities.AppUser user)
     {
         // P1 — tag newly issued tokens with kid=current so future rotations can
@@ -1017,3 +1491,40 @@ public class AuthController : ControllerBase
 
 public record SwitchTenantRequest(Guid TenantId);
 public record AcceptInvitationRequest(string Token, string Email, string Password);
+
+// ── Personal access token DTOs ────────────────────────────────────────────────
+
+public sealed class CreatePatRequest
+{
+    /// <summary>Human label, e.g. "StingBridge on the studio workstation".</summary>
+    public string? Name { get; set; }
+
+    /// <summary>Null or &lt;= 0 means the token never expires.</summary>
+    public int? ExpiresInDays { get; set; }
+}
+
+public sealed class ExchangePatRequest
+{
+    public string? Token { get; set; }
+}
+
+// ── Handoff DTOs (docs/PLANSCAPE_IDENTITY_HANDOFF.md) ──────────────────────────
+
+public sealed class HandoffExchangeRequest
+{
+    public string? Ticket { get; set; }
+}
+
+internal sealed class HandoffTicketPayload
+{
+    [System.Text.Json.Serialization.JsonPropertyName("jti")]        public string? Jti { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("email")]      public string? Email { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("tenantSlug")] public string? TenantSlug { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("tenantName")] public string? TenantName { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("firstName")]  public string? FirstName { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("lastName")]   public string? LastName { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("role")]       public string? Role { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("tier")]       public string? Tier { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("iat")]        public long Iat { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("exp")]        public long Exp { get; set; }
+}

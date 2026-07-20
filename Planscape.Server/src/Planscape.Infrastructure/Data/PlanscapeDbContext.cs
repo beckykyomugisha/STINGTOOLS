@@ -99,6 +99,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
     public DbSet<ExternalElementMapping> ExternalElementMappings => Set<ExternalElementMapping>();
+    public DbSet<PersonalAccessToken> PersonalAccessTokens => Set<PersonalAccessToken>();
     public DbSet<PlatformEvent> PlatformEvents => Set<PlatformEvent>();
     // MIGRATION REQUIRED: dotnet ef migrations add ArchiCADEventLogPersistence
     public DbSet<ArchiCADEventLog> ArchiCADEventLogs => Set<ArchiCADEventLog>();
@@ -683,6 +684,24 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId, m.Host, m.HostDocumentGuid }).IsUnique();
             e.HasIndex(m => new { m.ProjectId, m.IfcGlobalId });  // cross-host lookup
             e.HasIndex(m => new { m.ProjectId, m.Host, m.HostElementId });  // reverse lookup
+        });
+
+        // ── PersonalAccessToken ──
+        // Headless credential for clients that cannot do an interactive login
+        // (notably handoff-provisioned accounts, which have no usable password).
+        // Lookup on exchange is a single hit on the unique TokenHash index; the
+        // (UserId, RevokedAt) index serves the "list my active tokens" screen.
+        modelBuilder.Entity<PersonalAccessToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.HasOne(t => t.Tenant).WithMany().HasForeignKey(t => t.TenantId);
+            e.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(t => t.Name).HasMaxLength(120);
+            e.Property(t => t.TokenHash).HasMaxLength(64);
+            e.Property(t => t.TokenPrefix).HasMaxLength(24);
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => new { t.UserId, t.RevokedAt });
         });
 
         // ── ArchiCADEventLog ──

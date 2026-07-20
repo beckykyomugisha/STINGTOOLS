@@ -24,6 +24,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
@@ -125,13 +126,27 @@ namespace StingTools.Core
                 var modified = data.GetModifiedElementIds();
                 var added = data.GetAddedElementIds();
 
+                // Overflow handling. A bulk change previously dropped the ENTIRE
+                // modified set (marking ZERO cost rows stale, not "the first N").
+                // Now process the first MaxElementsPerTrigger inline and defer the
+                // remainder to a single idle job — real deferral through the
+                // plugin's existing StingIdlingScheduler rather than a silent drop.
                 if (modified != null && modified.Count > MaxElementsPerTrigger)
                 {
-                    StingLog.Info($"StingCostStaleMarker: bulk change ({modified.Count}) — skipped to avoid fan-out.");
-                    return;
+                    var all = modified as IList<ElementId> ?? modified.ToList();
+                    var firstN = all.Take(MaxElementsPerTrigger).ToList();
+                    var overflow = all.Skip(MaxElementsPerTrigger).ToList();
+                    try { StingIdlingScheduler.Enqueue(new CostStaleRemarkJob(doc, overflow)); }
+                    catch (Exception schEx) { StingLog.Warn($"StingCostStaleMarker enqueue overflow job: {schEx.Message}"); }
+                    StingLog.Info($"StingCostStaleMarker: bulk change ({modified.Count}) — " +
+                        $"processing {firstN.Count} inline, deferred {overflow.Count} to idle re-mark.");
+                    ProcessElements(doc, firstN, reason: "Geometry");
+                }
+                else
+                {
+                    ProcessElements(doc, modified, reason: "Geometry");
                 }
 
-                ProcessElements(doc, modified, reason: "Geometry");
                 ProcessElements(doc, added, reason: "New");
             }
             catch (Exception ex)
@@ -238,6 +253,65 @@ namespace StingTools.Core
                 _recentlyProcessed.Clear();
                 _recentlyProcessedQueue.Clear();
             }
+        }
+
+        /// <summary>Re-mark the overflow elements deferred from a bulk change,
+        /// inside a dedicated short transaction. Called from
+        /// <see cref="CostStaleRemarkJob"/> on the next idle tick — after the
+        /// triggering transaction has committed, so a fresh transaction is
+        /// required to write the stale flags.</summary>
+        public static void RemarkOverflow(Document doc, IList<ElementId> ids)
+        {
+            if (!_enabled) return;
+            if (doc == null || !doc.IsValidObject || ids == null || ids.Count == 0) return;
+            try
+            {
+                using (var tx = new Transaction(doc, "STING Cost Stale Re-mark (deferred)"))
+                {
+                    tx.Start();
+                    ProcessElements(doc, ids, reason: "Geometry");
+                    tx.Commit();
+                }
+                StingLog.Info($"StingCostStaleMarker: deferred re-mark processed {ids.Count} overflow elements.");
+            }
+            catch (Exception ex) { StingLog.Warn($"StingCostStaleMarker.RemarkOverflow: {ex.Message}"); }
+        }
+    }
+
+    /// <summary>Single-shot idle job that re-marks a bulk change's overflow cost
+    /// rows stale outside the triggering transaction (see
+    /// <see cref="StingCostStaleMarker.RemarkOverflow"/>). Element ids are only
+    /// meaningful in their originating document, so if the user has switched
+    /// documents by the time the tick fires the ids are dropped rather than
+    /// mis-resolved against another model.</summary>
+    internal class CostStaleRemarkJob : IIdlingJob
+    {
+        private readonly Document _doc;
+        private readonly IList<ElementId> _ids;
+
+        public CostStaleRemarkJob(Document doc, IList<ElementId> ids)
+        {
+            _doc = doc;
+            _ids = ids;
+        }
+
+        public string Name => "CostStaleRemark";
+        public int Priority => 4;
+        public int BudgetMs => 40;
+
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                var active = uiApp?.ActiveUIDocument?.Document;
+                // ReferenceEquals is safe even if _doc was since closed (returns
+                // false → we drop). Never dereference the captured document.
+                if (active == null || !active.IsValidObject || !ReferenceEquals(active, _doc))
+                    return true;
+                StingCostStaleMarker.RemarkOverflow(active, _ids);
+            }
+            catch (Exception ex) { StingLog.Warn($"CostStaleRemarkJob: {ex.Message}"); }
+            return true; // one-shot
         }
     }
 }

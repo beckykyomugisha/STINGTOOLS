@@ -12,7 +12,12 @@ namespace StingTools.UI
             {
                 Title = "Activate STING Tools",
                 Width = 540, Height = 420, WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.NoResize
+                ResizeMode = ResizeMode.NoResize,
+                // Topmost so the dialog is never hidden behind the "Always on top" STING
+                // dock panel — otherwise an unlicensed state reads as a frozen/"Busy"
+                // plugin because the modal is waiting off-screen for input.
+                Topmost = true,
+                ShowInTaskbar = true
             };
             var root = new StackPanel { Margin = new Thickness(16) };
 
@@ -64,6 +69,15 @@ namespace StingTools.UI
             root.Children.Add(applyBtn);
 
             win.Content = root;
+            // Parent to the Revit main window so the modal centres on Revit and stays in
+            // front (belt-and-braces with Topmost).
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(win);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch { /* owner is best-effort */ }
+            win.Loaded += (s, e) => { try { win.Activate(); } catch { } };
             win.ShowDialog();
         }
     }

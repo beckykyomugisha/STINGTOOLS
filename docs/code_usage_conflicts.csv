@@ -1,0 +1,10 @@
+param,code_domain,resolved_domain,source,categories,files
+ELC_CKT_CUR_A,HVAC,ELEC,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,StingTools/Core/Mep/MepCrossStampOrchestrator.cs
+ELC_CKT_PWR_KW,HVAC,ELEC,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,StingTools/Core/Mep/MepCrossStampOrchestrator.cs|StingTools/Core/ParamRegistry.cs
+ELC_CKT_VLT_V,HVAC,ELEC,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,StingTools/Core/Mep/MepCrossStampOrchestrator.cs|StingTools/Core/ParamRegistry.cs
+LTG_CTRL_TYPE_TXT,ELEC,LIGHT,safe-prefix,Lighting Fixtures|Lighting Devices,StingTools/Commands/Electrical/Lighting/LightingControlZoneCommand.cs
+LTG_FIX_LMP_WATTAGE_W,ELEC,LIGHT,safe-prefix,Lighting Fixtures|Lighting Devices,StingTools/Commands/Electrical/Lighting/LightingCalcSheetCommand.cs|StingTools/Commands/Electrical/Lighting/LuminaireRegistryCommand.cs|StingTools/Core/ParamRegistry.cs
+LTG_FIX_TYPE_CLASSIFICATION_TXT,ELEC,LIGHT,safe-prefix,Lighting Fixtures|Lighting Devices,StingTools/Commands/Electrical/Lighting/EmergencyLightingAuditCommand.cs
+PLM_FLOW_LS,HVAC,PLUMB,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulations|Plumbing Fixtures,StingTools/Core/Mep/MepCrossStampOrchestrator.cs|StingTools/Core/Mep/PipeSizingApplyEngine.cs|StingTools/Mcp/McpToolRegistry.cs
+PLM_PIPE_INS_THK_MM,HVAC,PLUMB,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulations|Plumbing Fixtures,StingTools/Core/Mep/MepCrossStampOrchestrator.cs
+PLM_PPE_INSULATION_THK_MM,HVAC,PLUMB,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulations|Plumbing Fixtures,StingTools/Core/Calc/HangerPlacementEngine.cs|StingTools/Core/Calc/RoutingSupportPlacer.cs|StingTools/Core/Mep/SleeveEngine.cs|StingTools/Core/Mep/SleeveParamRegistry.cs|StingTools/Core/ParamRegistry.cs
