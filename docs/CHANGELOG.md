@@ -2,6 +2,74 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 223 — drawings-production P0)
+
+The P0 tier of the drawings-production deep review
+([`DRAWINGS_PRODUCTION_REVIEW.md`](DRAWINGS_PRODUCTION_REVIEW.md), ~85 findings). Six fixes,
+one commit each. Every one built clean against Revit 2025 (0 warnings, 0 errors); none has been
+exercised inside Revit yet — see the smoke-test list at the end.
+
+- **Style-pack JSON keys the POCOs never bound (C-1).** The corporate file keys filter rules
+  under `filterRules` on 11 of 35 packs — including all 8 healthcare packs — while the loader
+  bound only `filters`; `StyleVgOverride` bound only long-form names while the data uses
+  `projColor` / `projWeight` / `cutColor` / `cutWeight`. Fixed with setter-only aliases
+  following the Phase 139 pattern, so the corporate baseline stays diff-clean. Verified by
+  compiling the POCO standalone (it has no Revit dependency) against the real JSON:
+  **filter rules bound 19 → 97**, `corp-healthcare-pressure` 0 → 6 rules, vgOverride
+  `projColor` 107 → 295, `projWeight` 107 → 316. Also found and fixed two keys the review
+  missed: `surfFgColor` (15×) and `projLinePattern` (5×).
+- **`ResolveExtends` stripped fields off the folded result (C-2, E-1).** Both folds
+  hand-enumerated the fields to copy, dropping everything else — including the leaf's own
+  values, since the leaf is the last link of the same chain. All 35 packs declare `extends`, so
+  the pack fold ran on every `Get()` and `templateMode: "managed"` could never survive it,
+  making the managed branch in `DrawingTypePresentation` unreachable. Replaced the enumeration
+  with a generic `ExtendsMerge` overlay that treats "equal to a fresh instance's value" as
+  unset, so the folds cannot drift again. Verified against the built assembly: **0 of 14 packs
+  that declare managed now lose it** (3 more correctly inherit it from a managed parent), and a
+  child retains a parent's `titleBlockParams` / `isoNaming` / `packageId` / `system` /
+  `materialPack` / `tagTextSizeMm` / `titleBlockSymbolType` while its own values still win.
+- **Two penetration workflow presets were entirely inert (W-1).** They were the only 2 of 32
+  workflow files using per-step `"command"` / `"name"` instead of `"commandTag"` / `"label"`,
+  so every step deserialised with a null tag and failed validation. Renamed the keys, fixed
+  `BuildSeedFamilies` → `Seeds_Build`, and added `ResolveCommand` cases for
+  `Penetrations_DetectAndPlace`, `Validation_PenetrationCoverage` and
+  `DrawingTypes_FromScopeBoxes`. All 13 steps across both files now resolve.
+- **`LABEL_DEFINITIONS.json` mojibake (A-11).** 530 double-encoded strings across 1,171
+  characters in 15 distinct patterns — wider than the review recorded. Beyond em-dashes it
+  covers `₂` (413×, chemical formulae in medical-gas labels), `Δ` (132×), `⚠` (65×, the leading
+  glyph of every warning label), `§`, `²`, `³`, `°`, `µ`, `Ω`, `×`, `Ø`, `→`, `∅`, `α`. Six of
+  the corrupt strings are dictionary **keys** — the `Tie-In Point Tag` family names — and the
+  `.rfa` files, content manifest, MEP CSV and `PerFamilyTierMap.cs` all already used the clean
+  spelling, so this file was the only one out of step and its family-name matching could never
+  hit. Repaired at text level rather than by re-serialising, which keeps the diff to the
+  affected lines and avoids corrupting the 5 characters in the file that were already correct.
+- **Filter construction and filter data (V-3, V-7, V-8).**
+  `ElementParameterFilter(rules, false)` was commented as OR semantics; the second argument is
+  `inverted` and multiple rules AND together, so multi-material class filters could never match.
+  Replaced with `LogicalOrFilter`, mirroring `AecFilterFactory`. In the data, 12 filters could
+  never mint: 8 using the non-existent `Family Name` parameter, 2 invalid ops, and 2 using a
+  third compound-rule schema (`kind`/`op`/`operands` instead of `logic`/`rules`) that binds to
+  neither leaf nor compound — the last pair not in the review.
+- **Producer sheet identity ignored context (C-3).** Sheets were found and cached by
+  (drawingType, package) only, so a per-level batch resolved every level to the same sheet:
+  10 levels produced 1 sheet with 10 stacked viewports. Sheet identity now includes the same
+  context tag the view key already used, persisted through a new `STING_SHEET_CONTEXT_TXT`
+  stamp provisioned exactly like `STING_DRAWING_PACKAGE_ID_TXT`. Matching is tiered so no
+  existing project regresses: exact match wins; a sheet with a blank context stamp is claimed
+  only by an empty-context request; and if the parameter is not bound at all the producer falls
+  back to the old behaviour **with a warning** rather than minting a duplicate sheet per run.
+
+**Needs a Revit smoke test before merge** — none of the above has run inside Revit:
+
+| Area | What to check |
+|---|---|
+| Style packs (C-1) | Apply a `corp-healthcare-*` pack: filter colour coding appears where it previously did not |
+| Extends fold (C-2) | A pack with `templateMode: "managed"` engages the managed-template path |
+| Workflows (W-1) | Run Penetration Sweep and Penetration Register end to end |
+| Filters (V-3/V-7/V-8) | The 12 repaired filters mint; a multi-material class filter selects elements |
+| Producer (C-3) | Run `LoadSharedParams` first, then produce per level over ≥2 levels: expect one sheet per level, and a re-run that reuses them rather than adding more |
+| Labels (A-11) | A medical-gas tag renders CO₂ / N₂O with a real subscript and warnings with ⚠ |
+
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
 - **`HandoffProvisioningSqliteTests` calls the real method.** It previously
