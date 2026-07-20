@@ -175,6 +175,25 @@ namespace StingTools.Core.Placement
         public bool AllowLossyRebuild = false;
     }
 
+    /// <summary>
+    /// Dry-run answer to "how much shared-parameter binding would a P2 rebuild
+    /// cost me?", surfaced in Audit Only before anything is mutated.
+    /// </summary>
+    public sealed class SharedParamPreflight
+    {
+        public int FamiliesInspected;
+        public int SharedParamsSeen;
+        /// <summary>"family: parameter" for each shared param in neither file.</summary>
+        public List<string> FallbackNames = new List<string>();
+        public List<string> Warnings = new List<string>();
+        /// <summary>Resolved path of STING's MR_PARAMETERS.txt ("" if not found).</summary>
+        public string StingFile = "";
+        /// <summary>The user's currently-pointed shared-parameter file.</summary>
+        public string UserFile = "";
+
+        public int WouldFallBack => FallbackNames.Count;
+    }
+
     public sealed class FamilyHostConversionResult
     {
         public string FamilyName = "";
@@ -769,57 +788,79 @@ namespace StingTools.Core.Placement
         private void CopyFamilyParameters(Document src, Document tgt, FamilyHostConversionResult res)
         {
             FamilyManager sm = src.FamilyManager, tm = tgt.FamilyManager;
-            DefinitionFile sharedFile = null;
-            try { sharedFile = src.Application.OpenSharedParameterFile(); }
-            catch (Exception ex) { StingLog.Warn($"P2 shared param file: {ex.Message}"); }
+            Application app = src.Application;
 
             var created = new Dictionary<string, FamilyParameter>(StringComparer.Ordinal);
             var srcByName = new Dictionary<string, FamilyParameter>(StringComparer.Ordinal);
-            int addedShared = 0, addedFamily = 0, sharedFallback = 0;
+            var pendingShared = new List<FamilyParameter>();
+            var pendingFamily = new List<FamilyParameter>();
 
-            using (var t = new Transaction(tgt, "STING Copy Params"))
+            // Triage first so the shared-parameter passes below can pin one file
+            // at a time (an ExternalDefinition is only reliably usable while its
+            // own file is the application's current shared-parameter file).
+            foreach (FamilyParameter fp in sm.Parameters)
             {
+                string name = fp?.Definition?.Name;
+                if (string.IsNullOrEmpty(name)) continue;
+                srcByName[name] = fp;
+
+                // Skip params the target template already carries (built-ins).
+                FamilyParameter existing = null;
+                try { existing = tm.get_Parameter(name); } catch { }
+                if (existing != null) { created[name] = existing; continue; }
+
+                if (fp.IsShared) pendingShared.Add(fp); else pendingFamily.Add(fp);
+            }
+
+            // The user's shared-parameter file is whatever they currently have
+            // pointed. It is restored in the finally below no matter what.
+            string prevSp = null;
+            try { prevSp = app.SharedParametersFilename; }
+            catch (Exception ex) { StingLog.Warn($"P2 read SharedParametersFilename: {ex.Message}"); }
+
+            string stingSp = ResolveStingSharedParamFile();
+            int addedShared = 0, addedFamily = 0, sharedFallback = 0;
+            var searched = new List<string>();
+
+            try
+            {
+                using var t = new Transaction(tgt, "STING Copy Params");
                 t.Start();
-                foreach (FamilyParameter fp in sm.Parameters)
+
+                // Pass 1 — STING's own MR_PARAMETERS.txt, pinned. Without this a
+                // user pointed at some other shared-parameter file would silently
+                // degrade every ASS_TAG_* / token / container param to a plain
+                // family parameter, quietly breaking tags, schedules, ExLink and
+                // COBie on the converted family.
+                if (!string.IsNullOrEmpty(stingSp))
                 {
-                    string name = fp?.Definition?.Name;
-                    if (string.IsNullOrEmpty(name)) continue;
-                    srcByName[name] = fp;
+                    searched.Add("STING MR_PARAMETERS.txt");
+                    addedShared += AddSharedParamsFrom(app, stingSp, tm, pendingShared, created, res);
+                }
+                else
+                {
+                    res.Warnings.Add("STING's MR_PARAMETERS.txt could not be located — STING shared parameters " +
+                                     "may degrade to plain family parameters on the rebuilt family.");
+                }
 
-                    // Skip params the target template already carries (built-ins).
-                    FamilyParameter existing = null;
-                    try { existing = tm.get_Parameter(name); } catch { }
-                    if (existing != null) { created[name] = existing; continue; }
+                // Pass 2 — the user's original file, so vendor shared parameters
+                // that exist only there still resolve by GUID.
+                if (pendingShared.Count > 0 && !string.IsNullOrEmpty(prevSp)
+                    && File.Exists(prevSp) && !PathEquals(prevSp, stingSp))
+                {
+                    searched.Add("the project's own shared-parameter file");
+                    addedShared += AddSharedParamsFrom(app, prevSp, tm, pendingShared, created, res);
+                }
 
-                    try
-                    {
-                        var groupId = fp.Definition.GetGroupTypeId();
-                        var specId = fp.Definition.GetDataType();
-                        bool inst = fp.IsInstance;
-                        FamilyParameter np = null;
-
-                        if (fp.IsShared && sharedFile != null)
-                        {
-                            ExternalDefinition ext = FindExternalDefinition(sharedFile, fp.GUID);
-                            if (ext != null)
-                            {
-                                np = tm.AddParameter(ext, groupId, inst);
-                                addedShared++;
-                            }
-                        }
-                        if (np == null)
-                        {
-                            np = tm.AddParameter(name, groupId, specId, inst);
-                            addedFamily++;
-                            if (fp.IsShared) sharedFallback++;
-                        }
-                        if (np != null) created[name] = np;
-                    }
-                    catch (Exception ex)
-                    {
-                        res.Warnings.Add($"Parameter '{name}' not recreated: {ex.Message}");
-                        StingLog.Warn($"P2 AddParameter '{name}': {ex.Message}");
-                    }
+                // Pass 3 — anything in NEITHER file falls back to a family
+                // parameter (shared binding lost), plus the plain family params.
+                foreach (var fp in pendingShared)
+                {
+                    if (AddPlainFamilyParameter(tm, fp, created, res)) { addedFamily++; sharedFallback++; }
+                }
+                foreach (var fp in pendingFamily)
+                {
+                    if (AddPlainFamilyParameter(tm, fp, created, res)) addedFamily++;
                 }
 
                 // Formulas — only after every parameter exists.
@@ -844,9 +885,212 @@ namespace StingTools.Core.Placement
                 CopyTypes(sm, tm, srcByName, created, res);
                 t.Commit();
             }
+            finally
+            {
+                // ALWAYS restore, even on throw — leaving the user pointed at
+                // STING's file would silently change behaviour everywhere else
+                // in their session.
+                try { if (prevSp != null) app.SharedParametersFilename = prevSp; }
+                catch (Exception ex) { StingLog.Warn($"P2 restore SharedParametersFilename: {ex.Message}"); }
+            }
 
-            res.Notes.Add($"Parameters: {addedShared} shared + {addedFamily} family recreated" +
-                          (sharedFallback > 0 ? $" ({sharedFallback} shared param(s) fell back to family params — shared-binding lost; re-bind if tags/schedules depend on them)" : ""));
+            string where = searched.Count > 0 ? string.Join(" then ", searched) : "no shared-parameter file";
+            res.Notes.Add($"Parameters: {addedShared} shared + {addedFamily} family recreated (searched {where})" +
+                          (sharedFallback > 0
+                              ? $" — WARNING: {sharedFallback} shared param(s) were in neither file and fell back to plain " +
+                                "family parameters; their shared binding is lost, so tags / schedules / ExLink / COBie " +
+                                "that rely on them will not read on this family until it is re-bound."
+                              : ""));
+        }
+
+        /// <summary>
+        /// Pin <paramref name="spFile"/> as the application's shared-parameter
+        /// file and add every still-pending shared parameter whose GUID it
+        /// defines. Successfully added parameters are removed from
+        /// <paramref name="pending"/>. Returns the number added.
+        /// </summary>
+        private static int AddSharedParamsFrom(Application app, string spFile, FamilyManager tm,
+            List<FamilyParameter> pending, Dictionary<string, FamilyParameter> created,
+            FamilyHostConversionResult res)
+        {
+            if (pending.Count == 0 || string.IsNullOrEmpty(spFile)) return 0;
+
+            DefinitionFile df = null;
+            try
+            {
+                app.SharedParametersFilename = spFile;
+                df = app.OpenSharedParameterFile();
+            }
+            catch (Exception ex)
+            {
+                res.Warnings.Add($"Shared-parameter file '{Path.GetFileName(spFile)}' could not be opened: {ex.Message}");
+                StingLog.Warn($"P2 open shared param file '{spFile}': {ex.Message}");
+                return 0;
+            }
+            if (df == null) return 0;
+
+            int added = 0;
+            var done = new List<FamilyParameter>();
+            foreach (var fp in pending)
+            {
+                string name = fp?.Definition?.Name;
+                if (string.IsNullOrEmpty(name)) continue;
+                try
+                {
+                    ExternalDefinition ext = FindExternalDefinition(df, fp.GUID);
+                    if (ext == null) continue;
+                    var np = tm.AddParameter(ext, fp.Definition.GetGroupTypeId(), fp.IsInstance);
+                    if (np != null) { created[name] = np; added++; done.Add(fp); }
+                }
+                catch (Exception ex)
+                {
+                    res.Warnings.Add($"Shared parameter '{name}' not recreated: {ex.Message}");
+                    StingLog.Warn($"P2 AddParameter(shared) '{name}': {ex.Message}");
+                }
+            }
+            foreach (var d in done) pending.Remove(d);
+            return added;
+        }
+
+        /// <summary>
+        /// Add a source parameter as a plain (non-shared) family parameter.
+        /// Returns true when it was created.
+        /// </summary>
+        private static bool AddPlainFamilyParameter(FamilyManager tm, FamilyParameter fp,
+            Dictionary<string, FamilyParameter> created, FamilyHostConversionResult res)
+        {
+            string name = fp?.Definition?.Name;
+            if (string.IsNullOrEmpty(name)) return false;
+            try
+            {
+                var np = tm.AddParameter(name, fp.Definition.GetGroupTypeId(),
+                                         fp.Definition.GetDataType(), fp.IsInstance);
+                if (np == null) return false;
+                created[name] = np;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                res.Warnings.Add($"Parameter '{name}' not recreated: {ex.Message}");
+                StingLog.Warn($"P2 AddParameter '{name}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Dry-run check of how many shared parameters would lose their shared
+        /// binding on a P2 rebuild, so the loss is a decision the user makes
+        /// up-front rather than something they discover afterwards. Read-only:
+        /// opens each family document and closes it without saving.
+        /// </summary>
+        public SharedParamPreflight PreflightSharedParameters(Document doc, IEnumerable<ElementId> familyIds)
+        {
+            var pf = new SharedParamPreflight();
+            if (doc == null || familyIds == null) return pf;
+
+            Application app = doc.Application;
+            string prevSp = null;
+            try { prevSp = app.SharedParametersFilename; }
+            catch (Exception ex) { StingLog.Warn($"Preflight read SharedParametersFilename: {ex.Message}"); }
+
+            // GUIDs are plain values, so collecting them up-front sidesteps any
+            // question of an ExternalDefinition outliving its pinned file.
+            string stingSp = ResolveStingSharedParamFile();
+            pf.StingFile = stingSp;
+            pf.UserFile = prevSp ?? "";
+
+            var known = new HashSet<Guid>();
+            try
+            {
+                if (!string.IsNullOrEmpty(stingSp)) CollectGuids(app, stingSp, known, pf);
+                else pf.Warnings.Add("STING's MR_PARAMETERS.txt could not be located.");
+
+                if (!string.IsNullOrEmpty(prevSp) && File.Exists(prevSp) && !PathEquals(prevSp, stingSp))
+                    CollectGuids(app, prevSp, known, pf);
+            }
+            finally
+            {
+                try { if (prevSp != null) app.SharedParametersFilename = prevSp; }
+                catch (Exception ex) { StingLog.Warn($"Preflight restore SharedParametersFilename: {ex.Message}"); }
+            }
+
+            foreach (var id in familyIds)
+            {
+                if (id == null || id == ElementId.InvalidElementId) continue;
+                if (!(doc.GetElement(id) is Family fam)) continue;
+
+                Document fdoc = null;
+                try
+                {
+                    fdoc = doc.EditFamily(fam);
+                    if (fdoc == null || !fdoc.IsFamilyDocument) continue;
+                    pf.FamiliesInspected++;
+
+                    foreach (FamilyParameter fp in fdoc.FamilyManager.Parameters)
+                    {
+                        if (fp == null || !fp.IsShared) continue;
+                        pf.SharedParamsSeen++;
+                        Guid g;
+                        try { g = fp.GUID; } catch { continue; }
+                        if (known.Contains(g)) continue;
+                        string nm = fp.Definition?.Name ?? g.ToString();
+                        pf.FallbackNames.Add($"{fam.Name}: {nm}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    pf.Warnings.Add($"'{fam.Name}' could not be inspected: {ex.Message}");
+                    StingLog.Warn($"Preflight EditFamily '{fam.Name}': {ex.Message}");
+                }
+                finally
+                {
+                    try { fdoc?.Close(false); }
+                    catch (Exception ex) { StingLog.Warn($"Preflight close '{fam.Name}': {ex.Message}"); }
+                }
+            }
+            return pf;
+        }
+
+        private static void CollectGuids(Application app, string spFile, HashSet<Guid> into,
+            SharedParamPreflight pf)
+        {
+            try
+            {
+                app.SharedParametersFilename = spFile;
+                DefinitionFile df = app.OpenSharedParameterFile();
+                if (df == null) return;
+                foreach (DefinitionGroup g in df.Groups)
+                    foreach (Definition d in g.Definitions)
+                        if (d is ExternalDefinition ed) into.Add(ed.GUID);
+            }
+            catch (Exception ex)
+            {
+                pf.Warnings.Add($"Shared-parameter file '{Path.GetFileName(spFile)}' could not be read: {ex.Message}");
+                StingLog.Warn($"Preflight CollectGuids '{spFile}': {ex.Message}");
+            }
+        }
+
+        /// <summary>Locate STING's own MR_PARAMETERS.txt, or "" when unavailable.</summary>
+        private static string ResolveStingSharedParamFile()
+        {
+            try
+            {
+                string p = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                if (!string.IsNullOrEmpty(p) && File.Exists(p)) return p;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveStingSharedParamFile: {ex.Message}"); }
+            return "";
+        }
+
+        private static bool PathEquals(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            try
+            {
+                return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b),
+                                     StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return string.Equals(a, b, StringComparison.OrdinalIgnoreCase); }
         }
 
         private void CopyTypes(FamilyManager sm, FamilyManager tm,

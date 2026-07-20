@@ -3378,12 +3378,61 @@ namespace StingTools.UI.PlacementCenter
                     if (r.PathHint.StartsWith("P1"))
                         panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P1 lossless (checkbox toggle — geometry/params/connectors untouched, instances survive)");
                     else
-                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P2 REBUILD (lossy — new .rfa from template; MEP connectors drop, host-relative geometry re-anchors to template default; review after){(r.InstanceCount > 0 ? $"; {r.InstanceCount} instance(s) may need manual rehost" : "")}");
+                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P2 REBUILD (lossy — new .rfa from template; MEP connectors are harvested and re-created, any that cannot be placed are listed with coordinates; host-relative geometry re-anchors to template default; review after){(r.InstanceCount > 0 ? $"; {r.InstanceCount} instance(s) may need manual rehost" : "")}");
                 }
                 if (pending.Any(r => r.PathHint.StartsWith("P2")))
                     panel.AddSection("NOTE").Text("Enable '⚠ Allow lossy rebuild (P2)' before Apply, or the P2 rows report as Skipped.");
             }
-            Report("Audit Only", panel);
+
+            // Shared-parameter pre-flight for the P2 rows — reading it needs the
+            // Revit API thread (each family document is opened and closed), so it
+            // runs through the standard inline-action bridge and reports there.
+            var p2Ids = pending.Where(r => r.PathHint.StartsWith("P2")).Select(r => r.Id).ToList();
+            if (p2Ids.Count == 0)
+            {
+                Report("Audit Only", panel);
+                return;
+            }
+
+            Toast($"Auditing {p2Ids.Count} rebuild row(s) — checking shared parameters…");
+            RunInlineAction("Audit Only", uiapp =>
+            {
+                var doc = uiapp?.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    panel.AddSection("SHARED-PARAMETER PRE-FLIGHT").Text("No active document — pre-flight skipped.");
+                    return panel;
+                }
+
+                var pf = new FamilyHostConverter().PreflightSharedParameters(doc, p2Ids);
+
+                panel.AddSection("SHARED-PARAMETER PRE-FLIGHT")
+                     .Text($"Families inspected: {pf.FamiliesInspected}  ·  shared params seen: {pf.SharedParamsSeen}  ·  would fall back: {pf.WouldFallBack}")
+                     .Text($"STING MR_PARAMETERS.txt: {(string.IsNullOrEmpty(pf.StingFile) ? "NOT FOUND" : pf.StingFile)}")
+                     .Text($"Project's current file: {(string.IsNullOrEmpty(pf.UserFile) ? "(none set)" : pf.UserFile)}")
+                     .Text("Both are searched by GUID during a rebuild — STING's first, then the project's. " +
+                           "A parameter only degrades to a plain family parameter when it is in neither.");
+
+                if (pf.WouldFallBack == 0)
+                {
+                    panel.Text("✓ No shared parameters would fall back. Tags, schedules, ExLink and COBie bindings survive the rebuild.");
+                }
+                else
+                {
+                    panel.Text($"⚠ {pf.WouldFallBack} shared parameter(s) would fall back to plain family parameters. " +
+                               "Their shared binding is lost, so tags / schedules / ExLink / COBie that rely on them " +
+                               "stop reading on the converted family until it is re-bound.")
+                         .Text("Fix before applying: add the missing definitions to a shared-parameter file, or accept the loss knowingly.");
+                    foreach (var n in pf.FallbackNames) panel.Text($"    • {n}");
+                }
+
+                if (pf.Warnings.Count > 0)
+                {
+                    panel.AddSection("PRE-FLIGHT WARNINGS");
+                    foreach (var w in pf.Warnings) panel.Text(w);
+                }
+                return panel;
+            });
         }
 
         private void OnFcApplySelected_Click(object sender, RoutedEventArgs e)
