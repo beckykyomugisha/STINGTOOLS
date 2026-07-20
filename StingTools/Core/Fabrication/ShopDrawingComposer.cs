@@ -92,18 +92,55 @@ namespace StingTools.Core.Fabrication
             }
         }
 
-        // Slot positions on a 1:50 A1 sheet (Revit feet, sheet origin).
-        // Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM RIGHT-PANEL.
-        private static readonly Dictionary<string, XYZ> SlotPositions =
-            new Dictionary<string, XYZ>
+        // P-13a: slot positions as NORMALISED fractions of the sheet's drawable
+        // frame — Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM right panel.
+        //
+        // These were absolute feet on an A1 sheet, and PLAN/ISO/BOM carried
+        // Y = 1.95 ft. A1 is 594 mm tall = 1.949 ft, so those viewport CENTRES
+        // sat on the sheet's top edge and their upper halves hung off it. The
+        // values were also A1-only: composing onto any other paper size placed
+        // everything wrongly, with no warning.
+        private static readonly Dictionary<string, (double fx, double fy)> SlotFractions =
+            new Dictionary<string, (double, double)>
         {
-            { "PLAN",       new XYZ( 0.20, 1.95, 0) },
-            { "ISO",        new XYZ( 1.55, 1.95, 0) },
-            { "ELEV0",      new XYZ( 0.20, 1.20, 0) },
-            { "ELEV90",     new XYZ( 1.05, 1.20, 0) },
-            { "3D",         new XYZ( 1.55, 1.20, 0) },
-            { "BOM",        new XYZ( 2.20, 1.95, 0) }
+            { "PLAN",   (0.22, 0.72) },
+            { "ISO",    (0.58, 0.72) },
+            { "ELEV0",  (0.15, 0.28) },
+            { "ELEV90", (0.38, 0.28) },
+            { "3D",     (0.60, 0.28) },
+            { "BOM",    (0.87, 0.55) },
         };
+
+        /// <summary>
+        /// P-13a: resolve a slot to a point inside THIS sheet's title block,
+        /// rather than assuming A1 with its origin at (0,0). Falls back to A1
+        /// dimensions when the sheet has no measurable title block.
+        /// </summary>
+        private static XYZ SlotPoint(Document doc, ViewSheet sheet, string slot)
+        {
+            const double a1W = 2.7592, a1H = 1.9488;   // 841 x 594 mm, in feet
+            double minX = 0, minY = 0, w = a1W, h = a1H;
+            try
+            {
+                var tb = new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType()
+                    .FirstOrDefault();
+                var bb = tb?.get_BoundingBox(null);
+                if (bb?.Min != null && bb.Max != null)
+                {
+                    minX = bb.Min.X; minY = bb.Min.Y;
+                    if (bb.Max.X - bb.Min.X > 1e-6) w = bb.Max.X - bb.Min.X;
+                    if (bb.Max.Y - bb.Min.Y > 1e-6) h = bb.Max.Y - bb.Min.Y;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ShopDrawingComposer.SlotPoint('{slot}'): {ex.Message} — assuming A1.");
+            }
+            var f = SlotFractions.TryGetValue(slot, out var hit) ? hit : (fx: 0.5, fy: 0.5);
+            return new XYZ(minX + f.fx * w, minY + f.fy * h, 0);
+        }
 
         public static ElementId ComposeSheet(
             Document doc,
@@ -262,11 +299,11 @@ namespace StingTools.Core.Fabrication
                       views.ViewPlan != ElementId.InvalidElementId
                           ? views.ViewPlan
                           : views.ElevationTop,
-                      SlotPositions["PLAN"],   result);
-            PlaceView(doc, sheet, views.ViewIso6412, SlotPositions["ISO"],    result);
-            PlaceView(doc, sheet, views.Elevation0,  SlotPositions["ELEV0"],  result);
-            PlaceView(doc, sheet, views.Elevation90, SlotPositions["ELEV90"], result);
-            PlaceView(doc, sheet, views.View3D,      SlotPositions["3D"],     result);
+                      SlotPoint(doc, sheet, "PLAN"),   result);
+            PlaceView(doc, sheet, views.ViewIso6412, SlotPoint(doc, sheet, "ISO"),    result);
+            PlaceView(doc, sheet, views.Elevation0,  SlotPoint(doc, sheet, "ELEV0"),  result);
+            PlaceView(doc, sheet, views.Elevation90, SlotPoint(doc, sheet, "ELEV90"), result);
+            PlaceView(doc, sheet, views.View3D,      SlotPoint(doc, sheet, "3D"),     result);
 
             // Place BOM schedule
             try
@@ -274,7 +311,7 @@ namespace StingTools.Core.Fabrication
                 if (views.BomSchedule != null && views.BomSchedule != ElementId.InvalidElementId)
                 {
                     ScheduleSheetInstance.Create(doc, sheet.Id, views.BomSchedule,
-                        SlotPositions["BOM"]);
+                        SlotPoint(doc, sheet, "BOM"));
                 }
             }
             catch (Exception ex) { result.Warnings.Add($"BOM placement: {ex.Message}"); }

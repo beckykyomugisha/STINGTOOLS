@@ -33,7 +33,15 @@ namespace StingTools.Core.Drawing
 
     public static partial class ViewStylePackApplier
     {
-        public static void InvalidateCache(Document doc) { /* Pack registry is doc-scoped; no separate cache needed. */ }
+        /// <summary>
+        /// V-4: this was a no-op with a comment claiming no cache existed —
+        /// while ResolveFilterIdCached and ResolveFillPattern ran a full
+        /// collector on every call. Now that those are genuinely indexed per
+        /// document, this drops the indexes so a filter or pattern created
+        /// mid-run is visible to the very next lookup (the lazy-create path
+        /// below calls it for exactly that reason).
+        /// </summary>
+        public static void InvalidateCache(Document doc) => InvalidateResolverCaches(doc);
         public static void ReadCategoryOverrides(Document doc, View view, ViewStylePack pack) { /* No-op stub. */ }
 
         public static PackApplyResult Apply(Document doc, View view, ViewStylePack pack)

@@ -71,6 +71,14 @@ namespace StingTools.Core.Drawing
         [ThreadStatic] private static Dictionary<string, ElementId> _existingSheetCache;
         [ThreadStatic] private static Dictionary<string, int>       _packageSheetCount;
         [ThreadStatic] private static string                        _cacheDocKey;
+        // P-12: view names, collected once per batch. NameExists ran a full
+        // OfClass(View) collector and MakeUniqueViewName calls it up to 100
+        // times per view — O(views^2) on a first run over a large model.
+        [ThreadStatic] private static HashSet<string>                _existingViewNames;
+        // P-12: category name -> BuiltInCategory, built once per document.
+        // Schedule rules resolved their category by iterating ~1,400 enum
+        // members and calling Category.GetCategory on each, per rule.
+        [ThreadStatic] private static Dictionary<string, BuiltInCategory> _categoryByName;
 
         private static string CacheDocKey(Document doc)
         {
@@ -121,6 +129,11 @@ namespace StingTools.Core.Drawing
                 }
                 _existingViewCache = v;
 
+                var names = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+                    if (el is View vn && !vn.IsTemplate && !string.IsNullOrEmpty(vn.Name)) names.Add(vn.Name);
+                _existingViewNames = names;
+
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
                 var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
@@ -147,6 +160,8 @@ namespace StingTools.Core.Drawing
         public static void ResetBatchCaches()
         {
             _existingViewCache  = null;
+            _existingViewNames  = null;
+            _categoryByName     = null;
             _existingSheetCache = null;
             _packageSheetCount  = null;
             _cacheDocKey        = null;
@@ -396,20 +411,10 @@ namespace StingTools.Core.Drawing
                         }
 
                         // Resolve BuiltInCategory from the string name
-                        BuiltInCategory bic = BuiltInCategory.INVALID;
-                        foreach (BuiltInCategory b in Enum.GetValues(typeof(BuiltInCategory)))
-                        {
-                            try
-                            {
-                                var catEl = Category.GetCategory(doc, b);
-                                if (catEl != null && string.Equals(catEl.Name, cat, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    bic = b;
-                                    break;
-                                }
-                            }
-                            catch { }
-                        }
+                        // P-12: was a walk over ~1,400 BuiltInCategory members
+                        // calling Category.GetCategory on each, inside a bare
+                        // catch, once per schedule rule.
+                        BuiltInCategory bic = ResolveCategoryByName(doc, cat);
 
                         if (bic == BuiltInCategory.INVALID)
                         {
@@ -1027,11 +1032,17 @@ namespace StingTools.Core.Drawing
             string name = baseName;
             int n = 2;
             while (NameExists(doc, name) && n < 100) name = $"{baseName}_({n++})";
+            // P-12: keep the batch name set current so the next probe in this
+            // run sees this name without another collector pass.
+            if (_existingViewNames != null && CacheMatchesDoc(doc)) _existingViewNames.Add(name);
             return name;
         }
 
         private static bool NameExists(Document doc, string name)
         {
+            // P-12: O(1) against the batch name set when primed for this doc.
+            if (_existingViewNames != null && CacheMatchesDoc(doc))
+                return _existingViewNames.Contains(name);
             try
             {
                 return new FilteredElementCollector(doc)
@@ -1039,7 +1050,36 @@ namespace StingTools.Core.Drawing
                     .Cast<View>()
                     .Any(v => !v.IsTemplate && string.Equals(v.Name, name, StringComparison.Ordinal));
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            catch (Exception ex) { StingLog.Warn($"NameExists('{name}'): {ex.Message}"); return false; }
+        }
+
+        /// <summary>
+        /// P-12: category-name lookup built once per document instead of
+        /// iterating every BuiltInCategory member per schedule rule.
+        /// </summary>
+        private static BuiltInCategory ResolveCategoryByName(Document doc, string categoryName)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName)) return BuiltInCategory.INVALID;
+            if (_categoryByName == null || !CacheMatchesDoc(doc))
+            {
+                var map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    foreach (Category c in doc.Settings.Categories)
+                    {
+                        if (string.IsNullOrEmpty(c?.Name)) continue;
+                        try
+                        {
+                            var bic = (BuiltInCategory)c.Id.Value;
+                            if (!map.ContainsKey(c.Name)) map[c.Name] = bic;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Category map '{c.Name}': {ex.Message}"); }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveCategoryByName map: {ex.Message}"); }
+                _categoryByName = map;
+            }
+            return _categoryByName.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
         }
 
         /// <summary>
