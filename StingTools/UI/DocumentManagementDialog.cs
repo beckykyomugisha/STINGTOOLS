@@ -4532,8 +4532,11 @@ namespace StingTools.UI
                 string canonical = ProjectFolderEngine.GetDataPath(doc, DocumentRegister.CanonicalFileName);
                 if (!string.IsNullOrEmpty(canonical) && File.Exists(canonical))
                 {
-                    LoadUnifiedRegister(doc);
-                    return;
+                    // Fall THROUGH to the legacy loader when the unified build yields nothing:
+                    // a merge failure (unreadable store, parse error) must not present the user
+                    // with an empty register when document_register.json is sitting right there.
+                    if (LoadUnifiedRegister(doc)) return;
+                    StingLog.Warn("DocMgr.LoadDocReg: unified register empty — falling back to document_register.json.");
                 }
 
                 string bimDir = GetBimManagerDir(doc);
@@ -4574,32 +4577,43 @@ namespace StingTools.UI
         /// <summary>
         /// Load the live unified register (document_register.json + deliverables.json merged
         /// by <see cref="DocumentRegister"/>) into the shared item list. Read-only view.
+        /// Returns false when nothing was loaded, so the caller can fall back to the legacy
+        /// single-store loader rather than showing an empty register.
         /// </summary>
-        private static void LoadUnifiedRegister(Document doc)
+        private static bool LoadUnifiedRegister(Document doc)
         {
+            int added = 0;
             try
             {
                 foreach (var r in DocumentRegister.BuildUnified(doc))
                 {
                     if (string.IsNullOrEmpty(r.Id) || _allItems.Any(i => i.Id == r.Id)) continue;
                     string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(r.Type ?? "", out string td) ? td : r.Type;
+                    // Resolve the ISO 19650 status code to its description exactly as the legacy
+                    // loader does — otherwise the unified view shows the bare code ("S2") where
+                    // the old view showed "Shared — suitable for information".
+                    string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(r.Status ?? "", out string sd) ? sd : r.Status;
                     _allItems.Add(new DocItemVM
                     {
                         Id = r.Id,
                         Title = string.IsNullOrEmpty(r.Title) ? r.Id : r.Title,
                         Type = r.Type, TypeDesc = typeDesc,
-                        Status = r.Status, StatusDesc = r.Status,
+                        Status = r.Status, StatusDesc = statusDesc,
                         CDE = string.IsNullOrEmpty(r.CdeStatus) ? "WIP" : r.CdeStatus,
                         Revision = r.Revision,
                         Date = r.DateCreated,
                         Direction = string.IsNullOrEmpty(r.Direction) ? "OUT" : r.Direction,
                         FilePath = r.FilePath,
+                        FileFormat = r.FileFormat,
+                        CreatedBy = r.CreatedBy,
                         Suitability = r.Suitability,
                         Category = "DOCUMENT", Folder = "15_REGISTERS"
                     });
+                    added++;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); }
+            return added > 0;
         }
 
         private static void LoadIssues(Document doc)

@@ -57,9 +57,12 @@ namespace Planscape.Docs.Templates
                     {
                         dynamic upd = lr.Updated;
                         disc      = string.IsNullOrWhiteSpace((string)upd?.Discipline)  ? "Z"   : (string)upd.Discipline;
-                        cdeState  = string.IsNullOrWhiteSpace((string)upd?.CDE)         ? "WIP" : ((string)upd.CDE).ToUpperInvariant();
+                        // Normalised: an unrecognised value ("ARCHIVED", "Published") would route
+                        // the render to the MISC bucket, which the stale-render purge does not
+                        // scan — leaving a duplicate behind in the previous state forever.
+                        cdeState  = StingPaths.NormalizeCdeState((string)upd?.CDE);
                         suit      = string.IsNullOrWhiteSpace((string)upd?.Suitability) ? "S0"  : (string)upd.Suitability;
-                        docNumber = (string)(upd?.DocNumber ?? upd?.Code) ?? "";
+                        docNumber = DeliverableLifecycle.DeliverableKey(upd);
                     }
                     catch (Exception fx) { StingLog.Warn($"{title}: read deliverable fields: {fx.Message}"); }
 

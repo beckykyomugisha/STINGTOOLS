@@ -40,6 +40,8 @@ namespace StingTools.Core
         public string ApprovedBy { get; set; } = "";
         public string DateCreated { get; set; } = "";
         public string FilePath { get; set; } = "";
+        public string FileFormat { get; set; } = "";
+        public string CreatedBy { get; set; } = "";
         /// <summary>Which store(s) this row came from: "register", "deliverable", or "both".</summary>
         public string Source { get; set; } = "";
     }
@@ -83,13 +85,15 @@ namespace StingTools.Core
         {
             var rows = BuildUnified(doc);
             var sb = new StringBuilder();
-            sb.AppendLine("Id,Title,Type,Discipline,Suitability,CDEStatus,Revision,Direction,Status,ReviewedBy,ApprovedBy,DateCreated,Source,FilePath");
+            sb.AppendLine("Id,Title,Type,Discipline,Suitability,CDEStatus,Revision,Direction,Status," +
+                          "ReviewedBy,ApprovedBy,CreatedBy,DateCreated,FileFormat,Source,FilePath");
             foreach (var r in rows)
                 sb.AppendLine(string.Join(",", new[]
                 {
                     Csv(r.Id), Csv(r.Title), Csv(r.Type), Csv(r.Discipline), Csv(r.Suitability),
                     Csv(r.CdeStatus), Csv(r.Revision), Csv(r.Direction), Csv(r.Status),
-                    Csv(r.ReviewedBy), Csv(r.ApprovedBy), Csv(r.DateCreated), Csv(r.Source), Csv(r.FilePath)
+                    Csv(r.ReviewedBy), Csv(r.ApprovedBy), Csv(r.CreatedBy), Csv(r.DateCreated),
+                    Csv(r.FileFormat), Csv(r.Source), Csv(r.FilePath)
                 }));
 
             string path = ProjectFolderEngine.GetExportPath(doc, "DocRegister", "STING_Unified_Register", ".csv");
@@ -111,7 +115,8 @@ namespace StingTools.Core
                 ["id"] = r.Id, ["title"] = r.Title, ["type"] = r.Type, ["discipline"] = r.Discipline,
                 ["suitability"] = r.Suitability, ["cde_status"] = r.CdeStatus, ["revision"] = r.Revision,
                 ["direction"] = r.Direction, ["status"] = r.Status, ["reviewed_by"] = r.ReviewedBy,
-                ["approved_by"] = r.ApprovedBy, ["date_created"] = r.DateCreated,
+                ["approved_by"] = r.ApprovedBy, ["created_by"] = r.CreatedBy,
+                ["date_created"] = r.DateCreated, ["file_format"] = r.FileFormat,
                 ["file_path"] = r.FilePath, ["source"] = r.Source
             }));
             string path = ProjectFolderEngine.GetDataPath(doc, CanonicalFileName);
@@ -160,6 +165,8 @@ namespace StingTools.Core
                     ReviewedBy  = Str(t, "reviewed_by"),
                     DateCreated = Str(t, "date_created"),
                     FilePath    = First(t, "file_reference", "file_path"),
+                    FileFormat  = First(t, "file_format", "format"),
+                    CreatedBy   = First(t, "created_by", "author"),
                     Source      = "register"
                 };
             }
@@ -195,6 +202,8 @@ namespace StingTools.Core
                     ApprovedBy  = Str(t, "ApprovedBy"),
                     DateCreated = LatestRevisionTs(t),
                     FilePath    = Str(t, "SignedFilePath"),
+                    FileFormat  = First(t, "FileFormat", "Format"),
+                    CreatedBy   = First(t, "CreatedBy", "Author", "Originator"),
                     Source      = "deliverable"
                 };
             }
@@ -217,6 +226,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(keep.ApprovedBy))  keep.ApprovedBy  = other.ApprovedBy;
             if (string.IsNullOrEmpty(keep.DateCreated)) keep.DateCreated = other.DateCreated;
             if (string.IsNullOrEmpty(keep.FilePath))    keep.FilePath    = other.FilePath;
+            if (string.IsNullOrEmpty(keep.FileFormat))  keep.FileFormat  = other.FileFormat;
+            if (string.IsNullOrEmpty(keep.CreatedBy))   keep.CreatedBy   = other.CreatedBy;
         }
 
         private static string LatestRevisionTs(JObject row)

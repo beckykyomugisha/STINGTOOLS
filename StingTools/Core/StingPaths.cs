@@ -21,6 +21,28 @@ namespace StingTools.Core
     /// <summary>Single resolver for every StingTools project path (delegates to ProjectFolderEngine).</summary>
     public static class StingPaths
     {
+        /// <summary>The four ISO 19650 CDE containers, in lifecycle order.</summary>
+        public static readonly string[] CdeStates = { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+
+        /// <summary>
+        /// Map any recorded CDE value onto one of <see cref="CdeStates"/>. Deliverable records
+        /// carry free text ("Published", "ARCHIVED", "Work in Progress", …) and an unrecognised
+        /// value would otherwise route the file to the MISC bucket — outside every container the
+        /// move-on-transition purge scans, so the stale copy is never cleaned up. Unknown values
+        /// fall back to WIP, the least-published container.
+        /// </summary>
+        public static string NormalizeCdeState(string state)
+        {
+            string s = (state ?? "").Trim().ToUpperInvariant();
+            if (s.Length == 0) return "WIP";
+            if (s.StartsWith("PUBLISH")) return "PUBLISHED";   // PUBLISH / PUBLISHED
+            if (s.StartsWith("ARCHIV"))  return "ARCHIVE";     // ARCHIVE / ARCHIVED / ARCHIVAL
+            if (s.StartsWith("SHARE"))   return "SHARED";      // SHARE / SHARED
+            if (s.StartsWith("WIP") || s.StartsWith("WORK")) return "WIP";
+            StingLog.Warn($"StingPaths.NormalizeCdeState: unrecognised CDE state '{state}' — routing to WIP.");
+            return "WIP";
+        }
+
         /// <summary>
         /// A CDE state folder, optionally scoped to a discipline and content type.
         /// <paramref name="state"/> is a folder id: "WIP" / "SHARED" / "PUBLISHED" /

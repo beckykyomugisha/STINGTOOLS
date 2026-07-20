@@ -191,18 +191,26 @@ namespace Planscape.Docs.Templates
         private static (bool blocked, string msg) DriveWorkflow(
             Document doc, dynamic d, string targetWf, string user, string reason, bool cancelling)
         {
-            string docNumber = (string)d.DocNumber ?? (string)d.Code ?? "";
+            string docNumber = DeliverableKey(d);
             if (string.IsNullOrEmpty(docNumber)) return (false, null);
             try
             {
-                var inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber);
+                // includeClosed: Published and Archived are TERMINAL, so reaching them closes the
+                // instance. Looking up open-only would return null there and Start a fresh WIP
+                // instance on every subsequent action — one leaked instance per action, each
+                // rewriting the deliverable's workflow fields back to WIP.
+                var inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber, true);
                 if (inst == null)
                 {
                     try { Planscape.Docs.Workflow.WorkflowEngine.Start(doc, "deliverable_issue_default", docNumber); }
                     catch (Exception ex) { StingLog.Warn($"DriveWorkflow start: {ex.Message}"); return (false, null); }
-                    inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber);
+                    inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber, true);
                 }
                 if (inst == null) return (false, null);
+
+                // Terminal instance: nothing left to drive. Still sync so the deliverable's
+                // workflow fields reflect the final state.
+                if (inst.Closed) { SyncWorkflowFields(d, inst); return (false, null); }
 
                 if (cancelling)
                 {
@@ -214,23 +222,47 @@ namespace Planscape.Docs.Templates
                 }
                 else if (!string.IsNullOrEmpty(targetWf))
                 {
-                    for (int guard = 0; guard < 8; guard++)
+                    // Plan the whole walk, then validate it BEFORE committing any hop. Each
+                    // Transition persists immediately, so a denial on hop 3 of 3 used to leave
+                    // hops 1-2 written with no rollback — the workflow ends up ahead of the
+                    // deliverable record it is supposed to describe.
+                    var hops = PlanForwardHops(inst.State, targetWf);
+                    if (hops.Count > 0)
                     {
-                        int cur = Array.FindIndex(_wfOrder, s => string.Equals(s, inst.State, StringComparison.OrdinalIgnoreCase));
-                        int tgt = Array.FindIndex(_wfOrder, s => string.Equals(s, targetWf, StringComparison.OrdinalIgnoreCase));
-                        if (cur < 0 || tgt < 0 || tgt <= cur) break;
-                        if (!_wfForward.TryGetValue(_wfOrder[cur], out string act)) break;
-                        var r = TryTransition(doc, docNumber, act, user, reason);
-                        if (r.blocked) return r;
-                        inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber);
-                        if (inst == null) break;
+                        if (!Planscape.Docs.Workflow.WorkflowEngine.ValidatePath(doc, docNumber, hops, out string deny))
+                            return (true, deny);
+
+                        foreach (string act in hops)
+                        {
+                            var r = TryTransition(doc, docNumber, act, user, reason);
+                            if (r.blocked) return r;
+                        }
                     }
                 }
 
-                SyncWorkflowFields(d, Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber));
+                SyncWorkflowFields(d, Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber, true));
                 return (false, null);
             }
             catch (Exception ex) { StingLog.Warn($"DriveWorkflow: {ex.Message}"); return (false, null); }
+        }
+
+        /// <summary>
+        /// Actions needed to walk forward from <paramref name="fromState"/> to
+        /// <paramref name="targetState"/> along _wfOrder. Empty when already at/past the target
+        /// or when either state is unknown.
+        /// </summary>
+        private static List<string> PlanForwardHops(string fromState, string targetState)
+        {
+            var hops = new List<string>();
+            int cur = Array.FindIndex(_wfOrder, s => string.Equals(s, fromState, StringComparison.OrdinalIgnoreCase));
+            int tgt = Array.FindIndex(_wfOrder, s => string.Equals(s, targetState, StringComparison.OrdinalIgnoreCase));
+            if (cur < 0 || tgt < 0 || tgt <= cur) return hops;
+            for (int i = cur; i < tgt && hops.Count < 8; i++)
+            {
+                if (!_wfForward.TryGetValue(_wfOrder[i], out string act)) break;
+                hops.Add(act);
+            }
+            return hops;
         }
 
         /// <summary>One Transition; blocks only on a role denial, warns on an undefined path.</summary>
@@ -238,10 +270,12 @@ namespace Planscape.Docs.Templates
             Document doc, string docNumber, string action, string user, string reason)
         {
             try { Planscape.Docs.Workflow.WorkflowEngine.Transition(doc, docNumber, action, user, reason); return (false, null); }
+            // Typed — a role denial is matched on the exception TYPE. The previous substring
+            // match on "not permitted" would have silently opened the gate the moment the
+            // message wording changed.
+            catch (Planscape.Docs.Workflow.WorkflowRoleDeniedException ex) { return (true, ex.Message); }
             catch (InvalidOperationException ex)
             {
-                if (ex.Message.IndexOf("not permitted", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return (true, ex.Message);   // role gate — abort the lifecycle change
                 StingLog.Warn($"DriveWorkflow transition '{action}': {ex.Message}"); // undefined path — non-blocking
                 return (false, null);
             }
@@ -319,6 +353,33 @@ namespace Planscape.Docs.Templates
 
         // ── Persistence to _BIM_COORD/deliverables.json ─────────────────────
 
+        /// <summary>
+        /// Identity of a deliverable: DocNumber, else Code, else empty. Uses IsNullOrWhiteSpace
+        /// rather than `??` because these fields are commonly EMPTY STRINGS, not nulls — `??`
+        /// then keeps the empty DocNumber and never falls back to a perfectly good Code.
+        /// </summary>
+        internal static string DeliverableKey(dynamic d)
+        {
+            try
+            {
+                string n = (string)d.DocNumber;
+                if (!string.IsNullOrWhiteSpace(n)) return n.Trim();
+                string c = (string)d.Code;
+                return string.IsNullOrWhiteSpace(c) ? "" : c.Trim();
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>Same identity rule, for a persisted row.</summary>
+        internal static string RowKey(JObject o)
+        {
+            if (o == null) return "";
+            string n = o.Value<string>("DocNumber");
+            if (!string.IsNullOrWhiteSpace(n)) return n.Trim();
+            string c = o.Value<string>("Code");
+            return string.IsNullOrWhiteSpace(c) ? "" : c.Trim();
+        }
+
         public static void Persist(Document doc, dynamic d)
         {
             try
@@ -335,14 +396,22 @@ namespace Planscape.Docs.Templates
                 }
                 else arr = new JArray();
 
-                string docNumber = (string)d.DocNumber ?? (string)d.Code ?? "";
+                string docNumber = DeliverableKey(d);
+                if (string.IsNullOrEmpty(docNumber))
+                {
+                    // A record with neither DocNumber nor Code cannot be identified. Writing it
+                    // would either append a new row on EVERY save (unbounded growth) or — with
+                    // the old `??`-only key — collide with any other blank-keyed row and
+                    // overwrite an unrelated deliverable. Refuse instead.
+                    StingLog.Error("DeliverableLifecycle.Persist: deliverable has no DocNumber or Code; not persisted.", null);
+                    return;
+                }
+
                 JObject row = JObject.FromObject(d);
                 int idx = -1;
                 for (int i = 0; i < arr.Count; i++)
                 {
-                    if (arr[i] is JObject o && string.Equals(
-                        o.Value<string>("DocNumber") ?? o.Value<string>("Code"),
-                        docNumber, StringComparison.Ordinal))
+                    if (arr[i] is JObject o && string.Equals(RowKey(o), docNumber, StringComparison.Ordinal))
                     { idx = i; break; }
                 }
                 if (idx >= 0) arr[idx] = row; else arr.Add(row);

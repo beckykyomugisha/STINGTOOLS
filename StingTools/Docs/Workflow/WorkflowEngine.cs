@@ -16,9 +16,84 @@ using StingTools.Core;
 
 namespace Planscape.Docs.Workflow
 {
+    /// <summary>
+    /// Thrown when a transition's <c>allowed_roles</c> gate rejects the acting user. A distinct
+    /// type so callers can react to a DENIAL specifically instead of substring-matching the
+    /// message — and so an unrelated failure can never be mistaken for "permitted".
+    /// </summary>
+    public class WorkflowRoleDeniedException : InvalidOperationException
+    {
+        public WorkflowRoleDeniedException(string message) : base(message) { }
+    }
+
     public static class WorkflowEngine
     {
         private static readonly object _lock = new object();
+
+        /// <summary>
+        /// Role gate for one transition. Empty/absent allowed_roles ⇒ any role; the Information
+        /// Manager (K) and Coordinator (C) administer the CDE and are always permitted.
+        /// </summary>
+        private static bool IsRolePermitted(WorkflowTransition transition, out string actingRole)
+        {
+            actingRole = "?";
+            try { actingRole = RoleBasedAccessControl.GetCurrentUserRole(); }
+            catch (Exception ex)
+            {
+                // Fail CLOSED when the role cannot be resolved but the gate is active.
+                StingLog.Warn($"IsRolePermitted: role lookup failed: {ex.Message}");
+                return transition?.AllowedRoles == null || transition.AllowedRoles.Count == 0;
+            }
+            if (transition?.AllowedRoles == null || transition.AllowedRoles.Count == 0) return true;
+            string role = actingRole;   // out params cannot be captured by the lambda below
+            return string.Equals(role, "K", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(role, "C", StringComparison.OrdinalIgnoreCase)
+                || transition.AllowedRoles.Any(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Simulate a sequence of actions from the document's current state and report the first
+        /// role denial WITHOUT mutating anything. Lets a caller that must walk several hops
+        /// verify the whole path up front — otherwise an early hop is committed to disk and the
+        /// later denial leaves the workflow ahead of the record it describes, with no rollback.
+        /// Returns true when every hop is permitted (or the path can't be resolved, which the
+        /// caller handles as a non-blocking condition).
+        /// </summary>
+        public static bool ValidatePath(Document doc, string docId, IEnumerable<string> actions, out string denyReason)
+        {
+            denyReason = null;
+            if (actions == null) return true;
+            lock (_lock)
+            {
+                try
+                {
+                    var reg = WorkflowRegistry.Load(doc);
+                    var inst = LoadStore(doc).FirstOrDefault(i =>
+                        string.Equals(i.DocId, docId, StringComparison.Ordinal) && !i.Closed);
+                    if (inst == null) return true;
+                    var wf = reg.Get(inst.WorkflowId);
+                    if (wf == null) return true;
+
+                    string state = inst.State;
+                    foreach (string action in actions)
+                    {
+                        var t = wf.Transitions.FirstOrDefault(x =>
+                            string.Equals(x.From, state, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(x.Action, action, StringComparison.OrdinalIgnoreCase));
+                        if (t == null) return true;      // undefined hop — non-blocking, as before
+                        if (!IsRolePermitted(t, out string role))
+                        {
+                            denyReason = $"Role '{role}' is not permitted to perform '{action}' from '{state}' " +
+                                         $"(requires one of: {string.Join(", ", t.AllowedRoles)}).";
+                            return false;
+                        }
+                        state = t.To;
+                    }
+                    return true;
+                }
+                catch (Exception ex) { StingLog.Warn($"ValidatePath: {ex.Message}"); return true; }
+            }
+        }
 
         public static string Start(Document doc, string workflowId, string docId)
         {
@@ -74,13 +149,12 @@ namespace Planscape.Docs.Workflow
                 // be driven by anyone. The acting role is resolved from project_config.json
                 // (USER_ROLE); the Information Manager (K) and Coordinator (C) administer the
                 // CDE and are always permitted. An empty allowed_roles means "any role".
-                if (transition.AllowedRoles != null && transition.AllowedRoles.Count > 0)
+                if (!IsRolePermitted(transition, out string actingRole))
                 {
-                    string role = RoleBasedAccessControl.GetCurrentUserRole();
-                    bool permitted = string.Equals(role, "K", StringComparison.OrdinalIgnoreCase)
-                                  || string.Equals(role, "C", StringComparison.OrdinalIgnoreCase)
-                                  || transition.AllowedRoles.Any(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
-                    if (!permitted)
+                    // Audit is best-effort and must NEVER swallow the denial: if it threw here
+                    // the caller would see a generic exception and (previously) treat the
+                    // transition as permitted — a fail-open security hole.
+                    try
                     {
                         AuditLog.Append(doc, "wf.transition_denied", docId, new JObject
                         {
@@ -89,13 +163,17 @@ namespace Planscape.Docs.Workflow
                             ["from"]          = inst.State,
                             ["action"]        = action,
                             ["user"]          = byUser,
-                            ["role"]          = role,
+                            ["role"]          = actingRole,
                             ["allowed_roles"] = new JArray(transition.AllowedRoles)
                         });
-                        throw new InvalidOperationException(
-                            $"Role '{role}' is not permitted to perform '{action}' from '{inst.State}' " +
-                            $"(requires one of: {string.Join(", ", transition.AllowedRoles)}).");
                     }
+                    catch (Exception aex) { StingLog.Warn($"wf.transition_denied audit: {aex.Message}"); }
+
+                    // Typed, so callers match on the TYPE rather than substring-matching the
+                    // message (which silently disabled every gate if the wording changed).
+                    throw new WorkflowRoleDeniedException(
+                        $"Role '{actingRole}' is not permitted to perform '{action}' from '{inst.State}' " +
+                        $"(requires one of: {string.Join(", ", transition.AllowedRoles)}).");
                 }
 
                 string from = inst.State;
@@ -128,10 +206,21 @@ namespace Planscape.Docs.Workflow
             }
         }
 
-        public static WorkflowInstance GetInstance(Document doc, string docId)
+        public static WorkflowInstance GetInstance(Document doc, string docId) => GetInstance(doc, docId, false);
+
+        /// <summary>
+        /// Latest instance for a document. <paramref name="includeClosed"/> matters because
+        /// Published and Archived are TERMINAL: entering them closes the instance, after which
+        /// the default lookup returns null. A caller that treats null as "never started" would
+        /// then Start a brand-new instance back at WIP on every later action — leaking one
+        /// instance per action and recording a WIP→… history for an already-published document.
+        /// </summary>
+        public static WorkflowInstance GetInstance(Document doc, string docId, bool includeClosed)
         {
             var store = LoadStore(doc);
-            return store.FirstOrDefault(i => string.Equals(i.DocId, docId, StringComparison.Ordinal) && !i.Closed);
+            var matches = store.Where(i => string.Equals(i.DocId, docId, StringComparison.Ordinal));
+            if (!includeClosed) matches = matches.Where(i => !i.Closed);
+            return matches.LastOrDefault();
         }
 
         public static List<WorkflowInstance> GetMyQueue(Document doc, string userEmail)
