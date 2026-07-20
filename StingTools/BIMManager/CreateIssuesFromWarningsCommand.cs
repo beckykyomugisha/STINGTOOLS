@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -152,15 +152,24 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            // ── 4. Load existing issues, build hash index for dedup ────────────
-            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-            var existingIssues = BIMManagerEngine.LoadJsonArray(issuesPath);
-
-            var existingHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var iss in existingIssues)
+            // ── 4. Open the issue register ─────────────────────────────────────
+            //
+            // Phase 2b (IM-7): was load → mint → build → SaveJsonFile in this method, so
+            // issues raised here reached neither the audit chain nor the Planscape server.
+            // One batch now: IssueStore owns minting, dedup, the atomic write, the
+            // `issue.escalated_from_warning` audit entry and the server push.
+            //
+            // Dedup semantics change deliberately: the old index matched a source_hash on
+            // ANY issue, so once an issue was closed the same warnings could never raise a
+            // new one. IssueStore scopes the match to still-OPEN issues, so a recurrence
+            // after closure is reported again — which is the point of closing it.
+            using var batch = IssueStore.Begin(doc);
+            if (!batch.Ok)
             {
-                string h = iss?["source_hash"]?.ToString();
-                if (!string.IsNullOrEmpty(h)) existingHashes.Add(h);
+                TaskDialog.Show("STING Issue Tracker — From Warnings",
+                    "The issue register exists but could not be read, so nothing was written — " +
+                    "saving now would overwrite live rows.\n\nSee StingTools.log.");
+                return Result.Failed;
             }
 
             // ── 5. Group warnings by (Category, CanAutoFix) ────────────────────
@@ -219,13 +228,6 @@ namespace StingTools.BIMManager
                     string.Join(",", elementIds.Select(e => e.Value).OrderBy(v => v)));
                 string sourceHash = Sha256Short(hashInput, 12);
 
-                if (existingHashes.Contains(sourceHash))
-                {
-                    skippedDup++;
-                    StingLog.Info($"CreateIssuesFromWarnings: skipped duplicate group {sourceHash} ({grp.Key.Category}, {grpList.Count} warnings)");
-                    continue;
-                }
-
                 // Pick discipline from first warning that has one
                 string discipline = grpList
                     .Select(w => w.Discipline)
@@ -250,50 +252,45 @@ namespace StingTools.BIMManager
                 descBody.AppendLine();
                 descBody.AppendLine($"source_hash: {sourceHash} (re-run dedup key)");
 
-                // Mint next issue id of the right type
-                string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, issueType);
+                int before = batch.Created.Count;
+                var issue = batch.Create(new IssueSpec
+                {
+                    Type        = issueType,
+                    Priority    = priority,
+                    Title       = title,
+                    Description = descBody.ToString(),
+                    // assignee left blank — set via UpdateIssue / AssignIssues
+                    AssignedTo  = "",
+                    Discipline  = discipline,
+                    ViewName    = "Warnings Scan",
+                    Revision    = revision,
+                    Source      = IssueSource.Warning,
+                    SourceHash  = sourceHash,
+                    ElementIds  = elementIds.Select(e => e.Value).ToList(),
+                    Extra       = new JObject
+                    {
+                        ["warning_category"]     = grp.Key.Category.ToString(),
+                        ["warning_severity"]     = maxSev.ToString(),
+                        ["warning_auto_fixable"] = grp.Key.CanAutoFix,
+                    },
+                });
 
-                var issue = BIMManagerEngine.CreateIssue(
-                    nextId, issueType, priority,
-                    title, descBody.ToString(),
-                    "" /* assignee — left blank, set via UpdateIssue / AssignIssues */,
-                    discipline,
-                    elementIds,
-                    "Warnings Scan" /* view_name */,
-                    doc);
+                if (issue == null || batch.Created.Count == before)
+                {
+                    skippedDup++;
+                    StingLog.Info($"CreateIssuesFromWarnings: skipped duplicate group {sourceHash} ({grp.Key.Category}, {grpList.Count} warnings)");
+                    continue;
+                }
 
-                // Mark the issue with the hash + provenance so re-runs dedup
-                issue["source"] = "warning";
-                issue["source_hash"] = sourceHash;
-                issue["warning_category"] = grp.Key.Category.ToString();
-                issue["warning_severity"] = maxSev.ToString();
-                issue["warning_auto_fixable"] = grp.Key.CanAutoFix;
-                if (!string.IsNullOrEmpty(revision)) issue["revision"] = revision;
-
-                existingIssues.Add(issue);
-                existingHashes.Add(sourceHash);
+                string nextId = IssueSchema.IdOf(issue);
                 createdIds.Add(nextId);
                 created++;
 
                 StingLog.Info($"CreateIssuesFromWarnings: created {nextId} ({issueType}, {priority}) — hash {sourceHash}, {elementIds.Count} elements");
             }
 
-            // ── 6. Persist if anything changed ─────────────────────────────────
-            if (created > 0)
-            {
-                try
-                {
-                    BIMManagerEngine.SaveJsonFile(issuesPath, existingIssues);
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Error("CreateIssuesFromWarnings: SaveJsonFile failed", ex);
-                    TaskDialog.Show("STING Issue Tracker — From Warnings",
-                        $"Created {created} issue(s) in memory but failed to write " +
-                        $"issues.json:\n\n{ex.Message}\n\nSee StingTools.log.");
-                    return Result.Failed;
-                }
-            }
+            // ── 6. Persist atomically + audit + push ───────────────────────────
+            batch.Commit();
 
             // ── 7. Summary TaskDialog ──────────────────────────────────────────
             var summary = new StringBuilder();

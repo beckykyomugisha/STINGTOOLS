@@ -2,6 +2,52 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 202 — ISO IM Phase 2b: the last six writers)
+
+Closes ROADMAP **IM-7** and **IM-8**, the two follow-ups filed by Phase 201. Mechanical
+convergence: no new subsystem, no behaviour invented.
+
+- **Six writers converted to `IssueStore.Begin(doc)` batches** —
+  `CreateIssuesFromWarningsCommand`, `AutoRaiseComplianceIssues` (two creation sites), and
+  the four BCF sites in `PlatformLinkCommands` (import command, bidirectional-sync import,
+  the BCF-driven close, and both record builders). They already had the canonical schema and
+  correct minting via the delegating helpers, so IM-4/IM-5 could not regress through them —
+  but they emitted no `issue.*` audit entry and never pushed to the Planscape server. Both
+  gaps now closed.
+- **`IssueBatch.Adopt(row, source, sourceHash)` (new)** — for importers whose record *is* the
+  mapping work. The BCF 2.1 parsers translate a markup XML topic field by field; forcing that
+  back through `IssueSpec` would have meant rewriting the parser rather than fixing anything.
+  `Adopt` runs `IssueSchema.Migrate` on the way in, so an adopted record cannot reintroduce
+  the schema fork, and it mints only when the caller supplied no identifier (or supplied one
+  already in use).
+- **Both BCF builders now produce the canonical base** via `IssueSchema.Create`.
+  `CoordToStingIssue` and `ParseBcfTopicToIssue` each hand-built a partial record missing
+  `created_by` / `modified_by` / `resolved_in_revision` / `linked_transmittals` / `source`,
+  and passed the BCF status vocabulary through unnormalised — BCF speaks `Active` /
+  `Resolved` / `Closed`, none of which the `has_open_issues` gate could read. Now normalised
+  at the boundary.
+- **Dedup semantics on the warnings path changed deliberately.** Its hash index matched a
+  `source_hash` on *any* issue, so once an issue was closed the same warnings could never
+  raise a new one. `IssueStore` scopes the match to still-OPEN issues, so a recurrence after
+  closure is reported again — which is the point of having closed it. Same change the clash
+  path took in Phase 201.
+- **`AutoRaiseComplianceIssues` deduped on a title substring** (`title.Contains("Untagged
+  Elements")`), which broke the moment anyone edited a title. Now a stable `source_hash`.
+- **`GetNextIssueId` retired (IM-8).** Zero callers remained. It rebuilt its minter from the
+  array on every call, so it was correct only because every caller happened to append in the
+  same iteration; a caller that batched creations before saving would have received the same
+  identifier every time. Removed rather than documented, with a pointer to
+  `IssueStore.Begin` / `IssueBatch.MintId` left in its place.
+- **5 further unit tests** (188 total in `StingTools.Tags.Tests`), including the IM-8 red/green
+  pair — `RED_a_minter_rebuilt_per_call_repeats_itself_when_the_caller_batches` asserts three
+  identical `BCF-0001`s; the GREEN counterpart asserts `BCF-0001..0003`.
+
+Verified: plugin build **0 errors / 0 warnings** (`-t:Rebuild`, Revit 2025); Tags.Tests
+**186 passed / 2 failed** (the 2 pre-existing `CsiMasterFormat` failures, unchanged — 181/2
+before); path-discipline gate exit 0, Tier 1 = 0, Tier 2 = 139 unchanged.
+**Runtime-unverified** — not exercised in Revit. BCF round-trip in particular is untested
+against a real `.bcfzip`.
+
 #### Completed (Phase 201 — ISO IM Phase 2: one issue store)
 
 Closes ROADMAP **IM-4** (the `issue_id` / `id` schema fork) and **IM-5** (forked

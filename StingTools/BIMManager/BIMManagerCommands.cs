@@ -956,8 +956,18 @@ namespace StingTools.BIMManager
                     return 0;
                 }
 
-                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
-                var issues = LoadJsonArray(issuesPath);
+                // Phase 2b (IM-7): was load -> mint -> CreateIssue -> SaveJsonFile here, so a
+                // compliance NCR reached neither the audit chain nor the Planscape server.
+                // One batch now.
+                //
+                // Dedup also moves off "does any open NCR have this phrase in its title" —
+                // which broke the moment anyone edited a title — onto a stable source_hash.
+                using var batch = IssueStore.Begin(doc);
+                if (!batch.Ok)
+                {
+                    StingLog.Warn("AutoRaiseComplianceIssues: issue register unreadable — skipped.");
+                    return 0;
+                }
                 int raised = 0;
 
                 // M-10 FIX: Use percentage-based thresholds instead of hardcoded counts.
@@ -971,56 +981,43 @@ namespace StingTools.BIMManager
                 // Raise issue if >5% untagged (or absolute minimum of 5 elements to avoid noise on tiny models)
                 if (scanResult.Untagged > 5 && untaggedPct > 5.0)
                 {
-                    // Check if a similar open issue already exists
-                    bool alreadyRaised = issues.Any(i =>
-                        i["type"]?.ToString() == "NCR" &&
-                        IssueSchema.IsOpen(i as JObject) &&
-                        (i["title"]?.ToString() ?? "").Contains("Untagged Elements"));
-
-                    if (!alreadyRaised)
+                    int before = batch.Created.Count;
+                    batch.Create(new IssueSpec
                     {
-                        string priority = scanResult.RAGStatus == "RED" ? "HIGH" : "MEDIUM";
-                        string nextId = GetNextIssueId(issues, "NCR");
-                        string title = $"Untagged Elements: {scanResult.Untagged} elements lack ISO 19650 tags";
-                        string desc = $"Compliance scan detected {scanResult.Untagged} untagged elements " +
-                            $"out of {scanResult.TotalElements} total ({scanResult.CompliancePercent:F1}% compliant).\n" +
-                            $"RAG status: {scanResult.RAGStatus}\n" +
-                            $"Top issues: {scanResult.TopIssues}";
-
-                        var issue = CreateIssue(nextId, "NCR", priority, title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "", doc);
-                        issues.Add(issue);
-                        raised++;
-                    }
+                        Type        = "NCR",
+                        Priority    = scanResult.RAGStatus == "RED" ? "HIGH" : "MEDIUM",
+                        Title       = $"Untagged Elements: {scanResult.Untagged} elements lack ISO 19650 tags",
+                        Description = $"Compliance scan detected {scanResult.Untagged} untagged elements " +
+                                      $"out of {scanResult.TotalElements} total ({scanResult.CompliancePercent:F1}% compliant).\n" +
+                                      $"RAG status: {scanResult.RAGStatus}\n" +
+                                      $"Top issues: {scanResult.TopIssues}",
+                        AssignedTo  = Environment.UserName,
+                        Source      = IssueSource.Compliance,
+                        SourceHash  = "compliance:untagged-elements",
+                    });
+                    if (batch.Created.Count > before) raised++;
                 }
 
                 // Raise issue for incomplete tags — >10% incomplete or absolute min 10 elements
                 if (scanResult.TaggedIncomplete > 10 && incompletePct > 10.0)
                 {
-                    bool alreadyRaised = issues.Any(i =>
-                        i["type"]?.ToString() == "NCR" &&
-                        IssueSchema.IsOpen(i as JObject) &&
-                        (i["title"]?.ToString() ?? "").Contains("Incomplete Tags"));
-
-                    if (!alreadyRaised)
+                    int before = batch.Created.Count;
+                    batch.Create(new IssueSpec
                     {
-                        string nextId = GetNextIssueId(issues, "NCR");
-                        string title = $"Incomplete Tags: {scanResult.TaggedIncomplete} elements have partial tags";
-                        string desc = $"{scanResult.TaggedIncomplete} elements have incomplete ISO 19650 tags " +
-                            $"(missing segments). Run 'Validate Tags' for details.";
-
-                        var issue = CreateIssue(nextId, "NCR", "MEDIUM", title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "", doc);
-                        issues.Add(issue);
-                        raised++;
-                    }
+                        Type        = "NCR",
+                        Priority    = "MEDIUM",
+                        Title       = $"Incomplete Tags: {scanResult.TaggedIncomplete} elements have partial tags",
+                        Description = $"{scanResult.TaggedIncomplete} elements have incomplete ISO 19650 tags " +
+                                      "(missing segments). Run 'Validate Tags' for details.",
+                        AssignedTo  = Environment.UserName,
+                        Source      = IssueSource.Compliance,
+                        SourceHash  = "compliance:incomplete-tags",
+                    });
+                    if (batch.Created.Count > before) raised++;
                 }
 
-                if (raised > 0)
-                {
-                    SaveJsonFile(issuesPath, issues);
-                    StingLog.Info($"AutoRaiseComplianceIssues: raised {raised} new issues");
-                }
+                batch.Commit();
+                if (raised > 0) StingLog.Info($"AutoRaiseComplianceIssues: raised {raised} new issues");
 
                 return raised;
             }
@@ -2270,20 +2267,23 @@ namespace StingTools.BIMManager
         //  Issue / RFI Engine
         // ═══════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Next free identifier for a type.
-        ///
-        /// Phase 2 (IM-4): this scanned "issue_id" ONLY, so a register also holding rows
-        /// written by the escalation paths ("id") or the LPS raiser ("IssueId") had an
-        /// invisible high-water mark — and this happily re-issued an identifier one of those
-        /// rows already used. Delegates to IssueIdMinter, which considers every spelling.
-        ///
-        /// Prefer <see cref="IssueStore.Begin"/> for new code: a batch holds ONE minter, so
-        /// identifiers cannot collide within it. This helper reserves nothing between calls,
-        /// so calling it twice against an unmodified array returns the same value.
-        /// </summary>
-        internal static string GetNextIssueId(JArray issues, string type)
-            => new IssueIdMinter(issues ?? new JArray()).Next(type);
+        // GetNextIssueId was RETIRED in Phase 2b (ROADMAP IM-8).
+        //
+        // It reserved nothing between calls: each invocation rebuilt the minter from the
+        // array, so it was only ever correct because every caller happened to append to that
+        // array in the same iteration. A caller that batched its creations before saving —
+        // the obvious way to write one — would have got the same identifier every time.
+        // That is a defect waiting on the next contributor, not a working helper.
+        //
+        // Use IssueStore.Begin(doc), whose batch holds ONE IssueIdMinter for its lifetime:
+        //
+        //     using var batch = IssueStore.Begin(doc);
+        //     var issue = batch.Create(new IssueSpec { … });   // id minted + reserved
+        //     batch.Commit();                                   // atomic save + audit + push
+        //
+        // For an importer that has already shaped its record, batch.Adopt(row, source, hash)
+        // gives it the same minting, audit and push. batch.MintId(type) exposes the reserved
+        // minter directly when a builder needs the identifier up front.
 
         /// <summary>
         /// CRIT-005: Check if an existing open issue already references the same element IDs.

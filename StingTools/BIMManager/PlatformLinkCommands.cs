@@ -273,31 +273,29 @@ namespace StingTools.BIMManager
                 ? DateTime.Now.ToString("yyyy-MM-dd HH:mm")
                 : ci.CreationDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 
-            var issue = new JObject
+            // Phase 2b (IM-7): the canonical base now comes from IssueSchema.Create, so a
+            // BCF-imported record carries the same fields as every other issue
+            // (created_by/modified_by, resolved_in_revision, linked_transmittals, source) and
+            // its status is normalised — BCF speaks "Active"/"Resolved", which the
+            // has_open_issues gate could not read.
+            var issue = IssueSchema.Create(new IssueSpec
             {
-                ["issue_id"]         = nextId,
-                ["type"]             = stingType,
-                ["type_description"] = BIMManagerEngine.IssueTypes.TryGetValue(stingType, out var itDesc) ? itDesc : stingType,
-                ["priority"]         = stingPriority,
-                ["title"]            = ci.Title ?? "(untitled)",
-                ["description"]      = ci.Description ?? "",
-                ["status"]           = stingStatus,
-                ["assigned_to"]      = ci.Assignee ?? "",
-                ["discipline"]       = "",
-                ["raised_by"]        = string.IsNullOrEmpty(ci.Author) ? Environment.UserName : ci.Author,
-                ["date_raised"]      = created,
-                ["date_due"]         = stingPriority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
-                                       stingPriority == "HIGH"     ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
-                                       stingPriority == "MEDIUM"   ? DateTime.Now.AddDays(7).ToString("yyyy-MM-dd") :
-                                                                     DateTime.Now.AddDays(14).ToString("yyyy-MM-dd"),
-                ["date_closed"]      = stingStatus == "CLOSED" ? DateTime.Now.ToString("yyyy-MM-dd HH:mm") : "",
-                ["response"]         = "",
-                ["element_ids"]      = new JArray(),
-                ["view_name"]        = "",
-                ["bcf_guid"]         = ci.Guid ?? "",
-                ["import_source"]    = "BCF 2.1",
-                ["comments"]         = new JArray(),
-            };
+                Type        = stingType,
+                Priority    = stingPriority,
+                Title       = ci.Title ?? "(untitled)",
+                Description = ci.Description ?? "",
+                AssignedTo  = ci.Assignee ?? "",
+                Source      = IssueSource.Bcf,
+                SourceHash  = string.IsNullOrEmpty(ci.Guid) ? null : "bcf:" + ci.Guid,
+            }, nextId, DateTime.Now, string.IsNullOrEmpty(ci.Author) ? Environment.UserName : ci.Author);
+
+            if (BIMManagerEngine.IssueTypes.TryGetValue(stingType, out var itDesc))
+                issue["type_description"] = itDesc;
+            issue["status"]        = IssueStatusNormalizer.Canonical(stingStatus);
+            issue["date_raised"]   = created;
+            issue["date_closed"]   = IssueSchema.IsOpen(issue) ? "" : DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+            issue["bcf_guid"]      = ci.Guid ?? "";
+            issue["import_source"] = "BCF 2.1";
 
             foreach (var c in ci.Comments ?? new List<CoordComment>())
             {
@@ -504,32 +502,26 @@ namespace StingTools.BIMManager
 
             string bcfGuid = topic.Attribute("Guid")?.Value ?? "";
 
-            var issue = new JObject
+            // Phase 2b (IM-7): canonical base via IssueSchema.Create — see CoordToStingIssue.
+            var issue = IssueSchema.Create(new IssueSpec
             {
-                ["issue_id"] = existingNextId,
-                ["type"] = stingType,
-                ["type_description"] = BIMManagerEngine.IssueTypes.TryGetValue(stingType, out var itDesc) ? itDesc : stingType,
-                ["priority"] = stingPriority,
-                ["title"] = title,
-                ["description"] = description,
-                ["status"] = stingStatus,
-                ["assigned_to"] = assignedTo,
-                ["discipline"] = "",
-                ["raised_by"] = string.IsNullOrEmpty(createdBy) ? Environment.UserName : createdBy,
-                ["date_raised"] = createdDate,
-                ["date_due"] = stingPriority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
-                               stingPriority == "HIGH" ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
-                               stingPriority == "MEDIUM" ? DateTime.Now.AddDays(7).ToString("yyyy-MM-dd") :
-                               DateTime.Now.AddDays(14).ToString("yyyy-MM-dd"),
-                ["date_closed"] = stingStatus == "CLOSED" ? DateTime.Now.ToString("yyyy-MM-dd HH:mm") : "",
-                ["response"] = "",
-                ["element_ids"] = new JArray(),
-                ["view_name"] = "",
-                ["revision"] = doc != null ? (PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01") : "P01",
-                ["bcf_guid"] = bcfGuid,
-                ["import_source"] = "BCF 2.1",
-                ["comments"] = new JArray()
-            };
+                Type        = stingType,
+                Priority    = stingPriority,
+                Title       = title,
+                Description = description,
+                AssignedTo  = assignedTo,
+                Revision    = doc != null ? (PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01") : "P01",
+                Source      = IssueSource.Bcf,
+                SourceHash  = string.IsNullOrEmpty(bcfGuid) ? null : "bcf:" + bcfGuid,
+            }, existingNextId, DateTime.Now, string.IsNullOrEmpty(createdBy) ? Environment.UserName : createdBy);
+
+            if (BIMManagerEngine.IssueTypes.TryGetValue(stingType, out var itDesc))
+                issue["type_description"] = itDesc;
+            issue["status"]        = IssueStatusNormalizer.Canonical(stingStatus);
+            issue["date_raised"]   = createdDate;
+            issue["date_closed"]   = IssueSchema.IsOpen(issue) ? "" : DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+            issue["bcf_guid"]      = bcfGuid;
+            issue["import_source"] = "BCF 2.1";
 
             // Import BCF comments
             var bcfComments = markup.Root?.Elements("Comment");
@@ -816,9 +808,15 @@ namespace StingTools.BIMManager
             if (doc == null || string.IsNullOrEmpty(bcfPath))
                 return "No document or BCF path.";
 
-            // ── 1. Load STING issues ──
-            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-            var stingIssues = BIMManagerEngine.LoadJsonArray(issuesPath);
+            // ── 1. Open the STING issue register ──
+            //
+            // Phase 2b (IM-7): was load -> mint -> Add -> SaveJsonFile, so BCF-imported
+            // issues and BCF-driven closures reached neither the audit chain nor the server.
+            using var batch = IssueStore.Begin(doc);
+            if (!batch.Ok)
+                return "The issue register exists but could not be read; BCF sync aborted so it " +
+                       "cannot overwrite live rows.";
+            var stingIssues = batch.Rows;
             var stingByGuid = new Dictionary<string, JToken>();
             foreach (var si in stingIssues)
             {
@@ -887,7 +885,8 @@ namespace StingTools.BIMManager
                         if (!string.IsNullOrEmpty(bcfAssign))
                             existing["assigned_to"] = bcfAssign;
                         if (bcfStatus == "Resolved" || bcfStatus == "Closed")
-                            existing["status"] = "CLOSED";
+                            batch.SetStatus(IssueSchema.IdOf(existing as JObject), "CLOSED",
+                                            note: $"Closed in BCF (TopicStatus {bcfStatus})");
 
                         // Merge any new BCF comments not already in STING
                         MergeBcfComments(markup, existing);
@@ -897,13 +896,17 @@ namespace StingTools.BIMManager
                 else
                 {
                     // New BCF topic → import into STING
-                    string nextId = BIMManagerEngine.GetNextIssueId(stingIssues, "BCF");
-                    var newIssue = ParseBcfTopicToIssue(markup, nextId, doc);
-                    if (newIssue != null)
+                    var parsedIssue = ParseBcfTopicToIssue(markup, batch.MintId("BCF"), doc);
+                    if (parsedIssue != null)
                     {
-                        stingIssues.Add(newIssue);
-                        stingByGuid[guid] = newIssue;
-                        importedNew++;
+                        int before = batch.Created.Count;
+                        var adopted = batch.Adopt(parsedIssue, IssueSource.Bcf,
+                                                  string.IsNullOrEmpty(guid) ? null : "bcf:" + guid);
+                        if (adopted != null && batch.Created.Count > before)
+                        {
+                            stingByGuid[guid] = adopted;
+                            importedNew++;
+                        }
                     }
                 }
             }
@@ -975,7 +978,7 @@ namespace StingTools.BIMManager
             }
 
             // ── 6. Save updated STING issues ──
-            BIMManagerEngine.SaveJsonFile(issuesPath, stingIssues);
+            batch.Commit();
 
             // ── 7. Save sync sidecar ──
             string sidecarPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "bcf_sync.json");
@@ -1608,8 +1611,16 @@ namespace StingTools.BIMManager
                 }
 
                 // Load existing issues
-                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-                var existingIssues = BIMManagerEngine.LoadJsonArray(issuesPath);
+                // Phase 2b (IM-7): batch, so imported topics are audited and pushed.
+                using var batch = IssueStore.Begin(doc);
+                if (!batch.Ok)
+                {
+                    TaskDialog.Show("STING BCF Import",
+                        "The issue register exists but could not be read; import aborted so it " +
+                        "cannot overwrite live rows.");
+                    return Result.Failed;
+                }
+                var existingIssues = batch.Rows;
                 var existingGuids = new HashSet<string>(
                     existingIssues.Select(i => i["bcf_guid"]?.ToString() ?? "")
                                   .Where(g => !string.IsNullOrEmpty(g)),
@@ -1683,18 +1694,21 @@ namespace StingTools.BIMManager
                         continue;
                     }
 
-                    string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, "BCF");
-                    var jo = PlatformLinkEngine.CoordToStingIssue(ci, nextId);
+                    var jo = PlatformLinkEngine.CoordToStingIssue(ci, batch.MintId("BCF"));
                     if (jo != null)
                     {
-                        existingIssues.Add(jo);
-                        if (!string.IsNullOrEmpty(ci.Guid)) existingGuids.Add(ci.Guid);
-                        imported++;
+                        int before = batch.Created.Count;
+                        var adopted = batch.Adopt(jo, IssueSource.Bcf,
+                                                  string.IsNullOrEmpty(ci.Guid) ? null : "bcf:" + ci.Guid);
+                        if (adopted != null && batch.Created.Count > before)
+                        {
+                            if (!string.IsNullOrEmpty(ci.Guid)) existingGuids.Add(ci.Guid);
+                            imported++;
+                        }
                     }
                 }
 
-                if (imported > 0)
-                    BIMManagerEngine.SaveJsonFile(issuesPath, existingIssues);
+                batch.Commit();
 
                 StingLog.Info($"PlatformLink: BCF import complete — {imported} imported, {skipped} skipped (from {parsed.Count} topics in ZIP)");
 
