@@ -11,6 +11,7 @@ using StackExchange.Redis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 
 namespace Planscape.API.Controllers;
 
@@ -1238,6 +1239,15 @@ public class AuthController : ControllerBase
     /// <summary>Prefix that makes a leaked token greppable in logs and repos.</summary>
     private const string PatPrefix = "psat_";
 
+    /// <summary>Applied when the caller does not specify an expiry.</summary>
+    private const int DefaultPatExpiryDays = 90;
+
+    /// <summary>Hard ceiling — no PAT may be minted to live longer than a year.</summary>
+    private const int MaxPatExpiryDays = 365;
+
+    /// <summary>Most active (unrevoked) tokens one user may hold.</summary>
+    private const int MaxActivePatsPerUser = 20;
+
     private static string HashPat(string raw) => HashForKey(raw);
 
     /// <summary>Mint a personal access token. The plaintext is returned ONCE.</summary>
@@ -1263,17 +1273,33 @@ public class AuthController : ControllerBase
         // revocation — the cap bounds that blast radius and forces cleanup.
         var activeCount = await _db.PersonalAccessTokens
             .CountAsync(t => t.UserId == userId && t.RevokedAt == null);
-        if (activeCount >= 20)
-            return BadRequest(new { message = "Token limit reached (20 active). Revoke one first." });
+        if (activeCount >= MaxActivePatsPerUser)
+            return BadRequest(new
+            {
+                message = $"Token limit reached ({MaxActivePatsPerUser} active). Revoke one first."
+            });
 
         // 32 bytes of CSPRNG entropy, base64url so the token is copy-paste safe.
         var raw = PatPrefix + Convert.ToBase64String(
             System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');
 
-        DateTime? expiresAt = req.ExpiresInDays is > 0
-            ? DateTime.UtcNow.AddDays(req.ExpiresInDays.Value)
-            : null;
+        // Expiry: default to 90 days rather than "never". A credential that
+        // lives on disk in CI and on developer laptops should age out on its
+        // own; a caller that genuinely wants a long-lived token must ask for it,
+        // and cannot ask for more than a year.
+        //
+        // Tokens minted BEFORE this change kept a null ExpiresAt and remain
+        // valid — they are grandfathered, not retro-expired. Silently
+        // invalidating live credentials would break every bridge already in the
+        // field for a hardening change that is not urgent.
+        int requestedDays = req.ExpiresInDays ?? DefaultPatExpiryDays;
+        if (requestedDays <= 0 || requestedDays > MaxPatExpiryDays)
+            return BadRequest(new
+            {
+                message = $"ExpiresInDays must be between 1 and {MaxPatExpiryDays}."
+            });
+        DateTime? expiresAt = DateTime.UtcNow.AddDays(requestedDays);
 
         var pat = new PersonalAccessToken
         {
@@ -1281,10 +1307,46 @@ public class AuthController : ControllerBase
             UserId      = user.Id,
             Name        = req.Name.Trim(),
             TokenHash   = HashPat(raw),
-            TokenPrefix = raw[..Math.Min(raw.Length, 12)],
+            // Display identifier — deliberately NOT a slice of the secret.
+            //
+            // This used to be raw[..12], i.e. "psat_" plus the first SEVEN
+            // characters of the secret itself, and it is stored in the clear and
+            // handed back by GET /tokens. That leaks 7 of the 43 secret
+            // characters to anyone who can read the token list or the database,
+            // which is precisely the audience the hash-at-rest is meant to
+            // protect against. An independent random slug identifies the token
+            // just as well and reveals nothing.
+            //
+            // Existing rows keep their old prefix and keep working: the column is
+            // display-only, never used for lookup or verification (matching is
+            // always by hash), so there is nothing to migrate.
+            TokenPrefix = PatPrefix + Convert.ToBase64String(
+                    System.Security.Cryptography.RandomNumberGenerator.GetBytes(6))
+                .Replace('+', '-').Replace('/', '_').TrimEnd('='),
             ExpiresAt   = expiresAt
         };
         _db.PersonalAccessTokens.Add(pat);
+
+        // Durable audit. A PAT is a long-lived credential that can act as the
+        // user from anywhere; "who minted one, and when" has to outlive log
+        // retention. The ILogger line below is for operators tailing output, not
+        // for answering that question six months later.
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId   = user.TenantId,
+            UserId     = user.Id,
+            Action     = "pat_minted",
+            EntityType = "PersonalAccessToken",
+            EntityId   = pat.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new
+            {
+                name = pat.Name,
+                prefix = pat.TokenPrefix,
+                expiresAt = pat.ExpiresAt,
+            }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("PAT {PatId} minted for user {UserId}.", pat.Id, user.Id);
@@ -1339,6 +1401,18 @@ public class AuthController : ControllerBase
         if (pat == null) return NotFound();
 
         pat.RevokedAt = DateTime.UtcNow;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId    = pat.TenantId,
+            UserId      = userId,
+            Action      = "pat_revoked",
+            EntityType  = "PersonalAccessToken",
+            EntityId    = pat.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { name = pat.Name, prefix = pat.TokenPrefix }),
+            Timestamp   = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         _logger.LogInformation("PAT {PatId} revoked by user {UserId}.", pat.Id, userId);
         return NoContent();
@@ -1373,6 +1447,10 @@ public class AuthController : ControllerBase
         if (pat == null || !pat.IsUsable(DateTime.UtcNow))
         {
             _logger.LogWarning("PAT exchange rejected (unknown/revoked/expired).");
+            // An unknown hash has no token and no tenant to attribute a row to —
+            // recording one would be an unauthenticated write primitive. The
+            // rejection is logged; only *identified* tokens get a durable row.
+            if (pat != null) await RecordPatExchangeFailureAsync(pat, "revoked_or_expired");
             return Unauthorized(new { message = denied });
         }
 
@@ -1380,6 +1458,7 @@ public class AuthController : ControllerBase
         if (user == null || user.IsDeleted || !user.IsActive)
         {
             _logger.LogWarning("PAT {PatId} exchange rejected — user missing or inactive.", pat.Id);
+            await RecordPatExchangeFailureAsync(pat, "user_inactive");
             return Unauthorized(new { message = denied });
         }
 
@@ -1416,6 +1495,49 @@ public class AuthController : ControllerBase
             mimEnabled   = user.Tenant?.MimEnabled ?? false,
             tenantSlug   = user.Tenant?.Slug ?? ""
         });
+    }
+
+    /// <summary>
+    /// Record a rejected PAT exchange — at most one row per token per day.
+    ///
+    /// A revoked token still baked into a CI job retries on every build. Writing
+    /// a row per attempt turns that into thousands of near-identical entries a
+    /// day: the audit log becomes an unbounded write amplifier driven by an
+    /// unauthenticated caller, and the signal that matters ("this dead token is
+    /// still in use somewhere") drowns in it. One row per token per day answers
+    /// the same question and is bounded.
+    ///
+    /// Best-effort by design: failing to write an audit row must not turn a 401
+    /// into a 500.
+    /// </summary>
+    private async Task RecordPatExchangeFailureAsync(PersonalAccessToken pat, string reason)
+    {
+        try
+        {
+            var patIdText = pat.Id.ToString();
+            var since = DateTime.UtcNow.Date;
+            var alreadyLogged = await _db.AuditLogs.IgnoreQueryFilters().AnyAsync(a =>
+                a.EntityId == patIdText &&
+                a.Action == "pat_exchange_denied" &&
+                a.Timestamp >= since);
+            if (alreadyLogged) return;
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                TenantId    = pat.TenantId,
+                UserId      = pat.UserId,
+                Action      = "pat_exchange_denied",
+                EntityType  = "PersonalAccessToken",
+                EntityId    = pat.Id.ToString(),
+                DetailsJson = JsonSerializer.Serialize(new { reason, prefix = pat.TokenPrefix }),
+                Timestamp   = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not record PAT exchange failure for {PatId}.", pat.Id);
+        }
     }
 
     /// <summary>Current user id from the JWT. <see cref="Guid.Empty"/> when absent.</summary>

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
@@ -274,4 +275,145 @@ public class PersonalAccessTokenTests : IClassFixture<PlanscapeWebApplicationFac
         Assert.DoesNotContain(list.EnumerateArray(),
             t => t.GetProperty("id").GetString() == id);
     }
+    // ── R7 hardening ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task TokenPrefix_ContainsNoBytesOfTheSecret()
+    {
+        var (_, token, _) = await MintAsync("prefix-leak-check");
+
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var rows = await (await client.GetAsync("/api/auth/tokens"))
+            .Content.ReadFromJsonAsync<JsonElement>();
+
+        var prefix = rows.EnumerateArray()
+            .Select(r => r.GetProperty("prefix").GetString()!)
+            .First(p => p.StartsWith("psat_"));
+
+        // The prefix is stored in the clear and handed back by GET /tokens. It
+        // used to be raw[..12] — "psat_" plus the first SEVEN characters of the
+        // secret — which leaks part of the credential to exactly the audience
+        // that hashing at rest is meant to defend against.
+        var secretBody = token["psat_".Length..];
+        var prefixBody = prefix["psat_".Length..];
+
+        Assert.False(string.IsNullOrEmpty(prefixBody));
+        Assert.False(secretBody.StartsWith(prefixBody, StringComparison.Ordinal),
+            "the displayed prefix is a slice of the secret");
+        Assert.DoesNotContain(prefixBody, secretBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Expiry_DefaultsTo90Days_WhenNotRequested()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var res = await client.PostAsJsonAsync("/api/auth/tokens", new { name = "default-expiry" });
+        res.EnsureSuccessStatusCode();
+
+        var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+        var expiresAt = json.GetProperty("expiresAt").GetDateTime();
+
+        // A credential that lives on disk should age out on its own.
+        var days = (expiresAt - DateTime.UtcNow).TotalDays;
+        Assert.InRange(days, 89, 91);
+    }
+
+    [Theory]
+    [InlineData(366)]
+    [InlineData(3650)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Expiry_OutsideOneYear_IsRejected(int days)
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var res = await client.PostAsJsonAsync("/api/auth/tokens",
+            new { name = "bad-expiry", expiresInDays = days });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Expiry_AtTheOneYearCeiling_IsAccepted()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var res = await client.PostAsJsonAsync("/api/auth/tokens",
+            new { name = "max-expiry", expiresInDays = 365 });
+
+        res.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task ActiveTokenCap_IsEnforcedAtTwenty()
+    {
+        // A fresh user, so the cap is measured against a known starting point
+        // rather than whatever other tests in this class have already minted.
+        var client = await _factory.CreateAuthenticatedClientAsync("member@test.org");
+
+        for (int i = 0; i < 20; i++)
+        {
+            var ok = await client.PostAsJsonAsync("/api/auth/tokens", new { name = $"cap-{i}" });
+            Assert.True(ok.IsSuccessStatusCode, $"token {i} should have been allowed");
+        }
+
+        var twentyFirst = await client.PostAsJsonAsync("/api/auth/tokens", new { name = "cap-21" });
+        Assert.Equal(HttpStatusCode.BadRequest, twentyFirst.StatusCode);
+
+        // …and revoking one frees exactly one slot, so the cap is a live count
+        // and not a monotonic counter.
+        var rows = await (await client.GetAsync("/api/auth/tokens"))
+            .Content.ReadFromJsonAsync<JsonElement>();
+        var victim = rows.EnumerateArray().First().GetProperty("id").GetString();
+        (await client.DeleteAsync($"/api/auth/tokens/{victim}")).EnsureSuccessStatusCode();
+
+        var afterRevoke = await client.PostAsJsonAsync("/api/auth/tokens", new { name = "cap-after" });
+        Assert.True(afterRevoke.IsSuccessStatusCode, "revoking should free a slot");
+    }
+
+    [Fact]
+    public async Task MintAndRevoke_AreWrittenToTheDurableAuditLog()
+    {
+        var (client, _, id) = await MintAsync("audited");
+        (await client.DeleteAsync($"/api/auth/tokens/{id}")).EnsureSuccessStatusCode();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider
+            .GetRequiredService<Planscape.Infrastructure.Data.PlanscapeDbContext>();
+
+        var actions = db.AuditLogs.AsQueryable().IgnoreQueryFilters()
+            .Where(a => a.EntityId == id)
+            .Select(a => a.Action)
+            .ToList();
+
+        // ILogger output is for operators tailing a console; "who minted a
+        // long-lived credential" has to outlive log retention.
+        Assert.Contains("pat_minted", actions);
+        Assert.Contains("pat_revoked", actions);
+    }
+
+    [Fact]
+    public async Task RepeatedFailedExchanges_LogAtMostOneAuditRowPerTokenPerDay()
+    {
+        var (client, token, id) = await MintAsync("burst");
+        (await client.DeleteAsync($"/api/auth/tokens/{id}")).EnsureSuccessStatusCode();
+
+        var anon = _factory.CreateClient();
+        for (int i = 0; i < 5; i++)
+        {
+            var res = await anon.PostAsJsonAsync("/api/auth/token/exchange", new { token });
+            Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        }
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider
+            .GetRequiredService<Planscape.Infrastructure.Data.PlanscapeDbContext>();
+
+        var denials = db.AuditLogs.AsQueryable().IgnoreQueryFilters()
+            .Count(a => a.EntityId == id && a.Action == "pat_exchange_denied");
+
+        // A revoked token baked into a CI job retries on every build. One row
+        // per attempt would make the audit log an unbounded write amplifier
+        // driven by an unauthenticated caller.
+        Assert.Equal(1, denials);
+    }
+
 }

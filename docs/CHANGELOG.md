@@ -2,6 +2,46 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 215 — PAT hardening)
+
+- **`TokenPrefix` no longer contains secret bytes.** It was `raw[..12]` — the
+  `psat_` marker plus the **first seven characters of the secret** — stored in
+  the clear and returned by `GET /api/auth/tokens`. That leaks part of the
+  credential to exactly the audience hashing-at-rest defends against. It is now
+  an independent random slug. **Existing rows keep working and are not
+  migrated:** the column is display-only and never used for lookup or
+  verification (matching is always by hash), so old prefixes remain valid
+  identifiers — they simply keep their historical leak, which cannot be undone
+  without invalidating live tokens.
+- **The rate-limiter opt-out is gated on the environment.** `RateLimiting:Enabled=false`
+  is now ignored when `IsProduction()`, and says so on stdout. One stray env-group
+  key must not be able to switch off credential-stuffing protection in production.
+- **PAT expiry defaults to 90 days and is capped at 365.** Previously an omitted
+  `ExpiresInDays` meant *never expires*. Tokens minted before this change keep
+  their null expiry and remain valid — **grandfathered, not retro-expired**;
+  silently killing every bridge in the field for a non-urgent hardening change
+  would be the wrong trade.
+- **Durable audit rows** for `pat_minted` and `pat_revoked`, plus
+  `pat_exchange_denied` **throttled to one row per token per day**. A revoked
+  token baked into a CI job retries every build; a row per attempt would make the
+  audit log an unbounded write amplifier driven by an unauthenticated caller.
+  Unknown hashes write nothing — attributing a row to a token that does not exist
+  would be an unauthenticated write primitive.
+- **Six new tests:** prefix-contains-no-secret, default 90-day expiry, expiry
+  bounds (0/-1/366/3650 rejected, 365 accepted), the 20-token cap *and* that
+  revoking frees exactly one slot, mint/revoke audit rows, and the throttled
+  denial burst.
+
+**Gate:** PAT suite **29 passed**; full suite shows **zero new failures and zero
+fixed versus `origin/main`** (66 unique pre-existing names, identical set).
+
+**Not delivered:** the **same-jti replay test**. That guard
+(`AuthController.cs:1009`) is a Redis `SET … When.NotExists` that **fails open**
+when Redis is unavailable, and the test host registers no Redis — so the test
+would pass or fail depending on whether a docker Redis happened to be running on
+the machine. A test whose result depends on ambient infrastructure is worse than
+no test. Recorded as ROADMAP DEP-6a.
+
 #### Completed (Phase 214 — reconcile converges; scope corrected)
 
 - **Equal timestamps are broken by content digest, not by "local".** Preferring
