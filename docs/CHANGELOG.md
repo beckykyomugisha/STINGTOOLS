@@ -2,6 +2,29 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 216 — stale cross-references swept)
+
+- **ROADMAP SB-4: "DONE Phase 203" → 204.** Checked against the CHANGELOG rather
+  than taking the correction on trust — Phase 203 is the Revision System
+  Alignment work; the drop-folder contract landed in Phase 204.
+- **ROADMAP SB-5** already read "engine DONE Phase 207" (corrected in Phase 214),
+  so nothing to do.
+- **CLAUDE.md StingBridge env table — three wrong defaults, not one.** Verified
+  each against `StingBridge/config.py` instead of only the one the review named:
+  - `STING_WRITE_BACK` documented `false`, actually **`true`** — `get_bool`
+    defaults to `"1"` (`config.py:137`), so write-back is **on** unless
+    explicitly disabled. The table advertised the opposite of the shipped
+    behaviour for the one setting that decides whether the tool modifies the
+    user's model.
+  - `STING_WATCH_INTERVAL` documented `30`, actually **`300`** (`config.py:167`)
+    — a 10× error, also present in the `watch` command description above the table.
+  - `STING_ARCHICAD_PORT` documented `19723`, actually **`0`** (`config.py:157`).
+    19723 is ArchiCAD's conventional port, not this tool's default.
+- **Two undocumented variables added:** `STING_VERIFY_WRITE_BACK` and
+  `STING_BUILDING_NAME`.
+
+**Gate:** `grep` confirms no stale reference remains for either named case.
+
 #### Completed (Phase 215 — PAT hardening)
 
 - **`TokenPrefix` no longer contains secret bytes.** It was `raw[..12]` — the
