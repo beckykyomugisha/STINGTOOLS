@@ -18,6 +18,11 @@
          concurrent-redemption race on (TenantId, Code). In-memory SQLite is a
          real relational provider and does enforce them. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
+    <!-- Real Postgres integration tests must SKIP (not silently pass, and not
+         fail) when no database is configured. xunit 2.x cannot skip from inside
+         a test without this. -->
+    <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />

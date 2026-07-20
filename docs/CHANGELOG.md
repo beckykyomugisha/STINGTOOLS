@@ -2,6 +2,60 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 220 — a real Postgres in the test suite, and a CI gate that means something)
+
+PR #441 fixed the non-composable-SQL 500. Nothing stopped the next one: no test
+touched `AllocateAsync`, every DbContext in the suite was InMemory or SQLite
+(neither emits the failing SQL), and the CI test step ran with
+`continue-on-error: true` behind a comment claiming "No tests yet" — while 423
+tests existed.
+
+- **`PostgresSequenceCounterTests`** — six tests against a real server: new key,
+  existing key advancing by `count`, `seedFloor` on first insert only, **8-way
+  concurrent allocation proving disjoint *and* gapless blocks**, key
+  independence, and that the row is actually committed rather than read back off
+  a tracked entity.
+- **They SKIP, never silently pass**, when `PLANSCAPE_TEST_PG` is unset
+  (`Xunit.SkippableFact`). Verified: **6 Skipped / 0 Passed**. A test that no-ops
+  when its dependency is missing reports safety it did not check — the exact
+  failure mode this round exists to correct.
+- **The fixture creates its own schema** when the target database is empty, so
+  the same tests run locally against docker and in CI against a fresh service
+  container. Verified against a genuinely empty database.
+- **CI made honest** (`.github/workflows/planscape-server.yml`): a `postgres:16`
+  service container, and the `continue-on-error` removed. Two gates:
+  1. the Postgres tests must be **100 % green** — new code, no legacy debt, so
+     that bar is meaningful;
+  2. the full suite fails only on **NEW** failures, diffed against a committed
+     `known-failing-tests.txt` by `tests/check-new-failures.sh`.
+
+  Gating on zero failures would make CI permanently red and therefore ignored —
+  which is precisely how it ended up disabled. Baseline entries are deleted as
+  they are fixed, and the check then guards the fix.
+
+**Two things the real server caught that no fake could:**
+- `SeqCounters.ProjectId` carries a **foreign key to `Projects`**. The first
+  draft allocated against fabricated GUIDs and failed with `23503`. EF InMemory
+  does not enforce foreign keys, so the same test would have passed there and
+  proved nothing. The tests now create a real tenant + project and remove them.
+- The bug-class proof below.
+
+**Gate — red-then-green, on real Postgres:**
+
+| `SequenceCounterService` | Result |
+|---|---|
+| as fixed in #441 (`ToListAsync`) | **6 passed** |
+| #441 reverted (`FirstAsync`) — temporarily, to prove it | **6 failed** |
+| no `PLANSCAPE_TEST_PG` | **6 skipped**, 0 passed |
+
+`check-new-failures.sh` verified both ways: clean run → "No new failures (66
+failing, all known)", exit 0; with an injected unknown failure → error listing
+it, exit 1.
+
+**Not verified: the CI leg itself.** GitHub Actions cannot be run from here. The
+workflow parses as YAML and each step was exercised locally by hand, but *"the
+job is green on GitHub"* is unproven — first push to `main` is the real test.
+
 #### Completed (Phase 219 — the Revit SEQ reservation claim was false; corrected)
 
 Phase 211 said "cross-host duplicate window closed in the plugin" and ROADMAP

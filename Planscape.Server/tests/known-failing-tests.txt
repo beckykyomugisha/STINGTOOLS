@@ -1,0 +1,91 @@
+# Known-failing tests — the CI baseline.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# The suite carries 66 uniquely-named pre-existing failures (73 cases, some
+# theories). Making CI red on all of them means CI is red always, which means
+# nobody reads it — that is why the test step used to run with
+# `continue-on-error: true` and a comment claiming "No tests yet".
+#
+# So CI fails on NEW failures only: any failing test whose name is not listed
+# here. Fixing one of these is welcome — delete its line in the same PR, and the
+# check then guards the fix from regressing.
+#
+# Regenerate with (from Planscape.Server/tests/Planscape.Tests):
+#   dotnet test --nologo -v q 2>&1 \
+#     | grep -o "Planscape\.Tests\.[A-Za-z0-9_.]*\ \[FAIL\]" \
+#     | sed 's/ \[FAIL\]//' | sort -u
+#
+# CAVEAT, honestly stated: a handful of these are order/parallelism dependent
+# (see ROADMAP DEP-7 — Program.cs reads the process-wide
+# Hangfire.JobStorage.Current during host build). A test that happened to pass
+# when this file was generated can fail in CI and be reported as "new". If that
+# happens, confirm it against main before treating it as a regression.
+#
+# Blank lines and lines starting with # are ignored.
+Planscape.Tests.AuthControllerTests.ActivateLicense_ValidKey_ReturnsSuccess
+Planscape.Tests.AuthControllerTests.HealthCheck_ReturnsHealthy
+Planscape.Tests.AuthControllerTests.RefreshToken_ValidToken_ReturnsNewTokens
+Planscape.Tests.AuthControllerTests.Register_NewOrg_Returns201WithToken
+Planscape.Tests.AuthHandlerConcurrentReadsTests.RevocationAndTenantOverride_LaunchInParallel
+Planscape.Tests.BimManagerOrAdminHandlerTests.BimManagerProjectMember_Grants
+Planscape.Tests.BimManagerOrAdminHandlerTests.InactiveProjectMember_Denies
+Planscape.Tests.BimManagerOrAdminHandlerTests.UnrelatedRole_Denies
+Planscape.Tests.BimManagerRoleConfigTests.AppUserIso19650Role_FollowsConfigList
+Planscape.Tests.BimManagerRoleConfigTests.AppUserIso19650Role_GrantsWithoutProjectMember
+Planscape.Tests.BimManagerRoleConfigTests.AppUserNotInTenant_DoesNotGrant
+Planscape.Tests.BimManagerRoleConfigTests.ConfigRoles_AreCaseInsensitive
+Planscape.Tests.BimManagerRoleConfigTests.ConfiguredRoles_NarrowingExcludesOldGrants
+Planscape.Tests.BimManagerRoleConfigTests.ConfiguredRoles_OverrideDefaultK
+Planscape.Tests.BimManagerRoleConfigTests.EmptyOrMalformedConfig_FallsBackToDefaultK
+Planscape.Tests.CoreApiTests.Compliance_History_ReturnsArray
+Planscape.Tests.CoreApiTests.Compliance_PushAndGetLatest
+Planscape.Tests.CoreApiTests.Compliance_Trend_ReturnsDailyData
+Planscape.Tests.CoreApiTests.Documents_CreateAndList
+Planscape.Tests.CoreApiTests.Documents_GetHistory
+Planscape.Tests.CoreApiTests.Documents_TransitionState_WipToShared
+Planscape.Tests.CoreApiTests.Issues_CreateAndList
+Planscape.Tests.CoreApiTests.Issues_SLAReport_ReturnsData
+Planscape.Tests.CoreApiTests.Issues_Update_ChangesStatus
+Planscape.Tests.CoreApiTests.Meetings_AddActionItem_AndGetOpen
+Planscape.Tests.CoreApiTests.Meetings_CreateAndList
+Planscape.Tests.CoreApiTests.Meetings_LogMinutes
+Planscape.Tests.CoreApiTests.Members_AddAndList
+Planscape.Tests.CoreApiTests.Members_GetRoles_ReturnsISO19650Roles
+Planscape.Tests.CoreApiTests.Members_InviteByEmail
+Planscape.Tests.CoreApiTests.Members_MemberRole_CannotAdd
+Planscape.Tests.CoreApiTests.Mim_BulkCreateAssets
+Planscape.Tests.CoreApiTests.Mim_CreateAssetAndList
+Planscape.Tests.CoreApiTests.Mim_CreateMaintenanceTask
+Planscape.Tests.CoreApiTests.Mim_Dashboard_ReturnsMetrics
+Planscape.Tests.CoreApiTests.SeqSync_SyncAndGet
+Planscape.Tests.CoreApiTests.TagSync_SyncElements
+Planscape.Tests.CoreApiTests.TenantIsolation_OtherTenantCannotSyncTags
+Planscape.Tests.CoreApiTests.Transmittals_CreateAndList
+Planscape.Tests.CoreApiTests.Transmittals_MarkSent
+Planscape.Tests.CoreApiTests.Warnings_PushReport
+Planscape.Tests.CoreApiTests.Warnings_SaveBaseline
+Planscape.Tests.CoreApiTests.Warnings_Trend_ReturnsData
+Planscape.Tests.CoreApiTests.Workflows_LogRunAndGetHistory
+Planscape.Tests.CoreApiTests.Workflows_Trend_ReturnsData
+Planscape.Tests.DeliverableStateMachineTests.LoadOrDefault_ExplicitRolesWinOverInference
+Planscape.Tests.PlatformKeywordTests.LoadOrDefault_PlatformAndProject_MergesWithProjectWinning
+Planscape.Tests.ProjectVisibilityTests.ListProjects_AsTenantAdmin_SeesAllTenantProjects
+Planscape.Tests.ProjectsControllerTests.CreateProject_DuplicateCode_Returns409
+Planscape.Tests.ProjectsControllerTests.CreateProject_Valid_ReturnsCreated
+Planscape.Tests.ProjectsControllerTests.GetDashboard_ValidProject_ReturnsDashboardData
+Planscape.Tests.ProjectsControllerTests.GetProjects_Authenticated_ReturnsProjectList
+Planscape.Tests.RevocationFloorHandlerTests.NoRevocationFloor_TokenWithoutIatStillGrants
+Planscape.Tests.RevocationFloorHandlerTests.TokenIssuedAfterRevocation_StillGrants
+Planscape.Tests.RoleExtensionTests.LoadOrDefault_TenantKeywordsCanOverrideCanonical
+Planscape.Tests.RoleInferenceTests.LoadOrDefault_ExplicitRolesStillWinOverFuzzyInference
+Planscape.Tests.SecurityCriticalPathTests.QuotaGuard_ProjectCap_AllowsBelowLimit
+Planscape.Tests.SecurityCriticalPathTests.QuotaGuard_ProjectCap_DeniesAtTrialLimit
+Planscape.Tests.SecurityCriticalPathTests.TenantQueryFilter_EmptyTenantId_ReturnsNoRows
+Planscape.Tests.TagSyncConflictTests.SyncElements_StaleUpdate_KeepsServerData_AndRecordsConflict
+Planscape.Tests.TenantBimManagerRoleOverrideTests.NullOverride_FallsBackToDeployment
+Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_AppliesToAppUserGrantPath
+Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_BroadensGrantBeyondDeployment
+Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_CaseInsensitive
+Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_NarrowsGrantBelowDeployment
+Planscape.Tests.TenantKeywordL2CacheTests.ResolveAsync_HitsL2OnSecondCall
