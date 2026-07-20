@@ -281,7 +281,8 @@ namespace StingTools.Core.Drawing
                     AnnotationOptions = opts.RunAnnotation
                         ? new AnnotationRunOptions { ViewScale = view.Scale }
                         : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true },
-                    SkipSymbolDriftCheck = true // batch producer — drift via standalone command
+                    SkipSymbolDriftCheck = true, // batch producer — drift via standalone command
+                    ContextScopeBox = ctx?.ScopeBox
                 };
                 var presResult = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
                 result.Warnings.AddRange(presResult.Warnings);
@@ -829,7 +830,18 @@ namespace StingTools.Core.Drawing
             string lvl = ctx?.Level?.Name ?? "";
             string room = "";
             try { room = ctx?.Room?.Id?.ToString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return $"{lvl}::{room}::{ctx?.Tag ?? ""}";
+
+            // P-6: the scope box is part of the context's identity. Without it,
+            // two scope boxes on the same level with no ctx.Tag produced the
+            // same key, so the second box matched the first box's view and
+            // silently produced nothing. Appended rather than inserted so
+            // existing per-level stamps (no scope box) keep their current key
+            // and stay idempotent across this change.
+            string sbox = "";
+            try { sbox = ctx?.ScopeBox?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"BuildContextTag scope box: {ex.Message}"); }
+
+            var tag = $"{lvl}::{room}::{ctx?.Tag ?? ""}";
+            return string.IsNullOrEmpty(sbox) ? tag : tag + "::" + sbox;
         }
 
         private static View FindExistingView(Document doc, string dtId, DrawingContext ctx, int ruleIdx)

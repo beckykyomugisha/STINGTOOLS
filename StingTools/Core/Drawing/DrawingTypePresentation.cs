@@ -208,6 +208,13 @@ namespace StingTools.Core.Drawing
             public bool DryRun { get; set; }
 
             /// <summary>
+            /// P-6: the scope box this view is being produced FOR, when the
+            /// caller has one. Passed through to DrawingCropApplier, where it
+            /// wins over the profile's static Crop.ScopeBoxName.
+            /// </summary>
+            public Element ContextScopeBox { get; set; }
+
+            /// <summary>
             /// Skip the per-view symbol-standard drift scan (step 8.5). That
             /// scan runs a FilteredElementCollector over the view's symbols on
             /// every Apply; in a batch of N views it fires N times and emits
@@ -536,7 +543,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt);
+                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt, options?.ContextScopeBox);
                     r.Warnings.AddRange(cropWarns);
                     r.CropApplied = true;
                 }

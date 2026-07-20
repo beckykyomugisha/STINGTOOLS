@@ -169,7 +169,10 @@ namespace StingTools.Commands.Drawing
 
                 var scopes = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
-                    .Where(e => (e.Name ?? "").StartsWith("STING::", StringComparison.Ordinal))
+                    // P-13c: OrdinalIgnoreCase to match ScopeBoxBinder's canonical filter.
+                    // Ordinal silently dropped a "sting::" box here while the
+                    // binder surfaced it as a fixable name warning.
+                    .Where(e => (e.Name ?? "").StartsWith("STING::", StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 if (scopes.Count == 0)
                 {

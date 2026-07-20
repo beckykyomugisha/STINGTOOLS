@@ -1523,6 +1523,7 @@ namespace StingTools.Core
                 case "Penetrations_DetectAndPlace":    return new Commands.Routing.PenetrationsDetectAndPlaceCommand();
                 case "Validation_PenetrationCoverage": return new Commands.Validation.PenetrationCoverageCommand();
                 case "DrawingTypes_FromScopeBoxes":    return new Commands.Drawing.GenerateFromScopeBoxesCommand();
+                case "DrawingTypes_SyncStyles":        return new Commands.Drawing.DrawingSyncStylesCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
                 case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();
