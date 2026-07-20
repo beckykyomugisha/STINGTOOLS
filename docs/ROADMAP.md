@@ -2,6 +2,18 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Drawings-production deep review (2026-07-20)
+
+Full-surface review of the Drawing Type engine, corporate catalogue, View Style Packs + AEC
+filters, title blocks, annotation/legends/match lines, sheet production pipeline, and command
+wiring: **~85 findings (5 Critical / 27 High)** with a prioritised P0–P2 remediation plan.
+See [`DRAWINGS_PRODUCTION_REVIEW.md`](DRAWINGS_PRODUCTION_REVIEW.md). Headlines: unbound JSON
+keys make most style-pack payload (incl. all 8 healthcare packs) runtime-dead; both
+`ResolveExtends` folds strip fields (managed-template mode unreachable); producer sheet key
+ignores level context (per-level batches stack onto one sheet); AnnotationRunner has no
+idempotency (re-runs duplicate every tag/dim); the corporate-lock checksum system is inert as
+shipped.
+
 ## Revision system — deferred items (Phase 199)
 
 Recorded while aligning the revision subsystem (see CHANGELOG Phase 199).
