@@ -123,6 +123,65 @@ Tick order matters: some steps set up state the next one depends on (noted inlin
   buckets) / routed export folders, and the legacy siblings are gone or empty. Confirm the
   activity log recorded the move.
 
+## J. Workflow instance hygiene (batch 3)
+
+- [ ] **J1.** Take a deliverable all the way to **Published**. Open
+  `<root>/_data/_BIM_COORD/workflow_state.json` and confirm there is exactly **one** instance for
+  that doc number, `closed: true`, with a single WIP→Shared→Published history. Then run another
+  lifecycle action on the same deliverable → confirm **no second instance appears** and the
+  deliverable's workflow fields still read the terminal state (they used to reset to WIP).
+- [ ] **J2.** Sign in as a role that is *not* permitted to Approve. From a WIP deliverable, run an
+  action that needs two hops (e.g. Publish). Confirm **nothing** moved — `workflow_state.json`
+  still shows the original state, no partial hop was written — and the denial names the required
+  roles. Confirm `audit_log_*.jsonl` carries one `wf.transition_denied` row.
+- [ ] **J3.** Rename an `allowed_roles` message wording in a workflow JSON is *not* needed any
+  more, but sanity-check the gate still bites: as an unpermitted role, confirm the block message
+  appears rather than the action silently succeeding.
+
+## K. Revision arithmetic (batch 4)
+
+- [ ] **K1.** A deliverable with an empty revision → issue it → revision reads **P01** (not P02).
+- [ ] **K2.** Take P01 through to Published → revision reads **C01**.
+- [ ] **K3.** Hand-edit a deliverable's revision to something unparseable (e.g. `REV-A`) in
+  `deliverables.json`, then re-issue → confirm the value is **left unchanged** (a `+1` suffix is
+  never written) and `StingTools.log` carries the "cannot increment revision" warning.
+- [ ] **K4.** Confirm each transition appended a `RevisionHistory` row. If the log shows
+  "no RevisionHistory list", the row schema needs fixing — the transition is otherwise silent.
+
+## L. Store ownership + Save As (batch 4)
+
+- [ ] **L1.** Put two *different* projects' `.rvt` files in one folder, each with its own legacy
+  `_BIM_COORD` sibling. Open project A → confirm a hidden `.sting_legacy_owner` appears naming
+  A's root. Open project B → confirm B **refuses** the merge (warning in `StingTools.log`) and
+  B's issues/register do **not** contain A's rows.
+- [ ] **L2.** Federated check: two models of the **same** project in one folder → both resolve to
+  the same root, both merge normally, no warning.
+- [ ] **L3.** **Save As** a project into a different folder, then create an issue and export the
+  register. Confirm both land under the **new** project root, not the original one.
+
+## M. Render naming + register fidelity (batches 3–4)
+
+- [ ] **M1.** A deliverable identified only by `Code` (no `DocNumber`) → render it → confirm the
+  output file is named with the Code, **not** `..._UNKNOWN_...`. Render a second such deliverable
+  the same day → confirm two distinct files (they used to overwrite each other).
+- [ ] **M2.** Set a deliverable's CDE to a non-canonical value (`ARCHIVED`, `Published`) →
+  transition it → confirm the render lands in the matching CDE container, **not** `20_MISC`, and
+  that the previous copy was purged.
+- [ ] **M3.** Open the Document Manager on a project with `_data/register.json` → confirm the
+  Status column shows the **description** (e.g. "Shared — suitable for information"), not the bare
+  code, and that File Format / Created By are populated.
+- [ ] **M4.** Temporarily rename `register.json` to make the merge yield nothing → confirm the
+  Document Manager **falls back** to `document_register.json` rather than showing an empty list.
+- [ ] **M5.** Put `=1+1` in a document title, export the unified register CSV, open it in Excel →
+  confirm the cell shows the literal text, not a computed value.
+
+## N. Replace (batch 4)
+
+- [ ] **N1.** Select ONE deliverable → run Replace → confirm it refuses and asks for two.
+- [ ] **N2.** Select two → confirm the first is marked `Replaced` with `SupersededBy` = the
+  second's number, and the second carries `Supersedes` = the first's. Neither should reference
+  itself.
+
 ## I. Regression gates (already green in CI, re-run if you touch the code)
 
 - [ ] **I1.** `pwsh tools/check_path_discipline.ps1` → "0 remaining" (no new `_BIM_COORD` siblings).
@@ -132,15 +191,19 @@ Tick order matters: some steps set up state the next one depends on (noted inlin
 
 ## Known-deferred (not in this branch — see docs/ROADMAP.md)
 
-- **Deliverable state machine end-to-end** (WP8) — `Transition` is role-safe but still only
-  reached by the transmittal flow; wiring `DeliverableLifecycle` Issue/Publish to it + the
-  Check→Review→Approve→Authorize gates is pending.
-- **Render→WIP loop** (WP8) — `TemplateEngine` still renders into `_data/_BIM_COORD/generated/`
-  rather than `<WIP>/<disc>/Documents/` with a register entry per file.
 - **BCC repoint** — the BIM Coordination Center stays deliverable-focused (its grid runs
   deliverable-lifecycle bulk actions that register-only rows must not be exposed to).
 - **Multi-model guid-sharing** — see the note in docs/ROADMAP.md: robust sharing already comes
   from the setup-file sibling scan + the ES stamp; a blanket guid auto-adopt would risk merging
   unrelated projects that happen to share a folder, so it needs a reliable grouping signal first.
-- **Clash-store read/writer mismatch** — `ClashManagerDialog` reads `_data/_BIM_COORD/clashes.json`
-  but the clash writers target the `20_MISC` export dir; both sides need aligning.
+  The `.sting_legacy_owner` claim added in batch 4 is the first half of the grouping signal this
+  would need.
+
+### Closed since this document was first written
+
+- ~~Deliverable state machine end-to-end~~ — `DeliverableLifecycle` now drives the role-gated
+  machine for every CDE-changing action (section **DL**, plus **J** for instance hygiene).
+- ~~Render→WIP loop~~ — `TemplateEngine.RenderToCde` renders into `<state>/<disc>/Documents/`,
+  registers the file, and purges the copy left in the previous state (sections **RC**, **M**).
+- ~~Clash-store read/writer mismatch~~ — one `ClashPersistence.CanonicalPath(doc)` now serves all
+  seven read/write sites.
