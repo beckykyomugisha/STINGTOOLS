@@ -163,8 +163,19 @@ native-wheel packaging entirely.
 - **1.4.2 Reconciliation engine** in core: diff remote vs local, resolve by
   **last-writer-wins on `LastModifiedUtc`** (the server already enforces stale-write
   protection — reuse that contract). Emits `apply_remote_change` deltas the adapter executes.
+  > **DONE (Phase 207, corrected Phase 214) — TAG SLICE ONLY.** `ReconcileEngine` implements
+  > all six rules for `kind="tag"` deltas. Equal timestamps are broken by **content digest**
+  > (Phase 214); the original "ties go to local" was deterministic per host but left two
+  > hosts each keeping their own value forever. **Two documented limitations:** rows whose
+  > `LastModifiedUtc` is null are excluded from the feed entirely, so pre-existing elements
+  > are invisible until something touches them (a backfill may be needed); and there are
+  > **no delete tombstones** — an element deleted in one host is never removed in another.
 - **1.4.3 Conflict policy** written once: simultaneous edits to the same GlobalId default to
   LWW and **surface the loser as a Planscape issue** rather than silently clobbering.
+  > **NOT IMPLEMENTED.** Phase 207 shipped the LWW half and an `on_conflict` callback that
+  > *reports* every conflict; **nothing consumes it**, so no Planscape issue is raised. The
+  > feed also carries `kind="tag"` only — the issue / BCF / clash payloads §1.4.1 calls for
+  > are not implemented. The seams (`kind`, `on_conflict`) exist; the wiring does not.
 - **1.4.4 Client-side chunking** on push (large models → batched POSTs, not one multi-MB body).
 - **1.4.5 GlobalId stability fixture** (standing CI test): one element, Revit→IFC→Bonsai,
   assert identical GUID. This is the linchpin of *every* cross-host join and *every*

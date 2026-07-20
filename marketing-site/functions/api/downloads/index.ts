@@ -11,7 +11,11 @@ import { handlePreflight } from "../auth/_lib/cors";
 import { requireAuth } from "../auth/_lib/auth";
 import { unauthorized } from "../auth/_lib/errors";
 import { getTenantById } from "../auth/_lib/db";
-import { DOWNLOAD_CATALOG, entitlementFor } from "../_lib/downloads/catalog";
+import {
+  DOWNLOAD_CATALOG,
+  entitlementFor,
+  resolveArtifacts,
+} from "../_lib/downloads/catalog";
 
 export const onRequestOptions: PagesFunction = async ({ request }) =>
   handlePreflight(request);
@@ -39,19 +43,34 @@ export const onRequestGet = withHandler(async ({ request, env }) => {
       // tenant still sees the catalogue — they just don't get the link.
       versions:
         entitlement === "allowed"
-          ? tool.versions.map((v) => ({
-              version: v.version,
-              hosts: v.hosts ?? null,
-              sizeMb: v.sizeMb ?? null,
-              releasedAt: v.releasedAt ?? null,
-              notes: v.notes ?? null,
-              // Point at our own gated endpoint, never at R2 directly. The
-              // bucket is private; this URL re-checks entitlement per request.
-              downloadUrl: v.objectKey
-                ? `/api/downloads/${tool.id}/${encodeURIComponent(v.version)}`
-                : null,
-              sha256: v.sha256 ?? null,
-            }))
+          ? tool.versions.map((v) => {
+              const base = `/api/downloads/${tool.id}/${encodeURIComponent(v.version)}`;
+              const artifacts = resolveArtifacts(v).map((a) => ({
+                label: a.label || null,
+                platform: a.platform ?? null,
+                sizeMb: a.sizeMb ?? null,
+                sha256: a.sha256 ?? null,
+                // Point at our own gated endpoint, never at R2 directly. The
+                // bucket is private; this URL re-checks entitlement per
+                // request. The label selects the file for multi-artifact
+                // versions; a single-file version needs no selector.
+                downloadUrl: a.label
+                  ? `${base}?artifact=${encodeURIComponent(a.label)}`
+                  : base,
+              }));
+              return {
+                version: v.version,
+                hosts: v.hosts ?? null,
+                sizeMb: v.sizeMb ?? null,
+                releasedAt: v.releasedAt ?? null,
+                notes: v.notes ?? null,
+                artifacts,
+                // Legacy single-file fields, kept so a cached copy of the page
+                // keeps working across the deploy that introduces artifacts.
+                downloadUrl: v.objectKey ? base : null,
+                sha256: v.sha256 ?? null,
+              };
+            })
           : [],
     };
   });

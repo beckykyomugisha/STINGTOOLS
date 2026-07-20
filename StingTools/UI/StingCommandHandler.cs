@@ -1424,6 +1424,8 @@ namespace StingTools.UI
                     case "BOQ_PushSnapshot":    RunCommand<BIMManager.PushBoqSnapshotCommand>(app); break;
                     case "Cost_FileBrowser":    RunCommand<BIMManager.CostFileBrowserCommand>(app); break;
                     case "Revision_CloudAudit": RunCommand<BIMManager.RevisionCloudAuditCommand>(app); break;
+                    case "Revision_Purge":      RunCommand<BIMManager.RevisionPurgeCommand>(app); break;
+                    case "Revision_Delete":     RunCommand<BIMManager.RevisionDeleteCommand>(app); break;
                     // V6 next-gen → BIM tab
                     case "Labour_Apply":        RunCommand<V6.ApplyLabourHoursCommand>(app); break;
                     case "Labour_Export":       RunCommand<V6.ExportLabourHoursCommand>(app); break;

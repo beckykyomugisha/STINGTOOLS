@@ -367,7 +367,9 @@ namespace StingTools.Core
             "AuditTagsCSV", "ModelHealthDashboard", "FullComplianceDashboard", "ExportModelHealth",
             "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
             "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
-            "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp",
+            "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp", "RevisionSync",
+            "RevisionApprovalWorkflow", "RevisionDistribution", "Revision_CloudAudit", "Revision_Purge",
+            "Revision_Delete",
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
@@ -1787,6 +1789,12 @@ namespace StingTools.Core
                 case "RevisionCompare":         return new BIMManager.RevisionCompareCommand();
                 case "TrackElementRevisions":   return new BIMManager.TrackElementRevisionsCommand();
                 case "IssueSheetsForRevision":  return new BIMManager.IssueSheetsForRevisionCommand();
+                case "RevisionSync":            return new Docs.RevisionSyncCommand();
+                case "RevisionApprovalWorkflow": return new BIMManager.RevisionApprovalWorkflowCommand();
+                case "RevisionDistribution":    return new BIMManager.RevisionDistributionCommand();
+                case "Revision_CloudAudit":     return new BIMManager.RevisionCloudAuditCommand();
+                case "Revision_Purge":          return new BIMManager.RevisionPurgeCommand();
+                case "Revision_Delete":         return new BIMManager.RevisionDeleteCommand();
                 case "RevisionNamingEnforce":   return new BIMManager.RevisionNamingEnforceCommand();
                 case "BulkRevisionStamp":       return new BIMManager.BulkRevisionStampCommand();
                 case "PlatformSync":            return new BIMManager.PlatformSyncCommand();

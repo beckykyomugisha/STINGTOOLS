@@ -1116,7 +1116,37 @@ app.UseSerilogRequestLogging();
 // MON-02: request/response metrics (latency histogram, status codes, in-flight).
 // Exposed at /metrics in Prometheus exposition format. Scrape once per 15-30s.
 app.UseHttpMetrics();
-app.UseRateLimiter();
+// Rate limiting is ON by default and must stay on in every real deployment —
+// the "auth" policy (5 attempts / 5 min per IP) is what defeats credential
+// stuffing. The seam exists for the integration-test host only: xunit runs test
+// classes in parallel from a single loopback IP, so the whole suite shares ONE
+// 5-request bucket and unrelated tests fail with 429. The [EnableRateLimiting]
+// attributes are inert without this middleware, so skipping it here is
+// sufficient; the policies stay registered in DI either way.
+//
+// The opt-out is gated on the environment as well as the flag. A single config
+// key — one stray RateLimiting__Enabled=false in an env group, one copied
+// appsettings block — must not be able to switch off credential-stuffing
+// protection in production. Config alone is not enough evidence of intent for a
+// control this load-bearing.
+var rateLimitingEnabled =
+    builder.Configuration.GetValue("RateLimiting:Enabled", true)
+    || app.Environment.IsProduction();
+
+if (rateLimitingEnabled)
+{
+    if (!builder.Configuration.GetValue("RateLimiting:Enabled", true))
+    {
+        Console.WriteLine(
+            "[rate-limit] RateLimiting:Enabled=false IGNORED — the environment is "
+          + "Production and the auth limiter is not optional there.");
+    }
+    app.UseRateLimiter();
+}
+else
+{
+    Console.WriteLine("[rate-limit] DISABLED via RateLimiting:Enabled=false — test hosts only.");
+}
 app.UseCors("Dashboard");
 app.UseCors("Mobile");
 // S3.8 — rewrite /api/v1/* → /api/* before routing so existing
@@ -1159,10 +1189,19 @@ app.UseMiddleware<MobileContextMiddleware>();
 app.UseMiddleware<LocaleMiddleware>();           // FLEX-15 — resolves language after tenant is known
 app.UseAuthorization();
 
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+// Mount the dashboard only when Hangfire is actually registered. In every real
+// deployment it is, so this is a no-op there. It matters for integration tests:
+// PlanscapeWebApplicationFactory strips all Hangfire descriptors (they require
+// PostgreSQL) and this call then threw "Unable to find the required services",
+// taking down the whole WebApplicationFactory-based suite before a single test
+// ran. Probing the service instead of assuming it keeps that decision in one place.
+if (app.Services.GetService<Hangfire.JobStorage>() != null)
 {
-    Authorization = new[] { new Planscape.Infrastructure.Services.HangfireAuthorizationFilter() }
-});
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new Planscape.Infrastructure.Services.HangfireAuthorizationFilter() }
+    });
+}
 
 // MON-03: /metrics endpoint for Prometheus / Grafana Agent / Datadog / NewRelic.
 // Unauthenticated so scrapers can collect without a JWT, but restrict network-side
@@ -1329,7 +1368,18 @@ app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
             Environment.GetEnvironmentVariable("PLANSCAPE_USE_ENSURE_CREATED"),
             "true", StringComparison.OrdinalIgnoreCase);
 
-    if (useEnsureCreated)
+    // Everything below is relational: raw information_schema probes, ADD COLUMN
+    // IF NOT EXISTS patchers, and the drift checker. Under the EF InMemory
+    // provider (integration tests) GetDbConnection() throws "Relational-specific
+    // methods can only be used when the context is using a relational database
+    // provider", which killed the WebApplicationFactory suite at startup. Tests
+    // build their schema with EnsureCreated + their own seed, so skipping is
+    // correct there; no real deployment uses a non-relational provider.
+    if (!db.Database.IsRelational())
+    {
+        Console.WriteLine("[schema] non-relational provider — skipping schema materialisation/patchers.");
+    }
+    else if (useEnsureCreated)
     {
         // EnsureCreated() short-circuits if the *database* exists, and the
         // built-in HasTables() returns true even for non-app tables like
@@ -1366,6 +1416,8 @@ app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
     //     vintage hit the same gap.
     // 'ADD COLUMN IF NOT EXISTS' is a no-op when the column already
     // exists, so running it on a healthy DB costs nothing.
+    // (Skipped entirely on a non-relational provider — see the guard above.)
+    if (db.Database.IsRelational())
     {
         var patchConn = db.Database.GetDbConnection();
         if (patchConn.State != System.Data.ConnectionState.Open)

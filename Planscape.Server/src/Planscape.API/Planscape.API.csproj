@@ -8,6 +8,13 @@
     <NoWarn>1591;NU1902</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Lets Planscape.Tests call internal members directly. Used by
+         HandoffProvisioningSqliteTests to exercise the real
+         EnsureStarterProjectAsync instead of a copy of its logic. -->
+    <InternalsVisibleTo Include="Planscape.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
     <!-- SignalR is built into ASP.NET Core 8 — no separate package needed -->

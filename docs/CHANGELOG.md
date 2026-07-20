@@ -1,4 +1,3 @@
-StructuralAnalysisEngine general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit.
 # CHANGELOG — STINGTOOLS
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
@@ -108,6 +107,1241 @@ null-hardened. These were verified and left alone rather than "re-fixed" — see
 (CDE-first tree + ES root identity), WP10 (HTTP/storage hygiene), the WP7 `Run<T>`
 extraction, and the 183 unreachable panel tags — all logged in
 [`ROADMAP.md`](ROADMAP.md).
+
+#### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
+
+- **`HandoffProvisioningSqliteTests` calls the real method.** It previously
+  re-implemented the detach loop inline and asserted *the copy* behaved — a
+  regression in `AuthController.EnsureStarterProjectAsync`'s catch block would
+  have kept it green. `EnsureStarterProjectAsync` is now `internal` with
+  `InternalsVisibleTo("Planscape.Tests")` on `Planscape.API`, and the tests
+  invoke it directly.
+- **The race is reproduced deterministically.** A `SaveChangesInterceptor`
+  commits the conflicting `PRJ-001` row from a **separate connection** the
+  instant before the context under test saves — exactly what a double-click on
+  "open in app" does — rather than hoping two threads interleave.
+- **No `WebApplicationFactory` involved.** The controller is constructed
+  directly; only `_db` and `_logger` are touched by the method under test. That
+  sidesteps both the SQLite-vs-`information_schema` startup problem and the
+  process-wide Hangfire teardown that makes extra factories unreliable here
+  (ROADMAP DEP-7).
+- Four tests: the unique index really rejects the duplicate (guarding the rest
+  from going vacuous); losing the race leaves the tracker clean **and a
+  subsequent unrelated save succeeds** (the property users feel); two redemptions
+  with one losing the race yield **one project and two usable sessions**; and a
+  clean run is idempotent.
+
+**Gate — red-then-green against the REAL catch block:**
+
+| `EnsureStarterProjectAsync` | Result |
+|---|---|
+| as fixed in #436 | **4 passed** |
+| detach loop deleted — temporarily, to prove it | **2 failed** (both race tests) |
+
+Full suite **367 passed / 73 failed**, and `check-new-failures.sh` reports **no
+new failures** against the committed baseline.
+
+**Closeout notes (F6), folded in.** `guides/stingbridge-setup.html` gains a
+**PAT advisory**: tokens minted before 20 July 2026 carry the first seven
+characters *of the token* in their unhashed display prefix, so they were visible
+to anyone who could read the token list or the database. No misuse is known and
+seven characters is far from guessable, but the guide now says plainly: list,
+re-mint, update config, revoke the old one. Tokens minted since use a random
+prefix. Also documents the **behaviour change** from Phase 215 — `ExpiresInDays`
+of 0, negative, or >365 is now rejected, an omitted value defaults to **90 days**
+where it previously meant *never expires*, and pre-existing null-expiry tokens
+are grandfathered. The guide's stale `Last updated / v0.1.0-beta.1` line is
+corrected to beta.3.
+
+**Not delivered: the rate-limiter Production-gate test.** I got a
+Production-environment host building — `UseSetting("environment", "Production")`;
+`UseEnvironment` after the base factory does not stick — and **confirmed the gate
+fires**, with startup printing:
+
+> `[rate-limit] RateLimiting:Enabled=false IGNORED - the environment is Production and the auth limiter is not optional there.`
+
+The remaining leg, asserting an actual **429**, could not be landed: the `auth`
+policy is a **Redis-backed** sliding window (`Program.cs:816`) and does not trip
+in the in-process test host even with the docker Redis reachable on the default
+`localhost:6379`. Asserting on a console line is too brittle to keep, so **no
+test shipped** — the gate is **verified by review only**, recorded as ROADMAP
+**DEP-6b** with the two ways to close it. Stating it here rather than leaving the
+absence silent.
+
+#### Completed (Phase 221 — status now survives a round trip; and the IFC adapter was blanking tags)
+
+Phase 214 added `status` to `TOKEN_KEYS` so status-only remote edits stop being
+dropped. **No real adapter persisted it**, so once SB-5a wires the pull loop the
+same delta would re-apply on every pull, forever. The existing test passed
+because it ran against a fake adapter that records what it was asked to do.
+
+**Option A taken** — persist status end-to-end, rather than removing it from
+`TOKEN_KEYS`. Status is real ISO 19650 data the feed already carries
+(`ChangesController.cs:108`); dropping it to silence the churn would have thrown
+away the feature to fix the symptom.
+
+- **`IfcFileHostAdapter` persists status** in `Pset_StingTags.Status` —
+  *alongside* the tag, never inside `Tag`. `Tag` is a strict eight-segment
+  grammar; a ninth field would corrupt every rendered tag string.
+- **New `read_tokens()`** returns exactly the `TOKEN_KEYS`-shaped dict a caller
+  needs for `local_index`, so the SB-5a wiring cannot forget `status` and
+  reintroduce this.
+- **`ArchiCadHostAdapter` likewise.** `PropertyWriter._TOKEN_PROPS` already
+  mapped `status` → `ASS_STATUS_TXT`; the adapter simply never supplied it.
+  `write_tag` takes an optional `status` (empty values are skipped by the
+  writer, so existing callers are unaffected).
+
+**A bigger bug fell out of writing the test with the real wire shape.**
+`IfcFileHostAdapter.apply_remote_change` fed `delta.payload` straight into
+`Tag.from_pset`. The feed sends **short lower-case** keys
+(`disc, loc, zone, lvl, …` — `ChangesController.cs:105-108`); `from_pset` looks
+up **long capitalised** ones (`Discipline`, `Location`, …). Every lookup missed,
+so applying a real feed delta wrote **eight `XX` UNKNOWN sentinels** — it did not
+merely lose status, it **blanked the tag**. Latent only because nothing wires the
+pull loop yet. Fixed with an explicit feed→Tag map that still tolerates the pset
+vocabulary. (`ArchiCadHostAdapter` already read the feed keys correctly, which is
+why this was IFC-only.)
+
+**Gate — convergence through a REAL adapter over a real in-memory IFC model:**
+apply a status-only remote change, **re-read local state from the file**, run
+reconcile again → second pass is a no-op (`applied == 0`, `skipped_equal == 1`).
+
+| Against | Result |
+|---|---|
+| `main` | **3 failed** — the convergence test dies at `assert 'XX' == 'M'`, i.e. the tag-blanking bug |
+| this branch | **3 passed**; `stingtools-core` **96 passed**, StingBridge **126 passed** |
+
+The test reads the pset back with plain `ifcopenshell` rather than the new
+`read_tokens` helper — otherwise it could not run against the old code, and the
+red-then-green claim would be unfalsifiable.
+
+**Not verified:** the ArchiCAD leg. Exercising it needs a licensed ArchiCAD
+(ROADMAP SB-1); the change is a pass-through into a mapping that already existed,
+and the bridge suite is green, but no live write was performed.
+
+#### Completed (Phase 220 — a real Postgres in the test suite, and a CI gate that means something)
+
+PR #441 fixed the non-composable-SQL 500. Nothing stopped the next one: no test
+touched `AllocateAsync`, every DbContext in the suite was InMemory or SQLite
+(neither emits the failing SQL), and the CI test step ran with
+`continue-on-error: true` behind a comment claiming "No tests yet" — while 423
+tests existed.
+
+- **`PostgresSequenceCounterTests`** — six tests against a real server: new key,
+  existing key advancing by `count`, `seedFloor` on first insert only, **8-way
+  concurrent allocation proving disjoint *and* gapless blocks**, key
+  independence, and that the row is actually committed rather than read back off
+  a tracked entity.
+- **They SKIP, never silently pass**, when `PLANSCAPE_TEST_PG` is unset
+  (`Xunit.SkippableFact`). Verified: **6 Skipped / 0 Passed**. A test that no-ops
+  when its dependency is missing reports safety it did not check — the exact
+  failure mode this round exists to correct.
+- **The fixture creates its own schema** when the target database is empty, so
+  the same tests run locally against docker and in CI against a fresh service
+  container. Verified against a genuinely empty database.
+- **CI made honest** (`.github/workflows/planscape-server.yml`): a `postgres:16`
+  service container, and the `continue-on-error` removed. Two gates:
+  1. the Postgres tests must be **100 % green** — new code, no legacy debt, so
+     that bar is meaningful;
+  2. the full suite fails only on **NEW** failures, diffed against a committed
+     `known-failing-tests.txt` by `tests/check-new-failures.sh`.
+
+  Gating on zero failures would make CI permanently red and therefore ignored —
+  which is precisely how it ended up disabled. Baseline entries are deleted as
+  they are fixed, and the check then guards the fix.
+
+**Two things the real server caught that no fake could:**
+- `SeqCounters.ProjectId` carries a **foreign key to `Projects`**. The first
+  draft allocated against fabricated GUIDs and failed with `23503`. EF InMemory
+  does not enforce foreign keys, so the same test would have passed there and
+  proved nothing. The tests now create a real tenant + project and remove them.
+- The bug-class proof below.
+
+**Gate — red-then-green, on real Postgres:**
+
+| `SequenceCounterService` | Result |
+|---|---|
+| as fixed in #441 (`ToListAsync`) | **6 passed** |
+| #441 reverted (`FirstAsync`) — temporarily, to prove it | **6 failed** |
+| no `PLANSCAPE_TEST_PG` | **6 skipped**, 0 passed |
+
+`check-new-failures.sh` verified both ways: clean run → "No new failures (66
+failing, all known)", exit 0; with an injected unknown failure → error listing
+it, exit 1.
+
+**Not verified: the CI leg itself.** GitHub Actions cannot be run from here. The
+workflow parses as YAML and each step was exercised locally by hand, but *"the
+job is green on GitHub"* is unproven — first push to `main` is the real test.
+
+#### Completed (Phase 219 — the Revit SEQ reservation claim was false; corrected)
+
+Phase 211 said "cross-host duplicate window closed in the plugin" and ROADMAP
+SB-2 said the plugin "now reserves server-side blocks". Neither was true of the
+shipped code.
+
+**Verified against source, not taken on trust:**
+- `PlanscapeServerClient.ReserveSeqBlocksAsync`
+  (`StingTools/BIMManager/PlanscapeServerClient.cs:691`) has **zero callers** —
+  the only other mention in the tree is a doc-comment pointing at it.
+- `SeqAssigner.AssignNext` has exactly **one** call site,
+  `TagConfig.BuildAndWriteTag` (`StingTools/Core/TagConfig.cs:2317`), and it does
+  **not** pass the optional `reservation`, so it is `null` and allocation is
+  purely local.
+
+So the mechanism is dead code with unit tests. **The online cross-host duplicate
+window for Revit remains OPEN** — Revit and StingBridge can still mint the same
+number on the same key concurrently. Both documents now say so, and
+**ROADMAP SB-2b** records the two exact wiring points plus why the wiring waits:
+it is the hot path for every tag the plugin writes, a mistake renumbers a live
+model, and it needs in-Revit runtime verification that a clean compile and unit
+tests do not substitute for.
+
+**Not wired in this phase, deliberately** — the round scoped this as a
+documentation correction.
+
+**Gate:** `grep` finds no surviving "closed"/"now reserves" claim (the only
+matches are the correction notes themselves); SB-2b exists.
+
+#### Completed (Phase 218 — the EXE build is now a committed, reproducible definition)
+
+The beta.3 packaging fix existed only as a sentence in this file. No spec, no
+script, no CI step — so the next release would have regressed it silently, and
+silently in the worst way: the smoke test everyone runs first (process a fresh
+IFC) passes.
+
+- **`StingBridge/StingBridge.spec`** now encodes the build. The load-bearing
+  line is `collect_data_files("ifcopenshell")`: ifcopenshell opens JSON schema
+  tables by path at runtime and PyInstaller's module graph cannot see them.
+- **`StingBridge/_pyinstaller_entry.py`** — the frozen equivalent of the
+  `stingbridge` console script. Freezing `bridge.py` directly makes it
+  `__main__` with no package context and its relative imports die at startup.
+  The beta.3 build used an equivalent shim that was **never committed**, which
+  is the other half of why that build was not reproducible. Found by building
+  from the spec rather than assuming it worked.
+- **`StingBridge/BUILD.md`** — both artifacts, both traps, and the two-pass
+  smoke test that a single fresh-IFC run does not substitute for.
+- **`requirements.txt` corrected.** The review flagged line 21 as asserting the
+  wrong thing; on reading it, that line is about `stingtools_core` — pure Python,
+  where the claim is true. The real gap was that **nothing warned about
+  ifcopenshell at all**. Added that warning at the pin, and qualified line 21
+  (including that `stingtools-core` must be installed non-editable, or the EXE
+  dies with `ModuleNotFoundError`).
+
+**Gate — built from the committed spec in a clean venv, then run against a live
+API build on the docker Postgres:**
+
+| Build | run 1 (fresh IFC) | run 2 (re-drop of `_sting.ifc`) |
+|---|---|---|
+| with `collect_data_files` | `errors: 0`, 3 SEQ minted | **`errors: 0`, no minting, SEQ unchanged** |
+| line removed (temporarily, to prove it) | `errors: 0` | **`errors: 1`** — `No such file … entity_to_type_map_2x3.json` |
+
+The red-then-green pair is the point: the failure is invisible to run 1.
+
+**No re-release.** beta.3 in R2 stands as shipped — the EXE already in the bucket
+was built with these flags; this phase makes that repeatable, not different.
+
+#### Completed (Phase 217 — StingBridge 0.1.0-beta.3 released)
+
+Ships the two fixes that bit real drop-folder users in beta.2: the SEQ re-mint
+(Phase 211) and the stranded GLB (Phase 213). **Live on planscape.build/downloads**
+alongside beta.2 and beta.1, both of which stay listed.
+
+- **`__version__` → `0.1.0b3`**; both wheels rebuilt on Python 3.13.
+- **Two artifacts, layout diffed against beta.2 pulled out of R2** rather than
+  assumed: `win64` one-file PyInstaller EXE — 55 MB, sha256 `e0d0fa8c…`; `any`
+  wheels zip with the `run.bat`/`run.sh` launchers — 1 MB, sha256 `dfa645b7…`.
+  Both carry `LICENSE.txt` + `QUICKSTART.md`.
+
+**Two real bugs were found by smoke-testing, both invisible to every test suite:**
+
+- **`ISequenceCounterService` 500s on Postgres.** `SqlQueryRaw(...).FirstAsync()`
+  composes a `SELECT … LIMIT 1` over non-composable `INSERT … ON CONFLICT …
+  RETURNING`, which Npgsql rejects at execution time. `/seq/reserve` returned
+  **HTTP 500** and the bridge degraded to 7-segment tags. The whole 423-test
+  server suite is green with this bug present, because EF InMemory never
+  generates the SQL. Phase 211 routed `/seq/reserve` through this method, so the
+  regression is mine; `TransmittalsController` allocates the same way, so
+  transmittal numbering was affected too. Fixed with `ToListAsync` + `First()`.
+- **The PyInstaller EXE was missing `ifcopenshell`'s data files.** The pset
+  *update* path needs `entity_to_type_map_2x3.json`, which only executes on a
+  **re-drop** — so the first run looked perfect and the second failed write-back.
+  Precisely the case beta.3 exists to fix, and the first build of it shipped
+  broken. Rebuilt with `--collect-data ifcopenshell`.
+
+**Smoke-tested from clean installs against a real API build** wired to the docker
+Postgres. EXE: `--version` → `0.1.0b3`, `--help` renders, `process-ifc` → 3
+elements, **3 SEQ minted**, 3 synced, 0 errors. `any` zip: `run.bat` built its
+venv from the bundled wheels on first run and completed the same E2E.
+
+**Re-drop idempotency verified end-to-end** — the regression this release exists
+for. Processing the written-back IFC again: **no SEQ minted, 0 errors, and the
+sequence numbers unchanged (`0019/0020/0021` both runs)**. On beta.2 this
+re-mints every time.
+
+**Verified live:** both R2 objects **re-downloaded and their sha256 confirmed to
+match the catalogue**; unauthenticated `GET /api/downloads/sting-bridge/0.1.0-beta.3?artifact=…`
+returns **401** for both artifacts; `/downloads` returns 200; the setup guide
+resolves 200.
+
+**Not verified:** that the live *page* renders the beta.3 row — `/api/downloads`
+needs a subscriber session, and the gated endpoint 401s before consulting the
+catalogue, so a 401 proves gating, not catalogue presence. What is established is
+that the objects exist with the right hashes and the deploy succeeded with
+beta.3 in `catalog.ts`. One signed-in page load would close it; that is an owner
+action.
+
+#### Completed (Phase 216 — stale cross-references swept)
+
+- **ROADMAP SB-4: "DONE Phase 203" → 204.** Checked against the CHANGELOG rather
+  than taking the correction on trust — Phase 203 is the Revision System
+  Alignment work; the drop-folder contract landed in Phase 204.
+- **ROADMAP SB-5** already read "engine DONE Phase 207" (corrected in Phase 214),
+  so nothing to do.
+- **CLAUDE.md StingBridge env table — three wrong defaults, not one.** Verified
+  each against `StingBridge/config.py` instead of only the one the review named:
+  - `STING_WRITE_BACK` documented `false`, actually **`true`** — `get_bool`
+    defaults to `"1"` (`config.py:137`), so write-back is **on** unless
+    explicitly disabled. The table advertised the opposite of the shipped
+    behaviour for the one setting that decides whether the tool modifies the
+    user's model.
+  - `STING_WATCH_INTERVAL` documented `30`, actually **`300`** (`config.py:167`)
+    — a 10× error, also present in the `watch` command description above the table.
+  - `STING_ARCHICAD_PORT` documented `19723`, actually **`0`** (`config.py:157`).
+    19723 is ArchiCAD's conventional port, not this tool's default.
+- **Two undocumented variables added:** `STING_VERIFY_WRITE_BACK` and
+  `STING_BUILDING_NAME`.
+
+**Gate:** `grep` confirms no stale reference remains for either named case.
+
+#### Completed (Phase 215 — PAT hardening)
+
+- **`TokenPrefix` no longer contains secret bytes.** It was `raw[..12]` — the
+  `psat_` marker plus the **first seven characters of the secret** — stored in
+  the clear and returned by `GET /api/auth/tokens`. That leaks part of the
+  credential to exactly the audience hashing-at-rest defends against. It is now
+  an independent random slug. **Existing rows keep working and are not
+  migrated:** the column is display-only and never used for lookup or
+  verification (matching is always by hash), so old prefixes remain valid
+  identifiers — they simply keep their historical leak, which cannot be undone
+  without invalidating live tokens.
+- **The rate-limiter opt-out is gated on the environment.** `RateLimiting:Enabled=false`
+  is now ignored when `IsProduction()`, and says so on stdout. One stray env-group
+  key must not be able to switch off credential-stuffing protection in production.
+- **PAT expiry defaults to 90 days and is capped at 365.** Previously an omitted
+  `ExpiresInDays` meant *never expires*. Tokens minted before this change keep
+  their null expiry and remain valid — **grandfathered, not retro-expired**;
+  silently killing every bridge in the field for a non-urgent hardening change
+  would be the wrong trade.
+- **Durable audit rows** for `pat_minted` and `pat_revoked`, plus
+  `pat_exchange_denied` **throttled to one row per token per day**. A revoked
+  token baked into a CI job retries every build; a row per attempt would make the
+  audit log an unbounded write amplifier driven by an unauthenticated caller.
+  Unknown hashes write nothing — attributing a row to a token that does not exist
+  would be an unauthenticated write primitive.
+- **Six new tests:** prefix-contains-no-secret, default 90-day expiry, expiry
+  bounds (0/-1/366/3650 rejected, 365 accepted), the 20-token cap *and* that
+  revoking frees exactly one slot, mint/revoke audit rows, and the throttled
+  denial burst.
+
+**Gate:** PAT suite **29 passed**; full suite shows **zero new failures and zero
+fixed versus `origin/main`** (66 unique pre-existing names, identical set).
+
+**Not delivered:** the **same-jti replay test**. That guard
+(`AuthController.cs:1009`) is a Redis `SET … When.NotExists` that **fails open**
+when Redis is unavailable, and the test host registers no Redis — so the test
+would pass or fail depending on whether a docker Redis happened to be running on
+the machine. A test whose result depends on ambient infrastructure is worse than
+no test. Recorded as ROADMAP DEP-6a.
+
+#### Completed (Phase 214 — reconcile converges; scope corrected)
+
+- **Equal timestamps are broken by content digest, not by "local".** Preferring
+  local reads as the safe choice and is the one rule that **cannot converge**:
+  run the same reconcile on both hosts and each keeps its own value forever, with
+  no later edit to break the tie. `token_digest()` is a pure function of the token
+  payload, so both hosts compute the *same* winner from the same pair and agree on
+  the first pass. Still reported as a conflict.
+- **The old test could never have caught this.**
+  `test_tie_resolution_is_deterministic` re-ran the *same* side five times and
+  asserted it kept saying "local" — one host agreeing with itself, which the
+  broken rule satisfies perfectly. Replaced with
+  `test_tie_converges_when_run_from_BOTH_perspectives`: host A holds X and
+  receives Y, host B holds Y and receives X, and both must finish holding the
+  same thing. **Confirmed it fails on the old rule** (`{'seq': '0001'} !=
+  {'seq': '0009'}`). Stability across repeated runs is kept as a separate,
+  honestly-named test.
+- **`status` added to `TOKEN_KEYS`.** The feed already carries it
+  (`ChangesController.cs:108`), but excluding it meant a status-only remote
+  change — WIP → Shared with no tag edit — compared equal and was silently
+  dropped. `category` and `family` stay excluded deliberately, now with a test
+  asserting a family rename with an identical tag causes no write.
+- **Phase 207's scope claim corrected** in CHANGELOG, ROADMAP SB-5 and
+  `MULTI_HOST_INTEGRATION_PLAN.md`. What shipped is the **TAG slice** of
+  §1.4.1–§1.4.2 — not §1.4.1–§1.4.3. The feed carries `kind="tag"` only
+  (**issues / BCF / clash payloads are not implemented**), and **§1.4.3's
+  "surface the loser as a Planscape issue" is not implemented**: conflicts go to
+  an `on_conflict` callback nothing consumes. The seams exist; the wiring does
+  not. Two further limitations now written down: rows with a null
+  `LastModifiedUtc` never appear in the feed, so pre-existing elements stay
+  invisible until next edited (**a backfill may be needed**), and there are **no
+  delete tombstones**, so a deletion in one host never propagates.
+
+**Gate:** symmetric convergence test and status test pass; `stingtools-core`
+pytest **93 passed**; the convergence test verified red against the old rule.
+
+#### Completed (Phase 213 — drop-folder: the GLB stops getting stranded)
+
+Five findings against the drop-folder contract, one of which silently broke every
+real user of the viewer path.
+
+- **The GLB is archived with its input.** `_convert_to_glb` writes
+  `ifc_path.with_suffix(".glb")` into `processing/` (ifc_watcher.py:257), but
+  `_companions()` never listed it, so completing a drop archived the `.ifc` and
+  left the `.glb` behind. `processing/` was never empty and the viewer asset was
+  orphaned. Both variants are covered — the GLB beside the input and beside the
+  `_sting.ifc` output.
+  **Why no test caught it:** every existing companion test wrote its own fake
+  companions, and not one of them wrote a `.glb`. The new tests produce a real
+  file at the path the converter actually uses.
+- **`recover_orphans` no longer strands non-`.ifc` files.** It skipped them
+  entirely, which kept them out of the re-ingest loop (correct) but left them in
+  `processing/` forever (not). They now go to `failed/`, where the run that
+  abandoned them belongs.
+- **Re-running the converter over an existing GLB.** IfcConvert refuses to
+  clobber its output and prompts, which under `capture_output` blocks until the
+  300 s timeout and reports as a conversion failure — on any re-drop of the same
+  filename. The stale file is now removed first. A `-y`/`--yes` flag would be the
+  documented fix, but the flag name has moved between IfcOpenShell releases and
+  **no IfcConvert binary exists in this environment to verify against**
+  (`_find_ifc_convert()` returns `None`), so an unverified flag risked failing on
+  exactly the versions it was meant to help. Deleting first is version-independent.
+- **`_move` fails fast when the source has vanished.** `FileNotFoundError` was
+  retried for the full 30 s, delaying the caller for a condition that is already
+  final.
+- **Corrected a false comment.** It claimed the 30 s retry "matches the C#
+  exclusive-open wait"; `IfcDropWatcher.cs:63` waits **5 s**. The 30 s is kept —
+  with the actual reason recorded.
+
+**Gate:** `test_hot_folder` **30 passed**, full StingBridge suite **126 passed**.
+The four GLB tests were confirmed to **fail without the `_companions` fix**, so
+they test the bug rather than the implementation.
+
+#### Completed (Phase 212 — handoff provisioning no longer costs the user their session)
+
+`EnsureStarterProjectAsync` promises "a failure here must never cost the user
+their session". It did not keep that promise.
+
+- **Failed provisioning is now unwound from the change tracker.** The catch
+  swallowed the exception but left the half-inserted `Project` /
+  `ProjectMember` sitting as `Added`. The very next `SaveChangesAsync` — the
+  unguarded one persisting the refresh token — picked them up, failed
+  identically, and threw out of a path with no handler, so a *provisioning*
+  failure denied the user login. Reproduces by double-clicking "open in app":
+  two redemptions race the `(TenantId, Code)` unique index and the loser's retry
+  inherits the poisoned tracker.
+- **Tested on a provider that enforces unique indexes.** EF InMemory does not,
+  so it cannot reproduce the race at all. The new `HandoffProvisioningSqliteTests`
+  use in-memory SQLite to assert (a) the `(TenantId, Code)` index really does
+  reject the second insert, and (b) the exact failure mode — a dead `Added`
+  entity making a later, *unrelated* write fail until it is detached, after
+  which the write succeeds. That second test is the fix's mechanism, stated as
+  an executable claim.
+
+**Gate:** both SQLite tests pass; **zero new failures versus `origin/main` across
+three consecutive full-suite runs** (main itself sits at 74 failures / 66 unique
+names, unchanged by this branch).
+
+**Not delivered, and why.** The phase also asked for an HTTP-level test that
+forces provisioning to throw and asserts the handoff still returns a session. It
+was written and it *works in isolation* — it fails without the fix and passes
+with it — but it cannot be made green in the full suite. Any test that builds an
+extra `WebApplicationFactory` is unreliable here: Program.cs's ~40 static
+`RecurringJob.AddOrUpdate` calls read the process-wide
+`Hangfire.JobStorage.Current` during host build, and a sibling factory disposing
+at that moment leaves it dangling — `ObjectDisposedException` from inside the
+request. Five different remedies were tried and measured (shared immortal
+storage, re-pointing the static before and after host build, an `AsyncLocal`
+interceptor on the shared factory instead of a new host, an xunit collection,
+and full suite serialisation); serialisation made it *worse* — 136 failures,
+because classes sharing an in-memory DB then bleed state — and the others either
+did not help or regressed previously-green tests. Rather than ship a known-red
+test or destabilise shared test infrastructure for every other phase, the HTTP
+assertion is **dropped** and the underlying defect recorded in ROADMAP as
+test-infrastructure work. The guarantee itself is covered by the SQLite
+mechanism test.
+
+#### Completed (Phase 211 — SEQ minting correctness)
+
+Four SEQ findings from the #421 review.
+
+- **IFC path now adopts an existing `ASS_SEQ_NUM_TXT`.** The extractor already
+  read the token back off a previously written-back file, but
+  `map_element_to_tokens` never seeds `seq` — it is minted, not mapped — so
+  `assign_sequences()` saw an unnumbered element on every re-drop, burned counter
+  values and renumbered stable elements. The live ArchiCAD path
+  (`sync/engine.py:401-413`) already did this; the IFC path now matches.
+- **A genuinely adversarial idempotency test** (`test_ifc_seq_idempotency.py`).
+  The existing test fed the minter a token dict it built itself, which can only
+  ever prove the minter is idempotent — it structurally could not catch this bug.
+  The new test re-derives through the **full pipeline**: build IFC → `process()`
+  → write back → `process()` the written-back file → re-extract → re-map →
+  re-mint, then asserts zero new reservations (counted by a fake counter server)
+  and unchanged SEQ values read straight off disk by an independent reader.
+  **Confirmed it fails without the fix** — 6 reservations instead of 3.
+- **`SeqSyncController.ReserveOneAsync` deleted** in favour of the existing
+  `ISequenceCounterService`. Beyond removing the duplicated UPSERT, this closes
+  an RLS bypass: the hand-rolled version called `conn.OpenAsync()` directly, so
+  `RlsConnectionInterceptor` never fired — harmless today, a tenant-isolation
+  hole the moment `Database:RlsEnabled` tightens. Endpoint contract unchanged.
+- **Misleading deadlock comment removed.** Key ordering does not prevent
+  deadlocks here: each allocation is a single autocommit UPSERT that releases its
+  row lock before the next key, so no transaction holds two counter locks and
+  there is no cycle to order against. The ordering is kept, for reproducible
+  responses, and now says so.
+- **Cross-host reservation MECHANISM added to the plugin — not yet wired.**
+  New pure `SeqBlockReservation` + `PlanscapeServerClient.ReserveSeqBlocksAsync`;
+  `SeqAssigner.AssignNext` takes an **optional** trailing `reservation`
+  parameter, so every existing call site and the offline path are byte-identical
+  to before (asserted by a test).
+
+  > **Corrected in Phase 219.** This bullet originally read "cross-host duplicate
+  > window closed in the plugin". That was **false as shipped**:
+  > `ReserveSeqBlocksAsync` has **zero callers**, and the single
+  > `AssignNext` call site (`TagConfig.BuildAndWriteTag`, `TagConfig.cs:2317`)
+  > does not pass a `reservation`, so it defaults to `null` and Revit still
+  > allocates purely locally. **The online cross-host duplicate window for Revit
+  > remains OPEN.** What landed is scaffolding plus its unit tests. Wiring is
+  > tracked as ROADMAP **SB-2b**.
+
+**Gate:** new idempotency test passes and provably fails without the fix ·
+StingBridge pytest **120 passed** · server suite **347/73**, identical to the
+Phase 210 baseline (`SeqSync_SyncAndGet` was already in that failing set;
+both `/seq/reserve` tests pass) · plugin builds **0 errors / 0 warnings** ·
+`SeqAssigner` + reservation tests **43 passed**.
+
+**Not verified:** no in-Revit runtime run is possible in this environment, so
+the plugin-side reservation path is unit-tested and compiles but has not been
+exercised against a live document. The change is conservative by design — an
+optional parameter that defaults to today's behaviour. The **offline duplicate
+window remains open** when no server is configured; documented in the code and
+in ROADMAP SB-2 rather than silently closed.
+
+#### Completed (Phase 210 — server test suite is self-contained on a clean machine)
+
+The suite could only reach its advertised pass count on a developer machine that
+happened to have `Jwt__Key` exported. On a clean checkout it collapsed.
+
+- **`Jwt:Key` pinned in `PlanscapeWebApplicationFactory`.** `Program.cs:104-115`
+  fail-fasts when the key is absent, so every host-building test threw
+  `InvalidOperationException` before reaching its assertion.
+- **Injected via `UseSetting`, not `AddInMemoryCollection`.** The first attempt
+  used `ConfigureAppConfiguration` and changed **nothing** — the run came back
+  byte-identical at 265/155. `Program.cs` reads `builder.Configuration["Jwt:Key"]`
+  while the host is still being built; `ConfigureAppConfiguration` callbacks are
+  applied after that read. `UseSetting` feeds `DeferredHostBuilder`'s settings,
+  which land before any user code reads configuration. The comment in the factory
+  records this so the next person does not repeat it.
+- **Measured, not assumed.** Baseline on this machine with `env -u Jwt__Key`:
+  **265 passed / 155 failed**. After the fix, same command: **347 passed /
+  73 failed** — the numbers previously reachable only with the variable set.
+
+**Gate:** zero host-construction failures with no `Jwt__Key` in the environment
+(**met** — every remaining failure is a real assertion reached past host
+construction). `AuthControllerTests` is **11/15, not the 15/15 the gate asked
+for**; the 4 stragglers are pre-existing failures in the 73 (register 409
+conflict, refresh 401, health 403, licence assert) that the fix *unmasked*
+rather than caused, and fixing them was explicitly out of scope for this phase.
+
+#### Completed (Phase 209 — go-live blocker: worker crash-loop on schema)
+
+Fixes a blocker that would have taken `planscape-worker` down on the very first
+Render deploy, plus the docs that asserted it was already handled.
+
+- **`PLANSCAPE_USE_ENSURE_CREATED=true` added to `planscape-worker`.** The
+  schema block in `Program.cs` (~line 1341) is **not** gated by `isWorker` —
+  both roles execute it. The worker runs with
+  `ASPNETCORE_ENVIRONMENT=Production`, so `IsDevelopment()` is false, and
+  without the flag it took the `db.Database.Migrate()` branch. That collides
+  with the API's EnsureCreated schema on the non-idempotent
+  `20260626203153_SustainabilitySnapshots` `CreateTable` and crash-loops.
+  Verified by reading the branch, not by deploying.
+- **`PLANSCAPE_HANDOFF_SECRET` declared (`sync: false`) on the worker**, so the
+  Blueprint prompts for it on both services. ROADMAP DEP-2 already said both;
+  the blueprint disagreed.
+- **Docs corrected to match the blueprint exactly.**
+  `docs/DEPLOY_RUNBOOK.md` §1 and `docs/SERVER_GO_LIVE.md` both claimed the flag
+  was already on both services / that "the container does not auto-migrate" —
+  true for the API, false for the worker as merged. Both now name the two
+  services explicitly and carry a callout explaining *why* the flag cannot be
+  API-only.
+
+**Gate:** `render.yaml` parses under PyYAML; a scripted check confirms both
+`planscape-api` and `planscape-worker` carry both env keys; the two docs match
+the blueprint. **Not verified:** no actual Render deploy — the crash-loop is
+established by reading the un-gated branch in `Program.cs`, not observed.
+
+#### Completed (Phase 208 — StingBridge 0.1.0-beta.2 released)
+
+Cuts and ships the release carrying Phases 201–205: personal access tokens, SEQ
+minting, and the drop-folder contract. **Live on planscape.build/downloads**
+alongside beta.1, which stays listed.
+
+- **`__version__` → `0.1.0b2`.** Both wheels rebuilt on Python 3.13
+  (`stingbridge-0.1.0b2`, `stingtools_core-0.1.0`).
+- **Two artifacts**, matching beta.1's layout exactly (verified by pulling
+  beta.1 out of R2 and diffing the structure rather than guessing):
+  `win64` one-file PyInstaller EXE — 57 MB,
+  sha256 `1b7eada1…`; and `any` wheels zip with the `run.bat`/`run.sh`
+  launchers — 1 MB, sha256 `7353a062…`. Both carry `LICENSE.txt` +
+  `QUICKSTART.md`.
+- **Both smoke-tested from clean installs against a real API build** wired to
+  the docker Postgres. The EXE: `--version` → `0.1.0b2`, `--help` renders, and
+  `process-ifc` → 3 elements, **3 SEQ minted**, 3 synced, 0 errors, tokens
+  written back. The `any` zip: `run.bat` built its venv from the bundled wheels
+  on first run and completed the same `process-ifc` E2E.
+- **Uploaded** to the private `planscape-downloads` R2 bucket via
+  `release-download.mjs`, **catalogue entry added keeping beta.1**, and the site
+  deployed to production.
+
+**Verified live:** unauthenticated downloads of both beta.2 artifacts return
+**401** (gating intact), `/downloads` returns 200, and the setup guide resolves
+200. Both R2 objects were **re-downloaded and their sha256 confirmed to match
+the catalogue** — the release script computes hashes from the files themselves,
+so the catalogue cannot drift from the objects, and this closes the loop.
+
+**Not verified:** that the live *page* renders the beta.2 row. `/api/downloads`
+requires a subscriber session, and the gated download endpoint returns 401
+before it ever consults the catalogue — a bogus version number returns 401 too,
+so a 401 on beta.2 proves nothing about catalogue presence. What is established
+is that the objects exist with the right hashes and the deploy succeeded with
+beta.2 in `catalog.ts`. Confirming the rendered row needs one signed-in page
+load, which is an owner action.
+
+#### Completed (Phase 207 — multi-host Phase B: change feed + pull + reconcile engine)
+
+Push already existed — every host could send tags to the hub. Nothing could ask
+"what changed since I last looked?", so a host had no way to learn about an edit
+made anywhere else.
+
+**Scope, corrected in Phase 214:** this implements the **TAG slice** of
+`docs/MULTI_HOST_INTEGRATION_PLAN.md` §1.4.1–§1.4.2, not all of §1.4.1–§1.4.3.
+The feed transports `kind="tag"` only; **issues / BCF / clash payloads are not
+implemented**, and neither is §1.4.3's "surface the loser as a Planscape issue"
+— conflicts are *reported* to an `on_conflict` callback, and nothing yet
+consumes it. The seams exist (the `kind` field, the callback) but the wiring
+does not.
+
+- **`GET /api/projects/{id}/changes?since={cursor}&limit={n}`** (new
+  `ChangesController`). The cursor is `{ticks}_{guid}` of the last row returned,
+  **not a bare timestamp**. A bare timestamp cannot express "I have seen some of
+  the rows at this instant": bulk writes routinely share a millisecond, so
+  resuming at `> timestamp` silently skips the rest of that batch and `>=`
+  loops on it forever. Ordering by `(LastModifiedUtc, Id)` and comparing the
+  pair makes the feed exactly-once and resumable. Rows with no modification
+  stamp are excluded rather than silently ordered by something else.
+
+- **`stingtools_core/sync/pull.py`** — `PullClient` drains the feed into
+  `ChangeDelta`s, and `CursorStore` persists the position per (project, host) so
+  a restart is not a full backfill. The cursor advances only after a page has
+  been consumed, so crashing mid-drain replays that page rather than losing it.
+  A 404 disables pull for the run instead of failing it — degrading to push-only
+  beats refusing to sync against a server that works for everything else.
+
+- **`stingtools_core/sync/reconcile.py`** — the decision layer, replacing
+  StingBridge's heuristic. That heuristic was **not last-writer-wins**: it
+  compared the remote timestamp to *now* rather than to the local edit time, so
+  a local change made 5 seconds ago lost to a remote change made 59 seconds ago,
+  and it could not see an element the local model did not already hold. The six
+  rules are now stated once and tested individually — remote-only applies;
+  identical payloads are a no-op whatever the timestamps say (an unchanged delta
+  still costs a host write and an undo entry); newer wins; ties go to local
+  (**superseded in Phase 214 — "local" is deterministic per host but does NOT
+  converge across hosts; ties are now broken by content digest**); and a remote
+  edit with a missing or
+  unparseable timestamp cannot win, because silently overwriting the user's work
+  on the strength of a missing field is the worst available failure. Every
+  conflict is reported whether or not it was applied, satisfying §1.4.3.
+
+**Verified.** 30 new core tests (90 total in `stingtools-core`, Phase A6 boundary
+lint included), and a two-way **E2E** (`StingBridge/tests/e2e_pull_reconcile.py`)
+against a real API build wired to the docker Postgres: a server-side change
+appears in the feed; re-pulling replays nothing; **five rows written in the same
+instant are delivered exactly once across three pages at page-size 2** — the
+exact case a bare-timestamp cursor gets wrong; a newer remote edit is applied; a
+newer local edit is kept and the loser surfaced; a tie resolves to local on every
+run (**this assertion was the flaw — see Phase 214**); an identical payload
+issues no host write.
+
+Writing that E2E was worthwhile: its first version failed, and the failure was in
+the *test* — it stamped the burst with the same second as the cursor position. A
+timestamp-ordered feed cannot return a row written at or below the cursor. That
+is inherent to the design rather than a defect, but it means **a client that
+backdates its writes can miss its own row**, which is now documented in the test.
+
+**Not done — StingBridge wiring.** The bridge still uses the 60-second heuristic;
+this phase landed the engine, the server endpoint and the tests. Wiring the
+live-ArchiCAD path needs a local index built by reading ArchiCAD, which cannot be
+exercised without a licence (SB-1), and wiring it blind is exactly the
+half-wired outcome worth avoiding. The IFC-watcher path *is* testable without
+ArchiCAD and is the sensible first cut — scoped in ROADMAP as SB-5a/SB-5b rather
+than smuggled in unverified.
+
+#### Completed (Phase 206 — planscape.build web funnel, self-serve licensing, and the guides library)
+
+The commercial front end of Planscape — everything a customer touches before the
+plugin loads. Landed across several branches; recorded here as one arc because the
+pieces only make sense together.
+
+**Web funnel (Phases 1–2).** Marketing site, signup, and the account area on
+Cloudflare Pages Functions backed by D1, which is canonical for identity. Pricing is
+derived per-visitor rather than hardcoded, after a currency-derivation defect that
+showed some visitors the wrong local figure; existing rows were backfilled rather
+than left inconsistent.
+
+**Downloads + licensing.** StingTools and StingBridge ship from a private R2 bucket
+through gated Functions that stream the artifact rather than exposing a bucket URL.
+Licence issuing is self-serve with seat caps enforced at issue time. StingBridge is
+deliberately licence-key-free — the Planscape account is the entitlement — and
+released at `0.1.0-beta.1`. (Detail in Phase 199.)
+
+**Identity handoff.** The cloud→server handoff from D1 to the .NET API, proven
+end-to-end locally. (Detail in Phase 201.) Note the production-side secret is still
+unset — see `docs/DEPLOY_RUNBOOK.md` §3e for the ordering constraint.
+
+**Deployment.** Render blueprint corrections and the runbook validation pass.
+(Detail in Phase 200.)
+
+**Guides library.** Rebuilt from 41 dead links to zero, then extended from
+installation-only coverage to the full subject set: tagging basics, drawing
+production, plumbing, HVAC, electrical, bills of quantities, and clash
+coordination. Each opens with the engineering — what a fixture unit is, why the sum
+of zone peaks oversizes plant, why voltage drop rather than current sizes a long
+cable — before naming a button. UI facts were read from the XAML, which caught
+CLAUDE.md being stale on the drawing-type counts (93 types / 118 routing rules, not
+40/43), the view style pack count (35), the panel tab list, and the plumbing panel's
+file type. Engine caveats that affect built work are stated in the guides rather
+than omitted: indicative NC prediction, the simplified load model, the assumed 5 m
+feeder in fault-current propagation, and simplified arc flash above 600 V.
+
+**Production-site corrections.** Four defects fixed on the live site: the homepage
+was redirecting to `/blog/`; a fabricated testimonial was removed; plan pricing was
+corrected from $15/$35 to $25/$60; and the comparison table was showing an 11×
+figure that the underlying numbers did not support.
+
+---
+
+#### Completed (Phase 205 — SB-3: token inference single-sourced into core + ArchiCAD HostAdapter)
+
+`StingBridge/sync/token_mapper.py` + `archicad/element_types.py` held their own
+copy of the STING inference rules while `stingtools_core/hosts/inference.py` held
+another — the same drift class the wire contract hit after Drift 5. Closes
+ROADMAP **SB-3**.
+
+**The drift was already real, not hypothetical.** Both sides derived a level
+code from a storey name, and probing 31 storey names showed **13 disagreements**:
+
+- the ArchiCAD path recognised `G/F`, `1st Floor`, `Penthouse`, `Attic`,
+  `Rez-de-chaussee`, `Sous-sol`, `Top`, `L05` — core returned `XX` for all of them;
+- core recognised `Mezzanine` → `MZ` and `Plant` → `PR` — the ArchiCAD path did not;
+- and **`Basement 2` and `Basement 3` both returned `B1`** on the ArchiCAD side.
+  Its regex put the bare word `basement` before the digit group, so the word
+  matched first, the capture never fired, and every numbered basement silently
+  collided with Basement 1.
+
+`level_for_storey_name` in core is now the union of both, with the basement
+capture fixed. Three previously-*known* answers changed, all deliberately:
+`Basement 2` → `B2`, `Basement 3` → `B3`, and `"0"` → `GF` (was `L00`, which is
+not a level anyone means). Three more moved `XX` → a real code, which is a gain,
+not drift — `XX` is the "unknown" sentinel.
+
+- **`stingtools_core/hosts/archicad.py`** (new) holds the ArchiCAD vocabulary —
+  `DISC_MAP`, `SYS_MAP`, the 34/31 library-part hint tables, the product and
+  renovation-status maps, and LOC/ZONE derivation. Note these are *not*
+  duplicates of `inference.py`: that maps **IFC classes** (`IfcWall`), this maps
+  **ArchiCAD JSON-API type strings** (`Wall`) and library-part names. Two
+  vocabularies for one grammar. Level derivation is the one genuinely shared
+  question, so both call the single implementation.
+
+- **`StingBridge/_core.py`** (new) resolves `stingtools_core` whether it is
+  pip-installed or a sibling source tree. `client.py` carried that fallback
+  inline for one symbol; it now lives in one place.
+
+- **The bridge modules are thin re-export shims.** Existing imports keep working
+  — the equivalence tests import *through the shims* and assert the tables are
+  the *same objects* as core's, so there is genuinely one copy rather than two
+  that happen to agree today.
+
+- **`StingBridge/archicad/host_adapter.py`** (new) implements the core
+  `HostAdapter` contract for the ArchiCAD-live path. The sync engine predates
+  the contract, so ArchiCAD was the one host reaching the hub bespoke; that
+  matters for Phase B, whose reconcile engine drives hosts through
+  `apply_remote_change`. Non-`tag` deltas return `False` rather than claiming
+  success, and `georef_descriptor` reports tier 0 rather than guessing a
+  coordinate system the JSON API does not expose.
+
+**Verified.** 17 equivalence tests over a fixture matrix covering all 18 syncable
+element types and 29 library-part names, plus 19 adapter tests — all green, with
+the 82 pre-existing StingBridge tests and all **60 stingtools-core tests**
+(including the Phase A6 boundary lint) still passing: **178 total**. Live smoke
+through the refactored shims against a real API build: 3 elements extracted,
+3 SEQ minted, 3 synced, `done/` archived — the pipeline is unchanged end to end.
+
+**Not done:** the IFC watcher still uses its own extraction rather than
+`IfcFileHostAdapter`. Re-pointing it would change the extraction path with
+nothing proving equivalence, so it is left as a scoped follow-on rather than an
+unverified swap inside a refactor whose whole point was zero drift.
+
+#### Completed (Phase 204 — SB-4: one drop-folder contract across both watchers)
+
+The Python watcher left every processed file where it landed with a
+`.sync_result.json` beside it; the C# watcher
+(`StingBridge/src/IFC/IfcDropWatcher.cs`) moved files through
+`processing/ → done/YYYYMMDD_<name>` or `failed/` + a `.log`. Two contracts over
+one folder is a real problem, not a cosmetic one: with files left in place
+"what is still outstanding?" has no answer, a re-run reprocesses everything, and
+a publisher writing into the folder cannot tell finished work from pending.
+The Python side now follows the C# contract, keeping the sidecars — they are
+strictly more information than the C# side records. Closes ROADMAP **SB-4**.
+
+- **New `StingBridge/watch/hot_folder.py`** — `ensure_layout` / `claim` /
+  `complete` / `fail` / `recover_orphans`. Every move retries for up to 30 s
+  against the Windows file-in-use race (matching the C# watcher's exclusive-open
+  wait), and a name collision in `done/` disambiguates to `name(2).ifc` rather
+  than overwriting: two exports of the same name on the same day is normal and
+  silently destroying the earlier result would lose work.
+
+- **`_sting.ifc` output and sidecars travel with the source**, so `done/` holds
+  the whole record of one drop instead of scattering it across folders.
+
+- **Failure routing reads the result, not just exceptions.** `process()` reports
+  parse and sync failures in `result["errors"]` rather than raising — so routing
+  on exceptions alone archived an unopenable IFC into `done/` as a success. This
+  was caught by testing the failure path live, not in review. The rule is now
+  "errors **and** nothing synced ⇒ `failed/`": a file that yielded elements is a
+  successful drop even if something secondary complained (the sidecar records
+  that), while a file that parsed to nothing, or whose elements were all
+  rejected, lands in `failed/` where an operator will see it.
+
+- **Two robustness gaps closed while the contract made them safe to close.**
+  Files already sitting in the drop root at start-up are now swept in — watchdog
+  only reports *events*, so previously they waited for someone to touch them
+  again. That sweep is only correct because processed files now leave the root;
+  before SB-4 it would have reprocessed the entire folder on every start.
+  Separately, `recover_orphans` returns files stranded in `processing/` by a
+  crash back to the inbox — without it such a file is invisible forever: gone
+  from the root, and nothing moves it out of `processing/`.
+
+- The single-file `process-ifc` path is unchanged (no managed root ⇒ legacy
+  in-place behaviour with its sidecar).
+
+**Verified.** 24 unit tests over real temp directories (a mocked filesystem
+would prove nothing about the race this module exists to survive) covering each
+transition, double-claim, same-name archiving, orphan recovery, and the
+failure-detection rule. **Live**, against a real API build wired to the docker
+Postgres: a good IFC and a corrupt IFC dropped into one folder in one run →
+`done/20260720_good.ifc` + `_sting.ifc` + sidecar, and
+`failed/corrupt.ifc` + `corrupt.ifc.log` reading
+`IFC open failed: Unable to parse IFC SPF header`, with the root and
+`processing/` both drained. Phase 202's SEQ minting was exercised in the same
+run ("Minted 3 SEQ number(s)").
+
+**Note on the ROADMAP's framing:** SB-4 described the C# watcher as the
+Revit-side one, but `StingToolsApp` stopped auto-starting `IfcDropWatcher` in
+Phase 184 — the class still exists under `StingBridge/src/IFC/` and remains the
+authoritative statement of the contract, which is what this aligned to.
+
+#### Completed (Phase 203 — Revision System Alignment, branch `claude/revision-system-fixes`)
+
+The revision subsystem had strong building blocks but broken wiring: two conflicting
+title-block sync commands, a revision strip writing to parameters that exist nowhere, a
+dead automation hook, duplicated blocks running whole-model transactions twice, and a
+semantic conflict on the element REV parameter. Six fixes:
+
+- **De-duplicated `CreateRevisionCommand`** (`BIMManager/RevisionManagementCommands.cs`).
+  The pre-revision compliance gate, the warning-baseline auto-save, and the GAP-R9 REV
+  propagation block each appeared **twice** in `Execute`. The propagation duplicate ran a
+  full-model `Transaction` a second time, roughly doubling revision-creation cost on large
+  models. Each block now appears once.
+
+- **Gated the blanket REV propagation** behind a new `TagConfig.PropagateRevOnCreate` flag
+  (`PROPAGATE_REV_ON_CREATE` in `project_config.json`, **default false**, following the
+  existing `AutoSaveBaselineOnRevision` pattern). Overwriting `ASS_REV_TXT` on every tagged
+  element at each revision conflicted with `RevisionEngine.StampAffectedElements` and
+  `RevisionTagIntegrationCommand` — which write REV only on *changed* elements ("the
+  revision this element last changed in") — and made `ComplianceScan.RevisionPercent`
+  trivially ~100%. The opt-in flag restores the old mirror behaviour for projects that
+  want it.
+
+- **Unified title-block revision sync into one engine.** `Docs.RevisionSyncCommand` wrote
+  the internal `SequenceNumber` (1, 2, 3…) into `PRJ_TB_REVISION_NR_TXT` instead of the
+  user-facing `RevisionNumber` ("P01"); `TitleBlockRevisionSyncer` wrote a five-row strip
+  to per-row column/date/description parameters **declared nowhere** — not in
+  `STING_TITLE_BLOCKS.json`, not in `MR_PARAMETERS`, with no labels bound — so every one of
+  those writes was a silent no-op. `TitleBlockRevisionSyncer` is now the single engine: it
+  writes `RevisionNumber` (never `SequenceNumber`; `"R{seq}"` fallback only when
+  `RevisionNumber` is empty/unreadable) plus date and description to the four TB params the
+  catalogue actually binds labels to (`PRJ_TB_REVISION_NR_TXT` / `_DATE_TXT` /
+  `_DESCRIPTION_TXT` / `PRJ_TB_ISSUE_SUMMARY_TXT`) and to `SHT_REV_TXT` / `SHT_REV_DATE_TXT`
+  on the sheet. It now covers all non-placeholder sheets (`stampedOnly: true` retains
+  Produce & Export's stamped-sheet scope). The dead strip path and
+  `ClearRevRowsOnTitleBlocks` are deleted. `Docs.RevisionSyncCommand` delegates to it,
+  keeping its tag and registration so both dock buttons ("Rev Sync" / "Sync Rev") do the
+  same correct thing. `IssueSheetsForRevisionCommand` syncs title blocks on issue, so they
+  are fresh at the moment sheets are issued.
+
+- **Single source of truth for revision series** — new `Core/RevisionSeries.cs`.
+  `RevisionEngine.ValidateRevisionNumber` accepted only P##/C##/single-letter/numeric while
+  the BCC Revisions dropdown offers 9 series plus status stamps, so legitimate
+  `T01`/`Co02`/`AB01`/`IFC` codes were flagged invalid and "auto-corrected" by
+  `RevisionNamingEnforceCommand`. The validator and `CreateRevisionCommand.InferSeriesName`
+  both delegate to the new canonical table; `BuildIsoRevisionCodes` carries a pointer
+  comment. Verified against 20 cases (T01/CO02/Co02/AB01/P01/C05/A/3/A1/IFC/WD/R07/B02/D10/
+  SS/OB valid; XX-1?/empty/P1/ZZZ rejected).
+
+- **Native revision schedules in the title-block factory.** Every working-sheet family in
+  `STING_TITLE_BLOCKS.json` declares a `revision-history` slot with `"automationHook":
+  "Revisions_AutoPopulateSchedule"`, but the hook was parsed and never dispatched — generated
+  families shipped with an **empty zone** where the revision history belonged.
+  `TitleBlockFactory` now calls `ViewSchedule.CreateRevisionSchedule` for those slots and
+  places the result at the slot anchor. Revit maintains an embedded revision schedule
+  automatically once it exists in the family, so this is the zero-maintenance fix. The step
+  is idempotent (a family already carrying one is left as authored) and never fatal — every
+  failure path records a warning and the build continues. `ParamRegistry` gains
+  `TB_SHOW_REV_TABLE` + GUID; the GUID `da7b6ce4-…` is the UUIDv5 the shared-param files
+  **already** declared, confirmed by reproducing the existing `TB_SHOW_KEY_PLAN` /
+  `SCALEBAR` / `NORTH_ARROW` GUIDs exactly, so `MR_PARAMETERS` needed no change.
+
+- **`WORKFLOW_RevisionIssue.json`** — five-step one-click chain (create revision → cloud
+  changed elements → issue sheets → sync title blocks → export register). Adding it exposed
+  that the `RevisionSync` tag was **not** registered in `WorkflowEngine.ResolveCommand`; it
+  is now, along with the known-tags list.
+
+- **`Revision.IssuedBy` auto-stamp** (follow-up on the same branch). The "Issued by" column
+  of the native title-block revision schedules can only read the Revision element's own
+  `IssuedBy` field — revision schedules cannot reference sheet or shared parameters — and
+  that field was never written, so the APPR./ISSUED BY column stayed blank. Now: the BCC
+  Revisions form gains an **"Issued by"** input (defaults to the Windows user), forwarded as
+  a 5th pipe-delimited field to `CreateRevisionCommand`, which stamps it at creation;
+  `IssueSheetsForRevisionCommand` and `RevisionApprovalWorkflowCommand` backfill a blank
+  `IssuedBy` (existing values win) **before** setting `Issued = true`, because Revit locks
+  revision properties at issue; `AutoRevisionOnTagChangeCommand` stamps the triggering user
+  on auto-created revisions; and `RevisionNamingEnforceCommand` audits issued revisions
+  with a blank `IssuedBy` (its convention footer now lists the full `RevisionSeries` set
+  instead of the stale P/C/A-Z trio).
+
+- **Native ISO revision numbering + BCC Revisions-tab completion** (second follow-up,
+  driven by live Revit testing). Testing exposed four gaps: (1) the ISO code the user
+  picked ("P01") never became the revision number — Revit numeric numbering showed "3" in
+  every REV.NO column while the code was smuggled into the Description; (2) the BCC
+  "Issue Sheets" panel's sheet list was **hardcoded demo rows** (A-001/A-100/S-001) and its
+  Date/Suitability inputs were never read — ticked sheets were silently ignored; (3) after
+  issuing, Revit's native lock ("no new clouds on an issued revision") left users blocked
+  with no open draft; (4) the title-block sync and several revision commands had no BCC
+  Revisions-tab surface. Fixes: `RevisionEngine.EnsureNumberingSequence` mints per-series
+  alphanumeric `RevisionNumberingSequence`s ("STING P-series (Preliminary)" = P01…P99 via
+  `RevisionSeries.BuildSequenceCodes`) and `CreateRevisionCommand` /
+  `AutoRevisionOnTagChangeCommand` assign new revisions to them — Revit's own
+  `RevisionNumber` now IS the ISO code, descriptions stay clean, and the actually-assigned
+  code (sequence hands out the next free one) flows to element stamps / BOQ baseline /
+  notifications. `IssueSheetsForRevisionCommand` consumes the BCC form's ticked sheets +
+  date + suitability (pipe-delimited, in addition to cloud-detected sheets) and — gated by
+  new `TagConfig.AutoNextRevisionOnIssue` (`AUTO_NEXT_REVISION_ON_ISSUE`, default true) —
+  auto-opens the next DRAFT revision in the same sequence after issue so clouding is never
+  blocked. The BCC Issue Sheets panel now lists REAL sheets (gathered on the Revit thread
+  into `CoordData.IssueSheetList`); the register grid's Code / Series / Author columns
+  populate (`RevisionNumber` / `RevisionSeries.InferSeriesName` / `IssuedBy`); and a new
+  "TITLE BLOCKS & GOVERNANCE" row adds Sync Title Blocks, Approval Flow, Distribution, and
+  Cloud Audit buttons ("Export CSV" relabelled "Export XLSX" to match what
+  `RevisionExportCommand` writes). `RevisionApprovalWorkflow` / `RevisionDistribution` /
+  `Revision_CloudAudit` gained the missing `WorkflowEngine.ResolveCommand` cases.
+
+- **Revision removal tooling** (third follow-up). Two commands for clearing revisions,
+  both handling the full unlock chain (un-issue → delete clouds → remove from every
+  sheet → delete revision → re-sync title blocks): **`Revision_Delete`**
+  (`RevisionDeleteCommand`) deletes chosen revisions via a multi-select picker or the BCC
+  register's new right-click **"Delete This Revision"** (routed as `DeleteRevision_<id>`
+  through a new `DispatchCoordAction` prefix handler + `DeleteRevisionId` ExtraParam);
+  deleting ALL revisions is blocked (Revit requires one). **`Revision_Purge`**
+  (`RevisionPurgeCommand`) is the start-afresh variant for test models: deletes every
+  cloud and every revision except one neutral seed (reset to "Revision 1", moved off the
+  STING series sequences so the next create reads P01), clears all sheets, optional
+  tag-snapshot deletion, gated by a typed-"PURGE" WPF confirmation. Both sit in the BCC
+  TITLE BLOCKS & GOVERNANCE row.
+
+- **Behaviour polish** (fourth follow-up — closes the self-review's "known minor
+  behaviours"): pre-revision snapshots are saved AFTER the create transaction so the file
+  label carries the code the sequence actually assigned; the A-series numbers unpadded
+  (A1, A2 … A99) to match approval-stamp convention; Issue Sheets only auto-opens a next
+  draft when NO un-issued revision remains (otherwise it lists the open drafts instead of
+  piling up new ones); `RevisionSeries.InferSeriesName` now resolves pattern-only entries
+  first, so "1" reads **Legacy**, "A" reads **As-Built**, and stamps read **Status Stamp**
+  instead of falling to "Custom" (fixes the register's Series column for the purge seed);
+  `EnsureNumberingSequence` re-searches by name when creation fails (name-in-use race)
+  before falling back to default numbering.
+
+- **BCC auto-refresh after revision actions** (fifth follow-up — live testing showed the
+  register grid keeping purged/deleted rows until a manual header Refresh). New
+  `BIMCoordinationCenterCommand.RefreshBccIfOpen(doc)` rebuilds CoordData on the Revit
+  API thread and pushes it through the existing `ApplyReloadedData` path (no-op when BCC
+  is closed); the header Refresh button's `BCCReload` case now delegates to it. Called at
+  the end of CreateRevision, IssueSheetsForRevision, AutoRevisionOnTagChange,
+  RevisionApprovalWorkflow (both branches), RevisionDelete, and RevisionPurge — grids and
+  badges reflect the model the moment each command's summary dialog appears.
+
+**Caveat:** built and verified at 0 warnings / 0 errors with `-t:Rebuild`, and the series
+table was exercised against 20 cases in a standalone harness. **Revit runtime verification
+is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
+and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
+every path there is warning-wrapped rather than fatal.
+#### Completed (Phase 202 — SB-2: SEQ minting, atomic server-side counter reservation)
+
+ArchiCAD elements were leaving the bridge with 7-segment tags
+(`M-BLD1-Z01-L02-HVAC-SUP-AHU`) while Revit produced 8 (`…-AHU-0003`), so the same
+building was numbered in one host and not the other. Closes ROADMAP **SB-2**.
+
+- **New `POST /api/projects/{id}/seq/reserve`.** The existing `/seq/sync` is a
+  max-per-key **merge**, which is right for the Revit plugin (each instance
+  allocates locally against a document it holds, then reconciles) but cannot make
+  two independent writers safe: both can read the same high-water mark, both mint
+  the same number, and max-merge then accepts the higher of two identical values.
+  A client with no local document to allocate against needs the counter bumped and
+  read indivisibly. Implemented as one
+  `INSERT … ON CONFLICT ("ProjectId","CounterKey") DO UPDATE SET "CurrentValue" =
+  "CurrentValue" + n RETURNING "CurrentValue"` per key — Postgres holds a row lock
+  for the statement, so concurrent callers serialise and each receives a disjoint
+  block. Keys are locked in `Ordinal` sort order so two multi-key reservations
+  cannot deadlock. Counts are bounded to 1..10000 so one caller cannot exhaust a
+  key's 4-digit space in a single call. Returns the inclusive `[start, end]` block
+  the caller owns.
+
+- **`StingBridge/sync/seq_minter.py`** ports `SeqAssigner.BuildSeqKey` exactly —
+  `DISC_SYS_LVL` and its zone/loc variants, including the placeholder
+  normalisation (`""`→`A`/`GEN`/`L00`, `XX`/`ZZ`→defaults). That fidelity is the
+  whole point: a key-format divergence would silently restart numbering per host
+  and mint duplicates *across* hosts, which is worse than not numbering at all.
+
+- **Wired into both paths** — the live-ArchiCAD sync engine (per chunk) and the
+  IFC drop-folder watcher (per file). One batched reservation per run, never one
+  call per element. Elements that already carry a SEQ are skipped, so re-dropping
+  the same IFC neither renumbers stable elements nor burns counter values.
+
+- **Degrades gracefully, and never invents a number.** A server that predates the
+  endpoint (404), an outage, or a malformed body leaves tags 7-segment and logs;
+  the sync still completes, because failing a whole run over the last tag segment
+  would turn a cosmetic gap into lost work. Critically, a key **missing** from the
+  response is treated as "no number available" rather than falling back to a local
+  guess — a local fallback is precisely how two runs would collide.
+
+**Verified.** 18 new unit tests against a fake counter server (key format,
+batching, idempotence, overflow at pad-4, graceful degrade, and the
+missing-key-is-not-invented rule); all 40 pre-existing StingBridge tests still
+pass. **E2E** (`StingBridge/tests/e2e_seq_minting.py`) against a real API build on
+:5099 wired to the docker Postgres: two sequential runs produce 10 distinct
+monotonic numbers; a re-run assigns 0 and leaves the counter un-advanced;
+**8 concurrent clients × 10 numbers each produce 80 distinct values that tile
+1..80 exactly — no gaps, no overlaps, every client receiving one contiguous
+block**; and a multi-key call numbers each key independently from 0001.
+
+**Not verified:** the reserve endpoint has no xunit test, because it relies on
+Postgres `ON CONFLICT … RETURNING` and the integration harness runs EF InMemory,
+which cannot execute that SQL. The concurrency guarantee is exactly the thing a
+fake cannot establish, so the E2E against real Postgres is the authority here.
+The Revit plugin still uses `/seq/sync` and was not changed; adopting `/reserve`
+there would let it drop its local-allocation dance, but that is its own change.
+
+#### Completed (Phase 201 — account provisioning bridge: handoff → starter project → personal access tokens)
+
+Closes the gap that made a planscape.build subscription unusable from StingBridge:
+an account provisioned through the identity handoff had no project to work in and
+**no credential a headless client could hold**. Verified end-to-end against the
+local docker stack (real API build, real Postgres) — see the E2E script below.
+
+- **Starter project on handoff.** `AuthController.HandoffExchange` already
+  find-or-created `Tenant` + `AppUser`; it now also provisions a project and a
+  `ProjectMember` row when the tenant has none (`EnsureStarterProjectAsync`). The
+  gate is "this tenant has zero projects", so repeat handoffs are no-ops and a
+  tenant whose only project was deleted gets one back. Best-effort: a failure
+  here logs and still issues the session, because losing your login over a
+  starter project would be a bad trade.
+
+- **Personal access tokens** (`PersonalAccessToken` entity + four endpoints:
+  `POST/GET/DELETE /api/auth/tokens`, `POST /api/auth/token/exchange`). Handoff
+  accounts are created with a deliberately unusable `HashPassword(Guid+Guid)`, so
+  they can only be entered via a 120-second ticket — correct for a browser,
+  impossible for a bridge. A PAT is **not** accepted as a bearer token anywhere:
+  it is exchanged for an ordinary short-lived JWT exactly as a password is at
+  `/login`. That deliberate choice keeps the API single-scheme, so no endpoint's
+  authorisation behaviour changed and there is no second credential type for
+  authorisation code to reason about. Only the SHA-256 is stored; the plaintext
+  is returned once. 20 active tokens per user; revocation is a soft delete;
+  every exchange failure mode returns an identical message so probing cannot
+  distinguish unknown from revoked from expired.
+
+- **`PersonalAccessTokens` mirrored into `PlatformSchemaPatcher`.** Without this
+  the table would exist only on fresh `EnsureCreated` databases and 500 on every
+  long-lived one — the exact drift class `adr/0001-schema-management.md` warns
+  about. Verified by inspecting the real docker Postgres after boot: table plus
+  all three indexes present.
+
+- **StingBridge learns token auth.** New `STING_PLANSCAPE_TOKEN` /
+  `planscape_token` setting, `PlanscapeClient.login_with_token`, and re-auth that
+  refreshes via whichever credential the client holds. The two paths are kept
+  strictly separate — adopting a token clears any stored password and vice versa,
+  so a refresh can never silently fall back to a stale credential. A 404 from the
+  exchange endpoint reports "this server is too old, use email+password" instead
+  of a bare HTTP error.
+
+- **Fixed the token-expiry constant (ROADMAP DEP-8).** The client assumed a
+  60-minute access token and refreshed at 55; the server issues 30-minute tokens
+  (`AuthController.AccessTokenLifetime`). The proactive refresh therefore never
+  fired until the token had been dead for ~25 minutes, and every request in that
+  window paid for a reactive 401 + retry. Now 30 minutes with a 5-minute margin,
+  pinned by a regression test.
+
+**Repaired the integration-test harness**, which was fully broken on main —
+`PlanscapeWebApplicationFactory`-based tests could not construct a host at all
+(**0 of 15** `AuthControllerTests` passing before this). Three independent
+causes, each an unconditional startup call meeting a stripped-down test host:
+
+1. `UseHangfireDashboard` threw when the factory removed every Hangfire
+   descriptor → now mounted only when `JobStorage` is registered.
+2. ~40 static `RecurringJob.AddOrUpdate` calls threw "JobStorage.Current has not
+   been initialized" → the factory now **substitutes** in-memory Hangfire storage
+   rather than deleting the feature, keeping the production startup path under test.
+3. The startup schema block called relational-only APIs (`GetDbConnection`,
+   `information_schema` probes, the patchers) against the EF InMemory provider →
+   guarded with `IsRelational()`.
+
+A fourth cause made results non-deterministic: the production `auth` rate limit
+is 5 requests / 5 minutes **per IP**, and xunit runs test classes in parallel from
+a single loopback IP, so unrelated tests failed with 429 instead of their real
+assertion. Added a `RateLimiting:Enabled` seam (**default true** — rate limiting
+stays on in every real deployment) which the test host sets to false.
+
+Suite went from **265 passed / 129 failed** to **339 passed / 73 failed**:
+56 previously-failing tests now pass, **zero regressions** (verified by diffing
+the failing-test list against a clean `origin/main` worktree). The remaining 73
+are pre-existing failures unrelated to this work — assertions that drifted from
+current behaviour (e.g. `HealthCheck_ReturnsHealthy` now gets 403, and
+`Register_NewOrg` reads a response field that no longer exists).
+
+New tests: 18 `PersonalAccessTokenTests`, 8 `HandoffProvisioningTests`, 12
+StingBridge `test_token_auth.py` — all green, with the 28 pre-existing StingBridge
+tests still passing.
+
+**E2E** (`StingBridge/tests/e2e_handoff_provisioning.py`, run against a real API
+build on :5099 wired to the docker Postgres/Redis): mint a handoff ticket the way
+the Cloudflare Function does → redeem → assert tenant + user + starter project →
+assert password login is refused for all attempts → mint a PAT → authenticate a
+real `PlanscapeClient` with the token alone → ingest an IFC element
+(`1 mappings, 1 elements`) → read it back by GlobalId → revoke → confirm 401.
+
+Docs: `StingBridge/QUICKSTART.md` and `marketing-site/guides/stingbridge-setup.html`
+now lead with the token, explain how to mint and revoke one, and state plainly
+that website sign-ups have no server password and *must* use a token.
+
+**Not done / not verified:** the cloud app has no UI for minting tokens yet (the
+API is there; the guides document `curl`). Nothing was tested against a deployed
+Render environment — none exists. Handoff still provisions one tenant per user,
+and D1 remains the billing authority with no reverse sync, both per the original
+design.
+
+#### Completed (Phase 200 — Planscape Server go-live prep: blueprint validation + corrected schema story)
+
+Deployment-readiness pass on the Render blueprint. **No deployment happened** —
+`api.planscape.build` still does not resolve; actual go-live is owner-side
+(Render dashboard + registrar DNS). This phase makes that a zero-improvisation
+task and fixes a documentation contradiction that would have misled it.
+
+- **Blueprint validated against the real code.** The API image builds clean from
+  the committed Dockerfile (`docker build -f Planscape.Server/docker/Dockerfile .`
+  → exit 0, 1.04 GB). `healthCheckPath: /health` matches a live endpoint. All 47
+  env-var keys in `render.yaml` were checked against actual config reads:
+  `Cors__Origins__*` binds through `GetSection("Cors:Origins").Get<string[]>()`,
+  `Serilog__*` through `ReadFrom.Configuration`, and `Smtp__Username`/`Smtp__Password`
+  through `EmailServiceBase.Cfg` → `Smtp:Username`/`Smtp:Password`. The remaining
+  unmatched keys are correctly scoped elsewhere (converter sidecar's own
+  `API_BASE`/`API_BEARER`/`CONVERTER_TOKEN`/`IFCCONVERT_URL`, MinIO's
+  `MINIO_ROOT_*`, Next.js's `NEXT_PUBLIC_API_BASE`/`NODE_VERSION`, and the
+  framework's `ASPNETCORE_*`). `Planscape.Server/render.yaml` was confirmed to be
+  a stale copy that already self-marks as SUPERSEDED.
+
+- **Corrected the schema story (`DEPLOY_RUNBOOK.md` §1).** The runbook claimed
+  production calls `db.Database.Migrate()` and instructed the operator to run
+  `dotnet ef migrations has-pending-model-changes` and hand-author an
+  `HvacEngineSnapshots` migration. That contradicted the committed `render.yaml`,
+  which sets `PLANSCAPE_USE_ENSURE_CREATED=true` — so `Program.cs` (~line 1327)
+  takes the **EnsureCreated** branch: probe for `Tenants`, `creator.CreateTables()`
+  from `OnModelCreating` on a fresh DB, then idempotent patchers
+  (`PatchDevSchemaAsync`, `PlatformSchemaPatcher.ApplyAsync`) in both branches.
+  Per `adr/0001-schema-management.md` this is the official mechanism, not a
+  workaround. **Answer for day 1: no EF migration step**, and the HVAC snapshot
+  tables are created correctly by the EnsureCreated path.
+
+- **New `docs/SERVER_GO_LIVE.md`** — ordered critical path, the two secret pairs
+  that must match each other, the day-1 schema answer, and a
+  "looks-broken-but-isn't" table (notably: `/swagger` returns 404 in production
+  **by design** — it is gated behind `Swagger:Enabled=true` because schema
+  disclosure aids endpoint enumeration; an earlier draft of the smoke test
+  wrongly asserted a 200).
+
+- **Handoff secret is unset on the cloud side.** `wrangler pages secret list
+  --project-name planscape-marketing` shows 12 secrets, and
+  `PLANSCAPE_HANDOFF_SECRET` is **not** among them — the cloud→server identity
+  handoff is not yet wired in production. It is a *shared* secret and must be set
+  identically on Render (api **and** worker) and on Cloudflare Pages. Recorded in
+  both the go-live doc and the owner checklist.
+
+- **Owner package generated outside the repo** at `C:\Dev\planscape-render-golive\`
+  (`SECRETS.txt` + `GO-LIVE-CHECKLIST.md`) — pre-generated `Jwt__Key` (48 bytes),
+  owner password, handoff secret, converter token and MinIO credentials, each
+  labelled with its destination, plus paste-ready smoke commands. Never committed.
+
+Housekeeping: removed the `REAUTH_TEST_GUID_01` test element left in the local
+"Tendo testing" project by an earlier session (one `TaggedElements` row + one
+`ExternalElementMappings` row; local dev DB only).
+
+#### Completed (Phase 199 — StingBridge 0.1.0-beta.1 release + self-serve downloads, PRs #415–#417)
+
+StingBridge became a shipped product: packaged, released through the gated planscape.build
+downloads area, and live in production. All merged to main; artifacts verified end-to-end
+against the local docker Planscape stack before upload.
+
+- **Release readiness (PR #415, branch `claude/stingbridge-release`)** — transparent
+  re-authentication on token expiry (proactive + reactive-401, retried once; fixes the
+  drop-folder watcher dying silently after ~1 h); ZONE/LOC finally wired in the live sync
+  path (`_build_zone_index` via `GetElementsRelatedToZones` + `Zone_ZoneNumber`/`Zone_ZoneName`
+  built-ins, `STING_BUILDING_NAME` drives LOC); `upload_model` re-opens the file per retry
+  (a consumed handle uploaded 0 bytes) and suppresses the session's global
+  `Content-Type: application/json` that corrupted every multipart GLB upload;
+  `--help` no longer crashes on cp1252 consoles; `pyproject.toml` packaging
+  (`stingbridge` 0.1.0b1, entry point, dynamic version) + `stingbridge.toml`/`.env` config
+  file support (env > file > defaults); QUICKSTART.md. **Licence metadata set to
+  Proprietary** in both `StingBridge/pyproject.toml` and
+  `stingtools-core/python/pyproject.toml` (both said MIT — which would have granted every
+  download recipient redistribution rights) + `StingBridge/LICENSE.txt`.
+- **Downloads multi-artifact support (PR #416)** — `artifacts[]` per catalogue version
+  (label/platform/objectKey/sha256), `?artifact=<label>` selector on the gated streaming
+  endpoint (single-file versions keep their selector-less URLs), one Download button per
+  artifact on the page, and `marketing-site/tools/release-download.mjs` (hash → upload →
+  print-the-catalogue-block; **must pass `--remote` — wrangler 4 defaults `r2 object put`
+  to the local simulator**).
+- **Release + flip (PR #417)** — built on Python 3.13: `win64` one-file PyInstaller EXE
+  (51 MB, sha256 `976401ec…`) and `any` wheels zip with `run.bat`/`run.sh` launchers
+  (sha256 `22f1ed68…`); both smoke-tested from clean installs including a full
+  `process-ifc` E2E (3 elements → server → token write-back, 0 errors). Uploaded to the
+  private `planscape-downloads` R2 bucket; catalogue flipped from request-by-email to
+  self-serve; STING Tools sha256 backfilled from the canonical bucket object; new
+  `guides/stingbridge-setup.html`; Revit guide's stale "email us" step now points at
+  `/downloads`. Deployed to production and verified live (gating 401s, page + guide 200).
+- **Hardening (this branch)** — remaining review findings: `get_element_timestamps` /
+  `get_substrate_manifest` / `get_compliance` routed through the same `_send` refresh path
+  as the writes; zone property reads batched (100/request) for campus-scale zone counts;
+  console-encoding reconfigure moved from import time into `main()`. 28 tests pass.
+- **Deliberate decisions**: StingBridge carries **no offline licence key** — it is useless
+  without a Planscape server login, so the account is the entitlement (unlike the Revit
+  plugin's machine-locked keys). macOS ships via the `any` zip; a notarized binary is
+  deferred.
 
 #### Completed (Phase 198b — MEP print-ready cross-check punch-list, branch `claude/mep-punchlist`)
 

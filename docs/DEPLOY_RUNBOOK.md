@@ -38,37 +38,46 @@ And choose the owner password (for `davis@planscape.build`).
 
 ---
 
-## 1. Pre-deploy migration check (one-time, on a dev machine)
+## 1. Schema — no pre-deploy migration step
 
-Production **auto-applies committed EF migrations on boot** (`Program.cs` calls
-`db.Database.Migrate()` in non-Development). So you don't run `database update`
-by hand — but you MUST make sure every mapped entity has a migration, or those
-tables won't exist and their endpoints will 500.
+> **Corrected 2026-07-20.** This section previously said production calls
+> `db.Database.Migrate()` and told you to run a pending-model-changes check.
+> That is **not** what the committed `render.yaml` does. Skip the old steps.
 
-```bash
-cd Planscape.Server
-# EF 8: detect entities mapped in the model but missing from migrations.
-dotnet ef migrations has-pending-model-changes \
-  --project src/Planscape.Infrastructure --startup-project src/Planscape.API
-```
+`render.yaml` sets **`PLANSCAPE_USE_ENSURE_CREATED=true`** on **both**
+`planscape-api` and `planscape-worker`. `Program.cs` (~line 1341) therefore
+takes the **EnsureCreated** branch, not `Migrate()`:
 
-- If it reports **no pending model changes** → you're done; skip to step 2.
-- If it reports **pending changes** (known gap: the **HVAC snapshot** tables
-  `HvacLoadSnapshots` / `HvacNcSnapshots` / `HvacRefrigerantSizings` are in the
-  model snapshot but have no `CreateTable` migration), generate and commit it:
+1. It probes `information_schema` for the `Tenants` table.
+2. If absent (fresh DB), `creator.CreateTables()` materialises the whole schema
+   from `OnModelCreating`, which always matches the current entity classes.
+3. In **both** branches, idempotent patchers run (`PatchDevSchemaAsync`,
+   `PlatformSchemaPatcher.ApplyAsync`) with `ADD COLUMN IF NOT EXISTS` /
+   `CREATE TABLE IF NOT EXISTS`, so pre-existing DBs pick up later additions.
 
-```bash
-dotnet ef migrations add HvacEngineSnapshots \
-  --project src/Planscape.Infrastructure --startup-project src/Planscape.API
-git add src/Planscape.Infrastructure/Data/Migrations/*
-git commit -m "Add HvacEngineSnapshots migration"
-git push
-```
+This is the **official** schema-management mechanism for this codebase — see
+[adr/0001-schema-management.md](adr/0001-schema-management.md). The
+hand-authored migrations under `Planscape.Infrastructure/Data/Migrations/` are
+missing their `.Designer.cs` companions and the model snapshot is stale, so
+`Migrate()` cannot apply them in order; that is exactly why the flag exists.
+A startup schema-drift self-check fails loudly if an EF entity was never
+mirrored into the patcher.
 
-Already present (no action): `HealthcarePack` (`20260515…`),
-`IfcIngestSubstrate` (`20260519…`, incl. `ExternalElementMappings`), and ACC
-token columns (on `PlatformConnections`, base schema). The `#345` ACC issue
-sync needs **no** migration (it reuses `ConfigJson`).
+**So: nothing to do here before deploying.** (This also means the HVAC snapshot
+tables `HvacLoadSnapshots` / `HvacNcSnapshots` / `HvacRefrigerantSizings`, which
+have no `CreateTable` migration, are created correctly by the EnsureCreated
+path — the old instruction to generate an `HvacEngineSnapshots` migration is
+unnecessary.)
+
+If you ever **remove** `PLANSCAPE_USE_ENSURE_CREATED`, the `Migrate()` branch
+takes over and a complete, regenerated migration set becomes a hard
+prerequisite — regenerate it before flipping that switch.
+
+> **The flag must stay on both services.** The schema block in `Program.cs` is
+> not gated by `isWorker`; both roles execute it. Setting the flag on
+> `planscape-api` only leaves the worker on the `Migrate()` branch, where it
+> collides with the API's EnsureCreated schema on the non-idempotent
+> `20260626203153_SustainabilitySnapshots` `CreateTable` and crash-loops.
 
 ---
 
@@ -97,6 +106,7 @@ Render dashboard → **Env Groups → planscape-shared** → set:
 |---|---|
 | `Jwt__Key` | the `openssl rand -base64 48` output |
 | `PLANSCAPE_OWNER_PASSWORD` | the owner login password |
+| `PLANSCAPE_HANDOFF_SECRET` | another `openssl rand -base64 48` output. **Shared with Cloudflare** — the same value must later be set on the Pages side. See §3e. |
 | `Storage__S3__ServiceUrl` | **MinIO default:** the `planscape-minio` internal URL (Render → planscape-minio → Connect → Internal URL, e.g. `http://planscape-minio:9000`). **R2/S3:** their endpoint, or blank for AWS S3. |
 | `Storage__S3__AccessKey` | **= `MINIO_ROOT_USER`** (same value as 3d) — or the R2/S3 access key |
 | `Storage__S3__SecretKey` | **= `MINIO_ROOT_PASSWORD`** (same value as 3d) — or the R2/S3 secret key |
@@ -144,6 +154,37 @@ If you chose Cloudflare R2 / AWS S3 instead, suspend or delete `planscape-minio`
 After setting secrets, **Manual Deploy → Clear build cache & deploy** (or just
 redeploy) each service so it picks them up.
 
+### 3e. Cloudflare Pages side — set these LAST
+
+Two values live on the marketing site (Cloudflare Pages, project
+`planscape-marketing`), not on Render. They are what lets the account page hand a
+signed-in customer across to the cloud app:
+
+| Key | Value |
+|---|---|
+| `PLANSCAPE_HANDOFF_SECRET` | **the same string** set on Render in §3a. Both sides verify against it; a mismatch rejects every handoff. |
+| `CLOUD_APP_ORIGIN` | `https://app.planscape.build` — where the customer is sent |
+
+```bash
+cd marketing-site
+npx wrangler pages secret put PLANSCAPE_HANDOFF_SECRET --project-name=planscape-marketing
+npx wrangler pages secret put CLOUD_APP_ORIGIN --project-name=planscape-marketing
+```
+
+> **Ordering rule — do this only after Render is answering.**
+> Setting `CLOUD_APP_ORIGIN` is what activates the cloud button on the customer
+> account page. Set it before `app.planscape.build` resolves and serves, and the
+> button goes live pointing at an origin that is not there yet — so paying
+> customers get sent to a dead host. The consumer of these values is
+> `marketing-site/functions/api/cloud/handoff.ts`.
+>
+> Correct order: Render deployed (§2–§3d) → DNS resolving and TLS issued (§4) →
+> first-boot checks passing (§5) → **then** §3e.
+>
+> Until §3e is done the site is in a safe state: the handoff simply stays
+> disabled. An unset secret is a disabled feature; a wrong one is a broken
+> customer journey.
+
 ---
 
 ## 4. DNS + custom domains
@@ -167,7 +208,7 @@ Render once the CNAME verifies.)
 ## 5. First-boot verification
 
 ```bash
-# API healthy + migrations applied
+# API healthy + schema materialised (EnsureCreated path — see §1)
 curl -fsS https://api.planscape.build/health         # → 200
 
 # Owner login works (PlatformOwnerSeeder ran)

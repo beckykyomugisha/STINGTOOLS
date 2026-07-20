@@ -25,6 +25,55 @@ _TAG_TO_PSET = {
     "product": "Product", "sequence": "Sequence",
 }
 
+#: ISO 19650 suitability/status, stored ALONGSIDE the tag segments — never
+#: inside :class:`Tag`.
+#:
+#: `Tag` is a strict 8-segment grammar: `to_full_tag`/`from_full_tag` assume
+#: exactly eight parts, so adding a ninth field would corrupt every tag string
+#: the system renders. Status is metadata *about* the element, not a segment
+#: *of* its tag, so it gets its own property in the same pset.
+#:
+#: Why it is written at all: `status` is one of the reconcile engine's
+#: TOKEN_KEYS (sync/reconcile.py), and the change feed carries it
+#: (ChangesController.cs:108). An adapter that applies a status-only remote
+#: change without persisting it re-applies that same change on EVERY subsequent
+#: pull, forever — the delta never converges because the local read-back never
+#: reflects the write.
+STATUS_PROP = "Status"
+
+#: Change-feed token key -> Tag field.
+#:
+#: The feed sends short lower-case keys (`ChangesController.cs:105-108`:
+#: `disc, loc, zone, lvl, sys, func, prod, seq, status, …`), which are also the
+#: reconcile engine's TOKEN_KEYS. The PSET uses long capitalised names
+#: (`Discipline`, `Location`, …). These are two different vocabularies for the
+#: same eight segments and they were being conflated: `apply_remote_change` fed
+#: `delta.payload` straight into `Tag.from_pset`, which looks up `"Discipline"`
+#: in a dict that only has `"disc"`. Every lookup missed, so applying a REAL feed
+#: delta wrote eight UNKNOWN sentinels — it did not just lose status, it blanked
+#: the tag. Latent only because nothing wires the pull loop yet (SB-5a).
+_FEED_TO_TAG = {
+    "disc": "discipline", "loc": "location", "zone": "zone", "lvl": "level",
+    "sys": "system", "func": "function", "prod": "product", "seq": "sequence",
+}
+
+
+def _tag_from_payload(payload: dict) -> "Tag":
+    """Build a Tag from a change-feed payload, tolerating the PSET vocabulary.
+
+    Feed keys win; PSET-cased keys are accepted so a caller hand-building a
+    payload from a pset (as some tests and the ArchiCAD route do) still works.
+    """
+    payload = payload or {}
+    if any(k in payload for k in _FEED_TO_TAG):
+        fields = {
+            field: str(payload.get(feed_key) or "")
+            for feed_key, field in _FEED_TO_TAG.items()
+            if payload.get(feed_key)
+        }
+        return Tag(**fields) if fields else Tag.from_pset(payload)
+    return Tag.from_pset(payload)
+
 
 def _ue():
     import ifcopenshell.util.element as ue  # type: ignore
@@ -107,6 +156,45 @@ class IfcFileHostAdapter(HostAdapter):
         except Exception:
             return False
 
+    def read_status(self, element: Any) -> str:
+        """ISO 19650 suitability/status for *element*, or "" when unset."""
+        try:
+            pset = _ue().get_pset(element, STING_PSET) or {}
+        except Exception:
+            return ""
+        return str(pset.get(STATUS_PROP) or "")
+
+    def write_status(self, element: Any, status: str) -> bool:
+        """Persist ISO 19650 status alongside the tag segments."""
+        try:
+            import ifcopenshell.api  # type: ignore
+        except ImportError:
+            return False
+        try:
+            pset = ifcopenshell.api.run("pset.add_pset", self.model,
+                                        product=element, name=STING_PSET)
+            ifcopenshell.api.run("pset.edit_pset", self.model,
+                                 pset=pset, properties={STATUS_PROP: str(status or "")})
+            return True
+        except Exception:
+            return False
+
+    def read_tokens(self, element: Any) -> dict:
+        """The token dict the reconcile engine compares against a remote delta.
+
+        Keys match `stingtools_core.sync.reconcile.TOKEN_KEYS` exactly — the eight
+        tag segments plus `status`. Callers building a `local_index` should use
+        this rather than assembling the dict themselves; a caller that forgets
+        `status` reintroduces the non-convergence this method exists to prevent.
+        """
+        tag = self.read_tag(element)
+        return {
+            "disc": tag.discipline, "loc": tag.location, "zone": tag.zone,
+            "lvl": tag.level, "sys": tag.system, "func": tag.function,
+            "prod": tag.product, "seq": tag.sequence,
+            "status": self.read_status(element),
+        }
+
     def apply_remote_change(self, delta: ChangeDelta) -> bool:
         """Apply a pulled change. Tags are applied here; issue/bcf/clash/transform
         deltas are recorded by the caller's sync layer (no local IFC mutation)."""
@@ -115,7 +203,18 @@ class IfcFileHostAdapter(HostAdapter):
         el = self._element_by_gid(delta.global_id)
         if el is None:
             return False
-        return self.write_tag(el, Tag.from_pset(delta.payload))
+
+        ok = self.write_tag(el, _tag_from_payload(delta.payload))
+
+        # Status travels with the tag but is not part of it. Applying the eight
+        # segments and dropping status made a status-only delta un-appliable:
+        # reconcile saw a difference, applied it, the read-back still showed the
+        # old status, and the next pull produced the identical delta. Forever.
+        payload = delta.payload or {}
+        if "status" in payload or STATUS_PROP in payload:
+            status = payload.get("status", payload.get(STATUS_PROP))
+            ok = self.write_status(el, status) and ok
+        return ok
 
     # -- helpers ---------------------------------------------------------------
     def _element_by_gid(self, gid: str) -> Optional[Any]:

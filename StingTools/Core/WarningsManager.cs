@@ -4114,10 +4114,21 @@ namespace StingTools.Core
                     foreach (var rev in revisions2)
                     {
                         cloudsByRevId2.TryGetValue(rev.Id, out int clouds2);
+                        // Code / Series / Author columns: RevisionNumber is the
+                        // ISO code when the revision sits on a STING numbering
+                        // sequence; Author comes from Revision.IssuedBy (stamped
+                        // by CreateRevision / IssueSheets since Phase 199).
+                        string revNum2 = "";
+                        try { revNum2 = rev.RevisionNumber ?? ""; } catch (Exception rnEx) { StingLog.Warn($"Revision number read: {rnEx.Message}"); }
+                        string author2 = "";
+                        try { author2 = rev.IssuedBy ?? ""; } catch (Exception iaEx) { StingLog.Warn($"Revision IssuedBy read: {iaEx.Message}"); }
                         revisionRows.Add(new UI.BIMCoordinationCenter.RevisionRow
                         {
                             Id = rev.Id.Value.ToString(),
                             Name = rev.Name ?? "",
+                            Number = revNum2,
+                            Series = string.IsNullOrEmpty(revNum2) ? "" : RevisionSeries.InferSeriesName(revNum2),
+                            Author = author2,
                             Date = rev.RevisionDate ?? "",
                             Description = rev.Description ?? "",
                             Clouds = clouds2,
@@ -4126,6 +4137,19 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BIMCoordCenter revision rows: {ex.Message}"); }
+
+                // Real sheet list for the BCC Issue Sheets panel (the panel
+                // builder runs on the UI thread and cannot touch the Document).
+                var issueSheetList = new List<string[]>();
+                try
+                {
+                    foreach (var vs in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet))
+                                 .Cast<ViewSheet>()
+                                 .Where(s => !s.IsPlaceholder)
+                                 .OrderBy(s => s.SheetNumber))
+                        issueSheetList.Add(new[] { vs.SheetNumber ?? "", vs.Name ?? "" });
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter sheet list: {ex.Message}"); }
 
                 var coordData = new UI.BIMCoordinationCenter.CoordData
                 {
@@ -4190,6 +4214,7 @@ namespace StingTools.Core
                     CloudsBySheet = cloudsBySheetDict,
                     CloudsByDiscipline = cloudsByDisciplineDict,
                     Revisions = revisionRows,
+                    IssueSheetList = issueSheetList,
                     LastSyncTime = lastSyncTime,
                     SyncChanges = syncChanges,
                     WorkflowRuns = workflowRuns,
@@ -4556,6 +4581,24 @@ namespace StingTools.Core
                 StingLog.Error("BuildCoordData failed", ex);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Rebuild CoordData and push it into the open BCC window so grids and
+        /// badges reflect the model immediately. No-op when BCC is closed.
+        /// Must be called on the Revit API thread — which is where every STING
+        /// command runs. Commands that mutate revisions / issues call this so
+        /// the user never sees a stale register after an action completes.
+        /// </summary>
+        internal static void RefreshBccIfOpen(Document doc)
+        {
+            try
+            {
+                if (doc == null || UI.BIMCoordinationCenter.CurrentInstance == null) return;
+                var fresh = BuildCoordData(doc);
+                UI.BIMCoordinationCenter.CurrentInstance?.ApplyReloadedData(fresh);
+            }
+            catch (Exception ex) { StingLog.Error("RefreshBccIfOpen failed", ex); }
         }
 
         /// <summary>Process an action returned from the BIM Coordination Center dialog.</summary>
@@ -4938,12 +4981,7 @@ namespace StingTools.Core
                     // to the WPF instance via ApplyReloadedData.
                     case "BCCReload":
                     {
-                        try
-                        {
-                            var fresh = BuildCoordData(doc);
-                            UI.BIMCoordinationCenter.CurrentInstance?.ApplyReloadedData(fresh);
-                        }
-                        catch (Exception ex) { StingLog.Error("BCCReload failed", ex); }
+                        RefreshBccIfOpen(doc);
                         return;
                     }
                     case "BCCSnapshot":
@@ -5953,6 +5991,23 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"ViewDocument dispatch: {ex.Message}"); }
                 return;
             }
+            // Targeted revision deletion from the BCC register context menu:
+            // "DeleteRevision_<elementId>" → RevisionDeleteCommand via ExtraParam.
+            if (action.StartsWith("DeleteRevision_", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string revId = action.Substring("DeleteRevision_".Length);
+                    UI.StingCommandHandler.SetExtraParam("DeleteRevisionId", revId);
+                    var delCmd = new BIMManager.RevisionDeleteCommand();
+                    string msg = "";
+                    var els = new ElementSet();
+                    delCmd.Execute(commandData, ref msg, els);
+                }
+                catch (Exception ex) { StingLog.Warn($"DeleteRevision dispatch: {ex.Message}"); }
+                return;
+            }
+
             if (action.StartsWith("Disconnect_", StringComparison.OrdinalIgnoreCase)
              || action.StartsWith("ViewLogs_", StringComparison.OrdinalIgnoreCase)
              || action.StartsWith("SelectRevision_", StringComparison.OrdinalIgnoreCase)

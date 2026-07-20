@@ -13,6 +13,45 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 | IM-5 | **Four forked warning→issue escalation paths** | `CreateIssuesFromWarnings`, `AutoCreateIssuesFromWarnings`, `AutoRaiseStaleIssues` and `Phase75Enhancements.WarningToIssueCreator` each have their own dedup key, ID allocation and serialization. `WarningToIssueCreator` computes `existingIssues.Count + 1` *inside* its loop, so a multi-group scan emits duplicate IDs. Belongs with the Phase 2 `IssueStore` work. |
 | IM-6 | **`StingTools.Clash.Tests` does not build** | Pre-existing on `claude/iso19650-consolidation`: 14 `CS0246` errors because linked "pure-logic" clash files now reference `Autodesk.Revit.*`. The project's Revit-free premise has drifted. Coord-log unit tests were hosted in `StingTools.Tags.Tests` instead. |
 
+## Drawings-production deep review (2026-07-20)
+
+Full-surface review of the Drawing Type engine, corporate catalogue, View Style Packs + AEC
+filters, title blocks, annotation/legends/match lines, sheet production pipeline, and command
+wiring: **~85 findings (5 Critical / 27 High)** with a prioritised P0–P2 remediation plan.
+See [`DRAWINGS_PRODUCTION_REVIEW.md`](DRAWINGS_PRODUCTION_REVIEW.md). Headlines: unbound JSON
+keys make most style-pack payload (incl. all 8 healthcare packs) runtime-dead; both
+`ResolveExtends` folds strip fields (managed-template mode unreachable); producer sheet key
+ignores level context (per-level batches stack onto one sheet); AnnotationRunner has no
+idempotency (re-runs duplicate every tag/dim); the corporate-lock checksum system is inert as
+shipped.
+
+## Revision system — deferred items (Phase 199)
+
+Recorded while aligning the revision subsystem (see CHANGELOG Phase 199).
+
+- **Rebind title-block revision labels to built-in parameters, then delete the TB half of the
+  syncer.** The revision box currently reads STING shared params (`PRJ_TB_REVISION_NR_TXT` /
+  `_DATE_TXT` / `_DESCRIPTION_TXT`) that a command must keep in sync. Revit exposes built-in
+  **Current Revision / Current Revision Date / Current Revision Description** parameters on
+  title blocks that it maintains itself. Rebinding the catalogue's revision-box labels to those
+  built-ins makes the drawing correct with **zero sync** — no command run, no drift window, no
+  stale box if someone forgets to click. Once rebound, `TitleBlockRevisionSyncer` can drop its
+  title-block writes entirely and keep only the `SHT_REV_TXT` / `SHT_REV_DATE_TXT` sheet stamps
+  (which feed schedules and exports, and have no built-in equivalent). Scope: a catalogue
+  migration across the affected families plus a factory change — deliberately out of scope for
+  Phase 199, which did not mass-edit the 206-family catalogue.
+- **Consolidate the three revision-cloud implementations.** `AutoRevisionCloudCommand`
+  (`BIMManager`), `DocAutomationExtCommands.RevisionCloudAuto` (`Docs`), and
+  `MaterialRevisionCloudJob` (`Core`) each independently decide what "changed" means, how clouds
+  are grouped, and which view they land in. Fold them onto one shared engine (change-set in →
+  clouds out) so the three entry points stay behaviourally identical and a fix to cloud grouping
+  lands once.
+- **Data-drive the LG-03 per-discipline auto-revision thresholds.** `AutoRevisionOnTagChangeCommand`
+  carries a hardcoded per-discipline threshold dictionary. Move it into a JSON data file with a
+  project override (same corporate-baseline + `_BIM_COORD` override pattern the drawing types and
+  sizing rules already use), so a project can tune how many tag changes trigger an auto-revision
+  without a code change.
+
 ## MEP print-readiness — deferred items (Phase 198)
 
 Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198).
@@ -300,6 +339,43 @@ retention release and the sign-off guard. Still open:
   %; no 4D / cost-loaded-schedule wiring yet.
 - **QS import per-row accept/reject.** The import diff is whole-batch
   Apply/Cancel; per-row checkboxes would let a QS accept a subset.
+
+## StingBridge — remaining gaps (post 0.1.0-beta.2)
+
+Shipped self-serve on planscape.build/downloads. **0.1.0-beta.2 is live** (SB-2, SB-3 and SB-4 closed; PATs added). Remaining gaps, roughly in value order:
+
+| # | Gap | Detail |
+|---|---|---|
+| SB-1 | **Live-ArchiCAD verification** | Two documented-but-unverified assumptions need one session against real ArchiCAD (AC 28/29): (a) `_ifc_global_id_from_acguid` presumes ArchiCAD derives the IFC-export GlobalId from the JSON-API element GUID — if wrong, the live-sync and IFC-watcher paths mint two mapping rows per element; (b) zone labels read from `Zone_ZoneNumber`/`Zone_ZoneName` built-ins. Both degrade gracefully today. |
+| SB-2 | ~~SEQ minting~~ **DONE Phase 202** | New atomic `POST /api/projects/{id}/seq/reserve` (INSERT … ON CONFLICT … RETURNING) plus `StingBridge/sync/seq_minter.py`, which ports `SeqAssigner.BuildSeqKey` exactly so both hosts draw from the same per-key counters. Wired into live sync + the IFC watcher, batched per run, idempotent, degrades to 7-segment rather than failing. Verified collision-free under 8-way concurrency. **Phase 211** closed the two holes the review found: the IFC path never adopted an already-written `ASS_SEQ_NUM_TXT`, so every re-drop re-minted (fixed + covered by a full-pipeline round-trip test), and the Revit plugin gained a server-side block-reservation **mechanism** (`SeqBlockReservation`). **The mechanism is NOT wired** — see SB-2b. **Remaining:** the Revit cross-host duplicate window is **still open in all cases**, not just offline ones (SB-2b). By design, even once wired, an unconfigured or unreachable server falls back to local allocation and the window stays open for that session — refusing to number offline would be worse than numbering optimistically and reconciling on the next `/seq/sync`. Also **not verified in Revit** — the reservation logic is unit-tested and the plugin builds clean, but no in-Revit runtime run was possible. |
+| SB-2b | **Revit SEQ reservation is scaffolding only — not wired** | Phase 211 landed the mechanism and its unit tests; nothing calls it, so Revit still allocates purely locally and the online cross-host duplicate window (Revit vs StingBridge minting the same number on the same key) is **OPEN**. Two wiring points: (1) `PlanscapeServerClient.ReserveSeqBlocksAsync` (`StingTools/BIMManager/PlanscapeServerClient.cs:691`) has **zero callers** — a tagging run must pre-compute its per-key counts and reserve one block per key; (2) `TagConfig.BuildAndWriteTag` (`StingTools/Core/TagConfig.cs:2317`) calls `SeqAssigner.AssignNext` without the optional `reservation` argument, so it defaults to `null` → local allocation. Both are single-line-ish changes; the work is not the edit. **Why it waits:** this is the hot path for every tag the plugin writes, and a mistake renumbers a live model. It needs in-Revit runtime verification against a real document — unit tests and a clean compile do not cover the failure modes that matter (transaction scope, partial-run rollback, counter drift after a cancelled command). No Revit runtime is available to the agent that wrote it. Suggest gating behind a config flag on first release so a site can fall back without a redeploy. |
+| SB-3 | ~~Token inference single-sourcing~~ **DONE Phase 205** | ArchiCAD vocabulary moved to `stingtools_core/hosts/archicad.py`; the bridge modules are re-export shims. The two level-derivation functions disagreed on 13 of 31 storey names and the ArchiCAD one collapsed every numbered basement to `B1` — now one implementation, union of both, bug fixed. `ArchiCadHostAdapter` implements the HostAdapter contract. **Follow-on:** the IFC watcher still uses its own extraction rather than `IfcFileHostAdapter`; swapping it needs equivalence coverage first. |
+| SB-4 | ~~Hot-folder contract mismatch~~ **DONE Phase 204** | The Python watcher now follows the C# `processing/ → done/YYYYMMDD_<name>` \| `failed/` + `.log` contract (`StingBridge/watch/hot_folder.py`), keeping the sidecars and moving the `_sting.ifc` output with the source. Also added a start-up sweep of the inbox and `processing/` orphan recovery, both only safe once processed files leave the root. Failure routing reads `result["errors"]`, not just exceptions — routing on exceptions alone archived unopenable files as successes. |
+| SB-5 | **Multi-host Phase B/C** — **tag-slice** engine DONE Phase 207 (corrected Phase 214), wiring open | The change feed (`GET /api/projects/{id}/changes`), `PullClient`/`CursorStore` and the `ReconcileEngine` are landed and verified two-way against real Postgres. Remaining: **SB-5a** wire the IFC-watcher path to pull→reconcile→push (testable today without ArchiCAD — the sensible first cut); **SB-5b** wire the live-ArchiCAD path and delete the 60-second grace heuristic in `sync/engine.py` (needs a licence to exercise the local-index read, so blocked behind SB-1). Also open: §1.4.4 client-side push chunking, §1.4.5 the GlobalId-stability CI fixture, and the Part 2 LoGeoRef coordinate engine. **Scope correction (Phase 214):** what landed is the **TAG slice** of §1.4.1–§1.4.2. The feed carries `kind="tag"` only — **issues / BCF / clash payloads are not implemented** — and **§1.4.3's "surface the loser as a Planscape issue" is not implemented**: conflicts are reported to an `on_conflict` callback that nothing consumes. The seams (`kind` field, callback) exist; the wiring does not. **Two further documented limitations:** rows with a null `LastModifiedUtc` never appear in the feed, so pre-existing elements stay invisible until next edited (a backfill may be needed); and there are **no delete tombstones**, so a deletion in one host never propagates. |
+| SB-6 | **macOS notarized binary** | `any` zip covers macOS today; a signed native build is deliberate future work. |
+| SB-7 | **Beta feedback loop** | Optional `download_log` table (D1) on the gated endpoint so beta testers can be followed up without the old request-by-email list. |
+
+## Planscape Server — deployment gaps (Phase 200)
+
+The blueprint is validated and the owner package is written; what remains is
+owner-side or follow-on work. Status verified 2026-07-20.
+
+| # | Gap | Detail |
+|---|---|---|
+| DEP-1 | **Server is not deployed** | `api.planscape.build` does not resolve. Owner-only: apply the Render Blueprint, paste secrets, add the custom domain + registrar CNAME. Prep is complete — see [`SERVER_GO_LIVE.md`](SERVER_GO_LIVE.md) and the local package at `C:\Dev\planscape-render-golive\`. |
+| DEP-2 | **`PLANSCAPE_HANDOFF_SECRET` unset on Cloudflare** | `wrangler pages secret list --project-name planscape-marketing` returns 12 secrets and this is not one of them, so cloud→server handoff cannot work in production yet. It is a *shared* secret: set the identical value on Render (`planscape-api` **and** `planscape-worker`) and on Cloudflare Pages. Rotate both sides together. |
+| DEP-3 | ~~Handoff provisions no Project~~ **DONE Phase 201, hardened Phase 212** | `EnsureStarterProjectAsync` now creates a project + `ProjectMember` when the tenant has none. Idempotent (gate is "zero projects"), best-effort so a failure never costs the session. Phase 212 made "never costs the session" actually true: the catch now detaches the failed `Added` entities, which otherwise poisoned the next `SaveChangesAsync` (the refresh-token one) and turned a provisioning failure into a 500 at login. |
+| DEP-7 | **Test infra: `Hangfire.JobStorage.Current` is process-global** | Program.cs's ~40 static `RecurringJob.AddOrUpdate` calls read this process-wide static *during host build*, and each `WebApplicationFactory` points it at a container-owned storage that is disposed with the factory. Any host built after a sibling's teardown reads a dangling reference and dies with `ObjectDisposedException: Hangfire.InMemory.State.Dispatcher`, reported against whichever test ran next. Consequence: **no test can reliably stand up an extra factory**, which is why Phase 212's HTTP-level provisioning-failure test had to be dropped in favour of a SQLite mechanism test. Phase 212 measured five remedies; suite-wide serialisation made things worse (136 failures — classes sharing an in-memory DB bleed state), and the rest either did not help or regressed green tests. Real fix: stop reaching for process-global state during host build (inject `JobStorage` rather than reading the static), then restore the HTTP test. |
+| DEP-4 | ~~Handoff accounts have no headless credential~~ **DONE Phase 201** | Personal access tokens: `POST/GET/DELETE /api/auth/tokens` + `POST /api/auth/token/exchange`, wired into StingBridge as `STING_PLANSCAPE_TOKEN`. A PAT is exchanged for a normal JWT, never accepted as a bearer token, so the API stays single-scheme. The unusable password hash on handoff accounts remains, by design. |
+| DEP-5 | **`/api/auth/license/activate` is unrate-limited** | It is the only `AuthController` endpoint without `[EnableRateLimiting("auth")]`, leaving the licence-key space brute-forceable. It returns entitlement facts (`Valid`, `Tier`, `MimEnabled`, `ServerUrl`, `ExpiresAt`) rather than a JWT, so the blast radius is disclosure + activation-count burn, not session theft. |
+| DEP-6 | **Handoff single-use check fails open** | The `jti` replay guard is a Redis `SET … When.NotExists`; when Redis is unavailable the exchange logs a warning and proceeds, so a captured ticket could be replayed within its 120 s TTL during a Redis outage. Acceptable given the TTL, but it is an availability-over-integrity choice worth making deliberately. |
+| DEP-6b | **Rate-limiter Production gate is verified by review, not by a test** | PR #439 made `RateLimiting:Enabled=false` inert when `IsProduction()`. F5 got a Production-environment test host building (`UseSetting("environment", "Production")` — `UseEnvironment` after the base factory does not stick) and **confirmed the gate fires**: startup prints `[rate-limit] RateLimiting:Enabled=false IGNORED - the environment is Production and the auth limiter is not optional there.` The remaining leg — asserting an actual **429** — could not be landed: the `auth` policy is a **Redis-backed** sliding window (`RedisRateLimitPartition.GetSlidingWindowRateLimiter`, Program.cs:816), and in the in-process test host it does not trip even with the docker Redis reachable at the default `localhost:6379`. Asserting on a console line is too brittle to keep, so no test shipped. **To close:** either expose an in-memory limiter for the test host behind config, or stand the check up as an out-of-process smoke test against a running container. |
+| DEP-6a | **No automated test for handoff jti replay** | The single-use guard is a Redis `SET … When.NotExists` that **fails open** when Redis is down, and the integration-test host registers no Redis — so a replay test would pass or fail depending on whether a docker Redis happened to be running. Needs either a Redis test double registered in `PlanscapeWebApplicationFactory` or an `IReplayGuard` seam that can be faked. Until then the guard is covered by review only (Phase 215). |
+| DEP-7 | **`PLANSCAPE_IDENTITY_HANDOFF.md` status line is stale** | It reads "design agreed 2026-07-18, not yet implemented"; the feature is in fact implemented on all three sides (Cloudflare Pages Function, `AuthController`, Next.js `/handoff` page). The doc's own line references still resolve, so only the status line drifted. Its role table also says `project_lead` → `ProjectLead`, but `UserRole` has no such member and the code maps it to `Manager`. |
+| DEP-8 | ~~StingBridge token-expiry constant is wrong~~ **DONE Phase 201** | Was 55 min against a 30-min server token, so the proactive refresh only fired ~25 min after expiry. Now 30 min with a 5-min margin, pinned by a regression test. |
+| DEP-9 | **No UI for minting access tokens** | The API exists (`POST /api/auth/tokens`) and the guides document the `curl`, but the cloud app has no screen for it. A subscriber currently needs a terminal to get a StingBridge credential. |
+| DEP-10 | **Integration-test suite has 73 pre-existing failures** | Down from 129 after the Phase 201 harness repair, and no longer blocked at startup. The remainder are assertions that drifted from current behaviour (e.g. `HealthCheck_ReturnsHealthy` expects 200 but gets 403; `Register_NewOrg_Returns201WithToken` reads a response property that no longer exists), not infrastructure faults. Each needs reading against the endpoint it covers. |
+| DEP-11 | **`Jwt__Key` is an undocumented prerequisite for running the tests** | Without it every `WebApplicationFactory` test fails at host construction with a message about docker-compose. Worth either defaulting a throwaway key in the test factory or documenting it in the test project README. |
 
 ## Sub-system reviews
 
@@ -685,8 +761,7 @@ A holistic review of the tagging subsystem was performed covering the full pipel
 | GAP-NLP-02 | NLP patterns for healthcare commands added in Phase 176 ("run pressure audit", "mgps verify", etc.) | 19 patterns were added to NLPCommandProcessor in the Healthcare Pack. Verify they are still present after this session's append. |
 | GAP-UI-01 | No UI surface for `AUTO_CORRECT_STATUS_FROM_PHASE` toggle | `ConfigEditorCommand` should expose this boolean alongside the existing toggle controls. Low risk but requires XAML + command handler changes. |
 | GAP-UI-02 | No UI surface for `LEADER_CLEARANCE_MARGIN_FT` | Same as above — could be added to the Smart Placement wizard or Config Editor as a numeric text box. |
-
-| GAP-STRUCT-01 | StructuralAnalysisEngine subchecks need per-subcheck phases | `StructuralAnalysisEngine` general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. (Note rescued during merge of `claude/stingtools-bim-research-8Kkwv` into `claude/continue-model-viewer-updates-4GJR4`; previously orphaned in a truncated CHANGELOG.md.) |
+| GAP-STRUCT-01 | StructuralAnalysisEngine subchecks need per-subcheck phases | `StructuralAnalysisEngine` general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit. (Note rescued during merge of `claude/stingtools-bim-research-8Kkwv` into `claude/continue-model-viewer-updates-4GJR4`; previously orphaned in a truncated CHANGELOG.md.) |
 
 #### Symbol library — Phase 188 closure status
 
