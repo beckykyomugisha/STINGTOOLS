@@ -1146,7 +1146,13 @@ public class AuthController : ControllerBase
     /// handoff has already succeeded by this point; landing in an account with
     /// no starter project is a far better outcome than a 500 on login.
     /// </summary>
-    private async Task EnsureStarterProjectAsync(AppUser user)
+    /// <remarks>
+    /// `internal` rather than `private` so tests can call the REAL method. The
+    /// first version of its test re-implemented the detach loop inline, which
+    /// meant a regression in this catch block would have kept the test green —
+    /// it verified a copy of the logic, not the logic.
+    /// </remarks>
+    internal async Task EnsureStarterProjectAsync(AppUser user)
     {
         try
         {

@@ -2,6 +2,66 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
+
+- **`HandoffProvisioningSqliteTests` calls the real method.** It previously
+  re-implemented the detach loop inline and asserted *the copy* behaved — a
+  regression in `AuthController.EnsureStarterProjectAsync`'s catch block would
+  have kept it green. `EnsureStarterProjectAsync` is now `internal` with
+  `InternalsVisibleTo("Planscape.Tests")` on `Planscape.API`, and the tests
+  invoke it directly.
+- **The race is reproduced deterministically.** A `SaveChangesInterceptor`
+  commits the conflicting `PRJ-001` row from a **separate connection** the
+  instant before the context under test saves — exactly what a double-click on
+  "open in app" does — rather than hoping two threads interleave.
+- **No `WebApplicationFactory` involved.** The controller is constructed
+  directly; only `_db` and `_logger` are touched by the method under test. That
+  sidesteps both the SQLite-vs-`information_schema` startup problem and the
+  process-wide Hangfire teardown that makes extra factories unreliable here
+  (ROADMAP DEP-7).
+- Four tests: the unique index really rejects the duplicate (guarding the rest
+  from going vacuous); losing the race leaves the tracker clean **and a
+  subsequent unrelated save succeeds** (the property users feel); two redemptions
+  with one losing the race yield **one project and two usable sessions**; and a
+  clean run is idempotent.
+
+**Gate — red-then-green against the REAL catch block:**
+
+| `EnsureStarterProjectAsync` | Result |
+|---|---|
+| as fixed in #436 | **4 passed** |
+| detach loop deleted — temporarily, to prove it | **2 failed** (both race tests) |
+
+Full suite **367 passed / 73 failed**, and `check-new-failures.sh` reports **no
+new failures** against the committed baseline.
+
+**Closeout notes (F6), folded in.** `guides/stingbridge-setup.html` gains a
+**PAT advisory**: tokens minted before 20 July 2026 carry the first seven
+characters *of the token* in their unhashed display prefix, so they were visible
+to anyone who could read the token list or the database. No misuse is known and
+seven characters is far from guessable, but the guide now says plainly: list,
+re-mint, update config, revoke the old one. Tokens minted since use a random
+prefix. Also documents the **behaviour change** from Phase 215 — `ExpiresInDays`
+of 0, negative, or >365 is now rejected, an omitted value defaults to **90 days**
+where it previously meant *never expires*, and pre-existing null-expiry tokens
+are grandfathered. The guide's stale `Last updated / v0.1.0-beta.1` line is
+corrected to beta.3.
+
+**Not delivered: the rate-limiter Production-gate test.** I got a
+Production-environment host building — `UseSetting("environment", "Production")`;
+`UseEnvironment` after the base factory does not stick — and **confirmed the gate
+fires**, with startup printing:
+
+> `[rate-limit] RateLimiting:Enabled=false IGNORED - the environment is Production and the auth limiter is not optional there.`
+
+The remaining leg, asserting an actual **429**, could not be landed: the `auth`
+policy is a **Redis-backed** sliding window (`Program.cs:816`) and does not trip
+in the in-process test host even with the docker Redis reachable on the default
+`localhost:6379`. Asserting on a console line is too brittle to keep, so **no
+test shipped** — the gate is **verified by review only**, recorded as ROADMAP
+**DEP-6b** with the two ways to close it. Stating it here rather than leaving the
+absence silent.
+
 #### Completed (Phase 221 — status now survives a round trip; and the IFC adapter was blanking tags)
 
 Phase 214 added `status` to `TOKEN_KEYS` so status-only remote edits stop being
