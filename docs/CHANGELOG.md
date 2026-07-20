@@ -2,6 +2,32 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 210 — server test suite is self-contained on a clean machine)
+
+The suite could only reach its advertised pass count on a developer machine that
+happened to have `Jwt__Key` exported. On a clean checkout it collapsed.
+
+- **`Jwt:Key` pinned in `PlanscapeWebApplicationFactory`.** `Program.cs:104-115`
+  fail-fasts when the key is absent, so every host-building test threw
+  `InvalidOperationException` before reaching its assertion.
+- **Injected via `UseSetting`, not `AddInMemoryCollection`.** The first attempt
+  used `ConfigureAppConfiguration` and changed **nothing** — the run came back
+  byte-identical at 265/155. `Program.cs` reads `builder.Configuration["Jwt:Key"]`
+  while the host is still being built; `ConfigureAppConfiguration` callbacks are
+  applied after that read. `UseSetting` feeds `DeferredHostBuilder`'s settings,
+  which land before any user code reads configuration. The comment in the factory
+  records this so the next person does not repeat it.
+- **Measured, not assumed.** Baseline on this machine with `env -u Jwt__Key`:
+  **265 passed / 155 failed**. After the fix, same command: **347 passed /
+  73 failed** — the numbers previously reachable only with the variable set.
+
+**Gate:** zero host-construction failures with no `Jwt__Key` in the environment
+(**met** — every remaining failure is a real assertion reached past host
+construction). `AuthControllerTests` is **11/15, not the 15/15 the gate asked
+for**; the 4 stragglers are pre-existing failures in the 73 (register 409
+conflict, refresh 401, health 403, licence assert) that the fix *unmasked*
+rather than caused, and fixing them was explicitly out of scope for this phase.
+
 #### Completed (Phase 209 — go-live blocker: worker crash-loop on schema)
 
 Fixes a blocker that would have taken `planscape-worker` down on the very first
