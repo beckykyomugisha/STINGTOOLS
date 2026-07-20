@@ -191,17 +191,45 @@ def test_orphans_left_by_a_crash_are_returned_to_the_root():
         assert not list((root / "processing").iterdir())
 
 
-def test_recovery_ignores_our_own_partial_output():
+def test_recovery_does_not_re_drop_our_own_partial_output():
     with _Root() as root:
         (root / "processing" / "model_sting.ifc").write_text("out", encoding="utf-8")
         assert hf.recover_orphans(root) == 0
-        assert (root / "processing" / "model_sting.ifc").exists()
+        # never fed back through the watcher…
+        assert not (root / "model_sting.ifc").exists()
+        # …and not abandoned in processing/ either
+        assert not (root / "processing" / "model_sting.ifc").exists()
 
 
-def test_recovery_ignores_non_ifc_files():
+def test_recovery_does_not_re_drop_non_ifc_files():
+    """Non-input files are not recovered to the root — they'd be re-ingested."""
     with _Root() as root:
         (root / "processing" / "notes.txt").write_text("x", encoding="utf-8")
         assert hf.recover_orphans(root) == 0
+        assert not (root / "notes.txt").exists()
+
+
+def test_recovery_clears_stranded_artefacts_out_of_processing():
+    """…but it must not leave them in processing/ forever either.
+
+    This previously asserted only `recover_orphans(...) == 0` and stopped there,
+    which is exactly how a stranded .glb went unnoticed: `processing/` stayed
+    non-empty after a completed run and nothing ever swept it. Recovery is the
+    one place that sees the folder at rest, so it is the place to clear it.
+    """
+    with _Root() as root:
+        proc = root / "processing"
+        (proc / "notes.txt").write_text("x", encoding="utf-8")
+        (proc / "model.glb").write_bytes(b"glTF-ish")
+        (proc / "model_sting.ifc").write_text("out", encoding="utf-8")
+
+        assert hf.recover_orphans(root) == 0        # none were INPUTS
+        assert not list(proc.iterdir()), "processing/ must be left empty"
+
+        moved = {p.name for p in (root / "failed").iterdir()}
+        assert moved == {"notes.txt", "model.glb", "model_sting.ifc"}
+        # and none of them were re-dropped for another ingest pass
+        assert [p.name for p in root.iterdir() if p.is_file()] == []
 
 
 def test_recovery_on_an_empty_folder_is_a_no_op():
@@ -277,3 +305,84 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {e}")
     print(f"\n{passed} passed, {failed} failed")
     sys.exit(1 if failed else 0)
+
+
+# ── GLB companions (R5) ──────────────────────────────────────────────────────
+#
+# The GLB is written by IFCDropHandler._convert_to_glb next to the file being
+# converted (ifc_watcher.py:257). It was absent from _companions(), so archiving
+# the input left it behind in processing/ — invisible, because every existing
+# test wrote its own fake companions and none of them wrote a .glb.
+
+def test_complete_takes_the_glb_along():
+    with _Root() as root:
+        claimed = hf.claim(_drop(root), root)
+        claimed.with_suffix(".glb").write_bytes(b"glTF-ish")
+
+        hf.complete(claimed, root, when=datetime(2026, 7, 20))
+
+        assert not list((root / "processing").iterdir()), \
+            "the .glb was stranded in processing/"
+        assert {p.name for p in (root / "done").iterdir()} == \
+            {"20260720_model.ifc", "20260720_model.glb"}
+
+
+def test_complete_takes_the_sting_output_glb_along():
+    """The converter may run on the token-stamped output rather than the input."""
+    with _Root() as root:
+        claimed = hf.claim(_drop(root), root)
+        (claimed.parent / "model_sting.ifc").write_text("out", encoding="utf-8")
+        (claimed.parent / "model_sting.glb").write_bytes(b"glTF-ish")
+
+        hf.complete(claimed, root, when=datetime(2026, 7, 20))
+
+        assert not list((root / "processing").iterdir())
+        assert {p.name for p in (root / "done").iterdir()} == {
+            "20260720_model.ifc", "20260720_model_sting.ifc",
+            "20260720_model_sting.glb",
+        }
+
+
+def test_redropping_the_same_filename_with_a_glb_stays_clean():
+    """Repeat drops are the common case — fix model, re-export, same name."""
+    with _Root() as root:
+        for _ in range(2):
+            claimed = hf.claim(_drop(root), root)
+            claimed.with_suffix(".glb").write_bytes(b"glTF-ish")
+            hf.complete(claimed, root, when=datetime(2026, 7, 20))
+
+            assert not list((root / "processing").iterdir())
+            assert [p.name for p in root.iterdir() if p.is_file()] == []
+
+        # Four archived files, none overwritten: the collision suffix applies to
+        # the .glb exactly as it does to the .ifc.
+        names = sorted(p.name for p in (root / "done").iterdir())
+        assert len(names) == 4, names
+        assert len(set(names)) == 4, f"an archived file was overwritten: {names}"
+
+
+def test_failed_run_takes_the_glb_to_failed_too():
+    with _Root() as root:
+        claimed = hf.claim(_drop(root), root)
+        claimed.with_suffix(".glb").write_bytes(b"glTF-ish")
+
+        hf.fail(claimed, root, "converter blew up")
+
+        assert not list((root / "processing").iterdir())
+        assert "model.glb" in {p.name for p in (root / "failed").iterdir()}
+
+
+# ── _move fails fast on a vanished source (R5) ───────────────────────────────
+
+def test_move_of_a_vanished_source_fails_fast():
+    """A missing source is final — retrying for the full 30 s helps nobody."""
+    import time as _time
+    with _Root() as root:
+        started = _time.monotonic()
+        try:
+            hf._move(root / "gone.ifc", root / "processing" / "gone.ifc")
+            raise AssertionError("expected an OSError")
+        except OSError:
+            pass
+        assert _time.monotonic() - started < 2.0, \
+            "burned the retry budget on a source that will never reappear"

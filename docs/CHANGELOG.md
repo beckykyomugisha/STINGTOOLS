@@ -2,6 +2,43 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 213 — drop-folder: the GLB stops getting stranded)
+
+Five findings against the drop-folder contract, one of which silently broke every
+real user of the viewer path.
+
+- **The GLB is archived with its input.** `_convert_to_glb` writes
+  `ifc_path.with_suffix(".glb")` into `processing/` (ifc_watcher.py:257), but
+  `_companions()` never listed it, so completing a drop archived the `.ifc` and
+  left the `.glb` behind. `processing/` was never empty and the viewer asset was
+  orphaned. Both variants are covered — the GLB beside the input and beside the
+  `_sting.ifc` output.
+  **Why no test caught it:** every existing companion test wrote its own fake
+  companions, and not one of them wrote a `.glb`. The new tests produce a real
+  file at the path the converter actually uses.
+- **`recover_orphans` no longer strands non-`.ifc` files.** It skipped them
+  entirely, which kept them out of the re-ingest loop (correct) but left them in
+  `processing/` forever (not). They now go to `failed/`, where the run that
+  abandoned them belongs.
+- **Re-running the converter over an existing GLB.** IfcConvert refuses to
+  clobber its output and prompts, which under `capture_output` blocks until the
+  300 s timeout and reports as a conversion failure — on any re-drop of the same
+  filename. The stale file is now removed first. A `-y`/`--yes` flag would be the
+  documented fix, but the flag name has moved between IfcOpenShell releases and
+  **no IfcConvert binary exists in this environment to verify against**
+  (`_find_ifc_convert()` returns `None`), so an unverified flag risked failing on
+  exactly the versions it was meant to help. Deleting first is version-independent.
+- **`_move` fails fast when the source has vanished.** `FileNotFoundError` was
+  retried for the full 30 s, delaying the caller for a condition that is already
+  final.
+- **Corrected a false comment.** It claimed the 30 s retry "matches the C#
+  exclusive-open wait"; `IfcDropWatcher.cs:63` waits **5 s**. The 30 s is kept —
+  with the actual reason recorded.
+
+**Gate:** `test_hot_folder` **30 passed**, full StingBridge suite **126 passed**.
+The four GLB tests were confirmed to **fail without the `_companions` fix**, so
+they test the bug rather than the implementation.
+
 #### Completed (Phase 212 — handoff provisioning no longer costs the user their session)
 
 `EnsureStarterProjectAsync` promises "a failure here must never cost the user

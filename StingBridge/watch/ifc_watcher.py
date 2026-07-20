@@ -273,6 +273,24 @@ class IFCDropHandler:
             return None
 
         import subprocess
+
+        # IfcConvert refuses to clobber an existing output and prompts instead,
+        # which under capture_output blocks until the 300 s timeout and reports
+        # as a conversion failure. That happens on any re-drop of the same
+        # filename — the common case for "fix the model and export again".
+        #
+        # The documented remedy is a -y/--yes overwrite flag, but the flag name
+        # has moved between IfcOpenShell releases and no IfcConvert binary is
+        # installed in this environment to confirm it against (`_find_ifc_convert`
+        # returns None here), so passing an unverified flag risks an "unknown
+        # option" failure on the very versions this is meant to help. Removing
+        # the stale file first is version-independent and needs no flag.
+        if glb_path.exists():
+            try:
+                glb_path.unlink()
+            except OSError as e:
+                log.warning("Could not remove stale GLB %s: %s", glb_path.name, e)
+
         self._emit(f"Converting to GLB ({glb_path.name})…")
         try:
             subprocess.run(
