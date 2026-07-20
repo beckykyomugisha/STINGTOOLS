@@ -31,9 +31,14 @@ DONE = "done"
 FAILED = "failed"
 SUBFOLDERS = (PROCESSING, DONE, FAILED)
 
-# Windows holds a share lock while the producing app finishes writing. The C#
-# watcher waits up to 30 s for an exclusive open; matching that order of
-# magnitude here keeps a large IFC export from being failed for being slow.
+# Windows holds a share lock while the producing app finishes writing, so a
+# large IFC export must not be failed for being slow.
+#
+# NB: this is deliberately LONGER than the C# watcher, which waits 5 s
+# (StingBridge/src/IFC/IfcDropWatcher.cs:63) — an earlier comment here claimed
+# the two matched, which was simply wrong. 30 s is kept because this path also
+# handles files written by slower producers over a network share; the C# side
+# only sees local drops.
 _MOVE_RETRY_S = 30.0
 _MOVE_BACKOFF_S = 0.25
 
@@ -82,6 +87,11 @@ def _move(src: Path, dst: Path, timeout_s: float = _MOVE_RETRY_S) -> Path:
         try:
             os.replace(src, final)
             return final
+        except FileNotFoundError as e:
+            # The source is gone — another worker claimed it, or it was deleted.
+            # Retrying cannot help, and burning the full timeout here delays the
+            # caller by 30 s for a condition that is already final.
+            raise OSError(f"{src.name} disappeared before it could be moved") from e
         except (PermissionError, OSError) as e:
             last = e
             time.sleep(_MOVE_BACKOFF_S)
@@ -109,13 +119,24 @@ def claim(src: Path, root: Path) -> Path | None:
 
 
 def _companions(processing_path: Path) -> list[Path]:
-    """Artefacts produced beside the source: `<stem>_sting.ifc` and sidecars."""
+    """Artefacts produced beside the source: `<stem>_sting.ifc`, the GLB, sidecars.
+
+    Anything the pipeline writes next to the input MUST be listed here. Whatever
+    is missed is left behind in `processing/` when the input is archived, where
+    it then sits invisibly forever. The GLB was missed:
+    `IFCDropHandler._convert_to_glb` writes `ifc_path.with_suffix(".glb")`
+    (ifc_watcher.py:257) into this same folder.
+    """
     stem = processing_path.stem
     parent = processing_path.parent
     candidates = [
         parent / f"{stem}_sting.ifc",
         parent / f"{stem}.sync_result.json",
         processing_path.with_suffix(".sync_result.json"),
+        # GLB for the Planscape viewer — written for BOTH the input and the
+        # token-stamped output, depending on which one was converted.
+        processing_path.with_suffix(".glb"),
+        parent / f"{stem}_sting.glb",
     ]
     seen: set[Path] = set()
     out = []
@@ -187,16 +208,40 @@ def recover_orphans(root: Path) -> int:
         return 0
 
     recovered = 0
+    leftovers: list[Path] = []
+
     for f in sorted(proc.iterdir()):
-        if not f.is_file() or f.suffix.lower() != ".ifc":
+        if not f.is_file():
             continue
-        if f.stem.endswith("_sting"):
-            continue  # our own output, not an unprocessed input
+
+        # Non-.ifc files (and our own _sting.ifc) are pipeline OUTPUT, never
+        # unprocessed input. Re-dropping them at the root would feed them back
+        # through the watcher; the previous code skipped them entirely, which
+        # instead left them in processing/ forever. Neither is right.
+        is_input = f.suffix.lower() == ".ifc" and not f.stem.endswith("_sting")
+        if not is_input:
+            leftovers.append(f)
+            continue
+
         try:
             _move(f, root / f.name, timeout_s=5.0)
             recovered += 1
         except OSError as e:
             log.warning("Could not recover orphan %s: %s", f.name, e)
+
+    # Everything left is stale output from the run that abandoned this folder.
+    # The inputs above were just re-dropped for a fresh pass, which regenerates
+    # them, so keeping the old copies only re-creates the stranding this sweep
+    # exists to end. (recover_orphans is a startup operation — if a worker were
+    # live, moving its input out from under it would already be destructive.)
+    for f in leftovers:
+        try:
+            _move(f, root / FAILED / f.name, timeout_s=5.0)
+        except OSError as e:
+            log.warning("Could not clear stranded artefact %s: %s", f.name, e)
+    if leftovers:
+        log.info("Moved %d stranded artefact(s) out of %s/ into %s/",
+                 len(leftovers), PROCESSING, FAILED)
 
     if recovered:
         log.info("Recovered %d file(s) stranded in %s/ by a previous run",
