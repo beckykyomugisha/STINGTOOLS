@@ -2,6 +2,35 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 219 — the Revit SEQ reservation claim was false; corrected)
+
+Phase 211 said "cross-host duplicate window closed in the plugin" and ROADMAP
+SB-2 said the plugin "now reserves server-side blocks". Neither was true of the
+shipped code.
+
+**Verified against source, not taken on trust:**
+- `PlanscapeServerClient.ReserveSeqBlocksAsync`
+  (`StingTools/BIMManager/PlanscapeServerClient.cs:691`) has **zero callers** —
+  the only other mention in the tree is a doc-comment pointing at it.
+- `SeqAssigner.AssignNext` has exactly **one** call site,
+  `TagConfig.BuildAndWriteTag` (`StingTools/Core/TagConfig.cs:2317`), and it does
+  **not** pass the optional `reservation`, so it is `null` and allocation is
+  purely local.
+
+So the mechanism is dead code with unit tests. **The online cross-host duplicate
+window for Revit remains OPEN** — Revit and StingBridge can still mint the same
+number on the same key concurrently. Both documents now say so, and
+**ROADMAP SB-2b** records the two exact wiring points plus why the wiring waits:
+it is the hot path for every tag the plugin writes, a mistake renumbers a live
+model, and it needs in-Revit runtime verification that a clean compile and unit
+tests do not substitute for.
+
+**Not wired in this phase, deliberately** — the round scoped this as a
+documentation correction.
+
+**Gate:** `grep` finds no surviving "closed"/"now reserves" claim (the only
+matches are the correction notes themselves); SB-2b exists.
+
 #### Completed (Phase 218 — the EXE build is now a committed, reproducible definition)
 
 The beta.3 packaging fix existed only as a sentence in this file. No spec, no
@@ -298,11 +327,20 @@ Four SEQ findings from the #421 review.
   row lock before the next key, so no transaction holds two counter locks and
   there is no cycle to order against. The ordering is kept, for reproducible
   responses, and now says so.
-- **Cross-host duplicate window closed in the plugin.** New pure
-  `SeqBlockReservation` + `PlanscapeServerClient.ReserveSeqBlocksAsync`;
+- **Cross-host reservation MECHANISM added to the plugin — not yet wired.**
+  New pure `SeqBlockReservation` + `PlanscapeServerClient.ReserveSeqBlocksAsync`;
   `SeqAssigner.AssignNext` takes an **optional** trailing `reservation`
   parameter, so every existing call site and the offline path are byte-identical
   to before (asserted by a test).
+
+  > **Corrected in Phase 219.** This bullet originally read "cross-host duplicate
+  > window closed in the plugin". That was **false as shipped**:
+  > `ReserveSeqBlocksAsync` has **zero callers**, and the single
+  > `AssignNext` call site (`TagConfig.BuildAndWriteTag`, `TagConfig.cs:2317`)
+  > does not pass a `reservation`, so it defaults to `null` and Revit still
+  > allocates purely locally. **The online cross-host duplicate window for Revit
+  > remains OPEN.** What landed is scaffolding plus its unit tests. Wiring is
+  > tracked as ROADMAP **SB-2b**.
 
 **Gate:** new idempotency test passes and provably fails without the fix ·
 StingBridge pytest **120 passed** · server suite **347/73**, identical to the
