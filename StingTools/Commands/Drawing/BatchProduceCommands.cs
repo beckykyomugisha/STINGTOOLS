@@ -132,7 +132,7 @@ namespace StingTools.Commands.Drawing
                                     var dctx = new DrawingContext { Level = level, PackageId = res.Preset?.PackageId };
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
                                 t.Commit();
@@ -215,7 +215,7 @@ namespace StingTools.Commands.Drawing
                             var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = tag, PackageId = res.Preset?.PackageId };
                             var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                             views += pr.ViewIds.Count;
-                            if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                            if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                             warnings.AddRange(pr.Warnings);
                             t.Commit();
                         }
@@ -285,7 +285,7 @@ namespace StingTools.Commands.Drawing
                                     var dctx = new DrawingContext { Room = room, Tag = roomLabel, PackageId = res.Preset?.PackageId };
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
                                 t.Commit();
@@ -396,7 +396,7 @@ namespace StingTools.Commands.Drawing
                                 {
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
                                 t.Commit();

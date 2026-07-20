@@ -48,6 +48,14 @@ namespace StingTools.Core.Drawing
         public ElementId SheetId { get; set; } = ElementId.InvalidElementId;
         public List<ElementId> ViewportIds { get; } = new List<ElementId>();
         public bool WasIdempotent { get; set; }
+        /// <summary>
+        /// P-9: views already on the sheet that this run left alone. Counted
+        /// separately from ViewportIds so an idempotent re-run reads as
+        /// "reused N" instead of emitting one warning per view.
+        /// </summary>
+        public int ViewportsReused { get; set; }
+        /// <summary>P-9: true when the sheet already existed and was reused.</summary>
+        public bool SheetReused { get; set; }
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -579,7 +587,10 @@ namespace StingTools.Core.Drawing
                     && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage, sheetCtx), out var cachedSheetId))
                 {
                     if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
+                    {
+                        result.SheetReused = true;   // P-9: reuse is not production
                         return vsCached.Id;
+                    }
                     _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage, sheetCtx));
                 }
 
@@ -594,7 +605,7 @@ namespace StingTools.Core.Drawing
                 // Same drawing type, same package, same production context.
                 var exact = candidates.FirstOrDefault(s =>
                     string.Equals(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, StringComparison.Ordinal));
-                if (exact != null) return exact.Id;
+                if (exact != null) { result.SheetReused = true; return exact.Id; }
 
                 // A sheet produced before the context stamp existed carries
                 // no context. Claim it only for an empty-context request —
@@ -604,7 +615,7 @@ namespace StingTools.Core.Drawing
                 {
                     var legacyBlank = candidates.FirstOrDefault(s =>
                         string.IsNullOrEmpty(DrawingTypeStamper.ReadSheetContext(s)));
-                    if (legacyBlank != null) return legacyBlank.Id;
+                    if (legacyBlank != null) { result.SheetReused = true; return legacyBlank.Id; }
                 }
 
                 // ReadSheetContext returns null when STING_SHEET_CONTEXT_TXT
@@ -620,6 +631,7 @@ namespace StingTools.Core.Drawing
                         $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
                         $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
                         "Run LoadSharedParams to bind it, then re-run production.");
+                    result.SheetReused = true;
                     return unstampable.Id;
                 }
             }
@@ -785,6 +797,17 @@ namespace StingTools.Core.Drawing
         {
             try
             {
+                // P-9: on an idempotent re-run ProduceSingleView returns the
+                // EXISTING view, which is already on this sheet. Placing it
+                // again threw inside Viewport.Create and surfaced as a warning
+                // per view per re-run — noise that made a correct no-op look
+                // like a failure. Detect it first and report reuse instead.
+                if (IsViewAlreadyOnSheet(doc, sheetId, viewId, out var existingVpId))
+                {
+                    result.ViewportsReused++;
+                    return existingVpId;
+                }
+
                 var sp = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
                     rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
                 var pt = sp?.Center;
@@ -867,6 +890,55 @@ namespace StingTools.Core.Drawing
             {
                 result.Warnings.Add($"PlaceViewOnSheet: {ex.Message}");
                 return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>
+        /// True when this view already has a viewport (or schedule instance)
+        /// on this sheet. Viewport.CanAddViewToSheet is the canonical test;
+        /// the collector then recovers the existing element's id so callers
+        /// can report reuse rather than re-place.
+        /// </summary>
+        private static bool IsViewAlreadyOnSheet(Document doc, ElementId sheetId, ElementId viewId, out ElementId viewportId)
+        {
+            viewportId = ElementId.InvalidElementId;
+            try
+            {
+                // Schedules are ScheduleSheetInstance, not Viewport, and
+                // CanAddViewToSheet does not describe them.
+                if (doc.GetElement(viewId) is ViewSchedule)
+                {
+                    foreach (var el in new FilteredElementCollector(doc, sheetId)
+                        .OfClass(typeof(ScheduleSheetInstance)))
+                    {
+                        if (el is ScheduleSheetInstance ssi && ssi.ScheduleId == viewId)
+                        {
+                            viewportId = ssi.Id;
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                if (Viewport.CanAddViewToSheet(doc, sheetId, viewId)) return false;
+
+                foreach (var el in new FilteredElementCollector(doc, sheetId).OfClass(typeof(Viewport)))
+                {
+                    if (el is Viewport vp && vp.ViewId == viewId)
+                    {
+                        viewportId = vp.Id;
+                        return true;
+                    }
+                }
+                // CanAddViewToSheet said no but no viewport on THIS sheet owns
+                // it — the view is placed on a different sheet. Not reuse;
+                // let the normal path run and report the real failure.
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsViewAlreadyOnSheet({viewId}): {ex.Message}");
+                return false;   // fail open — attempt the placement
             }
         }
 
