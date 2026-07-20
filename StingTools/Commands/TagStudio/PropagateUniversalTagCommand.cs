@@ -100,7 +100,15 @@ namespace StingTools.Commands.TagStudio
             // name ("<target>.rfa.sting-propagate-<guid>"), creating a junk
             // duplicate and leaving the real target untouched. Delete leftovers so
             // they don't appear in the master/target pickers or become targets.
-            var junk = stingFamilies.Where(f => IsTempNamed(f.Name)).ToList();
+            // Partition BEFORE deleting: a deleted Element throws
+            // InvalidObjectException on any property access (even .Name), so the
+            // keep-list must be computed while every reference is still valid.
+            var junk = new List<Family>();
+            var keep = new List<Family>();
+            foreach (Family f in stingFamilies)
+            {
+                if (IsTempNamed(f.Name)) junk.Add(f); else keep.Add(f);
+            }
             int junkDeleted = 0;
             if (junk.Count > 0)
             {
@@ -109,13 +117,14 @@ namespace StingTools.Commands.TagStudio
                     junkTx.Start();
                     foreach (Family f in junk)
                     {
+                        string junkName = f.Name; // read before Delete — invalid after
                         try { doc.Delete(f.Id); junkDeleted++; }
-                        catch (Exception ex) { StingLog.Warn($"Purge temp duplicate '{f.Name}': {ex.Message}"); }
+                        catch (Exception ex) { StingLog.Warn($"Purge temp duplicate '{junkName}': {ex.Message}"); }
                     }
                     junkTx.Commit();
                 }
                 StingLog.Info($"PropagateUniversalTag: purged {junkDeleted} temp-named duplicate families");
-                stingFamilies = stingFamilies.Where(f => !IsTempNamed(f.Name)).ToList();
+                stingFamilies = keep;
             }
 
             if (stingFamilies.Count < 2)

@@ -14467,3 +14467,12 @@ Caveat: committed without `dotnet build` verification (Linux sandbox, no
 Revit API). Verify in Revit: run Propagate on one family (Duct smoke test),
 confirm the target family is overwritten in place (no `.rfa.sting-propagate-`
 duplicate appears) and stale duplicates are purged, then scale to ALL.
+
+**Phase 195 follow-up fix**: the pre-flight purge in
+`PropagateUniversalTagCommand` deleted the temp-named junk families and then
+filtered the family list by calling `.Name` on the already-deleted `Family`
+objects — Revit throws `InvalidObjectException` ("The referenced object is
+not valid…") on any property access of a deleted element, so the command
+failed immediately in projects that had junk to purge (confirmed live in
+Revit 2025.4). The keep/junk partition is now computed BEFORE the deletes,
+and the junk name is captured before `doc.Delete` for the failure log path.
