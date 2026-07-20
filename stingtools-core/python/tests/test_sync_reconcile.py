@@ -145,22 +145,111 @@ def test_a_local_edit_seconds_old_beats_a_remote_edit_a_minute_old():
 
 # ── rule 5: ties ─────────────────────────────────────────────────────────────
 
-def test_equal_timestamps_prefer_local():
+def test_equal_timestamps_resolve_by_content_digest():
+    """A tie is broken by the DATA, not by which side is asking."""
+    from stingtools_core.sync.reconcile import token_digest
+
+    remote_tokens = tokens(seq="0009")
+    local_tokens = tokens()
+    expect_remote = token_digest(remote_tokens) > token_digest(local_tokens)
+
     a = _Adapter()
-    r = ReconcileEngine(a).reconcile(
-        [delta(ts=NOW, seq="0009")], {"g1": local(ts=NOW)})
-    assert r.kept_local == 1
-    assert a.applied == []
-    assert r.conflicts[0].reason.startswith("timestamps equal")
+    r = ReconcileEngine(a).reconcile([delta(ts=NOW, seq="0009")], {"g1": local(ts=NOW)})
+
+    assert r.conflicts and "content tiebreak" in r.conflicts[0].reason
+    if expect_remote:
+        assert r.applied == 1 and len(a.applied) == 1
+    else:
+        assert r.kept_local == 1 and a.applied == []
 
 
-def test_tie_resolution_is_deterministic():
-    # Two hosts reconciling the same pair must reach the same answer.
+def test_tie_converges_when_run_from_BOTH_perspectives():
+    """The property that actually matters, and the one the old test missed.
+
+    The previous version re-ran the SAME side five times and asserted it kept
+    saying "local". That is not convergence — it is one host agreeing with
+    itself. Under the old local-preferred rule, host A kept A's value and host B
+    kept B's, forever, and this test would still have passed.
+
+    So: swap the perspectives. Host A holds X and receives Y; host B holds Y and
+    receives X. Both must finish holding the same thing.
+    """
+    x = tokens(seq="0001")
+    y = tokens(seq="0009")
+
+    def final_tokens(local_side: dict, remote_side: dict) -> dict:
+        adapter = _Adapter()
+        res = ReconcileEngine(adapter).reconcile(
+            [ChangeDelta(kind="tag", global_id="g1", payload=remote_side,
+                         last_modified_utc=iso(NOW))],
+            {"g1": {"tokens": local_side, "modified_utc": iso(NOW),
+                    "element": "host-handle"}},
+        )
+        assert res.conflicts, "a differing pair at equal timestamps IS a conflict"
+        return remote_side if res.applied else local_side
+
+    host_a = final_tokens(local_side=x, remote_side=y)
+    host_b = final_tokens(local_side=y, remote_side=x)
+
+    assert host_a == host_b, (
+        f"hosts diverged and will never reconcile: A={host_a['seq']} B={host_b['seq']}"
+    )
+
+
+def test_tie_break_is_stable_across_repeated_runs():
+    """Same inputs, same answer — no hash-seed or ordering dependence."""
+    x, y = tokens(seq="0001"), tokens(seq="0009")
+    winners = set()
     for _ in range(5):
-        a = _Adapter()
-        r = ReconcileEngine(a).reconcile(
-            [delta(ts=NOW, seq="0009")], {"g1": local(ts=NOW)})
-        assert r.kept_local == 1
+        adapter = _Adapter()
+        res = ReconcileEngine(adapter).reconcile(
+            [ChangeDelta(kind="tag", global_id="g1", payload=y,
+                         last_modified_utc=iso(NOW))],
+            {"g1": {"tokens": x, "modified_utc": iso(NOW), "element": "h"}},
+        )
+        winners.add(res.resolutions[0].winner)
+    assert len(winners) == 1, f"tie-break is not stable: {winners}"
+
+
+# ── status propagation ───────────────────────────────────────────────────────
+
+def test_status_only_remote_change_is_applied():
+    """`status` is in the feed; excluding it from TOKEN_KEYS silently dropped it.
+
+    An element moving WIP -> Shared with no tag change compared equal and was
+    treated as a no-op, so the status never reached the host.
+    """
+    adapter = _Adapter()
+    remote = tokens()
+    remote["status"] = "Shared"
+    local_side = tokens()
+    local_side["status"] = "WIP"
+
+    res = ReconcileEngine(adapter).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote,
+                     last_modified_utc=iso(NOW + timedelta(minutes=1)))],
+        {"g1": {"tokens": local_side, "modified_utc": iso(NOW), "element": "h"}},
+    )
+
+    assert res.skipped_equal == 0, "status-only delta was treated as a no-op"
+    assert res.applied == 1
+    assert adapter.applied[0].payload["status"] == "Shared"
+
+
+def test_category_and_family_are_still_excluded():
+    """Deliberate: a family rename with an identical tag must not cause a write."""
+    adapter = _Adapter()
+    remote = tokens()
+    remote["family"] = "Renamed Family"
+    remote["category"] = "Ducts"
+
+    res = ReconcileEngine(adapter).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote,
+                     last_modified_utc=iso(NOW + timedelta(minutes=1)))],
+        {"g1": local(ts=NOW)},
+    )
+    assert res.skipped_equal == 1
+    assert adapter.applied == []
 
 
 # ── rule 6: missing timestamps ───────────────────────────────────────────────
