@@ -1,3 +1,4 @@
+# v6.11 | 20260720 | +5 mirror-drift fix (4 STING_GATE_* universal-tag badge params group 17 + PRJ_SHEET_SYSTEM_TXT group 13) — aligns with MR_PARAMETERS.txt
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
 # v6.8 | 20260630 | +9 material cost/carbon/EPD + water-efficiency fixture params (Sustainability/BOQ-cost) — aligns with MR_PARAMETERS.txt
@@ -3394,3 +3395,8 @@ Detail Items,STING_PLACER_ASSY_ID_TXT,5e189877-e121-53f8-ac57-849685c272e6,TEXT,
 Detail Items,STING_PLACER_MEMBER_ID_TXT,091ab7ea-32fc-57dd-94e4-89a0af05c31c,TEXT,STING_PLACER,Instance,Source assembly-member element id for the placed symbol [Symbols],False,,,Symbols,1,0
 Detail Items,STING_PLACER_SYMBOL_CODE_TXT,f44c8c2c-5981-517e-91e0-2a1c2970a74d,TEXT,STING_PLACER,Instance,Resolved symbol code stamped on the placed symbol [Symbols],False,,,Symbols,1,0
 Detail Items,STING_PLACER_VIEW_ID_TXT,e2b1686a-8c6a-5db8-ba02-144add1cc43f,TEXT,STING_PLACER,Instance,View id where the symbol was placed (per-view idempotency) [Symbols],False,,,Symbols,1,0
+Generic Models,STING_GATE_DATA_STATUS_INT,b7f3e2a1-0002-4a01-b001-0000000a0001,INTEGER,STINGTags_ISO19650,Instance,Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge,False,,,MULTI,1,0
+Generic Models,STING_GATE_QA_STATUS_INT,b7f3e2a1-0002-4a01-b001-0000000a0002,INTEGER,STINGTags_ISO19650,Instance,QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge,False,,,MULTI,1,0
+Generic Models,STING_GATE_DATA_MSG_TXT,b7f3e2a1-0002-4a01-b001-0000000a0003,TEXT,STINGTags_ISO19650,Instance,Data gate terse reason stamped by ComplianceScan (blank when green) — label next to the left status badge,False,,,MULTI,1,0
+Generic Models,STING_GATE_QA_MSG_TXT,b7f3e2a1-0002-4a01-b001-0000000a0004,TEXT,STINGTags_ISO19650,Instance,QA gate terse reason stamped by ComplianceScan (blank when green) — label next to the right status badge,False,,,MULTI,1,0
+Generic Models,PRJ_SHEET_SYSTEM_TXT,972024c1-53c5-5b57-b9f7-98e89fa53572,TEXT,PRJ_INFORMATION,Type,"MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]",False,,,MULTI,1,0
