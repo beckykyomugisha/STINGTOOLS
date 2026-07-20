@@ -734,6 +734,14 @@ namespace StingTools.Tags
                 StingLog.Warn($"LegendBuilder: failed to create FilledRegionType '{typeName}': {ex.Message}");
             }
 
+            // A-13: falling back to the BASE type means the swatch renders in
+            // whatever colour that type happens to carry — so a legend silently
+            // mis-states the colour it is documenting, which is worse than an
+            // obviously missing swatch. Still falls back (a legend with one
+            // wrong swatch beats no legend) but says so loudly.
+            StingLog.Warn(
+                $"LegendBuilder: swatch for RGB {color.Red}-{color.Green}-{color.Blue} fell back to base type " +
+                $"'{baseType.Name}' — this swatch will NOT show the documented colour.");
             return baseType.Id;
         }
 
@@ -985,14 +993,28 @@ namespace StingTools.Tags
         {
             if (sheet == null || legendView == null) return null;
 
-            // Check if this view can be added to the sheet
+            // A-12: CanAddViewToSheet does NOT protect against re-placing a
+            // legend on a sheet it is already on — legends are placeable on many
+            // sheets by design, so it keeps returning true. PlaceLegendOnAllSheets
+            // therefore stacked a second viewport at the identical point on every
+            // sheet, on every re-run. Check this sheet's own viewports first.
+            if (IsViewOnSheet(doc, sheet, legendView.Id))
+            {
+                StingLog.Info($"LegendBuilder: '{legendView.Name}' is already on sheet '{sheet.SheetNumber}' — left alone.");
+                return null;
+            }
             if (!Viewport.CanAddViewToSheet(doc, sheet.Id, legendView.Id))
             {
-                StingLog.Warn($"LegendBuilder: Cannot place '{legendView.Name}' on sheet '{sheet.SheetNumber}' — already placed or incompatible.");
+                StingLog.Warn($"LegendBuilder: Cannot place '{legendView.Name}' on sheet '{sheet.SheetNumber}' — incompatible.");
                 return null;
             }
 
             var (sheetWidth, sheetHeight) = GetSheetDimensions(doc, sheet);
+            // A-13: the title block's bounding box does not necessarily start at
+            // the origin. A family authored with its origin anywhere but
+            // bottom-left has a non-zero Min, and computing positions from size
+            // alone placed the legend off the sheet entirely.
+            var (originX, originY) = GetSheetOrigin(doc, sheet);
             double margin = 0.15; // feet (~46mm)
             // Legend viewport size estimate: ~0.4ft wide × 0.3ft tall for typical legend
             double legendW = 0.4;
@@ -1022,7 +1044,10 @@ namespace StingTools.Tags
 
             try
             {
-                Viewport vp = Viewport.Create(doc, sheet.Id, legendView.Id, new XYZ(x, y, 0));
+                // A-13: offset by the title block's own origin so the position
+                // is relative to the sheet's drawable frame, not to (0,0).
+                Viewport vp = Viewport.Create(doc, sheet.Id, legendView.Id,
+                    new XYZ(originX + x, originY + y, 0));
                 StingLog.Info($"LegendBuilder: placed '{legendView.Name}' on sheet '{sheet.SheetNumber}' at {position}");
                 return vp;
             }
@@ -1031,6 +1056,48 @@ namespace StingTools.Tags
                 StingLog.Warn($"LegendBuilder: failed to place on sheet: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// A-12: true when this sheet already hosts a viewport showing the
+        /// given view. Viewport.CanAddViewToSheet cannot answer this for
+        /// legends, which Revit permits on any number of sheets.
+        /// </summary>
+        internal static bool IsViewOnSheet(Document doc, ViewSheet sheet, ElementId viewId)
+        {
+            if (doc == null || sheet == null || viewId == null) return false;
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc, sheet.Id).OfClass(typeof(Viewport)))
+                    if (el is Viewport vp && vp.ViewId == viewId) return true;
+            }
+            catch (Exception ex)
+            {
+                // Fail open: place it. A duplicate legend is visible and
+                // fixable; a silently omitted one is not.
+                StingLog.Warn($"IsViewOnSheet({sheet.SheetNumber}): {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// A-13: bottom-left corner of the sheet's title block in sheet
+        /// coordinates. GetSheetDimensions returns only the SIZE, so callers
+        /// that positioned from it assumed the frame starts at the origin.
+        /// </summary>
+        internal static (double x, double y) GetSheetOrigin(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var tb = new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType()
+                    .FirstOrDefault();
+                var bb = tb?.get_BoundingBox(null);
+                if (bb?.Min != null) return (bb.Min.X, bb.Min.Y);
+            }
+            catch (Exception ex) { StingLog.Warn($"GetSheetOrigin({sheet?.SheetNumber}): {ex.Message}"); }
+            return (0.0, 0.0);
         }
 
         // ── Tag Legend Engine ──────────────────────────────────────────
