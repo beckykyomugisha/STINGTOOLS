@@ -74,6 +74,12 @@ namespace Planscape.Docs.Templates
         {
             if (existing == null || newReplacing == null)
                 return new LifecycleResult { Ok = false, Message = "Existing and replacing deliverables are required" };
+            // A deliverable cannot replace itself: doing so writes Supersedes == SupersededBy ==
+            // its own number and flips its status to "Replaced", leaving a record that claims to
+            // have been superseded by a document that does not exist.
+            if (ReferenceEquals(existing, newReplacing) ||
+                string.Equals(DeliverableKey(existing), DeliverableKey(newReplacing), StringComparison.OrdinalIgnoreCase))
+                return new LifecycleResult { Ok = false, Message = "A deliverable cannot replace itself — pick a distinct replacement." };
             try
             {
                 newReplacing.Supersedes = existing.DocNumber;
@@ -299,22 +305,38 @@ namespace Planscape.Docs.Templates
         /// <summary>ISO 19650 P→C revision promotion (P01 → C01). Idempotent for non-P revisions.</summary>
         private static string PromoteToContractual(string rev)
         {
-            if (string.IsNullOrEmpty(rev)) return "C01";
-            if (rev.StartsWith("P", StringComparison.OrdinalIgnoreCase)) return "C" + rev.Substring(1);
-            return rev;
+            if (string.IsNullOrWhiteSpace(rev)) return "C01";
+            rev = rev.Trim();
+            if (!rev.StartsWith("P", StringComparison.OrdinalIgnoreCase)) return rev;
+            // A bare "P" carries no number: "C" + "" would stamp the deliverable with a
+            // malformed single-letter revision that no later BumpRevision can parse.
+            string suffix = rev.Substring(1);
+            return suffix.Length == 0 ? "C01" : "C" + suffix;
         }
 
         private static string BumpRevision(string cur)
         {
-            if (string.IsNullOrEmpty(cur)) return "P02";
+            // No revision yet ⇒ this IS the first one. Returning P02 skipped P01 entirely.
+            if (string.IsNullOrWhiteSpace(cur)) return "P01";
+            cur = cur.Trim();
             try
             {
                 string prefix = new string(cur.TakeWhile(char.IsLetter).ToArray());
                 string numStr = new string(cur.SkipWhile(char.IsLetter).ToArray());
-                if (int.TryParse(numStr, out int n)) return $"{prefix}{(n + 1).ToString(new string('0', numStr.Length))}";
+                if (int.TryParse(numStr, out int n))
+                    return $"{prefix}{(n + 1).ToString(new string('0', Math.Max(numStr.Length, 1)))}";
+
+                // Letter-only sequences (P, A, B…) advance the letter.
+                if (numStr.Length == 0 && prefix.Length == 1 && prefix[0] != 'Z' && prefix[0] != 'z')
+                    return ((char)(prefix[0] + 1)).ToString();
             }
-            catch { /* fallthrough */ }
-            return cur + "+1";
+            catch (Exception ex) { StingLog.Warn($"BumpRevision('{cur}'): {ex.Message}"); }
+
+            // Unparseable. The old code returned cur + "+1" — a sentinel that was then WRITTEN
+            // to the revision field and persisted, corrupting the sequence permanently. Keep the
+            // value as-is and let the caller/user resolve it.
+            StingLog.Warn($"BumpRevision: cannot increment revision '{cur}'; leaving it unchanged.");
+            return cur;
         }
 
         private static void AppendRevHistory(dynamic d, string reason, string user, string templateId)
@@ -333,7 +355,17 @@ namespace Planscape.Docs.Templates
                     Reason      = reason,
                     TemplateId  = templateId
                 };
-                (d.RevisionHistory as System.Collections.IList)?.Add(entry);
+                // The `?.` used to swallow a null list entirely: the deliverable would transition
+                // with NO audit trail of the revision and nobody would ever know. ISO 19650
+                // revision history is the point of the record — say so when it can't be written.
+                var list = d.RevisionHistory as System.Collections.IList;
+                if (list == null)
+                {
+                    StingLog.Warn($"AppendRevHistory: deliverable '{DeliverableKey(d)}' has no RevisionHistory " +
+                                  $"list; revision {(string)d.Revision} not recorded.");
+                    return;
+                }
+                list.Add(entry);
             }
             catch (Exception ex) { StingLog.Warn($"AppendRevHistory failed: {ex.Message}"); }
         }

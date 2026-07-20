@@ -205,9 +205,11 @@ namespace StingTools.Core
 
             try
             {
+                string owner = OwnerKey(doc);
                 foreach (string legacyPath in LegacyCandidates(doc, fileName))
                 {
                     if (string.Equals(legacyPath, canonicalPath, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!ClaimLegacyFolder(legacyPath, owner)) continue;
                     MergeFile(legacyPath, canonicalPath);
                 }
             }
@@ -226,10 +228,74 @@ namespace StingTools.Core
 
             try
             {
+                string owner = OwnerKey(doc);
                 foreach (string legacyPath in LegacyCandidates(doc, aliasFileName))
+                {
+                    if (!ClaimLegacyFolder(legacyPath, owner)) continue;
                     MergeFile(legacyPath, canonicalPath);
+                }
             }
             catch (Exception ex) { StingLog.Warn($"CoordStores.MergeAlias({aliasFileName}): {ex.Message}"); }
+        }
+
+        /// <summary>Stable identity of the project a legacy folder gets merged into.</summary>
+        private static string OwnerKey(Document doc)
+        {
+            try
+            {
+                string root = ProjectFolderEngine.GetRootPath(doc);
+                return string.IsNullOrEmpty(root) ? "" : Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+            }
+            catch (Exception ex) { StingLog.Warn($"CoordStores.OwnerKey: {ex.Message}"); return ""; }
+        }
+
+        private const string OwnerClaimFile = ".sting_legacy_owner";
+
+        /// <summary>
+        /// Claim a legacy store folder for one project, returning false when another project
+        /// already owns it.
+        ///
+        /// LegacyCandidates probes the .rvt's own directory, and the pre-consolidation layout
+        /// put &lt;docDir&gt;/_BIM_COORD next to the model. When two UNRELATED projects share a
+        /// models directory, that sibling folder belongs to whichever project wrote it — and
+        /// merging it into the other project's canonical store silently absorbs a stranger's
+        /// issues, transmittals and register rows. The .migrated marker did not help: it made
+        /// the outcome first-open-wins, so the rightful owner then found its own data already
+        /// migrated into someone else's store.
+        ///
+        /// Federated models of the SAME project resolve to the same root, so they share the
+        /// claim and still merge normally.
+        /// </summary>
+        private static bool ClaimLegacyFolder(string legacyPath, string owner)
+        {
+            if (string.IsNullOrEmpty(owner)) return true;   // no identity to check against
+            try
+            {
+                string folder = Path.GetDirectoryName(legacyPath);
+                if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return true;
+
+                string claimPath = Path.Combine(folder, OwnerClaimFile);
+                if (File.Exists(claimPath))
+                {
+                    string existing = (File.ReadAllText(claimPath) ?? "").Trim();
+                    if (string.IsNullOrEmpty(existing)) return true;
+                    if (string.Equals(existing, owner, StringComparison.OrdinalIgnoreCase)) return true;
+                    StingLog.Warn($"CoordStores: legacy folder '{folder}' is claimed by another project " +
+                                  $"('{existing}'); skipping merge into '{owner}'.");
+                    return false;
+                }
+
+                File.WriteAllText(claimPath, owner);
+                try { File.SetAttributes(claimPath, FileAttributes.Hidden); } catch { /* cosmetic */ }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Cannot establish ownership (read-only share, permissions). Do NOT merge on a
+                // guess — an unmerged legacy store is recoverable, a contaminated one is not.
+                StingLog.Warn($"CoordStores.ClaimLegacyFolder({legacyPath}): {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Every place a legacy copy of a store could physically live.</summary>

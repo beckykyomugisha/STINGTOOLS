@@ -55,7 +55,14 @@ namespace Planscape.Docs.Templates
 
             if (deliverable != null)
             {
-                AddIfPresent(ctx.Doc, "number",           SafeString(() => (string)deliverable.DocNumber));
+                // Falls back to Code: a deliverable identified only by Code left "number" absent,
+                // so TemplateEngine.RenderEntry named the output <date>_UNKNOWN_<template> — and
+                // every such deliverable rendered on the same day OVERWROTE the previous one.
+                AddIfPresent(ctx.Doc, "number",           SafeString(() =>
+                {
+                    string n = (string)deliverable.DocNumber;
+                    return string.IsNullOrWhiteSpace(n) ? (string)deliverable.Code : n;
+                }));
                 AddIfPresent(ctx.Doc, "revision",         SafeString(() => (string)deliverable.Revision));
                 AddIfPresent(ctx.Doc, "title",            SafeString(() => (string)deliverable.Name));
                 AddIfPresent(ctx.Doc, "type",             SafeString(() => (string)deliverable.Type));

@@ -1,4 +1,4 @@
-// DocumentRegister.cs — ISO 19650 consolidation (WP8, safe additive step).
+﻿// DocumentRegister.cs — ISO 19650 consolidation (WP8, safe additive step).
 //
 // A READ-ONLY unified view over the two document registers that coexist today:
 //
@@ -81,9 +81,16 @@ namespace StingTools.Core
         }
 
         /// <summary>Export the unified view to a CSV in the routed REGISTERS folder; returns the path.</summary>
-        public static string ExportCsv(Document doc)
+        public static string ExportCsv(Document doc) => ExportCsv(doc, null);
+
+        /// <summary>
+        /// As <see cref="ExportCsv(Document)"/>, but reuses an already-built row set. Callers that
+        /// report counts to the user MUST pass their rows: rebuilding re-reads both stores, so the
+        /// numbers in the dialog could otherwise describe a different set than the file on disk.
+        /// </summary>
+        public static string ExportCsv(Document doc, List<RegisterEntry> prebuilt)
         {
-            var rows = BuildUnified(doc);
+            var rows = prebuilt ?? BuildUnified(doc);
             var sb = new StringBuilder();
             sb.AppendLine("Id,Title,Type,Discipline,Suitability,CDEStatus,Revision,Direction,Status," +
                           "ReviewedBy,ApprovedBy,CreatedBy,DateCreated,FileFormat,Source,FilePath");
@@ -107,9 +114,12 @@ namespace StingTools.Core
         /// the two source stores are left intact, so this can be re-run any time and the UIs
         /// keep working. Returns the path written.
         /// </summary>
-        public static string WriteCanonical(Document doc)
+        public static string WriteCanonical(Document doc) => WriteCanonical(doc, null);
+
+        /// <summary>As <see cref="WriteCanonical(Document)"/>, reusing an already-built row set.</summary>
+        public static string WriteCanonical(Document doc, List<RegisterEntry> prebuilt)
         {
-            var rows = BuildUnified(doc);
+            var rows = prebuilt ?? BuildUnified(doc);
             var arr = new JArray(rows.Select(r => new JObject
             {
                 ["id"] = r.Id, ["title"] = r.Title, ["type"] = r.Type, ["discipline"] = r.Discipline,
@@ -260,6 +270,11 @@ namespace StingTools.Core
         private static string Csv(string s)
         {
             s ??= "";
+            // Neutralise spreadsheet formula injection. Register fields (title, reason, user)
+            // are free text sourced from other people's transmittals; a value starting = + - @
+            // is executed as a formula the moment the exported CSV is opened in Excel. Quoting
+            // alone does NOT prevent this — the leading apostrophe does.
+            if (s.Length > 0 && "=+-@\t\r".IndexOf(s[0]) >= 0) s = "'" + s;
             return "\"" + s.Replace("\"", "\"\"") + "\"";
         }
     }
@@ -279,7 +294,7 @@ namespace StingTools.Core
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var rows = DocumentRegister.BuildUnified(doc);
-                string path = DocumentRegister.ExportCsv(doc);
+                string path = DocumentRegister.ExportCsv(doc, rows);
 
                 int both = rows.Count(r => r.Source == "both");
                 int reg  = rows.Count(r => r.Source == "register");
@@ -316,7 +331,7 @@ namespace StingTools.Core
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var rows = DocumentRegister.BuildUnified(doc);
-                string csv = DocumentRegister.ExportCsv(doc); // dry-run preview
+                string csv = DocumentRegister.ExportCsv(doc, rows); // dry-run preview
                 int both = rows.Count(r => r.Source == "both");
                 int reg  = rows.Count(r => r.Source == "register");
                 int del  = rows.Count(r => r.Source == "deliverable");
@@ -340,7 +355,9 @@ namespace StingTools.Core
                     return Result.Cancelled;
                 }
 
-                string path = DocumentRegister.WriteCanonical(doc);
+                // Same rows the dry-run preview and the counts above describe — rebuilding here
+                // would re-read both stores and could write a set the user never reviewed.
+                string path = DocumentRegister.WriteCanonical(doc, rows);
                 TaskDialog.Show("STING — Consolidate Register",
                     $"Canonical register written ({rows.Count} rows):\n{path}\n\n" +
                     "Source stores were left intact.");

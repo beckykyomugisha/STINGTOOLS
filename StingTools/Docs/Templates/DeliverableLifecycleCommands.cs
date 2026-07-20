@@ -242,10 +242,22 @@ namespace Planscape.Docs.Templates
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => LifecycleCommandHelper.Run(data, ref message, (doc, engine) =>
             {
-                dynamic d = LifecycleCommandHelper.ResolveSelection(doc);
-                if (d == null) return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "No deliverable selected." };
-                dynamic replacement = d; // UI will provide a distinct row; this placeholder keeps build stable.
-                return DeliverableLifecycle.Replace(d, replacement, doc, engine.Registry.Manifest, Environment.UserName, "Replaced via BCC");
+                // Replace needs TWO deliverables. The placeholder here used to pass the same row
+                // as both arguments, which stamped the document as superseding ITSELF and set
+                // its status to "Replaced" — corrupting the record it was meant to supersede.
+                var sel = StingTools.UI.BIMCoordinationCenter.SelectedDeliverables;
+                if (sel == null || sel.Count < 2)
+                    return new DeliverableLifecycle.LifecycleResult
+                    {
+                        Ok = false,
+                        Message = "Select TWO deliverables in the BIM Coordination Center: " +
+                                  "the one being replaced first, then its replacement."
+                    };
+
+                dynamic existing    = sel[0];
+                dynamic replacement = sel[1];
+                return DeliverableLifecycle.Replace(existing, replacement, doc, engine.Registry.Manifest,
+                                                    Environment.UserName, "Replaced via BCC");
             }, "Replace Deliverable");
     }
 }

@@ -1503,6 +1503,20 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
 
+                // Save As moves the .rvt, so the STING project root resolves somewhere new.
+                // The per-document root / greenfield / folder-stats caches are keyed by the OLD
+                // path, and CoordStores memoises which canonical stores it has already merged —
+                // leaving both in place means every subsequent write (issues, register,
+                // transmittals, exports) lands in the ORIGINAL project's tree.
+                try
+                {
+                    ProjectFolderEngine.InvalidateSetupCache(paths.OldPath);
+                    ProjectFolderEngine.InvalidateSetupCache(paths.NewPath);
+                    CoordStores.ResetMergeState();
+                    StingLog.Info($"OnDocumentSavedAs: reset project-root and store caches ({paths.OldPath} → {paths.NewPath})");
+                }
+                catch (Exception pathEx) { StingLog.Warn($"OnDocumentSavedAs path cache reset: {pathEx.Message}"); }
+
                 // A-3 — Invalidate material caches keyed by old path so a
                 // Save As doesn't leave stale name + usage indexes behind.
                 try
