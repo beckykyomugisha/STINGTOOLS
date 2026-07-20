@@ -621,11 +621,11 @@ namespace StingTools.Core.Drawing
                         // so MatchLine_Sync (recommended after every renumber)
                         // stacked another "see XXX" note per end, per run.
                         // Clear the ones this placement is about to replace
-                        // first. Matched on view + note type + exact caption
-                        // text + proximity to the placement point, so a user's
+                        // first. Matched on view + note type + caption template
+                        // shape + proximity to the placement point, so a user's
                         // own annotation and a different pair's caption are
                         // both left alone.
-                        RemoveExistingCaptions(doc, view, noteTypeId, caption, points, r);
+                        RemoveExistingCaptions(doc, view, noteTypeId, cfg.Captions.TipFormat, points, r);
 
                         foreach (var pt in points)
                         {
@@ -755,16 +755,28 @@ namespace StingTools.Core.Drawing
         /// + proximity to the point being written). That is precise enough to
         /// leave a user's own note and a different pair's caption untouched.
         ///
+        /// Matching is on the caption TEMPLATE's shape, not the rendered text.
+        /// The caption embeds the target sheet number, so after a renumber the
+        /// text this sweep writes differs from the text already on the view —
+        /// exact-text matching would miss every stale caption and orphan one
+        /// per end, per renumber. That is the flagship case for this code:
+        /// MatchLine_Sync is the recommended follow-up to a renumber.
+        ///
         /// Residual: if the boundary geometry moved since the last sweep, the
         /// old caption sits outside the tolerance and is left behind as an
         /// orphan rather than deleted. That is strictly better than the
         /// previous behaviour, which orphaned one on EVERY sweep regardless.
         /// </summary>
         private static void RemoveExistingCaptions(Document doc, View view, ElementId noteTypeId,
-            string caption, IList<XYZ> points, MatchLineRunResult r)
+            string tipFormat, IList<XYZ> points, MatchLineRunResult r)
         {
             if (doc == null || view == null || points == null || points.Count == 0) return;
+            if (string.IsNullOrEmpty(tipFormat)) return;
             const double tolFt = 2.0;   // ~600 mm — captions sit at/near the point
+
+            var shape = BuildCaptionMatcher(tipFormat);
+            if (shape == null) return;
+
             try
             {
                 var doomed = new List<ElementId>();
@@ -773,7 +785,7 @@ namespace StingTools.Core.Drawing
                     if (!(el is TextNote tn)) continue;
                     if (tn.GetTypeId() != noteTypeId) continue;
                     var text = (tn.Text ?? "").TrimEnd('\r', '\n');
-                    if (!string.Equals(text, caption, StringComparison.Ordinal)) continue;
+                    if (!shape.IsMatch(text)) continue;
                     XYZ c;
                     try { c = tn.Coord; } catch { continue; }
                     if (c == null) continue;
@@ -793,6 +805,49 @@ namespace StingTools.Core.Drawing
                 // Fail open: a failed prune means a possible duplicate caption,
                 // not a failed sweep.
                 r?.Warnings.Add($"Could not clear prior captions in '{view.Name}': {ex.Message}");
+            }
+        }
+
+        // Cache: caption template -> compiled shape matcher. One config is
+        // shared by an entire sweep, so this is built once per run in practice.
+        private static readonly Dictionary<string, System.Text.RegularExpressions.Regex> _captionMatchers
+            = new Dictionary<string, System.Text.RegularExpressions.Regex>(StringComparer.Ordinal);
+        private static readonly object _captionMatcherLock = new object();
+
+        /// <summary>
+        /// Turn a caption template such as "see {paired_ref} →" into a matcher
+        /// that recognises any rendered instance of it, whatever sheet number
+        /// it carries: everything outside the token is matched literally, the
+        /// token itself becomes a non-greedy wildcard.
+        ///
+        /// Anchored, so a note merely CONTAINING the caption is not swept up,
+        /// and the wildcard requires at least one character, so a template
+        /// that is nothing but the token cannot degenerate into "match every
+        /// note of this type".
+        /// </summary>
+        private static System.Text.RegularExpressions.Regex BuildCaptionMatcher(string tipFormat)
+        {
+            if (string.IsNullOrEmpty(tipFormat)) return null;
+            lock (_captionMatcherLock)
+            {
+                if (_captionMatchers.TryGetValue(tipFormat, out var cached)) return cached;
+                System.Text.RegularExpressions.Regex rx = null;
+                try
+                {
+                    const string token = "{paired_ref}";
+                    var parts = tipFormat.Split(new[] { token }, StringSplitOptions.None);
+                    var pattern = string.Join(".+?",
+                        parts.Select(System.Text.RegularExpressions.Regex.Escape));
+                    rx = new System.Text.RegularExpressions.Regex(
+                        "^" + pattern + "$",
+                        System.Text.RegularExpressions.RegexOptions.Compiled);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BuildCaptionMatcher('{tipFormat}'): {ex.Message}");
+                }
+                _captionMatchers[tipFormat] = rx;
+                return rx;
             }
         }
 
