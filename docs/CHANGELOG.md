@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 223 — drawings-production P0 + managed-template hardening)
+#### Completed (Phase 223 — drawings-production P0 + P1)
 
 The P0 tier of the drawings-production deep review
 ([`DRAWINGS_PRODUCTION_REVIEW.md`](DRAWINGS_PRODUCTION_REVIEW.md), ~85 findings). Six fixes,
@@ -72,6 +72,23 @@ exercised inside Revit yet — see the smoke-test list at the end.
   (`SetNonControlledTemplateParameterIds`) instead of discarding the list it built, which is what
   keeps a seed template from overriding the per-profile `DrawingType.Scale`.
 
+- **P1 — issued-output correctness (D-1/P-2/P-10, T-1/T-2/T-3/T-12, C-4/A-6/A-7/A-8/A-9).**
+  Producer numbering unified: the sequence is resolved before the number is built (it was
+  consumed only after, so `{seq}` fell back to parsing a level name and every sheet read 0001),
+  ISO tokens now resolve (13 corporate types previously kept their default number because
+  literal braces are illegal in a Revit sheet number), `doc: null` fixed so `{project}` /
+  `{originator}` fill, and a collision ladder added. Title blocks: the fabrication path routes
+  through `TitleBlockResolver` at last, the blank-name clause that matched *any* loaded title
+  block is gone, the arbitrary fallback warns instead of issuing wrong corporate identity
+  silently, and `PRJ_TB_LOCK_BOOL` is honoured by the declarative pipeline (skip-and-report).
+  `PRJ_TB_ISSUE_SUMMARY_TXT` is no longer clobbered with the revision description on every sync.
+  Annotation is idempotent for the first time: tags honour `skipIfTagged` against a per-view
+  index, dimensions detect an existing chain by what it references, the decorative pass checks
+  for an existing instance, match-line dog-legs collapse to their pair key so they update in
+  place, and captions replace rather than stack.
+  Also hardened `ManagedTemplateSyncer` (E-3/E-4/E-6) before the C-2 fix made managed mode
+  reachable for 14 packs.
+
 **Needs a Revit smoke test before merge** — none of the above has run inside Revit:
 
 | Area | What to check |
@@ -88,6 +105,12 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Numbering (D-1/P-2) | Produce over ≥2 sheets in one package: ISO-pattern types get real numbers, and the sequence increments instead of every sheet reading 0001 |
 | **ISO params unset (D-1)** | **On a project with `PRJ_PROJECT_COD_TXT` / `PRJ_ORG_ORIGINATOR_CODE_TXT` empty, confirm the leading empty segments (`--01-…`) are acceptable, or set both before producing.** Previously the whole assignment failed, so this case was invisible |
 | Collisions (P-2) | Two profiles sharing a pattern on the same level: second sheet gets a warned `-A` suffix rather than keeping its default number |
+| Title blocks (T-1/T-2) | Compose a spool sheet: it lands on the profile's title block, not "first available"; a missing family warns |
+| TB lock (T-3) | Set `PRJ_TB_LOCK_BOOL` on a sheet, run Heal and Rev Sync: cells untouched, skip reported, sheet-level `SHT_REV_*` still updates |
+| Issue summary (T-12) | Run Rev Sync twice: `PRJ_TB_ISSUE_SUMMARY_TXT` keeps its authored value |
+| Annotation idempotency (C-4) | Run annotation twice on one view: second pass places nothing and reports skips (tags, grid/level dims, north arrow) |
+| Floor/ceiling tags (A-9) | Tag a floor-heavy view: tags land at element centres instead of erroring per element |
+| Match lines (A-6/A-7) | Run `MatchLine_Sync` twice over a **dog-leg** boundary: no new curves, no extra captions |
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 

@@ -53,7 +53,47 @@ not. `VIEW_DISCIPLINE` is a bit-flag parameter (Architectural 1, Structural 2, M
 Electrical 8, Plumbing 16; Coordination 4095 = all bits). The genuine defects were Mechanical,
 Electrical and Plumbing.
 
-### P1 / P2 — still open
+### P1 — issued-output correctness (done)
+
+| Finding | Status |
+|---|---|
+| D-1 / P-2 / P-10 producer token substitution + numbering | ✅ fixed |
+| T-1 composer never called `ToConcreteFamily` | ✅ fixed |
+| T-2 blank-name match-anything + silent arbitrary fallback | ✅ fixed (two defects) |
+| T-3 `PRJ_TB_LOCK_BOOL` unread by the declarative pipeline | ✅ fixed (skip-and-report) |
+| T-12 issue summary clobbered by revision description | ✅ fixed (write removed) |
+| C-4 AnnotationRunner had no idempotency | ✅ fixed (tags / dims / decorative) |
+| A-6 dog-leg pair key never matched on re-run | ✅ fixed |
+| A-7 captions stacked every sync | ✅ fixed |
+| A-8 silent tag-family fallback | ✅ fixed (warns) |
+| A-9 `GetElementCentre` null passed to `IndependentTag.Create` | ✅ fixed (bbox centre) |
+
+Corrections to the review found while fixing these:
+
+- **E-4 was wrong in both directions.** `VIEW_DISCIPLINE` is a bit-flag parameter —
+  Architectural 1, Structural 2, Mechanical 4, Electrical 8, Plumbing 16, Coordination 4095
+  (all bits). So the shipped 4095 the review flagged as invalid was correct, and the 4096 it
+  called "the only correct one" was not. Real defect: Mechanical / Electrical / Plumbing.
+- **A-6's second clause is incorrect.** `PruneOrphans` does not need the segment-key
+  discipline: it takes the scope-pair GUID from the first colon-delimited field, identical in
+  the stamped and collapsed forms, so orphan segments pruned correctly before the fix.
+- **T-2 is two defects.** The `IsNullOrEmpty(tbFamily) ||` clause matched any loaded title
+  block and returned before the documented silent-fallback path could run.
+- **T-7's `Family Name` filters carry no `kind` field at all**, rather than `kind: builtin`.
+
+Deliberately deferred, with reasons:
+
+- **Dimension idempotency uses reference-category detection, not a stamped marker.** A marker
+  needs a new parameter bound to Dimensions (4-file provisioning). Residual: a dimension
+  reporting `AreReferencesAvailable == false` is treated as unknown, so a duplicate remains
+  possible if every dimension in a view is unreadable AND a prior chain exists.
+- **Match-line captions are identified by (view + type + text + proximity)**, since
+  `STING_MATCH_LINE_GUID_TXT` does not bind to Text Notes. Residual: a caption whose boundary
+  geometry moved is orphaned rather than deleted.
+- **`IFamilyLoadOptions` `overwriteParameterValues` disagreement** (resolver false,
+  TitleBlockSlotCommands true) — untouched, since no loading behaviour changed.
+
+### P2 — still open
 
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
 numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
