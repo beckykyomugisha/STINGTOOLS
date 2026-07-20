@@ -2,6 +2,56 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 217 — StingBridge 0.1.0-beta.3 released)
+
+Ships the two fixes that bit real drop-folder users in beta.2: the SEQ re-mint
+(Phase 211) and the stranded GLB (Phase 213). **Live on planscape.build/downloads**
+alongside beta.2 and beta.1, both of which stay listed.
+
+- **`__version__` → `0.1.0b3`**; both wheels rebuilt on Python 3.13.
+- **Two artifacts, layout diffed against beta.2 pulled out of R2** rather than
+  assumed: `win64` one-file PyInstaller EXE — 55 MB, sha256 `e0d0fa8c…`; `any`
+  wheels zip with the `run.bat`/`run.sh` launchers — 1 MB, sha256 `dfa645b7…`.
+  Both carry `LICENSE.txt` + `QUICKSTART.md`.
+
+**Two real bugs were found by smoke-testing, both invisible to every test suite:**
+
+- **`ISequenceCounterService` 500s on Postgres.** `SqlQueryRaw(...).FirstAsync()`
+  composes a `SELECT … LIMIT 1` over non-composable `INSERT … ON CONFLICT …
+  RETURNING`, which Npgsql rejects at execution time. `/seq/reserve` returned
+  **HTTP 500** and the bridge degraded to 7-segment tags. The whole 423-test
+  server suite is green with this bug present, because EF InMemory never
+  generates the SQL. Phase 211 routed `/seq/reserve` through this method, so the
+  regression is mine; `TransmittalsController` allocates the same way, so
+  transmittal numbering was affected too. Fixed with `ToListAsync` + `First()`.
+- **The PyInstaller EXE was missing `ifcopenshell`'s data files.** The pset
+  *update* path needs `entity_to_type_map_2x3.json`, which only executes on a
+  **re-drop** — so the first run looked perfect and the second failed write-back.
+  Precisely the case beta.3 exists to fix, and the first build of it shipped
+  broken. Rebuilt with `--collect-data ifcopenshell`.
+
+**Smoke-tested from clean installs against a real API build** wired to the docker
+Postgres. EXE: `--version` → `0.1.0b3`, `--help` renders, `process-ifc` → 3
+elements, **3 SEQ minted**, 3 synced, 0 errors. `any` zip: `run.bat` built its
+venv from the bundled wheels on first run and completed the same E2E.
+
+**Re-drop idempotency verified end-to-end** — the regression this release exists
+for. Processing the written-back IFC again: **no SEQ minted, 0 errors, and the
+sequence numbers unchanged (`0019/0020/0021` both runs)**. On beta.2 this
+re-mints every time.
+
+**Verified live:** both R2 objects **re-downloaded and their sha256 confirmed to
+match the catalogue**; unauthenticated `GET /api/downloads/sting-bridge/0.1.0-beta.3?artifact=…`
+returns **401** for both artifacts; `/downloads` returns 200; the setup guide
+resolves 200.
+
+**Not verified:** that the live *page* renders the beta.3 row — `/api/downloads`
+needs a subscriber session, and the gated endpoint 401s before consulting the
+catalogue, so a 401 proves gating, not catalogue presence. What is established is
+that the objects exist with the right hashes and the deploy succeeded with
+beta.3 in `catalog.ts`. One signed-in page load would close it; that is an owner
+action.
+
 #### Completed (Phase 216 — stale cross-references swept)
 
 - **ROADMAP SB-4: "DONE Phase 203" → 204.** Checked against the CHANGELOG rather
