@@ -2,6 +2,71 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 223 — PM-3 close-out: instructed dayworks, capture → price → final account)
+
+The tender annexure has always shipped a **DAYWORKS SCHEDULE**, but it is a *rates
+framework* whose own wording defers quantities to be "priced at final account". Nothing
+captured the instructed sheets in between, so there was no path from "CA instructed
+dayworks under Clause 5.7" to a value in the Final Account. `VariationItem.RateSource`
+already reserved `"Daywork"` as distinct from `"StarRate"` — the seam was cut and left
+unfilled. This fills it.
+
+- **`Core/Variation/DayworkModels.cs`** (pure, unit-tested) — `DayworkRecord`
+  (instruction ref + date, description, Recorded/Signed/Priced status, labour / plant /
+  materials lines reusing `StarRateLine` and its basis-by-`Unit` pricing),
+  `DayworkBuildUp` (NRM2 percentage additions per section) and `DayworkRegister`.
+  Mirrors `StarRate` but rolls up via percentage additions rather than overhead-then-profit.
+- **The percentage convention is pinned and tested.** A percentage addition is an
+  addition *on top of* net prime cost — `gross = net × (1 + pct/100)` — per RICS
+  "Definition of Prime Cost of Daywork" and the annexure's own wording ("DW.10
+  Materials — percentage addition for OH&P"). A test asserts the `×pct` misreading
+  is not what the code does.
+- **Placeholder percentages can't price silently.** The defaults carry over from the
+  server (`BoqDocument.Daywork*Pct` = 115/110/112) so both sides agree numerically,
+  but under the addition convention a 110% materials addition prices materials at
+  2.1× net — not a sane tendered figure (RICS-typical materials/plant is 10-20%;
+  labour 115% *is* typical). `DayworkBuildUp.Warnings()` flags any materials/plant
+  addition over 50% and the capture / pricing surfaces show it. **The three server
+  defaults look like uniform placeholders and want confirming against a real tender.**
+- **Four commands** (`Commands/Cost/DayworkCommands.cs`, all ReadOnly — dayworks are
+  sidecar commercial records): `Daywork_Capture` (headless `DayworkJson` ExtraParam or
+  the new `UI/DayworkCaptureDialog.cs`), `Daywork_Register` (status + value audit,
+  CSV), `Daywork_Price` (values unpriced sheets at **their own** build-up percentages,
+  not today's config, so re-running can't reprice history; annexure-style CSV) and
+  `Daywork_Attach` (values a sheet into a variation as a `"Daywork"`-rated item).
+- **No double-count, by construction.** An attached sheet's value rides its VO into
+  the waterfalls, so only *unattached* priced sheets are added standalone
+  (`DayworkRegister.UnattachedPricedGrossTotal`). Both the Final Account and the AFC
+  add it on that basis; tests cover the attach transfer.
+- **`VariationItem.DayworkId`** added as a sibling of `StarRateId` rather than reusing
+  it — `RateSource` already distinguishes the two build-up documents, and punning one
+  id field would make the link unresolvable without also reading `RateSource`.
+- **Fixed in passing:** the AFC XLSX export printed neither fluctuations nor dayworks,
+  so its printed lines did not sum to the AFC figure beneath them whenever
+  fluctuations were non-zero. Both lines now print.
+- **Register location:** `<project>\STING_BIM_MANAGER\dayworks.json` — deliberately a
+  sibling of `variations\` and `star_rates\`, which its callers read in the same
+  breath. (The PM-3 brief named `_BIM_COORD`; that would add a third sidecar root
+  while "sidecar-root unification" is still an open PM-7 item.)
+- **Tests:** 17 new in `StingTools.Cost.Tests` (105 total green) — build-up arithmetic,
+  the addition convention, zero/negative clamping, basis-by-unit on lines carrying both
+  Hours and Quantity, register totals, attach transfer, warning behaviour.
+
+**ROADMAP truth-up.** Verification against `origin/main` found three PM-3/WP-Q items
+listed as open were already landed, so they are removed from the open-gaps list:
+the schedule-driven cash-flow S-curve (`Core/Schedule/CashFlowSCurve.cs`, consumed by
+EVM at `VariationAndEvmCommands.cs:636` with the manual-% fallback intact), the
+contractor CVR plus loss & expense / line CTC / commitments
+(`Commands/Cost/Pm3LifecycleCommands.cs`), and the converged MSP/XER parser reading
+`PredecessorLink` / `Relationship` / `TASKPRED` (`Core/Schedule/ScheduleImporter.cs`).
+Three genuine CVR fusion deltas found during that check (retention not broken out,
+PS movement not tracked, Value not read off the S-curve) are recorded as a new WP-Q
+bullet rather than silently closed.
+
+**Caveat:** built and unit-tested on Windows (0 errors / 0 warnings; Cost 105,
+Scheduling 38, BOQ 196 green) but **not exercised inside Revit** — the four command
+tags, the capture dialog and the panel buttons are unverified at runtime.
+
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
 - **`HandoffProvisioningSqliteTests` calls the real method.** It previously
