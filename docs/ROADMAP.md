@@ -40,6 +40,19 @@ Found while fixing P0, **not** in the review:
 - **Duplicated `OST_Sheets` insertion** in `LoadSharedParamsCommand` (two identical try blocks,
   ~lines 333–349). Harmless, not fixed.
 
+### P1 — managed-template hardening (done, prerequisite of C-2)
+
+| Finding | Status |
+|---|---|
+| E-3 `CopyElement` on a non-template seed → junk views re-minted each run | ✅ fixed — `View.CreateViewTemplate()` + cleanup on failure |
+| E-4 hardcoded `VIEW_DISCIPLINE` ints | ✅ fixed — reads `ViewDiscipline` members |
+| E-6 discarded managed parameter-id list | ✅ fixed — `SetNonControlledTemplateParameterIds` complement |
+
+The review mis-stated E-4: `Coordination = 4095` was already correct and `Mechanical = 4096` was
+not. `VIEW_DISCIPLINE` is a bit-flag parameter (Architectural 1, Structural 2, Mechanical 4,
+Electrical 8, Plumbing 16; Coordination 4095 = all bits). The genuine defects were Mechanical,
+Electrical and Plumbing.
+
 ### P1 / P2 — still open
 
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and

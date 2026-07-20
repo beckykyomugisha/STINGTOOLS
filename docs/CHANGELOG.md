@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 223 — drawings-production P0)
+#### Completed (Phase 223 — drawings-production P0 + managed-template hardening)
 
 The P0 tier of the drawings-production deep review
 ([`DRAWINGS_PRODUCTION_REVIEW.md`](DRAWINGS_PRODUCTION_REVIEW.md), ~85 findings). Six fixes,
@@ -59,12 +59,28 @@ exercised inside Revit yet — see the smoke-test list at the end.
   only by an empty-context request; and if the parameter is not bound at all the producer falls
   back to the old behaviour **with a warning** rather than minting a duplicate sheet per run.
 
+- **`ManagedTemplateSyncer` hardened before managed mode goes live (E-3, E-4, E-6).** The C-2
+  fix took the managed-template path from unreachable to live for 14 packs, so its known bugs had
+  to be cleared in the same series or the fix would have shipped a regression. Non-template seeds
+  now mint via `View.CreateViewTemplate()` instead of `CopyElement` (which yielded live views that
+  could never be found again and were re-minted as `_(2)`, `_(3)`, …); the `_(2)` rename fallback
+  is gone, replaced by a loud failure that cleans up after itself. The discipline map now reads
+  `ViewDiscipline` members instead of hardcoded ints — note the review had this backwards: 4095
+  (Coordination) was already correct and 4096 (Mechanical) was not, the real defect being
+  Mechanical/Electrical/Plumbing, which should be 4/8/16. And
+  `SetManagedTemplateParameterIds` now computes the complement Revit's API wants
+  (`SetNonControlledTemplateParameterIds`) instead of discarding the list it built, which is what
+  keeps a seed template from overriding the per-profile `DrawingType.Scale`.
+
 **Needs a Revit smoke test before merge** — none of the above has run inside Revit:
 
 | Area | What to check |
 |---|---|
 | Style packs (C-1) | Apply a `corp-healthcare-*` pack: filter colour coding appears where it previously did not |
 | Extends fold (C-2) | A pack with `templateMode: "managed"` engages the managed-template path |
+| **Managed minting (E-3)** | **Apply a `templateMode:"managed"` pack on a fresh project with no `STING - ` seed templates: a real view template is created, and repeated runs add no `_(2)` / `_(3)` junk views** |
+| Discipline (E-4) | A managed `corp-standard-hvac` / `-elec` / `-plumb` template shows the right discipline in Revit, not a blank or odd value |
+| Template control (E-6) | With a managed pack applied, the per-profile `DrawingType.Scale` still wins over the seed template's scale |
 | Workflows (W-1) | Run Penetration Sweep and Penetration Register end to end |
 | Filters (V-3/V-7/V-8) | The 12 repaired filters mint; a multi-material class filter selects elements |
 | Producer (C-3) | Run `LoadSharedParams` first, then produce per level over ≥2 levels: expect one sheet per level, and a re-run that reuses them rather than adding more |
