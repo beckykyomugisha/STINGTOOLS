@@ -130,6 +130,28 @@ export const DOWNLOAD_CATALOG: Tool[] = [
     docsUrl: "/guides/stingbridge-setup.html",
     versions: [
       {
+        version: "0.1.0-beta.3",
+        releasedAt: "2026-07-20",
+        notes:
+          "Fixes re-processing the same IFC: sequence numbers are now kept instead of being handed out again, so re-exporting a corrected model no longer renumbers everything. Viewer files (.glb) are filed into done/ with their IFC instead of being left behind, and re-running a conversion over an existing file no longer hangs.",
+        artifacts: [
+          {
+            label: "win64",
+            platform: "Windows 64-bit",
+            objectKey: "sting-bridge/0.1.0-beta.3/StingBridge_0.1.0-beta.3_win64.zip",
+            sizeMb: 55,
+            sha256: "e0d0fa8c361603445751a9838717d11a7d0c4d57cffb25517cc36249f983bab7",
+          },
+          {
+            label: "any",
+            platform: "Any OS (Python 3.11+)",
+            objectKey: "sting-bridge/0.1.0-beta.3/StingBridge_0.1.0-beta.3_any.zip",
+            sizeMb: 1,
+            sha256: "dfa645b7263bbdbe46ab545c7382e00313ebe98ff8bdabc346d5bed6a8a8d055",
+          },
+        ],
+      },
+      {
         version: "0.1.0-beta.2",
         releasedAt: "2026-07-20",
         notes:
