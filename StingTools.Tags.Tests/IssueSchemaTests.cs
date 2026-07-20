@@ -1,4 +1,4 @@
-// IssueSchemaTests.cs — ISO IM runner, Phase 2 (ROADMAP IM-4 / IM-5).
+﻿// IssueSchemaTests.cs — ISO IM runner, Phase 2 (ROADMAP IM-4 / IM-5).
 //
 // Covers the three things the Phase 2 work claims to fix:
 //   1. the issue_id / id / IssueId schema fork,
@@ -359,6 +359,85 @@ namespace StingTools.Tags.Tests
             // A no-op transition changes nothing and adds no history.
             Assert.False(IssueSchema.ApplyStatus(row, "CLOSED", "x", T0.AddDays(2), null));
             Assert.Single(hist);
+        }
+
+        // ── 5. IM-8: the unreserved-minter defect ─────────────────────────
+
+        [Fact]
+        public void RED_a_minter_rebuilt_per_call_repeats_itself_when_the_caller_batches()
+        {
+            // What the retired GetNextIssueId did: rebuild from the array on every call.
+            // Correct ONLY because every caller happened to append in the same iteration.
+            // A caller that batched creations before saving got the same id every time.
+            string Rebuilt(JArray rows, string type) => new IssueIdMinter(rows).Next(type);
+
+            var store = new JArray();
+            var batched = new List<string>();
+            for (int i = 0; i < 3; i++) batched.Add(Rebuilt(store, "BCF"));   // nothing appended yet
+
+            Assert.Equal(new[] { "BCF-0001", "BCF-0001", "BCF-0001" }, batched);
+            Assert.Single(batched.Distinct());
+        }
+
+        [Fact]
+        public void GREEN_one_minter_held_across_a_batch_does_not_repeat()
+        {
+            var store = new JArray();
+            var minter = new IssueIdMinter(store);          // held for the whole batch
+            var batched = new List<string>();
+            for (int i = 0; i < 3; i++) batched.Add(minter.Next("BCF"));
+
+            Assert.Equal(new[] { "BCF-0001", "BCF-0002", "BCF-0003" }, batched);
+            Assert.Equal(3, batched.Distinct().Count());
+        }
+
+        // ── 6. Adopt: importer-shaped records stay canonical ──────────────
+
+        [Fact]
+        public void An_adopted_record_is_migrated_so_an_importer_cannot_refork_the_schema()
+        {
+            // Adopt() is what the BCF importers use. If it accepted a row verbatim, an
+            // importer emitting "id" would quietly reopen IM-4.
+            var imported = new JObject
+            {
+                ["id"] = "BCF-0001",
+                ["title"] = "Imported topic",
+                ["status"] = "Active",
+                ["bcf_guid"] = "abc-123",
+            };
+
+            IssueSchema.Migrate(imported);   // what Adopt does on the way in
+
+            Assert.Equal("BCF-0001", (string)imported["issue_id"]);
+            Assert.Null(imported["id"]);
+            // "Active" is a known spelling -> IN_PROGRESS -> still open for the gate.
+            Assert.True(IssueSchema.IsOpen(imported));
+        }
+
+        [Fact]
+        public void Bcf_status_words_reach_the_open_predicate()
+        {
+            // BCF 2.1 speaks Active/Resolved/Closed. The gate could not read any of them
+            // before the importers normalised on the way in.
+            Assert.True(IssueStatusNormalizer.IsOpen("Active"));
+            Assert.False(IssueStatusNormalizer.IsOpen("Resolved"));
+            Assert.False(IssueStatusNormalizer.IsOpen("Closed"));
+            Assert.Equal("IN_PROGRESS", IssueStatusNormalizer.Canonical("Active"));
+        }
+
+        [Fact]
+        public void Create_stamps_the_dedup_key_so_a_reimport_is_suppressed()
+        {
+            var row = IssueSchema.Create(
+                new IssueSpec { Type = "BCF", Title = "t", Source = IssueSource.Bcf,
+                                SourceHash = "bcf:abc-123" },
+                "BCF-0001", T0, "importer");
+
+            Assert.Equal("bcf", (string)row["source"]);
+            Assert.Equal("bcf:abc-123", (string)row["source_hash"]);
+
+            var store = new JArray { row };
+            Assert.NotNull(IssueSchema.FindOpenByDedupKey(store, IssueSource.Bcf, "bcf:abc-123"));
         }
 
         [Fact]

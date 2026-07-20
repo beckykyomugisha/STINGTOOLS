@@ -556,6 +556,48 @@ namespace StingTools.Core
             return row;
         }
 
+        /// <summary>
+        /// Adopt a record that a caller has already shaped, giving it everything a
+        /// <see cref="Create"/> would get — id minting, migration to the canonical schema,
+        /// the audit entry and the server push.
+        ///
+        /// For importers whose record IS the mapping work — the BCF 2.1 parsers translate a
+        /// markup XML topic field by field — where forcing the result back through
+        /// <see cref="IssueSpec"/> would mean rewriting the parser rather than fixing
+        /// anything. The row is migrated on the way in, so an adopted record cannot
+        /// reintroduce the schema fork.
+        ///
+        /// Returns the adopted row, or the EXISTING row when <paramref name="sourceHash"/>
+        /// already has an open issue. Null when the batch is unusable.
+        /// </summary>
+        public JObject Adopt(JObject row, IssueSource source, string sourceHash = null)
+        {
+            if (!Ok || row == null) return null;
+
+            if (!string.IsNullOrWhiteSpace(sourceHash))
+            {
+                var dup = IssueSchema.FindOpenByDedupKey(_rows, source, sourceHash);
+                if (dup != null) return dup;
+            }
+
+            IssueSchema.Migrate(row);
+            row["source"] = IssueSchema.SourceName(source);
+            if (!string.IsNullOrWhiteSpace(sourceHash)) row["source_hash"] = sourceHash;
+
+            // Mint only when the caller did not supply an identifier, so an importer that
+            // carries its own numbering keeps it.
+            string id = IssueSchema.IdOf(row);
+            if (string.IsNullOrWhiteSpace(id) || IssueSchema.FindById(_rows, id) != null)
+                row[IssueSchema.IdField] = _minter.Next((string)row["type"] ?? "RFI");
+
+            _rows.Add(row);
+            _created.Add(row);
+            return row;
+        }
+
+        /// <summary>Next free identifier of a type, reserved against this batch.</summary>
+        public string MintId(string type) => Ok ? _minter.Next(type) : null;
+
         /// <summary>Transition an issue's status. Returns false when absent or unchanged.</summary>
         public bool SetStatus(string issueId, string newStatus, string note = null, string response = null)
         {
