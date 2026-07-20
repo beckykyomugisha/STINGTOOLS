@@ -307,15 +307,16 @@ namespace StingTools.UI.PlacementCenter
         public string PostAuditTag         { get => _rule.PostAuditTag;         set { if (_rule.PostAuditTag         != value) { _rule.PostAuditTag         = value ?? ""; MarkDirty(); } } }
         public bool   RequiresCOBieFields  { get => _rule.RequiresCOBieFields;  set { if (_rule.RequiresCOBieFields  != value) { _rule.RequiresCOBieFields  = value; MarkDirty(); } } }
         public bool   RequiresIfcMapping   { get => _rule.RequiresIfcMapping;   set { if (_rule.RequiresIfcMapping   != value) { _rule.RequiresIfcMapping   = value; MarkDirty(); } } }
+        /// <summary>
+        /// Maintenance clearance class code (FRONT_600 / FRONT_1000 / SIDES_300
+        /// / TOP_900), bound to the cmbMaintenanceClearance ComboBox. Previously
+        /// round-tripped through double.TryParse, which never matched a class
+        /// code and so silently discarded every selection.
+        /// </summary>
         public string MaintenanceClearance
         {
-            get => _rule.MaintenanceClearance.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-            set
-            {
-                double.TryParse(value ?? "0", System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var d);
-                if (System.Math.Abs(_rule.MaintenanceClearance - d) > 1e-9) { _rule.MaintenanceClearance = d; MarkDirty(); }
-            }
+            get => _rule.MaintenanceClearance ?? "";
+            set { if (_rule.MaintenanceClearance != value) { _rule.MaintenanceClearance = value ?? ""; MarkDirty(); } }
         }
 
         // ── Computed UI helpers ─────────────────────────────────────

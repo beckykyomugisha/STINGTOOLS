@@ -50,7 +50,7 @@ namespace StingTools.Core.Placement
         /// <summary>Drop the cached map for a document so a JSON edit is re-read.</summary>
         public static void Reload(Autodesk.Revit.DB.Document doc)
         {
-            lock (_lock) { _cache.Remove(DocKey(doc)); }
+            lock (_lock) { _cache.Remove(DocKey(doc)); _entryCache.Remove(DocKey(doc)); }
         }
 
         /// <summary>The merged category→seed map for the document (corporate + project override).</summary>
@@ -103,6 +103,65 @@ namespace StingTools.Core.Placement
         // or a flat { "category": "seedId", ... } object for project overrides.
         private static void ParseInto(string json, Dictionary<string, string> map)
         {
+            var entries = new Dictionary<string, PlacementCategoryEntry>(StringComparer.OrdinalIgnoreCase);
+            ParseEntriesInto(json, entries);
+            foreach (var kv in entries) map[kv.Key] = kv.Value.Seed;
+        }
+
+        // ── v2 placeability contract ─────────────────────────────────
+        //
+        // The same JSON also declares, per category, whether the placement
+        // engine can point-place it (`placeable`) and — when it can't — the
+        // `reason` the Centre shows on the disabled checkbox. Parsed here so
+        // there is exactly one on-disk source of truth for both the seed
+        // lookup and the Auto-place checklist.
+
+        private static readonly Dictionary<string, Dictionary<string, PlacementCategoryEntry>> _entryCache
+            = new Dictionary<string, Dictionary<string, PlacementCategoryEntry>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The merged category entries for the document (corporate baseline +
+        /// project override), keyed by Revit category name. Carries the seed id
+        /// plus the v2 placeability contract.
+        /// </summary>
+        public static Dictionary<string, PlacementCategoryEntry> GetEntries(Autodesk.Revit.DB.Document doc)
+        {
+            string key = DocKey(doc);
+            lock (_lock)
+            {
+                if (_entryCache.TryGetValue(key, out var cached)) return cached;
+
+                var entries = new Dictionary<string, PlacementCategoryEntry>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    string path = StingToolsApp.FindDataFile("STING_CATEGORY_TO_SEED_MAP.json");
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                        ParseEntriesInto(File.ReadAllText(path), entries);
+                    else
+                        StingLog.Warn("CategoryToSeedRegistry: STING_CATEGORY_TO_SEED_MAP.json not found in data path.");
+                }
+                catch (Exception ex) { StingLog.Warn($"CategoryToSeedRegistry.GetEntries corporate: {ex.Message}"); }
+
+                try
+                {
+                    string baseDir = null;
+                    try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
+                    catch { }
+                    if (!string.IsNullOrEmpty(baseDir))
+                    {
+                        string ovr = Path.Combine(baseDir, "_BIM_COORD", "category_to_seed_map.json");
+                        if (File.Exists(ovr)) ParseEntriesInto(File.ReadAllText(ovr), entries);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"CategoryToSeedRegistry.GetEntries override: {ex.Message}"); }
+
+                _entryCache[key] = entries;
+                return entries;
+            }
+        }
+
+        private static void ParseEntriesInto(string json, Dictionary<string, PlacementCategoryEntry> entries)
+        {
             if (string.IsNullOrWhiteSpace(json)) return;
             JToken root;
             try { root = JToken.Parse(json); } catch (Exception ex) { StingLog.Warn($"CategoryToSeedRegistry parse: {ex.Message}"); return; }
@@ -115,7 +174,19 @@ namespace StingTools.Core.Placement
                     string cat = (string)e["category"];
                     if (string.IsNullOrWhiteSpace(cat)) continue;
                     string seed = e["seed"]?.Type == JTokenType.Null ? null : (string)e["seed"];
-                    map[cat] = seed; // null preserved → seedless
+                    entries[cat] = new PlacementCategoryEntry
+                    {
+                        Category  = cat,
+                        Seed      = seed, // null preserved → seedless
+                        // Absent `placeable` defaults to true so a v1 file (or a
+                        // project override that only names a seed) keeps working.
+                        Placeable = e["placeable"] == null || e["placeable"].Type == JTokenType.Null
+                                    || e["placeable"].Value<bool>(),
+                        Reason    = (string)e["reason"] ?? "",
+                        Group     = (string)e["group"]  ?? "",
+                        Order     = e["order"] == null || e["order"].Type == JTokenType.Null
+                                    ? int.MaxValue : e["order"].Value<int>(),
+                    };
                 }
                 return;
             }
@@ -127,10 +198,58 @@ namespace StingTools.Core.Placement
                     // skip metadata keys
                     if (prop.Name.StartsWith("_") || prop.Name == "version"
                         || prop.Name == "description" || prop.Name == "notes") continue;
+
+                    // Flat shape is seed-only; an object value may carry the v2 fields.
+                    if (prop.Value is JObject vo)
+                    {
+                        string s = vo["seed"]?.Type == JTokenType.Null ? null : (string)vo["seed"];
+                        entries[prop.Name] = new PlacementCategoryEntry
+                        {
+                            Category  = prop.Name,
+                            Seed      = s,
+                            Placeable = vo["placeable"] == null || vo["placeable"].Type == JTokenType.Null
+                                        || vo["placeable"].Value<bool>(),
+                            Reason    = (string)vo["reason"] ?? "",
+                            Group     = (string)vo["group"]  ?? "",
+                            Order     = vo["order"] == null || vo["order"].Type == JTokenType.Null
+                                        ? int.MaxValue : vo["order"].Value<int>(),
+                        };
+                        continue;
+                    }
+
                     string seed = prop.Value?.Type == JTokenType.Null ? null : (string)prop.Value;
-                    map[prop.Name] = seed;
+                    entries[prop.Name] = new PlacementCategoryEntry
+                    {
+                        Category = prop.Name, Seed = seed, Placeable = true,
+                        Reason = "", Group = "", Order = int.MaxValue,
+                    };
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// One row of STING_CATEGORY_TO_SEED_MAP.json: the seed family for a Revit
+    /// category plus the v2 placeability contract the Placement Centre renders.
+    /// </summary>
+    public class PlacementCategoryEntry
+    {
+        /// <summary>Revit category name, as it appears in a rule's CategoryFilter.</summary>
+        public string Category { get; set; } = "";
+
+        /// <summary>Seed family id under Data/Seeds/, or null when seedless.</summary>
+        public string Seed { get; set; }
+
+        /// <summary>False when the engine cannot point-place this category.</summary>
+        public bool Placeable { get; set; } = true;
+
+        /// <summary>Why the category is not placeable. Shown as the disabled checkbox tooltip.</summary>
+        public string Reason { get; set; } = "";
+
+        /// <summary>Display grouping for the Auto-place checklist. No engine effect.</summary>
+        public string Group { get; set; } = "";
+
+        /// <summary>Display order within the checklist. No engine effect.</summary>
+        public int Order { get; set; } = int.MaxValue;
     }
 }

@@ -288,13 +288,28 @@ namespace StingTools.Core.Placement
                 {
                     // The standards gate matches a rule's structured
                     // ApplicableStandards, falling back to its free-text
-                    // StandardRef. Only warn that the filter is inert when no rule
-                    // carries EITHER field — then standards can't gate anything.
-                    if (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0
-                        && !rules.Any(r => r != null
-                            && (!string.IsNullOrEmpty(r.ApplicableStandards) || !string.IsNullOrEmpty(r.StandardRef))))
+                    // StandardRef. A rule carrying neither is untagged and passes
+                    // the gate unconditionally — by design, but worth reporting so
+                    // "the standards filter didn't remove anything" is explicable.
+                    if (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0)
                     {
-                        result.Warnings.Add("Building profile declares ActiveStandards but no rule carries ApplicableStandards or StandardRef — the standards filter is inert. Tag rules with standards to enable standards-based filtering.");
+                        int tagged = rules.Count(r => r != null
+                            && (!string.IsNullOrEmpty(r.ApplicableStandards) || !string.IsNullOrEmpty(r.StandardRef)));
+                        int untagged = rules.Count - tagged;
+
+                        if (tagged == 0)
+                        {
+                            // Fallback path retained: with nothing tagged the gate
+                            // cannot discriminate at all.
+                            result.Warnings.Add("Building profile declares ActiveStandards but no rule carries ApplicableStandards or StandardRef — the standards filter is inert. Tag rules with standards to enable standards-based filtering.");
+                        }
+                        else if (untagged > 0)
+                        {
+                            result.Warnings.Add($"Standards gate: {untagged} of {rules.Count} rule(s) carry neither " +
+                                                "ApplicableStandards nor StandardRef, so they bypass the profile's " +
+                                                "ActiveStandards filter and are always included. Tag them to bring them " +
+                                                "under the gate.");
+                        }
                     }
 
                     int before = rules.Count;
@@ -637,6 +652,24 @@ namespace StingTools.Core.Placement
                     (PostPlacementHooks.MepConnectedCount > 0 || PostPlacementHooks.MepLeftOpenCount > 0))
                     result.Warnings.Add($"Post-placement: MEP connect joined {PostPlacementHooks.MepConnectedCount} connector(s); {PostPlacementHooks.MepLeftOpenCount} left open (no coincident compatible connector within 600 mm).");
             }
+
+            // Advisory pass — report specification fields that are set on a rule
+            // but cannot take effect given that rule's configuration (e.g.
+            // MinSlopePercent on a rule with RoutingMode NONE). Advisory only:
+            // never blocks the run, never edits the model. Capped so a large
+            // mis-configured rule set can't flood the result panel.
+            try
+            {
+                var advisories = PlacementAdvisoryValidator.Validate(rules, result);
+                const int MaxAdvisories = 25;
+                foreach (var a in advisories.Take(MaxAdvisories)) result.Warnings.Add(a);
+                if (advisories.Count > MaxAdvisories)
+                    result.Warnings.Add($"Rule-field advisories: {advisories.Count - MaxAdvisories} more truncated — see StingLog.");
+                if (advisories.Count > 0)
+                    StingLog.Info($"FixturePlacementEngine: {advisories.Count} rule-field advisory/ies:{Environment.NewLine}" +
+                                  string.Join(Environment.NewLine, advisories));
+            }
+            catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: advisory validator: {ex.Message}"); }
 
             return result;
         }

@@ -288,23 +288,40 @@ retention release and the sign-off guard. Still open:
   `CEILING_FOLLOW` / `FLOOR_FOLLOW` rule tokens are normalized to the nearest
   drop engine with an honest warning (Part C.5). A genuine follower router
   (route along wall/ceiling faces, not a drop) is net-new work.
-- **Data-driven Auto-place category checklist.** The 19 category checkboxes
-  are hardcoded; non-placeable ones (Conduits/Pipes/Cable Trays routing
-  outputs; Specialty/Nurse Call needing rule packs) are annotated via tooltips
-  rather than driven from the engine's supported-category set. A registry-driven
-  checklist would prevent UI↔engine drift.
-- **PlacementRule push-to-family-types fields.** `Material` / `GlazingSpec` /
-  `InsulationThicknessMm` / `NominalDiameterMm` / `MaintenanceClearance` and
-  the advisory fields (`ToughenedGlazingRequired` / `MinSlopePercent` /
-  `MinUniformityRatio` / `ExposureClass` / `EmitSupports`) are loaded + edited
-  but not consumed by the placement engine (DEFERRED in the CHANGELOG table).
-  Either wire them into the push-to-family-types pass / a post-validator, or
-  retire the editor cards.
-- **StandardRef ↔ ApplicableStandards.** The profile standards gate keys off
-  the structured `ApplicableStandards`; rules citing standards only via
-  free-text `StandardRef` are kept (not dropped) and the engine warns when the
-  filter is inert. Backfilling `ApplicableStandards` across the rule packs (or
-  a normalized StandardRef token match) would make the standards filter active.
+- ~~**Data-driven Auto-place category checklist.**~~ **Closed (Phase 223)** —
+  the checklist is generated from `PlacementCategoryRegistry`
+  (`STING_CATEGORY_TO_SEED_MAP.json` v2 + the loaded rules). Non-placeable
+  categories render disabled with the registry's own reason; ruleless ones
+  render muted. `Ducts` and `Cable Trays` added to the map.
+- ~~**PlacementRule push-to-family-types fields.**~~ **Closed (Phase 223)** —
+  audit found six of the ten fields were already consumed on the routing /
+  lighting-grid paths. `Material` / `GlazingSpec` / `ToughenedGlazingRequired` /
+  `InsulationThicknessMm` / `NominalDiameterMm` / `MaintenanceClearance` are now
+  pushed to family types (writing `STING_MAINT_CLEAR_TXT` activates
+  `MaintenanceAccessValidator`, which had no writer), and
+  `PlacementAdvisoryValidator` reports fields that cannot take effect on a
+  rule's configuration. Two underlying defects fixed: `MaintenanceClearance` was
+  typed `double` against a class-code ComboBox so every selection was discarded,
+  and the glazing / clearance editors had no commit handler at all.
+- ~~**StandardRef ↔ ApplicableStandards.**~~ **Closed (Phase 223)** —
+  `ApplicableStandards` backfilled across 128 rules in 8 packs (structured
+  coverage 206/408 → 334/408) and matching moved to `StandardsTokenMatcher`,
+  which normalises spacing, edition years and `/`-separated citations. The
+  warn-when-inert fallback is retained and now also reports how many rules
+  bypass the gate untagged.
+
+  Still open in this area: **74 rules carry neither `ApplicableStandards` nor
+  `StandardRef`** and so always pass the standards gate. That is the documented
+  "untagged matches any" default, not a bug, but tagging them would bring the
+  whole rule set under the gate.
+
+- **Editor cards with no commit handler (beyond glazing / clearance).** Fixing
+  the three fields above surfaced that the same population block
+  (`StingPlacementCenter.xaml.cs`, the per-rule sync around the
+  `cmbWetZone` / `cmbHeightStandard` / `chkRequiresCOBieFields` /
+  `chkRequiresIfcMapping` / `txtPostAuditTag` writes) has other fields populated
+  from the rule with no write-back. Only the three in Phase 223's scope were
+  wired; the rest should be audited as a group.
 
 ## BOQ / Cost — residual gaps (post Stage-B integration)
 

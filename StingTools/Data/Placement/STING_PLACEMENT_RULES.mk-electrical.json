@@ -68,6 +68,7 @@
       "PlasterOffsetMode": "None",
       "Priority": 60,
       "StandardRef": "BS 7671 kitchen supplement",
+      "ApplicableStandards": ["BS7671kitchensupplement"],
       "Notes": "Island socket above worktop.",
       "VariantHint": "MK_SOCKET_KITCHEN_ISLAND"
     },
@@ -369,6 +370,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BCO 2019 / BS 7671",
+      "ApplicableStandards": ["BCO2019", "BS7671"],
       "Notes": "Workstation triple cluster slot 0 \u2014 13A."
     },
     {
@@ -393,6 +395,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BCO 2019 / BS 7671",
+      "ApplicableStandards": ["BCO2019", "BS7671"],
       "Notes": "Workstation triple cluster slot 1 \u2014 13A."
     },
     {
@@ -417,6 +420,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI / BS EN 50173",
+      "ApplicableStandards": ["BICSI", "BSEN50173"],
       "Notes": "Workstation triple cluster slot 2 \u2014 RJ45."
     },
     {
@@ -441,6 +445,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI",
+      "ApplicableStandards": ["BICSI"],
       "Notes": "AV quad cluster slot 0 \u2014 HDMI."
     },
     {
@@ -465,6 +470,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI",
+      "ApplicableStandards": ["BICSI"],
       "Notes": "AV quad cluster slot 1 \u2014 USB-C."
     },
     {
@@ -489,6 +495,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
+      "ApplicableStandards": ["BS7671"],
       "Notes": "AV quad cluster slot 2 \u2014 13A."
     },
     {
@@ -513,6 +520,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI",
+      "ApplicableStandards": ["BICSI"],
       "Notes": "AV quad cluster slot 3 \u2014 RJ45."
     },
     {
@@ -686,6 +694,7 @@
       "BuildingType": "Office",
       "Priority": 60,
       "StandardRef": "BCO 2019",
+      "ApplicableStandards": ["BCO2019"],
       "Notes": "Floor box density 1 per 9m\u00b2.",
       "VariantHint": "MK_SOCKET_FLOORBOX_DENSITY"
     },

@@ -2,6 +2,101 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 223 — Placement Centre: data-driven category checklist, rule-field consumption, standards-gate activation)
+
+Closes three of the four residual gaps under ROADMAP § "Placement Centre —
+residual gaps". Built and tested on this machine; **not exercised inside Revit**
+— see the verification checklist in the PR.
+
+**1. The Auto-place checklist is generated, not hand-declared.**
+The 19 category checkboxes were `x:Name`d in XAML with a parallel
+`CategoryChecklist()` tuple array in code-behind and hand-written tooltips —
+three places to keep in sync with the engine, and `Cable Trays` was already
+absent from the seed map it was supposed to mirror. The list now comes from a
+new `Core/Placement/PlacementCategoryRegistry`, which joins
+`STING_CATEGORY_TO_SEED_MAP.json` (bumped to v2 with a `placeable` / `reason` /
+`group` / `order` contract) against the rules actually loaded for the run:
+
+- non-placeable categories (Conduits / Pipes / **Ducts** / **Cable Trays** /
+  Stairs) render **disabled** with the registry's own reason as the tooltip,
+  and `ToolTipService.ShowOnDisabled` so the reason is actually readable;
+- placeable-but-ruleless categories render **muted italic** with a generated
+  "ticking this places nothing until a rule pack covers it" reason — the state
+  that used to look like a bug;
+- a category named only by a rule's `CategoryFilter` and absent from the map is
+  still offered, flagged as having no declared seed, rather than silently dropped;
+- "All" means "all placeable" — `PlacementCategoryCheckItem.IsChecked` refuses
+  non-placeable categories at the setter, so no code path can tick one.
+
+The old "N of M checkboxes are NULL → stale XAML build" diagnostic is replaced
+by the equivalent check for the generated path (empty collection → warn, and
+fall back to "every category allowed").
+
+**2. Rule specification fields are consumed — and the ledger is honest.**
+The ROADMAP listed ten fields as "loaded + edited but not consumed". Auditing
+them found that is true of only some, and that two *separate* defects were
+hiding underneath:
+
+| Field | Actual state before this change |
+|---|---|
+| `MinSlopePercent` | consumed — `InWallChaseRouter` / `WallFollowerRouter` → `SlopeValidator` |
+| `NominalDiameterMm` | consumed — chase depth + `RoutingSupportPlacer` |
+| `InsulationThicknessMm` | consumed — `RoutingSupportPlacer`, `InWallChaseRouter` |
+| `MinUniformityRatio` | consumed — `LightingGridCalculator` |
+| `ExposureClass` | consumed — `InWallChaseRouter` → `ConcreteCoverTable` |
+| `EmitSupports` | consumed — `RoutingSupportPlacer`, `WallFollowerRouter` |
+| `Material` | consumed on the routing path only |
+| `MaintenanceClearance` | **not consumed, and the editor was broken** |
+| `GlazingSpec`, `ToughenedGlazingRequired` | **not consumed, and the editors were broken** |
+
+- **`MaintenanceClearance` was typed `double`** while its editor is a ComboBox
+  offering class codes (`FRONT_600`, `SIDES_300`, …) and `MaintenanceAccessValidator`
+  reads a class-code *string* from `STING_MAINT_CLEAR_TXT`. The view-model parsed
+  the selection with `double.TryParse("FRONT_600")`, which always failed, so the
+  field was always `0` and every selection was silently discarded. Retyped to
+  the class-code string. No rule pack set the field, so there is no data to migrate.
+- **`chkToughenedGlazing`, `cmbGlazingSpec` and `cmbMaintenanceClearance` had no
+  commit handler at all** — populated from the selected rule, never written back,
+  so edits were lost on selection change. This is the real reason the fields
+  looked unconsumed: they were never *edited*. Handlers added.
+- `FamilyHintsBridge.PushRuleToFamilyTypes` now pushes `Material`, `GlazingSpec`,
+  `ToughenedGlazingRequired`, `InsulationThicknessMm`, `NominalDiameterMm` and
+  `MaintenanceClearance` onto the family types. **Writing `STING_MAINT_CLEAR_TXT`
+  is what activates `MaintenanceAccessValidator`** — nothing had ever written that
+  parameter, so that validator could not previously fire.
+- New `Core/Placement/PlacementAdvisoryValidator` runs post-placement and reports
+  fields that are set but cannot take effect on that rule's configuration
+  (`MinSlopePercent` with `RoutingMode: NONE`, `MinUniformityRatio` off a
+  lighting-grid anchor, an unrecognised clearance class code, `ToughenedGlazingRequired`
+  contradicting `GlazingSpec`, …). Advisory only — never blocks a run, never edits
+  the model, capped at 25 entries with the remainder logged. Fields that are
+  push-only rather than dead say so explicitly instead of being reported as discarded.
+
+**3. The standards gate is active.**
+`ApplicableStandards` backfilled from free-text `StandardRef` across **128 rules
+in 8 packs**, taking structured coverage from 206/408 to **334/408**; no rule now
+carries `StandardRef` without `ApplicableStandards`. Backfill was
+formatting-preserving (per-rule text insertion matching local indentation and
+inline style), so the diff is 128 added lines and nothing else.
+
+Matching moved to a new `Core/Placement/StandardsTokenMatcher`, because the
+previous inline comparison missed the pairings that actually occur in the packs
+— `"BS 7671"` vs `"BS7671"`, `"BS EN 12464"` vs `"BS EN 12464-1:2011"`, and
+`"Approved Doc M / BS 8300-2"` (`/` was not a separator). A missed match silently
+drops a rule from the run. The matcher splits on `,;|/`, strips edition years
+while keeping part numbers, and compares on letters+digits only. The
+warn-when-inert fallback is retained and sharpened: with rules tagged, it now
+reports how many rules carry neither field and therefore bypass the gate.
+
+**Tests — new `StingTools.Placement.Tests` (45 passing).** A pure-logic project
+following the `StingTools.Routing.Tests` pattern (no Revit assemblies; minimal
+shims in `TestHelpers/`). Deliberately does **not** touch `StingTools.Tags.Tests`,
+which is owned by an in-flight change. Covers the matcher's regression pairings
+and both halves of the advisory contract — fires when inert, silent when the
+field is on a consuming path.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**, unchanged from baseline.
+
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
 - **`HandoffProvisioningSqliteTests` calls the real method.** It previously

@@ -14,6 +14,7 @@
       "MinSpacingMm": 600.0,
       "Priority": 55,
       "StandardRef": "Approved Doc M / BS 7671",
+      "ApplicableStandards": ["ApprovedDocM", "BS7671"],
       "Notes": "Continuous perimeter trunking sockets at 600 mm centres, 1.1 m AFF."
     },
     {
@@ -27,6 +28,7 @@
       "MinSpacingMm": 1500.0,
       "Priority": 60,
       "StandardRef": "BCO 2019",
+      "ApplicableStandards": ["BCO2019"],
       "Notes": "1 floor box per 10 m\u00b2 in open-plan.",
       "VariantHint": "ELEC_FLOOR_BOX_DENSITY"
     },
@@ -40,6 +42,7 @@
       "PerAreaM2": 250.0,
       "Priority": 65,
       "StandardRef": "BS 7671",
+      "ApplicableStandards": ["BS7671"],
       "Notes": "1 DB per 250 m\u00b2 (or per floor for areas <500 m\u00b2).",
       "VariantHint": "ELEC_EQUIPMENT_DB"
     },
@@ -53,6 +56,7 @@
       "MaxPerRoom": 2,
       "Priority": 65,
       "StandardRef": "BS 7671 \u00a7537",
+      "ApplicableStandards": ["BS7671§537"],
       "Notes": "Local isolator at 1.2 m AFF in plant rooms.",
       "VariantHint": "ELEC_EQUIPMENT_ISOLATOR_PLANT"
     },
@@ -68,6 +72,7 @@
       "MaxPerRoom": 2,
       "Priority": 80,
       "StandardRef": "Approved Doc M",
+      "ApplicableStandards": ["ApprovedDocM"],
       "Notes": "2-way switch at each stair landing.",
       "VariantHint": "Two Way Switch"
     },
@@ -82,6 +87,7 @@
       "MaxPerRoom": 1,
       "Priority": 70,
       "StandardRef": "Approved Doc M / DALI",
+      "ApplicableStandards": ["ApprovedDocM", "DALI"],
       "VariantHint": "Dimmer Switch,DIMMER,DALI",
       "Notes": "Rocker dimmer / DALI controller in conference rooms."
     },
@@ -97,6 +103,7 @@
       "Priority": 75,
       "VariantHint": "One Way Switch,KEY",
       "StandardRef": "BS 7671",
+      "ApplicableStandards": ["BS7671"],
       "Notes": "Key-switch only in plant / restricted areas."
     },
     {
@@ -109,6 +116,7 @@
       "PerLinearMetre": 8.0,
       "Priority": 80,
       "StandardRef": "BS 5266-1 / BS EN 1838",
+      "ApplicableStandards": ["BS5266-1", "BSEN1838"],
       "VariantHint": "EM",
       "Notes": "Emergency luminaires every 8 m on escape routes."
     },
@@ -121,6 +129,7 @@
       "MaxPerRoom": 1,
       "Priority": 85,
       "StandardRef": "BS 5266-1 / BS 5499",
+      "ApplicableStandards": ["BS5266-1", "BS5499"],
       "VariantHint": "EXIT,SIGN",
       "Notes": "Escape-route sign above every exit door."
     },
@@ -135,6 +144,7 @@
       "MinSpacingMm": 6000.0,
       "Priority": 60,
       "StandardRef": "BS 5839-8",
+      "ApplicableStandards": ["BS5839-8"],
       "Notes": "Public-address speaker per 60 m\u00b2 of corridor.",
       "VariantHint": "ELEC_COMMS_PA_CORRIDOR"
     },
@@ -147,6 +157,7 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "StandardRef": "BS 5839-8",
+      "ApplicableStandards": ["BS5839-8"],
       "Notes": "1 PA speaker per WC compartment.",
       "VariantHint": "ELEC_COMMS_PA_WC"
     },
@@ -161,6 +172,7 @@
       "Priority": 60,
       "VariantHint": "RJ45,DUAL,TWIN",
       "StandardRef": "BICSI / BS EN 50173",
+      "ApplicableStandards": ["BICSI", "BSEN50173"],
       "Notes": "Twin RJ45 per workstation."
     },
     {
@@ -174,6 +186,7 @@
       "Priority": 55,
       "VariantHint": "POE,UPLINK",
       "StandardRef": "BS EN 50173 / BS EN 62676",
+      "ApplicableStandards": ["BSEN50173", "BSEN62676"],
       "Notes": "PoE uplink near every IP camera."
     },
     {
@@ -186,6 +199,7 @@
       "MaxPerRoom": 1,
       "Priority": 50,
       "StandardRef": "BS 6259",
+      "ApplicableStandards": ["BS6259"],
       "Notes": "POTS / DECT handset at workpoint."
     },
     {
@@ -197,6 +211,7 @@
       "MaxPerRoom": 2,
       "Priority": 85,
       "StandardRef": "BS 5839-1",
+      "ApplicableStandards": ["BS5839-1"],
       "VariantHint": "MCP",
       "Notes": "MCP at each stair entry \u2014 pair on every level."
     },
@@ -209,6 +224,7 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "StandardRef": "BS EN 62676",
+      "ApplicableStandards": ["BSEN62676"],
       "VariantHint": "DOME",
       "Notes": "CCTV dome in stair / lift lobby."
     },
@@ -221,6 +237,7 @@
       "MaxPerRoom": 1,
       "Priority": 55,
       "StandardRef": "BS EN 50131-2-2",
+      "ApplicableStandards": ["BSEN50131-2-2"],
       "VariantHint": "PIR",
       "Notes": "Ceiling PIR for room intrusion detection."
     },
@@ -233,6 +250,7 @@
       "MinSpacingMm": 2400.0,
       "Priority": 60,
       "StandardRef": "BS EN 12464-1 (300\u2013500 lux)",
+      "ApplicableStandards": ["BSEN12464-1(300–500lux)"],
       "Notes": "Classroom luminaires on tile grid for 300+ lux.",
       "VariantHint": "ELEC_LIGHT_CLASSROOM"
     }
