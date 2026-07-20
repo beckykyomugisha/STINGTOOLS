@@ -17,14 +17,19 @@
 // family via:
 //     doc.EditFamily(master) → famDoc
 //     famDoc.OwnerFamily.FamilyCategory = <target tag category>   (net-new API call)
-//     famDoc.OwnerFamily.Name           = <target family name>    (so LoadFamily
-//                                                                   overwrites the
-//                                                                   right family)
 //     TagTypeVariantWriter.CreateStandardVariants(...)            (re-create the
 //                                                                   data-driven
 //                                                                   depth/style
 //                                                                   type variants)
-//     SaveAs(temp) → LoadFamily(temp, overwrite) → File.Move(temp → canonical)
+//     SaveAs(<tempdir>\<target>.rfa) → LoadFamily(overwrite) → File.Move(→ canonical)
+//
+// NAMING (hard Revit rule): a loaded family's project name IS its .rfa FILE
+// name — renaming famDoc.OwnerFamily does NOT survive SaveAs. The clone must
+// therefore be saved under the target's EXACT file name, inside a throwaway
+// temp SUBFOLDER for atomicity. Saving under a temp-suffixed file name (the
+// pre-fix behaviour) made LoadFamily mint a junk duplicate named
+// "<target>.rfa.sting-propagate-<guid>" and left the real target untouched.
+// Execute() purges any such leftovers from earlier runs before propagating.
 //
 // Recategorising a family PRESERVES its label rows (proven live: Air Terminal →
 // Duct Tags, every row survived). The label is IDENTICAL for all families, so no
@@ -89,6 +94,29 @@ namespace StingTools.Commands.TagStudio
                             f.FamilyCategory.CategoryType == CategoryType.Annotation)
                 .OrderBy(f => f.Name)
                 .ToList();
+
+            // ── Purge duplicates minted by pre-fix runs ──
+            // Before the temp-subfolder fix, the clone loaded under its temp FILE
+            // name ("<target>.rfa.sting-propagate-<guid>"), creating a junk
+            // duplicate and leaving the real target untouched. Delete leftovers so
+            // they don't appear in the master/target pickers or become targets.
+            var junk = stingFamilies.Where(f => IsTempNamed(f.Name)).ToList();
+            int junkDeleted = 0;
+            if (junk.Count > 0)
+            {
+                using (var junkTx = new Transaction(doc, "STING Purge propagate temp duplicates"))
+                {
+                    junkTx.Start();
+                    foreach (Family f in junk)
+                    {
+                        try { doc.Delete(f.Id); junkDeleted++; }
+                        catch (Exception ex) { StingLog.Warn($"Purge temp duplicate '{f.Name}': {ex.Message}"); }
+                    }
+                    junkTx.Commit();
+                }
+                StingLog.Info($"PropagateUniversalTag: purged {junkDeleted} temp-named duplicate families");
+                stingFamilies = stingFamilies.Where(f => !IsTempNamed(f.Name)).ToList();
+            }
 
             if (stingFamilies.Count < 2)
             {
@@ -204,6 +232,7 @@ namespace StingTools.Commands.TagStudio
                 $"Scope:  {scopeLabel}\n\n" +
                 $"Params added: {totalParams}\n" +
                 $"Type variants (re)created: {totalTypes}\n" +
+                (junkDeleted > 0 ? $"Purged stale temp-named duplicates: {junkDeleted}\n" : "") +
                 (xlsx != null ? $"\nReport: {xlsx}" : "");
             td.Show();
 
@@ -300,18 +329,10 @@ namespace StingTools.Commands.TagStudio
                             return result;
                         }
 
-                        // (b) Rename the clone to the target family name so LoadFamily
-                        // overwrites the correct family (LoadFamily matches on the
-                        // family's INTERNAL name, not the temp file name).
-                        try
-                        {
-                            if (!string.Equals(famDoc.OwnerFamily.Name, targetName, StringComparison.Ordinal))
-                                famDoc.OwnerFamily.Name = targetName;
-                        }
-                        catch (Exception nameEx)
-                        {
-                            StingLog.Warn($"{targetName}: rename OwnerFamily: {nameEx.Message}");
-                        }
+                        // (b) No rename here: a loaded family's project name comes
+                        // from its .rfa FILE name, and renaming famDoc.OwnerFamily
+                        // does not survive SaveAs. The save below writes the clone
+                        // under the target's exact file name instead.
 
                         // (c) Ensure style/visibility params exist, then (re)create the
                         // data-driven depth/style type variants.
@@ -322,11 +343,18 @@ namespace StingTools.Commands.TagStudio
                     }
 
                     // ── Atomic save-then-publish (from MigrateTagLabelReferences) ──
+                    // The temp copy keeps the target's EXACT file name (family name
+                    // == file name in Revit) inside a throwaway subfolder, so the
+                    // LoadFamily below overwrites the target family in the project
+                    // instead of minting a duplicate named after a temp file.
                     string outDir = TagFamilyConfig.GetOutputDirectory();
                     Directory.CreateDirectory(outDir);
-                    string finalPath = Path.Combine(outDir, targetName + ".rfa");
-                    string tempPath = Path.Combine(outDir,
-                        targetName + ".rfa.sting-propagate-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".tmp");
+                    string rfaFileName = targetName.Replace('/', '-') + ".rfa";
+                    string finalPath = Path.Combine(outDir, rfaFileName);
+                    string tempDir = Path.Combine(outDir,
+                        ".sting-propagate-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                    Directory.CreateDirectory(tempDir);
+                    string tempPath = Path.Combine(tempDir, rfaFileName);
 
                     bool savedOk = false;
                     try
@@ -345,7 +373,7 @@ namespace StingTools.Commands.TagStudio
 
                     if (!savedOk)
                     {
-                        TryDelete(tempPath);
+                        TryDeleteTempDir(tempDir);
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{targetName}: tg.RollBack after save fail: {rbEx.Message}"); }
                         return result;
                     }
@@ -365,17 +393,19 @@ namespace StingTools.Commands.TagStudio
 
                     if (!loadedOk)
                     {
-                        TryDelete(tempPath);
+                        TryDeleteTempDir(tempDir);
                         result.ErrorMessage = "LoadFamily back into project failed";
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{targetName}: tg.RollBack after load fail: {rbEx.Message}"); }
                         return result;
                     }
 
                     // Everything succeeded — atomically replace the canonical .rfa.
+                    // On move failure the temp dir is kept so the artefact survives.
                     try
                     {
                         if (File.Exists(finalPath)) File.Delete(finalPath);
                         File.Move(tempPath, finalPath);
+                        TryDeleteTempDir(tempDir);
                     }
                     catch (Exception mvEx)
                     {
@@ -400,10 +430,19 @@ namespace StingTools.Commands.TagStudio
         //  Helpers
         // ──────────────────────────────────────────────────────────────────
 
-        private static void TryDelete(string path)
+        /// <summary>True when a family name is a leftover from a pre-fix run
+        /// that loaded the clone under its temp file name.</summary>
+        private static bool IsTempNamed(string familyName)
         {
-            try { if (File.Exists(path)) File.Delete(path); }
-            catch (Exception ex) { StingLog.Warn($"Delete '{path}': {ex.Message}"); }
+            if (string.IsNullOrEmpty(familyName)) return false;
+            return familyName.IndexOf(".rfa.sting-propagate-", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   familyName.IndexOf(".rfa.sting-migrate-", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static void TryDeleteTempDir(string dir)
+        {
+            try { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+            catch (Exception ex) { StingLog.Warn($"Delete temp dir '{dir}': {ex.Message}"); }
         }
 
         /// <summary>
