@@ -1481,7 +1481,14 @@ namespace StingTools.Core.Symbols
         // Connectors
         // ─────────────────────────────────────────────────────────────────
 
-        private static void AddConnectors(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
+        /// <summary>
+        /// Author the connector set declared on <paramref name="def"/> into
+        /// <paramref name="fdoc"/>. Caller must have an open transaction.
+        /// Internal rather than private so FamilyConnectorTransfer's Tier-1 path
+        /// can re-mint a STING seed family's connectors exactly as the seed
+        /// builder originally made them.
+        /// </summary>
+        internal static void AddConnectors(Document fdoc, SymbolDefinition def, SymbolCreationResult result)
         {
             // Only the base symbol connectors are authored. Connectors live on the
             // family document itself (not on a type), so unioning every TypeVariant's

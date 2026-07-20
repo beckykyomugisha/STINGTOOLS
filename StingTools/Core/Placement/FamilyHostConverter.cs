@@ -629,12 +629,12 @@ namespace StingTools.Core.Placement
                 // 2. Recreate family parameters, formulas, types.
                 CopyFamilyParameters(src, tgt, res);
 
-                // 3. Connectors do NOT survive CopyElements — count + flag.
-                int srcConnectors = 0;
-                try { srcConnectors = new FilteredElementCollector(src).OfClass(typeof(ConnectorElement)).GetElementCount(); }
-                catch (Exception ex) { StingLog.Warn($"P2 connector count: {ex.Message}"); }
-                if (srcConnectors > 0)
-                    res.Notes.Add($"NEXT STEP: {srcConnectors} MEP connector(s) were NOT transferred (CopyElements does not carry connectors) — re-add them manually in the family editor.");
+                // 3. Connectors do NOT survive CopyElements — transfer them.
+                //    Tier 1 re-mints a STING seed family's connectors from its
+                //    JSON spec; Tier 2 harvests and re-creates for any other
+                //    family. Anything that still cannot be placed is reported
+                //    with full coordinates rather than silently dropped.
+                TransferConnectors(src, tgt, fam.Name, res);
 
                 // 4. Re-apply the original category.
                 using (var t = new Transaction(tgt, "STING Category"))
@@ -889,6 +889,52 @@ namespace StingTools.Core.Placement
             }
             if (skippedElemId > 0)
                 res.Notes.Add($"NEXT STEP: {skippedElemId} element-id parameter value(s) (materials / nested types) were not carried across — set them in the rebuilt family.");
+        }
+
+        /// <summary>
+        /// Run the two-tier connector transfer and fold real per-connector
+        /// accounting into the result. Replaces the previous blanket
+        /// "connectors were NOT transferred" note — only connectors actually
+        /// re-created are claimed, and every unplaced one is listed with its
+        /// exact origin / normal / domain / shape / size.
+        /// </summary>
+        private void TransferConnectors(Document src, Document tgt, string familyName,
+            FamilyHostConversionResult res)
+        {
+            ConnectorTransferResult ct;
+            try
+            {
+                ct = FamilyConnectorTransfer.Transfer(src, tgt, familyName);
+            }
+            catch (Exception ex)
+            {
+                res.Warnings.Add($"Connector transfer failed outright: {ex.Message}. " +
+                                 "The rebuilt family has NO connectors — re-add them in the family editor.");
+                StingLog.Error($"P2 connector transfer '{familyName}'", ex);
+                return;
+            }
+
+            if (ct.Harvested == 0 && ct.Recreated == 0)
+            {
+                res.Notes.Add("Connectors: none on the source family.");
+                return;
+            }
+
+            res.Notes.Add(ct.Summary());
+
+            foreach (var w in ct.Warnings) res.Warnings.Add($"Connector: {w}");
+
+            if (ct.Manual > 0)
+            {
+                res.Notes.Add($"NEXT STEP: {ct.Manual} connector(s) could not be re-created automatically — " +
+                              "re-add them in the family editor at these positions (origins are relative to the family origin):");
+                foreach (var d in ct.ManualDetails)
+                    res.Notes.Add($"    • {d}");
+            }
+
+            if (ct.OnReferenceLine > 0)
+                res.Notes.Add($"REVIEW: {ct.OnReferenceLine} connector(s) were re-created on minted reference lines " +
+                              "rather than on copied geometry faces — verify they sit on the intended surface.");
         }
 
         private static ExternalDefinition FindExternalDefinition(DefinitionFile file, Guid guid)
