@@ -1123,9 +1123,24 @@ app.UseHttpMetrics();
 // 5-request bucket and unrelated tests fail with 429. The [EnableRateLimiting]
 // attributes are inert without this middleware, so skipping it here is
 // sufficient; the policies stay registered in DI either way.
-var rateLimitingEnabled = builder.Configuration.GetValue("RateLimiting:Enabled", true);
+//
+// The opt-out is gated on the environment as well as the flag. A single config
+// key — one stray RateLimiting__Enabled=false in an env group, one copied
+// appsettings block — must not be able to switch off credential-stuffing
+// protection in production. Config alone is not enough evidence of intent for a
+// control this load-bearing.
+var rateLimitingEnabled =
+    builder.Configuration.GetValue("RateLimiting:Enabled", true)
+    || app.Environment.IsProduction();
+
 if (rateLimitingEnabled)
 {
+    if (!builder.Configuration.GetValue("RateLimiting:Enabled", true))
+    {
+        Console.WriteLine(
+            "[rate-limit] RateLimiting:Enabled=false IGNORED — the environment is "
+          + "Production and the auth limiter is not optional there.");
+    }
     app.UseRateLimiter();
 }
 else
