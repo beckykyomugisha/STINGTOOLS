@@ -2,6 +2,85 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 203 — ISO IM Phase 3: warnings persist · push · subscribe · audit)
+
+Warnings were live-only. `WarningsEngine.ScanWarnings` computed a rich report behind a 30s
+cache and threw it away; nothing was persisted beyond `warnings_baseline.json`, nothing was
+pushed, and `WarningsController` — which has existed server-side with a `PushReport`, a
+`SaveBaseline` and a trend endpoint — had **zero callers**. `PlanscapeServerClient` already
+carried `PushWarningsAsync` / `GetWarningsAsync`; both were dead surface. The mobile
+warnings screen read a table nothing ever wrote, so it had been empty since it shipped.
+
+- **New trend store.** `Core/WarningSnapshotFormat.cs` (pure codec — no Revit, no
+  filesystem, linked into `StingTools.Tags.Tests`) + `Core/WarningSnapshotStore.cs`
+  (document-aware wrapper). Line-delimited `warning_snapshots.jsonl`, one ~200-byte row per
+  scan: totals, severity/category tallies, health-score inputs, baseline total. This is
+  trend data, deliberately **not** a warnings dump. Append-only below a 2,000-row cap;
+  only a file past the cap is ever rewritten. Deliberately mirrors the
+  `CoordLogFormat`/`CoordLog` split rather than extending `CoordStores`, which is
+  array-only (whole-file `JArray.Parse` + indented `WriteArray`) and cannot host JSONL
+  without fighting its legacy-merge path. Root resolves through
+  `ProjectFolderEngine.GetDataPath` — no hand-rolled path, gate unchanged at 139.
+
+- **One choke point.** `WarningSnapshotRecorder.RecordScan` is called from the real-scan
+  exit of `ScanWarnings` only. A 30s cache hit returns before it; a `GetWarnings()` failure
+  returns before it too, because a failed scan is not a result of zero. One snapshot, one
+  audit entry, at most one push per genuine scan.
+
+- **Clean models now count.** The `rawWarnings.Count == 0` early return previously skipped
+  the cache entirely — so on a warning-free model all 15+ callers re-ran `GetWarnings()` —
+  and would have skipped the snapshot. It now caches and records like any other scan. Small
+  deliberate semantic change, flagged because it is the only behaviour that moved.
+
+- **Push wired.** `PushWarningsAsync` on each real scan; new `PushWarningBaselineAsync`
+  (the client had no baseline method) on baseline save. Both follow the
+  `DeliverableServerSync.FireAndForget` idiom: no-op when `ResolvePlanscapeProjectId`
+  returns `Guid.Empty`, never blocking, never a dialog, one `StingLog` line on failure.
+  Payloads are built in the codec so the wire contract is unit-asserted against the server
+  records rather than assumed.
+
+- **Subscribed.** `WarningsReported` registered in `PlanscapeRealtimeClient.RegisterHandlers`
+  (declared event + `c.On`), consumed by the new `Core/WarningsRealtimeBridge`, wired
+  idempotently at login. **Threading is the whole design**: `Raise` invokes subscribers
+  synchronously on the SignalR callback thread, so the bridge touches no Revit API and —
+  critically — does *not* call `InvalidateReportCache()`, which clears
+  `_classificationCache`; clearing a dictionary underneath a Revit-thread enumeration is
+  precisely the `InvalidOperationException` this avoids. Instead it sets one volatile bool
+  (`WarningsEngine.MarkRemoteStale`) that the Revit thread reads and clears on its next
+  scan. No lock, no Dispatcher, nothing that can deadlock or throw into the socket pump.
+
+- **Audit.** `warning.scan_completed` and `warning.baseline_saved` appended to the
+  tamper-evident `_BIM_COORD` chain via `Docs/Workflow/AuditLog`, both wrapped so an audit
+  failure never takes down the scan that succeeded. **No `warning.escalated` event** —
+  Phase 201's `issue.escalated_from_warning` already records every warning→issue
+  escalation, and a second event would double-log the same fact onto the chain.
+
+- **Trend surfacing (minimal).** One line under the BCC Warnings KPI strip —
+  "↓5 since 20 Jul 14:02" — read straight from the local snapshot store, plus any hint left
+  by another session's broadcast. Hidden when there is no prior snapshot. No charts.
+
+- **Baseline scale reconciled.** `warnings_baseline.json` stores a raw
+  `doc.GetWarnings().Count`: it includes suppressed warnings and excludes the synthetic
+  stale-element / BOQ-gap warnings `ScanWarnings` adds. The two figures have never been on
+  the same scale. Snapshots and the server push both use the scan scale so a baseline row
+  is comparable to the scan rows either side of it; the raw count is carried through to the
+  audit entry so it is not lost.
+
+- **Tests** — 15 new in `StingTools.Tags.Tests/WarningSnapshotFormatTests.cs`: codec
+  round-trip, corrupt-line tolerance, append-only growth (prefix byte-identical after 25
+  appends), cap behaviour, delta direction, and the server-DTO field-name contract. That
+  last one is the only real regression guard here — it is the one contract with no
+  compile-time link to the server, inside a call that deliberately swallows its own failure.
+  Writing them caught a genuine defect: `DateTimeStyles.RoundtripKind | AdjustToUniversal`
+  is an illegal combination that throws, and `TryParseLine`'s catch turned every
+  well-formed line into a skipped one — the whole trend store would have read back empty.
+
+- **Two server gaps found and filed, not fixed** (ROADMAP IM-11 / IM-12) — `POST
+  /warnings/report` writes no row so it does not feed `GET /warnings/trend` (only baselines
+  do), and `GetTrend` filters `WarningCount > 0` so a clean model vanishes from its own
+  trend. Both are server-side; Phase 203's expected scope was plugin-only and this branch's
+  server code predates PR #448.
+
 #### Completed (Phase 202 — ISO IM Phase 2b: the last six writers)
 
 Closes ROADMAP **IM-7** and **IM-8**, the two follow-ups filed by Phase 201. Mechanical

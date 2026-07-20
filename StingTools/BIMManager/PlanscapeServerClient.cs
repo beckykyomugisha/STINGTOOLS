@@ -192,6 +192,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
             // blocking the login UX. Failures are logged but not fatal.
             if (TenantId != Guid.Empty && UserId != Guid.Empty)
             {
+                // IM Phase 3 — attach the warnings subscriber BEFORE the connection
+                // starts, so a broadcast arriving during startup is not missed.
+                // Wire() is idempotent, so reconnects cannot double-subscribe.
+                try { Core.WarningsRealtimeBridge.Wire(); }
+                catch (Exception ex) { StingLog.Warn($"Planscape: warnings bridge wire failed — {ex.Message}"); }
+
                 _ = Task.Run(async () =>
                 {
                     try { await PlanscapeRealtimeClient.Instance.StartAsync(_serverUrl, _accessToken, TenantId, UserId); }
@@ -1094,6 +1100,25 @@ public sealed partial class PlanscapeServerClient : IDisposable
         {
             // Route is /warnings/report, not /warnings (was → 404).
             var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/report", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>
+    /// Save a warning baseline. Server action is <c>[HttpPost("baseline")]</c>
+    /// (WarningsController.SaveBaseline), so the <paramref name="payload"/> must match
+    /// <c>SaveWarningBaselineRequest</c>:
+    /// <c>{ warningCount, healthScore, totalElements, compliancePercent }</c>.
+    /// The server persists it as a ComplianceSnapshot — there is no dedicated
+    /// warning entity — which is what GET /warnings/trend reads back.
+    /// </summary>
+    public async Task<bool> PushWarningBaselineAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/baseline", payload);
             return resp.ok;
         }
         catch (Exception ex) { LastError = ex.Message; return false; }
