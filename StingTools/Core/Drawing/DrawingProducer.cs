@@ -607,14 +607,31 @@ namespace StingTools.Core.Drawing
             try { sheet = ViewSheet.Create(doc, titleBlockId); }
             catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
 
+            // The sequence has to be resolved BEFORE the number is built —
+            // the pattern's {seq} / {seq:Dn} needs it. It used to be consumed
+            // further down, after numbering, and only stamped into
+            // STING_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
+            // ctx.Tag — a level name in every batch command — and every sheet
+            // in a package numbered 0001.
+            int seq = ResolveSheetSequence(doc, dt, effectivePackage);
+
+            // One token dict for the number, the name and the title-block
+            // cells, built with the REAL doc handle so {project} /
+            // {originator} resolve from ProjectInformation instead of coming
+            // back blank.
+            var tokens = BuildTokenDict(doc, dt, ctx, seq);
+
             try
             {
-                sheet.SheetNumber = opts.OverrideSheetNumber ?? SubstituteTokens(dt.SheetNumberPattern, dt, ctx, doc);
+                var number = opts.OverrideSheetNumber ?? SubstituteTokens(dt.SheetNumberPattern, dt, ctx, seq, tokens);
+                // Revit rejects a duplicate sheet number outright, and the
+                // catch below would leave the sheet on its default number.
+                sheet.SheetNumber = EnsureUniqueSheetNumber(doc, number, sheet.Id, result);
             }
             catch (Exception ex) { result.Warnings.Add($"SheetNumber: {ex.Message}"); }
             try
             {
-                sheet.Name = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, doc);
+                sheet.Name = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, seq, tokens);
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 
@@ -640,42 +657,6 @@ namespace StingTools.Core.Drawing
 
             try
             {
-                // Phase 169 — persisted sequence counter via ExtensibleStorage on
-                // ProjectInfo, granular by (DT, package, discipline, vol). Falls
-                // back to the per-batch cache (and ultimately a sheet count) when
-                // ES is unavailable. Survives Revit restarts and the renumber
-                // command's compaction so deleted sheets don't regrow gaps.
-                int seq;
-                bool used = false;
-                try
-                {
-                    seq = SheetSequenceStore.Next(doc, dt.Id, effectivePackage,
-                        dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
-                    used = true;
-                }
-                catch (Exception ex2)
-                {
-                    seq = 0;
-                    StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex2.Message}");
-                }
-                if (!used)
-                {
-                    // Legacy fallback path — preserves prior behaviour for
-                    // documents where ExtensibleStorage isn't writable.
-                    if (_packageSheetCount != null && CacheMatchesDoc(doc))
-                    {
-                        _packageSheetCount.TryGetValue(effectivePackage, out var n);
-                        seq = n + 1;
-                        _packageSheetCount[effectivePackage] = seq;
-                    }
-                    else
-                    {
-                        seq = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ViewSheet))
-                            .Cast<ViewSheet>()
-                            .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
-                    }
-                }
                 DrawingTypeStamper.StampSheetSequence(sheet, seq);
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
@@ -687,7 +668,6 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var tokens = BuildTokenDict(dt, ctx);
                     var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
                     foreach (var w in tbResult.Warnings)
                         result.Warnings.Add("TitleBlockParams: " + w);
@@ -815,32 +795,153 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
-        private static string SubstituteTokens(string pattern, DrawingType dt, DrawingContext ctx, Document doc)
+        /// <summary>
+        /// Resolve the next sheet sequence for this (drawing type, package).
+        /// Extracted so numbering can consume it before the sheet number is
+        /// built. Behaviour is unchanged: persisted ES counter first, then the
+        /// per-batch cache, then a package sheet count.
+        /// </summary>
+        private static int ResolveSheetSequence(Document doc, DrawingType dt, string effectivePackage)
+        {
+            // Phase 169 — persisted sequence counter via ExtensibleStorage on
+            // ProjectInfo, granular by (DT, package, discipline, vol). Falls
+            // back to the per-batch cache (and ultimately a sheet count) when
+            // ES is unavailable. Survives Revit restarts and the renumber
+            // command's compaction so deleted sheets don't regrow gaps.
+            try
+            {
+                return SheetSequenceStore.Next(doc, dt.Id, effectivePackage,
+                    dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex.Message}");
+            }
+
+            // Legacy fallback path — preserves prior behaviour for documents
+            // where ExtensibleStorage isn't writable.
+            try
+            {
+                if (_packageSheetCount != null && CacheMatchesDoc(doc))
+                {
+                    _packageSheetCount.TryGetValue(effectivePackage, out var n);
+                    var next = n + 1;
+                    _packageSheetCount[effectivePackage] = next;
+                    return next;
+                }
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ResolveSheetSequence fallback: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Revit rejects a duplicate sheet number, so a collision would throw
+        /// and leave the sheet on its auto-assigned default. Mirrors
+        /// ShopDrawingComposer.EnsureUniqueSheetNumber (-A … -Z, then a short
+        /// random suffix) and additionally ignores the sheet being numbered.
+        /// </summary>
+        private static string EnsureUniqueSheetNumber(Document doc, string baseNumber, ElementId excludeId, ProduceResult result)
+        {
+            if (string.IsNullOrEmpty(baseNumber)) return baseNumber;
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+                {
+                    if (el is ViewSheet vs && vs.Id != excludeId && !string.IsNullOrEmpty(vs.SheetNumber))
+                        existing.Add(vs.SheetNumber);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"EnsureUniqueSheetNumber: {ex.Message}");
+                return baseNumber;
+            }
+            if (!existing.Contains(baseNumber)) return baseNumber;
+
+            for (char c = 'A'; c <= 'Z'; c++)
+            {
+                var candidate = baseNumber + "-" + c;
+                if (!existing.Contains(candidate))
+                {
+                    result?.Warnings.Add($"Sheet number '{baseNumber}' already exists; used '{candidate}'.");
+                    return candidate;
+                }
+            }
+            var fallback = baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
+            result?.Warnings.Add($"Sheet number '{baseNumber}' and all -A..-Z variants exist; used '{fallback}'.");
+            return fallback;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex _seqWidthRegex
+            = new System.Text.RegularExpressions.Regex(@"\{seq:D(\d+)\}",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static string SubstituteTokens(string pattern, DrawingType dt, DrawingContext ctx,
+            int seq, IDictionary<string, string> extras)
+            => ApplyTokenPattern(
+                pattern,
+                disc:    dt?.Discipline ?? "",
+                lvl:     ctx?.Level?.Name ?? "",
+                sys:     dt?.System ?? "",   // P4 — system code into {sys} for number/name patterns
+                mark:    ctx?.Tag ?? "",
+                spool:   ctx?.Tag ?? "",
+                purpose: dt?.Purpose ?? "",
+                seq:     seq,
+                extras:  extras);
+
+        /// <summary>
+        /// The token substitution itself, with no Revit types in its
+        /// signature so it can be exercised outside Revit. Callers resolve
+        /// the field values; this only does the string work.
+        /// </summary>
+        internal static string ApplyTokenPattern(string pattern,
+            string disc, string lvl, string sys, string mark, string spool, string purpose,
+            int seq, IDictionary<string, string> extras)
         {
             if (string.IsNullOrEmpty(pattern)) return pattern;
-            string disc  = dt?.Discipline ?? "";
-            string lvl   = ctx?.Level?.Name ?? "";
-            string sys   = dt?.System ?? "";   // P4 — system code into {sys} for number/name patterns
-            string mark  = ctx?.Tag ?? "";
-            string spool = ctx?.Tag ?? "";
 
-            string Replace(string p)
+            var p = pattern;
+            // Producer-specific shaping first (SafeShort sanitises and caps at
+            // 8 chars). Doing these before the extras sweep keeps the existing
+            // behaviour for these six tokens rather than letting the raw
+            // dictionary values through.
+            p = p.Replace("{disc}", SafeShort(disc));
+            p = p.Replace("{discipline}", disc);
+            p = p.Replace("{lvl}", SafeShort(lvl));
+            p = p.Replace("{sys}", SafeShort(sys));
+            p = p.Replace("{mark}", SafeShort(mark));
+            p = p.Replace("{spool}", SafeShort(spool));
+            p = p.Replace("{purpose}", purpose ?? "");
+
+            // ISO 19650 tokens — {project} {originator} {vol} {type} {role}
+            // {suit} {rev} and anything else the canonical builder supplies.
+            // 13 corporate drawing types carry these in their
+            // sheetNumberPattern; the producer knew none of them, so they
+            // survived as literal braces, which are illegal in a Revit sheet
+            // number — the assignment threw, was caught, and the sheet kept
+            // its default number. Same sweep ShopDrawingComposer already did.
+            if (extras != null)
             {
-                p = p.Replace("{disc}", SafeShort(disc));
-                p = p.Replace("{discipline}", disc);
-                p = p.Replace("{lvl}", SafeShort(lvl));
-                p = p.Replace("{sys}", SafeShort(sys));
-                p = p.Replace("{mark}", SafeShort(mark));
-                p = p.Replace("{spool}", SafeShort(spool));
-                p = p.Replace("{purpose}", dt?.Purpose ?? "");
-                // {seq:Dn}
-                int seq = (ctx?.Tag != null && int.TryParse(ctx.Tag, out var s)) ? s : 1;
-                for (int width = 1; width <= 6; width++)
-                    p = p.Replace($"{{seq:D{width}}}", seq.ToString("D" + width));
-                p = p.Replace("{seq}", seq.ToString("D4"));
-                return p;
+                foreach (var kv in extras)
+                {
+                    if (string.IsNullOrEmpty(kv.Key)) continue;
+                    p = p.Replace("{" + kv.Key + "}", kv.Value ?? "");
+                }
             }
-            return Replace(pattern);
+
+            // {seq:Dn} at whatever width the pattern asks for, then bare {seq}
+            // at the historical 4-digit default.
+            p = _seqWidthRegex.Replace(p, m => seq.ToString("D" + m.Groups[1].Value));
+            p = p.Replace("{seq}", seq.ToString("D4"));
+            return p;
         }
 
         private static string SafeShort(string s)
@@ -849,17 +950,26 @@ namespace StingTools.Core.Drawing
             return new string(s.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').Take(8).ToArray());
         }
 
-        private static Dictionary<string, string> BuildTokenDict(DrawingType dt, DrawingContext ctx)
+        private static Dictionary<string, string> BuildTokenDict(Document doc, DrawingType dt, DrawingContext ctx, int seq)
         {
             // INT-06: route through the canonical builder so SheetManager,
             // ShopDrawingComposer and the production engine all feed the
             // exact same token set into TitleBlockParamApplier.
+            //
+            // doc was previously passed as null with a comment claiming the
+            // producer had no handle — CreateOrFindSheet has had one all
+            // along. With null, DrawingTokenContext.ReadProjectInfo returned
+            // empty for {project} and {originator}, so producer-path
+            // title-block cells came back blank while the fabrication and
+            // SheetManager paths filled them from the same profile. seq was
+            // likewise never supplied, leaving "{seq:Dn}" literal in cells.
             var d = DrawingTokenContext.Build(
-                doc:        null,        // producer is invoked without a doc handle here
+                doc:        doc,
                 dt:         dt,
                 discCode:   dt?.Discipline,
                 discipline: dt?.Discipline,
                 levelCode:  ctx?.Level?.Name,
+                seq:        seq,
                 spool:      ctx?.Tag,
                 mark:       ctx?.Tag);
             d["package"] = ctx?.PackageId ?? dt?.PackageId ?? string.Empty;
