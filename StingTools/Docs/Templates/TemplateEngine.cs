@@ -8,6 +8,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 
@@ -70,15 +71,29 @@ namespace Planscape.Docs.Templates
             try
             {
                 if (string.IsNullOrEmpty(docNumber) || string.IsNullOrEmpty(templateId)) return;
-                string pattern = $"*_{Sanitise(docNumber)}_{templateId}.*"; // any date prefix, any extension
+
+                // EXACT match, not a glob. The render is "{yyyyMMdd}_{safeNumber}_{templateId}{ext}",
+                // and a "*_{number}_{template}.*" wildcard would also match a DIFFERENT
+                // deliverable whose number merely ENDS WITH "_" + this one (Sanitise turns
+                // spaces and '/' into '_', so e.g. purging "0001" would delete "PRJ 0001"'s
+                // render). Strip the date token and compare the remainder verbatim.
+                string expected = Sanitise(docNumber) + "_" + templateId;
                 string keepFull = string.IsNullOrEmpty(keepPath) ? null : Path.GetFullPath(keepPath);
 
-                foreach (string state in new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" })
+                // ARCHIVE is deliberately EXCLUDED: under ISO 19650 the archived issue is the
+                // retained record of what was issued, so a later re-issue must never delete it.
+                foreach (string state in new[] { "WIP", "SHARED", "PUBLISHED" })
                 {
                     string dir = StingTools.Core.StingPaths.Cde(Document, state, discipline, "Documents");
                     if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
-                    foreach (string f in Directory.GetFiles(dir, pattern))
+                    foreach (string f in Directory.GetFiles(dir))
                     {
+                        string bare = Path.GetFileNameWithoutExtension(f);
+                        int firstUs = bare.IndexOf('_');
+                        if (firstUs < 0) continue;                       // no date token
+                        string datePart = bare.Substring(0, firstUs);
+                        if (datePart.Length != 8 || !datePart.All(char.IsDigit)) continue;
+                        if (!string.Equals(bare.Substring(firstUs + 1), expected, StringComparison.OrdinalIgnoreCase)) continue;
                         if (keepFull != null && string.Equals(Path.GetFullPath(f), keepFull, StringComparison.OrdinalIgnoreCase)) continue;
                         try { File.Delete(f); StingLog.Info($"TemplateEngine: purged stale render {f}"); }
                         catch (Exception ex) { StingLog.Warn($"PurgeStaleRenders delete {f}: {ex.Message}"); }

@@ -118,15 +118,26 @@ namespace StingTools.Core
         /// <summary>Read a store as a JSON array; empty array when absent or unreadable.</summary>
         public static JArray ReadArray(string path)
         {
-            try
-            {
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new JArray();
-                return JArray.Parse(File.ReadAllText(path));
-            }
+            TryReadArray(path, out JArray rows);
+            return rows;
+        }
+
+        /// <summary>
+        /// Read a store, distinguishing "absent" (true, empty) from "exists but UNREADABLE"
+        /// (false) — a locked file on a shared drive, or corrupt JSON. Callers that write the
+        /// result back MUST honour a false return: treating an unreadable store as empty and
+        /// saving would silently truncate a live register down to whatever rows were merged in.
+        /// </summary>
+        private static bool TryReadArray(string path, out JArray rows)
+        {
+            rows = new JArray();
+            if (string.IsNullOrEmpty(path)) return true;
+            if (!File.Exists(path)) return true;          // absent ⇒ legitimately empty
+            try { rows = JArray.Parse(File.ReadAllText(path)); return true; }
             catch (Exception ex)
             {
-                StingLog.Warn($"CoordStores.ReadArray({Path.GetFileName(path)}): {ex.Message}");
-                return new JArray();
+                StingLog.Warn($"CoordStores.TryReadArray({Path.GetFileName(path)}): {ex.Message}");
+                return false;
             }
         }
 
@@ -141,11 +152,15 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Error($"CoordStores.WriteArray({Path.GetFileName(path)}) failed", ex); }
         }
 
-        /// <summary>Append one row to a store atomically.</summary>
+        /// <summary>Append one row to a store atomically. Refuses to write if the store is unreadable.</summary>
         public static void Append(string path, JObject row)
         {
             if (string.IsNullOrEmpty(path) || row == null) return;
-            var rows = ReadArray(path);
+            if (!TryReadArray(path, out JArray rows))
+            {
+                StingLog.Warn($"CoordStores.Append refused — {path} exists but is unreadable; not overwriting it.");
+                return;
+            }
             rows.Add(row);
             WriteArray(path, rows);
         }
@@ -257,10 +272,21 @@ namespace StingTools.Core
 
             try
             {
-                var legacyRows = ReadArray(legacyPath);
+                // Bail (WITHOUT marking migrated) if either side is unreadable — merging into a
+                // store we failed to read would write back only the legacy rows and destroy it,
+                // and marking a legacy file migrated after a failed read would strand its rows.
+                if (!TryReadArray(legacyPath, out JArray legacyRows))
+                {
+                    StingLog.Warn($"CoordStores.MergeFile: legacy store unreadable, deferring: {legacyPath}");
+                    return;
+                }
                 if (legacyRows.Count == 0) { MarkMigrated(legacyPath); return; }
 
-                var canonical = ReadArray(canonicalPath);
+                if (!TryReadArray(canonicalPath, out JArray canonical))
+                {
+                    StingLog.Warn($"CoordStores.MergeFile: canonical store unreadable, deferring merge into {canonicalPath}");
+                    return;
+                }
                 var seen = new HashSet<string>(
                     canonical.OfType<JObject>().Select(RowId).Where(s => !string.IsNullOrEmpty(s)),
                     StringComparer.OrdinalIgnoreCase);

@@ -166,11 +166,28 @@ namespace StingTools.Core.Storage
         {
             try
             {
+                // Different volumes (or local vs UNC) have no relative path between them —
+                // Uri.MakeRelativeUri would return an ABSOLUTE "file:///…" string, which then
+                // gets stamped and can never resolve. Since EnsureStamped refuses to re-stamp
+                // once a stamp exists, that would poison the root permanently. This is reachable:
+                // GetRootPath falls back to MyDocuments/<code> when the project dir is unwritable
+                // (e.g. the .rvt sits on a read-only share).
+                string baseRoot   = Path.GetPathRoot(Path.GetFullPath(baseDir))   ?? "";
+                string targetRoot = Path.GetPathRoot(Path.GetFullPath(target))    ?? "";
+                if (!string.Equals(baseRoot, targetRoot, StringComparison.OrdinalIgnoreCase)) return null;
+
                 var baseUri = new Uri(AppendSlash(baseDir));
                 var targetUri = new Uri(AppendSlash(target));
-                string rel = Uri.UnescapeDataString(baseUri.MakeRelativeUri(targetUri).ToString())
+                var relUri = baseUri.MakeRelativeUri(targetUri);
+                if (relUri.IsAbsoluteUri) return null;
+
+                string rel = Uri.UnescapeDataString(relUri.ToString())
                     .Replace('/', Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar);
-                return string.IsNullOrEmpty(rel) ? "." : rel;
+
+                // Reject anything that still looks absolute / scheme-qualified.
+                if (string.IsNullOrEmpty(rel)) return ".";
+                if (rel.IndexOf(':') >= 0 || rel.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) return null;
+                return rel;
             }
             catch { return null; }
         }

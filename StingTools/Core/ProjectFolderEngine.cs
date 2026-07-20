@@ -143,12 +143,16 @@ namespace StingTools.Core
         }
 
         // PERF-02: Folder stats cache
-        private static List<FolderStats> _folderStatsCache;
-        private static DateTime _folderStatsCacheTime = DateTime.MinValue;
+        // PERF-02: folder-stats cache, keyed PER DOCUMENT. A single global cache returned
+        // document A's stats for document B whenever two projects were open inside the 10s
+        // window — the same cross-document contamination class the per-document root cache
+        // was introduced to fix.
+        private static readonly ConcurrentDictionary<string, (DateTime When, List<FolderStats> Stats)>
+            _folderStatsByDoc = new(StringComparer.OrdinalIgnoreCase);
         private static readonly TimeSpan FolderStatsCacheDuration = TimeSpan.FromSeconds(10);
 
         /// <summary>Invalidate the folder stats cache (call after file operations).</summary>
-        public static void InvalidateFolderStatsCache() { _folderStatsCacheTime = DateTime.MinValue; }
+        public static void InvalidateFolderStatsCache() { _folderStatsByDoc.Clear(); }
 
         // CONFIG-02: Optional discipline-list override. Null ⇒ use the project
         // setup's own Disciplines (ProjectSetup.DefaultBimDisciplines by default),
@@ -414,6 +418,51 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(part)) p = Path.Combine(p, part);
             try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetMetaPath: {ex.Message}"); }
             return p;
+        }
+
+        /// <summary>
+        /// Resolve a project override file declared as a relative path such as
+        /// <c>"_BIM_COORD/climate_data.json"</c>. Prefers the CONSOLIDATED
+        /// &lt;root&gt;/_data/&lt;bucket&gt;/&lt;file&gt; location — where <see cref="MigrateFromLegacy"/>
+        /// relocates it on document open — and falls back to the legacy
+        /// &lt;rvtDir&gt;/&lt;relPath&gt; sibling. Returns null when neither exists.
+        /// <para>
+        /// Without this, a registry that hard-codes the sibling path silently stops finding
+        /// its override the first time the project is opened after consolidation, and the
+        /// engine quietly reverts to corporate defaults — a wrong-answer regression rather
+        /// than a visible failure.
+        /// </para>
+        /// </summary>
+        public static string ResolveProjectOverridePath(Document doc, string relPath)
+        {
+            if (doc == null || string.IsNullOrEmpty(relPath)) return null;
+            try
+            {
+                string norm  = relPath.Replace('\\', '/');
+                int slash    = norm.IndexOf('/');
+                string bucket = slash > 0 ? norm.Substring(0, slash) : null;
+                string rest   = slash > 0 ? norm.Substring(slash + 1) : norm;
+                string restOs = rest.Replace('/', Path.DirectorySeparatorChar);
+
+                if (!string.IsNullOrEmpty(bucket))
+                {
+                    string metaDir = GetMetaPath(doc, bucket);
+                    if (!string.IsNullOrEmpty(metaDir))
+                    {
+                        string consolidated = Path.Combine(metaDir, restOs);
+                        if (File.Exists(consolidated)) return consolidated;
+                    }
+                }
+
+                string projDir = Path.GetDirectoryName(doc.PathName ?? "");
+                if (!string.IsNullOrEmpty(projDir))
+                {
+                    string legacy = Path.Combine(projDir, norm.Replace('/', Path.DirectorySeparatorChar));
+                    if (File.Exists(legacy)) return legacy;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveProjectOverridePath({relPath}): {ex.Message}"); }
+            return null;
         }
 
         /// <summary>
@@ -1328,8 +1377,10 @@ namespace StingTools.Core
         /// <summary>Get folder statistics (cached for 10 seconds — PERF-02).</summary>
         public static List<FolderStats> GetFolderStats(Document doc)
         {
-            if (_folderStatsCache != null && (DateTime.Now - _folderStatsCacheTime) < FolderStatsCacheDuration)
-                return _folderStatsCache;
+            string statsKey = doc?.PathName ?? "<no-doc>";
+            if (_folderStatsByDoc.TryGetValue(statsKey, out var cached) &&
+                (DateTime.Now - cached.When) < FolderStatsCacheDuration && cached.Stats != null)
+                return cached.Stats;
 
             var stats = new List<FolderStats>();
             string root = GetRootPath(doc);
@@ -1376,8 +1427,7 @@ namespace StingTools.Core
                     Exists = Directory.Exists(folderPath)
                 });
             }
-            _folderStatsCache = stats;
-            _folderStatsCacheTime = DateTime.Now;
+            _folderStatsByDoc[statsKey] = (DateTime.Now, stats);
             return stats;
         }
 
@@ -1435,8 +1485,14 @@ namespace StingTools.Core
                 try
                 {
                     if (!Directory.Exists(recycleDir)) Directory.CreateDirectory(recycleDir);
-                    string recycledName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{name}";
-                    string recyclePath = Path.Combine(recycleDir, recycledName);
+                    // Uniquify: the bin is now CENTRAL (one per project), so two same-named
+                    // files recycled in the same second — e.g. a bulk delete of Plan.pdf from
+                    // both 01_WIP/A and 02_SHARED/A — would collide. Previously the collision
+                    // threw, fell into the catch below and HARD-DELETED the second file while
+                    // reporting success.
+                    string recyclePath = Path.Combine(recycleDir, $"{DateTime.Now:yyyyMMdd_HHmmss}_{name}");
+                    if (File.Exists(recyclePath)) recyclePath = GetUniqueFileName(recyclePath);
+                    string recycledName = Path.GetFileName(recyclePath);
                     File.Move(filePath, recyclePath);
                     RecordRecycleOrigin(recycleDir, recycledName, filePath);
                     StingLog.Info($"ProjectFolderEngine: Recycled {name} → {recycleDir}");

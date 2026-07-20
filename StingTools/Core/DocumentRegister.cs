@@ -144,7 +144,11 @@ namespace StingTools.Core
                     direction = source.IndexOf("Auto-Export", StringComparison.OrdinalIgnoreCase) >= 0 ? "OUT" : "";
                 yield return new RegisterEntry
                 {
-                    Id          = First(t, "doc_id", "document_id"),
+                    // doc_number first: deliverable-sourced rows carry the ISO 19650 number,
+                    // which is the SAME key deliverables.json uses — without it the two
+                    // stores live in disjoint id namespaces and dedup could never fire
+                    // ("both" was always 0 and every deliverable appeared twice).
+                    Id          = First(t, "doc_number", "doc_id", "document_id"),
                     Title       = First(t, "title", "file_name", "description"),
                     Type        = First(t, "type", "document_type"),
                     Discipline  = Str(t, "discipline"),

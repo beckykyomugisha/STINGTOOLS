@@ -822,7 +822,8 @@ namespace StingTools.BIMManager
         /// lacked, plus cde_status.
         /// </remarks>
         internal static void AutoRegisterExport(Document doc, string filePath, string docType,
-            string description, string suitability = "S0")
+            string description, string suitability = "S0",
+            string revision = null, string cdeStatus = null, string docNumber = null)
         {
             try
             {
@@ -830,9 +831,39 @@ namespace StingTools.BIMManager
                 var register = LoadJsonArray(regPath);
 
                 string fileName = Path.GetFileName(filePath);
-                // Check for existing entry with same filename (avoid duplicates)
-                bool exists = register.Any(r => r["file_name"]?.ToString() == fileName);
-                if (exists) return;
+                string fileFormat = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.');
+                string suit = string.IsNullOrWhiteSpace(suitability) ? "S0" : suitability;
+                string rev  = string.IsNullOrWhiteSpace(revision)    ? "P01" : revision;
+                string cde  = string.IsNullOrWhiteSpace(cdeStatus)   ? "WIP" : cdeStatus;
+
+                // UPDATE IN PLACE rather than skipping. A deliverable re-rendered on the
+                // same day keeps its file name but moves CDE state (and its previous copy
+                // is purged), so an early return would leave the row pointing at a deleted
+                // file; on a later day it would instead append a duplicate row. Match on the
+                // deliverable number first (stable across renders), then the file name.
+                JObject existing = null;
+                if (!string.IsNullOrWhiteSpace(docNumber))
+                    existing = register.OfType<JObject>().FirstOrDefault(r =>
+                        string.Equals(r["doc_number"]?.ToString(), docNumber, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
+                    existing = register.OfType<JObject>().FirstOrDefault(r =>
+                        string.Equals(r["file_name"]?.ToString(), fileName, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    existing["file_name"]   = fileName;
+                    existing["file_path"]   = filePath;
+                    existing["file_format"] = fileFormat;
+                    existing["suitability"] = suit;
+                    existing["revision"]    = rev;
+                    existing["status"]      = cde;
+                    existing["cde_status"]  = cde;
+                    existing["date_modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    if (!string.IsNullOrWhiteSpace(docNumber)) existing["doc_number"] = docNumber;
+                    SaveJsonFile(regPath, register);
+                    StingLog.Info($"Auto-register updated: {existing["document_id"]} — {fileName}");
+                    return;
+                }
 
                 string nextId = NextIdFromArray(register, "DOC", "document_id");
                 var entry = new JObject
@@ -844,13 +875,16 @@ namespace StingTools.BIMManager
                     ["description"] = description,
                     ["originator"] = Environment.UserName,
                     ["date_created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                    ["suitability"] = string.IsNullOrWhiteSpace(suitability) ? "S0" : suitability,
-                    ["revision"] = "P01",
-                    ["status"] = "WIP",
-                    ["cde_status"] = "WIP",
-                    ["file_format"] = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.'),
+                    ["suitability"] = suit,
+                    ["revision"] = rev,
+                    ["status"] = cde,
+                    ["cde_status"] = cde,
+                    ["file_format"] = fileFormat,
                     ["source"] = "STING Auto-Export"
                 };
+                // Deliverable-sourced rows carry the ISO 19650 number so the unified
+                // register can match them to their deliverables.json row.
+                if (!string.IsNullOrWhiteSpace(docNumber)) entry["doc_number"] = docNumber;
 
                 register.Add(entry);
                 SaveJsonFile(regPath, register);
