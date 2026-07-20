@@ -726,6 +726,12 @@ namespace StingTools.Core
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
 
+                // MUST run before anything can touch the project root: resolving a path
+                // creates <projDir>/<CODE> as a side effect, which would make the greenfield
+                // probe below always answer "no" and leave the CdeFirst layout unreachable.
+                try { ProjectFolderEngine.CaptureGreenfieldState(e.Document); }
+                catch (Exception gx) { StingLog.Warn($"CaptureGreenfieldState: {gx.Message}"); }
+
                 // WS I13 — pre-warn on open when the sustainability inputs are unset,
                 // so a mis-set project is flagged before the dashboard is opened.
                 // Cheap: setup load + a few collectors, no full engine run.

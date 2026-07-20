@@ -118,12 +118,18 @@ namespace StingTools.Core
         private static readonly ConcurrentDictionary<string, string> _rootByDoc =
             new(StringComparer.OrdinalIgnoreCase);
 
+        // Greenfield verdict captured at document-open, before anything creates the root.
+        private static readonly ConcurrentDictionary<string, bool> _greenfieldByDoc =
+            new(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Drop the cached setup for a specific document (call on close).</summary>
         public static void InvalidateSetupCache(string docPath)
         {
             if (string.IsNullOrEmpty(docPath)) return;
             _setupCache.TryRemove(docPath, out _);
             _rootByDoc.TryRemove(docPath, out _);
+            _greenfieldByDoc.TryRemove(docPath, out _);
+            _folderStatsByDoc.TryRemove(docPath, out _);
         }
 
         /// <summary>Drop all cached setups.</summary>
@@ -389,8 +395,39 @@ namespace StingTools.Core
         /// </summary>
         private static bool IsGreenfield(Document doc, string code)
         {
+            // Prefer the verdict captured at document-open, BEFORE anything created the root.
+            string key = doc?.PathName;
+            if (!string.IsNullOrEmpty(key) && _greenfieldByDoc.TryGetValue(key, out bool captured))
+                return captured;
+            return ProbeGreenfield(doc, code);
+        }
+
+        /// <summary>
+        /// Record whether this document is greenfield, evaluated BEFORE any STING code has had
+        /// a chance to create the project root. Must be called at the very top of
+        /// DocumentOpened: <see cref="GetRootPath"/> creates &lt;projDir&gt;/&lt;CODE&gt; as a side
+        /// effect, and the first thing that touched it (the sustainability pre-warm) ran before
+        /// the bootstrap — so by the time <see cref="IsGreenfield"/> looked, the folder always
+        /// existed and the CdeFirst layout could never be selected. Idempotent per document.
+        /// </summary>
+        public static void CaptureGreenfieldState(Document doc)
+        {
             try
             {
+                string key = doc?.PathName;
+                if (string.IsNullOrEmpty(key) || doc.IsFamilyDocument) return;
+                if (_greenfieldByDoc.ContainsKey(key)) return;
+                _greenfieldByDoc[key] = ProbeGreenfield(doc, DetectProjectCode(doc));
+            }
+            catch (Exception ex) { StingLog.Warn($"CaptureGreenfieldState: {ex.Message}"); }
+        }
+
+        /// <summary>Side-effect-free greenfield probe (creates nothing).</summary>
+        private static bool ProbeGreenfield(Document doc, string code)
+        {
+            try
+            {
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return false;
                 if (Storage.StingProjectRootSchema.Read(doc) != null) return false;
                 string projDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(projDir)) return false;
@@ -400,7 +437,7 @@ namespace StingTools.Core
                     if (Directory.Exists(Path.Combine(projDir, legacy))) return false;
                 return true;
             }
-            catch (Exception ex) { StingLog.Warn($"IsGreenfield: {ex.Message}"); return false; }
+            catch (Exception ex) { StingLog.Warn($"ProbeGreenfield: {ex.Message}"); return false; }
         }
 
         /// <summary>
@@ -1232,6 +1269,23 @@ namespace StingTools.Core
                     try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetFolderPath: {ex.Message}"); }
                     return p;
                 }
+
+                // CdeFirst has no numbered content folders (05_MODELS…20_MISC). Callers still
+                // pass those ids (MigrateFromLegacy routes by extension, briefcase export, …),
+                // and falling through to the built-in list below would mint BIM-numbered
+                // siblings inside a CDE-first tree — the very sprawl this layout removes.
+                // Route the unknown id to that setup's own MISC instead.
+                if (setup != null && setup.Mode == ProjectFolderMode.CdeFirst)
+                {
+                    var misc = setup.GetFolder("MISC");
+                    if (misc != null)
+                    {
+                        string mp = Path.Combine(root, misc.DisplayName);
+                        try { Directory.CreateDirectory(mp); } catch (Exception ex) { StingLog.Warn($"GetFolderPath MISC: {ex.Message}"); }
+                        StingLog.Warn($"GetFolderPath: '{folderId}' is not part of the CdeFirst layout — routed to {misc.DisplayName}.");
+                        return mp;
+                    }
+                }
             }
             catch (Exception ex) { StingLog.Warn($"GetFolderPath setup: {ex.Message}"); }
 
@@ -1315,6 +1369,45 @@ namespace StingTools.Core
 
         // ── File inventory ────────────────────────────────────────────────
 
+        /// <summary>Is this folder id one of the four ISO 19650 CDE container states?</summary>
+        private static bool IsCdeStateId(string id) =>
+            string.Equals(id, "WIP",       StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "SHARED",    StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "PUBLISHED", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "ARCHIVE",   StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The folders to inventory for this document: the ACTIVE ProjectSetup's folders when
+        /// one exists, else the built-in numbered list. The inventory used to iterate the static
+        /// <see cref="Folders"/> array only, so under a CdeFirst setup (00_WIP, 01_SHARED …)
+        /// none of the state folders matched and every file in them was invisible to the
+        /// Document Manager while folder stats reported them empty.
+        /// </summary>
+        private static IEnumerable<(string Id, string Display, string Desc, string Cde, string BuiltInName)>
+            EffectiveFolders(Document doc)
+        {
+            ProjectSetup setup = null;
+            try { setup = LoadOrDetectSetup(doc); }
+            catch (Exception ex) { StingLog.Warn($"EffectiveFolders setup: {ex.Message}"); }
+
+            if (setup?.CustomFolders != null && setup.CustomFolders.Count > 0)
+            {
+                foreach (var f in setup.CustomFolders)
+                {
+                    if (setup.HiddenFolders != null &&
+                        setup.HiddenFolders.Contains(f.Id, StringComparer.OrdinalIgnoreCase)) continue;
+                    var meta = Folders.FirstOrDefault(x => string.Equals(x.Id, f.Id, StringComparison.OrdinalIgnoreCase));
+                    string cde = IsCdeStateId(f.Id) ? f.Id.ToUpperInvariant() : (meta.CDE ?? "");
+                    yield return (f.Id, f.DisplayName, meta.Description ?? f.Id, cde, meta.Name);
+                }
+                yield break;
+            }
+
+            string code = doc != null ? DetectProjectCode(doc) : "";
+            foreach (var (id, name, desc, cde) in Folders)
+                yield return (id, ProjectSetup.WithCodeSuffix(name, code), desc, cde, name);
+        }
+
         /// <summary>
         /// Scan the folder structure and return all files with metadata.
         /// </summary>
@@ -1323,15 +1416,15 @@ namespace StingTools.Core
             var files = new List<ProjectFile>();
             string root = GetRootPath(doc);
             if (!Directory.Exists(root)) return files;
-            string codeAF = doc != null ? DetectProjectCode(doc) : "";
 
-            foreach (var (id, name, desc, cde) in Folders)
+            foreach (var (id, name, desc, cde, builtInName) in EffectiveFolders(doc))
             {
-                string folderPath = Path.Combine(root, ProjectSetup.WithCodeSuffix(name, codeAF));
+                string folderPath = Path.Combine(root, name);
                 if (!Directory.Exists(folderPath))
                 {
                     // Backwards-compat: fall back to the un-suffixed legacy path
-                    string legacyPath = Path.Combine(root, name);
+                    if (string.IsNullOrEmpty(builtInName)) continue;
+                    string legacyPath = Path.Combine(root, builtInName);
                     if (!Directory.Exists(legacyPath)) continue;
                     folderPath = legacyPath;
                 }
@@ -1385,15 +1478,13 @@ namespace StingTools.Core
             var stats = new List<FolderStats>();
             string root = GetRootPath(doc);
             if (!Directory.Exists(root)) return stats;
-            string codeFS = doc != null ? DetectProjectCode(doc) : "";
 
-            foreach (var (id, name, desc, cde) in Folders)
+            foreach (var (id, name, desc, cde, builtInName) in EffectiveFolders(doc))
             {
-                string suffixedName = ProjectSetup.WithCodeSuffix(name, codeFS);
-                string folderPath = Path.Combine(root, suffixedName);
-                if (!Directory.Exists(folderPath))
+                string folderPath = Path.Combine(root, name);
+                if (!Directory.Exists(folderPath) && !string.IsNullOrEmpty(builtInName))
                 {
-                    string legacyFs = Path.Combine(root, name);
+                    string legacyFs = Path.Combine(root, builtInName);
                     if (Directory.Exists(legacyFs)) folderPath = legacyFs;
                 }
                 int fileCount = 0;
