@@ -161,6 +161,18 @@ class IFCDropHandler:
                 storey_elevation_m=el["storey_elevation_m"],
                 library_part_name=el.get("type_name", ""),
             )
+            # Adopt a SEQ the element already carries from an earlier write-back.
+            # The extractor reads STING_TOKENS.ASS_SEQ_NUM_TXT back into
+            # props["STING.ASS_SEQ_NUM_TXT"] (see _extract), but
+            # map_element_to_tokens does not derive `seq` — it is minted, not
+            # mapped. Without this seed assign_sequences() sees an unnumbered
+            # element on every re-drop and mints a NEW number, burning counter
+            # values and renumbering stable elements. The live ArchiCAD path
+            # already adopts it this way (sync/engine.py:401-413); this keeps the
+            # IFC path honest to the same contract.
+            existing_seq = str(el["props"].get("STING.ASS_SEQ_NUM_TXT", "") or "").strip()
+            if existing_seq:
+                tokens["seq"] = existing_seq
             rows.append((el, tokens))
 
         # SB-2 — mint the 8th tag segment from the server's per-key counters,

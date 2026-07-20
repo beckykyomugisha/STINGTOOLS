@@ -670,6 +670,67 @@ public sealed partial class PlanscapeServerClient : IDisposable
         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new Dictionary<string, int>(); }
     }
 
+    /// <summary>
+    /// Reserve a block of sequence numbers per counter key via
+    /// <c>POST /api/projects/{id}/seq/reserve</c>.
+    ///
+    /// This is the cross-host-safe allocation path. <see cref="StingTools.Core.SeqAssigner"/>
+    /// otherwise allocates optimistically in memory and reconciles via the
+    /// max-per-key merge at <c>/seq/sync</c>, which cannot stop Revit and
+    /// StingBridge minting the same number on the same key concurrently — both
+    /// read the same high-water mark, and the merge accepts the higher of two
+    /// identical values. The reserve endpoint bumps and returns the counter in
+    /// one indivisible UPSERT, so each caller gets a disjoint block.
+    ///
+    /// Returns an EMPTY reservation when not connected or on any failure. That
+    /// is deliberate: callers treat "no reservation" as "allocate locally" and
+    /// keep working offline. It leaves the duplicate window open in that mode —
+    /// a documented limitation, not an oversight.
+    /// </summary>
+    /// <param name="reservations">counter key → how many numbers to reserve.</param>
+    public async Task<StingTools.Core.SeqBlockReservation> ReserveSeqBlocksAsync(
+        Guid projectId, Dictionary<string, int> reservations)
+    {
+        var result = new StingTools.Core.SeqBlockReservation();
+        if (reservations == null || reservations.Count == 0) return result;
+        if (!await EnsureAuthenticatedAsync())
+        {
+            StingLog.Info("Planscape: not connected — SEQ numbers will be allocated locally.");
+            return result;
+        }
+
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/seq/reserve",
+                new { reservations });
+            if (!resp.ok)
+            {
+                StingLog.Warn($"Planscape: SEQ reserve failed ({resp.body}) — allocating locally.");
+                return result;
+            }
+
+            var assignments = JObject.Parse(resp.body)["assignments"] as JObject;
+            if (assignments == null) return result;
+
+            foreach (var kv in assignments)
+            {
+                var block = kv.Value as JObject;
+                if (block == null) continue;
+                int start = block["start"]?.Value<int>() ?? 0;
+                int end   = block["end"]?.Value<int>()   ?? 0;
+                if (start > 0 && end >= start) result.Add(kv.Key, start, end);
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            // Numbering must never fail a tagging run — degrade to local.
+            StingLog.Warn($"Planscape: SEQ reserve error ({ex.Message}) — allocating locally.");
+            return new StingTools.Core.SeqBlockReservation();
+        }
+    }
+
     // ────────────────────────────────────────────────────────────────────────────
     //  Persist / Load connection settings
     // ────────────────────────────────────────────────────────────────────────────
