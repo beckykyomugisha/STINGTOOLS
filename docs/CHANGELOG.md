@@ -2,6 +2,57 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 221 — status now survives a round trip; and the IFC adapter was blanking tags)
+
+Phase 214 added `status` to `TOKEN_KEYS` so status-only remote edits stop being
+dropped. **No real adapter persisted it**, so once SB-5a wires the pull loop the
+same delta would re-apply on every pull, forever. The existing test passed
+because it ran against a fake adapter that records what it was asked to do.
+
+**Option A taken** — persist status end-to-end, rather than removing it from
+`TOKEN_KEYS`. Status is real ISO 19650 data the feed already carries
+(`ChangesController.cs:108`); dropping it to silence the churn would have thrown
+away the feature to fix the symptom.
+
+- **`IfcFileHostAdapter` persists status** in `Pset_StingTags.Status` —
+  *alongside* the tag, never inside `Tag`. `Tag` is a strict eight-segment
+  grammar; a ninth field would corrupt every rendered tag string.
+- **New `read_tokens()`** returns exactly the `TOKEN_KEYS`-shaped dict a caller
+  needs for `local_index`, so the SB-5a wiring cannot forget `status` and
+  reintroduce this.
+- **`ArchiCadHostAdapter` likewise.** `PropertyWriter._TOKEN_PROPS` already
+  mapped `status` → `ASS_STATUS_TXT`; the adapter simply never supplied it.
+  `write_tag` takes an optional `status` (empty values are skipped by the
+  writer, so existing callers are unaffected).
+
+**A bigger bug fell out of writing the test with the real wire shape.**
+`IfcFileHostAdapter.apply_remote_change` fed `delta.payload` straight into
+`Tag.from_pset`. The feed sends **short lower-case** keys
+(`disc, loc, zone, lvl, …` — `ChangesController.cs:105-108`); `from_pset` looks
+up **long capitalised** ones (`Discipline`, `Location`, …). Every lookup missed,
+so applying a real feed delta wrote **eight `XX` UNKNOWN sentinels** — it did not
+merely lose status, it **blanked the tag**. Latent only because nothing wires the
+pull loop yet. Fixed with an explicit feed→Tag map that still tolerates the pset
+vocabulary. (`ArchiCadHostAdapter` already read the feed keys correctly, which is
+why this was IFC-only.)
+
+**Gate — convergence through a REAL adapter over a real in-memory IFC model:**
+apply a status-only remote change, **re-read local state from the file**, run
+reconcile again → second pass is a no-op (`applied == 0`, `skipped_equal == 1`).
+
+| Against | Result |
+|---|---|
+| `main` | **3 failed** — the convergence test dies at `assert 'XX' == 'M'`, i.e. the tag-blanking bug |
+| this branch | **3 passed**; `stingtools-core` **96 passed**, StingBridge **126 passed** |
+
+The test reads the pset back with plain `ifcopenshell` rather than the new
+`read_tokens` helper — otherwise it could not run against the old code, and the
+red-then-green claim would be unfalsifiable.
+
+**Not verified:** the ArchiCAD leg. Exercising it needs a licensed ArchiCAD
+(ROADMAP SB-1); the change is a pass-through into a mapping that already existed,
+and the bridge suite is green, but no live write was performed.
+
 #### Completed (Phase 220 — a real Postgres in the test suite, and a CI gate that means something)
 
 PR #441 fixed the non-composable-SQL 500. Nothing stopped the next one: no test
