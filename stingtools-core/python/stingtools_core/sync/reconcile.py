@@ -14,10 +14,12 @@ The rules, stated once so every host behaves identically:
    that changes nothing still costs a host write and, in Blender/Revit, an undo
    entry.
 4. **Both changed, timestamps differ** → newer wins.
-5. **Both changed, timestamps equal** → *local* wins. A tie is genuinely
-   ambiguous, and preferring the copy the user is looking at is the choice that
-   never surprises them. Deterministic, so two hosts reconciling the same pair
-   reach the same answer.
+5. **Both changed, timestamps equal** → the higher **content digest** wins.
+   Preferring "local" reads as the kind choice but is the one rule that cannot
+   converge: run the same reconcile on both hosts and each keeps its own value
+   forever, with no later edit to break the tie. The digest is a pure function of
+   the token payload, so both hosts compute the *same* winner from the same pair
+   and agree on the first pass. Still reported as a conflict.
 6. **Both changed, remote timestamp missing/unparseable** → local wins. An
    unordered remote edit cannot be shown to be newer, and silently overwriting
    the user's work on the strength of a missing field is the worst failure here.
@@ -27,6 +29,7 @@ Every conflict is *reported* whether or not it was applied, so §1.4.3's
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -37,7 +40,13 @@ from ..hosts.adapter import ChangeDelta
 log = logging.getLogger(__name__)
 
 #: Token keys compared when deciding whether a delta actually changes anything.
-TOKEN_KEYS = ("disc", "loc", "zone", "lvl", "sys", "func", "prod", "seq")
+#:
+#: `status` is included: the change feed already carries it
+#: (`ChangesController.cs:108`), and without it a status-only remote edit — the
+#: element moved WIP → Shared with no tag change — compares equal and is silently
+#: dropped. `category` and `family` remain excluded on purpose: a delta whose
+#: family name differs but whose tag is identical must not trigger a write.
+TOKEN_KEYS = ("disc", "loc", "zone", "lvl", "sys", "func", "prod", "seq", "status")
 
 
 def parse_utc(value: Any) -> Optional[datetime]:
@@ -70,6 +79,17 @@ def tokens_equal(a: dict, b: dict) -> bool:
     whose tag is identical should not trigger a write.
     """
     return all(str(a.get(k) or "") == str(b.get(k) or "") for k in TOKEN_KEYS)
+
+
+def token_digest(tokens: dict) -> str:
+    """A stable content hash over TOKEN_KEYS — the equal-timestamp tiebreak.
+
+    Must be a pure function of the DATA and nothing else. Anything that depends
+    on which side is asking (host name, "local", arrival order) gives the two
+    hosts opposite answers and they never converge.
+    """
+    canonical = "\x1f".join(str(tokens.get(k) or "") for k in TOKEN_KEYS)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -189,7 +209,26 @@ class ReconcileEngine:
         if local_ts > remote_ts:
             return Resolution(gid, "local", f"local newer ({local_ts.isoformat()})",
                               conflict=True, delta=delta)
-        return Resolution(gid, "local", "timestamps equal - local preferred",
+        # Rule 5 (equal timestamps) — decide by content hash, NOT by "local".
+        #
+        # Preferring local here is the one choice that cannot converge: run the
+        # same reconcile on both hosts and each keeps its own value, forever,
+        # with no further edit to break the tie. Two clocks agreeing to the
+        # second is not rare — a batch write, or a coarse timestamp column.
+        #
+        # The digest is a pure function of the token payload, so both hosts
+        # compute the SAME winner from the same pair of values and converge on
+        # the first pass. It is still reported as a conflict.
+        local_digest = token_digest(local_tokens)
+        remote_digest = token_digest(remote_tokens)
+        if remote_digest > local_digest:
+            return Resolution(gid, "remote",
+                              f"timestamps equal - remote wins content tiebreak "
+                              f"({remote_digest[:8]} > {local_digest[:8]})",
+                              conflict=True, delta=delta)
+        return Resolution(gid, "local",
+                          f"timestamps equal - local wins content tiebreak "
+                          f"({local_digest[:8]} > {remote_digest[:8]})",
                           conflict=True, delta=delta)
 
     def _apply(self, delta: ChangeDelta) -> bool:

@@ -2,6 +2,42 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 214 — reconcile converges; scope corrected)
+
+- **Equal timestamps are broken by content digest, not by "local".** Preferring
+  local reads as the safe choice and is the one rule that **cannot converge**:
+  run the same reconcile on both hosts and each keeps its own value forever, with
+  no later edit to break the tie. `token_digest()` is a pure function of the token
+  payload, so both hosts compute the *same* winner from the same pair and agree on
+  the first pass. Still reported as a conflict.
+- **The old test could never have caught this.**
+  `test_tie_resolution_is_deterministic` re-ran the *same* side five times and
+  asserted it kept saying "local" — one host agreeing with itself, which the
+  broken rule satisfies perfectly. Replaced with
+  `test_tie_converges_when_run_from_BOTH_perspectives`: host A holds X and
+  receives Y, host B holds Y and receives X, and both must finish holding the
+  same thing. **Confirmed it fails on the old rule** (`{'seq': '0001'} !=
+  {'seq': '0009'}`). Stability across repeated runs is kept as a separate,
+  honestly-named test.
+- **`status` added to `TOKEN_KEYS`.** The feed already carries it
+  (`ChangesController.cs:108`), but excluding it meant a status-only remote
+  change — WIP → Shared with no tag edit — compared equal and was silently
+  dropped. `category` and `family` stay excluded deliberately, now with a test
+  asserting a family rename with an identical tag causes no write.
+- **Phase 207's scope claim corrected** in CHANGELOG, ROADMAP SB-5 and
+  `MULTI_HOST_INTEGRATION_PLAN.md`. What shipped is the **TAG slice** of
+  §1.4.1–§1.4.2 — not §1.4.1–§1.4.3. The feed carries `kind="tag"` only
+  (**issues / BCF / clash payloads are not implemented**), and **§1.4.3's
+  "surface the loser as a Planscape issue" is not implemented**: conflicts go to
+  an `on_conflict` callback nothing consumes. The seams exist; the wiring does
+  not. Two further limitations now written down: rows with a null
+  `LastModifiedUtc` never appear in the feed, so pre-existing elements stay
+  invisible until next edited (**a backfill may be needed**), and there are **no
+  delete tombstones**, so a deletion in one host never propagates.
+
+**Gate:** symmetric convergence test and status test pass; `stingtools-core`
+pytest **93 passed**; the convergence test verified red against the old rule.
+
 #### Completed (Phase 213 — drop-folder: the GLB stops getting stranded)
 
 Five findings against the drop-folder contract, one of which silently broke every
@@ -225,7 +261,15 @@ load, which is an owner action.
 
 Push already existed — every host could send tags to the hub. Nothing could ask
 "what changed since I last looked?", so a host had no way to learn about an edit
-made anywhere else. Implements `docs/MULTI_HOST_INTEGRATION_PLAN.md` §1.4.1–§1.4.3.
+made anywhere else.
+
+**Scope, corrected in Phase 214:** this implements the **TAG slice** of
+`docs/MULTI_HOST_INTEGRATION_PLAN.md` §1.4.1–§1.4.2, not all of §1.4.1–§1.4.3.
+The feed transports `kind="tag"` only; **issues / BCF / clash payloads are not
+implemented**, and neither is §1.4.3's "surface the loser as a Planscape issue"
+— conflicts are *reported* to an `on_conflict` callback, and nothing yet
+consumes it. The seams exist (the `kind` field, the callback) but the wiring
+does not.
 
 - **`GET /api/projects/{id}/changes?since={cursor}&limit={n}`** (new
   `ChangesController`). The cursor is `{ticks}_{guid}` of the last row returned,
@@ -250,9 +294,10 @@ made anywhere else. Implements `docs/MULTI_HOST_INTEGRATION_PLAN.md` §1.4.1–�
   and it could not see an element the local model did not already hold. The six
   rules are now stated once and tested individually — remote-only applies;
   identical payloads are a no-op whatever the timestamps say (an unchanged delta
-  still costs a host write and an undo entry); newer wins; **ties go to local**
-  (ambiguous, so prefer the copy the user is looking at — and deterministic, so
-  two hosts reach the same answer); and a remote edit with a missing or
+  still costs a host write and an undo entry); newer wins; ties go to local
+  (**superseded in Phase 214 — "local" is deterministic per host but does NOT
+  converge across hosts; ties are now broken by content digest**); and a remote
+  edit with a missing or
   unparseable timestamp cannot win, because silently overwriting the user's work
   on the strength of a missing field is the worst available failure. Every
   conflict is reported whether or not it was applied, satisfying §1.4.3.
@@ -264,7 +309,8 @@ appears in the feed; re-pulling replays nothing; **five rows written in the same
 instant are delivered exactly once across three pages at page-size 2** — the
 exact case a bare-timestamp cursor gets wrong; a newer remote edit is applied; a
 newer local edit is kept and the loser surfaced; a tie resolves to local on every
-run; an identical payload issues no host write.
+run (**this assertion was the flaw — see Phase 214**); an identical payload
+issues no host write.
 
 Writing that E2E was worthwhile: its first version failed, and the failure was in
 the *test* — it stamped the burst with the same second as the cursor position. A
