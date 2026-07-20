@@ -799,8 +799,69 @@ namespace StingTools.Core.Drawing
                 if (sp != null && !rule.ScaleOverride.HasValue
                     && doc.GetElement(viewId) is View vFit)
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
+
+                // SLOT-3: warn on a view/slot type mismatch rather than
+                // placing it silently into the wrong slot.
+                if (sp?.Slot != null && !string.IsNullOrWhiteSpace(sp.Slot.ViewType)
+                    && doc.GetElement(viewId) is View vChk
+                    && !string.Equals(vChk.ViewType.ToString(), sp.Slot.ViewType, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Warnings.Add(
+                        $"View '{vChk.Name}' ({vChk.ViewType}) placed into slot '{sp.Slot.Label}' " +
+                        $"which expects '{sp.Slot.ViewType}' — type mismatch.");
+                }
+
+                // AUTO-3: a ViewSchedule cannot be placed with Viewport.Create —
+                // it throws. The producer called Viewport.Create unconditionally,
+                // so every schedule its own ProductionRules created was
+                // impossible to place: the rule minted a view that could never
+                // reach a sheet. Schedules need ScheduleSheetInstance.
+                // These three behaviours existed only in
+                // SheetPlacementBridge.PlaceAccordingToSlots, which the producer
+                // never calls; ported rather than restructured because the
+                // bridge is a batch API and routing through it would also pull
+                // in the P-7 slot-origin convention divergence.
+                if (doc.GetElement(viewId) is ViewSchedule scheduleView)
+                {
+                    try
+                    {
+                        var ssi = ScheduleSheetInstance.Create(doc, sheetId, scheduleView.Id, pt);
+                        if (ssi != null)
+                        {
+                            try { StingTools.Core.ParameterHelpers.SetInt(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); }
+                            catch (Exception ex) { StingLog.Warn($"AutoPlaced stamp: {ex.Message}"); }
+                            return ssi.Id;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"ScheduleSheetInstance.Create('{scheduleView.Name}'): {ex.Message}");
+                    }
+                    return ElementId.InvalidElementId;
+                }
+
                 var vp = Viewport.Create(doc, sheetId, viewId, pt);
-                return vp?.Id ?? ElementId.InvalidElementId;
+                if (vp == null) return ElementId.InvalidElementId;
+
+                try { StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); }
+                catch (Exception ex) { StingLog.Warn($"AutoPlaced stamp: {ex.Message}"); }
+
+                // SLOT-1: per-slot viewport type override.
+                if (!string.IsNullOrWhiteSpace(sp?.Slot?.ViewportType))
+                {
+                    var vpTypeId = SheetPlacementBridge.ResolveViewportTypeId(doc, sp.Slot.ViewportType);
+                    if (vpTypeId != null && vpTypeId != ElementId.InvalidElementId)
+                    {
+                        try { vp.ChangeTypeId(vpTypeId); }
+                        catch (Exception ex) { result.Warnings.Add($"Viewport type '{sp.Slot.ViewportType}': {ex.Message}"); }
+                    }
+                    else
+                    {
+                        result.Warnings.Add(
+                            $"Viewport type '{sp.Slot.ViewportType}' not found — slot '{sp.Slot.Label}' uses the default.");
+                    }
+                }
+                return vp.Id;
             }
             catch (Exception ex)
             {
