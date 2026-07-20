@@ -1081,6 +1081,14 @@ namespace StingTools.Core
 
                 // Template engine v1.1 (S11/S15): extract default templates,
                 // workflows, and manifest on first open per project.
+                //
+                // KNOWN RESIDUAL (see ROADMAP IM-1): this runs before any consolidation,
+                // so on a project whose customised templates still sit in a legacy folder,
+                // extraction puts stock templates in the destination first. A later
+                // Folders_Consolidate then hits the collision guard, renames the user's
+                // customised copies aside, and the registry keeps loading the stock ones.
+                // Nothing is lost on disk, but the customisation stops taking effect.
+                // Not fixed here to keep this PR to its agreed scope.
                 try
                 {
                     Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(e.Document);
@@ -1157,18 +1165,30 @@ namespace StingTools.Core
                             string root = setup.ResolveRootPath(e.Document.PathName);
                             StingLog.Info($"DocumentOpened: project setup ready — root={root}, mode={setup.Mode}");
 
-                            // Idempotent silent migration. Only reports if it
-                            // actually moved something — no UI prompt, never
-                            // blocks the open path.
+                            // DETECT ONLY — never move a user's files on document open.
+                            //
+                            // This used to call MigrateFromLegacy() unprompted on every
+                            // open, relocating project data the user had not asked to
+                            // relocate, deleting the drained source folders, and leaving
+                            // no record of what went where. Consolidation is now opt-in
+                            // and at-most-once: the user runs Folders_Consolidate, which
+                            // previews the move, asks, and writes a breadcrumb.
                             try
                             {
-                                var rep = ProjectFolderEngine.MigrateFromLegacy(e.Document);
-                                if (rep != null && (rep.FilesMoved > 0 || rep.FoldersRemoved > 0))
+                                if (!ProjectFolderEngine.HasConsolidated(e.Document))
                                 {
-                                    StingLog.Info($"DocumentOpened auto-migration: {rep.FilesMoved} files moved, {rep.FoldersRemoved} legacy folders removed.");
+                                    var scan = ProjectFolderEngine.ScanLegacy(e.Document);
+                                    int pending = scan?.Items?.Sum(i => i.FileCount) ?? 0;
+                                    if (pending > 0)
+                                    {
+                                        StingLog.Info(
+                                            $"DocumentOpened: {pending} file(s) in legacy STING folders. " +
+                                            "Run the Folders_Consolidate command to review and consolidate them. " +
+                                            "Nothing has been moved.");
+                                    }
                                 }
                             }
-                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened auto-migration: {mEx.Message}"); }
+                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened legacy scan: {mEx.Message}"); }
 
                             // BIM-CDE-FOLDER-01: materialise the CDE folders so exports
                             // never race a missing directory. Idempotent — existing

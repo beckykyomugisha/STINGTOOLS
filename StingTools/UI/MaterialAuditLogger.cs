@@ -66,11 +66,16 @@ namespace StingTools.UI
     }
 
     /// <summary>
-    /// C7 — Bridge material-audit events into the BCC coord log so
-    /// material edits show up on the project timeline alongside other
-    /// coordination events. JSONL file at
-    /// <c>&lt;project&gt;/_BIM_COORD/coord_log.json</c>.
+    /// C7 — Bridge material-audit events into the BCC coord log so material edits
+    /// show up on the project timeline alongside other coordination events.
     /// Best-effort — never throws, never blocks the audit writer.
+    ///
+    /// This wrote JSONL into a file named <c>coord_log.json</c> while the canonical
+    /// log was <c>coord_log.jsonl</c>, and used its own field names (ts / source /
+    /// material) that the timeline's entry type does not bind. So these events either
+    /// broke the reader outright or deserialised blank. Both halves are fixed here:
+    /// the path comes from <see cref="Core.CoordLog"/>, and the payload is emitted in
+    /// the same shape as every other coordination event.
     /// </summary>
     public static class MaterialCoordLogBridge
     {
@@ -79,23 +84,31 @@ namespace StingTools.UI
         {
             try
             {
-                string path = Core.ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
-                if (string.IsNullOrEmpty(path)) return;
-                var dir = System.IO.Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
-                    System.IO.Directory.CreateDirectory(dir);
+                // Detail carries the material plus any extra payload, since the shared
+                // entry shape has no material-specific field.
+                string detail = materialName ?? "";
+                if (payload != null && payload.Count > 0)
+                {
+                    var bits = new List<string>();
+                    foreach (var kv in payload) bits.Add($"{kv.Key}={kv.Value}");
+                    detail = string.IsNullOrEmpty(detail)
+                        ? string.Join(", ", bits)
+                        : detail + " (" + string.Join(", ", bits) + ")";
+                }
+
                 var entry = new JObject
                 {
-                    ["ts"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                    ["user"] = Environment.UserName ?? "",
-                    ["source"] = "MaterialManager",
-                    ["action"] = action,
-                    ["material"] = materialName ?? "",
+                    // Same format as the other writer — the timeline sorts on this
+                    // string, so a divergent format would mis-order the log.
+                    ["Timestamp"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    ["User"]      = Environment.UserName ?? "unknown",
+                    ["Action"]    = action ?? "",
+                    ["Category"]  = "Material",
+                    ["Detail"]    = detail,
+                    ["Impact"]    = "LOW",
                 };
-                if (payload != null)
-                    foreach (var kv in payload)
-                        entry[kv.Key] = JToken.FromObject(kv.Value ?? "");
-                System.IO.File.AppendAllText(path, entry.ToString(Newtonsoft.Json.Formatting.None) + "\n");
+
+                Core.CoordLog.Append(doc, entry);
             }
             catch (Exception ex) { StingLog.WarnRateLimited("CoordLog.Append", $"Coord log append: {ex.Message}"); }
         }

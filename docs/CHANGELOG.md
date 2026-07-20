@@ -3,6 +3,76 @@ StructuralAnalysisEngine general — deflection / punching / wind / vibration / 
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 200 — ISO IM remediation: consent, one coord-log contract, a gate that works)
+
+Remediation of the Phase 199 folder-consolidation work before an information-management
+spine is built on top of it. Six scoped items.
+
+- **Consolidation no longer moves files without consent.** `MigrateFromLegacy` ran
+  unprompted inside `DocumentOpened` on *every* open — relocating project data the user
+  had not asked to relocate, deleting the drained source folders, and leaving no record
+  of what went where. Meanwhile `FolderConsolidateCommand`'s own header claimed "It NEVER
+  runs automatically." The engine now enforces that claim: it refuses to act unless the
+  caller passes `consented: true`, refuses a second time once `.sting_consolidation.json`
+  exists, **never deletes a source** (a drained folder is renamed `*.migrated_yyyyMMdd`),
+  and records every relocation source-to-destination with an undo hint. Document-open only
+  *detects* and logs. The folder-setup dialog and the `FolderMigrate` tag — both of which
+  migrated the instant they were clicked, with no preview — now route through one shared
+  `RunWithConsent` gate.
+- **The coordination log had a three-way contract split**, and the BCC timeline was
+  silently empty because of it: `WarningsManager` wrote JSONL to `coord_log.jsonl`,
+  `MaterialAuditLogger` wrote JSONL *into* `coord_log.json` under a different field
+  schema, and all four readers opened `coord_log.json` and handed the whole file to
+  `DeserializeObject<List<>>` — which threw on the second entry and was swallowed. One
+  contract now: `coord_log.jsonl`, one object per line, via `CoordLog` (paths, with legacy
+  read fallbacks) and `CoordLogFormat` (codec). The codec is Revit-free and covered by 9
+  unit tests in `StingTools.Tags.Tests` — including the multi-entry case that was the
+  actual failure, a corrupt-line case, and legacy whole-array files.
+- **The BCC reported zero open issues.** `BuildCoordData` counted with
+  `IndexOf("\"status\":\"OPEN\"")` — a substring that only appears in *compact* JSON —
+  while `CoordStores.WriteArray` and both auto-escalation writers emit
+  `Formatting.Indented`. It now parses the store and routes status through
+  `IssueStatusNormalizer`, so the other admitted spellings (`Open`, `open`, `New`,
+  `Reopened`) count too.
+- **The Meetings tab was permanently empty.** `CoordData.Meetings` and `.ActionItems` were
+  declared but never assigned; the only loaders lived on a dead legacy tab builder behind a
+  divergent doc-free path probe. `BuildCoordData` now populates both from the canonical
+  `CoordStores.Meetings(doc)`, and 516 lines of unreachable builder + helpers are gone.
+- **Two template-engine artefacts were stranded.** `SearchQueryBuilder` held the one copy
+  (of ten) of `ResolveProjectRoot` missing the canonical branch, so saved searches were
+  written to the `.rvt` sibling, moved away by a consolidation, then recreated empty —
+  losing them on a loop. `distribution_groups.json` was written to the `_BIM_COORD` bucket
+  and read from `STING_BIM_MANAGER`, so the BCC always reported it missing; the reader now
+  asks the owning store for its path.
+- **The path-discipline gate did not work, and had never run.** It was wired into no
+  workflow at all, and its single regex had three holes: it never mentioned
+  `STING_BIM_MANAGER` or `_bim_manager`; its `[^)]*` could not cross a close-paren; and it
+  required one of five hard-coded variable names, so the dominant two-line idiom was
+  invisible. Its "baseline ZERO / WP6 complete" was an artifact of the regex, not of clean
+  source. Rewritten in two tiers (legacy bucket names: hard zero; hand-rolled `_BIM_COORD`:
+  ratcheted), wired into `stingtools-plugin.yml`, and demonstrated against injected
+  residue: the new gate catches all three previously-invisible forms and exits 1, where the
+  old gate reports "OK — 0 remaining across 0 files" and exits 0. Nine legacy sibling sites
+  fixed, writers first — including `LpsAutoIssueRaiser`, which wrote LPS issues to the
+  pre-consolidation folder while every reader used `CoordStores.Issues`. Three genuine
+  legacy fallbacks carry an explicit `path-discipline: legacy-fallback` marker. The Tier-2
+  baseline is now **honest at 139 sites across 118 files** rather than a fictitious zero.
+
+**Deviation from the runner, recorded deliberately:** the runner specified `_BIM_COORD/` as
+the canonical root. The as-built Phase 199 layout resolves to `<PROJECT_CODE>/_data/`, with
+`_BIM_COORD` demoted to a bucket inside it. That deviation is kept — churning it back would
+move every project's files a second time for no gain — on the condition the runner attached,
+which was verified before deciding: every Template Engine v1.1 artefact (`deliverables.json`,
+`transmittals.json`, `workflow_state.json`, `audit_log_*.jsonl`, `doc_sequences.json`,
+templates, workflows, search index) resolves through one shared per-file `ResolveProjectRoot`
+helper used by *both* its writer and its readers, so the two cannot disagree. The two
+artefacts where that did not hold are fixed above.
+
+**Known residual (not fixed; ROADMAP IM-1):** `EmbeddedTemplates.ExtractIfMissing` runs on
+document open, before any consolidation. On a project whose customised templates still sit in
+a legacy folder, extraction seeds stock templates first and a later consolidation renames the
+user's copies aside — nothing is lost on disk, but the customisation stops taking effect.
+
 #### Completed (Phase 199 — ISO 19650 consolidation WP0-WP5 + WP7, branch `claude/iso19650-consolidation`)
 
 Consolidates the fragmented folder-management, document-management, automation and

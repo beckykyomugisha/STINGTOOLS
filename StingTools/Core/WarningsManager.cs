@@ -2069,10 +2069,6 @@ namespace StingTools.Core
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
-                // CRIT-06: JSONL append-only — avoids read/parse/rewrite on every call
-                string logPath = ProjectFolderEngine.GetDataPath(doc, "coord_log.jsonl");
-                if (string.IsNullOrEmpty(logPath))
-                    logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.jsonl");
 
                 var entry = new UI.BIMCoordinationCenter.CoordLogEntry
                 {
@@ -2084,25 +2080,15 @@ namespace StingTools.Core
                     Impact = impact
                 };
 
-                // CRIT-06: Append single JSON line — O(1) regardless of file size
-                string line = Newtonsoft.Json.JsonConvert.SerializeObject(entry);
-                File.AppendAllText(logPath, line + Environment.NewLine);
+                // CRIT-06: JSONL append-only — O(1) regardless of file size. Path and
+                // format both come from CoordLog now; this method used to resolve its
+                // own ".jsonl" while every reader opened ".json", so nothing written
+                // here was ever displayed.
+                CoordLog.Append(doc, Newtonsoft.Json.Linq.JObject.FromObject(entry));
 
-                // CRIT-06: Enforce 1000-entry cap every 100th call to avoid unbounded growth
+                // Enforce the entry cap every 100th call to avoid unbounded growth.
                 _coordLogCallCount++;
-                if (_coordLogCallCount % 100 == 0 && File.Exists(logPath))
-                {
-                    try
-                    {
-                        var lines = File.ReadAllLines(logPath);
-                        if (lines.Length > 1000)
-                        {
-                            // Keep only the most recent 1000 lines
-                            File.WriteAllLines(logPath, lines.Skip(lines.Length - 1000));
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"CoordLog cap: {ex.Message}"); }
-                }
+                if (_coordLogCallCount % 100 == 0) CoordLog.EnforceCap(doc);
             }
             catch (Exception ex) { StingLog.Warn($"CoordLog write: {ex.Message}"); }
         }
@@ -3751,14 +3737,29 @@ namespace StingTools.Core
                         string issuesPath = CoordStores.Issues(doc);
                         if (File.Exists(issuesPath))
                         {
-                            string raw = File.ReadAllText(issuesPath);
-                            // Count OPEN issues
-                            int idx = 0;
-                            while ((idx = raw.IndexOf("\"status\":\"OPEN\"", idx, StringComparison.OrdinalIgnoreCase)) >= 0)
-                            { openIssues++; idx++; }
-                            idx = 0;
-                            while ((idx = raw.IndexOf("\"priority\":\"CRITICAL\"", idx, StringComparison.OrdinalIgnoreCase)) >= 0)
-                            { criticalIssues++; idx++; }
+                            // Parse the store rather than scanning its bytes.
+                            //
+                            // This counted with raw IndexOf("\"status\":\"OPEN\"") — a
+                            // substring that only appears in COMPACT json. CoordStores
+                            // writes Formatting.Indented ("status": "OPEN", with a space),
+                            // as do the auto-escalation writers, so the BCC reported ZERO
+                            // open issues on any store written through the current code.
+                            // It also could not see the other spellings the vocabulary
+                            // admits ("Open", "open", "New", "Reopened"), which is exactly
+                            // what IssueStatusNormalizer exists to reconcile.
+                            var kpiIssueRows = CoordStores.ReadArray(issuesPath);
+                            if (kpiIssueRows != null)
+                            {
+                                foreach (var row in kpiIssueRows.OfType<JObject>())
+                                {
+                                    if (IssueStatusNormalizer.Normalize((string)row["status"]) == IssueStatusKind.Open)
+                                        openIssues++;
+
+                                    string priority = ((string)row["priority"] ?? "").Trim();
+                                    if (priority.Equals("CRITICAL", StringComparison.OrdinalIgnoreCase))
+                                        criticalIssues++;
+                                }
+                            }
                         }
                     }
                 }
@@ -4200,6 +4201,72 @@ namespace StingTools.Core
                     Recommendations = recommendations
                 };
 
+                // Meetings + action items.
+                //
+                // CoordData.Meetings and .ActionItems were declared but never assigned,
+                // so the shipping Meetings tab bound to two permanently empty lists and
+                // rendered blank however many meetings the project had. The only loaders
+                // lived on the dead legacy tab builder and read a doc-free path probe;
+                // both are replaced here by the canonical CoordStores.Meetings(doc).
+                try
+                {
+                    var meetingRows = new List<UI.BIMCoordinationCenter.MeetingRow>();
+                    var actionRows  = new List<UI.BIMCoordinationCenter.ActionItemRow>();
+
+                    string meetingsPath = CoordStores.Meetings(doc);
+                    var meetings = CoordStores.ReadArray(meetingsPath);
+                    if (meetings != null)
+                    {
+                        foreach (var m in meetings.OfType<JObject>())
+                        {
+                            string meetingId = (string)m["meeting_id"] ?? (string)m["id"] ?? "";
+                            string title     = (string)m["title"] ?? (string)m["type"] ?? "Meeting";
+
+                            meetingRows.Add(new UI.BIMCoordinationCenter.MeetingRow
+                            {
+                                MeetingId = meetingId,
+                                Title     = title,
+                                Type      = (string)m["type"] ?? "",
+                                Date      = (string)m["date"] ?? "",
+                                Time      = (string)m["time"] ?? "",
+                                Location  = (string)m["location"] ?? "",
+                                Status    = (string)m["status"] ?? "PLANNED",
+                                Agenda    = (string)m["agenda"] ?? "",
+                                Chair     = (string)m["chair"] ?? "",
+                                Attendees = (m["attendees"] as JArray)?.Count ?? 0,
+                            });
+
+                            foreach (var a in (m["action_items"] as JArray ?? new JArray()).OfType<JObject>())
+                            {
+                                string due = (string)a["due"] ?? (string)a["due_date"] ?? "";
+                                string st  = (string)a["status"] ?? "OPEN";
+
+                                // Only an unresolved action can be overdue.
+                                bool overdue = false;
+                                if (IssueStatusNormalizer.Normalize(st) is IssueStatusKind.Open or IssueStatusKind.InProgress
+                                    && DateTime.TryParse(due, out DateTime dueDate))
+                                    overdue = dueDate < DateTime.Now;
+
+                                actionRows.Add(new UI.BIMCoordinationCenter.ActionItemRow
+                                {
+                                    ActionId    = (string)a["action_id"] ?? (string)a["id"] ?? "",
+                                    Description = (string)a["description"] ?? "",
+                                    Owner       = (string)a["assignee"] ?? (string)a["owner"] ?? "",
+                                    DueDate     = due.Length > 10 ? due.Substring(0, 10) : due,
+                                    Priority    = (string)a["priority"] ?? "",
+                                    Status      = st,
+                                    MeetingRef  = string.IsNullOrEmpty(meetingId) ? title : meetingId,
+                                    IsOverdue   = overdue,
+                                });
+                            }
+                        }
+                    }
+
+                    coordData.Meetings    = meetingRows;
+                    coordData.ActionItems = actionRows;
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: meetings load failed: {ex.Message}"); }
+
                 // Planscape project link — read the per-document link so the BCC
                 // header shows the linked project and the invite path has a target.
                 // Also mirror it onto the in-memory CurrentProjectId so a freshly
@@ -4207,7 +4274,7 @@ namespace StingTools.Core
                 try
                 {
                     var link = StingTools.BIMManager.PlanscapeProjectLink.Load(
-                        StingTools.BIMManager.PlanscapeProjectLink.ConfigPathForModel(doc.PathName));
+                        StingTools.BIMManager.PlanscapeProjectLink.ConfigPathFor(doc));
                     coordData.LinkedProjectId = link.ProjectId;
                     coordData.LinkedProjectLabel = link.Label;
                     if (link.IsLinked)
@@ -4245,19 +4312,16 @@ namespace StingTools.Core
                 // Phase 49: Load coordination log from sidecar
                 try
                 {
-                    string coordLogPath = ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
-                    if (string.IsNullOrEmpty(coordLogPath) || !File.Exists(coordLogPath))
-                    {
-                        coordLogPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
-                            ".sting_coord_log.json");
-                    }
-                    if (File.Exists(coordLogPath))
-                    {
-                        var logEntries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(
-                            File.ReadAllText(coordLogPath));
-                        if (logEntries != null)
-                            coordData.CoordLog = logEntries.OrderByDescending(e => e.Timestamp).Take(200).ToList();
-                    }
+                    // Line-delimited via CoordLog. This previously opened "coord_log.json"
+                    // and handed the whole file to DeserializeObject<List<>>, which threw
+                    // on the second entry of a JSONL file and was swallowed below — the
+                    // timeline rendered empty on every project that had a log.
+                    var logEntries = CoordLog.Read(doc)
+                        .Select(o => o.ToObject<UI.BIMCoordinationCenter.CoordLogEntry>())
+                        .Where(e => e != null)
+                        .ToList();
+                    if (logEntries.Count > 0)
+                        coordData.CoordLog = logEntries.OrderByDescending(e => e.Timestamp).Take(200).ToList();
                 }
                 catch (Exception ex) { StingLog.Warn($"Coord log load: {ex.Message}"); }
 
@@ -4401,7 +4465,7 @@ namespace StingTools.Core
                         try
                         {
                             var link = BIMManager.PlanscapeProjectLink.Load(
-                                BIMManager.PlanscapeProjectLink.ConfigPathForModel(doc.PathName));
+                                BIMManager.PlanscapeProjectLink.ConfigPathFor(doc));
                             if (link.IsLinked) { pid = link.ProjectId; sbClient.CurrentProjectId = pid; }
                         }
                         catch (Exception lex) { StingLog.Warn($"BuildCoordData: project-link resolve failed: {lex.Message}"); }

@@ -602,8 +602,9 @@ namespace StingTools.BIMManager
             _currentUser = null;
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName) ?? "";
-                string bimDir = Path.Combine(dir, "STING_BIM_MANAGER");
+                // Canonical bucket. This read the pre-consolidation sibling, so a
+                // consolidated project silently fell back to default policy.
+                string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                 string path = Path.Combine(bimDir, "access_control.json");
 
                 if (!File.Exists(path))
@@ -789,7 +790,8 @@ namespace StingTools.BIMManager
             data["generated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             data["generated_by"] = Environment.UserName;
 
-            string bimDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "STING_BIM_MANAGER");
+            // Canonical bucket — this WROTE to the pre-consolidation sibling.
+            string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
 
             // Issues
             try
@@ -1649,7 +1651,9 @@ render();
             int issueCount = 0, txCount = 0, actionCount = 0;
             double compliancePct = 0;
 
-            string bimDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "STING_BIM_MANAGER");
+            // Canonical bucket — the agenda read the pre-consolidation sibling and so
+            // summarised an empty project after consolidation.
+            string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
 
             // Compliance
             try

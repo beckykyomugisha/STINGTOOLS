@@ -7081,18 +7081,13 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
-                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
-                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
-                {
-                    logPath = System.IO.Path.Combine(
-                        System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "", ".sting_coord_log.json");
-                }
-                if (!System.IO.File.Exists(logPath))
-                { TaskDialog.Show("STING", "No coordination log found."); return Result.Succeeded; }
-
-                var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    List<UI.BIMCoordinationCenter.CoordLogEntry>>(System.IO.File.ReadAllText(logPath));
-                if (entries == null || entries.Count == 0)
+                // Canonical JSONL read — see CoordLog. Previously opened "coord_log.json"
+                // and whole-file-deserialised, so a JSONL log exported as empty.
+                var entries = StingTools.Core.CoordLog.Read(doc)
+                    .Select(o => o.ToObject<UI.BIMCoordinationCenter.CoordLogEntry>())
+                    .Where(e => e != null)
+                    .ToList();
+                if (entries.Count == 0)
                 { TaskDialog.Show("STING", "Coordination log is empty."); return Result.Succeeded; }
 
                 string outDir = Core.OutputLocationHelper.GetOutputDirectory(doc);

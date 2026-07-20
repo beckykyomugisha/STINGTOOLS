@@ -43,11 +43,14 @@ namespace StingTools.Core.Lightning
 
             try
             {
-                string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-                if (string.IsNullOrEmpty(projDir)) return outcome;
-                string dir = Path.Combine(projDir, "STING_BIM_MANAGER");
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                string issuesPath = Path.Combine(dir, "issues.json");
+                // Route through the canonical issue store. This wrote LPS issues to
+                // the pre-consolidation sibling folder while every reader — including
+                // the BCC — used CoordStores.Issues(doc), so raised LPS issues were
+                // invisible everywhere.
+                string issuesPath = StingTools.Core.CoordStores.Issues(doc);
+                if (string.IsNullOrEmpty(issuesPath)) return outcome;
+                string dir = Path.GetDirectoryName(issuesPath) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 outcome.Path = issuesPath;
 
                 JArray arr = File.Exists(issuesPath)
