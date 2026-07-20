@@ -85,6 +85,9 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Filters (V-3/V-7/V-8) | The 12 repaired filters mint; a multi-material class filter selects elements |
 | Producer (C-3) | Run `LoadSharedParams` first, then produce per level over ≥2 levels: expect one sheet per level, and a re-run that reuses them rather than adding more |
 | Labels (A-11) | A medical-gas tag renders CO₂ / N₂O with a real subscript and warnings with ⚠ |
+| Numbering (D-1/P-2) | Produce over ≥2 sheets in one package: ISO-pattern types get real numbers, and the sequence increments instead of every sheet reading 0001 |
+| **ISO params unset (D-1)** | **On a project with `PRJ_PROJECT_COD_TXT` / `PRJ_ORG_ORIGINATOR_CODE_TXT` empty, confirm the leading empty segments (`--01-…`) are acceptable, or set both before producing.** Previously the whole assignment failed, so this case was invisible |
+| Collisions (P-2) | Two profiles sharing a pattern on the same level: second sheet gets a warned `-A` suffix rather than keeping its default number |
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 

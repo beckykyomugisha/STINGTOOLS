@@ -939,6 +939,15 @@ namespace StingTools.Core.Drawing
 
             // {seq:Dn} at whatever width the pattern asks for, then bare {seq}
             // at the historical 4-digit default.
+            //
+            // Note the extras sweep above may already have consumed a bare
+            // {seq}: DrawingTokenContext.Build emits a "seq" key formatted
+            // with its seqWidth parameter, which defaults to 4 and which
+            // BuildTokenDict does not override — so the two paths agree, and
+            // whichever runs first yields the same string. {seq:Dn} is a
+            // different literal so the sweep never touches it. If a caller
+            // ever passes a non-default seqWidth, format that value the same
+            // way here or the two paths will silently disagree.
             p = _seqWidthRegex.Replace(p, m => seq.ToString("D" + m.Groups[1].Value));
             p = p.Replace("{seq}", seq.ToString("D4"));
             return p;
