@@ -284,8 +284,11 @@ namespace StingTools.Core.Drawing
                     var transp = rule.Transparency ?? defaults?.Transparency;
                     if (transp.HasValue) ogs.SetSurfaceTransparency(Clamp(transp.Value, 0, 100));
 
-                    // Halftone — pack flag wins; default override falls through.
-                    bool halftone = rule.Halftone || (defaults?.Halftone == true);
+                    // Halftone — pack wins when it states a value, else the
+                    // registry default, else off. The old `rule.Halftone ||
+                    // defaults?.Halftone == true` could never express "pack
+                    // says OFF" against a default of ON.
+                    bool halftone = rule.Halftone ?? (defaults?.Halftone ?? false);
                     ogs.SetHalftone(halftone);
 
                     // Detail level — Revit 2023+ override.
@@ -298,9 +301,10 @@ namespace StingTools.Core.Drawing
 
                     view.SetFilterOverrides(filterId, ogs);
 
-                    // Visibility — pack rule wins; otherwise default override visible flag; default true.
-                    bool visible = rule.Visible;
-                    if (defaults?.Visible.HasValue == true && rule.Visible) visible = defaults.Visible.Value;
+                    // Visibility — pack wins when stated, else the registry
+                    // default, else visible. The old form read the DEFAULT
+                    // whenever the rule was true, inverting its own comment.
+                    bool visible = rule.Visible ?? (defaults?.Visible ?? true);
                     view.SetFilterVisibility(filterId, visible);
                     r.FiltersApplied++;
                 }

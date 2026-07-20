@@ -224,8 +224,14 @@ namespace StingTools.Core.Drawing
         public string FilterNameShort { get => null; set { if (!string.IsNullOrEmpty(value)) FilterName = value; } }
         [JsonIgnore] public string FilterName { get; set; }
 
-        [JsonProperty("visible")]             public bool Visible { get; set; } = true;
-        [JsonProperty("halftone")]            public bool Halftone { get; set; } = false;
+        // V-9: nullable so "the pack did not say" is distinguishable from
+        // "the pack said true/false". As non-nullable bools an explicit
+        // visible:true was identical to unset, so the AEC-filter registry
+        // default overrode the pack on every visible rule — the exact
+        // inverse of the documented "pack wins" precedence. Null means
+        // defer to the registry default, then to Revit's own default.
+        [JsonProperty("visible",  NullValueHandling = NullValueHandling.Ignore)] public bool? Visible { get; set; }
+        [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)] public bool? Halftone { get; set; }
 
         [JsonProperty("projectionLineColor",  NullValueHandling = NullValueHandling.Ignore)]
         public string ProjLineColorLong { get => ProjectionLineColor; set { if (!string.IsNullOrEmpty(value)) ProjectionLineColor = value; } }
