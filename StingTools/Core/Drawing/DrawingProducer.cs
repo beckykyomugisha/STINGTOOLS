@@ -119,7 +119,11 @@ namespace StingTools.Core.Drawing
                 {
                     var dtId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID) ?? string.Empty;
                     var pkgId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? string.Empty;
-                    if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId)] = sheet.Id;
+                    // null (parameter not bound) indexes as "" — the slow
+                    // path in CreateOrFindSheet then distinguishes
+                    // not-bound from bound-but-blank.
+                    var shtCtx = DrawingTypeStamper.ReadSheetContext(sheet) ?? string.Empty;
+                    if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, shtCtx)] = sheet.Id;
                     if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
                     else pkg[pkgId] = 1;
                 }
@@ -148,8 +152,15 @@ namespace StingTools.Core.Drawing
         private static string ViewKey(string dtId, string ctxTag, int ruleIdx)
             => (dtId ?? string.Empty) + "|" + (ctxTag ?? string.Empty) + "|" + ruleIdx;
 
-        private static string SheetKey(string dtId, string pkgId)
-            => (dtId ?? string.Empty) + "|" + (pkgId ?? string.Empty);
+        // Sheet identity is (drawing type, package, production context).
+        // Without the context component a per-level batch resolved every
+        // level to the same sheet, so ProduceViewsPerLevelCommand over N
+        // levels produced 1 sheet carrying N stacked viewports instead of
+        // N sheets. The view key has always carried the context tag, which
+        // is why the views were minted correctly and then all placed in
+        // the same slot on the same sheet.
+        private static string SheetKey(string dtId, string pkgId, string sheetCtx)
+            => (dtId ?? string.Empty) + "|" + (pkgId ?? string.Empty) + "|" + (sheetCtx ?? string.Empty);
 
         public static ProduceResult ProduceView(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts)
             => ProduceAllViews(doc, dt, ctx, opts);
@@ -497,24 +508,58 @@ namespace StingTools.Core.Drawing
         private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result)
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
+            string sheetCtx = BuildContextTag(ctx);
             try
             {
                 // GAP-L: per-batch cache hit, fall back to fresh collector.
                 if (_existingSheetCache != null
                     && CacheMatchesDoc(doc)
-                    && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage), out var cachedSheetId))
+                    && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage, sheetCtx), out var cachedSheetId))
                 {
                     if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
                         return vsCached.Id;
-                    _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage));
+                    _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage, sheetCtx));
                 }
-                var existing = new FilteredElementCollector(doc)
+
+                var candidates = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
-                    .FirstOrDefault(s =>
+                    .Where(s =>
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), dt.Id, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
-                if (existing != null) return existing.Id;
+                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal))
+                    .ToList();
+
+                // Same drawing type, same package, same production context.
+                var exact = candidates.FirstOrDefault(s =>
+                    string.Equals(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, StringComparison.Ordinal));
+                if (exact != null) return exact.Id;
+
+                // A sheet produced before the context stamp existed carries
+                // no context. Claim it only for an empty-context request —
+                // a per-level request must never adopt it, or level 1 would
+                // swallow the whole batch exactly as before.
+                if (string.IsNullOrEmpty(sheetCtx))
+                {
+                    var legacyBlank = candidates.FirstOrDefault(s =>
+                        string.IsNullOrEmpty(DrawingTypeStamper.ReadSheetContext(s)));
+                    if (legacyBlank != null) return legacyBlank.Id;
+                }
+
+                // ReadSheetContext returns null when STING_SHEET_CONTEXT_TXT
+                // is not bound in this project at all, so contexts cannot be
+                // told apart. Fall back to the pre-context (type, package)
+                // match: that reproduces the old stacking behaviour, but the
+                // alternative is minting a fresh duplicate sheet on every
+                // run. Surfaced as a warning so the fix is actionable.
+                var unstampable = candidates.FirstOrDefault(s => DrawingTypeStamper.ReadSheetContext(s) == null);
+                if (unstampable != null)
+                {
+                    result.Warnings.Add(
+                        $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
+                        $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
+                        "Run LoadSharedParams to bind it, then re-run production.");
+                    return unstampable.Id;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -584,6 +629,14 @@ namespace StingTools.Core.Drawing
             }
             DrawingTypeStamper.Stamp(sheet, dt.Id);
             DrawingTypeStamper.StampPackage(sheet, effectivePackage);
+            // Completes the sheet's production identity so the next run
+            // finds this exact sheet for this exact context instead of
+            // reusing it for every level in the batch.
+            if (!DrawingTypeStamper.StampSheetContext(sheet, sheetCtx) && !string.IsNullOrEmpty(sheetCtx))
+                result.Warnings.Add(
+                    $"Could not stamp {DrawingTypeStamper.PARAM_SHEET_CONTEXT} on sheet {sheet.Id} " +
+                    $"(context '{sheetCtx}'); re-running production may not match this sheet. " +
+                    "Run LoadSharedParams to bind the parameter.");
 
             try
             {
@@ -626,7 +679,7 @@ namespace StingTools.Core.Drawing
                 DrawingTypeStamper.StampSheetSequence(sheet, seq);
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
-                    _existingSheetCache[SheetKey(dt.Id, effectivePackage)] = sheet.Id;
+                    _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = sheet.Id;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
