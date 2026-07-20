@@ -172,7 +172,8 @@ namespace StingTools.Core
             int pad,
             string seqSchemeContext,
             int maxCollisionDepth,
-            HashSet<string> existingTags)
+            HashSet<string> existingTags,
+            SeqBlockReservation reservation = null)
         {
             if (counters == null) throw new ArgumentNullException(nameof(counters));
             tagBody ??= string.Empty;
@@ -185,7 +186,28 @@ namespace StingTools.Core
             }
 
             int preIncrementValue = currentSeqVal;
-            counters[seqKey]++;
+
+            // Server-reserved block, when one was granted for this key. Taking the
+            // number from the reservation is what makes Revit and StingBridge
+            // safe to run against the same key concurrently: the server bumped
+            // and returned the counter in one indivisible step, so no other host
+            // can be holding the same value. We still advance the local counter
+            // to the taken number so the existing rollback, overflow and
+            // collision logic below is unchanged, and so the later /seq/sync
+            // max-merge reports a high-water mark that reflects what we used.
+            //
+            // reservation == null (no server configured, or the reserve call
+            // failed) falls through to purely local allocation — today's exact
+            // behaviour, including its cross-host duplicate window. See the
+            // remarks on SeqBlockReservation.
+            if (reservation != null && reservation.TryTake(seqKey, out int reservedSeq))
+            {
+                counters[seqKey] = reservedSeq;
+            }
+            else
+            {
+                counters[seqKey]++;
+            }
 
             int maxSeq = MaxSeqForPad(pad);
             if (counters[seqKey] > maxSeq)

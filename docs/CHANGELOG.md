@@ -2,6 +2,53 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 211 — SEQ minting correctness)
+
+Four SEQ findings from the #421 review.
+
+- **IFC path now adopts an existing `ASS_SEQ_NUM_TXT`.** The extractor already
+  read the token back off a previously written-back file, but
+  `map_element_to_tokens` never seeds `seq` — it is minted, not mapped — so
+  `assign_sequences()` saw an unnumbered element on every re-drop, burned counter
+  values and renumbered stable elements. The live ArchiCAD path
+  (`sync/engine.py:401-413`) already did this; the IFC path now matches.
+- **A genuinely adversarial idempotency test** (`test_ifc_seq_idempotency.py`).
+  The existing test fed the minter a token dict it built itself, which can only
+  ever prove the minter is idempotent — it structurally could not catch this bug.
+  The new test re-derives through the **full pipeline**: build IFC → `process()`
+  → write back → `process()` the written-back file → re-extract → re-map →
+  re-mint, then asserts zero new reservations (counted by a fake counter server)
+  and unchanged SEQ values read straight off disk by an independent reader.
+  **Confirmed it fails without the fix** — 6 reservations instead of 3.
+- **`SeqSyncController.ReserveOneAsync` deleted** in favour of the existing
+  `ISequenceCounterService`. Beyond removing the duplicated UPSERT, this closes
+  an RLS bypass: the hand-rolled version called `conn.OpenAsync()` directly, so
+  `RlsConnectionInterceptor` never fired — harmless today, a tenant-isolation
+  hole the moment `Database:RlsEnabled` tightens. Endpoint contract unchanged.
+- **Misleading deadlock comment removed.** Key ordering does not prevent
+  deadlocks here: each allocation is a single autocommit UPSERT that releases its
+  row lock before the next key, so no transaction holds two counter locks and
+  there is no cycle to order against. The ordering is kept, for reproducible
+  responses, and now says so.
+- **Cross-host duplicate window closed in the plugin.** New pure
+  `SeqBlockReservation` + `PlanscapeServerClient.ReserveSeqBlocksAsync`;
+  `SeqAssigner.AssignNext` takes an **optional** trailing `reservation`
+  parameter, so every existing call site and the offline path are byte-identical
+  to before (asserted by a test).
+
+**Gate:** new idempotency test passes and provably fails without the fix ·
+StingBridge pytest **120 passed** · server suite **347/73**, identical to the
+Phase 210 baseline (`SeqSync_SyncAndGet` was already in that failing set;
+both `/seq/reserve` tests pass) · plugin builds **0 errors / 0 warnings** ·
+`SeqAssigner` + reservation tests **43 passed**.
+
+**Not verified:** no in-Revit runtime run is possible in this environment, so
+the plugin-side reservation path is unit-tested and compiles but has not been
+exercised against a live document. The change is conservative by design — an
+optional parameter that defaults to today's behaviour. The **offline duplicate
+window remains open** when no server is configured; documented in the code and
+in ROADMAP SB-2 rather than silently closed.
+
 #### Completed (Phase 210 — server test suite is self-contained on a clean machine)
 
 The suite could only reach its advertised pass count on a developer machine that

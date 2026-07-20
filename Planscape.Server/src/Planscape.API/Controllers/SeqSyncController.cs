@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
@@ -19,8 +20,13 @@ namespace Planscape.API.Controllers;
 public class SeqSyncController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly ISequenceCounterService _counters;
 
-    public SeqSyncController(PlanscapeDbContext db) => _db = db;
+    public SeqSyncController(PlanscapeDbContext db, ISequenceCounterService counters)
+    {
+        _db = db;
+        _counters = counters;
+    }
 
     /// <summary>
     /// Push SEQ counters from plugin — server keeps max per key.
@@ -128,13 +134,26 @@ public class SeqSyncController : ControllerBase
         var userName = User.FindFirst("display_name")?.Value ?? "Unknown";
         var assignments = new Dictionary<string, object>();
 
-        // Deterministic key order so two concurrent multi-key reservations take
-        // the row locks in the same sequence and cannot deadlock against each other.
+        // Ordered purely so the response and audit log are reproducible for a
+        // given request. (An earlier comment here claimed the ordering prevented
+        // deadlocks between concurrent multi-key reservations — it does not.
+        // Each AllocateAsync is a single autocommit UPSERT that takes and
+        // releases its row lock before the next key is touched, so no
+        // transaction ever holds two counter locks at once and there is no
+        // cross-key lock cycle to order against.)
         foreach (var key in req.Reservations.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
             var count = req.Reservations[key];
 
-            var newValue = await ReserveOneAsync(tenantId, projectId, key, count, userName);
+            // Delegates to the shared counter service rather than re-issuing the
+            // UPSERT by hand. Two reasons beyond deduplication: the service goes
+            // through _db.Database.SqlQueryRaw, so the RLS DbConnectionInterceptor
+            // fires — the old raw conn.OpenAsync() bypassed it entirely, which
+            // would silently become a tenant-isolation hole the moment
+            // Database:RlsEnabled is tightened; and its GREATEST(...) seedFloor
+            // handling is the behaviour every other counter caller already gets.
+            var newValue = await _counters.AllocateAsync(
+                tenantId, projectId, key, seedFloor: 0, count: count, updatedBy: userName);
             assignments[key] = new
             {
                 start = newValue - count + 1,
@@ -161,50 +180,6 @@ public class SeqSyncController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { assignments });
-    }
-
-    /// <summary>
-    /// Bump one counter by <paramref name="count"/> and return its new value,
-    /// creating the row if absent. Atomic — see <see cref="ReserveCounters"/>.
-    /// </summary>
-    private async Task<int> ReserveOneAsync(
-        Guid tenantId, Guid projectId, string key, int count, string userName)
-    {
-        var conn = _db.Database.GetDbConnection();
-        if (conn.State != System.Data.ConnectionState.Open)
-            await conn.OpenAsync();
-
-        await using var cmd = conn.CreateCommand();
-        // The unique index on (ProjectId, CounterKey) is what makes ON CONFLICT
-        // well-defined here; see PlanscapeDbContext's SeqCounter configuration.
-        cmd.CommandText = @"
-            INSERT INTO ""SeqCounters""
-                (""Id"", ""TenantId"", ""ProjectId"", ""CounterKey"", ""CurrentValue"", ""UpdatedBy"", ""UpdatedAt"")
-            VALUES
-                (@id, @tenantId, @projectId, @key, @count, @user, now())
-            ON CONFLICT (""ProjectId"", ""CounterKey"") DO UPDATE
-                SET ""CurrentValue"" = ""SeqCounters"".""CurrentValue"" + @count,
-                    ""UpdatedBy""    = @user,
-                    ""UpdatedAt""    = now()
-            RETURNING ""CurrentValue""";
-
-        AddParam(cmd, "@id", Guid.NewGuid());
-        AddParam(cmd, "@tenantId", tenantId);
-        AddParam(cmd, "@projectId", projectId);
-        AddParam(cmd, "@key", key);
-        AddParam(cmd, "@count", count);
-        AddParam(cmd, "@user", userName);
-
-        var result = await cmd.ExecuteScalarAsync();
-        return Convert.ToInt32(result);
-    }
-
-    private static void AddParam(System.Data.Common.DbCommand cmd, string name, object value)
-    {
-        var p = cmd.CreateParameter();
-        p.ParameterName = name;
-        p.Value = value;
-        cmd.Parameters.Add(p);
     }
 
     /// <summary>
