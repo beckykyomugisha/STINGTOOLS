@@ -384,6 +384,35 @@ namespace StingTools.Core.Drawing
             return "";
         }
 
+        /// <summary>
+        /// A-6: collapse a stamped match-line key to its pair key.
+        ///
+        /// PlaceCurve stamps dog-leg segments as
+        /// "&lt;scopePairGuid&gt;:&lt;viewA&gt;:&lt;viewB&gt;:segN" but
+        /// PlaceOrUpdatePair looks the pair up by the bare
+        /// "&lt;scopePairGuid&gt;:&lt;viewA&gt;:&lt;viewB&gt;". Indexing the
+        /// stamped key verbatim therefore never matched for any multi-segment
+        /// boundary: `existed` came back false every sweep, nothing was
+        /// deleted, and the curves duplicated — directly contradicting the
+        /// file header's "re-runs find the existing pair and update in place".
+        /// Grouping every segment under the pair key makes the lookup hit and
+        /// the delete-then-replace path remove all segments together.
+        ///
+        /// Only a trailing ":segN" is stripped — the pair key itself contains
+        /// colons, so splitting on the first one would be wrong here.
+        /// PruneOrphans keeps working unchanged: it takes the scope-pair GUID
+        /// from the first colon-delimited field, which is identical in both
+        /// the stamped and the collapsed key.
+        /// </summary>
+        private static string BasePairKey(string stampedKey)
+        {
+            if (string.IsNullOrEmpty(stampedKey)) return stampedKey;
+            int i = stampedKey.LastIndexOf(":seg", StringComparison.OrdinalIgnoreCase);
+            if (i > 0 && int.TryParse(stampedKey.Substring(i + 4), out _))
+                return stampedKey.Substring(0, i);
+            return stampedKey;
+        }
+
         /// <summary>Indexes existing match-line DetailCurves by their
         /// STING_MATCH_LINE_GUID stamp so re-runs can find them in
         /// O(1) and update in place.</summary>
@@ -397,7 +426,7 @@ namespace StingTools.Core.Drawing
                     if (!(el is DetailCurve dc)) continue;
                     var p = dc.LookupParameter(ParamRegistry.MATCH_LINE_GUID);
                     if (p == null || !p.HasValue) continue;
-                    var key = p.AsString();
+                    var key = BasePairKey(p.AsString());
                     if (string.IsNullOrEmpty(key)) continue;
                     if (!idx.TryGetValue(key, out var list))
                         idx[key] = list = new List<CurveElement>();
@@ -582,15 +611,26 @@ namespace StingTools.Core.Drawing
                     var noteTypeId = ResolveTextNoteTypeId(doc, cfg.Captions.FallbackTextNoteTypeName);
                     if (noteTypeId != null && noteTypeId != ElementId.InvalidElementId)
                     {
-                        if (string.Equals(cfg.Captions.TipPlacement, "BothEnds", StringComparison.OrdinalIgnoreCase))
+                        bool bothEnds = string.Equals(cfg.Captions.TipPlacement, "BothEnds", StringComparison.OrdinalIgnoreCase);
+                        var points = bothEnds
+                            ? new List<XYZ> { a, b }
+                            : new List<XYZ> { (a + b) / 2 };
+
+                        // A-7: the pair's curves are deleted and re-placed on
+                        // every update, but captions were only ever created —
+                        // so MatchLine_Sync (recommended after every renumber)
+                        // stacked another "see XXX" note per end, per run.
+                        // Clear the ones this placement is about to replace
+                        // first. Matched on view + note type + exact caption
+                        // text + proximity to the placement point, so a user's
+                        // own annotation and a different pair's caption are
+                        // both left alone.
+                        RemoveExistingCaptions(doc, view, noteTypeId, caption, points, r);
+
+                        foreach (var pt in points)
                         {
-                            try { TextNote.Create(doc, view.Id, a, caption, noteTypeId); r.TipCaptionsPlaced++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                            try { TextNote.Create(doc, view.Id, b, caption, noteTypeId); r.TipCaptionsPlaced++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        }
-                        else
-                        {
-                            var mid = (a + b) / 2;
-                            try { TextNote.Create(doc, view.Id, mid, caption, noteTypeId); r.TipCaptionsPlaced++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { TextNote.Create(doc, view.Id, pt, caption, noteTypeId); r.TipCaptionsPlaced++; }
+                            catch (Exception ex) { StingLog.Warn($"Caption create: {ex.Message}"); }
                         }
                     }
                 }
@@ -702,6 +742,58 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"ResolveLineStyleId '{styleName}': {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// A-7 helper: delete the caption notes this placement is replacing.
+        ///
+        /// Captions cannot carry the pair stamp the curves use —
+        /// STING_MATCH_LINE_GUID_TXT is a group-27 parameter bound through the
+        /// universal category set, which covers Detail Items but not Text
+        /// Notes, so the write would silently no-op. Rather than provision a
+        /// new binding, identity here is (view + note type + exact caption text
+        /// + proximity to the point being written). That is precise enough to
+        /// leave a user's own note and a different pair's caption untouched.
+        ///
+        /// Residual: if the boundary geometry moved since the last sweep, the
+        /// old caption sits outside the tolerance and is left behind as an
+        /// orphan rather than deleted. That is strictly better than the
+        /// previous behaviour, which orphaned one on EVERY sweep regardless.
+        /// </summary>
+        private static void RemoveExistingCaptions(Document doc, View view, ElementId noteTypeId,
+            string caption, IList<XYZ> points, MatchLineRunResult r)
+        {
+            if (doc == null || view == null || points == null || points.Count == 0) return;
+            const double tolFt = 2.0;   // ~600 mm — captions sit at/near the point
+            try
+            {
+                var doomed = new List<ElementId>();
+                foreach (var el in new FilteredElementCollector(doc, view.Id).OfClass(typeof(TextNote)))
+                {
+                    if (!(el is TextNote tn)) continue;
+                    if (tn.GetTypeId() != noteTypeId) continue;
+                    var text = (tn.Text ?? "").TrimEnd('\r', '\n');
+                    if (!string.Equals(text, caption, StringComparison.Ordinal)) continue;
+                    XYZ c;
+                    try { c = tn.Coord; } catch { continue; }
+                    if (c == null) continue;
+                    foreach (var p in points)
+                    {
+                        if (p != null && c.DistanceTo(p) <= tolFt) { doomed.Add(tn.Id); break; }
+                    }
+                }
+                foreach (var id in doomed)
+                {
+                    try { doc.Delete(id); }
+                    catch (Exception ex) { StingLog.Warn($"Caption prune {id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open: a failed prune means a possible duplicate caption,
+                // not a failed sweep.
+                r?.Warnings.Add($"Could not clear prior captions in '{view.Name}': {ex.Message}");
+            }
         }
 
         private static ElementId ResolveTextNoteTypeId(Document doc, string typeName)
