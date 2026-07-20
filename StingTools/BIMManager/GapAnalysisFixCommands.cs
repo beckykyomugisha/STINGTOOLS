@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════════
 //  GAP ANALYSIS FIX COMMANDS — Phase 68
 //  Implements gap analysis findings from Phase 68 review.
 //
@@ -845,7 +845,7 @@ namespace StingTools.BIMManager
                 string status = issue["status"]?.ToString();
                 if (!string.Equals(status, "CLOSED", StringComparison.OrdinalIgnoreCase)) continue;
 
-                string issueId = issue["id"]?.ToString();
+                string issueId = IssueSchema.IdOf(issue as JObject);
                 if (string.IsNullOrEmpty(issueId)) continue;
 
                 // Check if already linked (has revision_snapshot field)
@@ -992,7 +992,7 @@ namespace StingTools.BIMManager
                     {
                         foreach (var issue in recentClosed.Take(20))
                         {
-                            sb.AppendLine($"  [{issue["id"]}] {issue["title"]} — {issue["type"]} — Resolved");
+                            sb.AppendLine($"  [{IssueSchema.IdOf(issue as JObject)}] {issue["title"]} — {issue["type"]} — Resolved");
                         }
                     }
                     else sb.AppendLine("  No issues resolved in the last 7 days.");
@@ -1004,7 +1004,7 @@ namespace StingTools.BIMManager
                     {
                         foreach (var issue in openIssues.OrderBy(i => i["priority"]?.ToString()).Take(20))
                         {
-                            sb.AppendLine($"  [{issue["id"]}] {issue["title"]} — {issue["type"]} / {issue["priority"]} — {issue["assignee"] ?? "Unassigned"}");
+                            sb.AppendLine($"  [{IssueSchema.IdOf(issue as JObject)}] {issue["title"]} — {issue["type"]} / {issue["priority"]} — {issue["assigned_to"] ?? issue["assignee"] ?? "Unassigned"}");
                         }
                     }
                     else sb.AppendLine("  No open issues.");

@@ -682,15 +682,11 @@ namespace StingTools.Core
                         {
                             try
                             {
-                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                                string issuesPath = CoordStores.Issues(doc);
-                                if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
-                                // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
-                                var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
-                                // PM-1 — normalise the status so the gate sees clash/ACC
-                                // issues too (they spell it "Open"/"open", not "OPEN").
-                                int openCount = issuesArr.Count(i => IssueStatusNormalizer.IsOpen((string)i["status"]));
-                                if (openCount == 0) { RecordSkip("no open issues"); continue; }
+                                // Phase 2 (IM-4): one predicate, shared with EvaluateSingleCondition
+                                // and with the BCC's KPI counts. IssueStore.Load also migrates
+                                // legacy rows, so a PascalCase LPS issue or an "id"-keyed
+                                // escalated warning is counted here like anything else.
+                                if (!IssueStore.HasOpen(doc)) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
                         }
@@ -2165,18 +2161,24 @@ namespace StingTools.Core
                     case "has_open_issues":
                     case "has_overdue_issues":
                     {
-                        // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues
-                        string issuePath = CoordStores.Issues(doc);
-                        if (!File.Exists(issuePath)) return false;
-                        JArray cachedIssues = JArray.Parse(File.ReadAllText(issuePath));
+                        // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues.
+                        //
+                        // Phase 2 (IM-4): this compared the raw status to the literal "OPEN",
+                        // while the OTHER implementation of the same gate (RunWorkflow, above)
+                        // routed through IssueStatusNormalizer. The same gate therefore
+                        // answered differently depending on which entry point evaluated it —
+                        // and this one never saw a clash ("Open"), an ACC ("open") or a
+                        // server-pulled ("New") issue. Both now share IssueStore's predicate.
+                        JArray cachedIssues = IssueStore.Load(doc);
+                        if (cachedIssues.Count == 0) return false;
                         if (condition == "has_open_issues")
-                            return cachedIssues.Any(i => (string)i["status"] == "OPEN");
+                            return cachedIssues.OfType<JObject>().Any(IssueSchema.IsOpen);
                         // has_overdue_issues
                         var slaHrs = new Dictionary<string, int>
                             { { "CRITICAL", 4 }, { "HIGH", 24 }, { "MEDIUM", 168 }, { "LOW", 336 } };
-                        foreach (var oi in cachedIssues)
+                        foreach (var oi in cachedIssues.OfType<JObject>())
                         {
-                            if (oi["status"]?.ToString() != "OPEN") continue;
+                            if (!IssueSchema.IsOpen(oi)) continue;
                             string pri = oi["priority"]?.ToString() ?? "MEDIUM";
                             if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created_date"]?.ToString(), out var created)) continue;
                             int ageH = (int)(DateTime.Now - created).TotalHours;

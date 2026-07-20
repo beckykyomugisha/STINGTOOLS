@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Phase75Enhancements.cs — 29 Workflow/Coordination Gap Implementations
 //
 // Implements all remaining gaps from Phase 74 deep review Agent 3:
@@ -1736,7 +1736,7 @@ namespace StingTools.Core
 
                     if (ageHours > threshold)
                     {
-                        string id = issue["id"]?.ToString() ?? "";
+                        string id = IssueSchema.IdOf(issue as JObject) ?? "";
                         string title = issue["title"]?.ToString() ?? "";
                         violations.Add($"{id}: [{priority}] \"{title}\" — {ageHours:F0}h old (SLA: {threshold}h)");
                     }
@@ -1766,93 +1766,30 @@ namespace StingTools.Core
     internal static class WarningToIssueCreator
     {
         /// <summary>CSI-01: Create issues from warnings with deduplication.</summary>
+        /// <summary>
+        /// CSI-01: Create issues from warnings with deduplication.
+        ///
+        /// Phase 2 (IM-5): this was the worst of the four escalation paths. It minted
+        /// identifiers as `existingIssues.Count + 1`, which collides with a live row as soon
+        /// as the register's numbering and its row COUNT diverge — after any deletion, or
+        /// simply once the store holds a mix of NCR and SI rows. Two rows then share one
+        /// identifier, and every downstream lookup (bulk close, CSV export, element zoom)
+        /// silently operates on whichever it finds first.
+        ///
+        /// Minting now goes through IssueIdMinter: per-type high-water mark, reserved across
+        /// the batch, and it will not hand out an identifier that already exists under ANY of
+        /// the historical spellings. Regression-tested in
+        /// StingTools.Tags.Tests/IssueSchemaTests.cs.
+        /// </summary>
         public static (int created, List<string> details) CreateIssuesFromWarnings(
             Document doc, WarningReport report, WarningSeverity minSeverity = WarningSeverity.High)
         {
-            var details = new List<string>();
-            if (doc == null || report?.Warnings == null) return (0, details);
-
-            string projectDir = Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(projectDir)) return (0, details);
-
-            // Load existing issues for deduplication
-            string issuesPath = CoordStores.Issues(doc);
-            JArray existingIssues;
-            try
-            {
-                if (File.Exists(issuesPath))
-                    existingIssues = JArray.Parse(File.ReadAllText(issuesPath));
-                else
-                    existingIssues = new JArray();
-            }
-            catch (Exception ex) { StingLog.Warn($"WarningToIssueCreator load: {ex.Message}"); existingIssues = new JArray(); }
-
-            // Build dedup key set from existing issues
-            var existingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var issue in existingIssues)
-            {
-                string warnCat = issue["warning_category"]?.ToString();
-                string warnDesc = issue["source_warning"]?.ToString();
-                if (!string.IsNullOrEmpty(warnCat) && !string.IsNullOrEmpty(warnDesc))
-                    existingKeys.Add($"{warnCat}:{warnDesc.Substring(0, Math.Min(50, warnDesc.Length))}");
-            }
-
-            // Group qualifying warnings by description
-            var qualifyingGroups = report.Warnings
-                .Where(w => w.Severity <= minSeverity) // Critical < High < Medium (enum order)
-                .GroupBy(w => w.Description?.Substring(0, Math.Min(50, w.Description?.Length ?? 0)) ?? "")
-                .Where(g => !string.IsNullOrEmpty(g.Key))
-                .Take(20); // Cap at 20 issue types per scan
-
-            int created = 0;
-            foreach (var group in qualifyingGroups)
-            {
-                var representative = group.First();
-                string dedupKey = $"{representative.Category}:{group.Key}";
-                if (existingKeys.Contains(dedupKey)) continue; // Already has issue
-
-                string issueType = representative.Severity == WarningSeverity.Critical ? "NCR" : "SI";
-                string priority = representative.Severity == WarningSeverity.Critical ? "CRITICAL" : "HIGH";
-                int nextId = existingIssues.Count + 1;
-                string issueId = $"{issueType}-{nextId:D4}";
-
-                var newIssue = new JObject
-                {
-                    ["id"] = issueId,
-                    ["title"] = $"[Auto] {representative.Description?.Substring(0, Math.Min(80, representative.Description?.Length ?? 0))}",
-                    ["type"] = issueType,
-                    ["priority"] = priority,
-                    ["status"] = "OPEN",
-                    ["created_by"] = Environment.UserName,
-                    ["created_date"] = DateTime.Now.ToString("o"),
-                    ["auto_created"] = true,
-                    ["warning_category"] = representative.Category.ToString(),
-                    ["source_warning"] = group.Key,
-                    ["element_count"] = group.SelectMany(w => w.FailingElements ?? Enumerable.Empty<ElementId>()).Distinct().Count(),
-                    ["description"] = $"Auto-created from {group.Count()} {representative.Category} warnings. Fix: {representative.FixStrategy}",
-                };
-                existingIssues.Add(newIssue);
-                existingKeys.Add(dedupKey);
-                created++;
-                details.Add($"Created {issueId}: {representative.Description?.Substring(0, Math.Min(60, representative.Description?.Length ?? 0))}");
-            }
-
-            // Save updated issues
-            if (created > 0)
-            {
-                try
-                {
-                    string dir = Path.GetDirectoryName(issuesPath);
-                    if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                    string tmpPath = issuesPath + ".tmp";
-                    File.WriteAllText(tmpPath, existingIssues.ToString(Formatting.Indented));
-                    File.Move(tmpPath, issuesPath, true);
-                    StingLog.Info($"WarningToIssueCreator: created {created} issues from warnings");
-                }
-                catch (Exception ex2) { StingLog.Warn($"WarningToIssueCreator save: {ex2.Message}"); }
-            }
-
-            return (created, details);
+            if (doc == null || report?.Warnings == null) return (0, new List<string>());
+            var candidates = IssueEscalationEngine.ByDescription(report.Warnings, minSeverity);
+            var result = IssueEscalationEngine.Escalate(doc, candidates, IssueSource.Warning);
+            if (result.Created > 0)
+                StingLog.Info($"WarningToIssueCreator: created {result.Created} issues from warnings");
+            return (result.Created, result.Details);
         }
     }
 

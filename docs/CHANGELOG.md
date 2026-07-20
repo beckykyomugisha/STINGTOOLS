@@ -2,6 +2,84 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 201 — ISO IM Phase 2: one issue store)
+
+Closes ROADMAP **IM-4** (the `issue_id` / `id` schema fork) and **IM-5** (forked
+warning→issue escalation with colliding identifiers). Nineteen writers created issue
+records in **seven** mutually incompatible JSON shapes; they now converge on one
+repository.
+
+- **`Core/IssueSchema.cs` (new, Revit-free)** — the canonical record. One identifier field
+  (`issue_id`); `IdOf` reads all three historical spellings (`issue_id` / `id` / `IssueId`)
+  so pre-existing stores keep working; `Migrate` upgrades a legacy row in place when a store
+  is loaded, so the fork drains as stores are touched rather than needing a migration
+  command. Also rescues `element_ids` written as a comma-joined **string** by the old
+  string-concatenation writer — every element lookup against those rows had been silently
+  matching nothing. Pure, so it is unit-testable outside Revit.
+- **`Core/IssueStore.cs` (new)** — the repository. Owns the path (always `CoordStores.Issues`),
+  load+migrate, atomic id minting, dedup, atomic persistence, the audit chain and the server
+  push. `IssueStore.Begin(doc)` opens a batch: one load, many creates, one atomic save.
+- **`Core/IssueEscalationEngine.cs` (new)** — one escalation path replacing four. The four had
+  three different dedup rules over the same register, so an issue raised by one entry point
+  was invisible to the next one's dedup check and the same warning could hold three issues at
+  once, under three different identifier spellings.
+- **`IssueIdMinter`** — per-type high-water mark, reserved in memory across a batch, and it
+  will not hand out an identifier that already exists under *any* spelling. `GetNextIssueId`
+  used to scan `issue_id` only, so a register whose highest `NCR` came from an escalation
+  path (`id`) had an invisible high-water mark and the helper reissued that row's identifier.
+- **The `Count + 1` defect, corrected.** ROADMAP IM-5 recorded it as "computes
+  `existingIssues.Count + 1` *inside* its loop, so a multi-group scan emits duplicate IDs."
+  That mechanism does not reproduce: each path appends within the same loop, so the count
+  does advance and a single batch produces distinct (if gappy) identifiers. The real defect
+  is that a count-based ordinal collides with **live rows** whenever a register's numbering
+  has drifted from its row count — after any deletion, or simply once the store mixes types.
+  Minimal reproduction, now a red/green test pair: a register holding one row `NCR-0003`
+  mints `NCR-0002`, then `NCR-0003` — a duplicate of the row already there.
+- **`QuickIssue` minted every issue as `{TYPE}-0001`.** It wrote the identifier as `issue_id`
+  but computed the next number by scanning `id`, a field it never wrote, so the max was
+  always 0. A register could hold a dozen rows all called `RFI-0001`.
+- **`AutoRaiseHandoverGapIssues` had the mirror-image pair of that bug** — emitted `id` (which
+  the register, keyed on `issue_id`, could not see) while scanning `id` for its next ordinal
+  (so it never saw the `issue_id` rows and minted on top of live ones).
+- **`PullServerIssuesAsync` wrote to an orphan store.** It persisted to
+  `OutputLocationHelper.GetOutputDirectory(doc)/issues.json` — the MISC *export* folder, not
+  the register. Nothing read that file, and it is called fire-and-forget on startup, so every
+  issue pulled from the server (including everything captured on mobile) had been written
+  there and discarded on every session. Both server pulls now go through
+  `IssueStore.MergeFromServer`, which dedupes three ways — `server_id` → `server_code` →
+  `issue_id`. The middle step closes the create-then-pull loop: an issue this plugin created
+  and pushed gets its server GUID filled in on the next pull instead of duplicating.
+- **`MobileIssueBridge` retired.** It had zero callers and carried a seventh schema variant
+  (`MOB-`-prefixed ids, `assignee` rather than `assigned_to`, un-normalised server statuses).
+  Its one unique capability — pushing local-only issues upward — survives as
+  `IssueStore.ReconcileToServerAsync`, wired into the Planscape sync command so an issue
+  raised offline still reaches the server.
+- **One open-issue predicate.** `WorkflowEngine.EvaluateSingleCondition` compared the raw
+  status to the literal `"OPEN"` while the other implementation of the same gate routed
+  through `IssueStatusNormalizer` — so `has_open_issues` answered differently depending on
+  which entry point evaluated it, and that one never saw a clash (`"Open"`), an ACC
+  (`"open"`) or a server (`"New"`) issue. Both, plus the BCC KPI counts and the dashboard
+  summaries, now share `IssueSchema.IsOpen`.
+- **Migration deliberately does not canonicalise a status it does not recognise.** `RESPONDED`
+  and `ACCEPTED` are written by `UpdateIssueCommand` and filtered on exactly elsewhere;
+  rewriting them to `"UNKNOWN"` would destroy a distinction the workflow depends on. Canonical
+  spelling is enforced on create, on transition and on read instead. Filed as IM-9.
+- **Audit chain.** `issue.raised`, `issue.escalated_from_warning`, `issue.from_clash` and
+  `issue.status_changed` now append to the tamper-evident `_BIM_COORD` chain
+  (`Docs/Workflow/AuditLog`). No issue writer emitted any audit event before. One entry per
+  creation, named by provenance, with `source` in the payload so a query by provenance works
+  regardless of the action name.
+- **Provenance.** Every record carries `source` — `manual` / `warning` / `clash` / `acc` /
+  `lps` / `server`, plus `bcf` and `compliance` where those are the honest answer.
+- **31 unit tests** in `StingTools.Tags.Tests/IssueSchemaTests.cs` covering schema-fork
+  migration, the duplicate-id regression (with its RED counterpart), and normalizer routing.
+
+Verified: plugin build **0 errors / 0 warnings** (`-t:Rebuild`, Revit 2025); Tags.Tests
+**181 passed / 2 failed** (the 2 are the pre-existing `CsiMasterFormat` failures, unchanged
+— 150/2 before); path-discipline gate exit 0, Tier 1 = 0, Tier 2 = 139 (unchanged, within
+baseline). **Runtime-unverified** — not exercised in Revit. Successor gaps IM-7/IM-8/IM-9
+filed in ROADMAP.
+
 #### Completed (Phase 200 — ISO IM remediation: consent, one coord-log contract, a gate that works)
 
 Remediation of the Phase 199 folder-consolidation work before an information-management

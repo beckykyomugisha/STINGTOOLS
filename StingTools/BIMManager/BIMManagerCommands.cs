@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
@@ -916,7 +916,7 @@ namespace StingTools.BIMManager
                 int closed = 0;
                 foreach (var issue in issues)
                 {
-                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    if (!IssueSchema.IsOpen(issue as JObject)) continue;
                     string title = issue["title"]?.ToString() ?? "";
                     if (title.Contains("Untagged Elements") || title.Contains("Incomplete Tags"))
                     {
@@ -974,7 +974,7 @@ namespace StingTools.BIMManager
                     // Check if a similar open issue already exists
                     bool alreadyRaised = issues.Any(i =>
                         i["type"]?.ToString() == "NCR" &&
-                        i["status"]?.ToString() == "OPEN" &&
+                        IssueSchema.IsOpen(i as JObject) &&
                         (i["title"]?.ToString() ?? "").Contains("Untagged Elements"));
 
                     if (!alreadyRaised)
@@ -999,7 +999,7 @@ namespace StingTools.BIMManager
                 {
                     bool alreadyRaised = issues.Any(i =>
                         i["type"]?.ToString() == "NCR" &&
-                        i["status"]?.ToString() == "OPEN" &&
+                        IssueSchema.IsOpen(i as JObject) &&
                         (i["title"]?.ToString() ?? "").Contains("Incomplete Tags"));
 
                     if (!alreadyRaised)
@@ -2270,21 +2270,20 @@ namespace StingTools.BIMManager
         //  Issue / RFI Engine
         // ═══════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Next free identifier for a type.
+        ///
+        /// Phase 2 (IM-4): this scanned "issue_id" ONLY, so a register also holding rows
+        /// written by the escalation paths ("id") or the LPS raiser ("IssueId") had an
+        /// invisible high-water mark — and this happily re-issued an identifier one of those
+        /// rows already used. Delegates to IssueIdMinter, which considers every spelling.
+        ///
+        /// Prefer <see cref="IssueStore.Begin"/> for new code: a batch holds ONE minter, so
+        /// identifiers cannot collide within it. This helper reserves nothing between calls,
+        /// so calling it twice against an unmodified array returns the same value.
+        /// </summary>
         internal static string GetNextIssueId(JArray issues, string type)
-        {
-            int max = 0;
-            string prefix = type + "-";
-            foreach (var issue in issues)
-            {
-                string id = issue["issue_id"]?.ToString() ?? "";
-                if (id.StartsWith(prefix))
-                {
-                    string numPart = id.Substring(prefix.Length);
-                    if (int.TryParse(numPart, out int n) && n > max) max = n;
-                }
-            }
-            return $"{type}-{(max + 1):D4}";
-        }
+            => new IssueIdMinter(issues ?? new JArray()).Next(type);
 
         /// <summary>
         /// CRIT-005: Check if an existing open issue already references the same element IDs.
@@ -2297,7 +2296,7 @@ namespace StingTools.BIMManager
             var targetSet = new HashSet<string>(elementIds);
             foreach (var issue in issues)
             {
-                if (issue["status"]?.ToString() == "CLOSED") continue;
+                if (!IssueSchema.IsOpen(issue as JObject)) continue;
                 var existingIds = issue["element_ids"] as JArray;
                 if (existingIds == null || existingIds.Count == 0) continue;
                 var existingSet = new HashSet<string>(existingIds.Select(e => e.ToString()));
@@ -2308,42 +2307,43 @@ namespace StingTools.BIMManager
             return null;
         }
 
+        /// <summary>
+        /// Build one canonical issue record.
+        ///
+        /// Phase 2 (IM-4): the field list now lives in IssueSchema.Create, which is the same
+        /// builder the escalation engine and the server merge use — so a record can no longer
+        /// differ depending on which subsystem minted it. Behaviour is preserved: same field
+        /// names, same priority-driven SLA offsets, same single-timestamp guarantee.
+        ///
+        /// Callers that also want the audit entry and the server push should go through
+        /// <see cref="IssueStore.Begin"/> rather than calling this and saving themselves.
+        /// </summary>
         internal static JObject CreateIssue(string issueId, string issueType, string priority,
             string title, string description, string assignedTo, string discipline,
             ICollection<ElementId> elementIds, string viewName, Document doc = null)
         {
-            // FIX: Single timestamp for consistency across all date fields
             var now = DateTime.Now;
-            return new JObject
+            var spec = new IssueSpec
             {
-                ["issue_id"] = issueId,
-                ["type"] = issueType,
-                ["type_description"] = IssueTypes.TryGetValue(issueType, out string itDesc) ? itDesc : issueType,
-                ["priority"] = priority,
-                ["title"] = title,
-                ["description"] = description,
-                ["status"] = "OPEN",
-                ["assigned_to"] = assignedTo,
-                ["discipline"] = discipline,
-                ["raised_by"] = Environment.UserName,
-                ["created_by"] = Environment.UserName,
-                ["created_date"] = now.ToString("o"),
-                ["modified_by"] = Environment.UserName,
-                ["modified_date"] = now.ToString("o"),
-                ["date_raised"] = now.ToString("yyyy-MM-dd HH:mm"),
-                ["date_due"] = priority == "CRITICAL" ? now.AddDays(1).ToString("yyyy-MM-dd") :
-                               priority == "HIGH" ? now.AddDays(3).ToString("yyyy-MM-dd") :
-                               priority == "MEDIUM" ? now.AddDays(7).ToString("yyyy-MM-dd") :
-                               now.AddDays(14).ToString("yyyy-MM-dd"),
-                ["date_closed"] = "",
-                ["response"] = "",
-                ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
-                ["view_name"] = viewName ?? "",
-                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? now.ToString("yyyyMMdd"),
-                ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
-                ["linked_transmittals"] = new JArray(),  // CRIT-005: cross-links to related transmittals
-                ["comments"] = new JArray()
+                Type        = issueType,
+                Priority    = priority,
+                Title       = title,
+                Description = description,
+                AssignedTo  = assignedTo,
+                Discipline  = discipline,
+                ViewName    = viewName,
+                Source      = IssueSource.Manual,
+                ElementIds  = elementIds?.Select(id => id.Value).ToList() ?? new List<long>(),
+                Revision    = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null)
+                              ?? now.ToString("yyyyMMdd"),
             };
+
+            var row = IssueSchema.Create(spec, issueId, now, Environment.UserName);
+
+            // Preserve this factory's richer type-description table, which covers register
+            // types IssueSchema does not know about.
+            if (IssueTypes.TryGetValue(issueType ?? "", out string itDesc)) row["type_description"] = itDesc;
+            return row;
         }
 
         /// <summary>
@@ -2360,7 +2360,7 @@ namespace StingTools.BIMManager
                 int linked = 0;
                 foreach (var issue in issues)
                 {
-                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    if (!IssueSchema.IsOpen(issue as JObject)) continue;
                     var linkedTx = issue["linked_transmittals"] as JArray;
                     if (linkedTx == null) { linkedTx = new JArray(); issue["linked_transmittals"] = linkedTx; }
                     if (linkedTx.Any(t => t.ToString() == transmittalId)) continue;
@@ -4461,27 +4461,54 @@ namespace StingTools.BIMManager
             if (!string.IsNullOrEmpty(description) && !description.Contains($"Priority: {priority}"))
                 description += $" Priority: {priority}.";
 
-            // Create issue with wizard-collected data
-            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-            var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
-            string nextId = BIMManagerEngine.GetNextIssueId(issues, issueType);
+            // Create issue with wizard-collected data.
+            //
+            // Phase 2: routed through IssueStore so a manually-raised issue gets the same
+            // treatment as an auto-raised one — atomic id minting, an `issue.raised` entry in
+            // the tamper-evident audit chain, and a fire-and-forget push to the Planscape
+            // server when the project is connected. Previously this saved straight to disk,
+            // so a coordinator's own RFI was the ONE kind of issue that never reached the
+            // server or the audit log.
+            string revisionForIssue = null;
+            try { revisionForIssue = RevisionEngine.GetCurrentProjectRevision(doc); }
+            catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
 
-            var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
-                autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name, doc);
+            var extra = new JObject();
+            if (!string.IsNullOrEmpty(wizResult.Location)) extra["location"] = wizResult.Location;
 
-            // Set due date from wizard if provided
-            if (!string.IsNullOrEmpty(wizResult.DueDate))
-                issue["date_due"] = wizResult.DueDate;
+            JObject issue;
+            using (var batch = IssueStore.Begin(doc))
+            {
+                if (!batch.Ok)
+                {
+                    TaskDialog.Show("STING", "The issue register could not be read, so the issue was not " +
+                                             "saved — writing now would overwrite live rows.");
+                    return Result.Cancelled;
+                }
 
-            // Set location from wizard if provided
-            if (!string.IsNullOrEmpty(wizResult.Location))
-                issue["location"] = wizResult.Location;
+                issue = batch.Create(new IssueSpec
+                {
+                    Type        = issueType,
+                    Priority    = priority,
+                    Title       = autoTitle,
+                    Description = description,
+                    AssignedTo  = assignee,
+                    Discipline  = discipline,
+                    ViewName    = uidoc.ActiveView?.Name ?? "",
+                    Revision    = revisionForIssue ?? "",
+                    Source      = IssueSource.Manual,
+                    ElementIds  = selectedIds?.Select(id => id.Value).ToList() ?? new List<long>(),
+                    Extra       = extra.Count > 0 ? extra : null,
+                });
+                if (issue == null) { TaskDialog.Show("STING", "Issue could not be created."); return Result.Failed; }
 
-            // GAP-007 fix: Link issue to current project revision
-            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
+                if (BIMManagerEngine.IssueTypes.TryGetValue(issueType, out string itd)) issue["type_description"] = itd;
+                if (!string.IsNullOrEmpty(wizResult.DueDate)) issue["date_due"] = wizResult.DueDate;
 
-            issues.Add(issue);
-            BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                batch.Commit();
+            }
+            string nextId = IssueSchema.IdOf(issue);
+            string issuesPath = IssueStore.PathFor(doc);
 
             // NTF-01: Send notification to assigned party on issue creation
             try
@@ -4683,7 +4710,7 @@ namespace StingTools.BIMManager
 
             string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
             var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
-            var openIssues = issues.Where(i => i["status"]?.ToString() == "OPEN").ToList();
+            var openIssues = issues.OfType<JObject>().Where(IssueSchema.IsOpen).ToList();
             if (!openIssues.Any())
             {
                 TaskDialog.Show("Bulk Close", "No open issues to close.");
@@ -9363,7 +9390,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine(new string('═', 50));
                 foreach (var issue in results)
                 {
-                    sb.AppendLine($"  {issue["id"]} [{issue["status"]}] {issue["priority"]} — {issue["title"]}");
+                    sb.AppendLine($"  {IssueSchema.IdOf(issue as JObject)} [{issue["status"]}] {issue["priority"]} — {issue["title"]}");
                 }
 
                 TaskDialog.Show("STING Issue Filter", sb.ToString());
@@ -9414,7 +9441,7 @@ namespace StingTools.BIMManager
                 foreach (var issue in timeline)
                 {
                     string date = issue["date_raised"]?.ToString() ?? "Unknown";
-                    string id = issue["id"]?.ToString() ?? "?";
+                    string id = IssueSchema.IdOf(issue as JObject) ?? "?";
                     string status = issue["status"]?.ToString() ?? "?";
                     string title = issue["title"]?.ToString() ?? "";
                     string due = issue["date_due"]?.ToString() ?? "";
@@ -9520,7 +9547,7 @@ namespace StingTools.BIMManager
                         return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
                     }))
                     {
-                        sb.AppendLine($"  {issue["id"]} — {issue["title"]} (due: {issue["date_due"]})");
+                        sb.AppendLine($"  {IssueSchema.IdOf(issue as JObject)} — {issue["title"]} (due: {issue["date_due"]})");
                     }
                 }
 
@@ -9588,7 +9615,7 @@ namespace StingTools.BIMManager
 
                 foreach (var issue in issues)
                 {
-                    string id = issue["id"]?.ToString() ?? "";
+                    string id = IssueSchema.IdOf(issue as JObject) ?? "";
                     if (!selectedIds.Contains(id)) continue;
 
                     switch (action)
@@ -9662,7 +9689,7 @@ namespace StingTools.BIMManager
                 {
                     var row = new List<string>
                     {
-                        QuoteCsv(issue["id"]?.ToString() ?? ""),
+                        QuoteCsv(IssueSchema.IdOf(issue as JObject) ?? ""),
                         QuoteCsv(issue["type"]?.ToString() ?? ""),
                         QuoteCsv(issue["priority"]?.ToString() ?? ""),
                         QuoteCsv(issue["status"]?.ToString() ?? ""),

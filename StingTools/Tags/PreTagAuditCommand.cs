@@ -567,43 +567,36 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        string issuesDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
-                        if (!System.IO.Directory.Exists(issuesDir)) System.IO.Directory.CreateDirectory(issuesDir);
-                        string issuesPath = System.IO.Path.Combine(issuesDir, "issues.json");
-
-                        Newtonsoft.Json.Linq.JArray issues;
-                        if (System.IO.File.Exists(issuesPath))
-                            issues = Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(issuesPath));
-                        else
-                            issues = new Newtonsoft.Json.Linq.JArray();
-
-                        // Group anomalies by type
-                        var grouped = auditIssues.GroupBy(a => a.IssueType).ToList();
-                        int created = 0;
-                        foreach (var g in grouped)
-                        {
-                            string issueId = $"SI-{(issues.Count + created + 1):D4}";
-                            var issue = new Newtonsoft.Json.Linq.JObject
+                        // Phase 2 (IM-4/IM-5): was a hand-rolled Path.Combine to issues.json
+                        // (bypassing the CoordStores legacy merge), an "id" field the BIM
+                        // register never reads, a non-atomic WriteAllText, and identifiers
+                        // minted as `issues.Count + created + 1` — which advances by TWO per
+                        // anomaly type and collides with live rows once the register's
+                        // numbering has drifted from its row count.
+                        var candidates = auditIssues
+                            .GroupBy(a => a.IssueType)
+                            .Select(g => new EscalationCandidate
                             {
-                                ["id"] = issueId,
-                                ["title"] = $"Pre-Tag Audit: {g.Key} ({g.Count()} elements)",
-                                ["type"] = "SI",
-                                ["priority"] = g.Count() > 50 ? "HIGH" : "MEDIUM",
-                                ["status"] = "OPEN",
-                                ["created_date"] = System.DateTime.Now.ToString("o"),
-                                ["created_by"] = System.Environment.UserName,
-                                ["description"] = $"Audit found {g.Count()} elements with {g.Key}",
-                                ["auto_created"] = true,
-                                ["source"] = "PreTagAudit",
-                                ["element_count"] = g.Count()
-                            };
-                            issues.Add(issue);
-                            created++;
-                        }
-                        System.IO.File.WriteAllText(issuesPath,
-                            issues.ToString(Newtonsoft.Json.Formatting.Indented));
-                        TaskDialog.Show("STING", $"Created {created} issues from audit anomalies.");
-                        StingLog.Info($"GAP-R21: Created {created} issues from {auditIssues.Count} anomalies");
+                                Key         = $"pretag-audit:{g.Key}",
+                                Type        = "SI",
+                                Priority    = g.Count() > 50 ? "HIGH" : "MEDIUM",
+                                Title       = $"Pre-Tag Audit: {g.Key} ({g.Count()} elements)",
+                                Description = $"Audit found {g.Count()} elements with {g.Key}",
+                                Extra       = new Newtonsoft.Json.Linq.JObject
+                                {
+                                    ["auto_created"]  = true,
+                                    ["rule"]          = "GAP-R21",
+                                    ["element_count"] = g.Count(),
+                                },
+                            })
+                            .ToList();
+
+                        var res = IssueEscalationEngine.Escalate(doc, candidates, IssueSource.Warning);
+                        string dedupNote = res.Deduped > 0
+                            ? $"\n{res.Deduped} anomaly type(s) already had an open issue."
+                            : "";
+                        TaskDialog.Show("STING", $"Created {res.Created} issues from audit anomalies.{dedupNote}");
+                        StingLog.Info($"GAP-R21: Created {res.Created} issues from {auditIssues.Count} anomalies");
                     }
                     catch (System.Exception ex2)
                     {
