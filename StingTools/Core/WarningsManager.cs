@@ -710,6 +710,21 @@ namespace StingTools.Core
         private static string _cachedReportDocKey;
         private static readonly TimeSpan ReportCacheLifetime = TimeSpan.FromSeconds(30);
 
+        // IM Phase 3: set from the SignalR callback thread when another session
+        // reports warnings (WarningsRealtimeBridge). A single volatile bool is the
+        // whole cross-thread contract — the socket thread must NOT clear the cache
+        // itself, because InvalidateReportCache() calls _classificationCache.Clear()
+        // and clearing a Dictionary underneath a Revit-thread enumeration is exactly
+        // the InvalidOperationException this design exists to avoid. The flag is
+        // read and cleared below, on the Revit thread, where it is safe.
+        private static volatile bool _remoteStale;
+
+        /// <summary>
+        /// Mark the cached report stale from any thread. The next ScanWarnings call
+        /// takes the miss path and re-scans. Touches no Revit API and no collection.
+        /// </summary>
+        internal static void MarkRemoteStale() => _remoteStale = true;
+
         /// <summary>Get cached warning report without triggering a new scan. Returns null if no cache.</summary>
         internal static WarningReport GetCachedReport() => _cachedReport;
 
@@ -732,8 +747,11 @@ namespace StingTools.Core
         {
             // PERF: Return cached report if recent (30-second TTL) and same document
             string docKey = doc.PathName ?? $"{doc.Title}_{doc.GetHashCode()}";
-            if (_cachedReport != null && _cachedReportDocKey == docKey && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
+            if (!_remoteStale && _cachedReport != null && _cachedReportDocKey == docKey && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
                 return _cachedReport;
+
+            // Consume the remote-invalidation flag on the Revit thread (see MarkRemoteStale).
+            _remoteStale = false;
 
             var report = new WarningReport();
             LoadSuppressions();
@@ -746,7 +764,18 @@ namespace StingTools.Core
                 return report;
             }
 
-            if (rawWarnings == null || rawWarnings.Count == 0) return report;
+            if (rawWarnings == null || rawWarnings.Count == 0)
+            {
+                // IM Phase 3: a clean model is a real scan result, and the most
+                // interesting point on a trend line. Cache + record it like any other.
+                // (Previously this exit skipped the cache entirely, so 15+ callers
+                // each re-ran GetWarnings() on a warning-free model.)
+                _cachedReport = report;
+                _reportCacheTime = DateTime.UtcNow;
+                _cachedReportDocKey = docKey;
+                WarningSnapshotRecorder.RecordScan(doc, report);
+                return report;
+            }
 
             // Element hotspot counter
             var elementCounts = new Dictionary<long, int>();
@@ -916,6 +945,12 @@ namespace StingTools.Core
             _cachedReport = report;
             _reportCacheTime = DateTime.UtcNow;
             _cachedReportDocKey = docKey;
+
+            // IM Phase 3: the single choke point for warning telemetry. Reached only
+            // on a real scan — a 30s cache hit returned at the top of this method and
+            // a GetWarnings() failure returned above without caching. One snapshot,
+            // one audit entry and at most one server push per genuine scan.
+            WarningSnapshotRecorder.RecordScan(doc, report);
 
             return report;
         }
@@ -1826,6 +1861,34 @@ namespace StingTools.Core
 
         // ── Phase 47: WARNING HEALTH SCORE ──
 
+        /// <summary>
+        /// IM Phase 3: minimal trend surfacing — "previous scan → now" read straight
+        /// from the local snapshot store (no charts, no server round-trip), plus any
+        /// hint left by another session's WarningsReported broadcast. Returns "" when
+        /// there is nothing useful to say, which the UI treats as "hide the line".
+        /// </summary>
+        internal static string BuildWarningTrendHint(Document doc)
+        {
+            try
+            {
+                var parts = new List<string>();
+
+                var (prev, cur) = WarningSnapshotStore.LastTwoScans(doc);
+                string delta = WarningSnapshotFormat.DescribeDelta(prev, cur);
+                if (!string.IsNullOrEmpty(delta)) parts.Add(delta);
+
+                string remote = WarningsRealtimeBridge.LastRemoteHint;
+                if (!string.IsNullOrEmpty(remote)) parts.Add(remote);
+
+                return string.Join("   •   ", parts);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildWarningTrendHint: {ex.Message}");
+                return "";
+            }
+        }
+
         /// <summary>Phase 47: Calculate overall warning health score 0-100.
         /// Weighted: Critical=-20, High=-5, Medium=-2, Low=-1, Info=0. Base=100.</summary>
         internal static int CalculateWarningHealthScore(WarningReport report)
@@ -2138,6 +2201,13 @@ namespace StingTools.Core
                 catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } } }
 
                 StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
+
+                // IM Phase 3: the baseline file itself is unchanged. This additionally
+                // records the moment on the local trend store + audit chain and pushes
+                // a ComplianceSnapshot to Planscape when connected. See
+                // WarningSnapshotRecorder.RecordBaseline for why `count` (a RAW
+                // GetWarnings tally) is carried separately from the scan-scale total.
+                WarningSnapshotRecorder.RecordBaseline(doc, count);
             }
             catch (Exception ex) { StingLog.Warn($"SaveExtendedBaseline: {ex.Message}"); }
         }
@@ -3898,6 +3968,7 @@ namespace StingTools.Core
                     WarningTrend = warningReport.TrendSymbol,
                     WarningGatePass = gatePass,
                     WarningGateReason = gateReason,
+                    WarningTrendHint = WarningsEngine.BuildWarningTrendHint(doc),
                     WarningAdded = warnAdded,
                     WarningRemoved = warnRemoved,
                     WarningByCategory = warningReport.ByCategory,

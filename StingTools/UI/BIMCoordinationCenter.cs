@@ -594,6 +594,10 @@ namespace StingTools.UI
             public string WarningTrend = "→0";
             public bool WarningGatePass;
             public string WarningGateReason = "";
+            // IM Phase 3: "previous scan → now" delta from the local snapshot trend
+            // store, plus any hint left by another session's WarningsReported push.
+            // Empty when there is no earlier snapshot to compare against.
+            public string WarningTrendHint = "";
             public int WarningAdded;
             public int WarningRemoved;
             public Dictionary<WarningCategory, int> WarningByCategory = new();
@@ -2675,6 +2679,24 @@ namespace StingTools.UI
                 _data.WarningGatePass ? "Warning gate: PASS — deliverable OK" : $"Warning gate: FAIL — {_data.WarningGateReason}"));
             DockPanel.SetDock(kpiGrid, Dock.Top);
             dock.Children.Add(kpiGrid);
+
+            // IM Phase 3: one-line trend hint from the local snapshot store
+            // ("↓5 since 20 Jul 14:02") plus any remote WarningsReported notice.
+            // Hidden entirely when there is no prior snapshot to compare against.
+            if (!string.IsNullOrEmpty(_data.WarningTrendHint))
+            {
+                var trendLine = new TextBlock
+                {
+                    Text = _data.WarningTrendHint,
+                    FontSize = 11,
+                    Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
+                    Margin = new Thickness(2, 4, 2, 0),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    ToolTip = "Change since the previous full warning scan, from the local trend store."
+                };
+                DockPanel.SetDock(trendLine, Dock.Top);
+                dock.Children.Add(trendLine);
+            }
 
             // ── BOTTOM ACTION BAR ─────────────────────────────────────────
             var actionBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };

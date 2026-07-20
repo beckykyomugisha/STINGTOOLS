@@ -26,6 +26,9 @@
     <!-- Coordination-log wire format. Revit-free by design so the JSONL contract is
          testable outside Revit. -->
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
+    <!-- IM Phase 3 warning-snapshot codec: pure JSON + payload shaping, no Revit,
+         so the server DTO contract can be asserted without a Revit host. -->
+    <Compile Include="..\StingTools\Core\WarningSnapshotFormat.cs" Link="Core\WarningSnapshotFormat.cs" />
     <!-- Issue register: canonical schema + id minting + status vocabulary. Kept Revit-free
          so the schema-fork migration and the duplicate-id regression are testable outside
          Revit. The Revit-facing repository (Core/IssueStore.cs) is not linked here — it
