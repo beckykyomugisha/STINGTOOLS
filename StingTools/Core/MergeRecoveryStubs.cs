@@ -482,13 +482,36 @@ namespace StingTools.Core.Drawing
             return false;
         }
 
-        /// <summary>Stub Peek overload that accepts an `unresolved` out-list. Real impl was lost to the merge.</summary>
+        /// <summary>
+        /// Peek plus the list of title-block values that still contain
+        /// unsubstituted tokens after resolution.
+        ///
+        /// T-13: this was a stub that cleared `unresolved` and returned an
+        /// empty dictionary — "no title-block params, nothing unresolved" —
+        /// under a comment saying the real implementation was lost to a merge.
+        /// Nothing called it, so it never lied to anyone; it was left as a
+        /// landmine for whoever called it next. Implemented rather than
+        /// deleted because knowing WHICH tokens failed to resolve is the
+        /// diagnostic T-5 notes is missing elsewhere.
+        /// </summary>
         public static System.Collections.Generic.Dictionary<string, string> Peek(
             Document doc, DrawingType dt, System.Collections.Generic.IDictionary<string, string> tokens,
             System.Collections.Generic.List<string> unresolved)
         {
             unresolved?.Clear();
-            return new System.Collections.Generic.Dictionary<string, string>();
+            var resolved = Peek(doc, dt, tokens);
+            if (unresolved != null)
+            {
+                // Anything still carrying {token} or ${PROJ_PARAM} did not
+                // resolve — the applier writes these through literally.
+                var leftover = new System.Text.RegularExpressions.Regex(@"\{[^}]+\}|\$\{[^}]+\}");
+                foreach (var kv in resolved)
+                {
+                    if (!string.IsNullOrEmpty(kv.Value) && leftover.IsMatch(kv.Value))
+                        unresolved.Add($"{kv.Key} = {kv.Value}");
+                }
+            }
+            return resolved;
         }
     }
 }
