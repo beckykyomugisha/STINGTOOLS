@@ -1957,7 +1957,7 @@ databases:
 | Command | Description |
 |---|---|
 | `sync` | One-shot: pull tagged elements from ArchiCAD via the ArchiCAD JSON API, push to Planscape Server |
-| `watch` | Polling sync loop (interval controlled by `STING_WATCH_INTERVAL`, default 30 s) |
+| `watch` | Polling sync loop (interval controlled by `STING_WATCH_INTERVAL`, default 300 s) |
 | `watch-ifc --drop-dir /path` | Watch a directory for new IFC files; process each on arrival |
 | `process-ifc /path/to/model.ifc` | Parse a single IFC file (via ifcopenshell), extract STING pset values, push to Planscape |
 
@@ -1969,10 +1969,12 @@ databases:
 | `STING_PLANSCAPE_EMAIL` | — | Login email for Planscape Server |
 | `STING_PLANSCAPE_PASSWORD` | — | Login password |
 | `STING_PLANSCAPE_PROJECT_ID` | — | Target project UUID |
-| `STING_ARCHICAD_PORT` | `19723` | ArchiCAD JSON API port |
-| `STING_WRITE_BACK` | `false` | Whether to write Planscape values back into ArchiCAD |
-| `STING_WATCH_INTERVAL` | `30` | Polling interval in seconds for `watch` mode |
+| `STING_ARCHICAD_PORT` | `0` (auto-detect) | ArchiCAD JSON API port. `config.py` defaults to `0`, not the 19723 previously documented — 19723 is ArchiCAD's conventional port, not this tool's default. |
+| `STING_WRITE_BACK` | `true` | Whether to write Planscape values back into ArchiCAD. `get_bool` defaults to `"1"` (`config.py:137`), so write-back is **on** unless explicitly disabled — the opposite of what this table previously said. |
+| `STING_WATCH_INTERVAL` | `300` | Polling interval in seconds for `watch` mode (`config.py:167`). |
+| `STING_VERIFY_WRITE_BACK` | `true` | Read tokens back after writing them and warn on mismatch (`config.py:166`). Same `get_bool` default as `STING_WRITE_BACK`. |
 | `STING_IFC_DROP_DIR` | — | Directory to watch for IFC drops |
+| `STING_BUILDING_NAME` | — | Building code used when deriving the `LOC` token (`config.py:169`). |
 
 ### Directory Structure
 
