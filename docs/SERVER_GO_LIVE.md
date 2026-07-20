@@ -60,11 +60,14 @@ Rotations must be simultaneous or cloud→server login breaks.
 
 ## Day 1 after deploy — you do NOT run EF migrations
 
-**The container does not auto-migrate, by design.**
+**Neither container auto-migrates, by design.**
 
-`render.yaml` sets `PLANSCAPE_USE_ENSURE_CREATED=true`, which makes startup
-(`Program.cs` ~line 1327) take the **EnsureCreated** branch instead of
-`db.Database.Migrate()`:
+`render.yaml` sets `PLANSCAPE_USE_ENSURE_CREATED=true` on **both**
+`planscape-api` and `planscape-worker`, which makes startup (`Program.cs`
+~line 1341) take the **EnsureCreated** branch instead of
+`db.Database.Migrate()`. The flag is required on both because the schema block
+is not gated by `isWorker` — a worker without it takes the `Migrate()` branch
+and crash-loops against the API's schema:
 
 1. Probe `information_schema` for the `Tenants` table.
 2. If absent (fresh DB), `creator.CreateTables()` materialises the entire schema

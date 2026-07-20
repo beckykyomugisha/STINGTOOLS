@@ -2,6 +2,34 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 209 — go-live blocker: worker crash-loop on schema)
+
+Fixes a blocker that would have taken `planscape-worker` down on the very first
+Render deploy, plus the docs that asserted it was already handled.
+
+- **`PLANSCAPE_USE_ENSURE_CREATED=true` added to `planscape-worker`.** The
+  schema block in `Program.cs` (~line 1341) is **not** gated by `isWorker` —
+  both roles execute it. The worker runs with
+  `ASPNETCORE_ENVIRONMENT=Production`, so `IsDevelopment()` is false, and
+  without the flag it took the `db.Database.Migrate()` branch. That collides
+  with the API's EnsureCreated schema on the non-idempotent
+  `20260626203153_SustainabilitySnapshots` `CreateTable` and crash-loops.
+  Verified by reading the branch, not by deploying.
+- **`PLANSCAPE_HANDOFF_SECRET` declared (`sync: false`) on the worker**, so the
+  Blueprint prompts for it on both services. ROADMAP DEP-2 already said both;
+  the blueprint disagreed.
+- **Docs corrected to match the blueprint exactly.**
+  `docs/DEPLOY_RUNBOOK.md` §1 and `docs/SERVER_GO_LIVE.md` both claimed the flag
+  was already on both services / that "the container does not auto-migrate" —
+  true for the API, false for the worker as merged. Both now name the two
+  services explicitly and carry a callout explaining *why* the flag cannot be
+  API-only.
+
+**Gate:** `render.yaml` parses under PyYAML; a scripted check confirms both
+`planscape-api` and `planscape-worker` carry both env keys; the two docs match
+the blueprint. **Not verified:** no actual Render deploy — the crash-loop is
+established by reading the un-gated branch in `Program.cs`, not observed.
+
 #### Completed (Phase 208 — StingBridge 0.1.0-beta.2 released)
 
 Cuts and ships the release carrying Phases 201–205: personal access tokens, SEQ
