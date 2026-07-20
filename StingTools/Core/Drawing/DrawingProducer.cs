@@ -566,40 +566,81 @@ namespace StingTools.Core.Drawing
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {
-                var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
+                var (declaredFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
                 // P5 — map the profile's logical / dangling family name to the
                 // concrete built family (STING_TB_<size>[_PORT]_<BIM|NONBIM>_v2.0
                 // / …_ASSEMBLY_*_v1.0 / …_PRESENT_A1_v1.0) before looking it up.
-                tbFamily = TitleBlockResolver.ToConcreteFamily(doc, dt, tbFamily);
+                // ToConcreteFamily is best-effort: it returns the declared name
+                // unchanged for A2/A4 and for unknown vocabulary, and can return
+                // blank when the profile declares no family and no size can be
+                // derived. So treat its output as possibly-still-logical.
+                var tbFamily = TitleBlockResolver.ToConcreteFamily(doc, dt, declaredFamily);
 
-                List<FamilySymbol> CollectMatches() => new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .Cast<FamilySymbol>()
-                    .Where(s => string.IsNullOrEmpty(tbFamily) ||
-                                string.Equals(s.FamilyName, tbFamily, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                // A blank family name used to satisfy the match predicate via an
+                // `IsNullOrEmpty(tbFamily) ||` clause, so ANY loaded title block
+                // matched and the first one won — silently, before any fallback
+                // warning could fire. Blank now matches nothing and is reported.
+                bool haveName = !string.IsNullOrWhiteSpace(tbFamily);
+                if (!haveName)
+                    result.Warnings.Add(
+                        $"Drawing type '{dt.Id}' resolved no title-block family name " +
+                        $"(declared '{declaredFamily ?? ""}'). The sheet will use whatever title block " +
+                        "is available — set titleBlockFamily on the profile, or a paper size the " +
+                        "resolver can derive from.");
+
+                List<FamilySymbol> CollectMatches() => !haveName
+                    ? new List<FamilySymbol>()
+                    : new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilySymbol))
+                        .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                        .Cast<FamilySymbol>()
+                        .Where(s => string.Equals(s.FamilyName, tbFamily, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
 
                 var familyMatches = CollectMatches();
                 // P5 delivery — if the concrete family was built but not yet
-                // loaded, load it from Families/TitleBlocks/ on demand so the
-                // producer never falls back to an arbitrary title block.
-                if (familyMatches.Count == 0 && !string.IsNullOrEmpty(tbFamily)
+                // loaded, load it from Families/TitleBlocks/ on demand.
+                if (familyMatches.Count == 0 && haveName
                     && TitleBlockResolver.EnsureFamilyLoaded(doc, tbFamily))
                     familyMatches = CollectMatches();
 
                 FamilySymbol picked = null;
                 if (!string.IsNullOrWhiteSpace(tbSymbol))
+                {
                     picked = familyMatches.FirstOrDefault(s =>
                         string.Equals(s.Name, tbSymbol, StringComparison.OrdinalIgnoreCase));
+                    if (picked == null && familyMatches.Count > 0)
+                        result.Warnings.Add(
+                            $"Title-block type '{tbSymbol}' not found in family '{tbFamily}' " +
+                            $"for drawing type '{dt.Id}'; used '{familyMatches[0].Name}' instead.");
+                }
                 if (picked == null) picked = familyMatches.FirstOrDefault();
                 titleBlockId = picked?.Id ?? ElementId.InvalidElementId;
+
                 if (titleBlockId == ElementId.InvalidElementId)
-                    titleBlockId = new FilteredElementCollector(doc)
+                {
+                    // The comment here used to claim "the producer never falls
+                    // back to an arbitrary title block" immediately above code
+                    // that did exactly that, with no warning — so a batch could
+                    // issue sheets carrying the wrong corporate identity and
+                    // report success. Still falls back (a sheet with some title
+                    // block beats no sheet), but says so.
+                    var any = new FilteredElementCollector(doc)
                         .OfClass(typeof(FamilySymbol))
                         .OfCategory(BuiltInCategory.OST_TitleBlocks)
                         .Cast<FamilySymbol>()
-                        .FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
+                        .FirstOrDefault();
+                    titleBlockId = any?.Id ?? ElementId.InvalidElementId;
+                    if (any != null && haveName)
+                        result.Warnings.Add(
+                            $"Title-block family '{tbFamily}' (drawing type '{dt.Id}') is not loaded and " +
+                            $"could not be loaded from disk; fell back to '{any.FamilyName}'. " +
+                            "The sheet carries the wrong corporate identity until the family is loaded.");
+                    else if (any == null)
+                        result.Warnings.Add(
+                            $"No title-block family is loaded in this project; sheet for drawing type " +
+                            $"'{dt.Id}' was created without one.");
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
