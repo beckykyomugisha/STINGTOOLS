@@ -1,4 +1,4 @@
-// DeliverableLifecycle.cs — template engine v1.1 (S09).
+﻿// DeliverableLifecycle.cs — template engine v1.1 (S09).
 //
 // State machine over DeliverableRow. Every call validates the current state,
 // mutates identity/revision/suitability, appends RevisionHistory, persists
@@ -59,7 +59,8 @@ namespace Planscape.Docs.Templates
                 AppendRevHistory(existing, reason, issuedBy, "A03");
                 WriteAudit(doc, "doc.superseded", (string)existing.DocNumber,
                     new JObject { ["superseded_by"] = newDocNumber, ["reason"] = reason, ["user"] = issuedBy });
-                Persist(doc, existing);
+                if (!Persist(doc, existing))
+                    return new LifecycleResult { Ok = false, Message = "Supersede not saved — see StingTools.log." };
                 MirrorToServer(doc, existing, "superseded", reason);
                 return new LifecycleResult { Updated = existing, TemplateId = "A03", Message = $"Superseded by {newDocNumber}" };
             }
@@ -93,8 +94,11 @@ namespace Planscape.Docs.Templates
                     ["reason"]    = reason,
                     ["user"]      = issuedBy
                 });
-                Persist(doc, existing);
-                Persist(doc, newReplacing);
+                bool okA = Persist(doc, existing), okB = Persist(doc, newReplacing);
+                if (!okA || !okB)
+                    return new LifecycleResult { Ok = false, Message =
+                        $"Replace only partially saved (existing: {(okA ? "ok" : "FAILED")}, " +
+                        $"replacement: {(okB ? "ok" : "FAILED")}). See StingTools.log." };
                 MirrorToServer(doc, existing, "replaced", reason);
                 MirrorToServer(doc, newReplacing, "replacing", reason);
                 return new LifecycleResult { Updated = newReplacing, TemplateId = "A04", Message = $"Replaces {existing.DocNumber}" };
@@ -148,7 +152,12 @@ namespace Planscape.Docs.Templates
                     ["user"]        = user,
                     ["reason"]      = reason
                 });
-                Persist(doc, d);
+                // A failed Persist must NOT report success: the caller goes on to render the
+                // document, register it and tell the user "Transition succeeded" while nothing
+                // was written to deliverables.json.
+                if (!Persist(doc, d))
+                    return new LifecycleResult { Ok = false, Message =
+                        "Transition not saved — the deliverable has no DocNumber/Code, or deliverables.json is unwritable. See StingTools.log." };
                 MirrorToServer(doc, d, action, reason);
                 return new LifecycleResult { Updated = d, TemplateId = templateId, Message = newStatus };
             }
@@ -214,17 +223,35 @@ namespace Planscape.Docs.Templates
                 }
                 if (inst == null) return (false, null);
 
-                // Terminal instance: nothing left to drive. Still sync so the deliverable's
-                // workflow fields reflect the final state.
-                if (inst.Closed) { SyncWorkflowFields(d, inst); return (false, null); }
-
                 if (cancelling)
                 {
+                    // Cancel must still run on a CLOSED instance. Published is terminal, so a
+                    // published deliverable's instance is closed — returning early here (as the
+                    // first cut did) left the record claiming Status=Cancelled / CDE=ARCHIVE
+                    // while its workflow state still read Published, with no audit row for the
+                    // cancellation at all. Reopen lets the shipped Published→Archived
+                    // transition fire.
                     if (!string.Equals(inst.State, "Archived", StringComparison.OrdinalIgnoreCase))
                     {
-                        var r = TryTransition(doc, docNumber, "cancel", user, reason);
-                        if (r.blocked) return r;
+                        if (inst.Closed &&
+                            !Planscape.Docs.Workflow.WorkflowEngine.Reopen(doc, docNumber, "cancel"))
+                        {
+                            StingLog.Warn($"DriveWorkflow: cannot cancel '{docNumber}' — no 'cancel' " +
+                                          $"transition from terminal state '{inst.State}'.");
+                        }
+                        else
+                        {
+                            var r = TryTransition(doc, docNumber, "cancel", user, reason);
+                            if (r.blocked) return r;
+                        }
                     }
+                }
+                else if (inst.Closed)
+                {
+                    // Terminal and not cancelling: nothing left to drive. Sync so the
+                    // deliverable's workflow fields reflect the final state.
+                    SyncWorkflowFields(d, inst);
+                    return (false, null);
                 }
                 else if (!string.IsNullOrEmpty(targetWf))
                 {
@@ -238,10 +265,25 @@ namespace Planscape.Docs.Templates
                         if (!Planscape.Docs.Workflow.WorkflowEngine.ValidatePath(doc, docNumber, hops, out string deny))
                             return (true, deny);
 
+                        // Verify each hop LANDED before firing the next. TryTransition reports
+                        // only role denials as blocking; an IO error or a definition that has
+                        // drifted from _wfForward is swallowed as non-blocking, and the old
+                        // loop then fired the remaining hops from a state they are not defined
+                        // for — every one of them failing silently while the lifecycle went on
+                        // to stamp CDE=PUBLISHED over a workflow still sitting at WIP.
                         foreach (string act in hops)
                         {
+                            string before = inst.State;
                             var r = TryTransition(doc, docNumber, act, user, reason);
                             if (r.blocked) return r;
+
+                            inst = Planscape.Docs.Workflow.WorkflowEngine.GetInstance(doc, docNumber, true);
+                            if (inst == null || string.Equals(inst.State, before, StringComparison.OrdinalIgnoreCase))
+                            {
+                                StingLog.Warn($"DriveWorkflow: hop '{act}' did not advance '{docNumber}' " +
+                                              $"from '{before}'; stopping the walk here.");
+                                break;
+                            }
                         }
                     }
                 }
@@ -412,7 +454,8 @@ namespace Planscape.Docs.Templates
             return string.IsNullOrWhiteSpace(c) ? "" : c.Trim();
         }
 
-        public static void Persist(Document doc, dynamic d)
+        /// <summary>Write the deliverable to deliverables.json. False when nothing was saved.</summary>
+        public static bool Persist(Document doc, dynamic d)
         {
             try
             {
@@ -436,7 +479,7 @@ namespace Planscape.Docs.Templates
                     // the old `??`-only key — collide with any other blank-keyed row and
                     // overwrite an unrelated deliverable. Refuse instead.
                     StingLog.Error("DeliverableLifecycle.Persist: deliverable has no DocNumber or Code; not persisted.", null);
-                    return;
+                    return false;
                 }
 
                 JObject row = JObject.FromObject(d);
@@ -452,8 +495,9 @@ namespace Planscape.Docs.Templates
                 File.WriteAllText(tmp, arr.ToString(Formatting.Indented));
                 if (File.Exists(path)) File.Delete(path);
                 File.Move(tmp, path);
+                return true;
             }
-            catch (Exception ex) { StingLog.Error("DeliverableLifecycle.Persist failed", ex); }
+            catch (Exception ex) { StingLog.Error("DeliverableLifecycle.Persist failed", ex); return false; }
         }
 
         private static string DeliverablesPath(Document doc)

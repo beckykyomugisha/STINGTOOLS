@@ -54,10 +54,18 @@ namespace StingTools.Core
         /// both stores (matched on id) collapse to one entry sourced "both", preferring the
         /// deliverable row's lifecycle fields and filling gaps from the register row.
         /// </summary>
-        public static List<RegisterEntry> BuildUnified(Document doc)
+        public static List<RegisterEntry> BuildUnified(Document doc) => BuildUnified(doc, out _);
+
+        /// <summary>
+        /// As <see cref="BuildUnified(Document)"/>, reporting whether either source store failed
+        /// to read. A merge that silently drops one store looks identical to a merge of an empty
+        /// store, so a caller presenting the result to a user needs to be able to tell them apart.
+        /// </summary>
+        public static List<RegisterEntry> BuildUnified(Document doc, out bool anyStoreFailed)
         {
             var byId = new Dictionary<string, RegisterEntry>(StringComparer.OrdinalIgnoreCase);
             var noId = new List<RegisterEntry>();
+            var flag = new ReadFlag();
 
             void Add(RegisterEntry e)
             {
@@ -72,9 +80,10 @@ namespace StingTools.Core
             }
 
             // Deliverables first, so their richer lifecycle fields win on collision.
-            foreach (var e in ReadDeliverables(doc)) Add(e);
-            foreach (var e in ReadRegister(doc)) Add(e);
+            foreach (var e in ReadDeliverables(doc, flag)) Add(e);
+            foreach (var e in ReadRegister(doc, flag)) Add(e);
 
+            anyStoreFailed = flag.Failed;
             return byId.Values.Concat(noId)
                 .OrderBy(e => e.Direction).ThenBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -140,16 +149,19 @@ namespace StingTools.Core
 
         // ── Store readers ─────────────────────────────────────────────────
 
-        private static IEnumerable<RegisterEntry> ReadRegister(Document doc)
+        /// <summary>Mutable failure flag — iterators cannot take ref/out parameters.</summary>
+        private class ReadFlag { public bool Failed; }
+
+        private static IEnumerable<RegisterEntry> ReadRegister(Document doc, ReadFlag flag)
         {
             string path;
             try { path = CoordStores.Register(doc); }
-            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadRegister path: {ex.Message}"); yield break; }
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) yield break;
+            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadRegister path: {ex.Message}"); flag.Failed = true; yield break; }
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) yield break;   // absent ⇒ legitimately empty
 
             JArray arr;
             try { arr = JArray.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadRegister parse: {ex.Message}"); yield break; }
+            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadRegister parse: {ex.Message}"); flag.Failed = true; yield break; }
 
             foreach (var t in arr.OfType<JObject>())
             {
@@ -182,18 +194,18 @@ namespace StingTools.Core
             }
         }
 
-        private static IEnumerable<RegisterEntry> ReadDeliverables(Document doc)
+        private static IEnumerable<RegisterEntry> ReadDeliverables(Document doc, ReadFlag flag)
         {
             string dir;
             try { dir = ProjectFolderEngine.GetMetaPath(doc, "_BIM_COORD"); }
-            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadDeliverables path: {ex.Message}"); yield break; }
+            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadDeliverables path: {ex.Message}"); flag.Failed = true; yield break; }
             if (string.IsNullOrEmpty(dir)) yield break;
             string path = Path.Combine(dir, "deliverables.json");
-            if (!File.Exists(path)) yield break;
+            if (!File.Exists(path)) yield break;   // absent ⇒ legitimately empty
 
             JArray arr;
             try { arr = JArray.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadDeliverables parse: {ex.Message}"); yield break; }
+            catch (Exception ex) { StingLog.Warn($"DocumentRegister.ReadDeliverables parse: {ex.Message}"); flag.Failed = true; yield break; }
 
             foreach (var t in arr.OfType<JObject>())
             {

@@ -134,9 +134,18 @@ Tick order matters: some steps set up state the next one depends on (noted inlin
   action that needs two hops (e.g. Publish). Confirm **nothing** moved — `workflow_state.json`
   still shows the original state, no partial hop was written — and the denial names the required
   roles. Confirm `audit_log_*.jsonl` carries one `wf.transition_denied` row.
-- [ ] **J3.** Rename an `allowed_roles` message wording in a workflow JSON is *not* needed any
-  more, but sanity-check the gate still bites: as an unpermitted role, confirm the block message
+- [ ] **J3.** Sanity-check the gate still bites: as an unpermitted role, confirm the block message
   appears rather than the action silently succeeding.
+- [ ] **J4.** **Cancel a published deliverable.** Publish to stage ≥ 3 (instance closed at
+  `Published`), then Cancel. Confirm the workflow moved to **Archived**, that
+  `audit_log_*.jsonl` carries a `wf.reopened` row followed by a `wf.transitioned` row, and that
+  the deliverable does **not** end up marked Cancelled while its workflow state still reads
+  Published.
+- [ ] **J5.** **Hop verification.** Hand-edit `deliverable_issue_default.json` to remove the
+  `share` transition, then Publish from WIP. Confirm the walk is refused **before** anything is
+  written (`workflow_state.json` unchanged) rather than committing part of the path.
+- [ ] **J6.** Confirm a failed save surfaces: make `deliverables.json` read-only, run any
+  lifecycle action → the dialog must report a failure, not "Transition succeeded".
 
 ## K. Revision arithmetic (batch 4)
 
@@ -150,12 +159,25 @@ Tick order matters: some steps set up state the next one depends on (noted inlin
 
 ## L. Store ownership + Save As (batch 4)
 
-- [ ] **L1.** Put two *different* projects' `.rvt` files in one folder, each with its own legacy
-  `_BIM_COORD` sibling. Open project A → confirm a hidden `.sting_legacy_owner` appears naming
-  A's root. Open project B → confirm B **refuses** the merge (warning in `StingTools.log`) and
-  B's issues/register do **not** contain A's rows.
-- [ ] **L2.** Federated check: two models of the **same** project in one folder → both resolve to
-  the same root, both merge normally, no warning.
+- [ ] **L1.** Put two *different* projects' `.rvt` files in one folder sharing one legacy
+  `_BIM_COORD`. Open project A → confirm a hidden `.sting_legacy_owner` appears naming A's
+  **project code**. Open project B → confirm B **refuses** the merge with a "claimed by project A"
+  warning in `StingTools.log`, and that B's stores are untouched.
+
+  > **Scope, honestly**: the claim does **not** work out who the folder rightfully belongs to.
+  > Opening A first still merges the folder into A even if the rows were B's. What it buys is
+  > that the conflict becomes visible and bounded instead of silently repeating — B's client
+  > reports it rather than quietly losing data. Attributing an unlabelled legacy folder needs a
+  > grouping signal the stores don't carry (see the guid-sharing note in `docs/ROADMAP.md`).
+
+- [ ] **L2.** Federated check: two models of the **same** project (same project code) in one
+  folder → both merge normally, no warning.
+- [ ] **L4.** Read-only check: make a legacy folder read-only, then open the project. Confirm the
+  rows **still merge** and the log says "merging without a claim marker" — a folder we cannot
+  write to must not become a folder we refuse to migrate.
+- [ ] **L5.** Path-stability check: open the same project once via a UNC path and once via a
+  mapped drive. Confirm **neither** run reports the folder as claimed by another project
+  (ownership is the project code, not the path).
 - [ ] **L3.** **Save As** a project into a different folder, then create an issue and export the
   register. Confirm both land under the **new** project root, not the original one.
 
@@ -178,9 +200,14 @@ Tick order matters: some steps set up state the next one depends on (noted inlin
 ## N. Replace (batch 4)
 
 - [ ] **N1.** Select ONE deliverable → run Replace → confirm it refuses and asks for two.
-- [ ] **N2.** Select two → confirm the first is marked `Replaced` with `SupersededBy` = the
-  second's number, and the second carries `Supersedes` = the first's. Neither should reference
-  itself.
+  Select THREE → confirm it refuses too.
+- [ ] **N2.** Select two → confirm a dialog names the direction explicitly ("X will be marked
+  REPLACED and superseded by Y") **before** anything is written, and offers a Swap option.
+  Cancel → confirm nothing changed.
+- [ ] **N3.** Confirm the direction → the first is marked `Replaced` with `SupersededBy` = the
+  second's number, and the second carries `Supersedes` = the first's. Neither references itself.
+- [ ] **N4.** Repeat using **shift-select** rather than ctrl-click (the grid returns those in row
+  order, not click order) → confirm the dialog still lets you set the direction correctly.
 
 ## I. Regression gates (already green in CI, re-run if you touch the code)
 

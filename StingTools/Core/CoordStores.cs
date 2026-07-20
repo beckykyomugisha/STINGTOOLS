@@ -238,13 +238,27 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"CoordStores.MergeAlias({aliasFileName}): {ex.Message}"); }
         }
 
-        /// <summary>Stable identity of the project a legacy folder gets merged into.</summary>
+        /// <summary>
+        /// Stable identity of the project a legacy folder gets merged into.
+        ///
+        /// The PROJECT CODE, not the root path. A path is not a stable identity: the same project
+        /// opened as \\server\share\Proj and Z:\Proj yields two different absolute paths, and
+        /// GetRootPath's MyDocuments fallback can produce a third — each of which would then
+        /// permanently refuse to merge its own legacy folders, reporting them as claimed by
+        /// "another project". Falls back to the root folder name (still not the full path) when
+        /// no project code is set.
+        /// </summary>
         private static string OwnerKey(Document doc)
         {
             try
             {
+                string code = ProjectFolderEngine.DetectProjectCode(doc);
+                if (!string.IsNullOrWhiteSpace(code)) return code.Trim();
+
                 string root = ProjectFolderEngine.GetRootPath(doc);
-                return string.IsNullOrEmpty(root) ? "" : Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+                if (string.IsNullOrEmpty(root)) return "";
+                string leaf = Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar));
+                return string.IsNullOrEmpty(leaf) ? "" : leaf;
             }
             catch (Exception ex) { StingLog.Warn($"CoordStores.OwnerKey: {ex.Message}"); return ""; }
         }
@@ -263,39 +277,61 @@ namespace StingTools.Core
         /// the outcome first-open-wins, so the rightful owner then found its own data already
         /// migrated into someone else's store.
         ///
-        /// Federated models of the SAME project resolve to the same root, so they share the
-        /// claim and still merge normally.
+        /// Federated models of the SAME project share a project code, so they share the claim and
+        /// still merge normally.
+        ///
+        /// SCOPE — what this does and does not prevent. It stops a folder that another project
+        /// has already claimed from being merged again, so a project cannot repeatedly absorb a
+        /// neighbour's rows and the neighbour's own client reports the conflict instead of
+        /// silently losing its data. It does NOT identify a legacy folder's rightful owner: if
+        /// project A opens first, the unclaimed folder is still merged into A even when the rows
+        /// belong to B. Attributing an unlabelled legacy folder needs a grouping signal the
+        /// stores do not carry — see the guid-sharing note in docs/ROADMAP.md.
         /// </summary>
         private static bool ClaimLegacyFolder(string legacyPath, string owner)
         {
             if (string.IsNullOrEmpty(owner)) return true;   // no identity to check against
+
+            string folder = null, claimPath = null;
             try
             {
-                string folder = Path.GetDirectoryName(legacyPath);
+                folder = Path.GetDirectoryName(legacyPath);
                 if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return true;
+                claimPath = Path.Combine(folder, OwnerClaimFile);
 
-                string claimPath = Path.Combine(folder, OwnerClaimFile);
                 if (File.Exists(claimPath))
                 {
                     string existing = (File.ReadAllText(claimPath) ?? "").Trim();
                     if (string.IsNullOrEmpty(existing)) return true;
                     if (string.Equals(existing, owner, StringComparison.OrdinalIgnoreCase)) return true;
-                    StingLog.Warn($"CoordStores: legacy folder '{folder}' is claimed by another project " +
-                                  $"('{existing}'); skipping merge into '{owner}'.");
+                    StingLog.Warn($"CoordStores: legacy folder '{folder}' is claimed by project " +
+                                  $"'{existing}'; skipping merge into '{owner}'.");
                     return false;
                 }
-
-                File.WriteAllText(claimPath, owner);
-                try { File.SetAttributes(claimPath, FileAttributes.Hidden); } catch { /* cosmetic */ }
-                return true;
             }
             catch (Exception ex)
             {
-                // Cannot establish ownership (read-only share, permissions). Do NOT merge on a
-                // guess — an unmerged legacy store is recoverable, a contaminated one is not.
-                StingLog.Warn($"CoordStores.ClaimLegacyFolder({legacyPath}): {ex.Message}");
-                return false;
+                // Could not READ the claim. Without evidence of a conflicting owner, refusing
+                // would strand the folder's rows forever and re-fail identically every session.
+                StingLog.Warn($"CoordStores.ClaimLegacyFolder read '{legacyPath}': {ex.Message} — merging anyway.");
+                return true;
             }
+
+            // No conflicting claim. Recording ours is best-effort: legacy folders routinely sit
+            // on read-only shares and in archived project directories, and refusing the merge
+            // because we cannot WRITE a marker would block the very migration this exists to
+            // support (pre-batch-4, migrating needed read access only).
+            try
+            {
+                File.WriteAllText(claimPath, owner);
+                try { File.SetAttributes(claimPath, FileAttributes.Hidden); } catch { /* cosmetic */ }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CoordStores: could not record ownership of '{folder}' " +
+                              $"({ex.Message}); merging without a claim marker.");
+            }
+            return true;
         }
 
         /// <summary>Every place a legacy copy of a store could physically live.</summary>

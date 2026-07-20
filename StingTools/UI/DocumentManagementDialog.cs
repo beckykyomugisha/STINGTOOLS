@@ -4582,10 +4582,24 @@ namespace StingTools.UI
         /// </summary>
         private static bool LoadUnifiedRegister(Document doc)
         {
-            int added = 0;
+            int built = 0;
             try
             {
-                foreach (var r in DocumentRegister.BuildUnified(doc))
+                // "Did the merge produce anything" is the question, NOT "did we add anything":
+                // counting only newly-added rows reports failure when every row is already in
+                // the list, and the caller then appends the legacy store on top of them.
+                var rows = DocumentRegister.BuildUnified(doc, out bool storeFailed);
+                built = rows.Count;
+                if (storeFailed)
+                {
+                    // One store was unreadable. Its rows are missing from `rows`, so a
+                    // non-empty result here is NOT a complete register — fall back rather than
+                    // present a register that is quietly missing every deliverable.
+                    StingLog.Warn("DocMgr.LoadUnifiedRegister: a source store failed to read; using the legacy loader.");
+                    return false;
+                }
+
+                foreach (var r in rows)
                 {
                     if (string.IsNullOrEmpty(r.Id) || _allItems.Any(i => i.Id == r.Id)) continue;
                     string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(r.Type ?? "", out string td) ? td : r.Type;
@@ -4609,11 +4623,10 @@ namespace StingTools.UI
                         Suitability = r.Suitability,
                         Category = "DOCUMENT", Folder = "15_REGISTERS"
                     });
-                    added++;
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); }
-            return added > 0;
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); return false; }
+            return built > 0;
         }
 
         private static void LoadIssues(Document doc)

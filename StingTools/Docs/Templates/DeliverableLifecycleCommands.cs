@@ -254,8 +254,43 @@ namespace Planscape.Docs.Templates
                                   "the one being replaced first, then its replacement."
                     };
 
+                if (sel.Count > 2)
+                    return new DeliverableLifecycle.LifecycleResult
+                    {
+                        Ok = false,
+                        Message = $"{sel.Count} deliverables selected. Replace acts on exactly two."
+                    };
+
                 dynamic existing    = sel[0];
                 dynamic replacement = sel[1];
+
+                // CONFIRM the direction. DataGrid.SelectedItems is in click order for ctrl-click
+                // but in ROW order for shift-select and select-all, so "first one selected" is not
+                // something the control guarantees. Getting it backwards marks the NEW document as
+                // superseded, persists both rows, writes the audit entry and mirrors to the
+                // server — with nothing to undo it.
+                string a = DeliverableLifecycle.DeliverableKey(existing);
+                string b = DeliverableLifecycle.DeliverableKey(replacement);
+                var confirm = new TaskDialog("STING — Replace Deliverable")
+                {
+                    MainInstruction = "Confirm which document replaces which.",
+                    MainContent = $"'{a}' will be marked REPLACED and superseded by '{b}'.\n\n" +
+                                  "This cross-links both records and cannot be undone from here.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel
+                };
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Yes — '{b}' replaces '{a}'");
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Swap — '{a}' replaces '{b}'");
+                var choice = confirm.Show();
+                if (choice == TaskDialogResult.CommandLink2)
+                {
+                    dynamic tmp = existing; existing = replacement; replacement = tmp;
+                }
+                else if (choice != TaskDialogResult.CommandLink1)
+                {
+                    return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "Cancelled." };
+                }
+
                 return DeliverableLifecycle.Replace(existing, replacement, doc, engine.Registry.Manifest,
                                                     Environment.UserName, "Replaced via BCC");
             }, "Replace Deliverable");
