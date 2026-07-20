@@ -30,6 +30,7 @@ namespace StingTools.Core.Drawing
         public const string PARAM_STYLE_LOCKED      = "STING_STYLE_LOCKED_BOOL";
         public const string PARAM_DRAWING_PACKAGE_ID = "STING_DRAWING_PACKAGE_ID_TXT";
         public const string PARAM_SHEET_SEQUENCE    = "STING_SHEET_SEQUENCE_INT";
+        public const string PARAM_SHEET_CONTEXT     = "STING_SHEET_CONTEXT_TXT";
 
         // Phase 183 — crop stamps written by DrawingCropApplier so the
         // DriftDetector can spot a profile whose crop kind / margin has
@@ -282,6 +283,59 @@ namespace StingTools.Core.Drawing
                 StingTools.Core.StingLog.Warn(
                     $"DrawingTypeStamper.StampPackage({el.Id}, '{packageId}'): {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Stamp the production context (level / scope box / room) a sheet
+        /// was produced for. With the drawing-type id and package id this
+        /// completes a sheet's production identity, so a per-level batch
+        /// gets one sheet per level instead of stacking every level onto
+        /// the first sheet. Idempotent. Requires an active transaction.
+        /// </summary>
+        public static bool StampSheetContext(Element el, string context)
+        {
+            if (el == null) return false;
+            if (!IsEditable(el)) return false;
+            try
+            {
+                var p = el.LookupParameter(PARAM_SHEET_CONTEXT);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) return false;
+                var val = context ?? string.Empty;
+                if (string.Equals(p.AsString() ?? string.Empty, val, StringComparison.Ordinal)) return true;
+                p.Set(val);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingTypeStamper.StampSheetContext({el.Id}, '{context}'): {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Read a sheet's production context stamp.
+        /// Returns null when the parameter is not bound in this project at
+        /// all — callers must treat that as "cannot tell" and fall back to
+        /// the pre-context matching rather than assume an empty context,
+        /// which would otherwise mint a duplicate sheet on every run.
+        /// Returns "" when the parameter exists but was never stamped.
+        /// </summary>
+        public static string ReadSheetContext(Element el)
+        {
+            if (el == null) return null;
+            try
+            {
+                var p = el.LookupParameter(PARAM_SHEET_CONTEXT);
+                if (p == null || p.StorageType != StorageType.String) return null;
+                return p.AsString() ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingTypeStamper.ReadSheetContext({el.Id}): {ex.Message}");
+                return null;
             }
         }
 

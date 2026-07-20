@@ -10,9 +10,8 @@
 //   - on the ViewSheet:            SHT_REV_TXT, SHT_REV_DATE_TXT
 //   - on each title-block instance: PRJ_TB_REVISION_NR_TXT,
 //                                   PRJ_TB_REVISION_DATE_TXT,
-//                                   PRJ_TB_REVISION_DESCRIPTION_TXT,
-//                                   PRJ_TB_ISSUE_SUMMARY_TXT
-// Those four TB params are the ones STING_TITLE_BLOCKS.json actually
+//                                   PRJ_TB_REVISION_DESCRIPTION_TXT
+// Those three TB params are the ones STING_TITLE_BLOCKS.json actually
 // binds labels to, so the writes are visible on the drawing.
 //
 // The value written is Revision.RevisionNumber (e.g. "P01"), NEVER the
@@ -182,10 +181,34 @@ namespace StingTools.Core.Drawing
             // Revision box on every title-block instance on this sheet.
             foreach (var tb in CollectTitleBlocks(doc, sheet))
             {
+                // T-3: honour the user's freeze. The sheet-level SHT_REV_*
+                // stamps above are STING-owned and feed schedules / exports,
+                // so they keep syncing; the title-block cells are the
+                // hand-authorable ones the lock is named for, and they are
+                // left exactly as the user set them. Reported, never silent.
+                if (TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
+                {
+                    result.SheetsSkipped++;
+                    result.Warnings.Add(
+                        $"Sheet '{sheet.SheetNumber}' title block is locked ({ParamRegistry.TB_LOCK}); " +
+                        "revision box left untouched (sheet-level revision stamps still updated).");
+                    continue;
+                }
+
                 if (WriteParamIfExists(tb, TbRevNrParam,   revNr))   result.ParamsWritten++;
                 if (WriteParamIfExists(tb, TbRevDateParam, revDate)) result.ParamsWritten++;
                 if (WriteParamIfExists(tb, TbRevDescParam, revDesc)) result.ParamsWritten++;
-                if (WriteParamIfExists(tb, ParamRegistry.TB_ISSUE_SUMMARY, revDesc)) result.ParamsWritten++;
+
+                // T-12: PRJ_TB_ISSUE_SUMMARY_TXT is NOT a revision field. The
+                // registry defines it as "Short free-text summary of the issue
+                // purpose (e.g. 'For Construction')" — author-owned, and
+                // distinct from PRJ_TB_REVISION_DESCRIPTION_TXT ("Brief
+                // description of what changed in the current revision"), which
+                // is written on the line above. Writing revDesc into it
+                // destroyed the user's issue purpose on every single sync, on
+                // every unlocked sheet. Removed rather than gated: the correct
+                // value already reaches the correct parameter, so there is
+                // nothing here worth preserving behind a flag.
             }
 
             result.SheetsProcessed++;

@@ -66,6 +66,21 @@ namespace StingTools.Core.Drawing
 
         [JsonProperty("filters")] public List<StyleFilterRule> Filters { get; set; } = new List<StyleFilterRule>();
 
+        // Phase 139 alias pattern, applied one level down. The corporate
+        // STING_VIEW_STYLE_PACKS.json keys filter rules under "filterRules"
+        // on 11 of 35 packs (corp-base, corp-clarification,
+        // corp-demolition-phase and all 8 corp-healthcare-*) — 78 rules that
+        // the "filters"-only binding dropped silently, so healthcare
+        // pressure / MGPS / fire drawings rendered with no filter colour
+        // coding at all. No pack declares both keys, so this write-only
+        // alias is order-independent. Canonical Filters still serialises
+        // under "filters".
+        [JsonProperty("filterRules", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StyleFilterRule> FilterRulesAlias
+        {
+            set { if (value != null && value.Count > 0) Filters = value; }
+        }
+
         /// <summary>
         /// Category-name → graphic override. Keys match Revit Category
         /// localised names (Walls / Grids / Rooms / etc.) or BIC strings.
@@ -244,7 +259,18 @@ namespace StingTools.Core.Drawing
         // (fire compartments, system colour washes, escape-route highlights).
         [JsonProperty("projectionLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjectionLinePattern { get; set; }
         [JsonProperty("cutLinePattern",        NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
-        [JsonProperty("surfaceFgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgColor { get; set; }
+        [JsonIgnore] public string SurfaceFgColor { get; set; }
+
+        // Short-form aliases for the two extended fields the corporate file
+        // actually uses: "surfFgColor" (15×) and "projLinePattern" (5×).
+        // The Phase 139 pass aliased projColor/projWeight/cutColor/cutWeight
+        // but stopped short of these, so they bound nowhere.
+        [JsonProperty("surfaceFgColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceFgColorLong { get => SurfaceFgColor; set { if (!string.IsNullOrEmpty(value)) SurfaceFgColor = value; } }
+        [JsonProperty("surfFgColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceFgColorShort { get => null; set { if (!string.IsNullOrEmpty(value)) SurfaceFgColor = value; } }
+        [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjLinePatternShort { get => null; set { if (!string.IsNullOrEmpty(value)) ProjectionLinePattern = value; } }
         [JsonProperty("surfaceFgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPattern { get; set; }
         [JsonProperty("surfaceBgColor",        NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgColor { get; set; }
         [JsonProperty("surfaceBgPattern",      NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPattern { get; set; }
@@ -268,11 +294,42 @@ namespace StingTools.Core.Drawing
     public sealed class StyleVgOverride
     {
         [JsonProperty("halftone",              NullValueHandling = NullValueHandling.Ignore)] public bool?   Halftone { get; set; }
-        [JsonProperty("projectionLineWeight",  NullValueHandling = NullValueHandling.Ignore)] public int?    ProjectionLineWeight { get; set; }
-        [JsonProperty("projectionLineColor",   NullValueHandling = NullValueHandling.Ignore)] public string  ProjectionLineColor { get; set; }
-        [JsonProperty("cutLineWeight",         NullValueHandling = NullValueHandling.Ignore)] public int?    CutLineWeight { get; set; }
-        [JsonProperty("cutLineColor",          NullValueHandling = NullValueHandling.Ignore)] public string  CutLineColor { get; set; }
         [JsonProperty("transparency",          NullValueHandling = NullValueHandling.Ignore)] public int?    Transparency { get; set; }
+
+        // Phase 139 alias pattern (as on StyleFilterRule). The corporate
+        // vgOverrides blocks mix both spellings across packs — long form
+        // projectionLineColor/projectionLineWeight/cutLineColor/cutLineWeight
+        // (107/107/45/45 occurrences) and short form
+        // projColor/projWeight/cutColor/cutWeight (188/209/9/14). Only the
+        // long form bound, so ~420 authored line colours/weights were
+        // dropped silently and most packs lost their line graphics. No
+        // single override object declares both spellings, so these
+        // write-only aliases are order-independent. The canonical fields
+        // still serialise under the long names.
+        [JsonIgnore] public int?   ProjectionLineWeight { get; set; }
+        [JsonIgnore] public string ProjectionLineColor  { get; set; }
+        [JsonIgnore] public int?   CutLineWeight        { get; set; }
+        [JsonIgnore] public string CutLineColor         { get; set; }
+
+        [JsonProperty("projectionLineWeight",  NullValueHandling = NullValueHandling.Ignore)]
+        public int?   ProjLineWeightLong  { get => ProjectionLineWeight; set { if (value.HasValue) ProjectionLineWeight = value; } }
+        [JsonProperty("projWeight",            NullValueHandling = NullValueHandling.Ignore)]
+        public int?   ProjLineWeightShort { get => null; set { if (value.HasValue) ProjectionLineWeight = value; } }
+
+        [JsonProperty("projectionLineColor",   NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjLineColorLong  { get => ProjectionLineColor; set { if (!string.IsNullOrEmpty(value)) ProjectionLineColor = value; } }
+        [JsonProperty("projColor",             NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjLineColorShort { get => null; set { if (!string.IsNullOrEmpty(value)) ProjectionLineColor = value; } }
+
+        [JsonProperty("cutLineWeight",         NullValueHandling = NullValueHandling.Ignore)]
+        public int?   CutLineWeightLong  { get => CutLineWeight; set { if (value.HasValue) CutLineWeight = value; } }
+        [JsonProperty("cutWeight",             NullValueHandling = NullValueHandling.Ignore)]
+        public int?   CutLineWeightShort { get => null; set { if (value.HasValue) CutLineWeight = value; } }
+
+        [JsonProperty("cutLineColor",          NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColorLong  { get => CutLineColor; set { if (!string.IsNullOrEmpty(value)) CutLineColor = value; } }
+        [JsonProperty("cutColor",              NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColorShort { get => null; set { if (!string.IsNullOrEmpty(value)) CutLineColor = value; } }
 
         // Optional visibility flag — true = show, false = hide. Null = leave as-is.
         // Phase 113+ presentation packs use this to hide MEP / structural framing

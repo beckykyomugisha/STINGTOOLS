@@ -119,7 +119,11 @@ namespace StingTools.Core.Drawing
                 {
                     var dtId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID) ?? string.Empty;
                     var pkgId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? string.Empty;
-                    if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId)] = sheet.Id;
+                    // null (parameter not bound) indexes as "" — the slow
+                    // path in CreateOrFindSheet then distinguishes
+                    // not-bound from bound-but-blank.
+                    var shtCtx = DrawingTypeStamper.ReadSheetContext(sheet) ?? string.Empty;
+                    if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, shtCtx)] = sheet.Id;
                     if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
                     else pkg[pkgId] = 1;
                 }
@@ -148,8 +152,15 @@ namespace StingTools.Core.Drawing
         private static string ViewKey(string dtId, string ctxTag, int ruleIdx)
             => (dtId ?? string.Empty) + "|" + (ctxTag ?? string.Empty) + "|" + ruleIdx;
 
-        private static string SheetKey(string dtId, string pkgId)
-            => (dtId ?? string.Empty) + "|" + (pkgId ?? string.Empty);
+        // Sheet identity is (drawing type, package, production context).
+        // Without the context component a per-level batch resolved every
+        // level to the same sheet, so ProduceViewsPerLevelCommand over N
+        // levels produced 1 sheet carrying N stacked viewports instead of
+        // N sheets. The view key has always carried the context tag, which
+        // is why the views were minted correctly and then all placed in
+        // the same slot on the same sheet.
+        private static string SheetKey(string dtId, string pkgId, string sheetCtx)
+            => (dtId ?? string.Empty) + "|" + (pkgId ?? string.Empty) + "|" + (sheetCtx ?? string.Empty);
 
         public static ProduceResult ProduceView(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts)
             => ProduceAllViews(doc, dt, ctx, opts);
@@ -454,17 +465,78 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// P-5: build a real section frame. THE single constructor for section
+        /// bounding boxes — the producer's default and the "along grid lines"
+        /// batch command both come here, because they previously disagreed on
+        /// which axis carried height (producer: Y with Transform.Identity;
+        /// command: Z, also with an implicit Identity) and neither built the
+        /// frame that ViewSection.CreateSection actually consumes.
+        ///
+        /// CreateSection reads the box's Transform as the section's own
+        /// coordinate system and its Min/Max as extents IN THAT FRAME:
+        ///   BasisX — along the cut, i.e. the drawing's horizontal
+        ///   BasisY — model +Z, i.e. the drawing's vertical
+        ///   BasisZ — BasisX × BasisY, the horizontal direction the section
+        ///            looks along
+        /// With Transform.Identity the frame is the model frame, so BasisY is
+        /// model +Y — horizontal — and the result is a downward "plan-section"
+        /// rather than a vertical cut.
+        ///
+        /// <paramref name="bottomZ"/> / <paramref name="topZ"/> are absolute
+        /// model elevations and are converted into frame-relative Y here, so
+        /// callers never have to think about the frame. Extents are normalised
+        /// so Min &lt; Max on every axis: the grid path derived its X extent by
+        /// adding a perpendicular vector whose components go negative for
+        /// north-south grids, which inverted the box and made CreateSection
+        /// throw.
+        /// </summary>
+        internal static BoundingBoxXYZ BuildSectionBox(
+            XYZ origin, XYZ cutDirection, double halfWidthFt,
+            double bottomZ, double topZ, double depthFt)
+        {
+            origin = origin ?? XYZ.Zero;
+
+            // Horizontal component of the cut direction; fall back to model +X
+            // for a degenerate (vertical or zero-length) input.
+            var flat = new XYZ(cutDirection?.X ?? 0, cutDirection?.Y ?? 0, 0);
+            var bx = flat.GetLength() > 1e-9 ? flat.Normalize() : XYZ.BasisX;
+            var by = XYZ.BasisZ;
+            var bz = bx.CrossProduct(by);
+
+            var t = Transform.Identity;
+            t.Origin = origin;
+            t.BasisX = bx;
+            t.BasisY = by;
+            t.BasisZ = bz;
+
+            double halfW = Math.Abs(halfWidthFt);
+            double depth = Math.Abs(depthFt);
+            double yLo = Math.Min(bottomZ, topZ) - origin.Z;
+            double yHi = Math.Max(bottomZ, topZ) - origin.Z;
+            if (yHi - yLo < 1e-6) yHi = yLo + 1.0;   // never a zero-height box
+
+            return new BoundingBoxXYZ
+            {
+                Transform = t,
+                Min = new XYZ(-halfW, yLo, -depth),
+                Max = new XYZ( halfW, yHi, 0.0),
+            };
+        }
+
         private static BoundingBoxXYZ BuildDefaultSectionBbox(DrawingContext ctx)
         {
-            // 10m × 5m × 10m default box at level elevation (or origin).
+            // 10 m wide × 5 m tall × 10 m deep default cut at the context
+            // level's elevation, looking along model +Y.
+            const double mToFt = 1.0 / 0.3048;
             double elevFt = ctx?.Level?.Elevation ?? 0;
-            var bb = new BoundingBoxXYZ
-            {
-                Transform = Transform.Identity,
-                Min = new XYZ(-5.0 * 3.281, elevFt - 1.0 * 3.281, -5.0 * 3.281),
-                Max = new XYZ( 5.0 * 3.281, elevFt + 4.0 * 3.281,  5.0 * 3.281)
-            };
-            return bb;
+            return BuildSectionBox(
+                origin:       new XYZ(0, 0, elevFt),
+                cutDirection: XYZ.BasisX,
+                halfWidthFt:  5.0 * mToFt,
+                bottomZ:      elevFt - 1.0 * mToFt,
+                topZ:         elevFt + 4.0 * mToFt,
+                depthFt:      10.0 * mToFt);
         }
 
         private static BoundingBoxXYZ BuildDefaultDetailBbox(DrawingContext ctx)
@@ -497,64 +569,139 @@ namespace StingTools.Core.Drawing
         private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result)
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
+            string sheetCtx = BuildContextTag(ctx);
             try
             {
                 // GAP-L: per-batch cache hit, fall back to fresh collector.
                 if (_existingSheetCache != null
                     && CacheMatchesDoc(doc)
-                    && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage), out var cachedSheetId))
+                    && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage, sheetCtx), out var cachedSheetId))
                 {
                     if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
                         return vsCached.Id;
-                    _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage));
+                    _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage, sheetCtx));
                 }
-                var existing = new FilteredElementCollector(doc)
+
+                var candidates = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
-                    .FirstOrDefault(s =>
+                    .Where(s =>
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), dt.Id, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
-                if (existing != null) return existing.Id;
+                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal))
+                    .ToList();
+
+                // Same drawing type, same package, same production context.
+                var exact = candidates.FirstOrDefault(s =>
+                    string.Equals(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, StringComparison.Ordinal));
+                if (exact != null) return exact.Id;
+
+                // A sheet produced before the context stamp existed carries
+                // no context. Claim it only for an empty-context request —
+                // a per-level request must never adopt it, or level 1 would
+                // swallow the whole batch exactly as before.
+                if (string.IsNullOrEmpty(sheetCtx))
+                {
+                    var legacyBlank = candidates.FirstOrDefault(s =>
+                        string.IsNullOrEmpty(DrawingTypeStamper.ReadSheetContext(s)));
+                    if (legacyBlank != null) return legacyBlank.Id;
+                }
+
+                // ReadSheetContext returns null when STING_SHEET_CONTEXT_TXT
+                // is not bound in this project at all, so contexts cannot be
+                // told apart. Fall back to the pre-context (type, package)
+                // match: that reproduces the old stacking behaviour, but the
+                // alternative is minting a fresh duplicate sheet on every
+                // run. Surfaced as a warning so the fix is actionable.
+                var unstampable = candidates.FirstOrDefault(s => DrawingTypeStamper.ReadSheetContext(s) == null);
+                if (unstampable != null)
+                {
+                    result.Warnings.Add(
+                        $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
+                        $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
+                        "Run LoadSharedParams to bind it, then re-run production.");
+                    return unstampable.Id;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {
-                var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
+                var (declaredFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
                 // P5 — map the profile's logical / dangling family name to the
                 // concrete built family (STING_TB_<size>[_PORT]_<BIM|NONBIM>_v2.0
                 // / …_ASSEMBLY_*_v1.0 / …_PRESENT_A1_v1.0) before looking it up.
-                tbFamily = TitleBlockResolver.ToConcreteFamily(doc, dt, tbFamily);
+                // ToConcreteFamily is best-effort: it returns the declared name
+                // unchanged for A2/A4 and for unknown vocabulary, and can return
+                // blank when the profile declares no family and no size can be
+                // derived. So treat its output as possibly-still-logical.
+                var tbFamily = TitleBlockResolver.ToConcreteFamily(doc, dt, declaredFamily);
 
-                List<FamilySymbol> CollectMatches() => new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .Cast<FamilySymbol>()
-                    .Where(s => string.IsNullOrEmpty(tbFamily) ||
-                                string.Equals(s.FamilyName, tbFamily, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                // A blank family name used to satisfy the match predicate via an
+                // `IsNullOrEmpty(tbFamily) ||` clause, so ANY loaded title block
+                // matched and the first one won — silently, before any fallback
+                // warning could fire. Blank now matches nothing and is reported.
+                bool haveName = !string.IsNullOrWhiteSpace(tbFamily);
+                if (!haveName)
+                    result.Warnings.Add(
+                        $"Drawing type '{dt.Id}' resolved no title-block family name " +
+                        $"(declared '{declaredFamily ?? ""}'). The sheet will use whatever title block " +
+                        "is available — set titleBlockFamily on the profile, or a paper size the " +
+                        "resolver can derive from.");
+
+                List<FamilySymbol> CollectMatches() => !haveName
+                    ? new List<FamilySymbol>()
+                    : new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilySymbol))
+                        .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                        .Cast<FamilySymbol>()
+                        .Where(s => string.Equals(s.FamilyName, tbFamily, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
 
                 var familyMatches = CollectMatches();
                 // P5 delivery — if the concrete family was built but not yet
-                // loaded, load it from Families/TitleBlocks/ on demand so the
-                // producer never falls back to an arbitrary title block.
-                if (familyMatches.Count == 0 && !string.IsNullOrEmpty(tbFamily)
+                // loaded, load it from Families/TitleBlocks/ on demand.
+                if (familyMatches.Count == 0 && haveName
                     && TitleBlockResolver.EnsureFamilyLoaded(doc, tbFamily))
                     familyMatches = CollectMatches();
 
                 FamilySymbol picked = null;
                 if (!string.IsNullOrWhiteSpace(tbSymbol))
+                {
                     picked = familyMatches.FirstOrDefault(s =>
                         string.Equals(s.Name, tbSymbol, StringComparison.OrdinalIgnoreCase));
+                    if (picked == null && familyMatches.Count > 0)
+                        result.Warnings.Add(
+                            $"Title-block type '{tbSymbol}' not found in family '{tbFamily}' " +
+                            $"for drawing type '{dt.Id}'; used '{familyMatches[0].Name}' instead.");
+                }
                 if (picked == null) picked = familyMatches.FirstOrDefault();
                 titleBlockId = picked?.Id ?? ElementId.InvalidElementId;
+
                 if (titleBlockId == ElementId.InvalidElementId)
-                    titleBlockId = new FilteredElementCollector(doc)
+                {
+                    // The comment here used to claim "the producer never falls
+                    // back to an arbitrary title block" immediately above code
+                    // that did exactly that, with no warning — so a batch could
+                    // issue sheets carrying the wrong corporate identity and
+                    // report success. Still falls back (a sheet with some title
+                    // block beats no sheet), but says so.
+                    var any = new FilteredElementCollector(doc)
                         .OfClass(typeof(FamilySymbol))
                         .OfCategory(BuiltInCategory.OST_TitleBlocks)
                         .Cast<FamilySymbol>()
-                        .FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
+                        .FirstOrDefault();
+                    titleBlockId = any?.Id ?? ElementId.InvalidElementId;
+                    if (any != null && haveName)
+                        result.Warnings.Add(
+                            $"Title-block family '{tbFamily}' (drawing type '{dt.Id}') is not loaded and " +
+                            $"could not be loaded from disk; fell back to '{any.FamilyName}'. " +
+                            "The sheet carries the wrong corporate identity until the family is loaded.");
+                    else if (any == null)
+                        result.Warnings.Add(
+                            $"No title-block family is loaded in this project; sheet for drawing type " +
+                            $"'{dt.Id}' was created without one.");
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -562,14 +709,31 @@ namespace StingTools.Core.Drawing
             try { sheet = ViewSheet.Create(doc, titleBlockId); }
             catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
 
+            // The sequence has to be resolved BEFORE the number is built —
+            // the pattern's {seq} / {seq:Dn} needs it. It used to be consumed
+            // further down, after numbering, and only stamped into
+            // STING_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
+            // ctx.Tag — a level name in every batch command — and every sheet
+            // in a package numbered 0001.
+            int seq = ResolveSheetSequence(doc, dt, effectivePackage);
+
+            // One token dict for the number, the name and the title-block
+            // cells, built with the REAL doc handle so {project} /
+            // {originator} resolve from ProjectInformation instead of coming
+            // back blank.
+            var tokens = BuildTokenDict(doc, dt, ctx, seq);
+
             try
             {
-                sheet.SheetNumber = opts.OverrideSheetNumber ?? SubstituteTokens(dt.SheetNumberPattern, dt, ctx, doc);
+                var number = opts.OverrideSheetNumber ?? SubstituteTokens(dt.SheetNumberPattern, dt, ctx, seq, tokens);
+                // Revit rejects a duplicate sheet number outright, and the
+                // catch below would leave the sheet on its default number.
+                sheet.SheetNumber = EnsureUniqueSheetNumber(doc, number, sheet.Id, result);
             }
             catch (Exception ex) { result.Warnings.Add($"SheetNumber: {ex.Message}"); }
             try
             {
-                sheet.Name = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, doc);
+                sheet.Name = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, seq, tokens);
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 
@@ -584,49 +748,21 @@ namespace StingTools.Core.Drawing
             }
             DrawingTypeStamper.Stamp(sheet, dt.Id);
             DrawingTypeStamper.StampPackage(sheet, effectivePackage);
+            // Completes the sheet's production identity so the next run
+            // finds this exact sheet for this exact context instead of
+            // reusing it for every level in the batch.
+            if (!DrawingTypeStamper.StampSheetContext(sheet, sheetCtx) && !string.IsNullOrEmpty(sheetCtx))
+                result.Warnings.Add(
+                    $"Could not stamp {DrawingTypeStamper.PARAM_SHEET_CONTEXT} on sheet {sheet.Id} " +
+                    $"(context '{sheetCtx}'); re-running production may not match this sheet. " +
+                    "Run LoadSharedParams to bind the parameter.");
 
             try
             {
-                // Phase 169 — persisted sequence counter via ExtensibleStorage on
-                // ProjectInfo, granular by (DT, package, discipline, vol). Falls
-                // back to the per-batch cache (and ultimately a sheet count) when
-                // ES is unavailable. Survives Revit restarts and the renumber
-                // command's compaction so deleted sheets don't regrow gaps.
-                int seq;
-                bool used = false;
-                try
-                {
-                    seq = SheetSequenceStore.Next(doc, dt.Id, effectivePackage,
-                        dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
-                    used = true;
-                }
-                catch (Exception ex2)
-                {
-                    seq = 0;
-                    StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex2.Message}");
-                }
-                if (!used)
-                {
-                    // Legacy fallback path — preserves prior behaviour for
-                    // documents where ExtensibleStorage isn't writable.
-                    if (_packageSheetCount != null && CacheMatchesDoc(doc))
-                    {
-                        _packageSheetCount.TryGetValue(effectivePackage, out var n);
-                        seq = n + 1;
-                        _packageSheetCount[effectivePackage] = seq;
-                    }
-                    else
-                    {
-                        seq = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ViewSheet))
-                            .Cast<ViewSheet>()
-                            .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
-                    }
-                }
                 DrawingTypeStamper.StampSheetSequence(sheet, seq);
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
-                    _existingSheetCache[SheetKey(dt.Id, effectivePackage)] = sheet.Id;
+                    _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = sheet.Id;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -634,7 +770,6 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var tokens = BuildTokenDict(dt, ctx);
                     var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
                     foreach (var w in tbResult.Warnings)
                         result.Warnings.Add("TitleBlockParams: " + w);
@@ -762,32 +897,162 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
 
-        private static string SubstituteTokens(string pattern, DrawingType dt, DrawingContext ctx, Document doc)
+        /// <summary>
+        /// Resolve the next sheet sequence for this (drawing type, package).
+        /// Extracted so numbering can consume it before the sheet number is
+        /// built. Behaviour is unchanged: persisted ES counter first, then the
+        /// per-batch cache, then a package sheet count.
+        /// </summary>
+        private static int ResolveSheetSequence(Document doc, DrawingType dt, string effectivePackage)
+        {
+            // Phase 169 — persisted sequence counter via ExtensibleStorage on
+            // ProjectInfo, granular by (DT, package, discipline, vol). Falls
+            // back to the per-batch cache (and ultimately a sheet count) when
+            // ES is unavailable. Survives Revit restarts and the renumber
+            // command's compaction so deleted sheets don't regrow gaps.
+            try
+            {
+                return SheetSequenceStore.Next(doc, dt.Id, effectivePackage,
+                    dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex.Message}");
+            }
+
+            // Legacy fallback path — preserves prior behaviour for documents
+            // where ExtensibleStorage isn't writable.
+            try
+            {
+                if (_packageSheetCount != null && CacheMatchesDoc(doc))
+                {
+                    _packageSheetCount.TryGetValue(effectivePackage, out var n);
+                    var next = n + 1;
+                    _packageSheetCount[effectivePackage] = next;
+                    return next;
+                }
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ResolveSheetSequence fallback: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Revit rejects a duplicate sheet number, so a collision would throw
+        /// and leave the sheet on its auto-assigned default. Mirrors
+        /// ShopDrawingComposer.EnsureUniqueSheetNumber (-A … -Z, then a short
+        /// random suffix) and additionally ignores the sheet being numbered.
+        /// </summary>
+        private static string EnsureUniqueSheetNumber(Document doc, string baseNumber, ElementId excludeId, ProduceResult result)
+        {
+            if (string.IsNullOrEmpty(baseNumber)) return baseNumber;
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+                {
+                    if (el is ViewSheet vs && vs.Id != excludeId && !string.IsNullOrEmpty(vs.SheetNumber))
+                        existing.Add(vs.SheetNumber);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"EnsureUniqueSheetNumber: {ex.Message}");
+                return baseNumber;
+            }
+            if (!existing.Contains(baseNumber)) return baseNumber;
+
+            for (char c = 'A'; c <= 'Z'; c++)
+            {
+                var candidate = baseNumber + "-" + c;
+                if (!existing.Contains(candidate))
+                {
+                    result?.Warnings.Add($"Sheet number '{baseNumber}' already exists; used '{candidate}'.");
+                    return candidate;
+                }
+            }
+            var fallback = baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
+            result?.Warnings.Add($"Sheet number '{baseNumber}' and all -A..-Z variants exist; used '{fallback}'.");
+            return fallback;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex _seqWidthRegex
+            = new System.Text.RegularExpressions.Regex(@"\{seq:D(\d+)\}",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static string SubstituteTokens(string pattern, DrawingType dt, DrawingContext ctx,
+            int seq, IDictionary<string, string> extras)
+            => ApplyTokenPattern(
+                pattern,
+                disc:    dt?.Discipline ?? "",
+                lvl:     ctx?.Level?.Name ?? "",
+                sys:     dt?.System ?? "",   // P4 — system code into {sys} for number/name patterns
+                mark:    ctx?.Tag ?? "",
+                spool:   ctx?.Tag ?? "",
+                purpose: dt?.Purpose ?? "",
+                seq:     seq,
+                extras:  extras);
+
+        /// <summary>
+        /// The token substitution itself, with no Revit types in its
+        /// signature so it can be exercised outside Revit. Callers resolve
+        /// the field values; this only does the string work.
+        /// </summary>
+        internal static string ApplyTokenPattern(string pattern,
+            string disc, string lvl, string sys, string mark, string spool, string purpose,
+            int seq, IDictionary<string, string> extras)
         {
             if (string.IsNullOrEmpty(pattern)) return pattern;
-            string disc  = dt?.Discipline ?? "";
-            string lvl   = ctx?.Level?.Name ?? "";
-            string sys   = dt?.System ?? "";   // P4 — system code into {sys} for number/name patterns
-            string mark  = ctx?.Tag ?? "";
-            string spool = ctx?.Tag ?? "";
 
-            string Replace(string p)
+            var p = pattern;
+            // Producer-specific shaping first (SafeShort sanitises and caps at
+            // 8 chars). Doing these before the extras sweep keeps the existing
+            // behaviour for these six tokens rather than letting the raw
+            // dictionary values through.
+            p = p.Replace("{disc}", SafeShort(disc));
+            p = p.Replace("{discipline}", disc);
+            p = p.Replace("{lvl}", SafeShort(lvl));
+            p = p.Replace("{sys}", SafeShort(sys));
+            p = p.Replace("{mark}", SafeShort(mark));
+            p = p.Replace("{spool}", SafeShort(spool));
+            p = p.Replace("{purpose}", purpose ?? "");
+
+            // ISO 19650 tokens — {project} {originator} {vol} {type} {role}
+            // {suit} {rev} and anything else the canonical builder supplies.
+            // 13 corporate drawing types carry these in their
+            // sheetNumberPattern; the producer knew none of them, so they
+            // survived as literal braces, which are illegal in a Revit sheet
+            // number — the assignment threw, was caught, and the sheet kept
+            // its default number. Same sweep ShopDrawingComposer already did.
+            if (extras != null)
             {
-                p = p.Replace("{disc}", SafeShort(disc));
-                p = p.Replace("{discipline}", disc);
-                p = p.Replace("{lvl}", SafeShort(lvl));
-                p = p.Replace("{sys}", SafeShort(sys));
-                p = p.Replace("{mark}", SafeShort(mark));
-                p = p.Replace("{spool}", SafeShort(spool));
-                p = p.Replace("{purpose}", dt?.Purpose ?? "");
-                // {seq:Dn}
-                int seq = (ctx?.Tag != null && int.TryParse(ctx.Tag, out var s)) ? s : 1;
-                for (int width = 1; width <= 6; width++)
-                    p = p.Replace($"{{seq:D{width}}}", seq.ToString("D" + width));
-                p = p.Replace("{seq}", seq.ToString("D4"));
-                return p;
+                foreach (var kv in extras)
+                {
+                    if (string.IsNullOrEmpty(kv.Key)) continue;
+                    p = p.Replace("{" + kv.Key + "}", kv.Value ?? "");
+                }
             }
-            return Replace(pattern);
+
+            // {seq:Dn} at whatever width the pattern asks for, then bare {seq}
+            // at the historical 4-digit default.
+            //
+            // Note the extras sweep above may already have consumed a bare
+            // {seq}: DrawingTokenContext.Build emits a "seq" key formatted
+            // with its seqWidth parameter, which defaults to 4 and which
+            // BuildTokenDict does not override — so the two paths agree, and
+            // whichever runs first yields the same string. {seq:Dn} is a
+            // different literal so the sweep never touches it. If a caller
+            // ever passes a non-default seqWidth, format that value the same
+            // way here or the two paths will silently disagree.
+            p = _seqWidthRegex.Replace(p, m => seq.ToString("D" + m.Groups[1].Value));
+            p = p.Replace("{seq}", seq.ToString("D4"));
+            return p;
         }
 
         private static string SafeShort(string s)
@@ -796,17 +1061,26 @@ namespace StingTools.Core.Drawing
             return new string(s.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').Take(8).ToArray());
         }
 
-        private static Dictionary<string, string> BuildTokenDict(DrawingType dt, DrawingContext ctx)
+        private static Dictionary<string, string> BuildTokenDict(Document doc, DrawingType dt, DrawingContext ctx, int seq)
         {
             // INT-06: route through the canonical builder so SheetManager,
             // ShopDrawingComposer and the production engine all feed the
             // exact same token set into TitleBlockParamApplier.
+            //
+            // doc was previously passed as null with a comment claiming the
+            // producer had no handle — CreateOrFindSheet has had one all
+            // along. With null, DrawingTokenContext.ReadProjectInfo returned
+            // empty for {project} and {originator}, so producer-path
+            // title-block cells came back blank while the fabrication and
+            // SheetManager paths filled them from the same profile. seq was
+            // likewise never supplied, leaving "{seq:Dn}" literal in cells.
             var d = DrawingTokenContext.Build(
-                doc:        null,        // producer is invoked without a doc handle here
+                doc:        doc,
                 dt:         dt,
                 discCode:   dt?.Discipline,
                 discipline: dt?.Discipline,
                 levelCode:  ctx?.Level?.Name,
+                seq:        seq,
                 spool:      ctx?.Tag,
                 mark:       ctx?.Tag);
             d["package"] = ctx?.PackageId ?? dt?.PackageId ?? string.Empty;

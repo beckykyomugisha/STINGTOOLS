@@ -1309,7 +1309,10 @@ namespace StingTools.Tags
         /// For each category, shows: discipline swatch | category name | tag family name | sample tag.
         /// Attempts to place actual annotation instances (Strategy 2), falls back to drawn text.
         /// </summary>
-        private static void PopulateTagLegendContent(Document doc, View legendView,
+        // internal (was private) so UpdateLegendCommand can refresh a tag
+        // legend IN PLACE instead of deleting its content and telling the user
+        // to rebuild it by hand (A-3).
+        internal static void PopulateTagLegendContent(Document doc, View legendView,
             List<TagLegendEntry> entries, string title, string groupBy)
         {
             FillPatternElement solidFill = FindSolidFill(doc);
@@ -3285,14 +3288,29 @@ namespace StingTools.Tags
 
                     if (name.Contains("Tag Families") || name.Contains("Tag Legend"))
                     {
-                        // Tag legend — rebuild
+                        // A-3: refresh IN PLACE. This branch used to delete the
+                        // view's content, mint a SECOND "(Refreshed)" view, and
+                        // log "use Create Tag Legend to rebuild" — so the view
+                        // actually placed on sheets was left permanently blank
+                        // while a duplicate carried the content nowhere.
                         var entries = LegendBuilder.CollectTagFamilies(doc);
-                        if (entries.Count > 0)
-                            LegendBuilder.CreateTagLegendView(doc, entries, "Tag Families (Refreshed)", "Discipline");
-                        // We can't easily re-populate an existing tag legend view without recreating
-                        // So just log and continue — the view content was deleted and will appear blank
-                        // until they use CreateTagLegend again
-                        StingLog.Info($"UpdateLegend: cleared tag legend '{name}' — use Create Tag Legend to rebuild");
+                        if (entries != null && entries.Count > 0)
+                        {
+                            try
+                            {
+                                LegendBuilder.PopulateTagLegendContent(doc, legendView, entries, name, "Discipline");
+                                updated++;
+                                StingLog.Info($"UpdateLegend: refreshed tag legend '{name}' in place.");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"UpdateLegend: failed to refresh tag legend '{name}': {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            StingLog.Info($"UpdateLegend: no tag families found — '{name}' left empty.");
+                        }
                     }
                     else
                     {
@@ -3379,20 +3397,18 @@ namespace StingTools.Tags
 
                         if (entries != null && entries.Count > 0 && config != null)
                         {
-                            // Re-populate the existing view (don't create a new one)
-                            // Use reflection-style approach: call PopulateLegendContent directly
-                            // Since it's private, we call CreateLegendView which creates a new view,
-                            // but we already deleted content — so just populate this view
+                            // A-3: populate the EXISTING view. The previous code
+                            // called CreateLegendView on the belief that
+                            // PopulateLegendContent was private — it is
+                            // `internal static`, callable from here. Minting a
+                            // new view left the original (the one actually
+                            // placed on sheets) permanently blank, gave it a
+                            // "(1)" suffixed twin, and still reported success.
                             try
                             {
-                                // Workaround: create a temporary new view, but we actually want
-                                // to reuse the existing view. Let's use the public API instead.
-                                var newView = LegendBuilder.CreateLegendView(doc, entries, config);
-                                if (newView != null)
-                                {
-                                    updated++;
-                                    StingLog.Info($"UpdateLegend: refreshed '{name}' (created new '{newView.Name}')");
-                                }
+                                LegendBuilder.PopulateLegendContent(doc, legendView, entries, config);
+                                updated++;
+                                StingLog.Info($"UpdateLegend: refreshed '{name}' in place.");
                             }
                             catch (Exception ex)
                             {
@@ -3408,8 +3424,8 @@ namespace StingTools.Tags
             TaskDialog.Show("Update Legend",
                 $"Processed {toUpdate.Count} legends.\n" +
                 $"Updated: {updated}\n\n" +
-                "Legend views have been refreshed with current project data.\n" +
-                "Sheet placements are preserved.");
+                "Each legend was refreshed in place with current project data.\n" +
+                "Sheet placements stay live — no new views were created.");
 
             return Result.Succeeded;
         }

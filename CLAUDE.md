@@ -50,7 +50,7 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 | `StingTools/Data/Fabrication/` | STING_FAB_RULES.json (6 disciplines) + STING_FAB_RULES_EXT.json + STING_ISO_SYMBOLS_INDEX.csv (180+ symbols) |
 | `StingTools/Data/Parameters/` | STING_PARAMS_V4.txt · STING_PARAMS_V6.txt · STING_ELEC_WIRE_PARAMS.txt · STING_HANGER_PARAMS.txt · STING_SLEEVE_PARAMS.txt |
 | `StingTools/Data/Seeds/` | 16 seed JSON specs |
-| `Families/AssemblyTitleBlocks/` | 7 title block parameter spec stubs + README |
+| `Families/AssemblyTitleBlocks/` | 8 title block parameter spec stubs + README |
 
 ### New namespaces
 
@@ -441,7 +441,7 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 - **3 new disciplines** (`H` Healthcare, `MG` Medical Gas, `RP` Radiation Protection); ~30 healthcare PROD codes; 60 tag families in `STING_TAG_CONFIG_v5_0_HEALTH.csv`
 - **16 healthcare validators** under `Core/Validation/Healthcare/` gated through `HealthcareValidatorGate` against `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` (FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY / MENTAL-HEALTH)
 - **7 standards modules** under `StingTools.Standards/{HTM, HBN, FGI, NFPA99, NCRP147, ASHRAE170, USP797800}` — stateless lookup tables + checklist generators + NCRP 147 W·U·T → mm-Pb calculator
-- **22 corporate Drawing Types** with routing rules; 8 ViewStylePacks; 58 healthcare filters in `STING_AEC_FILTERS.json`
+- **22 corporate Drawing Types** with routing rules; 8 ViewStylePacks; 81 healthcare filters in `STING_AEC_FILTERS.json`
 - **MGPS package** (`Core/MedGas/`) — `MgasNetwork` graph builder, `MgasFlowSolver` (NFPA 99 §5.1.13), `MgasVerificationLog` (12-step NFPA 99 §5.1.12)
 - **RDS engine** (`Docs/Templates/Rds*`) — token-context builder + MiniWord renderer
 - **40+ commands** under `Commands/Healthcare/`, `Commands/MedGas/`, `Commands/Adjacency/`, `Commands/Twin/`, `Commands/Radiation/`
@@ -758,17 +758,19 @@ Framework (AVF) heatmaps using Revit's built-in display style engine.
 
 `DrawingType.cs` · `DrawingTypePresentation.cs` · `DrawingTypeRegistry.cs` · `DrawingDispatcher.cs` · `DrawingTypeValidator.cs` · `DrawingTypeStamper.cs` · `DrawingDriftDetector.cs` · `DrawingCropApplier.cs` · `ViewStylePack.cs` · `ViewStylePackRegistry.cs` · `ViewStylePackApplier.cs` · `ManagedTemplateSyncer.cs` · `AecFilterDefinition.cs` · `AecFilterRegistry.cs` · `AecFilterFactory.cs` · `ScopeBoxBinder.cs` · `TitleBlockParamApplier.cs` · `TokenProfileApplier.cs` · `AnnotationRunner.cs` · `DrawingProducer.cs` · `DrawingPackageManager.cs` · `TitleBlockFactory.cs` · `TitleBlockSpec.cs` · `MatchLineEngine.cs` · `DrawingTokenContext.cs` · `DrawingProductionPreset.cs` · `ProductionPresetRegistry.cs` · `DrawingThumbnailService.cs` · `SheetPlacementBridge.cs` · `SheetSequenceStore.cs` · `Iso19650Vocabulary.cs` · plus dimensioning sub-engine (`GridDimensioner`, `MEPDimensioner`, `DrainageInvertDimensioner`, `DimensionStrategy`).
 
-### Commands (20+)
+### Commands (25+)
 
-`DrawingTypes_Inspect`, `DrawingTypes_Reload`, `DrawingTypes_BrowserOrganize`, `DrawingTypes_SyncStyles`, `DrawingTypes_FromScopeBoxes`, `DrawingTypes_Produce`, `DrawingTypes_Doctor`, `DrawingTypes_HealTitleBlocks`, `DrawingTypes_Renumber`, `DrawingTypes_BatchProduce`, `AecFilters_Create`, `AecFilters_Inspect`, `AecFilters_Reload`, `ManagedTemplates_Convert`, `ManagedTemplates_Detach`, `ManagedTemplates_Regenerate`, `TitleBlocks_Factory`, `TitleBlocks_MigrateCsv`, `TitleBlocks_Migrate`, `MatchLines_Create`, `PresentationStyle_Setup`.
+Tags as dispatched by `StingCommandHandler` (exact-match, case-sensitive):
 
-### AEC/FM Corporate Filter Library (Phase 166 — 199 filters)
+`DrawingTypes_Inspect`, `DrawingTypes_Reload`, `Drawing_BrowserOrganize`, `DrawingTypes_SyncStyles`, `DrawingTypes_FromScopeBoxes`, `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceSections`, `DrawingTypes_ProduceInteriorElevations`, `DrawingTypes_ProduceExteriorElevations`, `DrawingTypes_ProduceFromScopeBoxes`, `DrawingTypes_ProduceAndExport`, `DrawingTypes_Doctor`, `DrawingTypes_HealTitleBlocks`, `DrawingTypes_Renumber`, `AecFilters_Create`, `AecFilters_Inspect`, `AecFilters_Reload`, `DrawingTypes_ConvertToManaged`, `DrawingTypes_DetachManaged`, `DrawingTypes_RegenerateTemplates`, `TitleBlock_Create`, `TitleBlock_CreateAll`, `TitleBlock_MigrateLegacy`, `DrawingTypes_MigrateCsv`, `DrawingTypes_MigrateParams`, `DrawingTypes_PresentationSetup`, plus the MatchLine suite (`MatchLine_Generate`, `MatchLine_Sync`, `MatchLine_Validate`, `MatchLine_ValidateBundle`, `MatchLine_Inspect` — handler cases exist; no dock-panel buttons yet, see review finding W-2).
 
-`Data/STING_AEC_FILTERS.json`: 47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA. `ViewStylePackApplier.ApplyFilterRules` now lazy-creates missing filters from the registry.
+### AEC/FM Corporate Filter Library (Phase 166/184f — 298 filters)
+
+`Data/STING_AEC_FILTERS.json`: 298 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
 
 ---
 
-Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Edits to corporate packs silently flip `origin` to `project` via `ViewStylePackRegistry.ComputeChecksums` drift detection, same mechanism Drawing Types use.
+Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is never computed or verified) — corporate pack edits are accepted as corporate. See finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
 
 The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
 
@@ -852,7 +854,7 @@ Routing table grew to 43 rules at that phase (now 118 rules across 93 types — 
 
 ### Project-scoped overrides
 
-Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). Mutating a corporate entry on disk flips its `origin` to `project` via SHA-256 checksum drift detection (see `DrawingTypeRegistry.ComputeChecksums`).
+Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). `DrawingTypeRegistry.ComputeChecksums` implements SHA-256 drift detection (a stored `checksum` mismatch flips `origin` to `project`), but the shipped corporate file carries **no** `checksum` fields and computed hashes are never persisted, so edits to the shipped baseline are currently undetected — see finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
 
 ### Pipeline order (final)
 
