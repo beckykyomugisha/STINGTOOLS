@@ -111,6 +111,10 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Annotation idempotency (C-4) | Run annotation twice on one view: second pass places nothing and reports skips (tags, grid/level dims, north arrow) |
 | Floor/ceiling tags (A-9) | Tag a floor-heavy view: tags land at element centres instead of erroring per element |
 | Match lines (A-6/A-7) | Run `MatchLine_Sync` twice over a **dog-leg** boundary: no new curves, no extra captions |
+| Match lines after renumber (A-7) | Renumber sheets, then `MatchLine_Sync`: old captions are replaced, not left beside the new ones |
+| Legends (A-3) | Place a legend on a sheet, run Update Legend: viewport still shows content, no "(1)" view appears |
+| Sections (P-5) | Produce a section along a **north-south** grid: a vertical cut, not a plan-like box, and no throw |
+| Crops (E-2) | TightBbox on a **rotated plan** and on a **section**: crop frames the geometry rather than landing arbitrarily |
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 

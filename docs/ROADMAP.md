@@ -67,6 +67,9 @@ Electrical and Plumbing.
 | A-7 captions stacked every sync | ✅ fixed |
 | A-8 silent tag-family fallback | ✅ fixed (warns) |
 | A-9 `GetElementCentre` null passed to `IndependentTag.Create` | ✅ fixed (bbox centre) |
+| A-3 legend refresh minted a blank twin | ✅ fixed (in-place, both branches) |
+| P-5 section frames wrong and divergent | ✅ fixed (one shared builder) |
+| E-2 crop assigned in model space | ✅ fixed (converted to crop frame) |
 
 Corrections to the review found while fixing these:
 
@@ -87,9 +90,16 @@ Deliberately deferred, with reasons:
   needs a new parameter bound to Dimensions (4-file provisioning). Residual: a dimension
   reporting `AreReferencesAvailable == false` is treated as unknown, so a duplicate remains
   possible if every dimension in a view is unreadable AND a prior chain exists.
-- **Match-line captions are identified by (view + type + text + proximity)**, since
-  `STING_MATCH_LINE_GUID_TXT` does not bind to Text Notes. Residual: a caption whose boundary
-  geometry moved is orphaned rather than deleted.
+- **Match-line captions are identified by (view + type + caption-template shape + proximity)**,
+  since `STING_MATCH_LINE_GUID_TXT` does not bind to Text Notes. Template-shape matching (not
+  exact text) is what makes the post-renumber case work — the caption embeds the sheet number,
+  so exact text would miss every stale caption after a renumber, which is precisely when
+  `MatchLine_Sync` is run. Residual: a caption whose boundary geometry moved is orphaned rather
+  than deleted.
+- **P-5 / E-2 could not be verified outside Revit.** Both take Revit geometry types and
+  RevitAPI.dll is mixed-mode, so it will not load in a bare host. Testing a re-implementation
+  would assert against a copy, not the shipped code, so they rest on structural argument plus
+  the Revit smoke test.
 - **`IFamilyLoadOptions` `overwriteParameterValues` disagreement** (resolver false,
   TitleBlockSlotCommands true) — untouched, since no loading behaviour changed.
 
