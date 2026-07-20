@@ -1503,7 +1503,7 @@ Generic Models,ASS_OMNICLASS_TXT,a1b2c3d4-5022-4a01-b001-000000000134,TEXT,ASS_M
 Generic Models,ASS_SIZE_TXT,a1b2c3d4-5023-4a01-b001-000000000135,TEXT,ASS_MNG,Type,Element size description,False,,,MULTI,1,0
 Generic Models,ASS_ORIGIN_TXT,a1b2c3d4-5024-4a01-b001-000000000136,TEXT,ASS_MNG,Type,Asset origin (Manufactured/Imported/Local),False,,,MULTI,1,0
 Generic Models,ASS_PROJECT_TXT,a1b2c3d4-5025-4a01-b001-000000000137,TEXT,ASS_MNG,Type,Project name,False,,,MULTI,1,0
-Generic Models,ASS_REV_TXT,a1b2c3d4-5026-4a01-b001-000000000138,TEXT,ASS_MNG,Type,Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token.,False,,,MULTI,1,0
+Generic Models,ASS_REV_TXT,a1b2c3d4-5026-4a01-b001-000000000138,TEXT,ASS_MNG,Type,Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token.,False,,,MULTI,1
 Generic Models,ASS_VOL_TXT,a1b2c3d4-5027-4a01-b001-000000000139,TEXT,ASS_MNG,Type,Volume/zone code for ISO 19650 naming,False,,,MULTI,1,0
 Generic Models,ASS_ROOM_NAME_TXT,a1b2c3d4-5028-4a01-b001-000000000140,TEXT,ASS_MNG,Type,Room name from spatial lookup,False,,,MULTI,1,0
 Generic Models,ASS_ROOM_NUM_TXT,a1b2c3d4-5029-4a01-b001-000000000141,TEXT,ASS_MNG,Type,Room number from spatial lookup,False,,,MULTI,1,0
@@ -2640,7 +2640,7 @@ Electrical Equipment,ELC_CIRCUIT_LABEL_TXT,c2a7e5b1-3004-5333-9333-300000000004,
 Electrical Equipment,ELC_PNL_AIC_RATING_KA,f1d6e7c8-1001-5178-9178-100000000001,TEXT,ELC_PWR,Instance,Standardised AIC (Ampere Interrupting Capacity) tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_FEEDER_CSA_MM2,f1d6e7c8-1002-5178-9178-100000000002,TEXT,ELC_PWR,Instance,Calculated / proposed feeder cable cross-sectional area in mm² (distinct from circuit cable size) [STING Phase 178],False,,,ELECTRICAL,1,0
 Electrical Equipment,ELC_FEEDER_RATING_A,f1d6e7c8-1003-5178-9178-100000000003,TEXT,ELC_PWR,Instance,Calculated feeder breaker / fuse rating in amperes — the upstream protective device rating [STING Phase 178],False,,,ELECTRICAL,1,0
-Rooms,ELC_EMERG_COVERED_BOOL,f1d6e7c8-1004-5178-9178-100000000004,TEXT,ELC_PWR,Instance,Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178],False,,,ELECTRICAL,1,0
+Rooms,ELC_EMERG_COVERED_BOOL,f1d6e7c8-1004-5178-9178-100000000004,TEXT,ELC_PWR,Instance,Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178],False,,,ELECTRICAL,1
 Rooms,ELC_LPD_W_PER_M2,f1d6e7c8-1005-5178-9178-100000000005,TEXT,ELC_PWR,Instance,Calculated lighting power density of the room in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178],False,,,ELECTRICAL,1,0
 Rooms,ELC_LPD_LIMIT_W_PER_M2,f1d6e7c8-1006-5178-9178-100000000006,TEXT,ELC_PWR,Instance,Standard LPD limit for the room type in W/m² [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178],False,,,ELECTRICAL,1,0
 Rooms,ELC_LPD_STATUS_TXT,f1d6e7c8-1007-5178-9178-100000000007,TEXT,ELC_PWR,Instance,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178],False,,,ELECTRICAL,1,0
@@ -2881,7 +2881,7 @@ Views,STING_STYLE_LOCKED_BOOL,d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6,YESNO,STING_D
 Views,STING_PACK_ID_TXT,e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7,TEXT,STING_DRAWING,Instance,ViewStylePack registry id stamped on managed view templates [Phase 137],False,,,MULTI,1,0
 Views,STING_PACK_CHECKSUM_TXT,f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8,TEXT,STING_DRAWING,Instance,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137],False,,,MULTI,1,0
 Views,STING_CROP_KIND_TXT,b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01,TEXT,STING_DRAWING,Instance,Crop kind stamped onto views for drift detection [Phase 183],False,,,MULTI,1,0
-Views,STING_CROP_MARGIN_MM_TXT,c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12,TEXT,STING_DRAWING,Instance,Crop margin (mm, as string) stamped onto views for drift detection [Phase 183],False,,,MULTI,1,0
+Views,STING_CROP_MARGIN_MM_TXT,c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12,TEXT,STING_DRAWING,Instance,Crop margin (mm, as string) stamped onto views for drift detection [Phase 183],False,,,MULTI,1
 Views,STING_CDE_STATE_TXT,a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9,TEXT,STING_DRAWING,Instance,CDE state stamp for ISO 19650-2 document lifecycle [Phase 141],False,,,MULTI,1,0
 Medical Equipment,CLN_EQP_TAG,c1a00001-0000-4c1a-0000-000000000001,TEXT,CLN_CLINICAL,Instance,Clinical equipment ISO 19650 tag container,False,,,MULTI,1,0
 Rooms,CLN_ROOM_TAG,c1a00001-0000-4c1a-0000-000000000002,TEXT,CLN_CLINICAL,Instance,Clinical room ISO 19650 tag container,False,,,MULTI,1,0
@@ -3351,15 +3351,15 @@ Project,SUS_MAT_CARBON_KGM2_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03,NUMBER,SUS_S
 Project,SUS_MAT_ENERGY_MJ_M2_NR,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04,NUMBER,SUS_SUSTAINABILITY,Instance,Embodied energy intensity MJ/m2 (CED EDGE materials track) from MaterialsRollup [Phase 195 EDGE/LEED],False,,,MULTI,1,0
 Project,SUS_EDGE_LEVEL_TXT,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05,TEXT,SUS_SUSTAINABILITY,Instance,Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED],False,,,MULTI,1,0
 Multiple,SUS_EPD_REF_TXT,5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06,TEXT,SUS_SUSTAINABILITY,Instance,Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED],False,,,MULTI,1,0
-Materials,MAT_COST_SUPPLY_NR,114852b0-7002-5680-80cd-930f91e8250b,NUMBER,MAT_INFO,Instance,Material supply unit cost (rate only, currency-neutral) [Material Manager RFQ],False,,,MULTI,1,0
+Materials,MAT_COST_SUPPLY_NR,114852b0-7002-5680-80cd-930f91e8250b,NUMBER,MAT_INFO,Instance,Material supply unit cost (rate only, currency-neutral) [Material Manager RFQ],False,,,MULTI,1
 Materials,MAT_COST_INSTALL_NR,0621af78-0fbf-540e-9e6d-61df9925ae90,NUMBER,MAT_INFO,Instance,Material install unit cost (labour and plant) [Material Manager RFQ],False,,,MULTI,1,0
 Materials,MAT_VAT_PCT_NR,9794f566-efc2-5622-a23f-9e65e117eb48,NUMBER,MAT_INFO,Instance,Material VAT percentage applied to supply and install [Material Manager RFQ],False,,,MULTI,1,0
-Materials,STING_EMB_CARBON_NR,800e0d61-f88d-5071-bc87-0c4ca3e51243,NUMBER,MAT_INFO,Instance,Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon],False,,,MULTI,1,0
+Materials,STING_EMB_CARBON_NR,800e0d61-f88d-5071-bc87-0c4ca3e51243,NUMBER,MAT_INFO,Instance,Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon],False,,,MULTI,1
 Materials,STING_MAT_EPD_SRC_TXT,2776ca48-33b8-57a8-b2a6-ee982e442767,TEXT,MAT_INFO,Instance,EPD data source / publisher reference [Sustainability Carbon],False,,,MULTI,1,0
 Materials,STING_MAT_EPD_DATE_TXT,c02ad751-5de9-50cc-a018-d7469595f8cf,TEXT,MAT_INFO,Instance,EPD publication / validity date ISO 8601 [Sustainability Carbon],False,,,MULTI,1,0
 Materials,STING_MAT_LIFECYCLE_TXT,e5455edb-f4f9-5585-a65e-363aa31f0b59,TEXT,MAT_INFO,Instance,Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager],False,,,MULTI,1,0
-Plumbing Fixtures,SUS_FIXTURE_FLOW_LPM,b9c085ac-8d25-5286-bb8c-50f78c515e7c,NUMBER,PLM_DRN,Instance,Sanitary fixture flow rate l/min, WELS water efficiency [Sustainability EDGE],False,,,MULTI,1,0
-Plumbing Fixtures,SUS_FIXTURE_FLUSH_L,733de214-c4aa-5640-896c-ff9c472c8dfd,NUMBER,PLM_DRN,Instance,WC/urinal flush volume litres, WELS water efficiency [Sustainability EDGE],False,,,MULTI,1,0
+Plumbing Fixtures,SUS_FIXTURE_FLOW_LPM,b9c085ac-8d25-5286-bb8c-50f78c515e7c,NUMBER,PLM_DRN,Instance,Sanitary fixture flow rate l/min, WELS water efficiency [Sustainability EDGE],False,,,MULTI,1
+Plumbing Fixtures,SUS_FIXTURE_FLUSH_L,733de214-c4aa-5640-896c-ff9c472c8dfd,NUMBER,PLM_DRN,Instance,WC/urinal flush volume litres, WELS water efficiency [Sustainability EDGE],False,,,MULTI,1
 Electrical Equipment,ELC_CIR_REF_TXT,dd54810b-00a1-55eb-a388-8a37eea1aa9c,TEXT,ELC_PWR,Instance,Circuit reference / designation for SLD annotation [Electrical SLD],False,,,MULTI,1,0
 Electrical Equipment,ELC_CIR_VOLTAGE_TXT,a4618f96-d723-5366-8961-4acfb94e2b60,TEXT,ELC_PWR,Instance,Circuit nominal voltage for SLD annotation [Electrical SLD],False,,,MULTI,1,0
 Electrical Equipment,ELC_CIR_DESIGN_CURRENT_TXT,0a442c44-90fa-5d48-b11f-fca5d4cb4407,TEXT,ELC_PWR,Instance,Circuit design current Ib for SLD annotation [Electrical SLD],False,,,MULTI,1,0
