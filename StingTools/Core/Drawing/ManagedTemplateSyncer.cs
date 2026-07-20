@@ -159,6 +159,22 @@ namespace StingTools.Core.Drawing
             return seed;
         }
 
+        /// <summary>
+        /// Delete an element created moments ago that turned out unusable, so
+        /// a failed mint leaves nothing behind to accumulate. Best-effort:
+        /// a failure here is logged, never thrown.
+        /// </summary>
+        private static void TryDelete(Document doc, ElementId id)
+        {
+            if (doc == null || id == null || id == ElementId.InvalidElementId) return;
+            try { doc.Delete(id); }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"ManagedTemplateSyncer: could not clean up element {id} after a failed mint — {ex.Message}");
+            }
+        }
+
         internal static string GetManagedTemplateName(string packId, ViewType vt)
             => $"STING:{packId}:{vt}";
 
@@ -329,40 +345,69 @@ namespace StingTools.Core.Drawing
                 return ElementId.InvalidElementId;
             }
 
-            // 4. Copy seed
+            // 4. Mint the template from the seed.
+            //
+            // ResolveSeed falls back to a NON-template live view when the
+            // project has no "STING - " seed template — a fresh project, i.e.
+            // the common case. CopyElement on a live view yields another live
+            // view, not a template: SetViewTemplateId then rejects it, the
+            // IsTemplate-filtered lookup at step 2 can never find it again, and
+            // the next run re-minted it as _(2), _(3), … Revit's actual API for
+            // this is View.CreateViewTemplate(), which returns a real template.
             ElementId newId;
             try
             {
-                var copied = ElementTransformUtils.CopyElement(doc, seed.Id, XYZ.Zero);
-                if (copied == null || copied.Count == 0)
+                if (seed.IsTemplate)
                 {
-                    result.Warnings.Add("ManagedTemplateSyncer: seed copy returned no elements.");
-                    return ElementId.InvalidElementId;
+                    // Copying a template yields a template — correct as-is.
+                    var copied = ElementTransformUtils.CopyElement(doc, seed.Id, XYZ.Zero);
+                    if (copied == null || copied.Count == 0)
+                    {
+                        result.Warnings.Add("ManagedTemplateSyncer: seed copy returned no elements.");
+                        return ElementId.InvalidElementId;
+                    }
+                    newId = copied.First();
                 }
-                newId = copied.First();
+                else
+                {
+                    var made = seed.CreateViewTemplate();
+                    if (made == null)
+                    {
+                        result.Warnings.Add(
+                            $"ManagedTemplateSyncer: CreateViewTemplate returned null for seed '{seed.Name}' ({viewType}).");
+                        return ElementId.InvalidElementId;
+                    }
+                    newId = made.Id;
+                }
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"ManagedTemplateSyncer: seed copy failed — {ex.Message}");
+                result.Warnings.Add($"ManagedTemplateSyncer: minting template from seed '{seed.Name}' failed — {ex.Message}");
                 return ElementId.InvalidElementId;
             }
 
             var newView = doc.GetElement(newId) as View;
-            if (newView == null)
+            if (newView == null || !newView.IsTemplate)
             {
-                result.Warnings.Add("ManagedTemplateSyncer: copy did not yield a View.");
+                result.Warnings.Add(
+                    $"ManagedTemplateSyncer: minting did not yield a view template for pack '{pack.Id}' / {viewType}.");
+                TryDelete(doc, newId);
                 return ElementId.InvalidElementId;
             }
 
             try { newView.Name = templateName; }
-            catch
+            catch (Exception exName)
             {
-                try { newView.Name = templateName + "_(2)"; }
-                catch (Exception ex2)
-                {
-                    result.Warnings.Add($"ManagedTemplateSyncer: rename failed — {ex2.Message}");
-                    return ElementId.InvalidElementId;
-                }
+                // Previously this fell back to templateName + "_(2)", which is
+                // how junk accumulated: the suffixed view never matches the
+                // step-2 lookup, so every run minted another one. Fail loudly
+                // and clean up instead — the name is the template's identity.
+                result.Warnings.Add(
+                    $"ManagedTemplateSyncer: could not name the managed template '{templateName}' " +
+                    $"({exName.Message}). Another view is probably already using that name — " +
+                    "rename or delete it, then re-run. No template was created.");
+                TryDelete(doc, newId);
+                return ElementId.InvalidElementId;
             }
 
             ApplyPackToTemplate(doc, newView, pack, result);
@@ -564,11 +609,35 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
-            // Revit's API exposes SetNonControlledTemplateParameterIds (inverse
-            // logic). For Phase 137 the value writes done via SetIntBip /
-            // SetElementIdBip / SetDoubleBip already pin the managed values
-            // onto the template; we leave Revit's "controlled by template"
-            // flags at their defaults rather than computing the complement.
+            // Revit exposes the inverse: SetNonControlledTemplateParameterIds
+            // takes the parameters the template does NOT control. Phase 137
+            // built the managed list above and then discarded it, leaving the
+            // seed's own control flags in place. That was tolerable while the
+            // managed path was unreachable, but now that packs actually reach
+            // it a seed controlling VIEW_SCALE overrides the per-profile
+            // DrawingType.Scale the pipeline just wrote — "scale" is
+            // deliberately absent from DefaultManagedFields for exactly that
+            // reason (see the list at the top of this file).
+            //
+            // Complement = every template parameter minus the managed ones, so
+            // the pack controls precisely what it declares and nothing else.
+            try
+            {
+                var all = template.GetTemplateParameterIds();
+                if (all != null)
+                {
+                    var managed = new HashSet<ElementId>(paramIds);
+                    var nonControlled = all.Where(id => !managed.Contains(id)).ToList();
+                    template.SetNonControlledTemplateParameterIds(nonControlled);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: the template still carries the values written by
+                // ApplyPackToTemplate, it just keeps the seed's control flags.
+                StingTools.Core.StingLog.Warn(
+                    $"ManagedTemplateSyncer.SetManagedTemplateParameterIds('{pack.Id}'): {ex.Message}");
+            }
         }
 
         // ── Helpers ──
@@ -588,14 +657,22 @@ namespace StingTools.Core.Drawing
         private static int ResolveViewDiscipline(string discipline)
         {
             if (string.IsNullOrEmpty(discipline)) return -1;
+            // Read off Autodesk.Revit.DB.ViewDiscipline rather than hardcoded
+            // integers. The previous literals had Mechanical/Electrical/
+            // Plumbing as 4096/4097/4098, which are not members of the enum —
+            // VIEW_DISCIPLINE is a bit-flag parameter (Architectural 1,
+            // Structural 2, Mechanical 4, Electrical 8, Plumbing 16) and
+            // Coordination 4095 is the all-bits union. So the three MEP
+            // disciplines silently wrote invalid values, while Architectural,
+            // Structural and Coordination happened to be right.
             switch (discipline.Trim().ToLowerInvariant())
             {
-                case "architectural": return 1;
-                case "structural":    return 2;
-                case "mechanical":    return 4096;
-                case "electrical":    return 4097;
-                case "plumbing":      return 4098;
-                case "coordination":  return 4095;
+                case "architectural": return (int)ViewDiscipline.Architectural;
+                case "structural":    return (int)ViewDiscipline.Structural;
+                case "mechanical":    return (int)ViewDiscipline.Mechanical;
+                case "electrical":    return (int)ViewDiscipline.Electrical;
+                case "plumbing":      return (int)ViewDiscipline.Plumbing;
+                case "coordination":  return (int)ViewDiscipline.Coordination;
                 default:              return -1;
             }
         }
