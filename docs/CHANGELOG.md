@@ -2,6 +2,117 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 223 — SB-5a: IFC watcher wired to pull → reconcile → push)
+
+The multi-host sync engine landed in Phase 207 (corrected 214) and was verified
+two-way against real Postgres, but **nothing called it**. The IFC drop path was
+still extract → push, so a tag edited in Revit was silently overwritten the next
+time anyone re-exported the IFC. This closes ROADMAP **SB-5a** — the first cut,
+testable today without an ArchiCAD licence.
+
+**Wiring (`StingBridge/sync/ifc_reconcile.py`, new)**
+
+- `pull_and_reconcile` drains the change feed from this document's cursor,
+  reconciles against the extracted element set via the existing
+  `PullClient` / `CursorStore` / `ReconcileEngine`, and applies remote wins into
+  the in-memory token map.
+- `IfcTokenApplyAdapter` mutates the token dicts **in place**, so a remote win
+  reaches both the IFC write-back and the outgoing push with no second plumbing
+  step — two paths reading one object cannot drift apart.
+- Only `TOKEN_KEYS` are copied from a delta; `category`/`family` describe the
+  *authoring* host's element and would let a remote host rename our IFC types.
+  A sparse delta overwrites only the keys it names rather than blanking the rest.
+- **Ordering:** reconcile runs *before* SEQ minting. A remote element that
+  already carries a SEQ hands it over, so `assign_sequences()` mints nothing —
+  the same idempotency the write-back adoption gives us, extended across hosts.
+  Reconciling after minting would burn a counter value on every drop and then
+  immediately overwrite the number just minted.
+
+**Cursor persistence**
+
+- Stored at `<drop-root>/.sting_sync_cursor.json`, in the **root** — a cursor
+  written into `processing/` is archived away with the file, resetting every
+  restart to a full backfill.
+- Keyed per **document**, not per project (`ifc:<hostDocumentGuid>`). A drop
+  folder normally holds several federated exports against one project; with a
+  shared cursor the first file to drain the feed consumes every other file's
+  changes and they are never seen again. This matches the grain the server
+  already keys mappings on.
+- Written **after** reconcile, so a crash mid-pass replays the page rather than
+  losing it. Re-applying a delta is a no-op; skipping one loses an edit.
+
+**Local timestamps.** An IFC export carries no per-element edit time, so every
+element is stamped with the **file's mtime**. This is not merely a convenience:
+leaving it unset would trip the engine's "no local timestamp ⇒ remote wins" rule
+for *every* contested element, silently reverting a freshly exported model to
+whatever the hub last held.
+
+**Conflict sidecar (§1.4.3, local half)**
+
+- Every conflict is written to `<name>.conflicts.jsonl` beside the source and
+  logged as a structured line. One row per **differing token**, schema
+  `{ts, source, guid, key, local, remote, winner, applied, reason}`.
+- Registered in `hot_folder._companions` so it travels to `done/` / `failed/`
+  rather than being stranded in `processing/`.
+- Raising a **Planscape issue** for the loser remains **NOT implemented** —
+  that is server-contract work owned by another lane, so §1.4.3 stays open. The
+  sidecar is the honest local half: a conflict is never *silent*, which was the
+  dangerous part.
+
+**§1.4.4 client-side push chunking (`StingBridge/sync/push_chunker.py`, new)**
+
+Replaces the fixed loop of 100 with no retry, where a single transient 503 lost
+that slice of the model into `result["errors"]`.
+
+- Configurable chunk size (`STING_PUSH_CHUNK_SIZE`, default 100).
+- Retry with capped exponential backoff on transient failures (408/425/429/5xx
+  and transport errors). A 4xx that is not 429/408 is a *decision* and is never
+  retried.
+- **413 splits the chunk** rather than failing: halved and re-queued down to a
+  single element. An operator no longer has to guess a working chunk size before
+  their first successful ingest.
+- A chunk that exhausts its retries is recorded and the run continues — on a
+  large ingest, losing one slice beats abandoning everything after it.
+
+**§1.4.5 GlobalId-stability fixture** (`test_ifc_globalid_stability.py`) — the
+leg of the plan's Revit→IFC→Bonsai fixture that can run in CI today, on the path
+we actually ship: same IFC dropped twice ⇒ **zero new mapping rows**; write-back
+preserves every GlobalId; re-ingesting our own `_sting.ifc` resolves to the same
+elements. That failure mode is invisible from inside one host, which is exactly
+why it needs a standing test.
+
+**Bug found and fixed during review.** The sidecar initially read local values
+from the live token map inside the `on_conflict` callback. Because the adapter
+mutates in place and `ReconcileEngine` applies *before* it reports, every
+remote-wins row recorded `local == remote` — losing the one fact the audit trail
+exists to preserve. Values are now snapshotted pre-apply; covered by a named
+regression test.
+
+**Tests** — 44 new, suite 222 → 266, nothing pre-existing red. Watcher-level
+round-trip over real IFC files with a fake change feed (remote-newer applied to
+both the written-back IFC and the push; local-newer kept and surfaced; sparse
+deltas; absent gids counted `absent` not `failed`), cursor persistence across a
+simulated restart, per-document cursor isolation, degradation paths (pull
+disabled / hub unreachable / no endpoint), and the chunker's retry, split and
+partial-failure behaviour. Verified the new tests bite by mutation.
+
+**Known limitations carried forward** (feed contract, unchanged here): the feed
+carries `kind="tag"` only; rows with a null `LastModifiedUtc` never appear, so
+pre-existing elements stay invisible until next edited (a backfill may be
+needed); and there are no delete tombstones, so a deletion never propagates —
+such a delta arrives as `absent` and is counted, not silently dropped.
+
+Not touched: `sync/engine.py`'s live-ArchiCAD flow and its 60-second grace
+heuristic (SB-5b, blocked behind SB-1), `seq_minter.py` contracts, and the
+hot-folder archival contract beyond adding the sidecar to `_companions`.
+
+New files: `StingBridge/sync/ifc_reconcile.py` · `StingBridge/sync/push_chunker.py` ·
+`StingBridge/tests/test_ifc_pull_reconcile.py` ·
+`StingBridge/tests/test_push_chunker.py` ·
+`StingBridge/tests/test_ifc_globalid_stability.py`
+
+---
+
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
 - **`HandoffProvisioningSqliteTests` calls the real method.** It previously
