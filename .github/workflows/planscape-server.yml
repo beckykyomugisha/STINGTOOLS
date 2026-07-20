@@ -25,6 +25,25 @@ jobs:
       run:
         working-directory: Planscape.Server
 
+    # A real PostgreSQL. The suite's other DbContexts are EF InMemory / SQLite,
+    # and neither emits the SQL that broke /seq/reserve in production (PR #441:
+    # FirstAsync composing over non-composable INSERT … RETURNING). Without a
+    # server in CI that whole bug class stays invisible.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: planscape_test
+          POSTGRES_USER: planscape
+          POSTGRES_PASSWORD: planscape_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,9 +59,42 @@ jobs:
       - name: Build
         run: dotnet build Planscape.sln --no-restore --configuration Release
 
-      - name: Run tests
-        run: dotnet test Planscape.sln --no-build --configuration Release --verbosity normal
-        continue-on-error: true  # No tests yet — don't fail CI
+      # ── Gate 1: the Postgres integration tests must be 100% green ──────────
+      #
+      # Small, new, and carrying no legacy debt, so "all must pass" is a
+      # meaningful bar. They SKIP (not pass) when PLANSCAPE_TEST_PG is unset,
+      # which is why it is set explicitly here — a silent skip in CI would be
+      # the same false comfort this gate exists to remove.
+      - name: Run Postgres integration tests
+        env:
+          PLANSCAPE_TEST_PG: "Host=localhost;Port=5432;Database=planscape_test;Username=planscape;Password=planscape_ci"
+          Jwt__Key: "ci-only-3xJ9pQ7wR2mV5nB8kL4hT6yG1sD0aZfE"
+        run: |
+          dotnet test Planscape.sln --no-build --configuration Release             --filter "FullyQualifiedName~Postgres" --verbosity normal
+
+      # ── Gate 2: no NEW failures in the rest of the suite ───────────────────
+      #
+      # WHY NOT "zero failures": the suite carries 66 uniquely-named
+      # pre-existing failures (73 cases). Gating on zero makes CI permanently
+      # red and therefore ignored — which is exactly how this step ended up with
+      # `continue-on-error: true` and a comment claiming "No tests yet" while
+      # 400+ tests existed. Gating on "nothing NEW broke" is enforceable today.
+      #
+      # Fixing a baseline entry: delete its line from
+      # Planscape.Server/tests/known-failing-tests.txt in the same PR, and the
+      # check then guards the fix.
+      - name: Run full test suite
+        id: fullsuite
+        env:
+          PLANSCAPE_TEST_PG: "Host=localhost;Port=5432;Database=planscape_test;Username=planscape;Password=planscape_ci"
+          Jwt__Key: "ci-only-3xJ9pQ7wR2mV5nB8kL4hT6yG1sD0aZfE"
+        run: |
+          set +e
+          dotnet test Planscape.sln --no-build --configuration Release             --verbosity normal 2>&1 | tee /tmp/test-output.txt
+          exit 0            # the diff below decides pass/fail, not the exit code
+
+      - name: Fail only on NEW test failures
+        run: bash tests/check-new-failures.sh /tmp/test-output.txt
 
       - name: Generate OpenAPI spec
         working-directory: Planscape.Server
