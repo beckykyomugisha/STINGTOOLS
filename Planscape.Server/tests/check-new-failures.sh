@@ -24,8 +24,13 @@ if ! grep -qE "^(Passed!|Failed!)" "$OUTPUT"; then
   exit 1
 fi
 
-grep -o "Planscape\.Tests\.[A-Za-z0-9_.]*\ \[FAIL\]" "$OUTPUT" \
-  | sed 's/ \[FAIL\]//' | sort -u > /tmp/actual-failures.txt
+# Theory cases print as `Name(arg: "x", …) [FAIL]`. The previous pattern
+# required a space immediately before "[FAIL]", so the "(" ended the match and
+# every failing theory case was invisible to this check — a newly-broken theory
+# would have sailed through CI. Match the optional argument list and strip it,
+# collapsing cases to the base method name the baseline file lists.
+grep -oE "Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))? \[FAIL\]" "$OUTPUT" \
+  | sed -E 's/\(.*\)//; s/ \[FAIL\]//' | sort -u > /tmp/actual-failures.txt
 
 grep -vE '^\s*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
 

@@ -496,6 +496,12 @@ catch (Exception ex)
 }
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
 
+// Replay protection for single-use tokens (currently the planscape.build →
+// server handoff ticket). Behind an interface so tests can drive both halves —
+// see Planscape.Core.Interfaces.IReplayGuard.
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IReplayGuard,
+                              Planscape.Infrastructure.Services.RedisReplayGuard>();
+
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {
     options.Configuration.ChannelPrefix = RedisChannel.Literal("Planscape");
@@ -725,7 +731,22 @@ else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
         Planscape.Infrastructure.Services.GltfBoundsThumbnailGenerator>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        // Several controllers return EF entities directly, and the entity graph
+        // is cyclic by design (DocumentRecord.Project ↔ Project.Documents,
+        // ProjectMember.Project ↔ Project, …). Once EF change-tracking fixup
+        // populates those navigations — which it does whenever the same request
+        // already loaded the parent — System.Text.Json threw mid-response and
+        // the client saw a truncated body / 500.
+        //
+        // IgnoreCycles writes null at the point the cycle closes instead of
+        // throwing. Endpoints that already serialised cleanly are unaffected,
+        // since a graph with no cycle has nothing to ignore.
+        o.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // MODEL-VIEWER — raise the multipart form parser cap to 200 MB so the

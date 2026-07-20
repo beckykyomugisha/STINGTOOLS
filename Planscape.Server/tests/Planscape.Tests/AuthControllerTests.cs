@@ -64,7 +64,10 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(string.IsNullOrEmpty(json.GetProperty("accessToken").GetString()));
-        Assert.Equal("Starter", json.GetProperty("tier").GetString());
+        // The billing rework replaced the LicenseTier-shaped "tier" field with
+        // BillingPlan-shaped "plan" (+ "plannedUpgrade"). A new org starts on
+        // the 30-day trial.
+        Assert.Equal("Trial", json.GetProperty("plan").GetString());
         Assert.True(json.GetProperty("licenseKey").GetString()!.StartsWith("STING-TRIAL-"));
     }
 
@@ -222,11 +225,29 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
     [Fact]
     public async Task HealthCheck_ReturnsHealthy()
     {
+        // /health/live, not /health. The full diagnostic at /health reports the
+        // topology (which DB, which push provider, Redis ping) and is gated to
+        // private-network callers; TestServer has no socket, so
+        // Connection.RemoteIpAddress is null and the gate correctly refuses.
+        // Liveness is the ungated probe and is what this test is really after.
         var client = _factory.CreateClient();
-        var response = await client.GetAsync("/health");
+        var response = await client.GetAsync("/health/live");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("healthy", json.GetProperty("status").GetString());
+        Assert.Equal("alive", json.GetProperty("status").GetString());
+    }
+
+    /// <summary>
+    /// The S11 gate on the full diagnostic. Pinned because it is the kind of
+    /// restriction that gets quietly relaxed to "fix" a failing probe.
+    /// </summary>
+    [Fact]
+    public async Task HealthDiagnostic_UngatedCaller_IsForbidden()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("/health");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }

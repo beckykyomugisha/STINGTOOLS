@@ -24,7 +24,20 @@ public static class ProjectVisibility
     /// </summary>
     public static bool IsTenantAdmin(ClaimsPrincipal user)
     {
-        var role = user.FindFirst("role")?.Value ?? "";
+        // The token is minted with a short "role" claim (AuthController), but the
+        // JWT bearer handler runs default inbound claim mapping, which rewrites
+        // "role" to the ClaimTypes.Role URI before any of this code sees it.
+        // Reading only "role" therefore returned null on EVERY real request and
+        // this method was unconditionally false — tenant Owners and
+        // SecurityOfficers silently lost their see-everything privilege and fell
+        // through to the author-or-member predicate below.
+        //
+        // Both other role readers in the codebase already carry this fallback
+        // (Auth/RequireRoleAttribute.cs, Auth/TenantContextMiddleware.cs); this
+        // one was missed when the visibility model landed.
+        var role = user.FindFirst("role")?.Value
+                ?? user.FindFirst(ClaimTypes.Role)?.Value
+                ?? "";
         return role is "Admin" or "Owner" or "SecurityOfficer";
     }
 

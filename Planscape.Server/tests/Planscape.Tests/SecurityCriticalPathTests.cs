@@ -24,8 +24,9 @@ namespace Planscape.Tests;
 /// the tenant-isolation, billing, or audit machinery has regressed —
 /// stop the deploy.
 ///
-/// Test 1 — Tenant query filter: every entity returns 0 rows when
-///          CurrentTenantId is empty.
+/// Test 1 — Tenant query filter: every TENANT-SCOPED entity returns 0 rows
+///          when CurrentTenantId is empty. (Tenant itself is not scoped —
+///          see the test.)
 /// Test 2 — Storage path enforcement: tenant A's path rejected when
 ///          ITenantContext resolves tenant B.
 /// Test 3 — Stripe webhook: bad signature → null (controller maps to 401).
@@ -58,7 +59,14 @@ public class SecurityCriticalPathTests
         // Read with no tenant context (Guid.Empty) — filter must yield 0 rows.
         using var db = NewDb(dbName, currentTenant: Guid.Empty);
         Assert.Empty(await db.Projects.ToListAsync());
-        Assert.Empty(await db.Tenants.ToListAsync());
+
+        // Tenant itself is deliberately NOT filtered: it does not implement
+        // ITenantScoped and has no TenantId column — it IS the tenant, keyed by
+        // Id, so `TenantId == CurrentTenantId` is not expressible on it. The
+        // filter has never applied to it. Asserting otherwise (as this test
+        // used to) tested a promise the design never made; Projects above is
+        // the assertion that actually covers tenant isolation.
+        Assert.NotEmpty(await db.Tenants.ToListAsync());
     }
 
     [Fact]
@@ -192,11 +200,12 @@ public class SecurityCriticalPathTests
             seed.Tenants.Add(new Tenant
             {
                 Id = tenantId, Slug = "t", Name = "T",
-                Plan = BillingPlan.Trial,    // limits: 3 projects
+                // Trial allowed 3 projects when this test was written; the
+                // Small/Medium/Large repricing cut it to 1 (BillingPlanLimits.For).
+                Plan = BillingPlan.Trial,
             });
-            // 3 projects already exist — Trial cap reached.
-            for (int i = 0; i < 3; i++)
-                seed.Projects.Add(new Project { TenantId = tenantId, Code = $"P{i}", Name = $"P{i}" });
+            // Trial cap reached at one project.
+            seed.Projects.Add(new Project { TenantId = tenantId, Code = "P0", Name = "P0" });
             await seed.SaveChangesAsync();
         }
 
@@ -207,8 +216,8 @@ public class SecurityCriticalPathTests
         var result = await guard.CheckCanAddProjectAsync();
         Assert.False(result.Allowed);
         Assert.Equal(QuotaAxis.Projects, result.Axis);
-        Assert.Equal(3, result.Current);
-        Assert.Equal(3, result.Max);
+        Assert.Equal(1, result.Current);
+        Assert.Equal(1, result.Max);
     }
 
     [Fact]
@@ -222,7 +231,12 @@ public class SecurityCriticalPathTests
             seed.Tenants.Add(new Tenant
             {
                 Id = tenantId, Slug = "t", Name = "T",
-                Plan = BillingPlan.Network,   // limits: 10 projects
+                // Practice, not Network: this test is about a finite cap with
+                // room left in it. Network became unlimited (int.MaxValue) in
+                // the repricing, which short-circuits the guard and would make
+                // "allows below limit" degenerate into "allows always".
+                // Practice still carries the 10-project cap this test assumed.
+                Plan = BillingPlan.Practice,
             });
             seed.Projects.Add(new Project { TenantId = tenantId, Code = "P1", Name = "P1" });
             await seed.SaveChangesAsync();

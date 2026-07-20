@@ -1380,7 +1380,18 @@ public class DocumentsController : ControllerBase
 
     private UserRole GetUserRole()
     {
-        var roleClaim = User.FindFirst("role")?.Value;
+        // The JWT bearer handler runs default inbound claim mapping, which
+        // rewrites the minted "role" claim to the ClaimTypes.Role URI. Reading
+        // only "role" returned null and fell through to Viewer, so EVERY CDE
+        // state transition was evaluated as if the caller were a Viewer and
+        // nobody could move a document out of WIP.
+        //
+        // ~24 sites across the API read the claim this way; this fixes the one
+        // that gates document state. See ROADMAP DEP-12 for the central fix
+        // (MapInboundClaims=false + RoleClaimType) — that is an
+        // authorization-wide change and wants its own review.
+        var roleClaim = User.FindFirst("role")?.Value
+                     ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
         return Enum.TryParse<UserRole>(roleClaim, ignoreCase: true, out var role) ? role : UserRole.Viewer;
     }
 

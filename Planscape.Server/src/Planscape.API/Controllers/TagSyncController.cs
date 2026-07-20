@@ -67,15 +67,22 @@ public class TagSyncController : ControllerBase
     [HttpPost("sync")]
     public async Task<ActionResult<TagSyncResponse>> SyncElements([FromBody] TagSyncRequest request)
     {
-        if (request.Elements.Count == 0)
-            return Ok(new TagSyncResponse { Received = 0 });
-
         if (request.Elements.Count > 50_000)
             return BadRequest(new { message = "Maximum 50,000 elements per sync request" });
 
+        // Authorize BEFORE the empty-batch fast path. This controller takes
+        // projectId from the request body rather than the route, so [ProjectAccess]
+        // does not apply and these three lines are the ONLY tenant isolation on
+        // the endpoint. With the empty-batch return above them, a caller from any
+        // tenant got 200 for any projectId — an existence oracle, and a live
+        // hazard the moment anything (audit row, LastSyncAt touch, hub broadcast)
+        // is added to the empty-batch path.
         if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+
+        if (request.Elements.Count == 0)
+            return Ok(new TagSyncResponse { Received = 0 });
 
         int created = 0, updated = 0;
         var conflicts = new List<SyncConflictDto>();

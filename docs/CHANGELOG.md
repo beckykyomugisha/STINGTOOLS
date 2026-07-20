@@ -14433,3 +14433,95 @@ engineering" now have first-shipped implementations:
 - `Data/STING_REFNET_JOINTS.json`
 - `Data/STING_CTF_COEFFICIENTS.json`
 
+
+---
+
+## Server test-health pass — DEP-5 / DEP-6a / DEP-10 / DEP-11
+
+Scope: `Planscape.Server` only. Integration-suite failures **73 → 9**
+(430 passing). `check-new-failures.sh` exits 0; `known-failing-tests.txt`
+shrank from 66 entries to 9, and every remaining entry now carries a diagnosis.
+
+### The headline: five of the "drifted assertions" were real bugs
+
+DEP-10 assumed the 73 failures were stale test expectations. Five were not.
+
+| Bug | Effect in production |
+|---|---|
+| `ProjectVisibility.IsTenantAdmin` read `FindFirst("role")`, which JWT inbound claim mapping had already rewritten to the `ClaimTypes.Role` URI | The claim was always null, so the method was **always false**. Tenant Owners and SecurityOfficers lost their see-everything privilege and fell through to the author-or-member predicate: they saw only projects they personally created and got 404 on deep links to any other project in their own tenant. Root cause of ~28 of the 73 failures |
+| `DocumentsController.GetUserRole()` — same claim bug | Every CDE state transition was evaluated as if the caller were a `Viewer`, so nobody could move a document out of WIP |
+| `/api/auth/refresh` missing `IgnoreQueryFilters()` | `AppUser` is `ITenantScoped` and the endpoint is anonymous, so the global tenant filter ran with `CurrentTenantId == Guid.Empty` and matched zero rows — **every refresh returned 401**. Login, ForgotPassword and ResetPassword all bypass the filter and say why; refresh was missed |
+| `/api/auth/license/activate` missing `IgnoreQueryFilters()` | Same mechanism on `LicenseKey`. Licence activation from the Revit add-in — which calls this before any session exists — **could never succeed for anyone**. Its companion test `ActivateLicense_InvalidKey_ReturnsInvalid` was passing for the wrong reason |
+| `TagSyncController.SyncElements` returned on an empty batch **above** the tenant check | This controller takes `projectId` from the body, so `[ProjectAccess]` does not apply and those three lines are its only isolation. A caller from any tenant got 200 for any `projectId` — an existence oracle, and a live hazard the moment anything is added to the empty-batch path |
+
+Also fixed: `DocumentRecord.Project` ↔ `Project.Documents` is a serialization
+cycle, and several controllers return raw entities, so any successful create
+threw mid-response once EF fixup populated the navigation. Latent only because
+the visibility bug 404'd those endpoints first. `ReferenceHandler.IgnoreCycles`
+is now set on the MVC JSON options.
+
+### Fixture rot (the genuine test drift)
+
+- **Global tenant query filter** starved fixtures written before it landed. Handler
+  unit tests built a `DbContext` with no `ITenantContext`, so `CurrentTenantId`
+  was `Guid.Empty` and every seeded row was filtered out — both DB grant paths in
+  `BimManagerOrAdminHandler` were dead. Fixed with a stub tenant context and
+  `TenantId` on seeded `ProjectMember` rows, *not* by bypassing the filter, which
+  would have made the denial tests pass vacuously.
+- **`AddDbContext` invokes its options lambda per context instance**, so
+  `UseInMemoryDatabase(Guid.NewGuid().ToString())` gave the fixture and the
+  handler's own scope two different empty stores. Hoisted to a local.
+- **`Tenant.Plan` was never seeded** in the test factory, defaulting to `Trial`,
+  which now allows one project — and one was already seeded, so every create
+  402'd. `SeedData.cs:60-63` had hit and documented the identical trap.
+- **The seeded project had no `CreatedById` and no `ProjectMember`**, so it was
+  invisible to everyone under the visibility model.
+- **EF InMemory raises `TransactionIgnoredWarning` as an error**, 500-ing any
+  handler that opens a transaction.
+- Assertions genuinely stale: Trial project cap 3 → 1 and Network 10 →
+  unlimited after the repricing; `register` returns `plan`, not `tier`;
+  `/health` is gated to private-network callers (the liveness probe is
+  `/health/live`); `/meetings/actions/open` returns a paginated envelope.
+
+### DEP-6a — `IReplayGuard`
+
+`Core/Interfaces/IReplayGuard.cs` + `Infrastructure/Services/RedisReplayGuard.cs`,
+faked by `TestReplayGuard`. The implementation deliberately does **not** swallow
+transport exceptions: whether an unreachable store fails open or closed is a
+security decision that belongs at the call site, next to the thing it protects.
+Fail-open semantics are unchanged. Four tests cover replay-blocked,
+distinct-tickets-independent, fail-open-on-throw, and guard-actually-consulted.
+
+### Harness
+
+`check-new-failures.sh` required a space immediately before `[FAIL]`, so the `(`
+of a theory case ended the match and **every failing theory case was invisible to
+CI** — a newly-broken theory would have sailed through. Now matched and collapsed
+to the base method name.
+
+### Known limits, stated honestly
+
+- **3 tests need real PostgreSQL** and cannot pass on the InMemory harness:
+  `EF.Functions.ILike` is Npgsql-only, and `SequenceCounterService` runs
+  `INSERT … ON CONFLICT … RETURNING` via `SqlQueryRaw`. Not bugs; they belong in
+  the real-Postgres suite. **Not run against Postgres in this pass.**
+- **6 tests are confirmed production defects in `DeliverableStateMachine`**
+  (ROADMAP DEP-14) — including `"BLOCKED".Contains("LOCKED")` misclassifying
+  every `BLOCKED*` state as terminal. Not fixed here: each remedy changes how
+  every tenant's custom workflow vocabulary is classified.
+- **~22 further `FindFirst("role")` sites remain unmapped** (ROADMAP DEP-12).
+  Audited as fail-closed, so this degrades function rather than opening access.
+  The central fix touches every claim reader and needs its own security review.
+- **Log output cannot be asserted from an integration test** (ROADMAP DEP-13):
+  Serilog's `Log.Logger` is process-global and concurrent hosts race over it.
+- **Two lines were ADDED to the baseline** (the file still went 66 → 11 net):
+  `Login_NonexistentUser_Returns401` and
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly`. Both are pre-existing
+  order/parallelism flakes, confirmed by running `origin/main` — the Login one
+  fails 3/3 there in the full suite and passes in isolation, so the previous
+  baseline simply captured a luckier run. The ETag one stands up a second
+  `WebApplicationFactory`, which is exactly the DEP-7 hazard. Listing them makes
+  CI deterministic instead of randomly red; the check script still prints a
+  "now PASS" notice on runs where they succeed, so they stay visible.
+  A shared never-disposed `JobStorage` was tried as a DEP-7 mitigation and made
+  the suite *worse* (cross-factory state bleed) — reverted, not shipped.

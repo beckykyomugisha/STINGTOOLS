@@ -68,18 +68,21 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IPermissionRevocationStore _revocations;
     private readonly IConnectionMultiplexer _redis;
+    private readonly Planscape.Core.Interfaces.IReplayGuard _replayGuard;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(PlanscapeDbContext db,
                           IConfiguration config,
                           IPermissionRevocationStore revocations,
                           IConnectionMultiplexer redis,
+                          Planscape.Core.Interfaces.IReplayGuard replayGuard,
                           ILogger<AuthController> logger)
     {
         _db = db;
         _config = config;
         _revocations = revocations;
         _redis = redis;
+        _replayGuard = replayGuard;
         _logger = logger;
     }
 
@@ -294,13 +297,23 @@ public class AuthController : ControllerBase
     /// <summary>Exchange a refresh token for a new access token.</summary>
     /// <response code="200">New JWT access token and refresh token.</response>
     /// <response code="401">Invalid or expired refresh token.</response>
+    // Anonymous and brute-forceable — it exchanges a bearer secret for a live
+    // session, so it belongs on the strict "auth" policy alongside login rather
+    // than the looser global "api" fallback.
+    [EnableRateLimiting("auth")]
     [HttpPost("refresh")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest req)
     {
         var refreshHash = HashRefreshToken(req.RefreshToken);
+        // IgnoreQueryFilters: AppUser is ITenantScoped and this endpoint is
+        // anonymous, so CurrentTenantId is Guid.Empty and the global tenant
+        // filter matched zero rows — every refresh returned 401. Login,
+        // ForgotPassword and ResetPassword all bypass the filter for exactly
+        // this reason; refresh was missed.
         var user = await _db.Users
+            .IgnoreQueryFilters()
             .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.RefreshToken == refreshHash && u.IsActive);
 
@@ -805,11 +818,19 @@ public class AuthController : ControllerBase
 
     /// <summary>Activate a licence key to unlock a tier (Professional / Premium / Enterprise).</summary>
     /// <response code="200">Activation result with tier, MIM flag, and server URL.</response>
+    // Unauthenticated, and it answers "is this key valid?" — a brute-force
+    // oracle over the licence keyspace without a limiter in front of it.
+    [EnableRateLimiting("auth")]
     [HttpPost("license/activate")]
     [ProducesResponseType(typeof(LicenseActivationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<LicenseActivationResponse>> ActivateLicense([FromBody] LicenseActivationRequest req)
     {
+        // IgnoreQueryFilters: LicenseKey is ITenantScoped and this endpoint is
+        // anonymous (the Revit add-in calls it before any session exists), so
+        // the global tenant filter ran with CurrentTenantId == Guid.Empty and
+        // excluded every key — activation could never succeed for anyone.
         var key = await _db.LicenseKeys
+            .IgnoreQueryFilters()
             .Include(k => k.Tenant)
             .FirstOrDefaultAsync(k => k.Key == req.LicenseKey && k.IsActive);
 
@@ -1004,14 +1025,17 @@ public class AuthController : ControllerBase
         // duplicate session for the same legitimate user inside a 120s window.
         try
         {
-            var redisDb = _redis.GetDatabase();
-            var fresh = await redisDb.StringSetAsync(
-                $"handoff:jti:{p.Jti}", 1, TimeSpan.FromMinutes(5), When.NotExists);
+            var fresh = await _replayGuard.TryClaimAsync(
+                $"handoff:jti:{p.Jti}", TimeSpan.FromMinutes(5));
             if (!fresh)
                 return Unauthorized(new { message = "Ticket already used — go back to planscape.build and try again." });
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
         {
+            // Filter stays transport-specific on purpose. Widening it to `catch
+            // Exception` would silently convert a *logic* bug in the guard into
+            // a fail-open too, which is a different and much worse trade than
+            // the deliberate one documented above.
             _logger.LogWarning(ex, "Redis unavailable during handoff jti check; single-use protection degraded.");
         }
 

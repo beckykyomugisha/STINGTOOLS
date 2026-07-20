@@ -259,8 +259,9 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         // Get open actions
         var openResp = await client.GetAsync($"{_projBase}/meetings/actions/open");
         Assert.Equal(HttpStatusCode.OK, openResp.StatusCode);
+        // Paginated envelope { items, total, page, pageSize }, not a bare array.
         var openActions = await openResp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(openActions.GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("items").GetArrayLength() >= 1);
     }
 
     [Fact]
@@ -575,8 +576,13 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     [Fact]
     public async Task Members_MemberRole_CannotAdd()
     {
+        // viewer@test.org, not member@test.org: this test is about the ROLE
+        // check rejecting a non-manager, so the caller must first be able to
+        // see the project. A non-member gets 404 from the access filter (which
+        // deliberately does not confirm the project exists) and never reaches
+        // the 403 under test.
         var client = await _factory.CreateAuthenticatedClientAsync(
-            "member@test.org", "Password123!");
+            "viewer@test.org", "Password123!");
         var response = await client.PostAsJsonAsync($"{_projBase}/members", new
         {
             userId = TestData.AdminUserId,
