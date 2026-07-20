@@ -26,6 +26,12 @@
     <!-- Coordination-log wire format. Revit-free by design so the JSONL contract is
          testable outside Revit. -->
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
+    <!-- Issue register: canonical schema + id minting + status vocabulary. Kept Revit-free
+         so the schema-fork migration and the duplicate-id regression are testable outside
+         Revit. The Revit-facing repository (Core/IssueStore.cs) is not linked here — it
+         needs a Document for path resolution. -->
+    <Compile Include="..\StingTools\Core\IssueSchema.cs" Link="Core\IssueSchema.cs" />
+    <Compile Include="..\StingTools\Core\IssueStatusNormalizer.cs" Link="Core\IssueStatusNormalizer.cs" />
     <Compile Include="..\StingTools\Core\SeqAssigner.cs" Link="Core\SeqAssigner.cs" />
     <Compile Include="..\StingTools\Core\SeqBlockReservation.cs" Link="Core\SeqBlockReservation.cs" />
     <Compile Include="..\StingTools\Core\Validation\ProgramAuditEngine.cs" Link="Core\Validation\ProgramAuditEngine.cs" />

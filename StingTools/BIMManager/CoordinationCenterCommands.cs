@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -804,13 +804,13 @@ namespace StingTools.BIMManager
                     data["issues_summary"] = new JObject
                     {
                         ["total"] = issues.Count,
-                        ["open"] = issues.Count(i => i["status"]?.ToString() == "OPEN"),
+                        ["open"] = issues.OfType<JObject>().Count(IssueSchema.IsOpen),
                         ["in_progress"] = issues.Count(i => i["status"]?.ToString() == "IN_PROGRESS"),
                         ["closed"] = issues.Count(i => i["status"]?.ToString() == "CLOSED"),
                         ["overdue"] = issues.Count(i =>
                         {
                             if (!DateTime.TryParse(i["sla_deadline"]?.ToString(), out var dl)) return false;
-                            return DateTime.Now > dl && i["status"]?.ToString() != "CLOSED";
+                            return DateTime.Now > dl && IssueSchema.IsOpen(i as JObject);
                         })
                     };
                 }
@@ -1674,7 +1674,7 @@ render();
                 if (File.Exists(issuePath))
                 {
                     var issues = JArray.Parse(File.ReadAllText(issuePath));
-                    var open = issues.Where(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "RESOLVED").ToList();
+                    var open = issues.OfType<JObject>().Where(IssueSchema.IsOpen).ToList();
                     issueCount = open.Count;
 
                     var critical = open.Where(i => i["priority"]?.ToString() == "CRITICAL").ToList();

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -1456,7 +1456,7 @@ namespace StingTools.BIMManager
                 scopeDlg.MainInstruction = "Which issues to export?";
                 scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "All Issues",
                     $"{issues.Count} issues total");
-                int openCount = issues.Count(i => i["status"]?.ToString() == "OPEN" || i["status"]?.ToString() == "IN_PROGRESS");
+                int openCount = issues.OfType<JObject>().Count(IssueSchema.IsOpen);
                 scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Open Issues Only",
                     $"{openCount} open/in-progress issues");
                 var scopeResult = scopeDlg.Show();
@@ -1465,7 +1465,7 @@ namespace StingTools.BIMManager
                 if (scopeResult == TaskDialogResult.CommandLink2)
                 {
                     exportIssues = new JArray(issues.Where(i =>
-                        i["status"]?.ToString() == "OPEN" || i["status"]?.ToString() == "IN_PROGRESS"));
+                        IssueSchema.IsOpen(i as JObject)));
                 }
                 else
                 {
@@ -2094,8 +2094,14 @@ namespace StingTools.BIMManager
             int issuesMerged = 0;
             try
             {
-                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-                issuesMerged = Task.Run(() => client.SyncIssuesFromServerAsync(projectId, issuesPath))
+                // Push local-only issues UP first, so an issue raised while offline exists
+                // server-side before we pull — otherwise the pull has nothing to match it
+                // against and the two stores stay divergent (Phase 2, IM-4).
+                Task.Run(() => IssueStore.ReconcileToServerAsync(doc)).GetAwaiter().GetResult();
+
+                // Document overload — the register resolves through CoordStores rather than
+                // this caller choosing a path.
+                issuesMerged = Task.Run(() => client.SyncIssuesFromServerAsync(projectId, doc))
                     .GetAwaiter().GetResult();
             }
             catch (Exception ex) { StingLog.Warn($"Issue pull from server: {ex.Message}"); }

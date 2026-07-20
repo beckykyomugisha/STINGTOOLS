@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -2448,7 +2448,7 @@ namespace StingTools.Core
 
                 foreach (var g in byDisc.OrderByDescending(x => x.Count()))
                 {
-                    int open = g.Count(c => c["status"]?.ToString() != "CLOSED");
+                    int open = g.Count(c => IssueSchema.IsOpen(c as JObject));
                     int critical = g.Count(c => c["priority"]?.ToString() == "CRITICAL" || c["priority"]?.ToString() == "HIGH");
                     groups.Add(new ClashGroup
                     {

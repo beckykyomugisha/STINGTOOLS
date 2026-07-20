@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
@@ -1677,170 +1677,27 @@ namespace StingTools.Core
 
         /// <summary>Phase 47: Auto-create issues from critical/high severity warnings.
         /// Groups warnings by category, creates one issue per category with element links.</summary>
+        /// <summary>
+        /// Escalate classified warnings to issues, grouped by warning CATEGORY.
+        ///
+        /// Phase 2 (IM-5): the body was ~165 lines that parsed issues.json by hand-counting
+        /// brace depth, minted ids by regex-scanning the raw text, and emitted the record via
+        /// string concatenation — which is why its element_ids landed as a comma-joined STRING
+        /// rather than an array, so every downstream element lookup silently matched nothing.
+        /// It also had no dedup at all, so each run raised the same issues again.
+        ///
+        /// Now one call into IssueEscalationEngine: canonical schema, per-type id minting,
+        /// dedup on (source, category) while the prior issue is open, atomic write, audit.
+        /// Signature and return shape are unchanged for callers.
+        /// </summary>
         internal static List<(string issueId, string title, int elementCount)> CreateIssuesFromWarnings(
             Document doc, List<ClassifiedWarning> warnings, WarningSeverity minSeverity = WarningSeverity.High)
         {
-            var results = new List<(string issueId, string title, int elementCount)>();
-            try
-            {
-                var filtered = warnings.Where(w => w.Severity <= minSeverity).ToList(); // Critical=0, High=1 — lower enum = higher severity
-                if (filtered.Count == 0) return results;
-
-                var groups = filtered.GroupBy(w => w.Category);
-
-                // Resolve the single issues store (CoordStores merges any legacy
-                // _bim_manager / STING_BIM_MANAGER copies on first access).
-                string issuesPath = "";
-                try
-                {
-                    issuesPath = CoordStores.Issues(doc);
-                    if (string.IsNullOrEmpty(issuesPath))
-                    {
-                        string fallbackDir = Path.Combine(
-                            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                            "STING_BIM", "STING_BIM_MANAGER");
-                        Directory.CreateDirectory(fallbackDir);
-                        issuesPath = Path.Combine(fallbackDir, "issues.json");
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings directory: {ex.Message}"); }
-
-                if (string.IsNullOrEmpty(issuesPath)) return results;
-                string issuesDir = Path.GetDirectoryName(issuesPath) ?? "";
-                if (!string.IsNullOrEmpty(issuesDir)) Directory.CreateDirectory(issuesDir);
-
-                // Load existing issues
-                var existingJson = new StringBuilder();
-                List<string> existingEntries = new();
-                if (File.Exists(issuesPath))
-                {
-                    try
-                    {
-                        string raw = File.ReadAllText(issuesPath);
-                        // Simple JSON array parse — extract entries between [ and ]
-                        raw = raw.Trim();
-                        if (raw.StartsWith("[") && raw.EndsWith("]"))
-                        {
-                            string inner = raw.Substring(1, raw.Length - 2).Trim();
-                            if (inner.Length > 0)
-                            {
-                                // Split on },{ pattern (simplified)
-                                int depth = 0;
-                                int start = 0;
-                                for (int i = 0; i < inner.Length; i++)
-                                {
-                                    if (inner[i] == '{') depth++;
-                                    else if (inner[i] == '}') depth--;
-                                    if (depth == 0 && i > start)
-                                    {
-                                        existingEntries.Add(inner.Substring(start, i - start + 1).Trim());
-                                        // Skip comma
-                                        while (i + 1 < inner.Length && (inner[i + 1] == ',' || inner[i + 1] == ' ' || inner[i + 1] == '\n' || inner[i + 1] == '\r'))
-                                            i++;
-                                        start = i + 1;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex2) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex2.Message}"); }
-                }
-
-                // Determine next issue ID — scan for max existing numeric suffix
-                // B05 FIX: existingEntries.Count + 1 causes ID collisions after deletions.
-                // Scan all existing entries for highest numeric suffix instead.
-                int nextId = existingEntries.Count + 1; // fallback
-                try
-                {
-                    foreach (var entry in existingEntries)
-                    {
-                        // Look for "id":"NCR-0042" or "id":"SI-0007" patterns
-                        int idIdx = entry.IndexOf("\"id\"", StringComparison.OrdinalIgnoreCase);
-                        if (idIdx < 0) continue;
-                        int colonIdx = entry.IndexOf(':', idIdx + 4);
-                        if (colonIdx < 0) continue;
-                        int q1 = entry.IndexOf('"', colonIdx + 1);
-                        int q2 = q1 >= 0 ? entry.IndexOf('"', q1 + 1) : -1;
-                        if (q1 < 0 || q2 < 0) continue;
-                        string idVal = entry.Substring(q1 + 1, q2 - q1 - 1);
-                        int dashIdx = idVal.LastIndexOf('-');
-                        if (dashIdx >= 0 && int.TryParse(idVal.Substring(dashIdx + 1), out int num) && num >= nextId)
-                            nextId = num + 1;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings ID scan: {ex.Message}"); }
-                string revision = "";
-                try { revision = PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
-                catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings revision: {ex.Message}"); }
-
-                foreach (var group in groups)
-                {
-                    var groupWarnings = group.ToList();
-                    var maxSeverity = groupWarnings.Min(w => w.Severity); // Min enum = highest severity
-                    string issueType = maxSeverity == WarningSeverity.Critical ? "NCR" : "SI";
-                    string priority = maxSeverity == WarningSeverity.Critical ? "CRITICAL" : "HIGH";
-                    string severityLabel = maxSeverity == WarningSeverity.Critical ? "critical" : "high";
-                    string title = $"Warning: {group.Key} — {groupWarnings.Count} {severityLabel} issues detected";
-
-                    // Collect element IDs
-                    var elementIds = new HashSet<long>();
-                    foreach (var cw in groupWarnings)
-                    {
-                        if (cw.FailingElements != null)
-                            foreach (var eid in cw.FailingElements) elementIds.Add(eid.Value);
-                    }
-
-                    string issueId = $"{issueType}-{nextId:D4}";
-                    string now = DateTime.Now.ToString("o");
-                    string userName = Environment.UserName ?? "STING";
-
-                    // Build JSON entry
-                    string elementIdsStr = string.Join(",", elementIds);
-                    string entry = "{"
-                        + $"\"id\":\"{issueId}\","
-                        + $"\"type\":\"{issueType}\","
-                        + $"\"title\":\"{title.Replace("\"", "\\\"")}\","
-                        + $"\"description\":\"Auto-created from {groupWarnings.Count} Revit warnings in category {group.Key}.\","
-                        + $"\"priority\":\"{priority}\","
-                        + $"\"status\":\"OPEN\","
-                        + $"\"discipline\":\"{groupWarnings.FirstOrDefault()?.Discipline ?? ""}\","
-                        + $"\"revision\":\"{revision}\","
-                        + $"\"element_ids\":\"{elementIdsStr}\","
-                        + $"\"created_by\":\"{userName}\","
-                        + $"\"created_date\":\"{now}\","
-                        + $"\"modified_by\":\"{userName}\","
-                        + $"\"modified_date\":\"{now}\""
-                        + "}";
-
-                    existingEntries.Add(entry);
-                    results.Add((issueId, title, elementIds.Count));
-                    nextId++;
-                    StingLog.Info($"Created issue {issueId}: {title} ({elementIds.Count} elements)");
-                }
-
-                // Write back
-                try
-                {
-                    var jsonSb = new StringBuilder();
-                    jsonSb.AppendLine("[");
-                    for (int i = 0; i < existingEntries.Count; i++)
-                    {
-                        jsonSb.Append("  ");
-                        jsonSb.Append(existingEntries[i]);
-                        if (i < existingEntries.Count - 1) jsonSb.Append(",");
-                        jsonSb.AppendLine();
-                    }
-                    jsonSb.AppendLine("]");
-                    // Phase 86: Atomic write — prevents sidecar corruption on crash mid-write
-                    string tmpPath = issuesPath + ".tmp";
-                    OutputLocationHelper.WriteAllTextAtomic(tmpPath, jsonSb.ToString(), Encoding.UTF8);
-                    File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
-                    StingLog.Info($"Issues file updated: {issuesPath} ({existingEntries.Count} total entries)");
-                }
-                catch (Exception ex) { StingLog.Error("CreateIssuesFromWarnings write", ex); }
-            }
-            catch (Exception ex) { StingLog.Error("CreateIssuesFromWarnings", ex); }
-            return results;
+            var candidates = IssueEscalationEngine.ByCategory(warnings, minSeverity);
+            var result = IssueEscalationEngine.Escalate(doc, candidates, IssueSource.Warning);
+            if (result.Deduped > 0)
+                StingLog.Info($"CreateIssuesFromWarnings: {result.Deduped} category group(s) already had an open issue.");
+            return result.Rows;
         }
 
         // ── Phase 47: WARNING COMPLIANCE GATE ──
@@ -2642,114 +2499,23 @@ namespace StingTools.Core
         /// Auto-create issues from CRITICAL/HIGH severity warnings.
         /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
         /// </summary>
+        /// <summary>
+        /// Escalate a warning report to issues, grouped by DESCRIPTION prefix.
+        ///
+        /// Phase 2 (IM-5): shared the register with three other escalation paths but used a
+        /// different dedup rule (match on the description text) and a different id scheme,
+        /// so an issue raised by one path was invisible to the others' dedup checks and the
+        /// same warning could hold several issues at once. Now one engine, one dedup key.
+        /// </summary>
         internal static int AutoCreateIssuesFromWarnings(Document doc, WarningReport report,
             WarningSeverity minSeverity = WarningSeverity.Critical)
         {
             if (doc == null || report == null || report.Warnings.Count == 0) return 0;
-
-            int created = 0;
-            try
-            {
-                // Load existing issues to check for duplicates
-                string issuesPath = CoordStores.Issues(doc);
-
-                var existingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                int maxExistingId = 0;
-                if (File.Exists(issuesPath))
-                {
-                    try
-                    {
-                        string json = File.ReadAllText(issuesPath);
-                        var arr = Newtonsoft.Json.Linq.JArray.Parse(json);
-                        foreach (var item in arr)
-                        {
-                            string desc = item["description"]?.ToString() ?? "";
-                            existingIssues.Add(desc);
-                            // Scan for max numeric ID suffix to prevent collision after deletions
-                            string idStr = item["id"]?.ToString() ?? "";
-                            int dashIdx = idStr.LastIndexOf('-');
-                            if (dashIdx >= 0 && int.TryParse(idStr.Substring(dashIdx + 1), out int num) && num > maxExistingId)
-                                maxExistingId = num;
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"Load issues for dedup: {ex.Message}"); }
-                }
-
-                // Filter warnings by minimum severity
-                var targetWarnings = report.Warnings.Where(w =>
-                    w.Severity <= minSeverity && // Critical=0, High=1, so <= works
-                    !string.IsNullOrEmpty(w.Description));
-
-                // Group by description to avoid creating 50 issues for same warning type
-                var grouped = targetWarnings
-                    .GroupBy(w => w.Description.Length > 80 ? w.Description.Substring(0, 80) : w.Description)
-                    .Take(20); // Cap at 20 issue types
-
-                var newIssues = new List<object>();
-                int nextId = maxExistingId + 1;
-
-                foreach (var group in grouped)
-                {
-                    string desc = $"[AUTO] {group.Key}";
-                    if (existingIssues.Contains(desc)) continue; // Already tracked
-
-                    var first = group.First();
-                    string issueType = first.Severity == WarningSeverity.Critical ? "NCR" : "SI";
-                    string priority = first.Severity == WarningSeverity.Critical ? "CRITICAL" : "HIGH";
-
-                    var elementIds = group.SelectMany(w => w.FailingElements ?? Enumerable.Empty<ElementId>())
-                        .Select(id => id.Value.ToString()).Distinct().Take(10).ToList();
-
-                    newIssues.Add(new
-                    {
-                        id = $"{issueType}-{nextId:D4}",
-                        title = desc,
-                        description = $"{group.Count()} warning(s): {group.Key}",
-                        type = issueType,
-                        priority = priority,
-                        status = "OPEN",
-                        discipline = first.Discipline ?? "GEN",
-                        assignee = "BIM Manager",
-                        created_date = DateTime.Now.ToString("o"),
-                        created_by = "STING Auto",
-                        auto_created = true,
-                        warning_category = first.Category.ToString(),
-                        affected_elements = elementIds,
-                        element_count = group.Sum(w => (w.FailingElements?.Count ?? 0))
-                    });
-                    nextId++;
-                    created++;
-                }
-
-                if (newIssues.Count > 0)
-                {
-                    // Append to issues.json
-                    string dir = Path.GetDirectoryName(issuesPath) ?? "";
-                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-                    Newtonsoft.Json.Linq.JArray arr;
-                    if (File.Exists(issuesPath))
-                    {
-                        try { arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath)); }
-                        catch (Exception ex) { StingLog.Warn($"ParseJArray: {ex.Message}"); arr = new Newtonsoft.Json.Linq.JArray(); }
-                    }
-                    else arr = new Newtonsoft.Json.Linq.JArray();
-
-                    foreach (var issue in newIssues)
-                        arr.Add(Newtonsoft.Json.Linq.JObject.FromObject(issue));
-
-                    // Phase 87: Atomic write to prevent corruption on crash
-                    string tmpPath = issuesPath + ".tmp";
-                    OutputLocationHelper.WriteAllTextAtomic(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                    if (File.Exists(issuesPath))
-                        File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
-                    else
-                        File.Move(tmpPath, issuesPath);
-                    StingLog.Info($"AutoCreateIssuesFromWarnings: created {created} issues from {minSeverity}+ warnings");
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
-            return created;
+            var candidates = IssueEscalationEngine.ByDescription(report.Warnings, minSeverity);
+            var result = IssueEscalationEngine.Escalate(doc, candidates, IssueSource.Warning);
+            if (result.Created > 0)
+                StingLog.Info($"AutoCreateIssuesFromWarnings: created {result.Created} issues from {minSeverity}+ warnings");
+            return result.Created;
         }
         // ── TAG-STALE-WARN-01: Auto-raise issues from stale elements ──────
 
@@ -2760,88 +2526,41 @@ namespace StingTools.Core
         internal static int AutoRaiseStaleIssues(Document doc)
         {
             if (doc == null) return 0;
-            int created = 0;
             try
             {
                 var cached = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
                 if (cached == null || cached.StaleCount <= 0) return 0;
 
-                string bimDir = BIMManager.GapFixEngine.GetBimDir(doc);
-                if (string.IsNullOrEmpty(bimDir)) return 0;
-                string issuesPath = System.IO.Path.Combine(bimDir, "issues.json");
-
-                Newtonsoft.Json.Linq.JArray arr;
-                if (File.Exists(issuesPath))
+                // Was: a hand-rolled Path.Combine under GapFixEngine.GetBimDir, which
+                // bypassed the CoordStores legacy merge — so a stale issue raised here
+                // could land in a folder the register never read. Now the one resolver.
+                var candidate = new EscalationCandidate
                 {
-                    string raw = File.ReadAllText(issuesPath);
-                    arr = string.IsNullOrWhiteSpace(raw)
-                        ? new Newtonsoft.Json.Linq.JArray()
-                        : Newtonsoft.Json.Linq.JArray.Parse(raw);
-                }
-                else
-                {
-                    arr = new Newtonsoft.Json.Linq.JArray();
-                }
-
-                // Deduplicate: skip if any OPEN issue already covers stale elements
-                foreach (var item in arr)
-                {
-                    string status = item["status"]?.ToString() ?? "";
-                    string title = item["title"]?.ToString() ?? "";
-                    if (status == "OPEN" && title.Contains("stale", StringComparison.OrdinalIgnoreCase))
-                        return 0;
-                }
-
-                // Find next ID
-                int maxNum = 0;
-                foreach (var item in arr)
-                {
-                    string id = item["id"]?.ToString() ?? "";
-                    int dashIdx = id.LastIndexOf('-');
-                    if (dashIdx >= 0 && int.TryParse(id.Substring(dashIdx + 1), out int num))
-                        maxNum = Math.Max(maxNum, num);
-                }
-                string nextId = $"SI-{(maxNum + 1).ToString("D4")}";
-
-                string rev = "";
-                try { rev = PhaseAutoDetect.DetectProjectRevision(doc); }
-                catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues rev detect: {ex.Message}"); }
-
-                var issue = new Newtonsoft.Json.Linq.JObject
-                {
-                    ["id"] = nextId,
-                    ["type"] = "SI",
-                    ["title"] = $"{cached.StaleCount} stale elements require re-tagging",
-                    ["description"] = $"Model contains {cached.StaleCount} elements whose tags are stale (geometry/level/spatial data changed since last tag). Run Retag Stale to resolve.",
-                    ["priority"] = "HIGH",
-                    ["status"] = "OPEN",
-                    ["discipline"] = "",
-                    ["revision"] = rev,
-                    ["element_ids"] = "",
-                    ["created_by"] = Environment.UserName,
-                    ["created_date"] = DateTime.UtcNow.ToString("o"),
-                    ["modified_by"] = Environment.UserName,
-                    ["modified_date"] = DateTime.UtcNow.ToString("o"),
-                    ["auto_created"] = true,
-                    ["source"] = "TAG-STALE-WARN-01"
+                    // Stable key: the ISSUE is "the model has stale tags", not "it has N of
+                    // them". Keying on the count would raise a fresh issue every time the
+                    // number moved. The old code approximated this by scanning open titles
+                    // for the word "stale".
+                    Key         = "stale:elements",
+                    Type        = "SI",
+                    Priority    = "HIGH",
+                    Title       = $"{cached.StaleCount} stale elements require re-tagging",
+                    Description = $"Model contains {cached.StaleCount} elements whose tags are stale " +
+                                  "(geometry/level/spatial data changed since last tag). Run Retag Stale to resolve.",
+                    Extra       = new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["auto_created"] = true,
+                        ["rule"]         = "TAG-STALE-WARN-01",
+                        ["stale_count"]  = cached.StaleCount,
+                    },
                 };
-                arr.Add(issue);
-                created = 1;
 
-                // Atomic write
-                if (!Directory.Exists(bimDir))
-                    Directory.CreateDirectory(bimDir);
-                string tmpPath = issuesPath + ".tmp";
-                OutputLocationHelper.WriteAllTextAtomic(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                if (File.Exists(issuesPath))
-                    File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
-                else
-                    File.Move(tmpPath, issuesPath);
-
-                StingLog.Info($"AutoRaiseStaleIssues: created {nextId} for {cached.StaleCount} stale elements");
+                var result = IssueEscalationEngine.Escalate(
+                    doc, new[] { candidate }, IssueSource.Warning);
+                if (result.Created > 0)
+                    StingLog.Info($"AutoRaiseStaleIssues: raised an issue for {cached.StaleCount} stale elements");
+                return result.Created;
             }
-            catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues: {ex.Message}"); }
-            return created;
+            catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues: {ex.Message}"); return 0; }
         }
     } // end WarningsEngineExt
 
@@ -5355,41 +5074,52 @@ namespace StingTools.Core
                 var result = td.Show();
                 if (result != TaskDialogResult.CommandLink1) return;
 
-                // Create issues
-                string issuesPath = CoordStores.Issues(doc);
-                var issues = File.Exists(issuesPath)
-                    ? Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath))
-                    : new Newtonsoft.Json.Linq.JArray();
-
+                // Create issues.
+                //
+                // Phase 2 (IM-5): minted `NCR-{issues.Count + 1}`, which collides with a live
+                // row whenever the register's numbering has drifted from its row count — and
+                // it wrote the identifier as "id" while the BIM register reads "issue_id", so
+                // escalated actions were invisible to the register that owns them.
                 int created = 0;
-                foreach (var (meetId, action) in overdueActions)
+                using (var batch = IssueStore.Begin(doc))
                 {
-                    int nextId = issues.Count + 1;
-                    var issue = new Newtonsoft.Json.Linq.JObject
+                    if (!batch.Ok)
                     {
-                        ["id"] = $"NCR-{nextId:D4}",
-                        ["title"] = $"Overdue Action: {action["description"]}",
-                        ["type"] = "NCR",
-                        ["priority"] = "HIGH",
-                        ["status"] = "OPEN",
-                        ["assignee"] = action["assigned_to"]?.ToString() ?? "",
-                        ["description"] = $"Escalated from meeting {meetId}. Original due date: {action["due_date"]}. " +
-                            $"Action: {action["description"]}",
-                        ["created_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                        ["created_by"] = Environment.UserName,
-                        ["source"] = $"Meeting action escalation from {meetId}",
-                        ["element_ids"] = new Newtonsoft.Json.Linq.JArray()
-                    };
-                    issues.Add(issue);
+                        TaskDialog.Show("STING", "The issue register could not be read — escalation aborted " +
+                                                 "so it cannot overwrite live rows.");
+                        return;
+                    }
 
-                    // Mark original action as escalated
-                    action["status"] = "ESCALATED";
-                    action["escalated_to"] = issue["id"]?.ToString();
-                    action["escalated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    created++;
+                    foreach (var (meetId, action) in overdueActions)
+                    {
+                        var row = batch.Create(new IssueSpec
+                        {
+                            Type        = "NCR",
+                            Priority    = "HIGH",
+                            Title       = $"Overdue Action: {action["description"]}",
+                            Description = $"Escalated from meeting {meetId}. Original due date: {action["due_date"]}. " +
+                                          $"Action: {action["description"]}",
+                            AssignedTo  = action["assigned_to"]?.ToString() ?? "",
+                            Source      = IssueSource.Warning,
+                            // One issue per meeting action, not one per escalation run.
+                            SourceHash  = $"meeting-action:{meetId}:{action["id"] ?? action["description"]}",
+                            Extra       = new Newtonsoft.Json.Linq.JObject
+                            {
+                                ["escalated_from_meeting"] = meetId,
+                            },
+                        });
+                        if (row == null) continue;
+
+                        // Mark original action as escalated
+                        action["status"] = "ESCALATED";
+                        action["escalated_to"] = IssueSchema.IdOf(row);
+                        action["escalated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                        created++;
+                    }
+
+                    batch.Commit();
                 }
 
-                OutputLocationHelper.WriteAllTextAtomic(issuesPath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
                 OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
 
                 TaskDialog.Show("STING Escalation",

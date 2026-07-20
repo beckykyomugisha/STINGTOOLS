@@ -141,6 +141,14 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Public form of <see cref="TryReadArray"/> for repositories that layer on top of
+        /// this one (see <see cref="IssueStore"/>). Returns false when the store EXISTS but
+        /// could not be read; callers that intend to write the result back must abort on
+        /// false rather than treating it as an empty store and truncating a live register.
+        /// </summary>
+        public static bool TryRead(string path, out JArray rows) => TryReadArray(path, out rows);
+
         /// <summary>Write a store atomically (temp file + File.Replace with .bak).</summary>
         public static void WriteArray(string path, JArray rows)
         {

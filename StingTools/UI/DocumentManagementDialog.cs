@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -2013,56 +2013,68 @@ namespace StingTools.UI
 
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string issuePath = Path.Combine(bimDir, "issues.json");
-                JArray arr;
-                try { arr = File.Exists(issuePath) ? JArray.Parse(File.ReadAllText(issuePath)) : new JArray(); }
-                catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
-
-                // Phase 85 BUG-5: Use max-suffix pattern to prevent ID collisions after deletions
-                int maxIssueNum = 0;
-                foreach (var iss in arr)
-                {
-                    if (iss["type"]?.ToString() != issueType) continue;
-                    string idStr = iss["id"]?.ToString()?.Replace($"{issueType}-", "");
-                    if (int.TryParse(idStr, out int n) && n > maxIssueNum) maxIssueNum = n;
-                }
-                string issueId = $"{issueType}-{maxIssueNum + 1:D4}";
+                // Phase 2 (IM-4): this wrote the identifier as "issue_id" but computed the
+                // next number by scanning "id" — a field it never wrote — so maxIssueNum was
+                // always 0 and EVERY quick issue was minted as {TYPE}-0001. A register could
+                // therefore hold a dozen rows all called RFI-0001, and any lookup by id
+                // resolved to whichever came first. It also used a hand-rolled path that
+                // bypassed the CoordStores legacy merge.
                 DateTime now = DateTime.Now;
-
-                // Calculate SLA deadline
                 DateTime? slaDeadline = ProjectTeamRegistry.CalculateSLADeadline(priority, now);
 
-                var issue = new JObject
-                {
-                    ["issue_id"] = issueId,
-                    ["type"] = issueType,
-                    ["title"] = title,
-                    ["status"] = "OPEN",
-                    ["priority"] = priority,
-                    ["date"] = now.ToString("yyyy-MM-dd"),
-                    ["assigned_to"] = assignedTo,
-                    ["discipline"] = disc,
-                    ["description"] = title,
-                    ["created_by"] = Environment.UserName,
-                    ["linked_elements"] = new JArray(),
-                    ["sla_deadline"] = slaDeadline?.ToString("yyyy-MM-dd HH:mm") ?? "",
-                    ["escalation_level"] = 0,
-                    ["status_history"] = $"{now:yyyy-MM-dd HH:mm} OPEN — created by {Environment.UserName}" +
-                        (!string.IsNullOrEmpty(assignedTo) ? $" — assigned to {assignedTo}" : "") +
-                        (slaDeadline.HasValue ? $" — SLA: {slaDeadline:yyyy-MM-dd HH:mm}" : "")
-                };
-
-                // Auto-detect revision
-                try
-                {
-                    string rev = PhaseAutoDetect.DetectProjectRevision(doc);
-                    if (!string.IsNullOrEmpty(rev)) issue["revision"] = rev;
-                }
+                string rev = "";
+                try { rev = PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
                 catch (Exception ex2) { StingLog.Warn($"QuickIssue rev detect: {ex2.Message}"); }
 
-                arr.Add(issue);
-                OutputLocationHelper.WriteAllTextAtomic(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                string issuePath = IssueStore.PathFor(doc);
+                JObject issue;
+                using (var batch = IssueStore.Begin(doc))
+                {
+                    if (!batch.Ok)
+                    {
+                        MessageBox.Show("The issue register could not be read, so the issue was not saved — " +
+                                        "writing now would overwrite live rows.",
+                                        "STING Issues", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    issue = batch.Create(new IssueSpec
+                    {
+                        Type        = issueType,
+                        Title       = title,
+                        Description = title,
+                        Priority    = priority,
+                        AssignedTo  = assignedTo,
+                        Discipline  = disc,
+                        Revision    = rev,
+                        Source      = IssueSource.Manual,
+                        Extra       = new JObject
+                        {
+                            ["sla_deadline"]     = slaDeadline?.ToString("yyyy-MM-dd HH:mm") ?? "",
+                            ["escalation_level"] = 0,
+                            ["status_history"]   = new JArray
+                            {
+                                new JObject
+                                {
+                                    ["from"] = "",
+                                    ["to"]   = "OPEN",
+                                    ["by"]   = Environment.UserName,
+                                    ["at"]   = now.ToString("o"),
+                                    ["note"] = (!string.IsNullOrEmpty(assignedTo) ? $"assigned to {assignedTo}" : "created") +
+                                               (slaDeadline.HasValue ? $" — SLA: {slaDeadline:yyyy-MM-dd HH:mm}" : ""),
+                                },
+                            },
+                        },
+                    });
+                    if (issue == null)
+                    {
+                        MessageBox.Show("Issue could not be created.", "STING Issues",
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    batch.Commit();
+                }
+                string issueId = IssueSchema.IdOf(issue);
+                var arr = IssueStore.Load(doc);
                 ProjectFolderEngine.LogActivity(doc, "CREATE_ISSUE", issueId, $"{issueType}: {title} → {assignedTo}");
 
                 // Generate notification for critical/high priority issues
