@@ -1299,6 +1299,21 @@ namespace StingTools.UI
                      "Value a prolongation claim off the EOT days already captured on agreed variations: weeks × weekly prelims + head-office OHP + disruption + finance. Raise a CompensationEvent VO for the result.", false),
                 }));
 
+            sp.Children.Add(BuildActionGroup("Instructed Dayworks",
+                "Capture daywork sheets instructed under the CA's instruction, price them at the tendered "
+                + "NRM2 percentage additions, and flow them into the final account.",
+                new[]
+                {
+                    ("★ Capture Daywork Sheet", "Daywork_Capture",
+                     "Record an instructed daywork sheet: CA instruction reference + date, and the labour / plant / materials expended. Priced later at the tendered percentage additions.", true),
+                    ("Daywork Register", "Daywork_Register",
+                     "Every captured sheet with its status (Recorded / Signed / Priced), net prime cost, additions and gross — plus the unattached priced total that feeds the final account. On screen + CSV.", false),
+                    ("Price Dayworks", "Daywork_Price",
+                     "Value the unpriced sheets at their own build-up percentages (labour / materials / plant), writing the valuation back to the register and exporting an annexure-style priced sheet. CSV.", false),
+                    ("Attach Daywork to VO", "Daywork_Attach",
+                     "Attach a priced sheet to a variation as a Daywork-rated item. Its value then reaches the final account through that VO instead of standalone — counted once, never twice.", false),
+                }));
+
             sp.Children.Add(BuildActionGroup("Delivery & Risk (ISO 19650)",
                 "Project risk register and MIDP/TIDP delivery-drift detection.",
                 new[]

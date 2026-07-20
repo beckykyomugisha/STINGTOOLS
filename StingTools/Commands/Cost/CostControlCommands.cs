@@ -370,8 +370,15 @@ namespace StingTools.Commands.Cost
                 // PM-3 — fluctuations (index-linked) now feed the AFC too, not only
                 // the Final Account. Computed via Fluctuations_Compute → COST_FLUCTUATIONS_UGX.
                 double fluctuations = TagConfig.GetConfigDouble("COST_FLUCTUATIONS_UGX", 0.0);
-                double afcAgreedOnly = Math.Round(contractSum + agreedVo + psMovement + fluctuations, 0);
-                double afc = Math.Round(contractSum + agreedVo + pendingVo + psMovement + fluctuations, 0);
+
+                // PM-3 — priced dayworks reach the AFC on the same basis as the
+                // Final Account: ONLY sheets not attached to a variation, since an
+                // attached sheet is already inside agreedVo / pendingVo via its
+                // VariationItem. 0 when no dayworks are recorded.
+                double dayworks = Core.Variation.DayworkEngine.UnattachedPricedTotal(doc);
+
+                double afcAgreedOnly = Math.Round(contractSum + agreedVo + psMovement + fluctuations + dayworks, 0);
+                double afc = Math.Round(contractSum + agreedVo + pendingVo + psMovement + fluctuations + dayworks, 0);
                 double variance = budget > 0 ? budget - afc : 0;
 
                 // On-screen summary.
@@ -388,6 +395,7 @@ namespace StingTools.Commands.Cost
                     .Metric("Pending variations", $"{ccy} {pendingVo:N0}")
                     .Metric("Variation count", $"{vos.Count}")
                     .Metric("Fluctuations (index-linked)", $"{ccy} {fluctuations:N0}")
+                    .Metric("Priced dayworks (unattached)", $"{ccy} {dayworks:N0}")
                     .AddSection("ANTICIPATED FINAL COST")
                     .Metric("Contract sum (baseline)", $"{ccy} {contractSum:N0}")
                     .Metric("Baseline basis", contractSumBasis)
@@ -435,6 +443,11 @@ namespace StingTools.Commands.Cost
                     Line("Provisional-sum movement", psMovement);
                     Line("Agreed variations", agreedVo);
                     Line("Pending variations", pendingVo);
+                    // PM-3 — fluctuations were computed into the AFC but never
+                    // printed here, so the exported lines did not sum to the AFC
+                    // figure below them whenever fluctuations were non-zero.
+                    Line("Fluctuations (index-linked)", fluctuations);
+                    Line("Priced dayworks (unattached)", dayworks);
                     r++;
                     Line("AFC (agreed only)", afcAgreedOnly, true);
                     Line("AFC (incl. pending)", afc, true);

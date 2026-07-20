@@ -3611,6 +3611,12 @@ namespace StingTools.UI
                     case "CostToComplete_Lines":        RunCommand<Commands.Cost.CostToCompleteLinesCommand>(app); break;
                     case "Commitments_Report":          RunCommand<Commands.Cost.CommitmentsReportCommand>(app); break;
 
+                    // PM-3 — instructed dayworks (capture → price → final account).
+                    case "Daywork_Capture":             RunCommand<Commands.Cost.DayworkCaptureCommand>(app); break;
+                    case "Daywork_Register":            RunCommand<Commands.Cost.DayworkRegisterCommand>(app); break;
+                    case "Daywork_Price":               RunCommand<Commands.Cost.DayworkPriceCommand>(app); break;
+                    case "Daywork_Attach":              RunCommand<Commands.Cost.DayworkAttachCommand>(app); break;
+
                     // PM-8 — delivery layer (risk register, MIDP/TIDP drift).
                     case "Risk_Raise":                  RunCommand<Commands.Delivery.RiskRaiseCommand>(app); break;
                     case "Risk_Report":                 RunCommand<Commands.Delivery.RiskReportCommand>(app); break;

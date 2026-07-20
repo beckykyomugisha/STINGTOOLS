@@ -221,6 +221,13 @@ namespace StingTools.Core.Variation
         /// <summary>Optional link to a StarRate build-up.</summary>
         public string StarRateId { get; set; } = "";
 
+        /// <summary>Optional link to a priced DayworkRecord (PM-3). A sibling of
+        /// StarRateId rather than a reuse of it: RateSource already distinguishes
+        /// "StarRate" from "Daywork", and punning one id field across two
+        /// different build-up documents makes the link unresolvable without also
+        /// reading RateSource. Both stay empty on a BOQ-rated item.</summary>
+        public string DayworkId { get; set; } = "";
+
         public double TotalValue => Math.Round(Quantity * UnitRate, 2);
     }
 
