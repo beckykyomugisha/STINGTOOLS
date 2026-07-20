@@ -44,9 +44,9 @@ And choose the owner password (for `davis@planscape.build`).
 > `db.Database.Migrate()` and told you to run a pending-model-changes check.
 > That is **not** what the committed `render.yaml` does. Skip the old steps.
 
-`render.yaml` sets **`PLANSCAPE_USE_ENSURE_CREATED=true`** on `planscape-api`
-and `planscape-worker`. `Program.cs` (~line 1327) therefore takes the
-**EnsureCreated** branch, not `Migrate()`:
+`render.yaml` sets **`PLANSCAPE_USE_ENSURE_CREATED=true`** on **both**
+`planscape-api` and `planscape-worker`. `Program.cs` (~line 1341) therefore
+takes the **EnsureCreated** branch, not `Migrate()`:
 
 1. It probes `information_schema` for the `Tenants` table.
 2. If absent (fresh DB), `creator.CreateTables()` materialises the whole schema
@@ -72,6 +72,12 @@ unnecessary.)
 If you ever **remove** `PLANSCAPE_USE_ENSURE_CREATED`, the `Migrate()` branch
 takes over and a complete, regenerated migration set becomes a hard
 prerequisite — regenerate it before flipping that switch.
+
+> **The flag must stay on both services.** The schema block in `Program.cs` is
+> not gated by `isWorker`; both roles execute it. Setting the flag on
+> `planscape-api` only leaves the worker on the `Migrate()` branch, where it
+> collides with the API's EnsureCreated schema on the non-idempotent
+> `20260626203153_SustainabilitySnapshots` `CreateTable` and crash-loops.
 
 ---
 

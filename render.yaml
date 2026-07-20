@@ -95,6 +95,18 @@ services:
         value: http://+:8080          # Kestrel still binds; the worker just isn't HTTP-routed
       - key: PLANSCAPE_ROLE
         value: worker
+      # REQUIRED on the worker too — the schema block in Program.cs (~line 1341)
+      # is NOT gated by `isWorker`, so both roles run it. Without this flag the
+      # worker (ASPNETCORE_ENVIRONMENT=Production ⇒ IsDevelopment() false) takes
+      # the db.Database.Migrate() branch, collides with the API's EnsureCreated
+      # schema on the non-idempotent 20260626203153_SustainabilitySnapshots
+      # CreateTable, and crash-loops. Keep in lockstep with planscape-api.
+      - key: PLANSCAPE_USE_ENSURE_CREATED
+        value: "true"
+      # Same shared secret as the API — the worker resolves handoff-provisioned
+      # identities in background jobs. See docs/PLANSCAPE_IDENTITY_HANDOFF.md.
+      - key: PLANSCAPE_HANDOFF_SECRET
+        sync: false
       - key: ConnectionStrings__Default
         fromDatabase:
           name: planscape-db
