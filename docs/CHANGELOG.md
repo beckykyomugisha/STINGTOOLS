@@ -2,6 +2,44 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 218 — the EXE build is now a committed, reproducible definition)
+
+The beta.3 packaging fix existed only as a sentence in this file. No spec, no
+script, no CI step — so the next release would have regressed it silently, and
+silently in the worst way: the smoke test everyone runs first (process a fresh
+IFC) passes.
+
+- **`StingBridge/StingBridge.spec`** now encodes the build. The load-bearing
+  line is `collect_data_files("ifcopenshell")`: ifcopenshell opens JSON schema
+  tables by path at runtime and PyInstaller's module graph cannot see them.
+- **`StingBridge/_pyinstaller_entry.py`** — the frozen equivalent of the
+  `stingbridge` console script. Freezing `bridge.py` directly makes it
+  `__main__` with no package context and its relative imports die at startup.
+  The beta.3 build used an equivalent shim that was **never committed**, which
+  is the other half of why that build was not reproducible. Found by building
+  from the spec rather than assuming it worked.
+- **`StingBridge/BUILD.md`** — both artifacts, both traps, and the two-pass
+  smoke test that a single fresh-IFC run does not substitute for.
+- **`requirements.txt` corrected.** The review flagged line 21 as asserting the
+  wrong thing; on reading it, that line is about `stingtools_core` — pure Python,
+  where the claim is true. The real gap was that **nothing warned about
+  ifcopenshell at all**. Added that warning at the pin, and qualified line 21
+  (including that `stingtools-core` must be installed non-editable, or the EXE
+  dies with `ModuleNotFoundError`).
+
+**Gate — built from the committed spec in a clean venv, then run against a live
+API build on the docker Postgres:**
+
+| Build | run 1 (fresh IFC) | run 2 (re-drop of `_sting.ifc`) |
+|---|---|---|
+| with `collect_data_files` | `errors: 0`, 3 SEQ minted | **`errors: 0`, no minting, SEQ unchanged** |
+| line removed (temporarily, to prove it) | `errors: 0` | **`errors: 1`** — `No such file … entity_to_type_map_2x3.json` |
+
+The red-then-green pair is the point: the failure is invisible to run 1.
+
+**No re-release.** beta.3 in R2 stands as shipped — the EXE already in the bucket
+was built with these flags; this phase makes that repeatable, not different.
+
 #### Completed (Phase 217 — StingBridge 0.1.0-beta.3 released)
 
 Ships the two fixes that bit real drop-folder users in beta.2: the SEQ re-mint
