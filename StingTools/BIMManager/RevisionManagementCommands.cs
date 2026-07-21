@@ -622,7 +622,8 @@ namespace StingTools.BIMManager
                 int nextSeq = RevisionEngine.GetNextRevisionSeq(doc);
 
                 // Parse params forwarded from BCC inline form:
-                // "CreateRevision|P01|M|Coordination update|J. Approver"
+                // "CreateRevision|P01|M|Coordination update|J. Approver|S2"
+                //  (part 6 = optional ISO 19650 suitability for the SUIT column)
                 // _pendingAction is set by CoordinationCenterCommands before invoking this command.
                 // Part 5 (Issued by) feeds Revision.IssuedBy — the "Issued by" column of the
                 // native revision schedules embedded in the title-block families. Falls back
@@ -631,6 +632,7 @@ namespace StingTools.BIMManager
                 string discipline = "ALL";
                 string userDesc   = "";
                 string issuedBy   = "";
+                string suitability = "";
                 try
                 {
                     string pending = CoordinationCenterCommands.BccPendingAction ?? "";
@@ -641,11 +643,22 @@ namespace StingTools.BIMManager
                         if (parts.Length >= 3 && !string.IsNullOrWhiteSpace(parts[2])) discipline = parts[2].Trim();
                         if (parts.Length >= 4 && !string.IsNullOrWhiteSpace(parts[3])) userDesc   = parts[3].Trim();
                         if (parts.Length >= 5 && !string.IsNullOrWhiteSpace(parts[4])) issuedBy   = parts[4].Trim();
+                        // Part 6 (optional) = ISO 19650 suitability code. Feeds the
+                        // repurposed "Issued to" field = the SUIT column of the
+                        // native title-block revision schedule.
+                        if (parts.Length >= 6 && !string.IsNullOrWhiteSpace(parts[5])) suitability = parts[5].Trim();
                         CoordinationCenterCommands.BccPendingAction = null;
                     }
                 }
                 catch (Exception pEx) { StingLog.Warn($"CreateRevision param parse: {pEx.Message}"); }
                 if (string.IsNullOrEmpty(issuedBy)) issuedBy = Environment.UserName;
+                // No explicit suitability supplied → inherit the drawing's current
+                // suitability so the SUIT column is never blank.
+                if (string.IsNullOrEmpty(suitability))
+                {
+                    try { suitability = ParameterHelpers.GetString(doc.ProjectInformation, "PRJ_DWG_SUITABILITY_COD_TXT") ?? ""; }
+                    catch (Exception suEx) { StingLog.Warn($"CreateRevision suitability lookup: {suEx.Message}"); }
+                }
 
                 // Phase 101: the stepped TaskDialog picker that used to live here
                 // has been removed — the BCC Revisions tab is now the only entry
@@ -763,6 +776,13 @@ namespace StingTools.BIMManager
                     // revision properties once Issued = true.
                     try { rev.IssuedBy = issuedBy; }
                     catch (Exception ibEx) { StingLog.Warn($"CreateRevision IssuedBy stamp: {ibEx.Message}"); }
+
+                    // Stamp the ISO 19650 suitability into the revision's "Issued to"
+                    // field. STING repurposes that native field as the SUIT column of
+                    // the title-block revision schedule (Revit's Revision object has no
+                    // suitability field of its own). Must precede Issued = true.
+                    try { if (!string.IsNullOrWhiteSpace(suitability)) rev.IssuedTo = suitability; }
+                    catch (Exception suEx) { StingLog.Warn($"CreateRevision suitability stamp: {suEx.Message}"); }
 
                     rev.Visibility = RevisionVisibility.CloudAndTagVisible;
 
@@ -1539,6 +1559,7 @@ namespace StingTools.BIMManager
                 // so a cloud-less coordination issue still lands on the chosen
                 // sheets instead of reporting "0 sheets updated".
                 var pickedNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                string issueSuitability = "";
                 try
                 {
                     string pending = CoordinationCenterCommands.BccPendingAction ?? "";
@@ -1548,8 +1569,11 @@ namespace StingTools.BIMManager
                         if (parts.Length >= 2 && !string.IsNullOrWhiteSpace(parts[1]))
                             foreach (var n in parts[1].Split(','))
                                 if (!string.IsNullOrWhiteSpace(n)) pickedNumbers.Add(n.Trim());
-                        // parts[2] (issue date) and parts[3] (suitability) are logged
-                        // for audit; the revision's own date remains authoritative.
+                        // parts[2] = issue date (logged; the revision's own date stays
+                        // authoritative). parts[3] = ISO 19650 suitability — now stamped
+                        // into the revision's "Issued to" field so the SUIT column of the
+                        // native title-block revision schedule auto-fills.
+                        if (parts.Length >= 4 && !string.IsNullOrWhiteSpace(parts[3])) issueSuitability = parts[3].Trim();
                         if (parts.Length >= 4)
                             StingLog.Info($"IssueSheets BCC form: {pickedNumbers.Count} sheet(s) picked, date={parts[2]}, suitability={parts[3]}");
                         CoordinationCenterCommands.BccPendingAction = null;
@@ -1591,6 +1615,19 @@ namespace StingTools.BIMManager
                             targetRev.IssuedBy = Environment.UserName;
                     }
                     catch (Exception ibEx) { StingLog.Warn($"IssueSheets IssuedBy stamp: {ibEx.Message}"); }
+
+                    // SUIT column: stamp the issue suitability into the revision's
+                    // "Issued to" field (STING's repurposed SUIT column). Like the
+                    // IssuedBy backfill this must precede Issued = true, since Revit
+                    // locks revision properties once the revision is issued. Existing
+                    // values are respected.
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(issueSuitability) &&
+                            string.IsNullOrWhiteSpace(targetRev.IssuedTo))
+                            targetRev.IssuedTo = issueSuitability;
+                    }
+                    catch (Exception suEx) { StingLog.Warn($"IssueSheets suitability stamp: {suEx.Message}"); }
 
                     // Mark revision as issued
                     targetRev.Issued = true;

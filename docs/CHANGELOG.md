@@ -2,6 +2,37 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
+
+The cover title-block family's revision history is a **native Revit Revision
+Schedule**, which is hard-locked to six built-in fields (Sequence / Number /
+Date / Description / Issued to / Issued by) — there is no way to add a
+"Suitability" column, and Revit's `Revision` object has no suitability field.
+STING already *captured* a suitability at issue time but only **logged** it. This
+change adopts the standard workaround — repurpose the native **Issued to** field
+as the ISO 19650 **SUIT** column (the user renames that schedule column heading
+to `SUIT`) — and wires STING to populate it automatically.
+
+- **`RevisionManagementCommands.cs`** — `CreateRevisionCommand` now accepts an
+  optional 6th pipe field (suitability) and, when absent, inherits the drawing's
+  current `PRJ_DWG_SUITABILITY_COD_TXT`; it stamps the value into
+  `Revision.IssuedTo` before the revision is issued. `IssueSheetsForRevisionCommand`
+  now stamps its form suitability (`parts[3]`, previously log-only) into
+  `targetRev.IssuedTo` before `Issued = true` (Revit locks revision props once
+  issued). `IssuedBy` (the BY column) is untouched.
+- **`BIMCoordinationCenter.cs`** — the BCC *Create Revision* form gains a
+  Suitability dropdown (S0–S7 / A1 / B1 + "— default"); its value rides the
+  existing pipe dispatch as the new 6th field.
+- **`TitleBlockRevisionSyncer.cs`** — on sync, the latest revision's `IssuedTo`
+  is mirrored into `PRJ_DWG_SUITABILITY_COD_TXT` on the sheet and every
+  title-block instance, **only** when it is a recognised ISO 19650 code
+  (`TitleBlockEngine.ValidSuitabilityCodes`), so an arbitrary "issued to" string
+  can never clobber a DrawingType-set suitability, and it is never cleared. Keeps
+  the DOCUMENT CONTROL suitability chip in step with the current issue.
+- No new shared parameter; reuses `PRJ_DWG_SUITABILITY_COD_TXT`, so it works with
+  the existing family with no regeneration. No `dotnet build` run (Linux sandbox);
+  verify in Revit.
+
 #### Completed (data sync — gate-param TEXT→YESNO datatype alignment, supersedes PR #337)
 
 Re-applied the gate-parameter datatype fix from PR #337
