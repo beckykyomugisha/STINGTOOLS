@@ -14525,3 +14525,40 @@ to the base method name.
   "now PASS" notice on runs where they succeed, so they stay visible.
   A shared never-disposed `JobStorage` was tried as a DEP-7 mitigation and made
   the suite *worse* (cross-factory state bleed) — reverted, not shipped.
+
+---
+
+## Follow-up — review of #460 (rate-limiter scope + refresh soft-delete guard)
+
+Two fixes stacked on the test-health pass, from a code review of #460.
+
+### Rate limiter: `refresh` and `license/activate` off the shared `auth` bucket
+
+The test-health pass put `[EnableRateLimiting("auth")]` on both endpoints. The
+`auth` policy is a single 5-req/5-min sliding window keyed by **IP only**
+(`Program.cs`) and shared across *every* auth endpoint (login, forgot/reset,
+handoff, PAT exchange). That is right for login but too tight for these two:
+
+- `refresh` is automatic and periodic. Behind a shared egress IP (corporate
+  NAT / VPN) the combined refresh traffic of a handful of users exhausts the
+  bucket and 429s everyone — including re-login, which draws from the same
+  bucket. Moved to the `api` policy (100/60s, per-user or per-IP). The refresh
+  token is a 128-bit random secret, so a strict brute-force limiter adds little.
+- `license/activate` is a validity oracle, so it keeps a limiter — but on its
+  own dedicated per-IP `license` policy (20/5min), not shared with login. The
+  Revit add-in calls it pre-session, so a multi-engineer office activates from
+  one public IP; 20/5min covers that while staying far too slow to walk a
+  high-entropy keyspace.
+
+### `refresh` soft-delete guard
+
+`RefreshToken` disables **all** global query filters with `IgnoreQueryFilters()`
+but re-stated only `IsActive`. Its two sibling anonymous lookups both exclude
+soft-deleted users (handoff exchange: `&& !u.IsDeleted`; PAT exchange: an
+explicit `user.IsDeleted` guard), and `AppUser`'s global `!IsDeleted` filter is
+itself overwritten by the reflection-applied tenant filter — so nothing else
+excluded a soft-deleted user from token refresh. Added `&& !u.IsDeleted` to the
+predicate.
+
+Built without `dotnet build` verification (no .NET SDK in the sandbox); the
+changes are attribute/predicate-level and mirror existing adjacent patterns.
