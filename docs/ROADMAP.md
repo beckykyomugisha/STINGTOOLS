@@ -24,12 +24,109 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 Full-surface review of the Drawing Type engine, corporate catalogue, View Style Packs + AEC
 filters, title blocks, annotation/legends/match lines, sheet production pipeline, and command
 wiring: **~85 findings (5 Critical / 27 High)** with a prioritised P0–P2 remediation plan.
-See [`DRAWINGS_PRODUCTION_REVIEW.md`](DRAWINGS_PRODUCTION_REVIEW.md). Headlines: unbound JSON
-keys make most style-pack payload (incl. all 8 healthcare packs) runtime-dead; both
-`ResolveExtends` folds strip fields (managed-template mode unreachable); producer sheet key
-ignores level context (per-level batches stack onto one sheet); AnnotationRunner has no
-idempotency (re-runs duplicate every tag/dim); the corporate-lock checksum system is inert as
-shipped.
+See [`DRAWINGS_PRODUCTION_REVIEW.md`](DRAWINGS_PRODUCTION_REVIEW.md).
+
+### P0 — CLOSED (see CHANGELOG Phase 223)
+
+| Finding | Status |
+|---|---|
+| C-1 unbound style-pack JSON keys (`filterRules`, short-form vgOverrides) | ✅ fixed — POCO aliases; filter rules bound 19 → 97 |
+| C-2 / E-1 both `ResolveExtends` folds strip fields | ✅ fixed — generic default-aware overlay |
+| C-3 producer sheet key ignores context | ✅ fixed — `STING_SHEET_CONTEXT_TXT` in the sheet key |
+| W-1 two penetration workflow presets inert | ✅ fixed — step keys + 3 `ResolveCommand` cases |
+| A-11 `LABEL_DEFINITIONS.json` mojibake | ✅ fixed — 530 strings / 1,171 chars repaired |
+| V-3 material-class filter AND-ed instead of OR-ed | ✅ fixed — `LogicalOrFilter` |
+| V-7 / V-8 dead filter definitions | ✅ fixed — 12 filters (8 `Family Name`, 2 ops, 2 compound schema) |
+
+Found while fixing P0, **not** in the review:
+
+- **`surfFgColor` (15×) and `projLinePattern` (5×) were also unbound** on `StyleFilterRule` —
+  the Phase 139 alias pass covered the four line keys and stopped short of these. Fixed with C-1.
+- **`plumb-high-pressure-zone` and `plumb-backflow-risk` use a third rule schema**
+  (`{"kind":"compound","op":"or","operands":[…]}`) that binds to neither `IsLeaf` nor
+  `IsCompound`, so `BuildFilter` returned null silently. Fixed with V-8.
+- **`DrawingType.extends` could never inherit any field with a non-null POCO default**
+  (`PaperSize` "A1", `Discipline`/`Phase` "*", `Purpose` "Plan", `Orientation` "Landscape",
+  `Scale` 100, `DetailLevel` "Medium", both sheet patterns): the old `!IsNullOrEmpty` guard
+  treats a child's default as a value, so an A0 parent always resolved back to A1. Fixed with
+  E-1. Known residual limitation: a child that explicitly restates a default is
+  indistinguishable from one that omits it and will inherit the parent's value.
+- **`ViewStylePack`'s six already-working scalars keep their original guards** — that path runs
+  on every `Get()` and changing `lineWeightScale` merge semantics would alter rendering. The
+  same default-clobbers-parent issue therefore remains open for style packs specifically.
+- **Duplicated `OST_Sheets` insertion** in `LoadSharedParamsCommand` (two identical try blocks,
+  ~lines 333–349). Harmless, not fixed.
+
+### P1 — managed-template hardening (done, prerequisite of C-2)
+
+| Finding | Status |
+|---|---|
+| E-3 `CopyElement` on a non-template seed → junk views re-minted each run | ✅ fixed — `View.CreateViewTemplate()` + cleanup on failure |
+| E-4 hardcoded `VIEW_DISCIPLINE` ints | ✅ fixed — reads `ViewDiscipline` members |
+| E-6 discarded managed parameter-id list | ✅ fixed — `SetNonControlledTemplateParameterIds` complement |
+
+The review mis-stated E-4: `Coordination = 4095` was already correct and `Mechanical = 4096` was
+not. `VIEW_DISCIPLINE` is a bit-flag parameter (Architectural 1, Structural 2, Mechanical 4,
+Electrical 8, Plumbing 16; Coordination 4095 = all bits). The genuine defects were Mechanical,
+Electrical and Plumbing.
+
+### P1 — issued-output correctness (done)
+
+| Finding | Status |
+|---|---|
+| D-1 / P-2 / P-10 producer token substitution + numbering | ✅ fixed |
+| T-1 composer never called `ToConcreteFamily` | ✅ fixed |
+| T-2 blank-name match-anything + silent arbitrary fallback | ✅ fixed (two defects) |
+| T-3 `PRJ_TB_LOCK_BOOL` unread by the declarative pipeline | ✅ fixed (skip-and-report) |
+| T-12 issue summary clobbered by revision description | ✅ fixed (write removed) |
+| C-4 AnnotationRunner had no idempotency | ✅ fixed (tags / dims / decorative) |
+| A-6 dog-leg pair key never matched on re-run | ✅ fixed |
+| A-7 captions stacked every sync | ✅ fixed |
+| A-8 silent tag-family fallback | ✅ fixed (warns) |
+| A-9 `GetElementCentre` null passed to `IndependentTag.Create` | ✅ fixed (bbox centre) |
+| A-3 legend refresh minted a blank twin | ✅ fixed (in-place, both branches) |
+| P-5 section frames wrong and divergent | ✅ fixed (one shared builder) |
+| E-2 crop assigned in model space | ✅ fixed (converted to crop frame) |
+
+Corrections to the review found while fixing these:
+
+- **E-4 was wrong in both directions.** `VIEW_DISCIPLINE` is a bit-flag parameter —
+  Architectural 1, Structural 2, Mechanical 4, Electrical 8, Plumbing 16, Coordination 4095
+  (all bits). So the shipped 4095 the review flagged as invalid was correct, and the 4096 it
+  called "the only correct one" was not. Real defect: Mechanical / Electrical / Plumbing.
+- **A-6's second clause is incorrect.** `PruneOrphans` does not need the segment-key
+  discipline: it takes the scope-pair GUID from the first colon-delimited field, identical in
+  the stamped and collapsed forms, so orphan segments pruned correctly before the fix.
+- **T-2 is two defects.** The `IsNullOrEmpty(tbFamily) ||` clause matched any loaded title
+  block and returned before the documented silent-fallback path could run.
+- **T-7's `Family Name` filters carry no `kind` field at all**, rather than `kind: builtin`.
+
+Deliberately deferred, with reasons:
+
+- **Dimension idempotency uses reference-category detection, not a stamped marker.** A marker
+  needs a new parameter bound to Dimensions (4-file provisioning). Residual: a dimension
+  reporting `AreReferencesAvailable == false` is treated as unknown, so a duplicate remains
+  possible if every dimension in a view is unreadable AND a prior chain exists.
+- **Match-line captions are identified by (view + type + caption-template shape + proximity)**,
+  since `STING_MATCH_LINE_GUID_TXT` does not bind to Text Notes. Template-shape matching (not
+  exact text) is what makes the post-renumber case work — the caption embeds the sheet number,
+  so exact text would miss every stale caption after a renumber, which is precisely when
+  `MatchLine_Sync` is run. Residual: a caption whose boundary geometry moved is orphaned rather
+  than deleted.
+- **P-5 / E-2 could not be verified outside Revit.** Both take Revit geometry types and
+  RevitAPI.dll is mixed-mode, so it will not load in a bare host. Testing a re-implementation
+  would assert against a copy, not the shipped code, so they rest on structural argument plus
+  the Revit smoke test.
+- **`IFamilyLoadOptions` `overwriteParameterValues` disagreement** (resolver false,
+  TitleBlockSlotCommands true) — untouched, since no loading behaviour changed.
+
+### P2 — still open
+
+Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
+numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
+C-4/A-6/A-7 annotation and match-line idempotency; A-3 legend in-place refresh; P-5/E-2 section
+frame and crop coordinates; C-5 inert corporate-lock checksums; W-2 unreachable MatchLine suite;
+W-3/W-4/W-5/W-6 wiring and documentation drift.
 
 ## Revision system — deferred items (Phase 199)
 

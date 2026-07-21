@@ -1514,6 +1514,22 @@ namespace StingTools.Core
                 case "Routing_PlaceSleeveConnectors": return new Commands.Routing.PlaceSleeveConnectorsCommand();
                 case "Routing_PlaceSleeveConnectorsAuto": return new Commands.Routing.PlaceSleeveConnectorsAutoCommand();
                 case "Validation_RunAll":        return new Commands.Validation.RunAllValidatorsCommand();
+
+                // Penetration pipeline — same "green build, dead runtime"
+                // trap as the rough-in steps above. These three tags existed
+                // only in StingCommandHandler's switch, so every step of
+                // WORKFLOW_PenetrationSweep.json and
+                // WORKFLOW_PenetrationRegister.json that used them resolved
+                // to null and reported FAILED.
+                //
+                // DrawingTypes_FromScopeBoxes resolves to the real command
+                // class; the dock-panel button for that tag runs a separate
+                // inline reimplementation in the handler (see W-5 in the
+                // drawings-production review) — converging the two is
+                // deliberately left out of this P0 pass.
+                case "Penetrations_DetectAndPlace":    return new Commands.Routing.PenetrationsDetectAndPlaceCommand();
+                case "Validation_PenetrationCoverage": return new Commands.Validation.PenetrationCoverageCommand();
+                case "DrawingTypes_FromScopeBoxes":    return new Commands.Drawing.GenerateFromScopeBoxesCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
                 case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();
