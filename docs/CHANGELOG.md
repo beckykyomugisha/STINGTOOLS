@@ -13,13 +13,14 @@ change adopts the standard workaround — repurpose the native **Issued to** fie
 as the ISO 19650 **SUIT** column (the user renames that schedule column heading
 to `SUIT`) — and wires STING to populate it automatically.
 
-- **`RevisionManagementCommands.cs`** — `CreateRevisionCommand` now accepts an
-  optional 6th pipe field (suitability) and, when absent, inherits the drawing's
-  current `PRJ_DWG_SUITABILITY_COD_TXT`; it stamps the value into
-  `Revision.IssuedTo` before the revision is issued. `IssueSheetsForRevisionCommand`
-  now stamps its form suitability (`parts[3]`, previously log-only) into
-  `targetRev.IssuedTo` before `Issued = true` (Revit locks revision props once
-  issued). `IssuedBy` (the BY column) is untouched.
+- **`RevisionManagementCommands.cs`** — every revision-creation path now stamps
+  `Revision.IssuedTo`: `CreateRevisionCommand` (optional 6th pipe field, else
+  inherits the drawing's `PRJ_DWG_SUITABILITY_COD_TXT`), `IssueSheetsForRevisionCommand`
+  (its form suitability `parts[3]`, previously log-only), the auto-revision-on-tag-change
+  path (inherits the drawing suitability), and the approval / review-revision paths
+  (approval inherits; a review revision defaults to `S3`). All stamps precede
+  `Issued = true` (Revit locks revision props once issued). `IssuedBy` (the BY
+  column) is untouched.
 - **`BIMCoordinationCenter.cs`** — the BCC *Create Revision* form gains a
   Suitability dropdown (S0–S7 / A1 / B1 + "— default"); its value rides the
   existing pipe dispatch as the new 6th field.
@@ -32,6 +33,13 @@ to `SUIT`) — and wires STING to populate it automatically.
 - No new shared parameter; reuses `PRJ_DWG_SUITABILITY_COD_TXT`, so it works with
   the existing family with no regeneration. No `dotnet build` run (Linux sandbox);
   verify in Revit.
+- **`docs/title_blocks/cover_v8_spec.py`** gains a `--params` mode that renders a
+  **label-authoring guide** (`cover_v8_PARAM_GUIDE.svg/.png`): every cell shows the
+  real STING shared parameter it should bind to (harvested from
+  `STING_TITLE_BLOCKS.json`), free-text cells are flagged `(… — manual)`, a bottom
+  **deliverable/issue ribbon** is added (full ref, deliverable status, CDE, data
+  drop, last transmittal, authoriser, sheet x/y, paper·scale, notes ref), and the
+  discipline swatches show their **hex codes** from the definitive registry.
 
 #### Completed (data sync — gate-param TEXT→YESNO datatype alignment, supersedes PR #337)
 

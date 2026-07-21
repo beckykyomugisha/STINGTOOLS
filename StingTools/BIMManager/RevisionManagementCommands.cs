@@ -2348,6 +2348,17 @@ namespace StingTools.BIMManager
                     try { rev.IssuedBy = Environment.UserName; }
                     catch (Exception ibEx) { StingLog.Warn($"AutoRevision IssuedBy stamp: {ibEx.Message}"); }
 
+                    // SUIT column: inherit the drawing's current suitability into the
+                    // revision's "Issued to" field (STING's repurposed SUIT column) so
+                    // auto-created revisions aren't left blank. Un-issued here, so the
+                    // property is writable.
+                    try
+                    {
+                        string autoSuit = ParameterHelpers.GetString(doc.ProjectInformation, "PRJ_DWG_SUITABILITY_COD_TXT") ?? "";
+                        if (!string.IsNullOrWhiteSpace(autoSuit)) rev.IssuedTo = autoSuit;
+                    }
+                    catch (Exception suEx) { StingLog.Warn($"AutoRevision suitability stamp: {suEx.Message}"); }
+
                     // Same ISO numbering as CreateRevision — auto revisions join
                     // the P-series sequence so their number reads "P0n" natively.
                     try
@@ -2500,6 +2511,16 @@ namespace StingTools.BIMManager
                                 latest.IssuedBy = Environment.UserName;
                         }
                         catch (Exception ibEx) { StingLog.Warn($"Approval IssuedBy stamp: {ibEx.Message}"); }
+                        // SUIT column: fill the "Issued to" field from the drawing's
+                        // current suitability if the revision hasn't set one. Must
+                        // precede Issued = true (Revit then locks the property).
+                        try
+                        {
+                            string apprSuit = ParameterHelpers.GetString(doc.ProjectInformation, "PRJ_DWG_SUITABILITY_COD_TXT") ?? "";
+                            if (!string.IsNullOrWhiteSpace(apprSuit) && string.IsNullOrWhiteSpace(latest.IssuedTo))
+                                latest.IssuedTo = apprSuit;
+                        }
+                        catch (Exception suEx) { StingLog.Warn($"Approval suitability stamp: {suEx.Message}"); }
                         latest.Issued = true;
                         tx.Commit();
                     }
@@ -2519,6 +2540,15 @@ namespace StingTools.BIMManager
                         newRev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
                         try { newRev.IssuedBy = Environment.UserName; }
                         catch (Exception ibEx) { StingLog.Warn($"Review revision IssuedBy stamp: {ibEx.Message}"); }
+                        // SUIT column: a review revision is normally S3 (review &
+                        // comment); inherit the drawing's suitability if present so the
+                        // column isn't blank, defaulting to S3 otherwise.
+                        try
+                        {
+                            string revSuit = ParameterHelpers.GetString(doc.ProjectInformation, "PRJ_DWG_SUITABILITY_COD_TXT") ?? "";
+                            newRev.IssuedTo = string.IsNullOrWhiteSpace(revSuit) ? "S3" : revSuit;
+                        }
+                        catch (Exception suEx) { StingLog.Warn($"Review revision suitability stamp: {suEx.Message}"); }
                         tx.Commit();
 
                         BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
