@@ -70,7 +70,46 @@ namespace StingTools.Placement.Tests
         [Fact]
         public void Normalise_StripsTrailingSpaceSeparatedYear()
         {
+            // Safe to strip: "BS 8233" still carries the standard number.
             Assert.Equal("BS8233", StandardsTokenMatcher.Normalise("BS 8233 2014"));
+        }
+
+        // ── Standard numbers that fall inside the year window ────────
+        //
+        // Regression: the trailing-year strip used to fire on ANY 4-digit group
+        // in 1800-2199, so "BS EN 1838" collapsed to "BSEN" and then
+        // substring-matched every other BS EN standard. The whole Eurocode
+        // family (EN 1990-1999) is in that window too. Only strip when the
+        // citation still carries a number without the trailing group.
+
+        [Theory]
+        [InlineData("BS EN 1838", "BSEN1838")]   // emergency lighting
+        [InlineData("BS EN 1869", "BSEN1869")]   // fire blankets
+        [InlineData("EN 1992", "EN1992")]        // Eurocode 2
+        [InlineData("EN 1998", "EN1998")]        // Eurocode 8
+        public void Normalise_KeepsAStandardNumberThatLooksLikeAYear(string input, string expected)
+        {
+            Assert.Equal(expected, StandardsTokenMatcher.Normalise(input));
+        }
+
+        [Fact]
+        public void Matches_DoesNotCollapseBsEnNumberIntoAWildcard()
+        {
+            // The false positive this guards: an emergency-lighting rule must NOT
+            // survive a profile that only activates BS EN 12464 (task lighting).
+            Assert.False(StandardsTokenMatcher.Matches("BS EN 1838", new[] { "BS EN 12464" }));
+            Assert.False(StandardsTokenMatcher.Matches("BS EN 1869", new[] { "BS EN 12464" }));
+            Assert.False(StandardsTokenMatcher.Matches("EN 1992", new[] { "EN 1998" }));
+
+            // ...while the genuine self-match still works.
+            Assert.True(StandardsTokenMatcher.Matches("BS EN 1838", new[] { "BS EN 1838" }));
+        }
+
+        [Fact]
+        public void Normalise_KeepsAYearThatIsPartOfTheName()
+        {
+            // "Equality Act" carries no number, so 2010 is the identifier, not an edition.
+            Assert.Equal("EQUALITYACT2010", StandardsTokenMatcher.Normalise("Equality Act 2010"));
         }
 
         // ── Matches: cases the old comparison got right ──────────────

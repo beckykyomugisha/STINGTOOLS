@@ -14,9 +14,7 @@
       "GlazingSpec": "CLEAR",
       "MinSpacingMm": 1200.0,
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS8213-1"
-      ],
+      "ApplicableStandards": ["BS 8213-1"],
       "Priority": 60,
       "Notes": "Bedroom window standard sill 800mm",
       "VariantHint": "WIN_RESIDENTIAL_BEDROOM"
@@ -24,6 +22,7 @@
     {
       "RuleId": "win-residential-living",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)living|lounge",
       "AnchorType": "WINDOW_SILL_RESIDENTIAL",
       "SillHeightMm": 900.0,
@@ -36,6 +35,7 @@
     {
       "RuleId": "win-residential-bathroom",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)bathroom|en.?suite",
       "AnchorType": "WINDOW_SILL_WET_ROOM",
       "SillHeightMm": 1700.0,
@@ -49,6 +49,7 @@
     {
       "RuleId": "win-residential-kitchen",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)kitchen",
       "AnchorType": "WINDOW_SILL_KITCHEN",
       "SillHeightMm": 1000.0,
@@ -67,9 +68,7 @@
       "CillToFloorMm": 1100.0,
       "ToughenedGlazingRequired": true,
       "GlazingSpec": "TOUGHENED",
-      "ApplicableStandards": [
-        "BS6206"
-      ],
+      "ApplicableStandards": ["BS 6206"],
       "BuildingType": "Residential",
       "Priority": 75,
       "VariantHint": "WIN_RESIDENTIAL_LANDING_STAIR"
@@ -77,6 +76,7 @@
     {
       "RuleId": "win-residential-groundfloor-sec",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)ground|gf",
       "AnchorType": "WINDOW_SILL_RESIDENTIAL",
       "SillHeightMm": 1000.0,
@@ -103,6 +103,7 @@
     {
       "RuleId": "win-office-meeting",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)meeting|conference",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 1050.0,
@@ -114,6 +115,7 @@
     {
       "RuleId": "win-office-cellular",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)private|cellular|director",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 1100.0,
@@ -133,15 +135,14 @@
       "GlazingSpec": "TOUGHENED",
       "MinSpacingMm": 2000.0,
       "BuildingType": "Retail",
-      "ApplicableStandards": [
-        "BS6206"
-      ],
+      "ApplicableStandards": ["BS 6206"],
       "Priority": 70,
       "VariantHint": "WIN_RETAIL_SHOPFRONT"
     },
     {
       "RuleId": "win-retail-display",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)display|showroom",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 300.0,
@@ -161,15 +162,14 @@
       "GlazingSpec": "CLEAR",
       "MinSpacingMm": 1500.0,
       "BuildingType": "Education",
-      "ApplicableStandards": [
-        "BB103"
-      ],
+      "ApplicableStandards": ["BB 103"],
       "Priority": 60,
       "VariantHint": "WIN_EDUCATION_CLASSROOM"
     },
     {
       "RuleId": "win-education-corridor",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)corridor|circulation",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 1100.0,
@@ -181,6 +181,7 @@
     {
       "RuleId": "win-education-sports-hall",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)sports|gym|hall",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 3000.0,
@@ -200,14 +201,13 @@
       "GlazingSpec": "TOUGHENED",
       "VariantHint": "ANTI-LIGATURE",
       "BuildingType": "Healthcare",
-      "ApplicableStandards": [
-        "HTM0201"
-      ],
+      "ApplicableStandards": ["HTM 0201"],
       "Priority": 80
     },
     {
       "RuleId": "win-hospital-corridor",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)corridor|clinical",
       "AnchorType": "WINDOW_SILL_HOSPITAL",
       "SillHeightMm": 1100.0,
@@ -219,6 +219,7 @@
     {
       "RuleId": "win-hospital-isolation",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)isolation|negative.?pressure",
       "AnchorType": "WINDOW_SILL_HOSPITAL",
       "SillHeightMm": 1500.0,
@@ -230,6 +231,7 @@
     {
       "RuleId": "win-hospitality-hotel-bedroom",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)bedroom|guest.?room",
       "AnchorType": "WINDOW_SILL_RESIDENTIAL",
       "SillHeightMm": 900.0,
@@ -242,6 +244,7 @@
     {
       "RuleId": "win-hospitality-restaurant",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)restaurant|dining",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 800.0,
@@ -254,6 +257,7 @@
     {
       "RuleId": "win-industrial-factory",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)factory|production|assembly",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 2000.0,
@@ -266,6 +270,7 @@
     {
       "RuleId": "win-industrial-warehouse",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)warehouse|store",
       "AnchorType": "SLAB_PERIMETER_EDGE",
       "GlazingSpec": "CLEAR",
@@ -284,16 +289,14 @@
       "GlazingSpec": "OBSCURED",
       "AccessibilityCheck": true,
       "BuildingType": "Mixed",
-      "ApplicableStandards": [
-        "BS8300",
-        "PartM"
-      ],
+      "ApplicableStandards": ["BS 8300", "PartM"],
       "Priority": 75,
       "VariantHint": "WIN_RESIDENTIAL_ACCESSIBLE_WC"
     },
     {
       "RuleId": "win-carpark-perimeter",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)carpark|parking",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "SillHeightMm": 1200.0,
@@ -307,6 +310,7 @@
     {
       "RuleId": "win-residential-conservatory",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)conservatory|sunroom",
       "AnchorType": "WINDOW_SILL_RESIDENTIAL",
       "SillHeightMm": 300.0,
@@ -326,9 +330,7 @@
       "ToughenedGlazingRequired": true,
       "GlazingSpec": "TOUGHENED",
       "BuildingType": "Education",
-      "ApplicableStandards": [
-        "BB103"
-      ],
+      "ApplicableStandards": ["BB 103"],
       "Priority": 70,
       "VariantHint": "WIN_SCHOOL_NURSERY_RECEPTION_YR"
     },
@@ -340,14 +342,13 @@
       "GlazingSpec": "FIRE_RATED",
       "VariantHint": "E60",
       "BuildingType": "Mixed",
-      "ApplicableStandards": [
-        "ApprovedDocB"
-      ],
+      "ApplicableStandards": ["Approved Doc B"],
       "Priority": 65
     },
     {
       "RuleId": "win-acoustic-studio",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)studio|recording",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "GlazingSpec": "ACOUSTIC",
@@ -359,6 +360,7 @@
     {
       "RuleId": "win-museum-gallery",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)gallery|museum",
       "AnchorType": "WINDOW_SILL_COMMERCIAL",
       "GlazingSpec": "UV_FILTER",
@@ -370,6 +372,7 @@
     {
       "RuleId": "win-basement-lightwell",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)basement|cellar|sub.?level",
       "AnchorType": "WINDOW_SILL_RESIDENTIAL",
       "SillHeightMm": 0.0,
@@ -382,6 +385,7 @@
     {
       "RuleId": "win-roof-skylight",
       "CategoryFilter": "Windows",
+      "ApplicableStandards": ["BS 8213-1", "Approved Doc L"],
       "RoomFilter": "(?i)roof|attic",
       "AnchorType": "ROOM_CENTRE",
       "MountingReference": "SLAB",

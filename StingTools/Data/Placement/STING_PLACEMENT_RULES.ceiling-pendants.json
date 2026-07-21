@@ -24,9 +24,7 @@
       "EmitNogginRequirement": true,
       "JoistClearanceMm": 300,
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "StandardRef": "BS 7671 / BS 4568",
       "Notes": "Residential pendant 1\u00d7 E27.",
@@ -55,9 +53,7 @@
       "EmitNogginRequirement": true,
       "CeilingTileSnap": false,
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "StandardRef": "BS 7671",
       "Notes": "Kitchen pendant deeper BESA for LED driver.",
@@ -87,9 +83,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 80,
       "StandardRef": "BS 7671 Part 7-701",
       "Notes": "Bathroom IP65 ceiling fitting.",
@@ -120,9 +114,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "BuildingType": "Office",
-      "ApplicableStandards": [
-        "EN12464"
-      ],
+      "ApplicableStandards": ["EN 12464"],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1 OFFICE_GENERAL 500lux",
       "Notes": "Office LED panel pendant on 1200\u00d7600 grid.",
@@ -152,10 +144,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "BuildingType": "Education",
-      "ApplicableStandards": [
-        "EN12464",
-        "BB103"
-      ],
+      "ApplicableStandards": ["EN 12464", "BB 103"],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1 CLASSROOM 300lux",
       "Notes": "Classroom LED pendant tile-snapped.",
@@ -182,9 +171,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "HeightStandardRef": "BS5266_EMERG_LIGHT",
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 80,
       "StandardRef": "BS 5266-1:2016",
       "Notes": "Combined emergency / mains corridor luminaire.",
@@ -214,9 +201,7 @@
       "TileGridSpacingYMm": 600,
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
-      "ApplicableStandards": [
-        "EN12464"
-      ],
+      "ApplicableStandards": ["EN 12464"],
       "Priority": 60,
       "StandardRef": "BS EN 12464-1",
       "Notes": "100mm LED downlight on 600 grid."
@@ -245,9 +230,7 @@
       "WetZoneClass": "Zone2",
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 75,
       "StandardRef": "BS 7671 Part 7-701",
       "Notes": "IP65 bathroom downlight Zone 2 compatible."
@@ -274,9 +257,7 @@
       "BoxLocationIdParam": "STING_BOX_LOCATION_ID",
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "StandardRef": "BS 7671",
       "Notes": "Kitchen IP44 LED downlight."
@@ -305,9 +286,7 @@
       "EmitNogginRequirement": false,
       "MinAreaM2": 50,
       "BuildingType": "Industrial",
-      "ApplicableStandards": [
-        "EN12464"
-      ],
+      "ApplicableStandards": ["EN 12464"],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1",
       "Notes": "High-bay luminaire over plant/warehouse.",
@@ -335,9 +314,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "BuildingType": "Retail",
-      "ApplicableStandards": [
-        "EN12464"
-      ],
+      "ApplicableStandards": ["EN 12464"],
       "Priority": 60,
       "StandardRef": "BS EN 12464-1",
       "Notes": "Track adapter base."
@@ -365,9 +342,7 @@
       "GuaranteeCoverage": true,
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
-      "ApplicableStandards": [
-        "BS5839"
-      ],
+      "ApplicableStandards": ["BS 5839"],
       "Priority": 85,
       "StandardRef": "BS 5839-1:2025 Clause 26",
       "Notes": "Optical smoke detector \u2014 coverage guaranteed, max 7.5m spacing."
@@ -391,9 +366,7 @@
       "GuaranteeCoverage": true,
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
-      "ApplicableStandards": [
-        "BS5839"
-      ],
+      "ApplicableStandards": ["BS 5839"],
       "Priority": 85,
       "StandardRef": "BS 5839-1:2025",
       "Notes": "Heat detector for high-fire-risk rooms."
@@ -412,9 +385,7 @@
       "PlasterOffsetMode": "None",
       "TwoPhaseEnabled": false,
       "ConstructionPhase": "Construction",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 50,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
@@ -435,9 +406,7 @@
       "PlasterOffsetMode": "None",
       "TwoPhaseEnabled": false,
       "ConstructionPhase": "Construction",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 50,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
@@ -468,7 +437,7 @@
       "Priority": 65,
       "MaxPerRoom": 3,
       "StandardRef": "BS 7671",
-      "ApplicableStandards": ["BS7671"],
+      "ApplicableStandards": ["BS 7671"],
       "Notes": "Living room cluster pendant.",
       "VariantHint": "NDANT_LIVINGROOM_PENDANT_CLUSTER"
     },
@@ -494,7 +463,7 @@
       "EmitNogginRequirement": true,
       "Priority": 75,
       "StandardRef": "BS 5266-1",
-      "ApplicableStandards": ["BS5266-1"],
+      "ApplicableStandards": ["BS 5266-1"],
       "Notes": "Stair / landing luminaire on 2-way switch.",
       "VariantHint": "PENDANT_STAIR_LANDING"
     },
@@ -523,9 +492,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "BuildingType": "Office",
-      "ApplicableStandards": [
-        "EN12464"
-      ],
+      "ApplicableStandards": ["EN 12464"],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1 MEETING 500lux",
       "Notes": "Boardroom dimmable LED panel."
@@ -553,9 +520,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "BuildingType": "Retail",
-      "ApplicableStandards": [
-        "EN12464"
-      ],
+      "ApplicableStandards": ["EN 12464"],
       "Priority": 60,
       "StandardRef": "BS EN 12464-1 RETAIL 500lux",
       "Notes": "Recessed adjustable spot."
@@ -584,9 +549,7 @@
       "StructuralFixingCheck": true,
       "EmitNogginRequirement": true,
       "BuildingType": "Office",
-      "ApplicableStandards": [
-        "EN12464"
-      ],
+      "ApplicableStandards": ["EN 12464"],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1 CORRIDOR 100lux",
       "Notes": "Corridor LED on 1200\u00d7600 grid.",

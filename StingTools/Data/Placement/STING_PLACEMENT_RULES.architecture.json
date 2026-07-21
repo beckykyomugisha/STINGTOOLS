@@ -14,7 +14,7 @@
       "MaxPerRoom": 1,
       "Priority": 70,
       "StandardRef": "Approved Doc M / BS 8300-2",
-      "ApplicableStandards": ["ApprovedDocM", "BS8300-2"],
+      "ApplicableStandards": ["Approved Doc M", "BS 8300-2"],
       "Notes": "1 leaf per office, hinge-side opening per Approved Doc M.",
       "VariantHint": "ARCH_DOOR_ROOM_DEFAULT"
     },
@@ -30,7 +30,7 @@
       "MaxPerRoom": 1,
       "Priority": 90,
       "StandardRef": "Approved Doc M / BS 8300-2",
-      "ApplicableStandards": ["ApprovedDocM", "BS8300-2"],
+      "ApplicableStandards": ["Approved Doc M", "BS 8300-2"],
       "Notes": "Accessible WC: 1000mm clear leaf, outward swing per BS 8300-2:2018 \u00a717.",
       "VariantHint": "ARCH_DOOR_ACCESSIBLE_WC"
     },
@@ -46,7 +46,7 @@
       "MaxPerRoom": 1,
       "Priority": 80,
       "StandardRef": "BS EN 81-70",
-      "ApplicableStandards": ["BSEN81-70"],
+      "ApplicableStandards": ["BS EN 81-70"],
       "Notes": "Lift-lobby double-leaf access door.",
       "VariantHint": "ARCH_DOOR_LIFT_LOBBY"
     },
@@ -62,7 +62,7 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "BS 8233 daylight",
-      "ApplicableStandards": ["BS8233daylight"],
+      "ApplicableStandards": ["BS 8233"],
       "Notes": "Residential cill at 800mm; respect Part B fire-egress where applicable.",
       "VariantHint": "ARCH_WINDOW_RESIDENTIAL_CILL"
     },
@@ -78,7 +78,7 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "BS 8233 / BCO 2019",
-      "ApplicableStandards": ["BS8233", "BCO2019"],
+      "ApplicableStandards": ["BS 8233", "BCO2019"],
       "Notes": "Office cill at 1100mm to suit deskheight equipment.",
       "VariantHint": "ARCH_WINDOW_OFFICE_CILL"
     },
@@ -94,7 +94,7 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "BS 8233",
-      "ApplicableStandards": ["BS8233"],
+      "ApplicableStandards": ["BS 8233"],
       "Notes": "Full-height glazing in atria for daylight.",
       "VariantHint": "ARCH_WINDOW_ATRIUM"
     },
@@ -136,7 +136,7 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "BB103",
-      "ApplicableStandards": ["BB103"],
+      "ApplicableStandards": ["BB 103"],
       "Notes": "1 desk per pupil per BB103 area allowance.",
       "VariantHint": "ARCH_FURNITURE_CLASSROOM"
     },
@@ -166,7 +166,7 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "BS EN 1116",
-      "ApplicableStandards": ["BSEN1116"],
+      "ApplicableStandards": ["BS EN 1116"],
       "Notes": "Standard 600 mm modular base unit per linear metre.",
       "VariantHint": "ARCH_CASEWORK_KITCHEN_BASE"
     },
@@ -182,7 +182,7 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "HTM 06-01 / BB103",
-      "ApplicableStandards": ["HTM06-01", "BB103"],
+      "ApplicableStandards": ["HTM 06-01", "BB 103"],
       "Notes": "Lab bench module at 1.5 m centres, 900 mm working height.",
       "VariantHint": "ARCH_CASEWORK_LAB_BENCH"
     },
@@ -196,7 +196,7 @@
       "MaxPerRoom": 1,
       "Priority": 55,
       "StandardRef": "BB103",
-      "ApplicableStandards": ["BB103"],
+      "ApplicableStandards": ["BB 103"],
       "Notes": "Classroom storage on rear wall.",
       "VariantHint": "ARCH_CASEWORK_CLASSROOM_STORAGE"
     },
@@ -212,7 +212,7 @@
       "MaxPerRoom": 0,
       "Priority": 40,
       "StandardRef": "BS 8300-2",
-      "ApplicableStandards": ["BS8300-2"],
+      "ApplicableStandards": ["BS 8300-2"],
       "Notes": "Coat hooks at 1700mm AFF every 600 mm.",
       "VariantHint": "ARCH_GENERIC_COATHOOK"
     },
@@ -228,7 +228,7 @@
       "MaxPerRoom": 1,
       "Priority": 50,
       "StandardRef": "BS 8300-2",
-      "ApplicableStandards": ["BS8300-2"],
+      "ApplicableStandards": ["BS 8300-2"],
       "Notes": "Wayfinding sign at 1500 mm AFF beside door.",
       "VariantHint": "ARCH_GENERIC_SIGNAGE"
     },
@@ -244,7 +244,7 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "StandardRef": "BB103",
-      "ApplicableStandards": ["BB103"],
+      "ApplicableStandards": ["BB 103"],
       "Notes": "Lectern at front-of-room centreline.",
       "VariantHint": "ARCH_SPECIALTY_LECTERN"
     },
@@ -275,7 +275,7 @@
       "MaxPerRoom": 0,
       "Priority": 75,
       "StandardRef": "Approved Doc K / BS 6180",
-      "ApplicableStandards": ["ApprovedDocK", "BS6180"],
+      "ApplicableStandards": ["Approved Doc K", "BS 6180"],
       "Notes": "Hand-rail extension at 900 mm AFF."
     },
     {
@@ -288,7 +288,7 @@
       "MaxPerRoom": 0,
       "Priority": 70,
       "StandardRef": "Approved Doc M / Part S",
-      "ApplicableStandards": ["ApprovedDocM", "PartS"],
+      "ApplicableStandards": ["Approved Doc M", "PartS"],
       "Notes": "Accessible bay quota target ~6 % per BS 8300-1; placeholder density.",
       "VariantHint": "ARCH_PARKING_ACCESSIBLE"
     }

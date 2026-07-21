@@ -4,6 +4,7 @@
   "Rules": [
     {
       "CategoryFilter": "Electrical Fixtures",
+      "ApplicableStandards": ["BS 7671"],
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "",
       "AnchorType": "WALL_MIDPOINT",
@@ -18,6 +19,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "ApplicableStandards": ["BS 7671"],
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)kitchen",
       "AnchorType": "WALL_MIDPOINT",
@@ -32,6 +34,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "ApplicableStandards": ["BS 7671", "BS 7671 section 701"],
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)\\b(bathroom|wc|toilet|shower|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_MIDPOINT",
@@ -46,6 +49,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "ApplicableStandards": ["BS 7671"],
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)office|study|workstation",
       "AnchorType": "WALL_MIDPOINT",
@@ -60,6 +64,7 @@
     },
     {
       "CategoryFilter": "Lighting Devices",
+      "ApplicableStandards": ["BS 7671", "Approved Doc M"],
       "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "",
       "AnchorType": "DOOR_HINGE",
@@ -75,6 +80,7 @@
     },
     {
       "CategoryFilter": "Lighting Devices",
+      "ApplicableStandards": ["BS 7671", "Approved Doc M"],
       "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)corridor|circulation",
       "AnchorType": "DOOR_HINGE",
@@ -90,6 +96,7 @@
     },
     {
       "CategoryFilter": "Lighting Devices",
+      "ApplicableStandards": ["BS 7671", "Approved Doc M"],
       "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)stair",
       "AnchorType": "DOOR_HINGE",
@@ -105,6 +112,7 @@
     },
     {
       "CategoryFilter": "Communication Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)living|lounge|reception",
       "AnchorType": "WALL_MIDPOINT",
@@ -119,6 +127,7 @@
     },
     {
       "CategoryFilter": "Communication Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)bedroom",
       "AnchorType": "WALL_MIDPOINT",
@@ -133,6 +142,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)office|study",
       "AnchorType": "WALL_MIDPOINT",
@@ -147,6 +157,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "RoomFilter": "(?i)meeting|conference|board",
       "AnchorType": "ROOM_CENTRE",
       "OffsetXMm": 0.0,
@@ -161,6 +172,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)server|comms|idf|mdf",
       "AnchorType": "WALL_CORNER",
@@ -175,6 +187,7 @@
     },
     {
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "RoomFilter": "(?i)corridor|entrance|lobby",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -189,6 +202,7 @@
     },
     {
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)entrance|reception",
       "AnchorType": "DOOR_JAMB",
@@ -203,6 +217,7 @@
     },
     {
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)server|comms|plant",
       "AnchorType": "DOOR_JAMB",
@@ -217,6 +232,7 @@
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
+      "ApplicableStandards": ["BS 5839-1"],
       "RoomFilter": "",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -231,6 +247,7 @@
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
+      "ApplicableStandards": ["BS 5839-1"],
       "RoomFilter": "(?i)kitchen|boiler|plant",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -245,6 +262,7 @@
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
+      "ApplicableStandards": ["BS 5839-1"],
       "FamilyTypeRegex": "(?i)detector|smoke|heat|sound|call.?point",
       "RoomFilter": "(?i)corridor|escape",
       "AnchorType": "DOOR_JAMB",
@@ -259,6 +277,7 @@
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
+      "ApplicableStandards": ["BS 5839-1"],
       "FamilyTypeRegex": "(?i)detector|smoke|heat|sound|call.?point",
       "RoomFilter": "(?i)stair|lobby",
       "AnchorType": "DOOR_JAMB",
@@ -273,6 +292,7 @@
     },
     {
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1", "BS 5266-1", "BS EN 1838"],
       "RoomFilter": "(?i)escape|corridor|stair",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -287,6 +307,7 @@
     },
     {
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1", "BS 5266-1", "BS EN 1838"],
       "RoomFilter": "(?i)exit|entrance",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": 0.0,
@@ -301,6 +322,7 @@
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)\\b(bathroom|wc|toilet|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -315,6 +337,7 @@
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)\\b(bathroom|wc|toilet|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 300.0,
@@ -329,6 +352,7 @@
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)shower|wetroom",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 200.0,
@@ -343,6 +367,7 @@
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)kitchen|utility",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -357,6 +382,7 @@
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)cleaner|janitor",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 200.0,
@@ -371,6 +397,7 @@
     },
     {
       "CategoryFilter": "Air Terminals",
+      "ApplicableStandards": ["BS EN 13779", "CIBSE Guide B"],
       "RoomFilter": "",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -385,6 +412,7 @@
     },
     {
       "CategoryFilter": "Air Terminals",
+      "ApplicableStandards": ["BS EN 13779", "CIBSE Guide B"],
       "RoomFilter": "(?i)office|meeting",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -399,6 +427,7 @@
     },
     {
       "CategoryFilter": "Air Terminals",
+      "ApplicableStandards": ["BS EN 13779", "CIBSE Guide B"],
       "RoomFilter": "(?i)toilet|wc|bathroom",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -413,6 +442,7 @@
     },
     {
       "CategoryFilter": "Mechanical Equipment",
+      "ApplicableStandards": ["CIBSE Guide B"],
       "RoomFilter": "(?i)plant|boiler",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 800.0,
@@ -427,6 +457,7 @@
     },
     {
       "CategoryFilter": "Sprinklers",
+      "ApplicableStandards": ["BS EN 12845"],
       "RoomFilter": "",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -441,6 +472,7 @@
     },
     {
       "CategoryFilter": "Sprinklers",
+      "ApplicableStandards": ["BS EN 12845"],
       "RoomFilter": "(?i)server|comms",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -455,6 +487,7 @@
     },
     {
       "CategoryFilter": "Nurse Call Devices",
+      "ApplicableStandards": ["HTM 08-03"],
       "RoomFilter": "(?i)ward|bedroom|patient",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -469,6 +502,7 @@
     },
     {
       "CategoryFilter": "Nurse Call Devices",
+      "ApplicableStandards": ["HTM 08-03", "BS 7671", "BS 7671 section 701"],
       "RoomFilter": "(?i)toilet|bathroom",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 200.0,
@@ -483,6 +517,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "ApplicableStandards": ["BS 7671"],
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)corridor",
       "AnchorType": "WALL_MIDPOINT",
@@ -497,6 +532,7 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
+      "ApplicableStandards": ["BS 7671"],
       "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)plant|boiler|pump",
       "AnchorType": "WALL_CORNER",
@@ -511,6 +547,7 @@
     },
     {
       "CategoryFilter": "Electrical Equipment",
+      "ApplicableStandards": ["BS 7671"],
       "RoomFilter": "(?i)plant|electrical|comms",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -525,6 +562,7 @@
     },
     {
       "CategoryFilter": "Specialty Equipment",
+      "ApplicableStandards": ["CIBSE Code M"],
       "RoomFilter": "(?i)kitchen",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -539,6 +577,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)classroom|lecture",
       "AnchorType": "WALL_MIDPOINT",
@@ -553,6 +592,7 @@
     },
     {
       "CategoryFilter": "Data Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)lab|laboratory",
       "AnchorType": "WALL_MIDPOINT",
@@ -567,6 +607,7 @@
     },
     {
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)ward|bedroom|office",
       "AnchorType": "WALL_MIDPOINT",
@@ -581,6 +622,7 @@
     },
     {
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "RoomFilter": "(?i)office|workstation",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,
@@ -595,6 +637,7 @@
     },
     {
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "RoomFilter": "(?i)corridor|circulation",
       "AnchorType": "CEILING_CENTRE",
       "OffsetXMm": 0.0,

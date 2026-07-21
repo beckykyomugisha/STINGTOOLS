@@ -192,6 +192,84 @@ namespace StingTools.UI.PlacementCenter
                 cmbMaintenanceClearance.SelectionChanged += (_,__) =>
                     CommitField(() => VM.Selected.MaintenanceClearance = cmbMaintenanceClearance.SelectedItem as string ?? "");
 
+            // Phase 224 — the rest of the uncommitted editor cards.
+            //
+            // An audit of the per-rule sync block (every control assigned from a
+            // `s.<Property>`) found 16 further editors populated from the selected
+            // rule with no write-back handler, so their edits were discarded on
+            // selection change exactly as the glazing / clearance ones were.
+            // Notably this included txtStandardsCsv — the ApplicableStandards
+            // editor itself could not be edited.
+            //
+            // Read-only displays (txtSourcePack, txtRuleError) are deliberately
+            // excluded: SourcePack is loader-owned and txtRuleError renders
+            // validation output.
+
+            // Clearances / geometry (numeric)
+            if (txtWallClearance != null)
+                txtWallClearance.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.WallClearanceMm = ParseDouble(txtWallClearance.Text, VM.Selected.WallClearanceMm));
+            if (txtObstructionClearance != null)
+                txtObstructionClearance.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.ObstructionClearanceMm = ParseDouble(txtObstructionClearance.Text, VM.Selected.ObstructionClearanceMm));
+            if (txtRouteMinBendRadius != null)
+                txtRouteMinBendRadius.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.RouteMinBendRadiusMm = ParseDouble(txtRouteMinBendRadius.Text, VM.Selected.RouteMinBendRadiusMm));
+            if (txtSillHeight != null)
+                txtSillHeight.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.SillHeightMm = ParseDouble(txtSillHeight.Text, VM.Selected.SillHeightMm));
+            if (txtHeadHeight != null)
+                txtHeadHeight.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.HeadHeightMm = ParseDouble(txtHeadHeight.Text, VM.Selected.HeadHeightMm));
+            if (txtCillToFloor != null)
+                txtCillToFloor.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.CillToFloorMm = ParseDouble(txtCillToFloor.Text, VM.Selected.CillToFloorMm));
+
+            // Free text
+            if (txtIpRatingMin != null)
+                txtIpRatingMin.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.IpRatingMin = txtIpRatingMin.Text ?? "");
+            if (txtStandardsCsv != null)
+                txtStandardsCsv.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.ApplicableStandardsCsv = txtStandardsCsv.Text ?? "");
+            if (txtPostAuditTag != null)
+                txtPostAuditTag.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.PostAuditTag = txtPostAuditTag.Text ?? "");
+
+            // Combos. The sync block substitutes a default when the rule value is
+            // empty ("INTERIOR" for RouteFace, "NONE" for WetZoneExclusion); the
+            // commit path mirrors that so a round-trip is stable rather than
+            // rewriting the rule with the placeholder on first selection.
+            if (cmbRouteFace != null)
+                cmbRouteFace.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.RouteFace = cmbRouteFace.SelectedItem as string ?? VM.Selected.RouteFace);
+            if (cmbBuildingType != null)
+                cmbBuildingType.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.BuildingType = cmbBuildingType.SelectedItem as string ?? VM.Selected.BuildingType);
+            if (cmbWetZone != null)
+                cmbWetZone.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.WetZoneExclusion = cmbWetZone.SelectedItem as string ?? VM.Selected.WetZoneExclusion);
+            if (cmbHeightStandard != null)
+                cmbHeightStandard.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.HeightStandard = cmbHeightStandard.SelectedItem as string ?? VM.Selected.HeightStandard);
+
+            // Checkboxes
+            if (chkAccessibilityCheck != null)
+            {
+                chkAccessibilityCheck.Checked   += (_,__) => CommitField(() => VM.Selected.AccessibilityCheck = true);
+                chkAccessibilityCheck.Unchecked += (_,__) => CommitField(() => VM.Selected.AccessibilityCheck = false);
+            }
+            if (chkRequiresCOBieFields != null)
+            {
+                chkRequiresCOBieFields.Checked   += (_,__) => CommitField(() => VM.Selected.RequiresCOBieFields = true);
+                chkRequiresCOBieFields.Unchecked += (_,__) => CommitField(() => VM.Selected.RequiresCOBieFields = false);
+            }
+            if (chkRequiresIfcMapping != null)
+            {
+                chkRequiresIfcMapping.Checked   += (_,__) => CommitField(() => VM.Selected.RequiresIfcMapping = true);
+                chkRequiresIfcMapping.Unchecked += (_,__) => CommitField(() => VM.Selected.RequiresIfcMapping = false);
+            }
+
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
             cmbCategory.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());

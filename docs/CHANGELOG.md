@@ -2,6 +2,93 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 225 — Placement Centre: tests actually run, matcher false-positive fixed, remaining editor cards wired, rule set fully tagged)
+
+Verification pass on #458 with a real toolchain. The headline is that the test
+project had **never been executed** — the sandbox that wrote it has no `dotnet`,
+and CI builds only `StingTools/StingTools.csproj`. Everything below was proven
+locally, not asserted.
+
+**1. The test suite runs, and is not vacuous.**
+`dotnet test StingTools.Placement.Tests` → **69 passed / 0 failed** (the earlier
+"45"/"48" claims were never observed by a runner). The shims still match the real
+types, so the project compiles. Because a passing suite proves nothing on its own,
+each load-bearing behaviour was mutation-tested — the fix was reverted and the
+suite re-run:
+
+| Mutation | Result |
+|---|---|
+| zero-coercion removed from `PlacementRule.MaintenanceClearance` | **4 failed** |
+| edition-year stripping disabled in `StandardsTokenMatcher` | **2 failed** |
+| `/` removed from the separator set (the exact pre-fix bug) | **2 failed** |
+| rule-pack data reverted to pre-Phase-224 | **4 failed** |
+
+**2. `StandardsTokenMatcher` had a live false-positive bug — found by cleaning the data.**
+The trailing-year strip fired on any 4-digit group in 1800–2199, so **`"BS EN 1838"`
+(emergency lighting) normalised to `"BSEN"`** — which then substring-matched every
+other BS EN standard. The whole Eurocode family (`EN 1990`–`EN 1999`) is in that
+window. The bug was masked because the mangled space-free tokens (`BSEN1838`) never
+hit the space-separated branch; cleaning them exposed it.
+
+A space-separated 4-digit group is now only treated as an edition year when the
+citation still carries a number without it: `"BS 8233 2014"` → `BS8233` (strip),
+`"BS EN 1838"` → `BSEN1838` (keep), `"Equality Act 2010"` → `EQUALITYACT2010` (keep).
+
+**3. Standards token vocabulary cleaned.**
+Phase 224's backfill built tokens by stripping whitespace out of free text, gluing
+prose onto identifiers: `"ADA §604.4 (432-483mm seat height)"` →
+`"ADA§604.4(432-483mmseatheight)"`, `"BS 8233 daylight"` → `"BS8233daylight"`, and
+three separate spellings of CIBSE Guide B. 284 rules re-tokenised to clean
+identifiers; **155 → 121 distinct tokens, 45 → 0 mangled**. Proven
+behaviour-preserving: a 451-rule × 15-profile gate snapshot taken before and after
+shows **0 changed outcomes** once the matcher bug above is fixed.
+
+**4. All 117 untagged rules tagged — the gate is now total.**
+Rules carrying neither `ApplicableStandards` nor `StandardRef` passed the gate
+unconditionally. All 117 are now tagged with the governing standard for their
+category, refined by category-scoped RuleId keywords. Coverage is **451/451**;
+`onlyStandardRef` and `untagged` are both **0**.
+
+> **Behaviour change — read before upgrading.** Those 117 rules used to be included
+> by *every* profile. A single-standard profile now sees far fewer rules: e.g.
+> `ActiveStandards: ["BS 7671"]` goes from 175 included rules to 79. This is the
+> gate working as designed (a BS 7671-only profile should not place windows), but
+> profiles should list **all** applicable standards, not one. The engine already
+> reports `"Building profile … filtered out N of M rule(s)"` on every run.
+
+An earlier pass of this tagging mis-fired: unscoped RuleId keywords tagged
+`win-residential-bathroom` (a Window) with BS 7671 wet-zone rules and
+`win-carpark-perimeter` with external-lighting rules. Keywords are now scoped to
+the categories they can legitimately apply to, and merge with the category default
+rather than replacing it.
+
+**5. The remaining uncommitted editor cards are wired.**
+Phase 224 fixed three; a systematic audit (every control assigned from a
+`s.<Property>` in the per-rule sync block, cross-referenced against wired handlers)
+found **16 more** populated from the selected rule with no write-back, so their
+edits were discarded on selection change. Notably `txtStandardsCsv` — the
+`ApplicableStandards` editor itself could not be edited. All 16 now commit via
+`CommitField`. The only remaining uncommitted controls are the two intentional
+read-only displays (`txtSourcePack`, `txtRuleError`).
+
+**6. Rule-pack loading is now runtime-verified, not just build-verified.**
+New `RulePackDataTests` deserialises all 17 packs through the real
+`PlacementRuleSet` + `StringOrCsvArrayConverter` path and asserts the coverage and
+token-hygiene invariants, plus the `STING_CATEGORY_TO_SEED_MAP.json` v2
+`placeable`/`reason` contract and that the routing-output categories are
+non-placeable. This is what previously could only happen inside Revit.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**.
+
+**Still not verified — no Revit runtime was available.** `StingTools.Headless` is a
+Design Automation *library* (`OutputType: Library`, read-only engines, no local
+entry point), so it cannot host the Placement Centre. The interactive checks —
+checklist rendering, disabled/muted states, the `ItemsControl` binding and
+`ToolTipService.ShowOnDisabled`, All/None, tick preservation, the clearance and
+glazing round-trips, "Push to Families", and the `MaintenanceAccessValidator` type-
+fallback read path — remain outstanding and are listed in the PR. The stretch
+wall/ceiling/floor-follow router was not attempted for the same reason.
+
 #### Completed (Phase 224 — Placement Centre: data-driven category checklist, rule-field consumption, standards-gate activation)
 
 Closes three of the four residual gaps under ROADMAP § "Placement Centre —

@@ -407,18 +407,39 @@ retention release and the sign-off guard. Still open:
   warn-when-inert fallback is retained and now also reports how many rules
   bypass the gate untagged.
 
-  Still open in this area: **74 rules carry neither `ApplicableStandards` nor
-  `StandardRef`** and so always pass the standards gate. That is the documented
-  "untagged matches any" default, not a bug, but tagging them would bring the
-  whole rule set under the gate.
+  ~~Still open in this area: 74 rules carry neither `ApplicableStandards` nor
+  `StandardRef`.~~ **Closed (Phase 225)** — by then 117 rules were untagged; all
+  are now tagged with the governing standard for their category (coverage
+  451/451). Note the behaviour change: those rules used to pass *every* profile,
+  so a single-standard profile now sees far fewer rules (`["BS 7671"]`: 175 → 79).
+  Profiles should list all applicable standards.
 
-- **Editor cards with no commit handler (beyond glazing / clearance).** Fixing
-  the three fields above surfaced that the same population block
-  (`StingPlacementCenter.xaml.cs`, the per-rule sync around the
-  `cmbWetZone` / `cmbHeightStandard` / `chkRequiresCOBieFields` /
-  `chkRequiresIfcMapping` / `txtPostAuditTag` writes) has other fields populated
-  from the rule with no write-back. Only the three in Phase 224's scope were
-  wired; the rest should be audited as a group.
+  Phase 225 also cleaned the token vocabulary (155 → 121 distinct, 45 → 0 glued-
+  prose tokens) and fixed a `StandardsTokenMatcher` false positive the mangled
+  tokens had been masking: any standard numbered 1800–2199 (`BS EN 1838`, the
+  `EN 1990`–`1999` Eurocodes) collapsed to its prefix and matched every sibling.
+
+- ~~**Editor cards with no commit handler (beyond glazing / clearance).**~~
+  **Closed (Phase 225)** — a systematic audit of the per-rule sync block found 16
+  further controls populated from the rule with no write-back (including
+  `txtStandardsCsv`, the `ApplicableStandards` editor itself). All wired via
+  `CommitField`; only the two intentional read-only displays (`txtSourcePack`,
+  `txtRuleError`) remain uncommitted.
+
+- **Placement Centre in-Revit verification.** The Phase 224/225 UI work has never
+  been exercised in Revit: no interactive session was available and
+  `StingTools.Headless` is a Design Automation library with no local entry point.
+  Outstanding: checklist rendering and grouping, disabled/muted states (the
+  `ItemsControl` binding + `ToolTipService.ShowOnDisabled` are the highest-risk
+  untested pieces — a binding typo renders an empty checklist), All/None, tick
+  preservation across a rule reload, the maintenance-clearance and glazing
+  round-trips, "Push to Families" writes, and the `MaintenanceAccessValidator`
+  type-fallback read path with both instance- and type-scope bindings.
+
+- **Wall/ceiling/floor-follow router (stretch, still open).** `EffectiveRoutingMode`
+  still normalises every `WALL_FOLLOW` / `CEILING_FOLLOW` / `FLOOR_FOLLOW` token to
+  the nearest drop engine with an honest warning. A genuine face-follower is
+  net-new engine work that cannot be verified without a Revit runtime.
 
 ## BOQ / Cost — residual gaps (post Stage-B integration)
 

@@ -70,14 +70,32 @@ namespace StingTools.Core.Placement
             if (colon > 0 && IsYear(s.Substring(colon + 1))) s = s.Substring(0, colon);
             else
             {
+                // A SPACE-separated trailing 4-digit group is only an edition year
+                // when the citation still carries a standard number without it.
+                //
+                // Without that guard "BS EN 1838" (emergency lighting) collapses to
+                // "BSEN", which then substring-matches EVERY other BS EN standard —
+                // a false positive that also hits BS EN 1869 and the whole Eurocode
+                // family (EN 1990-1999), all of whose numbers fall inside the
+                // 1800-2199 year window. "BS 8233 2014" still reduces to "BS 8233"
+                // because "BS 8233" retains a digit; "Equality Act 2010" keeps its
+                // year because "Equality Act" has none.
                 int sp = s.LastIndexOf(' ');
-                if (sp > 0 && IsYear(s.Substring(sp + 1))) s = s.Substring(0, sp);
+                if (sp > 0 && IsYear(s.Substring(sp + 1)) && HasDigit(s.Substring(0, sp)))
+                    s = s.Substring(0, sp);
             }
 
             var sb = new StringBuilder(s.Length);
             foreach (var ch in s)
                 if (char.IsLetterOrDigit(ch)) sb.Append(char.ToUpperInvariant(ch));
             return sb.ToString();
+        }
+
+        private static bool HasDigit(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            foreach (var ch in s) if (char.IsDigit(ch)) return true;
+            return false;
         }
 
         private static bool IsYear(string s)
