@@ -105,6 +105,89 @@ jobs:
           sys.exit(FAIL)
           EOF
 
+      - name: Check parameter CSV row integrity (column count)
+        run: |
+          python3 - <<'EOF'
+          import csv, sys, collections
+
+          # WHY THIS EXISTS.
+          # The duplicate-GUID check above is structurally blind to field-shift
+          # corruption: it regex-scans for GUIDs anywhere on a line, so a row whose
+          # columns are all shifted one place still presents a valid, unique GUID
+          # and passes clean.
+          #
+          # The corruption it misses: an UNQUOTED comma inside Description splits
+          # that field in two and shifts every later column by one, so Discipline,
+          # User_Modifiable and Hide_When_No_Value silently read their neighbour's
+          # value. Seven rows carried this. It went unnoticed for so long because
+          # the only visible symptom — a 14-field row against the file's 13 — was
+          # itself removed by trimming the trailing column, which normalised the
+          # count and destroyed the evidence while leaving the data wrong.
+          #
+          # A per-row column count against the header catches the whole class, and
+          # is the check that would have caught it at the time.
+          PARAM_CSVS = ['StingTools/Data/MR_PARAMETERS.csv']
+          FAIL = 0
+          for path in PARAM_CSVS:
+              try:
+                  rows = [r for r in csv.reader(open(path, encoding='utf-8'))
+                          if r and not r[0].lstrip().startswith('#')]
+              except FileNotFoundError:
+                  print(f'- {path}: not found, skipped')
+                  continue
+              if not rows:
+                  print(f'- {path}: empty, skipped')
+                  continue
+              header, data = rows[0], rows[1:]
+              want = len(header)
+              bad = collections.defaultdict(list)
+              for i, r in enumerate(data, start=2):
+                  if len(r) != want:
+                      bad[len(r)].append((i, r[1] if len(r) > 1 else '?'))
+              if bad:
+                  for n, items in sorted(bad.items()):
+                      print(f'❌ {path}: {len(items)} row(s) with {n} fields, expected {want}')
+                      for line_no, name in items[:10]:
+                          print(f'     line {line_no}: {name}')
+                      if len(items) > 10:
+                          print(f'     ... and {len(items) - 10} more')
+                  print('   Most likely cause: an unquoted comma inside a quoted-worthy '
+                        'field (e.g. Description). Wrap the field in double quotes — '
+                        'do NOT delete a trailing column to make the count match.')
+                  FAIL = 1
+              else:
+                  print(f'✓ {path}: all {len(data)} rows have {want} fields')
+
+              # SECOND ARM — and the one that actually bites.
+              # A count check alone is NOT sufficient, proven empirically: the seven
+              # corrupt rows were trimmed to 13 fields, so they pass the count check
+              # while still being shifted. These columns have tight, verified value
+              # domains, so a shifted row lands text where a flag belongs and is
+              # caught regardless of how many fields the row happens to have.
+              DOMAINS = {
+                  'Has_Formula':        {'True', 'False'},
+                  'User_Modifiable':    {'0', '1'},
+                  'Hide_When_No_Value': {'0', '1'},
+              }
+              idx = {name: header.index(name) for name in DOMAINS if name in header}
+              offenders = []
+              for i, r in enumerate(data, start=2):
+                  for name, col in idx.items():
+                      if col < len(r) and r[col] not in DOMAINS[name]:
+                          offenders.append((i, r[1] if len(r) > 1 else '?', name, r[col]))
+              if offenders:
+                  print(f'❌ {path}: {len(offenders)} column(s) outside their value domain '
+                        '— almost always a field shift:')
+                  for line_no, pname, name, val in offenders[:10]:
+                      print(f'     line {line_no}: {pname}: {name} = {val!r}')
+                  if len(offenders) > 10:
+                      print(f'     ... and {len(offenders) - 10} more')
+                  FAIL = 1
+              elif idx:
+                  print(f'✓ {path}: {", ".join(sorted(idx))} all within their value domains')
+          sys.exit(FAIL)
+          EOF
+
       - name: Validate CSV structure (required columns)
         run: |
           python3 - <<'EOF'
