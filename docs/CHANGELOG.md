@@ -2,6 +2,48 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 224 — #338 native-type migration: measured, and recommended against)
+
+Compile-verified regeneration of the stale `claude/charming-fermi-5iafhf` branch
+(#338). The mechanical regeneration was **deliberately not performed**; the
+measurement is the deliverable. Full write-up:
+[`NATIVE_TYPE_MIGRATION_ANALYSIS.md`](NATIVE_TYPE_MIGRATION_ANALYSIS.md).
+
+- **Scope, measured against main** (not the stale branch's month-old base):
+  157 datatype flips, 27 `_BOOL`→`YESNO`, **175 new `_TXT` mirror params**
+  (3,488 → 3,663 lines). 123 of the 157 are already bound to categories.
+- **Blocking finding:** Revit will not redefine an existing GUID with a
+  different data type. `LoadSharedParamsCommand` already detects this exact case
+  and **skips** — its own comments record the "unrecoverable 'cannot be added'
+  Error-severity modal" that motivated the guard. So in every existing project
+  the migration binds the 175 empty mirrors and migrates **none** of the 123
+  bound params, while the C# side would be writing native doubles into params
+  that are still TEXT. New projects would diverge silently from existing ones.
+- **No migration path exists.** Adopting the flip requires unbind → delete →
+  rebind → re-parse every value with unit conversion, per param per project. The
+  only related API in the repo (`ReInsert`) is documented in that same file as
+  silently unreliable.
+- **The review's "~40 native double write sites" is not what the code shows.**
+  Measured: **2** `SetDouble` sites, **26** `SetString`/`SetIfEmpty` sites (which
+  would fail at runtime after a flip) and 31 `GetString` sites. The wiring risk
+  is the inverse of the one described.
+- **Recommendation:** drop the 157-param flip and the mirrors; keep the
+  lower-risk `_BOOL`→`YESNO` track (#337/#479); adopt native types for **new**
+  parameters going forward; and if the migration is ever wanted, ship a verified
+  binding-migration command first and go discipline-by-discipline.
+- **Kept:** the localized unit-conversion fixes on `claude/review-5zi8sy-338`
+  (#467) are correct independently of the migration and build clean.
+- `tools/transform_mr_params.py` imported from the stale branch, its hardcoded
+  Linux path parameterised and a `--dry-run` mode added, so every figure above
+  is reproducible: `python tools/transform_mr_params.py --dry-run`.
+- Also found: `ASS_CST_STALE_BOOL` is `YESNO` in `FAMILY_PARAMETER_BINDINGS.csv`
+  but `TEXT` in `MR_PARAMETERS.txt` — pre-existing on main, not introduced by
+  #337/#479 (verified against that branch's blob).
+
+No C# or shipped data files were modified on this branch.
+
+---
+
 #### Completed (Phase 223 — drawings-production P0 + P1)
 
 The P0 tier of the drawings-production deep review
