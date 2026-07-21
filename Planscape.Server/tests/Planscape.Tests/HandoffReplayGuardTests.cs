@@ -24,14 +24,15 @@ public class HandoffReplayGuardTests : IClassFixture<PlanscapeWebApplicationFact
 {
     private readonly PlanscapeWebApplicationFactory _factory;
 
-    // AuthController reads this via Environment.GetEnvironmentVariable, not
-    // IConfiguration, so it cannot come through the factory's config layer.
-    private const string Secret = "test-handoff-secret-not-a-real-one-0123456789";
+    // Injected into the test host's configuration by the factory
+    // (PlanscapeWebApplicationFactory.HandoffSecret). AuthController now reads the
+    // secret via IConfiguration, so no process-global environment variable is set —
+    // which previously leaked across the parallel suite.
+    private const string Secret = PlanscapeWebApplicationFactory.HandoffSecret;
 
     public HandoffReplayGuardTests(PlanscapeWebApplicationFactory factory)
     {
         _factory = factory;
-        Environment.SetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET", Secret);
     }
 
     private static string B64Url(byte[] b) =>

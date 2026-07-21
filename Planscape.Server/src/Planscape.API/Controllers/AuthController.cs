@@ -995,7 +995,13 @@ public class AuthController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<ActionResult> HandoffExchange([FromBody] HandoffExchangeRequest req)
     {
-        var secret = Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
+        // Read via IConfiguration (environment variables are a config source, so a
+        // deployed PLANSCAPE_HANDOFF_SECRET env var still resolves here). This lets a
+        // WebApplicationFactory inject the secret through config instead of setting a
+        // process-global env var that leaks across parallel test classes. The direct
+        // env-var read is kept as a belt-and-braces fallback.
+        var secret = _config?["PLANSCAPE_HANDOFF_SECRET"]
+                     ?? Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
         if (string.IsNullOrEmpty(secret))
         {
             _logger.LogError("Handoff exchange attempted but PLANSCAPE_HANDOFF_SECRET is unset");

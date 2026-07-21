@@ -17,8 +17,13 @@ BASELINE="$(dirname "$0")/known-failing-tests.txt"
 
 # A run that produced no summary line never got as far as running tests (build
 # break, host crash). Treat that as failure — an empty failure list would
-# otherwise read as "nothing new broke".
-if ! grep -qE "^(Passed!|Failed!)" "$OUTPUT"; then
+# otherwise read as "nothing new broke". Accept every summary shape `dotnet test`
+# emits: it varies by logger and by whether the run was invoked at the solution
+# or project level.
+#   VSTest console logger (per project):  "Passed!  - Failed: …" / "Failed!  - …"
+#   VSTest aggregate / older format:      "Total tests: N … Failed: N"
+#   Microsoft.Testing.Platform (MSBuild): "Test summary: total: N … failed: N"
+if ! grep -qE "^[[:space:]]*(Passed!|Failed!|Total tests:|Test summary:)" "$OUTPUT"; then
   echo "::error::no test summary in output — the run did not complete"
   tail -30 "$OUTPUT"
   exit 1
@@ -31,6 +36,20 @@ fi
 # collapsing cases to the base method name the baseline file lists.
 grep -oE "Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))? \[FAIL\]" "$OUTPUT" \
   | sed -E 's/\(.*\)//; s/ \[FAIL\]//' | sort -u > /tmp/actual-failures.txt
+
+# Belt-and-braces against a summary whose per-test "[FAIL]" lines we can't parse:
+# if the run's own summary reports failures but we extracted NONE, the format is
+# unrecognised and a silent "0 new failures" would be a false green. (A count
+# mismatch is expected and fine — theory cases collapse to one method name here;
+# this only fires on a total parse miss.)
+reported_failed=$(grep -oiE "failed:[[:space:]]*[0-9]+" "$OUTPUT" \
+  | grep -oE "[0-9]+" | sort -rn | head -1)
+if [ "${reported_failed:-0}" -gt 0 ] && [ ! -s /tmp/actual-failures.txt ]; then
+  echo "::error::summary reports ${reported_failed} failure(s) but none were parsed from the output —"
+  echo "         the per-test [FAIL] format was not recognised. Pin the console logger, e.g."
+  echo "         dotnet test … --logger 'console;verbosity=normal'"
+  exit 1
+fi
 
 grep -vE '^\s*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
 

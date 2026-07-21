@@ -2005,10 +2005,46 @@ public class PlanscapeDbContext : DbContext
             var bypass = System.Linq.Expressions.Expression.Property(
                 System.Linq.Expressions.Expression.Constant(this), nameof(BypassTenantFilter));
             var equality = System.Linq.Expressions.Expression.Equal(tenantIdProperty, currentTenantIdProperty);
-            var body = System.Linq.Expressions.Expression.OrElse(bypass, equality);
+            System.Linq.Expressions.Expression body =
+                System.Linq.Expressions.Expression.OrElse(bypass, equality);
+
+            // Preserve any filter already configured on this entity (e.g. AppUser's
+            // soft-delete `!IsDeleted`, set in its entity block above). EF Core's
+            // HasQueryFilter REPLACES rather than combines, and this loop runs after
+            // the per-entity configuration, so setting the tenant filter here would
+            // silently clobber the earlier one — which is exactly what had left
+            // AppUser's soft-delete filter dead (soft-deleted users stayed visible to
+            // every normal query). AND the two together on a shared parameter instead.
+            var existing = entityType.GetQueryFilter();
+            if (existing != null)
+            {
+                var rewritten = new ParameterReplacer(existing.Parameters[0], parameter).Visit(existing.Body);
+                body = System.Linq.Expressions.Expression.AndAlso(rewritten, body);
+            }
+
             var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
             modelBuilder.Entity(clrType).HasQueryFilter(lambda);
         }
+    }
+
+    /// <summary>Rebinds an existing query-filter lambda onto a new parameter so it
+    /// can be AND-combined with the tenant predicate under one lambda.</summary>
+    private sealed class ParameterReplacer : System.Linq.Expressions.ExpressionVisitor
+    {
+        private readonly System.Linq.Expressions.ParameterExpression _from;
+        private readonly System.Linq.Expressions.ParameterExpression _to;
+
+        public ParameterReplacer(
+            System.Linq.Expressions.ParameterExpression from,
+            System.Linq.Expressions.ParameterExpression to)
+        {
+            _from = from;
+            _to = to;
+        }
+
+        protected override System.Linq.Expressions.Expression VisitParameter(
+            System.Linq.Expressions.ParameterExpression node)
+            => node == _from ? _to : base.VisitParameter(node);
     }
 
     private static void AddTenantIdIndexes(ModelBuilder modelBuilder)

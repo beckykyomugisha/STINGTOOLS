@@ -69,6 +69,44 @@ public class SecurityCriticalPathTests
         Assert.NotEmpty(await db.Tenants.ToListAsync());
     }
 
+    // ── 1b. Soft-delete filter is AND-combined with the tenant filter ──────
+    //
+    // Regression guard for ApplyTenantQueryFilters combining an entity's existing
+    // filter (AppUser's `!IsDeleted`) with the tenant predicate instead of replacing
+    // it. Before the fix EF Core's HasQueryFilter clobbered the soft-delete half, so
+    // a soft-deleted user stayed visible to every normal query. Both users share the
+    // read context's tenant, so the ONLY thing that can hide the deleted one is the
+    // now-live soft-delete half — which is exactly what this pins.
+    [Fact]
+    public async Task SoftDeletedUser_ExcludedByGlobalFilter_ButPresentUnderIgnoreQueryFilters()
+    {
+        var dbName = "soft-delete-filter-" + Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        var liveId = Guid.NewGuid();
+        var deletedId = Guid.NewGuid();
+
+        using (var seed = NewDb(dbName, currentTenant: tenantId, bypass: true))
+        {
+            seed.Tenants.Add(new Tenant { Id = tenantId, Slug = "s", Name = "S" });
+            seed.Users.Add(NewUser(liveId, tenantId, "live@t.org", isDeleted: false));
+            seed.Users.Add(NewUser(deletedId, tenantId, "deleted@t.org", isDeleted: true));
+            await seed.SaveChangesAsync();
+        }
+
+        using var db = NewDb(dbName, currentTenant: tenantId);
+
+        // Normal query: live row visible, soft-deleted row excluded.
+        var visible = await db.Users.Select(u => u.Id).ToListAsync();
+        Assert.Contains(liveId, visible);
+        Assert.DoesNotContain(deletedId, visible);
+
+        // IgnoreQueryFilters proves it is a filter, not a hard delete: both rows
+        // are really present, so the exclusion above came from the filter.
+        var all = await db.Users.IgnoreQueryFilters().Select(u => u.Id).ToListAsync();
+        Assert.Contains(liveId, all);
+        Assert.Contains(deletedId, all);
+    }
+
     [Fact]
     public async Task TenantQueryFilter_OnlyOwnedRowsVisible()
     {
@@ -265,6 +303,19 @@ public class SecurityCriticalPathTests
         if (bypass) db.BypassTenantFilter = true;
         return db;
     }
+
+    private static AppUser NewUser(Guid id, Guid tenantId, string email, bool isDeleted) => new()
+    {
+        Id = id,
+        TenantId = tenantId,
+        Email = email,
+        DisplayName = "U",
+        PasswordHash = "x",
+        Role = UserRole.Contributor,
+        Iso19650Role = "E",
+        IsActive = true,
+        IsDeleted = isDeleted,
+    };
 
     /// <summary>
     /// Test-only DbContext that remaps every <c>jsonb</c> column to
