@@ -135,11 +135,36 @@ namespace StingTools.Commands.Lightning
             {
                 var p = el?.LookupParameter(paramName);
                 if (p == null || p.IsReadOnly) return;
-                if (p.StorageType == StorageType.Double) p.Set(valueInRevitDisplay);
+                if (p.StorageType == StorageType.Double)
+                {
+                    // tools/transform_mr_params.py flips *_MM / *_M params from TEXT to
+                    // native LENGTH, which Revit stores INTERNALLY IN FEET. The caller
+                    // passes the value in millimetres (*_MM) or metres (*_M), so it must
+                    // be converted to internal units before p.Set — otherwise a 45 m
+                    // radius is stored as 45 ft (a 304.8x / 3.28x corruption). *_NR
+                    // (NUMBER) and other non-length params are unitless: written as-is.
+                    p.Set(ToInternalLength(paramName, valueInRevitDisplay));
+                }
                 else if (p.StorageType == StorageType.String) p.Set(valueInRevitDisplay.ToString("F2"));
                 else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(valueInRevitDisplay));
             }
             catch (Exception ex) { StingLog.Warn($"SetDouble {paramName}: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Convert a display-unit length to Revit internal units (feet) based on the
+        /// param-name suffix (*_MM → mm, *_M → m). Non-length params (e.g. *_NR) are
+        /// returned unchanged. Shared guard for the LPS SetDouble helpers so native
+        /// LENGTH writes are never corrupted after the TEXT→LENGTH type flip.
+        /// </summary>
+        private static double ToInternalLength(string paramName, double value)
+        {
+            if (paramName == null) return value;
+            if (paramName.EndsWith("_MM", StringComparison.Ordinal))
+                return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters);
+            if (paramName.EndsWith("_M", StringComparison.Ordinal))
+                return UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Meters);
+            return value;
         }
 
         private static void SetInt(Element el, string paramName, int value)
@@ -1959,7 +1984,19 @@ namespace StingTools.Commands.Lightning
             {
                 var p = el?.LookupParameter(paramName);
                 if (p == null || p.IsReadOnly) return;
-                if (p.StorageType == StorageType.Double) p.Set(value);
+                if (p.StorageType == StorageType.Double)
+                {
+                    // *_MM / *_M params are native LENGTH after tools/transform_mr_params.py,
+                    // stored internally in FEET — convert the caller's mm/m display value
+                    // to internal units first, or the write is corrupted (e.g. separation
+                    // distance in mm stored as feet). Non-length params (*_NR) are unitless.
+                    if (paramName != null && paramName.EndsWith("_MM", StringComparison.Ordinal))
+                        p.Set(UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Millimeters));
+                    else if (paramName != null && paramName.EndsWith("_M", StringComparison.Ordinal))
+                        p.Set(UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Meters));
+                    else
+                        p.Set(value);
+                }
                 else if (p.StorageType == StorageType.String) p.Set(value.ToString("F4"));
                 else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(value));
             }

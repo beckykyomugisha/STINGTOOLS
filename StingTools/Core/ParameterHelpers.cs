@@ -459,8 +459,13 @@ namespace StingTools.Core
 
         /// <summary>
         /// Returns the _TXT mirror param name for a native-typed param
-        /// (e.g. MNT_HGT_MM → MNT_HGT_TXT), or null when no suffix matches
-        /// or the param is already TEXT/BOOL/DT.
+        /// (e.g. MNT_HGT_MM → MNT_HGT_TXT), or null when the param is already
+        /// TEXT/BOOL/DT (those have no separate mirror).
+        /// When no unit suffix matches, falls back to appending "_TXT" — this
+        /// MUST match tools/transform_mr_params.py make_mirror_name, whose own
+        /// fallback is `name + "_TXT"`. The generator emits + binds `name_TXT`
+        /// mirrors for suffix-less native params (e.g. *_MONTHS, *_YEARS, *_MIN,
+        /// *_DAYS); returning null here left those mirrors bound but never written.
         /// </summary>
         private static string TxtMirrorName(string paramName)
         {
@@ -471,7 +476,7 @@ namespace StingTools.Core
             foreach (var (suffix, _) in _suffixReplacements)
                 if (paramName.EndsWith(suffix, StringComparison.Ordinal))
                     return paramName.Substring(0, paramName.Length - suffix.Length) + "_TXT";
-            return null;
+            return paramName + "_TXT";   // aligns with transform_mr_params.py fallback
         }
 
         /// <summary>
@@ -489,9 +494,37 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Convert an internal-unit double (Revit stores LENGTH in feet, AREA in ft²)
+        /// to its DISPLAY value for the _TXT mirror, keyed off the param-name unit suffix
+        /// (*_MM → mm, *_M → m, *_SQ_M → m²). NUMBER / CURRENCY / INTEGER params carry
+        /// no unit conversion (internal == display) and are returned unchanged. LENGTH
+        /// and AREA are the only native double types tools/transform_mr_params.py produces
+        /// that Revit stores in non-display internal units. The _M2 area suffix is
+        /// intentionally NOT handled here because it collides with number suffixes such
+        /// as _KN_M2; those params stay unconverted (display == internal for a number).
+        /// </summary>
+        private static double InternalToDisplay(string paramName, double internalValue)
+        {
+            if (string.IsNullOrEmpty(paramName)) return internalValue;
+            if (paramName.EndsWith("_SQ_M", StringComparison.Ordinal))
+                return UnitUtils.ConvertFromInternalUnits(internalValue, UnitTypeId.SquareMeters);
+            if (paramName.EndsWith("_MM", StringComparison.Ordinal))
+                return UnitUtils.ConvertFromInternalUnits(internalValue, UnitTypeId.Millimeters);
+            if (paramName.EndsWith("_M", StringComparison.Ordinal))
+                return UnitUtils.ConvertFromInternalUnits(internalValue, UnitTypeId.Meters);
+            return internalValue;   // NUMBER / CURRENCY / INTEGER — no unit conversion
+        }
+
+        /// <summary>
         /// Set a native-typed DOUBLE parameter (NUMBER, LENGTH, AREA, CURRENCY).
         /// Also writes the formatted string to the corresponding _TXT mirror param when bound.
+        /// NOTE (PR #338 review): this method currently has ZERO callers — the ~40 native
+        /// double writes across the codebase still bypass it, so the generated _TXT mirrors
+        /// stay empty until those callers are wired to SetDouble during regeneration.
         /// </summary>
+        /// <param name="value">The value in REVIT INTERNAL units (feet for LENGTH, ft² for
+        /// AREA); passed straight to p.Set. The _TXT mirror is converted back to display
+        /// units via <see cref="InternalToDisplay"/> so it shows mm/m/m², not feet.</param>
         /// <param name="displayFormat">Format string for the _TXT mirror value. Defaults to "G".</param>
         public static bool SetDouble(Element el, string paramName, double value,
             bool overwrite = false, string displayFormat = null)
@@ -505,7 +538,10 @@ namespace StingTools.Core
             try
             {
                 p.Set(value);
-                WriteTxtMirror(el, paramName, value.ToString(displayFormat ?? "G"));
+                // Mirror must show the DISPLAY value (mm/m/m²), not the raw internal-unit
+                // feet that p.Set consumes — otherwise the _TXT mirror silently diverges
+                // from the native param it shadows.
+                WriteTxtMirror(el, paramName, InternalToDisplay(paramName, value).ToString(displayFormat ?? "G"));
                 return true;
             }
             catch (Exception ex)
