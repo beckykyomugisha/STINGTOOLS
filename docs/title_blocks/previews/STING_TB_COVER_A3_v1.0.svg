@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420.0mm" height="297.0mm" viewBox="0 0 420.0 297.0">
+<rect x="0" y="0" width="420.0" height="297.0" fill="#FFF"/>
+<rect x="0.0" y="0.0" width="420.0" height="30.0" fill="#1F4E79"/>
+<rect x="0.0" y="247.0" width="420.0" height="2.5" fill="#F2A341"/>
+<line x1="0.0" y1="297.0" x2="420.0" y2="297.0" stroke="#222" stroke-width="0.9"/>
+<line x1="420.0" y1="297.0" x2="420.0" y2="0.0" stroke="#222" stroke-width="0.9"/>
+<line x1="420.0" y1="0.0" x2="0.0" y2="0.0" stroke="#222" stroke-width="0.9"/>
+<line x1="0.0" y1="0.0" x2="0.0" y2="297.0" stroke="#222" stroke-width="0.9"/>
+<line x1="0.0" y1="30.0" x2="420.0" y2="30.0" stroke="#222" stroke-width="0.9"/>
+<line x1="0.0" y1="247.0" x2="420.0" y2="247.0" stroke="#222" stroke-width="0.9"/>
+<line x1="0.0" y1="267.0" x2="420.0" y2="267.0" stroke="#222" stroke-width="0.5"/>
+<line x1="210.0" y1="297.0" x2="210.0" y2="247.0" stroke="#222" stroke-width="0.3"/>
+<text x="2.0" y="7.0" font-family="Arial" font-size="2.0" fill="#333" font-weight="bold">PROJECT</text>
+<text x="2.0" y="257.0" font-family="Arial" font-size="2.0" fill="#333" font-weight="bold">DELIVERABLE</text>
+<text x="2.0" y="277.0" font-family="Arial" font-size="2.0" fill="#333" font-weight="bold">REVISION</text>
+<text x="212.0" y="257.0" font-family="Arial" font-size="2.0" fill="#333" font-weight="bold">ISSUE DATE</text>
+<text x="212.0" y="277.0" font-family="Arial" font-size="2.0" fill="#333" font-weight="bold">TRANSMITTAL</text>
+<text x="210.0" y="133.5" font-family="Consolas,monospace" font-size="7.2" fill="#1565C0" text-anchor="middle">${PRJ_ORG_PROJECT_NAME_TXT}</text>
+<text x="210.0" y="146.0" font-family="Consolas,monospace" font-size="2.0" fill="#1565C0" text-anchor="middle">${PRJ_ORG_PROJECT_ADDRESS_TXT}</text>
+<text x="210.0" y="168.5" font-family="Consolas,monospace" font-size="2.7" fill="#1565C0" text-anchor="middle">${PRJ_TB_CLIENT_NAME_TXT}</text>
+<text x="210.0" y="188.5" font-family="Consolas,monospace" font-size="2.0" fill="#1565C0" text-anchor="middle">${PRJ_ORG_RIBA_STAGE_TXT}</text>
+<text x="210.0" y="203.5" font-family="Consolas,monospace" font-size="2.0" fill="#1565C0" text-anchor="middle">${PRJ_DWG_ISSUE_PURPOSE_TXT}</text>
+<text x="2.0" y="262.0" font-family="Consolas,monospace" font-size="2.0" fill="#1565C0" text-anchor="start">${PRJ_TB_DELIVERABLE_STATUS_TXT}</text>
+<text x="2.0" y="282.0" font-family="Consolas,monospace" font-size="2.0" fill="#1565C0" text-anchor="start">${PRJ_TB_REVISION_NR_TXT}</text>
+<text x="212.0" y="262.0" font-family="Consolas,monospace" font-size="2.0" fill="#1565C0" text-anchor="start">${PRJ_TB_DATE_DRAWN_TXT}</text>
+<text x="212.0" y="282.0" font-family="Consolas,monospace" font-size="2.0" fill="#1565C0" text-anchor="start">${PRJ_TB_LAST_TRANSMITTAL_TXT}</text>
+</svg>

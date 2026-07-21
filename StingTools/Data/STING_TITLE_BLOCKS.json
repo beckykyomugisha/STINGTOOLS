@@ -13979,10 +13979,10 @@
       "slots": []
     },
     {
-      "id": "STING_TB_COVER_A1_PORT_v1.0",
+      "id": "STING_TB_COVER_A0_v1.0",
       "extends": "A1_common_v2.0",
-      "description": "Project / package cover sheet \u2014 A1 portrait (594 \u00d7 841 mm), NO drawable zone (viewport placement deliberately blocked). Portrait mirror of STING_TB_COVER_A1_v1.0: top dark-blue banner, amber accent strip, large centred project name + address + client + RIBA stage; bottom 100 mm strip carries deliverable status, revision, issue date, transmittal ref. Provide a portrait seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A1_PORT_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
-      "saveAs": "Families/TitleBlocks/STING_TB_COVER_A1_PORT_v1.0.rfa",
+      "description": "Project / package cover sheet \u2014 A0 landscape (1189 \u00d7 841 mm), NO drawable zone (viewport placement deliberately blocked). A0 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A0_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
+      "saveAs": "Families/TitleBlocks/STING_TB_COVER_A0_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",
       "parameters": [
@@ -14015,7 +14015,7 @@
           "kind": "shared",
           "instance": true,
           "group": "IdentityData",
-          "default": "A1"
+          "default": "A0"
         },
         {
           "name": "PRJ_TB_VARIANT_TXT",
@@ -14035,89 +14035,89 @@
       "lines": [
         {
           "from": [
-            0,
-            0
+            0.0,
+            0.0
           ],
           "to": [
-            594,
-            0
+            1189.0,
+            0.0
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            594,
-            0
+            1189.0,
+            0.0
           ],
           "to": [
-            594,
-            841
+            1189.0,
+            841.0
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            594,
-            841
+            1189.0,
+            841.0
           ],
           "to": [
-            0,
-            841
+            0.0,
+            841.0
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            0,
-            841
+            0.0,
+            841.0
           ],
           "to": [
-            0,
-            0
+            0.0,
+            0.0
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            0,
-            781
+            0.0,
+            756.1
           ],
           "to": [
-            594,
-            781
+            1189.0,
+            756.1
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            0,
-            100
+            0.0,
+            141.6
           ],
           "to": [
-            594,
-            100
+            1189.0,
+            141.6
           ],
           "style": "Wide Lines"
         },
         {
           "from": [
-            0,
-            60
+            0.0,
+            84.9
           ],
           "to": [
-            594,
-            60
+            1189.0,
+            84.9
           ],
           "style": "Medium Lines"
         },
         {
           "from": [
-            297,
-            0
+            594.5,
+            0.0
           ],
           "to": [
-            297,
-            100
+            594.5,
+            141.6
           ],
           "style": "Thin Lines"
         }
@@ -14126,144 +14126,437 @@
         {
           "text": "PROJECT",
           "anchor": [
-            4,
-            827
+            5.7,
+            821.2
           ],
-          "size": 1.4
+          "size": 1.98
         },
         {
           "text": "DELIVERABLE",
           "anchor": [
-            4,
-            80
+            5.7,
+            113.3
           ],
-          "size": 1.0
+          "size": 1.41
         },
         {
           "text": "REVISION",
           "anchor": [
-            4,
-            40
+            5.7,
+            56.6
           ],
-          "size": 1.0
+          "size": 1.41
         },
         {
           "text": "ISSUE DATE",
           "anchor": [
-            300,
-            80
+            600.2,
+            113.3
           ],
-          "size": 1.0
+          "size": 1.41
         },
         {
           "text": "TRANSMITTAL",
           "anchor": [
-            300,
-            40
+            600.2,
+            56.6
           ],
-          "size": 1.0
+          "size": 1.41
         }
       ],
       "labels": [
         {
           "param": "PRJ_ORG_PROJECT_NAME_TXT",
           "anchor": [
-            297,
-            510.5
+            594.5,
+            463.0
           ],
-          "size": 16.0,
+          "size": 22.64,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
           "anchor": [
-            297,
-            485.5
+            594.5,
+            427.6
           ],
-          "size": 4.0,
+          "size": 5.66,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_TB_CLIENT_NAME_TXT",
           "anchor": [
-            297,
-            440.5
+            594.5,
+            363.9
           ],
-          "size": 6.0,
+          "size": 8.49,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_ORG_RIBA_STAGE_TXT",
           "anchor": [
-            297,
-            400.5
+            594.5,
+            307.2
           ],
-          "size": 3.0,
+          "size": 4.24,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
           "anchor": [
-            297,
-            370.5
+            594.5,
+            264.8
           ],
-          "size": 4.0,
+          "size": 5.66,
           "hAlign": "Center"
         },
         {
           "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
           "anchor": [
-            4,
-            70
+            5.7,
+            99.1
           ],
-          "size": 2.0
+          "size": 2.83
         },
         {
           "param": "PRJ_TB_REVISION_NR_TXT",
           "anchor": [
-            4,
-            30
+            5.7,
+            42.5
           ],
-          "size": 3.0
+          "size": 4.24
         },
         {
           "param": "PRJ_TB_DATE_DRAWN_TXT",
           "anchor": [
-            300,
-            70
+            600.2,
+            99.1
           ],
-          "size": 2.0
+          "size": 2.83
         },
         {
           "param": "PRJ_TB_LAST_TRANSMITTAL_TXT",
           "anchor": [
-            300,
-            30
+            600.2,
+            42.5
           ],
-          "size": 2.0
+          "size": 2.83
         }
       ],
       "filledRegions": [
         {
           "topLeft": [
-            0,
-            841
+            0.0,
+            841.0
           ],
           "bottomRight": [
-            594,
-            781
+            1189.0,
+            756.1
           ],
           "fillTypeName": "Solid fill",
           "color": "#1F4E79"
         },
         {
           "topLeft": [
-            0,
-            100
+            0.0,
+            141.6
           ],
           "bottomRight": [
-            594,
-            95
+            1189.0,
+            134.5
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F2A341"
+        }
+      ],
+      "slots": []
+    },
+    {
+      "id": "STING_TB_COVER_A3_v1.0",
+      "extends": "A1_common_v2.0",
+      "description": "Project / package cover sheet \u2014 A3 landscape (420 \u00d7 297 mm), NO drawable zone (viewport placement deliberately blocked). A3 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A3_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
+      "saveAs": "Families/TitleBlocks/STING_TB_COVER_A3_v1.0.rfa",
+      "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "category": "OST_TitleBlocks",
+      "parameters": [
+        {
+          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_PAPER_SZ_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A3"
+        },
+        {
+          "name": "PRJ_TB_VARIANT_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "COVER"
+        },
+        {
+          "name": "STING_SHEET_BIM_MODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "NONBIM"
+        }
+      ],
+      "lines": [
+        {
+          "from": [
+            0.0,
+            0.0
+          ],
+          "to": [
+            420.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            420.0,
+            0.0
+          ],
+          "to": [
+            420.0,
+            297.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            420.0,
+            297.0
+          ],
+          "to": [
+            0.0,
+            297.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            297.0
+          ],
+          "to": [
+            0.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            267.0
+          ],
+          "to": [
+            420.0,
+            267.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            50.0
+          ],
+          "to": [
+            420.0,
+            50.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            30.0
+          ],
+          "to": [
+            420.0,
+            30.0
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            210.0,
+            0.0
+          ],
+          "to": [
+            210.0,
+            50.0
+          ],
+          "style": "Thin Lines"
+        }
+      ],
+      "staticText": [
+        {
+          "text": "PROJECT",
+          "anchor": [
+            2.0,
+            290.0
+          ],
+          "size": 0.7
+        },
+        {
+          "text": "DELIVERABLE",
+          "anchor": [
+            2.0,
+            40.0
+          ],
+          "size": 0.5
+        },
+        {
+          "text": "REVISION",
+          "anchor": [
+            2.0,
+            20.0
+          ],
+          "size": 0.5
+        },
+        {
+          "text": "ISSUE DATE",
+          "anchor": [
+            212.0,
+            40.0
+          ],
+          "size": 0.5
+        },
+        {
+          "text": "TRANSMITTAL",
+          "anchor": [
+            212.0,
+            20.0
+          ],
+          "size": 0.5
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "anchor": [
+            210.0,
+            163.5
+          ],
+          "size": 8.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "anchor": [
+            210.0,
+            151.0
+          ],
+          "size": 2.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "anchor": [
+            210.0,
+            128.5
+          ],
+          "size": 3.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_RIBA_STAGE_TXT",
+          "anchor": [
+            210.0,
+            108.5
+          ],
+          "size": 1.5,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "anchor": [
+            210.0,
+            93.5
+          ],
+          "size": 2.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "anchor": [
+            2.0,
+            35.0
+          ],
+          "size": 1.0
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            2.0,
+            15.0
+          ],
+          "size": 1.5
+        },
+        {
+          "param": "PRJ_TB_DATE_DRAWN_TXT",
+          "anchor": [
+            212.0,
+            35.0
+          ],
+          "size": 1.0
+        },
+        {
+          "param": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "anchor": [
+            212.0,
+            15.0
+          ],
+          "size": 1.0
+        }
+      ],
+      "filledRegions": [
+        {
+          "topLeft": [
+            0.0,
+            297.0
+          ],
+          "bottomRight": [
+            420.0,
+            267.0
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#1F4E79"
+        },
+        {
+          "topLeft": [
+            0.0,
+            50.0
+          ],
+          "bottomRight": [
+            420.0,
+            47.5
           ],
           "fillTypeName": "Solid fill",
           "color": "#F2A341"
