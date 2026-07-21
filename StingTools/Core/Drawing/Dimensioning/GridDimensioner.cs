@@ -18,95 +18,26 @@ using StingTools.Core;
 
 namespace StingTools.Core.Drawing.Dimensioning
 {
-    internal static class GridDimensioner
+    /// <summary>
+    /// B1 CONVERGENCE — this class no longer dimensions grids.
+    ///
+    /// There were two grid-dimensioning implementations: this one and
+    /// AnnotationRunner.DimGrids. Only DimGrids was ever reachable —
+    /// GridDimensioner.Run had no call site anywhere — and both were
+    /// broken in different ways (A-4 put every grid in one
+    /// ReferenceArray; A-5 ran each chain PARALLEL to the grids it was
+    /// measuring). Rather than fix both and route between them, DimGrids
+    /// is the single surviving path: it splits grids into parallel sets,
+    /// chains perpendicular to each, carries the C-4 idempotency guard,
+    /// and now honours the pack's dimensionStrategy through
+    /// DimensionStrategy.ResolveType — the one capability this class had
+    /// that DimGrids lacked.
+    ///
+    /// Run/CreateChain/IsHorizontal/IsVertical are removed. IsDimensionable
+    /// stays because MEPDimensioner and DrainageInvertDimensioner use it.
+    /// </summary>
+    public static class GridDimensioner
     {
-        public const double GridDimOffsetMm = 1500;
-
-        public static void Run(Document doc, View view, AnnotationRulePack pack, AnnotationResult result)
-        {
-            if (!IsDimensionable(view))
-            {
-                result.Warnings.Add(
-                    $"GridDim: view '{view?.Name}' is not 2D — skipped. " +
-                    "Revit's Dimension API rejects 3D views; place this rule on a plan / section / elevation.");
-                return;
-            }
-
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(Grid)).Cast<Grid>()
-                .ToList();
-            if (grids.Count < 2) return;
-
-            var horiz = grids.Where(IsHorizontal).ToList();
-            var vert  = grids.Where(IsVertical).ToList();
-
-            var strategy = DimensionStrategy.Parse(pack.DimensionStrategy);
-            var dimType  = DimensionStrategy.ResolveType(doc, strategy, pack.DimensionStyle);
-
-            // A-5: the axis passed here is the direction the CHAIN runs, and
-            // a chain can only measure grids it crosses — so it must be
-            // PERPENDICULAR to the set. `vert` holds grids whose curve runs
-            // along X (|dX| >= |dY|), i.e. grids spaced along Y, so their
-            // chain runs along Y — it was given BasisX, parallel to the very
-            // grids it was measuring, which Revit rejects outright. `horiz`
-            // had the mirror-image error. The predicate NAMES are also
-            // backwards for plan reading (a grid running along X draws as a
-            // horizontal line), and the two errors were consistent with each
-            // other, which is why the pairing looked right.
-            try { CreateChain(doc, view, vert,  XYZ.BasisY, strategy, dimType, result); }
-            catch (Exception ex) { result.Warnings.Add($"GridDim (grids along X): {ex.Message}"); }
-            try { CreateChain(doc, view, horiz, XYZ.BasisX, strategy, dimType, result); }
-            catch (Exception ex) { result.Warnings.Add($"GridDim (grids along Y): {ex.Message}"); }
-        }
-
-        private static void CreateChain(Document doc, View view, List<Grid> grids,
-            XYZ axis, DimStrategyKind strategy, DimensionType dimType, AnnotationResult result)
-        {
-            if (grids == null || grids.Count < 2) return;
-
-            // Project each grid's intersection with the view plane onto the
-            // axis so the chain reads in geographic order.
-            var pts = new List<(Reference R, XYZ P)>();
-            foreach (var g in grids)
-            {
-                if (g.Curve == null) continue;
-                var origin = g.Curve.GetEndPoint(0);
-                pts.Add((new Reference(g), origin));
-            }
-            if (pts.Count < 2) return;
-            pts = DimensionStrategy.SortAlongAxis(pts, axis);
-
-            var refArr = new ReferenceArray();
-            foreach (var p in pts) refArr.Append(p.R);
-
-            // Witness line — perpendicular to axis, dropped 1500mm clear of
-            // the chain's bounding extent so it doesn't overlay the grids.
-            var first = pts.First().P;
-            var last  = pts.Last().P;
-            var span  = (last - first).GetLength();
-            var line  = DimensionStrategy.BuildWitnessLine(first, axis, GridDimOffsetMm, span + 1.0);
-
-            try
-            {
-                Dimension dim = dimType != null
-                    ? doc.Create.NewDimension(view, line, refArr, dimType)
-                    : doc.Create.NewDimension(view, line, refArr);
-                if (dim != null)
-                {
-                    result.DimsPlaced++;
-                    if (strategy == DimStrategyKind.Ordinate && dimType == null)
-                        result.Warnings.Add(
-                            "GridDim: Ordinate strategy requested but no Ordinate DimensionType is loaded — fell back to Linear. " +
-                            "Author an Ordinate-style DimensionType in Manage > Additional Settings > Dimension Types " +
-                            "with 'ordinate' in its name (e.g. 'STING - Ordinate'), or pin a name via DrawingType.annotation.dimensionStyle.");
-                }
-            }
-            catch (Exception ex)
-            {
-                result.Warnings.Add($"GridDim NewDimension: {ex.Message}");
-            }
-        }
-
         public static bool IsDimensionable(View v)
         {
             if (v == null) return false;
@@ -125,18 +56,6 @@ namespace StingTools.Core.Drawing.Dimensioning
                 default:
                     return false;
             }
-        }
-
-        private static bool IsHorizontal(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.Y) > Math.Abs(d.X); }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
-        }
-
-        private static bool IsVertical(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.X) >= Math.Abs(d.Y); }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

@@ -415,15 +415,59 @@ namespace StingTools.Core.Fabrication
             string discCode = DisciplineCode.TryGetValue(discipline ?? "", out var dc) ? dc : "G";
             string sysCode  = string.IsNullOrEmpty(systemCode) ? "GEN" : Sanitise(systemCode);
             string bucket   = $"{discCode}:{sysCode}:{levelCode}";
+            // P-11 / B5: persist through SheetSequenceStore — the same
+            // ExtensibleStorage counter the production path uses — instead of
+            // an in-memory dictionary that reset to 0001 on every Revit
+            // restart and then degraded through EnsureUniqueSheetNumber's
+            // -A..-Z ladder to a random 6-char suffix. This retires the third
+            // parallel numbering system; the store is now the only one.
+            //
+            // Bucket key shape matches the store's (drawingTypeId, packageId,
+            // discipline, vol): the composer's spool bucket is identified by
+            // its discipline/system/level, so those map onto the store's
+            // packageId/discipline/vol slots with the drawing type carrying
+            // the profile identity.
+            //
+            // A1 made the store fail LOUD — it throws rather than hand back a
+            // number it could not persist — so a persistence failure surfaces
+            // here instead of silently issuing a colliding number. The
+            // in-memory bucket remains as the degraded path for documents
+            // where ExtensibleStorage is unavailable (no transaction, or
+            // ProjectInformation owned by another user).
             int seq;
-            // GAP-B: per-document bucket — the outer lock prevents two
-            // composer calls on the same doc from racing the increment.
-            var docBucket = GetDocBucket(doc);
-            lock (docBucket)
+            bool persisted = false;
+            try
             {
-                docBucket.TryGetValue(bucket, out seq);
-                seq += 1;
-                docBucket[bucket] = seq;
+                seq = SheetSequenceStore.Next(
+                    doc,
+                    drawingTypeId: drawingType?.Id ?? "fabrication-spool",
+                    packageId:     sysCode,
+                    discipline:    discCode,
+                    vol:           levelCode ?? "");
+                persisted = true;
+            }
+            catch (Exception exSeq)
+            {
+                StingLog.Warn(
+                    $"ShopDrawingComposer: sheet sequence not persisted ({exSeq.Message}); " +
+                    "falling back to the in-session counter — numbers may repeat after a restart.");
+                result?.Warnings.Add(
+                    $"Spool sheet number not persisted: {exSeq.Message}. " +
+                    "The number is unique within this session only.");
+                seq = 0;
+            }
+
+            if (!persisted)
+            {
+                // GAP-B: per-document bucket — the outer lock prevents two
+                // composer calls on the same doc from racing the increment.
+                var docBucket = GetDocBucket(doc);
+                lock (docBucket)
+                {
+                    docBucket.TryGetValue(bucket, out seq);
+                    seq += 1;
+                    docBucket[bucket] = seq;
+                }
             }
 
             // Honour the user pattern when the ShopDrawingOptionsDialog

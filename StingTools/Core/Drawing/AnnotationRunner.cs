@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using StingTools.Core.Drawing.Dimensioning;
 
 namespace StingTools.Core.Drawing
 {
@@ -222,6 +223,21 @@ namespace StingTools.Core.Drawing
                 if (rule == null) continue;
                 try
                 {
+                    // B1: honour the rule's `condition`. AnnotationConditionEvaluator
+                    // is a clean fail-open parser that had ZERO call sites, so this
+                    // field was a silent no-op on every shipped type that declares
+                    // it. Fail-open means an unparseable condition still runs the
+                    // rule rather than silently dropping requested annotation.
+                    if (!string.IsNullOrWhiteSpace(rule.Condition))
+                    {
+                        var cctx = ConditionContext.FromView(doc, view, rule.Category);
+                        if (!AnnotationConditionEvaluator.Evaluate(rule.Condition, cctx))
+                        {
+                            stats.Skipped++;
+                            continue;
+                        }
+                    }
+
                     var catId = ResolveCategoryId(doc, rule.Category);
                     if (catId == ElementId.InvalidElementId) continue;
                     long cv = catId.Value;
@@ -375,7 +391,23 @@ namespace StingTools.Core.Drawing
             }
             if (!haveZ) return;
 
-            var dimStyleId = ResolveDimensionStyleId(doc, pack.DimensionStyle);
+            // B1: honour the pack's dimensionStrategy. This was a declared
+            // rule-pack field with no consumer — GridDimensioner read it but
+            // nothing called GridDimensioner. DimensionStrategy.ResolveType
+            // applies the strategy (and still lets an explicit DimensionStyle
+            // name win), so the field now reaches the only grid-dimensioning
+            // path that runs.
+            ElementId dimStyleId = ElementId.InvalidElementId;
+            try
+            {
+                var kind = DimensionStrategy.Parse(pack.DimensionStrategy);
+                var dimType = DimensionStrategy.ResolveType(doc, kind, pack.DimensionStyle);
+                if (dimType != null) dimStyleId = dimType.Id;
+            }
+            catch (Exception ex) { StingLog.Warn($"DimGrids strategy: {ex.Message}"); }
+            if (dimStyleId == ElementId.InvalidElementId)
+                dimStyleId = ResolveDimensionStyleId(doc, pack.DimensionStyle);
+
             double marginFt = 10.0;   // ~3 m clear of the grid extent
 
             // East-west grids are stacked along Y, so their chain runs along Y,
@@ -595,7 +627,19 @@ namespace StingTools.Core.Drawing
                 .ToElements();
             if (elements.Count == 0) return;
 
-            ElementId tagTypeId = ResolveTagTypeId(doc, view, pack, catKey, bic, stats);
+            // B1: a per-rule tagFamily wins over the pack-level TagFamilies map.
+            // AutoAnnotationRule.TagFamily was declared and read nowhere, so a rule
+            // naming its own tag family was silently served the pack default.
+            ElementId tagTypeId = ElementId.InvalidElementId;
+            if (!string.IsNullOrWhiteSpace(rule?.TagFamily))
+            {
+                var byRule = FindFamilySymbolByName(doc, rule.TagFamily);
+                if (byRule != null) tagTypeId = byRule.Id;
+                else stats.Warnings.Add(
+                    $"Rule tag family '{rule.TagFamily}' for {catKey} is not loaded; using the pack default.");
+            }
+            if (tagTypeId == ElementId.InvalidElementId)
+                tagTypeId = ResolveTagTypeId(doc, view, pack, catKey, bic, stats);
             if (tagTypeId == ElementId.InvalidElementId)
             {
                 stats.Warnings.Add($"No tag family available for {catKey} — skipped.");
