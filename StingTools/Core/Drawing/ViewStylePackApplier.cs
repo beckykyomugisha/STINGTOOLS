@@ -33,7 +33,15 @@ namespace StingTools.Core.Drawing
 
     public static partial class ViewStylePackApplier
     {
-        public static void InvalidateCache(Document doc) { /* Pack registry is doc-scoped; no separate cache needed. */ }
+        /// <summary>
+        /// V-4: this was a no-op with a comment claiming no cache existed —
+        /// while ResolveFilterIdCached and ResolveFillPattern ran a full
+        /// collector on every call. Now that those are genuinely indexed per
+        /// document, this drops the indexes so a filter or pattern created
+        /// mid-run is visible to the very next lookup (the lazy-create path
+        /// below calls it for exactly that reason).
+        /// </summary>
+        public static void InvalidateCache(Document doc) => InvalidateResolverCaches(doc);
         public static void ReadCategoryOverrides(Document doc, View view, ViewStylePack pack) { /* No-op stub. */ }
 
         public static PackApplyResult Apply(Document doc, View view, ViewStylePack pack)
@@ -284,8 +292,11 @@ namespace StingTools.Core.Drawing
                     var transp = rule.Transparency ?? defaults?.Transparency;
                     if (transp.HasValue) ogs.SetSurfaceTransparency(Clamp(transp.Value, 0, 100));
 
-                    // Halftone — pack flag wins; default override falls through.
-                    bool halftone = rule.Halftone || (defaults?.Halftone == true);
+                    // Halftone — pack wins when it states a value, else the
+                    // registry default, else off. The old `rule.Halftone ||
+                    // defaults?.Halftone == true` could never express "pack
+                    // says OFF" against a default of ON.
+                    bool halftone = rule.Halftone ?? (defaults?.Halftone ?? false);
                     ogs.SetHalftone(halftone);
 
                     // Detail level — Revit 2023+ override.
@@ -298,9 +309,10 @@ namespace StingTools.Core.Drawing
 
                     view.SetFilterOverrides(filterId, ogs);
 
-                    // Visibility — pack rule wins; otherwise default override visible flag; default true.
-                    bool visible = rule.Visible;
-                    if (defaults?.Visible.HasValue == true && rule.Visible) visible = defaults.Visible.Value;
+                    // Visibility — pack wins when stated, else the registry
+                    // default, else visible. The old form read the DEFAULT
+                    // whenever the rule was true, inverting its own comment.
+                    bool visible = rule.Visible ?? (defaults?.Visible ?? true);
                     view.SetFilterVisibility(filterId, visible);
                     r.FiltersApplied++;
                 }

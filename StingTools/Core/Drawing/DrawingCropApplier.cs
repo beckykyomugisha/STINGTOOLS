@@ -54,12 +54,40 @@ namespace StingTools.Core.Drawing
         }
 
         public static List<string> Apply(Document doc, View view, DrawingType dt)
+            => Apply(doc, view, dt, null);
+
+        /// <summary>
+        /// Apply the profile's crop strategy.
+        /// </summary>
+        /// <param name="contextScopeBox">
+        /// P-6: a scope box supplied by the production context — the box the
+        /// view was produced FOR. It wins over the profile's static
+        /// Crop.ScopeBoxName, and over the bbox-derived kinds, because it is
+        /// the reason the view exists. Previously DrawingContext.ScopeBox was
+        /// declared, passed in by ProduceViewsFromScopeBoxesCommand, and read
+        /// by nothing: "produce from scope boxes" produced views that were not
+        /// cropped to their scope box, while the parallel
+        /// GenerateFromScopeBoxesCommand did bind it — two entry points,
+        /// materially different output.
+        /// </param>
+        public static List<string> Apply(Document doc, View view, DrawingType dt, Element contextScopeBox)
         {
             var warnings = new List<string>();
             if (doc == null || view == null || dt?.Crop == null) return warnings;
             if (view.IsTemplate) return warnings;
 
             var crop = dt.Crop;
+
+            if (contextScopeBox != null && contextScopeBox.Id != ElementId.InvalidElementId)
+            {
+                SetScopeBox(view, contextScopeBox.Id, warnings);
+                // Stamp the profile's declared kind so the drift detector still
+                // compares against the profile, not against this override.
+                try { DrawingTypeStamper.StampCrop(view, crop.Kind ?? string.Empty, crop.MarginMm); }
+                catch (Exception ex) { warnings.Add($"CropStamp: {ex.Message}"); }
+                return warnings;
+            }
+
             try
             {
                 switch ((crop.Kind ?? "").Trim())

@@ -769,13 +769,19 @@ namespace StingTools.Docs
             switch (profile.Pdf.CombineMode)
             {
                 case PdfCombineMode.OnePerSheet:
+                {
+                    // Track output paths already emitted this run so two sheets whose
+                    // sanitised names collide can't silently overwrite one another while
+                    // both report success.
+                    var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var v in sheets)
                     {
                         if (cancel != null && cancel()) return;
-                        ExportSinglePdf(doc, v, profile, result);
+                        ExportSinglePdf(doc, v, profile, result, emitted);
                         tick?.Invoke($"PDF: {GetLabel(v)}");
                     }
                     break;
+                }
 
                 case PdfCombineMode.OnePerDiscipline:
                 {
@@ -810,7 +816,8 @@ namespace StingTools.Docs
             }
         }
 
-        private static void ExportSinglePdf(Document doc, View view, ExportProfile profile, ExportRunResult result)
+        private static void ExportSinglePdf(Document doc, View view, ExportProfile profile,
+            ExportRunResult result, HashSet<string> emittedPaths = null)
         {
             var row = StartRow(view, "PDF");
             try
@@ -824,19 +831,37 @@ namespace StingTools.Docs
                 stem = ResolveConflict(folder, stem, "pdf", profile.Output.ConflictMode, out bool skip);
                 if (skip) { row.Success = false; row.Error = "Skipped — file exists"; return; }
 
+                string outputPath = Path.Combine(folder, stem + ".pdf");
+                row.OutputPath = outputPath;
+
+                // Within-run collision guard: two sheets whose sanitised names resolve to
+                // the same file would otherwise overwrite one another and both report
+                // success. Skip the duplicate and flag it rather than double-reporting.
+                if (emittedPaths != null && !emittedPaths.Add(outputPath))
+                {
+                    row.Success = false;
+                    row.Error = $"Skipped — duplicate output name '{stem}.pdf' already written in this run";
+                    StingLog.Warn($"PDF export {row.SheetNumber}: duplicate output name '{stem}.pdf' within run — skipped to avoid overwrite");
+                    return;
+                }
+
+                // Revit only honours PDFExportOptions.FileName when Combine == true; with
+                // Combine == false each sheet is written under a Revit-derived name, so the
+                // File.Exists(<stem>.pdf) verify below would fail even though the PDF landed.
+                // Exporting the single view as a one-sheet combined set makes FileName
+                // authoritative and puts the output at <stem>.pdf as expected.
                 var opts = new PDFExportOptions
                 {
                     FileName = stem,
-                    Combine = false,
+                    Combine = true,
                     AlwaysUseRaster = profile.Pdf.HiddenLineMode == "Raster",
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
 
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
-                row.OutputPath = Path.Combine(folder, stem + ".pdf");
-                row.Success = ok && File.Exists(row.OutputPath);
-                if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                row.Success = ok && File.Exists(outputPath);
+                if (row.Success) row.FileSizeBytes = new FileInfo(outputPath).Length;
                 else row.Error = $"PDF export returned false (folder: '{folder}', file: '{stem}.pdf')";
             }
             catch (Exception ex)

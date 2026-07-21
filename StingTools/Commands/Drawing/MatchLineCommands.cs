@@ -129,12 +129,17 @@ namespace StingTools.Commands.Drawing
             var sb = new StringBuilder();
             sb.AppendLine("Match-line validation report.");
             sb.AppendLine();
-            sb.AppendLine($"Pairs total             : {rep.PairsTotal}");
+            sb.AppendLine($"Pair instances (pair x view): {rep.PairsTotal}");
+            sb.AppendLine($"Distinct scope-box pairs    : {rep.ScopePairsPlaced}");
             sb.AppendLine($"Pairs with valid ref    : {rep.PairsWithMatchingRef}");
             sb.AppendLine($"Pairs with broken ref   : {rep.PairsWithBrokenRef}");
             sb.AppendLine($"Adjacent scope-box pairs: {rep.ScopeBoxesAdjacent}");
+            // A-14: compare distinct SCOPE-BOX pairs, not per-view pair
+            // instances. PairsTotal counts one per (pair x view), so any scope
+            // box driving several level views — the normal case — made this
+            // report "N placed pairs have no live adjacency" on a healthy model.
             int expected = rep.ScopeBoxesAdjacent;
-            int placed   = rep.PairsTotal;
+            int placed   = rep.ScopePairsPlaced;
             if (expected > placed)
                 sb.AppendLine($"\n⚠  {expected - placed} adjacency edge(s) missing a placed pair — run 'Match Lines: Generate'.");
             else if (placed > expected)

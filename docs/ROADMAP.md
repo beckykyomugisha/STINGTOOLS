@@ -120,7 +120,96 @@ Deliberately deferred, with reasons:
 - **`IFamilyLoadOptions` `overwriteParameterValues` disagreement** (resolver false,
   TitleBlockSlotCommands true) — untouched, since no loading behaviour changed.
 
+### P2 — tracks A + D CLOSED (see CHANGELOG Phase 224)
+
+| Finding | Status |
+|---|---|
+| E-5 / E-13 SheetSequenceStore wipe, silent write failure, Peek off-by-one | ✅ fixed |
+| A-4 / A-10 grid + level dimension chains never placed | ✅ fixed |
+| P-6 / P-13b / P-13c scope-box production | ✅ fixed |
+| P-8 producer schedule placement + per-slot viewport types | ✅ fixed |
+| P-9 re-run warnings + double counting + ctx.Tag divergence | ✅ fixed |
+| E-7 / E-8 / E-9 / E-10 / E-12 / E-14 / V-9 engine small-bore | ✅ fixed |
+| A-12 / A-13 / A-14 legend placement + match-line validate | ✅ fixed |
+| T-8 / T-9 / T-11 / T-13 title-block loose ends | ✅ fixed |
+| V-4 / V-5 / P-12 / P-13a performance | ✅ fixed |
+| A-5 GridDimensioner axes + drainage invert | ✅ fixed |
+| W-2 MatchLine suite unreachable | ✅ fixed (5 buttons + 5 ResolveCommand cases) |
+
+Corrections to the review found in this pass (bringing the running total to six):
+
+- **W-5 was wrong and acting on it would have been destructive.** The instruction was to delete
+  the inline handler copies for `DrawingTypes_SyncStyles` / `DrawingTypes_FromScopeBoxes` as
+  "reimplementations". They are not: the inline versions are read-only (an audit and an
+  advisory) while the command classes WRITE. Deleting them would have turned two read-only
+  buttons into model-writing operations. Resolved by naming instead — the advisories moved to
+  `DrawingTypes_AuditStyleRefs` / `DrawingTypes_SuggestFromScopeBoxes`, the canonical tags now
+  mean the command class everywhere, and new buttons expose the writing commands.
+- **P-7's conclusion does not follow from its evidence.** The two slot data sets are authored to
+  DIFFERENT conventions, each self-consistent with its consumer: `STING_DRAWING_TYPES.json` is
+  bottom-left (pipe-spool tiles 0.05→0.45, 0.55→0.95; every x+w ≤ 0.98) while
+  `SheetTemplateEngine`'s built-ins are centre (normX 0.47/w 0.80, 0.72/w 0.38, 0.72/w 0.40 give
+  right edges of 1.27, 1.10, 1.12 under a bottom-left reading — three of four off-sheet). The
+  defect is the adapter's claim that they share a convention. Still open; see below.
+- **A-5's drainage magnitude is wrong.** The error is one wall thickness, not two: that would
+  require `Diameter` to be the outside diameter, and Revit exposes no inside/outside distinction
+  on `Pipe` or `MEPCurve`.
+- **E-10 is worse than described** — the `Validate` loop sat outside the `try`, so the snapshot
+  clear was skipped on any throw, not merely un-stamped.
+
 ### P2 — still open
+
+**Track B — CLOSED except the two data-territory items.**
+
+| Item | Status |
+|---|---|
+| B1 grid-dimensioning convergence | ✅ `DimGrids` survives; `GridDimensioner` reduced to `IsDimensionable` |
+| B1 `dimensionStrategy` | ✅ wired into `DimGrids` via `DimensionStrategy.ResolveType` |
+| B1 `condition` | ✅ wired (evaluator had zero call sites) |
+| B1 per-rule `tagFamily` | ✅ wired, warns when the named family is absent |
+| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ still no-ops — see below |
+| B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
+| B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
+| B5 composer numbering | ✅ routed through `SheetSequenceStore` |
+| B4 checksums | ⬜ data-territory — data PR |
+| B6 unmintable `iso-status-*` filters | ⬜ data-territory — data PR |
+
+`densityMode` / `minSizeMm` / `orientation` / `tag7Depth` remain unwired. They are per-rule
+*refinements* to tagging behaviour rather than the on/off wiring the other fields needed
+(`densityMode` interacts with the existing `denseUntilScale` gate; `minSizeMm` needs a per-element
+size measure; `orientation` and `tag7Depth` need per-tag write paths). Each is a small feature in
+its own right and none of them silently corrupts output today — they simply do nothing — so they
+are better scoped against smoke-test evidence than guessed at.
+
+**Previously listed as remaining (now done):**
+
+- **B1 (rest of the rule engine).** `GridDimensioner`'s axis bug and the drainage invert are
+  fixed, but `AnnotationConditionEvaluator` still has no call site and the rule-pack fields
+  `condition` / per-rule `tagFamily` / `densityMode` / `minSizeMm` / `orientation` / `tag7Depth`
+  / `dimensionStrategy` remain silent no-ops on 48 shipped types. Recommendation: wire, not
+  delete — deleting means stripping the fields from 48 catalogue entries, which is a Track C
+  data edit. Note that A2 rewrote `DimGrids` correctly, so wiring `dimensionStrategy` would give
+  two implementations of grid dimensioning; converge them in the same pass.
+- **B3 `${MAT_*}` tokens (T-4).** `MaterialTitleBlockTokens.Resolve` still has zero callers.
+  One call site in `TitleBlockParamApplier`'s `${…}` handler would wire it; its O(all-elements)
+  usage scan should be made lazy-once-per-doc at the same time.
+- **B4 checksum persistence (C-5).** Unchanged — no checksum fields ship, so the corporate-lock
+  drift branch is inert. Needs a build-time stamping script plus a decision on whether packs get
+  parity or are documented as deliberately unlocked.
+- **B5 composer numbering (P-11).** `ShopDrawingComposer._sequenceByBucket` is still in-memory
+  per session. Routing it through the (now hardened) `SheetSequenceStore` would retire the third
+  parallel numbering system.
+- **B6 unmintable filters (V-6).** The 8 `iso-status-*` filters bind only `OST_Sheets`, which
+  Revit view filters cannot target. Removal is a Track C data edit.
+
+**Track C (catalogue data) — not started**, gated on smoke-test evidence. C1–C6 as originally
+scoped. Note C3's overlap is confirmed by measurement: pipe-spool ISO spans 0.55→0.95 and BOM
+0.78→0.98, overlapping 0.78→0.95.
+
+**P-7 slot convention** — the divergence is measured and recorded above; converging requires
+rewriting `SheetTemplateEngine`'s built-in numbers and migrating user-saved templates, so it
+wants smoke-test evidence first.
+
 
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
 numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
