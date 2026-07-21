@@ -95,37 +95,23 @@ namespace StingTools.Commands.TagStudio
                 .OrderBy(f => f.Name)
                 .ToList();
 
-            // ── Purge duplicates minted by pre-fix runs ──
+            // ── Identify duplicates minted by pre-fix runs ──
             // Before the temp-subfolder fix, the clone loaded under its temp FILE
             // name ("<target>.rfa.sting-propagate-<guid>"), creating a junk
-            // duplicate and leaving the real target untouched. Delete leftovers so
-            // they don't appear in the master/target pickers or become targets.
-            // Partition BEFORE deleting: a deleted Element throws
-            // InvalidObjectException on any property access (even .Name), so the
-            // keep-list must be computed while every reference is still valid.
+            // duplicate and leaving the real target untouched. Partition them out
+            // of the master/target pickers now, but DEFER the destructive delete
+            // until AFTER the confirmation gate — deleting here means a user who
+            // cancels still loses the families (and their placed tag instances).
+            // Partition reads f.Name while every reference is still valid: a
+            // deleted Element throws InvalidObjectException on any property access.
             var junk = new List<Family>();
             var keep = new List<Family>();
             foreach (Family f in stingFamilies)
             {
                 if (IsTempNamed(f.Name)) junk.Add(f); else keep.Add(f);
             }
+            stingFamilies = keep;
             int junkDeleted = 0;
-            if (junk.Count > 0)
-            {
-                using (var junkTx = new Transaction(doc, "STING Purge propagate temp duplicates"))
-                {
-                    junkTx.Start();
-                    foreach (Family f in junk)
-                    {
-                        string junkName = f.Name; // read before Delete — invalid after
-                        try { doc.Delete(f.Id); junkDeleted++; }
-                        catch (Exception ex) { StingLog.Warn($"Purge temp duplicate '{junkName}': {ex.Message}"); }
-                    }
-                    junkTx.Commit();
-                }
-                StingLog.Info($"PropagateUniversalTag: purged {junkDeleted} temp-named duplicate families");
-                stingFamilies = keep;
-            }
 
             if (stingFamilies.Count < 2)
             {
@@ -159,7 +145,7 @@ namespace StingTools.Commands.TagStudio
                 "For each target family this will:\n" +
                 "  • Clone the universal master (EditFamily)\n" +
                 "  • Recategorise the clone to the target's tag category\n" +
-                "  • Rename the clone to the target's family name\n" +
+                "  • Save the clone under the target's exact .rfa file name (so LoadFamily overwrites it)\n" +
                 $"  • Add any missing style/visibility params + re-create up to {variants.Count} type variants\n" +
                 "  • Overwrite the target family (atomic SaveAs → LoadFamily → move)\n\n" +
                 "The universal label rows carry over unchanged (recategorise preserves\n" +
@@ -168,6 +154,25 @@ namespace StingTools.Commands.TagStudio
                 "Press Escape between families to cancel.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+
+            // ── Purge pre-fix temp duplicates NOW the user has committed ──
+            // Deferred from before the pickers so cancelling the command doesn't
+            // delete families (and their placed tag instances) the user kept.
+            if (junk.Count > 0)
+            {
+                using (var junkTx = new Transaction(doc, "STING Purge propagate temp duplicates"))
+                {
+                    junkTx.Start();
+                    foreach (Family f in junk)
+                    {
+                        string junkName = f.Name; // read before Delete — invalid after
+                        try { doc.Delete(f.Id); junkDeleted++; }
+                        catch (Exception ex) { StingLog.Warn($"Purge temp duplicate '{junkName}': {ex.Message}"); }
+                    }
+                    junkTx.Commit();
+                }
+                StingLog.Info($"PropagateUniversalTag: purged {junkDeleted} temp-named duplicate families");
+            }
 
             // ── Pre-resolve shared arrowhead types ──
             var arrowheads = TagTypeVariantWriter.BuildArrowheadLookup(doc);
@@ -272,6 +277,7 @@ namespace StingTools.Commands.TagStudio
             string targetName = target.Name;
             ElementId targetCatId = target.FamilyCategory?.Id;
             Document famDoc = null;
+            string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
 
             using (var tg = new TransactionGroup(doc, $"STING Propagate → {targetName}"))
             {
@@ -359,8 +365,28 @@ namespace StingTools.Commands.TagStudio
                     string outDir = TagFamilyConfig.GetOutputDirectory();
                     Directory.CreateDirectory(outDir);
                     string rfaFileName = targetName.Replace('/', '-') + ".rfa";
+
+                    // A slash (or any other char stripped by sanitisation) in the
+                    // family name makes the .rfa FILE name diverge from the
+                    // family's project name. LoadFamily keys on the file name, so
+                    // saving under the sanitised name would mint a NEW mis-named
+                    // family and leave the real target untouched — reintroducing
+                    // the exact bug this fix closes, and the duplicate is NOT
+                    // temp-named so the purge won't reap it. Fail explicitly.
+                    if (!string.Equals(Path.GetFileNameWithoutExtension(rfaFileName), targetName, StringComparison.Ordinal))
+                    {
+                        result.ErrorMessage =
+                            $"Family name '{targetName}' has no 1:1 file name (sanitised to '{rfaFileName}'); " +
+                            "propagating would create a mis-named duplicate instead of overwriting the target. " +
+                            "Rename the family without '/' and retry.";
+                        StingLog.Warn($"PropagateUniversalTag: skipping '{targetName}' — sanitised file name diverges from family name");
+                        famDoc.Close(false); famDoc = null;
+                        tg.RollBack();
+                        return result;
+                    }
+
                     string finalPath = Path.Combine(outDir, rfaFileName);
-                    string tempDir = Path.Combine(outDir,
+                    tempDir = Path.Combine(outDir,
                         ".sting-propagate-" + Guid.NewGuid().ToString("N").Substring(0, 8));
                     Directory.CreateDirectory(tempDir);
                     string tempPath = Path.Combine(tempDir, rfaFileName);
@@ -430,6 +456,7 @@ namespace StingTools.Commands.TagStudio
                     StingLog.Error($"PropagateUniversalTag: {targetName}", ex);
                     try { if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack(); } catch { }
                     try { famDoc?.Close(false); } catch (Exception closeEx) { StingLog.Warn($"Close famDoc: {closeEx.Message}"); }
+                    if (tempDir != null) TryDeleteTempDir(tempDir); // don't leak a half-made temp dir on an unhandled throw
                 }
             }
             return result;
@@ -440,8 +467,10 @@ namespace StingTools.Commands.TagStudio
         // ──────────────────────────────────────────────────────────────────
 
         /// <summary>True when a family name is a leftover from a pre-fix run
-        /// that loaded the clone under its temp file name.</summary>
-        private static bool IsTempNamed(string familyName)
+        /// that loaded the clone under its temp file name. Shared with
+        /// <see cref="MigrateTagLabelReferencesCommand"/> so its collector can
+        /// exclude the same junk (both markers covered here).</summary>
+        internal static bool IsTempNamed(string familyName)
         {
             if (string.IsNullOrEmpty(familyName)) return false;
             return familyName.IndexOf(".rfa.sting-propagate-", StringComparison.OrdinalIgnoreCase) >= 0 ||

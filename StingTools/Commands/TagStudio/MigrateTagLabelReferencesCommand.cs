@@ -108,10 +108,15 @@ namespace StingTools.Commands.TagStudio
             }
 
             // ── Enumerate STING tag families ──
+            // Exclude temp-named duplicates left by pre-fix propagate/migrate runs
+            // ("STING - X Tag.rfa.sting-propagate-<guid>"): they match the prefix
+            // but republishing one would write junk into the canonical .rfa dir
+            // and the "STING - *.rfa" glob would then load it into every project.
             var families = new FilteredElementCollector(doc)
                 .OfClass(typeof(Family))
                 .Cast<Family>()
                 .Where(f => f.Name != null && f.Name.StartsWith(TagFamilyConfig.FamilyPrefix, StringComparison.OrdinalIgnoreCase))
+                .Where(f => !PropagateUniversalTagCommand.IsTempNamed(f.Name))
                 .Where(f => f.FamilyCategory != null)
                 .OrderBy(f => f.Name)
                 .ToList();
@@ -258,6 +263,7 @@ namespace StingTools.Commands.TagStudio
         {
             var result = new FamilyResult();
             Document famDoc = null;
+            string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
             using (var tg = new TransactionGroup(doc, $"STING Migrate Refs: {fam.Name}"))
             {
                 try
@@ -379,8 +385,26 @@ namespace StingTools.Commands.TagStudio
                     string outDir = TagFamilyConfig.GetOutputDirectory();
                     Directory.CreateDirectory(outDir);
                     string rfaFileName = fam.Name.Replace('/', '-') + ".rfa";
+
+                    // A slash (or any other char stripped by sanitisation) in the
+                    // family name makes the .rfa FILE name diverge from the
+                    // family's project name. LoadFamily keys on the file name, so
+                    // saving under the sanitised name would mint a NEW mis-named
+                    // family and leave the real target untouched. Fail explicitly.
+                    if (!string.Equals(Path.GetFileNameWithoutExtension(rfaFileName), fam.Name, StringComparison.Ordinal))
+                    {
+                        result.ErrorMessage =
+                            $"Family name '{fam.Name}' has no 1:1 file name (sanitised to '{rfaFileName}'); " +
+                            "migrating would create a mis-named duplicate instead of overwriting the family. " +
+                            "Rename the family without '/' and retry.";
+                        StingLog.Warn($"MigrateTagLabelReferences: skipping '{fam.Name}' — sanitised file name diverges from family name");
+                        famDoc.Close(false); famDoc = null;
+                        tg.RollBack();
+                        return result;
+                    }
+
                     string finalPath = Path.Combine(outDir, rfaFileName);
-                    string tempDir = Path.Combine(outDir,
+                    tempDir = Path.Combine(outDir,
                         ".sting-migrate-" + Guid.NewGuid().ToString("N").Substring(0, 8));
                     Directory.CreateDirectory(tempDir);
                     string tempPath = Path.Combine(tempDir, rfaFileName);
@@ -464,6 +488,12 @@ namespace StingTools.Commands.TagStudio
                     StingLog.Error($"MigrateTagLabelReferences: {fam.Name}", ex);
                     try { if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack(); } catch { }
                     try { famDoc?.Close(false); } catch (Exception closeEx) { StingLog.Warn($"Close famDoc: {closeEx.Message}"); }
+                    // Don't leak a half-made temp dir on an unhandled throw.
+                    if (tempDir != null)
+                    {
+                        try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempDir: {delEx.Message}"); }
+                    }
                 }
             }
             return result;
