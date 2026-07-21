@@ -86,9 +86,12 @@ namespace StingTools.Commands.Kpi
                     // JObject (not Dictionary<string,double>) so a "_comment" string
                     // doesn't fail the whole parse.
                     var j = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));
+                    // P1 fix: read the numeric straight off the JToken. Value<double?>()
+                    // returns the underlying double with no culture-sensitive ToString round-trip,
+                    // so a comma-decimal locale can't misparse the shipped "0.40" as 4.0 and peg
+                    // the health score at 100. Mirrors LoadDistToMm in AccPullClashesCommand.
                     double Num(string k, double cur) => j[k] != null && j[k].Type != Newtonsoft.Json.Linq.JTokenType.Null
-                        && double.TryParse(j[k].ToString(), System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : cur;
+                        ? (j[k].Value<double?>() ?? cur) : cur;
                     cfg.ClashCap          = Num("clashCap", cfg.ClashCap);
                     cfg.WarningCap        = Num("warningCap", cfg.WarningCap);
                     cfg.StaleCap          = Num("staleCap", cfg.StaleCap);
@@ -350,6 +353,7 @@ namespace StingTools.Commands.Kpi
             var ctx = ParameterHelpers.GetContext(cmd);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+            var cfg = KutKpiConfig.Load(doc);   // same config the health score is computed from (N-G6)
 
             var snap = KutKpiEngine.Gather(doc);
             if (snap.TotalElements == 0)
@@ -379,7 +383,7 @@ namespace StingTools.Commands.Kpi
             b.AddSection("Headline")
              .RAGBar(snap.CompliancePct, $"Tag / metadata compliance {snap.CompliancePct:F1}%")
              .Metric("Model-health score", $"{snap.HealthScore:F0}/100",
-                     "compliance 40% · clash 25% · warnings 20% · stale 15%",
+                     $"compliance {cfg.WeightCompliance * 100:F0}% · clash {cfg.WeightClash * 100:F0}% · warnings {cfg.WeightWarnings * 100:F0}% · stale {cfg.WeightStale * 100:F0}%",
                      null)
              .Metric("Open clashes", snap.OpenClashes.ToString(),
                      prev != null ? $"burn-down {KutKpiEngine.Delta(snap.OpenClashes, prev.OpenClashes, "", invert: true)}" : "no prior snapshot");

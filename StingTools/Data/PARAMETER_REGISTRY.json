@@ -21415,6 +21415,30 @@
       "curated": true
     },
     {
+      "param_name": "BMS_DEVICE_ID_TXT",
+      "guid": "fb34eb23-1a98-53bd-8207-e65917c193f3",
+      "description": "Generic BMS device ID (consumed by IoTDeviceRegistry / Niagara) [N-G8]",
+      "datatype": "TEXT",
+      "group_id": 3,
+      "group_name": "COM_DAT",
+      "binding": "universal",
+      "required": false,
+      "discipline": "ICT/Data",
+      "curated": true
+    },
+    {
+      "param_name": "BMS_ENDPOINT_TXT",
+      "guid": "559f06f2-e423-5e8b-84de-59d5969b1975",
+      "description": "BMS device endpoint URI e.g. bacnet://host/instance [N-G8]",
+      "datatype": "TEXT",
+      "group_id": 3,
+      "group_name": "COM_DAT",
+      "binding": "universal",
+      "required": false,
+      "discipline": "ICT/Data",
+      "curated": true
+    },
+    {
       "param_name": "ICT_HEALTHIOT_PROTOCOL_TXT",
       "guid": "c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002",
       "description": "IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]",
