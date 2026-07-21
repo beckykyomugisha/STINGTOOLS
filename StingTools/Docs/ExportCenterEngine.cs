@@ -845,11 +845,15 @@ namespace StingTools.Docs
                     return;
                 }
 
-                // Revit only honours PDFExportOptions.FileName when Combine == true; with
-                // Combine == false each sheet is written under a Revit-derived name, so the
-                // File.Exists(<stem>.pdf) verify below would fail even though the PDF landed.
-                // Exporting the single view as a one-sheet combined set makes FileName
-                // authoritative and puts the output at <stem>.pdf as expected.
+                // Snapshot the folder's PDFs before export so we can locate whatever
+                // Revit actually writes. PDFExportOptions.FileName honouring is version-
+                // dependent: with Combine == true it is normally authoritative, but some
+                // Revit builds still write a single-sheet export under a default name
+                // (e.g. "<Sheet Number> - <Sheet Name>.pdf" or "Sheet-Unnamed.pdf").
+                // Verifying File.Exists(<stem>.pdf) alone therefore reported perfectly
+                // good exports as failures and left the file under the wrong name.
+                var before = SnapshotPdfs(folder);
+
                 var opts = new PDFExportOptions
                 {
                     FileName = stem,
@@ -860,9 +864,44 @@ namespace StingTools.Docs
                 };
 
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
-                row.Success = ok && File.Exists(outputPath);
-                if (row.Success) row.FileSizeBytes = new FileInfo(outputPath).Length;
-                else row.Error = $"PDF export returned false (folder: '{folder}', file: '{stem}.pdf')";
+
+                // Resolve the file Revit actually produced and move it to <stem>.pdf when
+                // it landed under a different name, so the output matches the naming
+                // template the user configured and the success verify is reliable.
+                string produced = ResolveProducedPdf(folder, outputPath, before);
+                if (produced != null && !PathsEqual(produced, outputPath))
+                {
+                    try
+                    {
+                        if (File.Exists(outputPath)) File.Delete(outputPath);
+                        File.Move(produced, outputPath);
+                    }
+                    catch (Exception mv)
+                    {
+                        StingLog.Warn($"PDF export {row.SheetNumber}: could not rename " +
+                                      $"'{Path.GetFileName(produced)}' to '{stem}.pdf': {mv.Message}");
+                        outputPath = produced;          // report the real path we ended up with
+                        row.OutputPath = produced;
+                    }
+                }
+
+                row.Success = File.Exists(row.OutputPath);
+                if (row.Success)
+                {
+                    row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+
+                    // Stamp the watermark on the single-sheet output too. Previously only
+                    // the combined-PDF path injected it, so OnePerSheet exports came out
+                    // blank even with "Apply watermark" ticked.
+                    if (profile.Pdf.ApplyWatermark)
+                        TryInjectWatermark(row.OutputPath, profile.Pdf, result);
+                }
+                else
+                {
+                    row.Error = ok
+                        ? $"PDF export reported success but no output PDF was found in '{folder}' (expected '{stem}.pdf')"
+                        : $"PDF export returned false (folder: '{folder}', file: '{stem}.pdf')";
+                }
             }
             catch (Exception ex)
             {
@@ -870,6 +909,66 @@ namespace StingTools.Docs
                 StingLog.Warn($"PDF export {row.SheetNumber}: {ex.Message}");
             }
             finally { CommitRow(row, result); }
+        }
+
+        /// <summary>Snapshot the *.pdf files in a folder (full path → last-write UTC)
+        /// so a post-export diff can identify exactly what Revit produced.</summary>
+        private static Dictionary<string, DateTime> SnapshotPdfs(string folder)
+        {
+            var map = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                if (Directory.Exists(folder))
+                    foreach (var f in Directory.EnumerateFiles(folder, "*.pdf"))
+                        map[f] = File.GetLastWriteTimeUtc(f);
+            }
+            catch (Exception ex) { StingLog.Warn($"SnapshotPdfs '{folder}': {ex.Message}"); }
+            return map;
+        }
+
+        /// <summary>Identify the PDF a single-sheet export produced. Prefers the
+        /// expected path; otherwise returns the newest PDF that is new (or whose
+        /// timestamp advanced) versus <paramref name="before"/>. Null when nothing
+        /// was written.</summary>
+        private static string ResolveProducedPdf(string folder, string expectedPath,
+            Dictionary<string, DateTime> before)
+        {
+            try
+            {
+                if (File.Exists(expectedPath) &&
+                    (before == null || !before.TryGetValue(expectedPath, out var prevExp) ||
+                     File.GetLastWriteTimeUtc(expectedPath) > prevExp))
+                    return expectedPath;
+
+                string best = null;
+                DateTime bestTime = DateTime.MinValue;
+                if (Directory.Exists(folder))
+                {
+                    foreach (var f in Directory.EnumerateFiles(folder, "*.pdf"))
+                    {
+                        var t = File.GetLastWriteTimeUtc(f);
+                        bool changed = before == null || !before.TryGetValue(f, out var prev) || t > prev;
+                        if (!changed) continue;
+                        if (t >= bestTime) { bestTime = t; best = f; }
+                    }
+                }
+                // Overwrite mode may reuse an existing file whose timestamp didn't move —
+                // fall back to the expected path if it is present.
+                if (best == null && File.Exists(expectedPath)) return expectedPath;
+                return best;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveProducedPdf '{folder}': {ex.Message}");
+                return File.Exists(expectedPath) ? expectedPath : null;
+            }
+        }
+
+        private static bool PathsEqual(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            try { return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+            catch { return string.Equals(a, b, StringComparison.OrdinalIgnoreCase); }
         }
 
         private static void ExportCombinedPdf(Document doc, List<View> views,
