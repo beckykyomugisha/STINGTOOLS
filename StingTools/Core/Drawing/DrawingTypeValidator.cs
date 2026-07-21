@@ -387,7 +387,7 @@ namespace StingTools.Core.Drawing
             // invoked individually.
             try
             {
-                bool? snap = _snapshot?.AnyStingSeedTemplate;
+                bool? snap = SnapshotFor(doc)?.AnyStingSeedTemplate;
                 bool anyStingSeed = snap ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(View))
                     .Cast<View>()
@@ -404,8 +404,9 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     bool exists;
-                    if (_snapshot != null)
-                        exists = _snapshot.KnownPhaseFilters.Contains(pack.PhaseFilter);
+                    var snapPf = SnapshotFor(doc);
+                    if (snapPf != null)
+                        exists = snapPf.KnownPhaseFilters.Contains(pack.PhaseFilter);
                     else
                         exists = new FilteredElementCollector(doc)
                             .OfClass(typeof(PhaseFilter))
@@ -445,8 +446,33 @@ namespace StingTools.Core.Drawing
         // filter X loaded?" via fresh FilteredElementCollectors.
         [ThreadStatic] private static ValidationSnapshot _snapshot;
 
+        private static string SnapshotDocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"SnapshotDocKey: {ex.Message}"); return "__unknown__"; }
+        }
+
+        /// <summary>
+        /// E-10: the snapshot for THIS document, or null. Previously the
+        /// [ThreadStatic] field was read unconditionally and cleared outside
+        /// any finally, so an exception mid-ValidateAll left doc A's asset
+        /// inventory answering doc B's later single-profile validations —
+        /// reporting title blocks and view templates that B does not have.
+        /// </summary>
+        private static ValidationSnapshot SnapshotFor(Document doc)
+        {
+            var snap = _snapshot;
+            if (snap == null) return null;
+            return string.Equals(snap.DocKey, SnapshotDocKey(doc), StringComparison.OrdinalIgnoreCase) ? snap : null;
+        }
+
         private sealed class ValidationSnapshot
         {
+            /// <summary>E-10: the document this snapshot describes. A
+            /// snapshot is only consulted for its own document, so an
+            /// abandoned one can never answer for a different model.</summary>
+            public string DocKey;
             public bool? AnyStingSeedTemplate;
             public HashSet<string> KnownPhaseFilters    = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             // PERF: collected once in ValidateAll so the per-DrawingType Has*
@@ -462,7 +488,7 @@ namespace StingTools.Core.Drawing
         public static List<ValidationReport> ValidateAll(Document doc)
         {
             // PERF-05: build the per-doc snapshot once.
-            _snapshot = new ValidationSnapshot();
+            _snapshot = new ValidationSnapshot { DocKey = SnapshotDocKey(doc) };
             try
             {
                 // Views — one pass for both the seed-template flag and the
@@ -511,10 +537,13 @@ namespace StingTools.Core.Drawing
                     if (!string.IsNullOrEmpty(f.Name)) _snapshot.FamilyNames.Add(f.Name);
                 }
             }
-            catch { /* validator never throws */ }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypeValidator snapshot: {ex.Message}"); }
 
-            var reports = DrawingTypeRegistry.ListAll(doc).Select(t => Validate(doc, t)).ToList();
-            _snapshot = null;
+            // E-10: the Validate loop used to sit outside any finally, so a
+            // throw here skipped the clear and leaked the snapshot.
+            List<ValidationReport> reports;
+            try { reports = DrawingTypeRegistry.ListAll(doc).Select(t => Validate(doc, t)).ToList(); }
+            finally { _snapshot = null; }
 
             // Routing coverage — flag routing rules pointing at
             // non-existent drawing types.
@@ -637,7 +666,8 @@ namespace StingTools.Core.Drawing
 
         private static bool HasTitleBlockFamily(Document doc, string familyName)
         {
-            if (_snapshot != null) return _snapshot.TitleBlockFamilies.Contains(familyName ?? "");
+            var snapTbf = SnapshotFor(doc);
+            if (snapTbf != null) return snapTbf.TitleBlockFamilies.Contains(familyName ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc)
@@ -654,8 +684,9 @@ namespace StingTools.Core.Drawing
 
         private static bool HasTitleBlockSymbol(Document doc, string familyName, string symbolName)
         {
-            if (_snapshot != null)
-                return _snapshot.TitleBlockSymbols.Contains((familyName ?? "") + "|" + (symbolName ?? ""));
+            var snapTbs = SnapshotFor(doc);
+            if (snapTbs != null)
+                return snapTbs.TitleBlockSymbols.Contains((familyName ?? "") + "|" + (symbolName ?? ""));
             try
             {
                 var col = new FilteredElementCollector(doc)
@@ -673,7 +704,8 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewTemplate(Document doc, string name)
         {
-            if (_snapshot != null) return _snapshot.ViewTemplates.Contains(name ?? "");
+            var snapVt = SnapshotFor(doc);
+            if (snapVt != null) return snapVt.ViewTemplates.Contains(name ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(View));
@@ -688,7 +720,8 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewportType(Document doc, string name)
         {
-            if (_snapshot != null) return _snapshot.ViewportTypes.Contains(name ?? "");
+            var snapVp = SnapshotFor(doc);
+            if (snapVp != null) return snapVp.ViewportTypes.Contains(name ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(ElementType));
@@ -705,7 +738,8 @@ namespace StingTools.Core.Drawing
 
         private static bool HasAnnotationFamily(Document doc, string familyName)
         {
-            if (_snapshot != null) return _snapshot.FamilyNames.Contains(familyName ?? "");
+            var snapFam = SnapshotFor(doc);
+            if (snapFam != null) return snapFam.FamilyNames.Contains(familyName ?? "");
             try
             {
                 var col = new FilteredElementCollector(doc).OfClass(typeof(Family));

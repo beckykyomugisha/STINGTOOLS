@@ -1523,6 +1523,14 @@ namespace StingTools.Core
                 case "Penetrations_DetectAndPlace":    return new Commands.Routing.PenetrationsDetectAndPlaceCommand();
                 case "Validation_PenetrationCoverage": return new Commands.Validation.PenetrationCoverageCommand();
                 case "DrawingTypes_FromScopeBoxes":    return new Commands.Drawing.GenerateFromScopeBoxesCommand();
+                case "DrawingTypes_SyncStyles":        return new Commands.Drawing.DrawingSyncStylesCommand();
+                // W-2: workflow-callable so a sheet-production workflow can
+                // generate and then sync match lines after renumbering.
+                case "MatchLine_Generate":             return new Commands.Drawing.MatchLineGenerateCommand();
+                case "MatchLine_Sync":                 return new Commands.Drawing.MatchLineSyncCommand();
+                case "MatchLine_Validate":             return new Commands.Drawing.MatchLineValidateCommand();
+                case "MatchLine_ValidateBundle":       return new Commands.Drawing.MatchLineValidateBundleCommand();
+                case "MatchLine_Inspect":              return new Commands.Drawing.MatchLineInspectCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
                 case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();

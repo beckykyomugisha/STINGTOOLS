@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 225 — Placement Centre: tests actually run, matcher false-positive fixed, remaining editor cards wired, rule set fully tagged)
+#### Completed (Phase 226 — Placement Centre: tests actually run, matcher false-positive fixed, remaining editor cards wired, rule set fully tagged)
 
 Verification pass on #458 with a real toolchain. The headline is that the test
 project had **never been executed** — the sandbox that wrote it has no `dotnet`,
@@ -35,7 +35,7 @@ citation still carries a number without it: `"BS 8233 2014"` → `BS8233` (strip
 `"BS EN 1838"` → `BSEN1838` (keep), `"Equality Act 2010"` → `EQUALITYACT2010` (keep).
 
 **3. Standards token vocabulary cleaned.**
-Phase 224's backfill built tokens by stripping whitespace out of free text, gluing
+Phase 225's backfill built tokens by stripping whitespace out of free text, gluing
 prose onto identifiers: `"ADA §604.4 (432-483mm seat height)"` →
 `"ADA§604.4(432-483mmseatheight)"`, `"BS 8233 daylight"` → `"BS8233daylight"`, and
 three separate spellings of CIBSE Guide B. 284 rules re-tokenised to clean
@@ -63,7 +63,7 @@ the categories they can legitimately apply to, and merge with the category defau
 rather than replacing it.
 
 **5. The remaining uncommitted editor cards are wired.**
-Phase 224 fixed three; a systematic audit (every control assigned from a
+Phase 225 fixed three; a systematic audit (every control assigned from a
 `s.<Property>` in the per-rule sync block, cross-referenced against wired handlers)
 found **16 more** populated from the selected rule with no write-back, so their
 edits were discarded on selection change. Notably `txtStandardsCsv` — the
@@ -89,7 +89,7 @@ glazing round-trips, "Push to Families", and the `MaintenanceAccessValidator` ty
 fallback read path — remain outstanding and are listed in the PR. The stretch
 wall/ceiling/floor-follow router was not attempted for the same reason.
 
-#### Completed (Phase 224 — Placement Centre: data-driven category checklist, rule-field consumption, standards-gate activation)
+#### Completed (Phase 225 — Placement Centre: data-driven category checklist, rule-field consumption, standards-gate activation)
 
 Closes three of the four residual gaps under ROADMAP § "Placement Centre —
 residual gaps". Built and tested on this machine; **not exercised inside Revit**
@@ -211,6 +211,119 @@ field is on a consuming path.
 - **Untagged-count** in the standards-gate warning now counts non-null rules only.
 - **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
   coerces a rejected tick, so a TwoWay binding reverts its visual.
+
+#### Completed (data sync — gate-param TEXT→YESNO datatype alignment, supersedes PR #337)
+
+Re-applied the gate-parameter datatype fix from PR #337
+(`claude/sync-gate-datatype-all-files`) fresh on top of current `main`, because
+`main` had added rows inside the CSV regions the stale branch rewrote and the
+branch could no longer merge. Data-file only; no code, no GUID edits.
+
+- **Problem.** The authoritative shared-param sources (`MR_PARAMETERS.txt`/`.csv`,
+  `PARAMETER_REGISTRY.json`, per Phase 194) already declare the gate `_BOOL`
+  parameters as **YESNO**, but `main`'s copies of the binding/config CSVs still
+  carried the pre-YESNO **TEXT** datatype for those same params — contradicting
+  the plugin's own canon.
+- **Exact param set (148 distinct)** re-derived from the original PR diff
+  (`git diff origin/main...origin/claude/sync-gate-datatype-all-files`): 134
+  `TAG_<size>*_BOOL` tag-style matrix switches, 10 `TAG_PARA_STATE_1..10_BOOL`
+  tier gates, and 4 warn/misc gates (`PER_SUST_RECYCLABLE_BOOL`,
+  `TAG_BOX_VISIBLE_BOOL`, `TAG_SCALE_TIER_AUTO_BOOL`, `TAG_WARN_VISIBLE_BOOL`).
+  The PR diff was verified byte-pure: every changed line pair is exactly one
+  `TEXT`→`YESNO` substitution in the datatype column, GUIDs unchanged.
+- **Applied to `main`'s current versions of 10 CSVs**, flipping only the datatype
+  column for those exact params where still `TEXT` (6,261 rows total):
+  `FAMILY_PARAMETER_BINDINGS.csv` (6,180 — one row per bound category),
+  `PARAMETER_CATEGORIES.csv` (1), and the 8
+  `STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}[_DesignConstruction].csv` (10 each —
+  the tier gates; the 128 matrix switches were already YESNO there).
+  `MR_PARAMETERS.txt`/`.csv` untouched (already YESNO); `STING_TAG_CONFIG_v5_0_HEALTH*`
+  untouched (not in the PR's scope).
+- **Byte-purity verified** with a Python differ against `origin/main`: 6,261
+  changed lines, **zero** non-datatype diffs, all GUIDs identical on changed
+  lines, and every file's row count preserved (numstat additions == deletions per
+  file). Data-only change, no `dotnet build` run (Linux sandbox).
+#### Completed (Phase 224 — drawings-production P2, tracks A + D)
+
+Track A (correctness) and Track D (performance) of the P2 tier, on top of Phase 223. Ten
+commits, one per numbered fix. Every commit built clean against Revit 2025 (0 warnings,
+0 errors); none has been exercised inside Revit — smoke-test table at the end.
+
+- **A1 `SheetSequenceStore` (E-5, E-13).** `ReadAll` funnelled ANY failure into an empty
+  dictionary, which `Next` then wrote back with one bucket in it, destroying every other
+  counter in the project. Corrupt data does not raise — it parses to nothing, indistinguishable
+  from "empty" unless you count what you saw — so `ParseBuckets` now reports candidate and
+  malformed line counts and `ReadAll` throws rather than returning a dictionary missing what it
+  failed to read. `WriteAll` pre-flights the two silent-corruption cases (no transaction;
+  workshared `ProjectInformation` owned by another user, named via
+  `WorksharingUtils.GetCheckoutStatus`) instead of swallowing them. `Peek` returned the last-used
+  number, not the next.
+- **A2 dimension chains (A-4, A-10).** `DimGrids` put every grid into one `ReferenceArray`; a
+  dimension can only measure mutually parallel references, so orthogonal grids threw every time
+  and the catch swallowed it — P1-3's idempotency guard was guarding an operation that could
+  never succeed. Grids are now split into parallel sets, each dimensioned perpendicular to
+  itself. `DimLevels` was pinned at the project origin and is now anchored to the view's crop,
+  computed in the crop frame.
+- **A3 scope-box production (P-6, P-13b, P-13c, W-5).** `DrawingContext.ScopeBox` was declared,
+  populated, and read by nothing, so "produce from scope boxes" produced uncropped views while
+  the parallel command cropped correctly. Also: the scope-box name now participates in the
+  idempotency key (two boxes on one level collided), the prefix filter matches the canonical
+  binder, and an unmatched level code no longer silently resolves to the lowest level.
+- **A4 producer placement (P-8).** A `ViewSchedule` cannot be placed by `Viewport.Create`, so
+  every schedule a ProductionRule created was impossible to place. Ported `ScheduleSheetInstance`,
+  per-slot viewport types and slot/view type-mismatch warnings from the bridge.
+- **A5 re-run hygiene (P-9).** Idempotent re-runs re-placed already-placed views (one warning
+  each) and counted reused sheets as produced; the two per-level commands used different context
+  tags, so running both duplicated every view.
+- **A6 engine small-bore (E-7…E-10, E-12, E-14, V-9).** Dispatcher continues past an unresolvable
+  routing target instead of returning null; the validator's `[ThreadStatic]` snapshot is
+  doc-stamped and cleared in a `finally`; the view-template cache keeps negative entries;
+  vocabulary tokens now exist; `"ThreeD"` → `"3D"`; three category-tree errors; and
+  `StyleFilterRule.Visible/Halftone` became nullable so pack-wins precedence works as documented.
+- **A7 legends and match-line validate (A-12, A-13, A-14).** `CanAddViewToSheet` cannot detect a
+  legend already on the sheet, so re-runs stacked viewports; placement ignored the title block's
+  origin; validate compared per-view pair instances against adjacency edges; the match-line config
+  cache was one static for all documents.
+- **A8 title blocks (T-8, T-9, T-11, T-13).** The factory left `MR_PARAMETERS.txt` as the user's
+  application-wide shared-parameter file; the create picker exposed 4 of 31 families; heal claimed
+  a per-symbol overlay feature that does not exist and never checked the title-block family; and a
+  stub `Peek` overload returned a false clean bill of health.
+- **D1–D4 performance (V-4, V-5, P-12, P-13a).** The "Cached" resolvers ran a full collector every
+  call and `InvalidateCache` was a no-op; `AecFilterRegistry.GetByName` scanned 298 filters per
+  rule; `ApplyPresentationPreset` walked every ElementType in the document per view; view-name
+  uniquify was O(views²) and schedule category resolution walked ~1,400 enum members per rule;
+  fabrication slot centres sat on the A1 top edge and assumed A1.
+- **B1a/B1d/W-2.** `GridDimensioner`'s chains ran parallel to the grids they measured;
+  `DrainageInvertDimensioner` placed the invert one wall thickness low; and the MatchLine suite
+  had no button, intent or workflow step, which is why its P1 fixes were unreachable.
+
+- **Track B (B1, B3, B5).** Grid dimensioning converged onto one path: `DimGrids` survives and
+  absorbed `dimensionStrategy`; `GridDimensioner` is reduced to `IsDimensionable`. The rule
+  engine's `condition` (evaluator had zero call sites) and per-rule `tagFamily` are wired.
+  `${MAT_*}` tokens resolve instead of blanking the cell, with their O(all-elements) usage scan
+  memoised per document. Spool numbering routes through `SheetSequenceStore`, retiring the third
+  parallel numbering system — and because A1 made the store fail loud, a persistence failure now
+  surfaces instead of issuing a colliding number.
+
+**Needs a Revit smoke test** — in addition to the Phase 223 table:
+
+| Area | Check |
+|---|---|
+| Sequence store (A1) | Produce with no transaction / on a workshared model owned by another user: warns and falls back, never silently reissues a number |
+| Grid dims (A2) | Orthogonal-grid plan: two chains place, each perpendicular to its set |
+| Level dims (A2) | Section away from the project origin: chain is inside the crop |
+| Scope boxes (A3) | Produce from two boxes on one level: two views, each cropped to its own box |
+| Schedules (A4) | A profile whose ProductionRules create a schedule lands it on the sheet |
+| Re-runs (A5) | Second pass reports reuse, no warnings, no new sheets; then run Produce & Export over the same levels |
+| Legends (A7) | Place On All Sheets twice — no stacked viewports; offset-origin title block places on-sheet |
+| Match lines (A7/W-2) | Validate on a multi-level scope-box project reports no bogus drift; the five new buttons dispatch |
+| Title blocks (A8) | Create offers all 31 families; Heal reports a wrong-family sheet |
+| Fabrication (P-13a) | Compose a spool sheet on A1 and on one other size — viewports inside the frame |
+| Grid strategy (B1) | A pack declaring `dimensionStrategy` produces chains of that dimension type |
+| Rule condition (B1) | A rule with a `condition` that evaluates false is skipped; an unparseable one still runs |
+| MAT tokens (B3) | A title block using `${MAT_*}` fills the cell instead of blanking it |
+| Spool numbers (B5) | Compose, restart Revit, compose again — numbering continues, does not reset to 0001 |
+| Spool fallback (B5) | Compose where ExtensibleStorage is unavailable — still composes, warns the number is session-only |
 
 #### Completed (Phase 223 — drawings-production P0 + P1)
 
@@ -7127,6 +7240,61 @@ correct, and `TagConfig.GateToken` emits the bare `if(GATE, …)` for it.
 that `CreateTagFamilies` completes with no "cannot be added" modal and produces
 working tag families (gates render, tiers toggle), including against a TEXT
 `MR_PARAMETERS.txt` to prove the resilience.
+
+#### Completed (Phase 195 — deploy/clobber post-mortem: why the Yes/No fix kept "relapsing")
+
+Operational lesson, not a code change. After Phase 193/194 made the
+gate params Yes/No in the repo, the tag-creation error
+(`shared parameter … cannot be added with type "Text" because it
+conflicts with the existing "Yes/No"`) **kept recurring in Revit** even
+though the committed data was correct. The repeated failures were never
+a logic / canonical-type problem — they were a **runtime data-path
+problem** that was never verified.
+
+**Root cause.** STING resolves its data via
+`DataPath = <folder of the loaded StingTools.dll>\data`
+(`StingToolsApp.cs`), and `TagFamilyCreatorCommand.AddSharedParameters`
+reads each param's *type straight from whatever `MR_PARAMETERS.txt` that
+`DataPath` resolves to* (it is not hardcoded). On this machine both
+Revit add-ins load `C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll`, so
+the live `DataPath` is `CompiledPlugin\data` — and that folder kept
+being **overwritten back to a stale TEXT `MR_PARAMETERS.txt` by a
+parallel build** (the Export Centre `build.bat`, building from a branch
+cut before the Yes/No fix). So `LoadSharedParams` could report 0
+conflicts one moment and `CreateTagFamilies` 141 conflicts minutes
+later — the file on disk at `DataPath` had been re-clobbered in between.
+Every "fix" edited repo files while the runtime kept reading the
+clobbered copy.
+
+**Resolution (what finally worked).**
+1. **Merge the canonical Yes/No data to `main`** (PR #324 — as finally
+   merged, #324 carried the Phase 194 Yes/No correction, so the Phase 194
+   entry below and this step describe the same merged commit, not the
+   original Text-canonical draft) so no branch build can reintroduce
+   TEXT, and pull `main` into the parallel Export Centre branch (#322) so
+   its build carries Yes/No too.
+2. **Deploy to the exact loaded `DataPath`** (`CompiledPlugin\data`),
+   not just `%APPDATA%\…\Addins\2025\data`.
+3. **Verify the loaded file is Yes/No at runtime before recreating** —
+   read the `MR_PARAMETERS.txt` that sits at `DataPath` (and the
+   `Data path:` line in `StingTools.log`), confirm `TAG_PARA_STATE_2_BOOL`
+   etc. read `YESNO` and the tag-config CSV is the current set. Do not
+   assume the deploy reached the loaded path.
+
+After deploying Yes/No to `CompiledPlugin\data` and fully restarting
+Revit, `LoadSharedParams` reported **0 type conflicts** and tag
+families recreated clean.
+
+**Guardrail for next time.** The hazard is multiple `StingTools.dll` +
+`data\` copies on one machine plus a *shared* `CompiledPlugin` deploy
+target that parallel builds overwrite. Keep one install, deploy from
+`main`, and confirm the live `DataPath`'s `MR_PARAMETERS.txt` matches the
+intended type before any tag-family operation. (`FindDataFile` already
+resolves `DataPath\file` directly first and only falls back to a
+recursive first-match when that direct file is absent — so a stale nested
+copy wins only when the intended file is missing at the root, never ahead
+of it. The genuine gap is visibility, not precedence: a future hardening
+could log the resolved path on every load.)
 
 #### Completed (Phase 194 — Yes/No-canonical gates — corrects PR #324's Text-canonical choice)
 
