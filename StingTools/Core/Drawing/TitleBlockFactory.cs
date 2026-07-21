@@ -576,7 +576,7 @@ namespace StingTools.Core.Drawing
             // master, so one authored A1 cover fans out to A0 / A3 via the same
             // whole-sheet affine remap used for working sheets.
             var cov = Regex.Match(specId ?? "",
-                @"^STING_TB_COVER_(A0|A1|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
+                @"^STING_TB_COVER_(A0|A1|A2|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
             if (cov.Success)
             {
                 const string coverMaster = "STING_TB_COVER_A1_v1.0";
@@ -585,7 +585,7 @@ namespace StingTools.Core.Drawing
             }
 
             var m = Regex.Match(specId ?? "",
-                @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
+                @"^STING_TB_(A0|A1|A2|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
                 RegexOptions.IgnoreCase);
             if (!m.Success) return null;
             string master = $"STING_TB_A1_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
@@ -627,26 +627,28 @@ namespace StingTools.Core.Drawing
 
             // Cover families are landscape A0 / A1 / A3 (no portrait variant).
             var cov = Regex.Match(specId ?? "",
-                @"^STING_TB_COVER_(A0|A1|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
+                @"^STING_TB_COVER_(A0|A1|A2|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
             if (cov.Success)
             {
                 switch (cov.Groups[1].Value.ToUpperInvariant())
                 {
                     case "A0": wMm = 1189; hMm = 841; break;
                     case "A1": wMm = 841;  hMm = 594; break;
+                    case "A2": wMm = 594;  hMm = 420; break;
                     case "A3": wMm = 420;  hMm = 297; break;
                 }
                 return true;
             }
 
             var m = Regex.Match(specId ?? "",
-                @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
+                @"^STING_TB_(A0|A1|A2|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
                 RegexOptions.IgnoreCase);
             if (!m.Success) return false;
             switch (m.Groups[1].Value.ToUpperInvariant())
             {
                 case "A0": wMm = 1189; hMm = 841; break;
                 case "A1": wMm = 841;  hMm = 594; break;
+                case "A2": wMm = 594;  hMm = 420; break;
                 case "A3": wMm = 420;  hMm = 297; break;
                 default: return false;
             }

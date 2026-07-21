@@ -44,12 +44,19 @@ to `SUIT`) — and wires STING to populate it automatically.
 - **`TitleBlockFactory.cs`** extends master-seed propagation to **cover families**.
   `ResolveMasterSeedId` and `TryGetIsoPaper` previously matched only working-sheet
   ids (`STING_TB_{A0|A1|A3}[_PORT]_{BIM|NONBIM}_v…`); they now also recognise
-  `STING_TB_COVER_{A0|A1|A3}_v…` (landscape) and map A0/A3 covers to the single
+  `STING_TB_COVER_{A0|A1|A2|A3}_v…` (landscape) and map A0/A2/A3 covers to the single
   `STING_TB_COVER_A1_v1.0` master. Result: authoring **one** A1 cover seed and
-  running `TitleBlock_CreateAll` fans the entire cover design out to A0 / A3 via
+  running `TitleBlock_CreateAll` fans the entire cover design out to A0 / A2 / A3 via
   the same whole-sheet affine remap used for working sheets — border, banner,
   strips and label positions scale by paper ratio, text heights stay at ISO 3098
   drafting tiers (unchanged on A0, one tier down on A3). No per-size authoring.
+- **`STING_TITLE_BLOCKS.json`** gains the whole **A2** size (594 × 420 landscape /
+  420 × 594 portrait), previously absent: `A2_LAND_common_v2.0`, `A2_PORT_common_v2.0`,
+  the four `STING_TB_A2_{BIM,NONBIM}[_PORT]_v2.0` working sheets, and
+  `STING_TB_COVER_A2_v1.0` — all scaled from the A3 equivalents (A2 = √2 × A3) so
+  they share the same format. `TitleBlock_CreateAll` now propagates to A0 / A1 / A2 / A3
+  (A4 deliberately excluded per project convention). The `TitleBlockFactory` A2 regex
+  + dimension entries let the master-seed remap target A2 too.
 - **`docs/title_blocks/cover_v8_spec.py`** gains a `--params` mode that renders a
   **label-authoring guide** (`cover_v8_PARAM_GUIDE.svg/.png`): every cell shows the
   real STING shared parameter it should bind to (harvested from

@@ -10034,6 +10034,2840 @@
       "filledRegions": []
     },
     {
+      "id": "A2_LAND_common_v2.0",
+      "abstract": true,
+      "extends": "A1_common_v2.0",
+      "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 A2 size; geometry scaled from A3_LAND_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "drawable": {
+        "x": 14.1,
+        "y": 106.1,
+        "w": 565.7,
+        "h": 306.9,
+        "marginMm": 25
+      },
+      "category": "OST_TitleBlocks",
+      "parameters": [
+        {
+          "name": "PRJ_TB_PAPER_SZ_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A2"
+        }
+      ],
+      "lines": [
+        {
+          "from": [
+            0.0,
+            0.0
+          ],
+          "to": [
+            594.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            594.0,
+            0.0
+          ],
+          "to": [
+            594.0,
+            420.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            594.0,
+            420.0
+          ],
+          "to": [
+            0.0,
+            420.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            420.0
+          ],
+          "to": [
+            0.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            99.0
+          ],
+          "to": [
+            594.0,
+            99.0
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            130.1,
+            0.0
+          ],
+          "to": [
+            130.1,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            248.9,
+            0.0
+          ],
+          "to": [
+            248.9,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            391.8,
+            0.0
+          ],
+          "to": [
+            391.8,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            510.6,
+            0.0
+          ],
+          "to": [
+            510.6,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            16.5
+          ],
+          "to": [
+            130.1,
+            16.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            32.9
+          ],
+          "to": [
+            130.1,
+            32.9
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            49.5
+          ],
+          "to": [
+            130.1,
+            49.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            66.0
+          ],
+          "to": [
+            130.1,
+            66.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            82.4
+          ],
+          "to": [
+            130.1,
+            82.4
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            130.1,
+            29.7
+          ],
+          "to": [
+            248.9,
+            29.7
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            130.1,
+            54.4
+          ],
+          "to": [
+            248.9,
+            54.4
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            130.1,
+            77.2
+          ],
+          "to": [
+            248.9,
+            77.2
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            391.8,
+            24.7
+          ],
+          "to": [
+            510.6,
+            24.7
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            391.8,
+            49.5
+          ],
+          "to": [
+            510.6,
+            49.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            391.8,
+            74.2
+          ],
+          "to": [
+            510.6,
+            74.2
+          ],
+          "style": "Thin Lines"
+        }
+      ],
+      "staticText": [
+        {
+          "text": "CLIENT",
+          "anchor": [
+            2.8,
+            94.7
+          ],
+          "size": 1.39
+        },
+        {
+          "text": "PROJECT",
+          "anchor": [
+            2.8,
+            78.2
+          ],
+          "size": 1.19
+        },
+        {
+          "text": "ARCHITECT",
+          "anchor": [
+            2.8,
+            61.8
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "STRUCTURAL",
+          "anchor": [
+            2.8,
+            45.3
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "MEP",
+          "anchor": [
+            2.8,
+            28.8
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "CONTRACTOR",
+          "anchor": [
+            2.8,
+            12.3
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "NOTES",
+          "anchor": [
+            132.9,
+            94.7
+          ],
+          "size": 1.19
+        },
+        {
+          "text": "PROJECT REF",
+          "anchor": [
+            132.9,
+            73.0
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "DISCIPLINE",
+          "anchor": [
+            132.9,
+            50.2
+          ],
+          "size": 0.89,
+          "id": "cap_DISCIPLINE"
+        },
+        {
+          "text": "RIBA STAGE",
+          "anchor": [
+            132.9,
+            25.5
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "DRAWING TITLE",
+          "anchor": [
+            251.7,
+            94.7
+          ],
+          "size": 1.39
+        },
+        {
+          "text": "DATE",
+          "anchor": [
+            394.6,
+            94.7
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "DRAWN BY",
+          "anchor": [
+            394.6,
+            70.0
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "CHECKED BY",
+          "anchor": [
+            394.6,
+            45.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "APPROVED BY",
+          "anchor": [
+            394.6,
+            20.5
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "SHEET",
+          "anchor": [
+            513.4,
+            94.7
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "SCALE",
+          "anchor": [
+            513.4,
+            55.2
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "PAPER",
+          "anchor": [
+            513.4,
+            25.5
+          ],
+          "size": 0.89
+        },
+        {
+          "id": "cap_SYSTEM",
+          "text": "SYSTEM",
+          "anchor": [
+            190.9,
+            50.2
+          ],
+          "size": 0.89
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "anchor": [
+            2.8,
+            89.9
+          ],
+          "size": 1.58
+        },
+        {
+          "param": "PRJ_TB_CLIENT_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            83.6
+          ],
+          "size": 0.89
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "anchor": [
+            2.8,
+            74.8
+          ],
+          "size": 1.48
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            68.5
+          ],
+          "size": 0.83
+        },
+        {
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "anchor": [
+            2.8,
+            58.3
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            52.0
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            2.8,
+            41.8
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            35.5
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            2.8,
+            25.3
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            19.0
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_CONTRACTOR_NAME_TXT",
+          "anchor": [
+            2.8,
+            8.8
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_CONTRACTOR_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            2.5
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "anchor": [
+            132.9,
+            82.7
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_CODE_TXT",
+          "anchor": [
+            132.9,
+            68.9
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_DISCIPLINE_TXT",
+          "anchor": [
+            132.9,
+            46.1
+          ],
+          "size": 0.99,
+          "id": "lbl_DISCIPLINE"
+        },
+        {
+          "param": "PRJ_ORG_RIBA_STAGE_TXT",
+          "anchor": [
+            132.9,
+            21.4
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "anchor": [
+            251.7,
+            79.2
+          ],
+          "size": 2.97
+        },
+        {
+          "param": "PRJ_TB_DATE_DRAWN_TXT",
+          "anchor": [
+            394.6,
+            89.1
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_DRAWN_BY_TXT",
+          "anchor": [
+            394.6,
+            65.9
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_CHECKED_BY_TXT",
+          "anchor": [
+            394.6,
+            41.2
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_APVD_BY_TXT",
+          "anchor": [
+            394.6,
+            16.4
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_SCALE_OVERRIDE_TXT",
+          "anchor": [
+            513.4,
+            48.1
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_PAPER_SZ_TXT",
+          "anchor": [
+            513.4,
+            18.4
+          ],
+          "size": 0.99
+        },
+        {
+          "id": "lbl_SYSTEM",
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            190.9,
+            46.1
+          ],
+          "size": 0.99,
+          "hAlign": "Left",
+          "vAlign": "Middle"
+        }
+      ],
+      "filledRegions": [],
+      "slots": [
+        {
+          "id": "S01",
+          "anchor": [
+            14.1,
+            106.1
+          ],
+          "size": [
+            565.7,
+            306.9
+          ],
+          "purposeTag": "main-plan",
+          "category": "primary",
+          "viewportType": "Title w/ Line",
+          "scaleHint": 100,
+          "description": "Main drawing area \u2014 full-bleed plan / 3D / section",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S02",
+          "anchor": [
+            14.1,
+            106.1
+          ],
+          "size": [
+            275.8,
+            306.9
+          ],
+          "purposeTag": "main-plan-half-left",
+          "category": "primary",
+          "viewportType": "Title w/ Line",
+          "scaleHint": 100,
+          "description": "Left half \u2014 50/50 split",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S03",
+          "anchor": [
+            304.1,
+            106.1
+          ],
+          "size": [
+            275.8,
+            306.9
+          ],
+          "purposeTag": "main-plan-half-right",
+          "category": "primary",
+          "viewportType": "Title w/ Line",
+          "scaleHint": 100,
+          "description": "Right half \u2014 50/50 split",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S04",
+          "anchor": [
+            14.1,
+            106.1
+          ],
+          "size": [
+            275.8,
+            142.8
+          ],
+          "purposeTag": "quad-bottom-left",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Bottom-left quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S05",
+          "anchor": [
+            304.1,
+            106.1
+          ],
+          "size": [
+            275.8,
+            142.8
+          ],
+          "purposeTag": "quad-bottom-right",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Bottom-right quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S06",
+          "anchor": [
+            14.1,
+            256.0
+          ],
+          "size": [
+            275.8,
+            142.8
+          ],
+          "purposeTag": "quad-top-left",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Top-left quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S07",
+          "anchor": [
+            304.1,
+            256.0
+          ],
+          "size": [
+            275.8,
+            142.8
+          ],
+          "purposeTag": "quad-top-right",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Top-right quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            547.3,
+            108.9
+          ],
+          "size": [
+            25.5,
+            25.5
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            21.2,
+            106.1
+          ],
+          "size": [
+            59.4,
+            11.3
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
+        }
+      ]
+    },
+    {
+      "id": "A2_PORT_common_v2.0",
+      "abstract": true,
+      "extends": "A1_common_v2.0",
+      "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 A2 size; geometry scaled from A3_PORT_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "templateRft": "Annotations/Titleblocks/A3 metric.rft",
+      "drawable": {
+        "x": 14.1,
+        "y": 106.1,
+        "w": 391.7,
+        "h": 480.9,
+        "marginMm": 25
+      },
+      "category": "OST_TitleBlocks",
+      "parameters": [
+        {
+          "name": "PRJ_TB_PAPER_SZ_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A2"
+        }
+      ],
+      "lines": [
+        {
+          "from": [
+            0.0,
+            0.0
+          ],
+          "to": [
+            420.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            420.0,
+            0.0
+          ],
+          "to": [
+            420.0,
+            594.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            420.0,
+            594.0
+          ],
+          "to": [
+            0.0,
+            594.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            594.0
+          ],
+          "to": [
+            0.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            99.0
+          ],
+          "to": [
+            420.0,
+            99.0
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            91.9,
+            0.0
+          ],
+          "to": [
+            91.9,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            176.8,
+            0.0
+          ],
+          "to": [
+            176.8,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            277.2,
+            0.0
+          ],
+          "to": [
+            277.2,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            360.6,
+            0.0
+          ],
+          "to": [
+            360.6,
+            99.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            16.5
+          ],
+          "to": [
+            91.9,
+            16.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            33.0
+          ],
+          "to": [
+            91.9,
+            33.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            49.5
+          ],
+          "to": [
+            91.9,
+            49.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            66.0
+          ],
+          "to": [
+            91.9,
+            66.0
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            0.0,
+            82.5
+          ],
+          "to": [
+            91.9,
+            82.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            91.9,
+            29.7
+          ],
+          "to": [
+            176.8,
+            29.7
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            91.9,
+            54.5
+          ],
+          "to": [
+            176.8,
+            54.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            91.9,
+            77.2
+          ],
+          "to": [
+            176.8,
+            77.2
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            277.2,
+            24.8
+          ],
+          "to": [
+            360.6,
+            24.8
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            277.2,
+            49.5
+          ],
+          "to": [
+            360.6,
+            49.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            277.2,
+            74.2
+          ],
+          "to": [
+            360.6,
+            74.2
+          ],
+          "style": "Thin Lines"
+        }
+      ],
+      "staticText": [
+        {
+          "text": "CLIENT",
+          "anchor": [
+            2.8,
+            94.8
+          ],
+          "size": 1.39
+        },
+        {
+          "text": "PROJECT",
+          "anchor": [
+            2.8,
+            78.3
+          ],
+          "size": 1.19
+        },
+        {
+          "text": "ARCHITECT",
+          "anchor": [
+            2.8,
+            61.8
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "STRUCTURAL",
+          "anchor": [
+            2.8,
+            45.3
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "MEP",
+          "anchor": [
+            2.8,
+            28.8
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "CONTRACTOR",
+          "anchor": [
+            2.8,
+            12.3
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "NOTES",
+          "anchor": [
+            94.7,
+            94.8
+          ],
+          "size": 1.19
+        },
+        {
+          "text": "PROJECT REF",
+          "anchor": [
+            94.7,
+            73.0
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "DISCIPLINE",
+          "anchor": [
+            94.7,
+            50.2
+          ],
+          "size": 0.89,
+          "id": "cap_DISCIPLINE"
+        },
+        {
+          "text": "RIBA STAGE",
+          "anchor": [
+            94.7,
+            25.5
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "DRAWING TITLE",
+          "anchor": [
+            179.6,
+            94.8
+          ],
+          "size": 1.39
+        },
+        {
+          "text": "DATE",
+          "anchor": [
+            280.0,
+            94.8
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "DRAWN BY",
+          "anchor": [
+            280.0,
+            70.0
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "CHECKED BY",
+          "anchor": [
+            280.0,
+            45.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "APPROVED BY",
+          "anchor": [
+            280.0,
+            20.5
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "SHEET",
+          "anchor": [
+            363.4,
+            94.8
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "SCALE",
+          "anchor": [
+            363.4,
+            55.2
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "PAPER",
+          "anchor": [
+            363.4,
+            25.5
+          ],
+          "size": 0.89
+        },
+        {
+          "id": "cap_SYSTEM",
+          "text": "SYSTEM",
+          "anchor": [
+            135.8,
+            50.2
+          ],
+          "size": 0.89
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "anchor": [
+            2.8,
+            89.9
+          ],
+          "size": 1.58
+        },
+        {
+          "param": "PRJ_TB_CLIENT_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            83.6
+          ],
+          "size": 0.89
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "anchor": [
+            2.8,
+            74.8
+          ],
+          "size": 1.48
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            68.5
+          ],
+          "size": 0.83
+        },
+        {
+          "param": "PRJ_TB_COMPANY_NAME_TXT",
+          "anchor": [
+            2.8,
+            58.3
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_COMPANY_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            52.0
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            2.8,
+            41.8
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            35.5
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_MEP_CONSULTANTS_NAME_TXT",
+          "anchor": [
+            2.8,
+            25.3
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            19.0
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_CONTRACTOR_NAME_TXT",
+          "anchor": [
+            2.8,
+            8.8
+          ],
+          "size": 1.09
+        },
+        {
+          "param": "PRJ_TB_CONTRACTOR_ADDRESS_TXT",
+          "anchor": [
+            2.8,
+            2.5
+          ],
+          "size": 0.74
+        },
+        {
+          "param": "PRJ_TB_NOTES_LEGEND_REF_TXT",
+          "anchor": [
+            94.7,
+            82.7
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_CODE_TXT",
+          "anchor": [
+            94.7,
+            68.9
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_DISCIPLINE_TXT",
+          "anchor": [
+            94.7,
+            46.1
+          ],
+          "size": 0.99,
+          "id": "lbl_DISCIPLINE"
+        },
+        {
+          "param": "PRJ_ORG_RIBA_STAGE_TXT",
+          "anchor": [
+            94.7,
+            21.4
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "anchor": [
+            179.6,
+            79.2
+          ],
+          "size": 2.97
+        },
+        {
+          "param": "PRJ_TB_DATE_DRAWN_TXT",
+          "anchor": [
+            280.0,
+            89.1
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_DRAWN_BY_TXT",
+          "anchor": [
+            280.0,
+            65.9
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_CHECKED_BY_TXT",
+          "anchor": [
+            280.0,
+            41.2
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_APVD_BY_TXT",
+          "anchor": [
+            280.0,
+            16.4
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_SCALE_OVERRIDE_TXT",
+          "anchor": [
+            363.4,
+            48.1
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "PRJ_TB_PAPER_SZ_TXT",
+          "anchor": [
+            363.4,
+            18.4
+          ],
+          "size": 0.99
+        },
+        {
+          "id": "lbl_SYSTEM",
+          "param": "PRJ_SHEET_SYSTEM_TXT",
+          "anchor": [
+            135.8,
+            46.1
+          ],
+          "size": 0.99,
+          "hAlign": "Left",
+          "vAlign": "Middle"
+        }
+      ],
+      "filledRegions": [],
+      "slots": [
+        {
+          "id": "S01",
+          "anchor": [
+            14.1,
+            106.1
+          ],
+          "size": [
+            391.7,
+            480.9
+          ],
+          "purposeTag": "main-plan",
+          "category": "primary",
+          "viewportType": "Title w/ Line",
+          "scaleHint": 100,
+          "description": "Main drawing area \u2014 full-bleed plan / 3D / section",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S02",
+          "anchor": [
+            14.1,
+            106.1
+          ],
+          "size": [
+            188.1,
+            480.9
+          ],
+          "purposeTag": "main-plan-half-left",
+          "category": "primary",
+          "viewportType": "Title w/ Line",
+          "scaleHint": 100,
+          "description": "Left half \u2014 50/50 split",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S03",
+          "anchor": [
+            216.4,
+            106.1
+          ],
+          "size": [
+            188.1,
+            480.9
+          ],
+          "purposeTag": "main-plan-half-right",
+          "category": "primary",
+          "viewportType": "Title w/ Line",
+          "scaleHint": 100,
+          "description": "Right half \u2014 50/50 split",
+          "createReferencePlanes": true,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S04",
+          "anchor": [
+            14.1,
+            106.1
+          ],
+          "size": [
+            188.1,
+            229.1
+          ],
+          "purposeTag": "quad-bottom-left",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Bottom-left quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S05",
+          "anchor": [
+            216.4,
+            106.1
+          ],
+          "size": [
+            188.1,
+            229.1
+          ],
+          "purposeTag": "quad-bottom-right",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Bottom-right quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S06",
+          "anchor": [
+            14.1,
+            342.3
+          ],
+          "size": [
+            188.1,
+            229.1
+          ],
+          "purposeTag": "quad-top-left",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Top-left quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "S07",
+          "anchor": [
+            216.4,
+            342.3
+          ],
+          "size": [
+            188.1,
+            229.1
+          ],
+          "purposeTag": "quad-top-right",
+          "category": "primary",
+          "scaleHint": 200,
+          "description": "Top-right quadrant",
+          "createReferencePlanes": false,
+          "showCornerMarker": true
+        },
+        {
+          "id": "NA",
+          "anchor": [
+            373.3,
+            108.9
+          ],
+          "size": [
+            25.5,
+            25.5
+          ],
+          "purposeTag": "north-arrow",
+          "category": "symbol",
+          "description": "North-arrow symbol \u2014 nested family, hides via TB_SHOW_NORTH_ARROW_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceNorthArrow"
+        },
+        {
+          "id": "SB",
+          "anchor": [
+            21.2,
+            106.1
+          ],
+          "size": [
+            42.4,
+            11.3
+          ],
+          "purposeTag": "scale-bar",
+          "category": "symbol",
+          "description": "Scale-bar \u2014 nested family, hides via TB_SHOW_SCALEBAR_BOOL",
+          "createReferencePlanes": false,
+          "showCornerMarker": false,
+          "respectShowToggle": true,
+          "automationHook": "Symbol_PlaceScaleBar"
+        }
+      ]
+    },
+    {
+      "id": "STING_TB_A2_BIM_v2.0",
+      "extends": "A2_LAND_common_v2.0",
+      "mode": "BIM",
+      "description": "A3 landscape working sheet \u2014 A2 size; geometry scaled from STING_TB_A3_BIM_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "saveAs": "Families/TitleBlocks/STING_TB_A2_BIM_v2.0.rfa",
+      "parameters": [
+        {
+          "name": "STING_SHEET_BIM_MODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "BIM"
+        },
+        {
+          "name": "STING_SHEET_PROJECT_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "STG"
+        },
+        {
+          "name": "STING_SHEET_ORIG_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "PLNS"
+        },
+        {
+          "name": "STING_SHEET_VOLUME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "ZZ"
+        },
+        {
+          "name": "STING_SHEET_LEVEL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "01"
+        },
+        {
+          "name": "STING_SHEET_TYPE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "DR"
+        },
+        {
+          "name": "STING_SHEET_ROLE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A"
+        },
+        {
+          "name": "STING_SHEET_SEQ_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "0001"
+        },
+        {
+          "name": "STING_SHEET_FULL_REF_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "STG-PLNS-ZZ-01-DR-A-0001"
+        },
+        {
+          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "01 / 01"
+        },
+        {
+          "name": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "S2"
+        },
+        {
+          "name": "STING_SUITABILITY_DESC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "Shared, Non-contractual"
+        },
+        {
+          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "FOR INFORMATION"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "Shared"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "P01"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DATE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DESCRIPTION_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_CDE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "STING_FEDERATION_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "Federated"
+        },
+        {
+          "name": "STING_LOIN_LOD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "LOD 300"
+        },
+        {
+          "name": "STING_AUTHORISED_BY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "STING_AUTHORISED_DATE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        }
+      ],
+      "lines": [
+        {
+          "from": [
+            0.0,
+            127.3
+          ],
+          "to": [
+            594.0,
+            127.3
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            0.0,
+            114.5
+          ],
+          "to": [
+            594.0,
+            114.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            130.7,
+            114.5
+          ],
+          "to": [
+            130.7,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            249.5,
+            114.5
+          ],
+          "to": [
+            249.5,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            326.7,
+            114.5
+          ],
+          "to": [
+            326.7,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            415.8,
+            114.5
+          ],
+          "to": [
+            415.8,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            504.9,
+            114.5
+          ],
+          "to": [
+            504.9,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            74.2,
+            99.0
+          ],
+          "to": [
+            74.2,
+            114.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            148.5,
+            99.0
+          ],
+          "to": [
+            148.5,
+            114.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            222.8,
+            99.0
+          ],
+          "to": [
+            222.8,
+            114.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            297.0,
+            99.0
+          ],
+          "to": [
+            297.0,
+            114.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            371.2,
+            99.0
+          ],
+          "to": [
+            371.2,
+            114.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            445.5,
+            99.0
+          ],
+          "to": [
+            445.5,
+            114.5
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            519.8,
+            99.0
+          ],
+          "to": [
+            519.8,
+            114.5
+          ],
+          "style": "Thin Lines"
+        }
+      ],
+      "staticText": [
+        {
+          "text": "STATUS",
+          "anchor": [
+            2.1,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "SUITABILITY",
+          "anchor": [
+            132.8,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "REV",
+          "anchor": [
+            251.6,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "REV DATE",
+          "anchor": [
+            328.8,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "LOIN/LOD",
+          "anchor": [
+            417.9,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "FED",
+          "anchor": [
+            507.0,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "ISO 19650 SHEET ID",
+          "anchor": [
+            2.1,
+            112.6
+          ],
+          "size": 0.79
+        },
+        {
+          "text": "PRJ",
+          "anchor": [
+            2.1,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "ORIG",
+          "anchor": [
+            76.4,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "VOL",
+          "anchor": [
+            150.6,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "LVL",
+          "anchor": [
+            224.9,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "TYPE",
+          "anchor": [
+            299.1,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "ROLE",
+          "anchor": [
+            373.4,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "SEQ",
+          "anchor": [
+            447.6,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "OF",
+          "anchor": [
+            521.9,
+            106.9
+          ],
+          "size": 0.69
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "anchor": [
+            2.1,
+            107.5
+          ],
+          "size": 1.39
+        },
+        {
+          "param": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "anchor": [
+            132.8,
+            107.5
+          ],
+          "size": 1.39
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            251.6,
+            107.5
+          ],
+          "size": 1.39
+        },
+        {
+          "param": "PRJ_TB_REVISION_DATE_TXT",
+          "anchor": [
+            328.8,
+            107.5
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "STING_LOIN_LOD_TXT",
+          "anchor": [
+            417.9,
+            107.5
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "STING_FEDERATION_STATUS_TXT",
+          "anchor": [
+            507.0,
+            107.5
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "STING_SHEET_PROJECT_TXT",
+          "anchor": [
+            2.1,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_ORIG_TXT",
+          "anchor": [
+            76.4,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_VOLUME_TXT",
+          "anchor": [
+            150.6,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_LEVEL_TXT",
+          "anchor": [
+            224.9,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_TYPE_TXT",
+          "anchor": [
+            299.1,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_ROLE_TXT",
+          "anchor": [
+            373.4,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_SEQ_TXT",
+          "anchor": [
+            447.6,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "anchor": [
+            521.9,
+            104.1
+          ],
+          "size": 0.99
+        }
+      ],
+      "filledRegions": [
+        {
+          "topLeft": [
+            130.7,
+            127.3
+          ],
+          "bottomRight": [
+            249.5,
+            114.5
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F2A341"
+        },
+        {
+          "topLeft": [
+            0.0,
+            127.3
+          ],
+          "bottomRight": [
+            594.0,
+            125.2
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#1F4E79"
+        }
+      ]
+    },
+    {
+      "id": "STING_TB_A2_NONBIM_v2.0",
+      "extends": "A2_LAND_common_v2.0",
+      "mode": "NONBIM",
+      "description": "A3 landscape working sheet \u2014 A2 size; geometry scaled from STING_TB_A3_NONBIM_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "saveAs": "Families/TitleBlocks/STING_TB_A2_NONBIM_v2.0.rfa",
+      "parameters": [
+        {
+          "name": "STING_SHEET_BIM_MODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "NONBIM"
+        },
+        {
+          "name": "PRJ_TB_SHEET_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A-001"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "0"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DATE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        }
+      ],
+      "lines": [],
+      "staticText": [
+        {
+          "text": "SHEET NUMBER",
+          "anchor": [
+            513.4,
+            84.1
+          ],
+          "size": 1.19
+        },
+        {
+          "text": "REV",
+          "anchor": [
+            513.4,
+            29.7
+          ],
+          "size": 0.99
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_TB_SHEET_NR_TXT",
+          "anchor": [
+            513.4,
+            54.4
+          ],
+          "size": 3.96
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            513.4,
+            9.9
+          ],
+          "size": 1.48
+        }
+      ],
+      "filledRegions": []
+    },
+    {
+      "id": "STING_TB_A2_PORT_BIM_v2.0",
+      "extends": "A2_PORT_common_v2.0",
+      "mode": "BIM",
+      "description": "A3 portrait working sheet \u2014 A2 size; geometry scaled from STING_TB_A3_PORT_BIM_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "saveAs": "Families/TitleBlocks/STING_TB_A2_PORT_BIM_v2.0.rfa",
+      "parameters": [
+        {
+          "name": "STING_SHEET_BIM_MODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "BIM"
+        },
+        {
+          "name": "STING_SHEET_PROJECT_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "STG"
+        },
+        {
+          "name": "STING_SHEET_ORIG_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "PLNS"
+        },
+        {
+          "name": "STING_SHEET_VOLUME_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "ZZ"
+        },
+        {
+          "name": "STING_SHEET_LEVEL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "01"
+        },
+        {
+          "name": "STING_SHEET_TYPE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "DR"
+        },
+        {
+          "name": "STING_SHEET_ROLE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A"
+        },
+        {
+          "name": "STING_SHEET_SEQ_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "0001"
+        },
+        {
+          "name": "STING_SHEET_FULL_REF_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "STG-PLNS-ZZ-01-DR-A-0001"
+        },
+        {
+          "name": "STING_SHEET_OF_TOTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "01 / 01"
+        },
+        {
+          "name": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "S2"
+        },
+        {
+          "name": "STING_SUITABILITY_DESC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "Shared, Non-contractual"
+        },
+        {
+          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "FOR INFORMATION"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "Shared"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "P01"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DATE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DESCRIPTION_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_CDE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "STING_FEDERATION_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "Federated"
+        },
+        {
+          "name": "STING_LOIN_LOD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "LOD 300"
+        },
+        {
+          "name": "STING_AUTHORISED_BY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "STING_AUTHORISED_DATE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        }
+      ],
+      "lines": [
+        {
+          "from": [
+            0.0,
+            127.3
+          ],
+          "to": [
+            420.0,
+            127.3
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            0.0,
+            114.6
+          ],
+          "to": [
+            420.0,
+            114.6
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            92.3,
+            114.6
+          ],
+          "to": [
+            92.3,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            176.3,
+            114.6
+          ],
+          "to": [
+            176.3,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            231.1,
+            114.6
+          ],
+          "to": [
+            231.1,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            294.0,
+            114.6
+          ],
+          "to": [
+            294.0,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            356.9,
+            114.6
+          ],
+          "to": [
+            356.9,
+            127.3
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            52.5,
+            99.0
+          ],
+          "to": [
+            52.5,
+            114.6
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            104.9,
+            99.0
+          ],
+          "to": [
+            104.9,
+            114.6
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            157.5,
+            99.0
+          ],
+          "to": [
+            157.5,
+            114.6
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            210.0,
+            99.0
+          ],
+          "to": [
+            210.0,
+            114.6
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            262.5,
+            99.0
+          ],
+          "to": [
+            262.5,
+            114.6
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            315.1,
+            99.0
+          ],
+          "to": [
+            315.1,
+            114.6
+          ],
+          "style": "Thin Lines"
+        },
+        {
+          "from": [
+            367.5,
+            99.0
+          ],
+          "to": [
+            367.5,
+            114.6
+          ],
+          "style": "Thin Lines"
+        }
+      ],
+      "staticText": [
+        {
+          "text": "STATUS",
+          "anchor": [
+            2.1,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "SUITABILITY",
+          "anchor": [
+            94.5,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "REV",
+          "anchor": [
+            178.5,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "REV DATE",
+          "anchor": [
+            233.1,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "LOIN/LOD",
+          "anchor": [
+            296.1,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "FED",
+          "anchor": [
+            359.1,
+            125.3
+          ],
+          "size": 0.89
+        },
+        {
+          "text": "ISO 19650 SHEET ID",
+          "anchor": [
+            2.1,
+            112.6
+          ],
+          "size": 0.79
+        },
+        {
+          "text": "PRJ",
+          "anchor": [
+            2.1,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "ORIG",
+          "anchor": [
+            54.6,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "VOL",
+          "anchor": [
+            107.1,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "LVL",
+          "anchor": [
+            159.6,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "TYPE",
+          "anchor": [
+            212.1,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "ROLE",
+          "anchor": [
+            264.6,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "SEQ",
+          "anchor": [
+            317.1,
+            106.9
+          ],
+          "size": 0.69
+        },
+        {
+          "text": "OF",
+          "anchor": [
+            369.6,
+            106.9
+          ],
+          "size": 0.69
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "anchor": [
+            2.1,
+            107.5
+          ],
+          "size": 1.39
+        },
+        {
+          "param": "PRJ_DWG_SUITABILITY_COD_TXT",
+          "anchor": [
+            94.5,
+            107.5
+          ],
+          "size": 1.39
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            178.5,
+            107.5
+          ],
+          "size": 1.39
+        },
+        {
+          "param": "PRJ_TB_REVISION_DATE_TXT",
+          "anchor": [
+            233.1,
+            107.5
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "STING_LOIN_LOD_TXT",
+          "anchor": [
+            296.1,
+            107.5
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "STING_FEDERATION_STATUS_TXT",
+          "anchor": [
+            359.1,
+            107.5
+          ],
+          "size": 0.99
+        },
+        {
+          "param": "STING_SHEET_PROJECT_TXT",
+          "anchor": [
+            2.1,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_ORIG_TXT",
+          "anchor": [
+            54.6,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_VOLUME_TXT",
+          "anchor": [
+            107.1,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_LEVEL_TXT",
+          "anchor": [
+            159.6,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_TYPE_TXT",
+          "anchor": [
+            212.1,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_ROLE_TXT",
+          "anchor": [
+            264.6,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_SEQ_TXT",
+          "anchor": [
+            317.1,
+            104.1
+          ],
+          "size": 1.19
+        },
+        {
+          "param": "STING_SHEET_OF_TOTAL_TXT",
+          "anchor": [
+            369.6,
+            104.1
+          ],
+          "size": 0.99
+        }
+      ],
+      "filledRegions": [
+        {
+          "topLeft": [
+            92.4,
+            127.3
+          ],
+          "bottomRight": [
+            176.4,
+            114.6
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F2A341"
+        },
+        {
+          "topLeft": [
+            0.0,
+            127.3
+          ],
+          "bottomRight": [
+            420.0,
+            125.2
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#1F4E79"
+        }
+      ]
+    },
+    {
+      "id": "STING_TB_A2_PORT_NONBIM_v2.0",
+      "extends": "A2_PORT_common_v2.0",
+      "mode": "NONBIM",
+      "description": "A3 portrait working sheet \u2014 A2 size; geometry scaled from STING_TB_A3_PORT_NONBIM_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "saveAs": "Families/TitleBlocks/STING_TB_A2_PORT_NONBIM_v2.0.rfa",
+      "parameters": [
+        {
+          "name": "STING_SHEET_BIM_MODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "NONBIM"
+        },
+        {
+          "name": "PRJ_TB_SHEET_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A-001"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "0"
+        },
+        {
+          "name": "PRJ_TB_REVISION_DATE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        }
+      ],
+      "lines": [],
+      "staticText": [
+        {
+          "text": "SHEET NUMBER",
+          "anchor": [
+            363.4,
+            84.2
+          ],
+          "size": 1.19
+        },
+        {
+          "text": "REV",
+          "anchor": [
+            363.4,
+            29.7
+          ],
+          "size": 0.99
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_TB_SHEET_NR_TXT",
+          "anchor": [
+            363.4,
+            54.5
+          ],
+          "size": 3.96
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            363.4,
+            9.9
+          ],
+          "size": 1.48
+        }
+      ],
+      "filledRegions": []
+    },
+    {
       "id": "STING_TB_ASSEMBLY_PIPE_v1.0",
       "extends": "A1_common_v2.0",
       "description": "Fabrication assembly title block \u2014 pipe spool. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #0076A8. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
@@ -14557,6 +17391,299 @@
           "bottomRight": [
             420.0,
             47.5
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F2A341"
+        }
+      ],
+      "slots": []
+    },
+    {
+      "id": "STING_TB_COVER_A2_v1.0",
+      "extends": "A1_common_v2.0",
+      "description": "Project / package cover sheet \u2014 A2 size; geometry scaled from STING_TB_COVER_A1_v1.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
+      "saveAs": "Families/TitleBlocks/STING_TB_COVER_A2_v1.0.rfa",
+      "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "category": "OST_TitleBlocks",
+      "parameters": [
+        {
+          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_PAPER_SZ_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A2"
+        },
+        {
+          "name": "PRJ_TB_VARIANT_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "COVER"
+        },
+        {
+          "name": "STING_SHEET_BIM_MODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "NONBIM"
+        }
+      ],
+      "lines": [
+        {
+          "from": [
+            0.0,
+            0.0
+          ],
+          "to": [
+            594.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            594.0,
+            0.0
+          ],
+          "to": [
+            594.0,
+            420.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            594.0,
+            420.0
+          ],
+          "to": [
+            0.0,
+            420.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            420.0
+          ],
+          "to": [
+            0.0,
+            0.0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            377.6
+          ],
+          "to": [
+            594.0,
+            377.6
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            70.7
+          ],
+          "to": [
+            594.0,
+            70.7
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0.0,
+            42.4
+          ],
+          "to": [
+            594.0,
+            42.4
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            297.0,
+            0.0
+          ],
+          "to": [
+            297.0,
+            70.7
+          ],
+          "style": "Thin Lines"
+        }
+      ],
+      "staticText": [
+        {
+          "text": "PROJECT",
+          "anchor": [
+            2.8,
+            410.1
+          ],
+          "size": 0.99
+        },
+        {
+          "text": "DELIVERABLE",
+          "anchor": [
+            2.8,
+            56.6
+          ],
+          "size": 0.71
+        },
+        {
+          "text": "REVISION",
+          "anchor": [
+            2.8,
+            28.3
+          ],
+          "size": 0.71
+        },
+        {
+          "text": "ISSUE DATE",
+          "anchor": [
+            299.8,
+            56.6
+          ],
+          "size": 0.71
+        },
+        {
+          "text": "TRANSMITTAL",
+          "anchor": [
+            299.8,
+            28.3
+          ],
+          "size": 0.71
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "anchor": [
+            297.0,
+            231.2
+          ],
+          "size": 11.31,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "anchor": [
+            297.0,
+            213.5
+          ],
+          "size": 2.83,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "anchor": [
+            297.0,
+            181.7
+          ],
+          "size": 4.24,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_RIBA_STAGE_TXT",
+          "anchor": [
+            297.0,
+            153.4
+          ],
+          "size": 2.12,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "anchor": [
+            297.0,
+            132.2
+          ],
+          "size": 2.83,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "anchor": [
+            2.8,
+            49.5
+          ],
+          "size": 1.41
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            2.8,
+            21.2
+          ],
+          "size": 2.12
+        },
+        {
+          "param": "PRJ_TB_DATE_DRAWN_TXT",
+          "anchor": [
+            299.8,
+            49.5
+          ],
+          "size": 1.41
+        },
+        {
+          "param": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "anchor": [
+            299.8,
+            21.2
+          ],
+          "size": 1.41
+        }
+      ],
+      "filledRegions": [
+        {
+          "topLeft": [
+            0.0,
+            420.0
+          ],
+          "bottomRight": [
+            594.0,
+            377.6
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#1F4E79"
+        },
+        {
+          "topLeft": [
+            0.0,
+            70.7
+          ],
+          "bottomRight": [
+            594.0,
+            67.2
           ],
           "fillTypeName": "Solid fill",
           "color": "#F2A341"
