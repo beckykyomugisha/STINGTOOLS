@@ -97,6 +97,34 @@ field is on a consuming path.
 
 `dotnet build -t:Rebuild` **0 errors / 0 warnings**, unchanged from baseline.
 
+**Review follow-up (same PR).** Seven points from code review addressed:
+
+- **`MaintenanceAccessValidator` now reads the type as well as the instance.**
+  `PushRuleToFamilyTypes` writes `STING_MAINT_CLEAR_TXT` onto family *types*, but
+  the validator read it via an instance-side `LookupParameter`, which does not
+  resolve a type-bound parameter — so the write could land and still never be
+  read. `ReadString` now falls back to `el.Document.GetElement(el.GetTypeId())`.
+  This is what actually closes the "activates `MaintenanceAccessValidator`" loop.
+- **Backfill token hygiene.** The `StandardRef`→`ApplicableStandards` split ran on
+  prose in the toilet-fixtures pack (`/` inside `l/s` and parentheticals),
+  producing non-standard tokens like `sminextractforWC`, `17inchrim)` and
+  `standardresidential1500mmAFF`. Gating still worked (the real citations survived
+  as prefixes) but the structured field carried noise; 15 arrays re-curated to
+  clean identifiers (`["Approved Doc F", "BS 5720", "CIBSE Guide B2"]`, …).
+- **Legacy-`"0"` coercion.** `PlacementRule.MaintenanceClearance` now coerces a
+  purely-zero numeric to empty, so re-importing an Excel sheet exported under the
+  old `double` shape does not resurrect a `"0"` that the validator would skip and
+  Push-to-Families would stamp. A non-zero typo like `"600"` is kept so the
+  advisory still flags it. Pinned by `PlacementRuleMaintenanceClearanceTests`.
+- **Advisory scoping comment** corrected to state that a null/empty result (tests,
+  or a run that placed nothing) reports on all rules, matching the code.
+- **Test shim fidelity.** `PlacementResultShim.CountsByRule` uses the default
+  case-sensitive comparer, matching the real `PlacementResult`, so it can't be
+  more forgiving than production.
+- **Untagged-count** in the standards-gate warning now counts non-null rules only.
+- **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
+  coerces a rejected tick, so a TwoWay binding reverts its visual.
+
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
 - **`HandoffProvisioningSqliteTests` calls the real method.** It previously

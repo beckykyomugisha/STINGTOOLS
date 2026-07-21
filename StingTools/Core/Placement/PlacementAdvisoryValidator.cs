@@ -52,10 +52,15 @@ namespace StingTools.Core.Placement
 
         /// <summary>
         /// Emit advisories for specification fields that are set on a rule but
-        /// cannot take effect given that rule's configuration. Only rules that
-        /// actually placed something are considered — a rule that placed nothing
-        /// already reports that through the per-rule diagnostics, and repeating
-        /// it here would be noise.
+        /// cannot take effect given that rule's configuration.
+        ///
+        /// Scoping: when the run produced placement counts
+        /// (<paramref name="result"/>.CountsByRule is non-empty) only rules that
+        /// actually fired are considered — a rule that placed nothing already
+        /// reports that through the per-rule diagnostics, and repeating it here
+        /// would be noise. When there are no counts — a null/empty result, as in
+        /// the unit tests, or a run that placed nothing at all — every rule is
+        /// considered, so a fully mis-configured pack still gets feedback.
         /// </summary>
         public static List<string> Validate(IEnumerable<PlacementRule> rules, PlacementResult result)
         {
@@ -66,7 +71,8 @@ namespace StingTools.Core.Placement
             {
                 if (rule == null) continue;
 
-                // Scope to rules that fired. CountsByRule is keyed by MergeKey.
+                // Scope to rules that fired when we have counts to scope by.
+                // CountsByRule is keyed by MergeKey.
                 if (result?.CountsByRule != null && result.CountsByRule.Count > 0)
                 {
                     var key = rule.MergeKey ?? "";

@@ -64,9 +64,18 @@ namespace StingTools.UI.PlacementCenter
                 // A non-placeable category can never be ticked, even if a binding
                 // or a "select all" tries: the engine would silently place nothing.
                 bool next = value && IsPlaceable;
-                if (_isChecked == next) return;
-                _isChecked = next;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+                if (_isChecked != next)
+                {
+                    _isChecked = next;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+                }
+                else if (next != value)
+                {
+                    // The requested value was coerced away (non-placeable row). Raise
+                    // anyway so a TwoWay binding reverts its visual to the coerced
+                    // state instead of showing a tick the model never accepted.
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+                }
             }
         }
 
