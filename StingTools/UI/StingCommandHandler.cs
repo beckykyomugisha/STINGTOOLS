@@ -681,8 +681,16 @@ namespace StingTools.UI
                     case "DrawingTypes_ExportExcel": RunCommand<BIMManager.DrawingTypeExportExcelCommand>(app); break;
                     case "DrawingTypes_ImportExcel": RunCommand<BIMManager.DrawingTypeImportExcelCommand>(app); break;
                     case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
-                    case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
-                    case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+                    // W-5: these two tags used to run the read-only inline
+                    // helpers below while WorkflowEngine.ResolveCommand ran the
+                    // model-writing command classes — one tag, two behaviours
+                    // depending on caller. The advisories keep their behaviour
+                    // under names that describe it; the canonical tags now mean
+                    // the command class everywhere.
+                    case "DrawingTypes_AuditStyleRefs":        DrawingTypesSyncStylesInline(app);   break;
+                    case "DrawingTypes_SuggestFromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+                    case "DrawingTypes_SyncStyles":    RunCommand<Commands.Drawing.DrawingSyncStylesCommand>(app); break;
+                    case "DrawingTypes_FromScopeBoxes": RunCommand<Commands.Drawing.GenerateFromScopeBoxesCommand>(app); break;
                     case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
                     case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
                     case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;

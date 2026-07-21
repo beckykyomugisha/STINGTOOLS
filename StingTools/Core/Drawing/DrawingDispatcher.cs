@@ -66,7 +66,18 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(rule.ProjectCodeMatches)
                     && !RegexMatches(rule.ProjectCodeMatches, projectCode)) continue;
                 if (!DrawingOptionApplier.MatchesOptionPredicate(rule, optionName)) continue;
-                return DrawingTypeRegistry.Get(doc, rule.DrawingTypeId);
+
+                // E-12: a matching rule whose target id does not resolve used to
+                // return null, ending the search. Because project rules are
+                // PREPENDED, one stale project rule silently disabled routing for
+                // that whole key — the corporate rule behind it never got a look.
+                // Warn and keep walking so later rules still apply.
+                var resolved = DrawingTypeRegistry.Get(doc, rule.DrawingTypeId);
+                if (resolved != null) return resolved;
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingDispatcher: routing rule matched (disc='{discipline}' phase='{phase}' " +
+                    $"docType='{docType}') but its drawingTypeId '{rule.DrawingTypeId}' does not exist; " +
+                    "continuing to later rules.");
             }
             return null;
         }

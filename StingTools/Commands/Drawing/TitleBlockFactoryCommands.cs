@@ -66,19 +66,20 @@ namespace StingTools.Commands.Drawing
             }
             else
             {
-                var dlg = new TaskDialog("STING — Pick title-block family")
-                {
-                    MainInstruction = "Choose which family to mint",
-                    AllowCancellation = true,
-                };
-                for (int i = 0; i < Math.Min(4, concrete.Count); i++)
-                {
-                    var f = concrete[i];
-                    dlg.AddCommandLink((TaskDialogCommandLinkId)(1001 + i),
-                        f.Id, f.Description);
-                }
-                var res = dlg.Show();
-                int chosen = (int)res - 1001;
+                // T-8: a TaskDialog capped at Math.Min(4, …) command links meant
+                // only the first 4 of the 31 concrete families could ever be
+                // minted individually — the other 27 were unreachable from this
+                // command, with no indication they existed. A list picker has no
+                // such ceiling.
+                var labels = concrete
+                    .Select(f => string.IsNullOrWhiteSpace(f.Description) ? f.Id : $"{f.Id}  —  {f.Description}")
+                    .ToList();
+                var choice = StingTools.Select.StingListPicker.Show(
+                    "STING — Pick title-block family",
+                    $"Choose which family to mint ({concrete.Count} available)",
+                    labels);
+                if (string.IsNullOrEmpty(choice)) return Result.Cancelled;
+                int chosen = labels.IndexOf(choice);
                 if (chosen < 0 || chosen >= concrete.Count) return Result.Cancelled;
                 pick = concrete[chosen];
             }

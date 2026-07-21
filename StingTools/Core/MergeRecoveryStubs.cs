@@ -451,16 +451,77 @@ namespace StingTools.Core.Drawing
             catch { }
             return ElementId.InvalidElementId;
         }
+        // V-4: these are the "Cached" resolvers that never cached. Each ran a
+        // full FilteredElementCollector on EVERY call — and they are called
+        // once per filter rule per view, so a batch of N sheets x F rules paid
+        // O(N*F) whole-model scans. Now a genuine per-document, per-name index
+        // built on first miss and dropped by InvalidateCache.
+        private static readonly object _resolveLock = new object();
+        private static readonly Dictionary<string, Dictionary<string, ElementId>> _filterIdByDoc
+            = new Dictionary<string, Dictionary<string, ElementId>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Dictionary<string, ElementId>> _fillPatternByDoc
+            = new Dictionary<string, Dictionary<string, ElementId>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string ResolveDocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveDocKey: {ex.Message}"); return "__unknown__"; }
+        }
+
+        /// <summary>Drop the per-document resolver indexes (V-4). Called when a
+        /// filter or pattern is created mid-run so later lookups see it.</summary>
+        internal static void InvalidateResolverCaches(Document doc)
+        {
+            var key = ResolveDocKey(doc);
+            lock (_resolveLock)
+            {
+                _filterIdByDoc.Remove(key);
+                _fillPatternByDoc.Remove(key);
+            }
+        }
+
+        private static ElementId LookupCached(
+            Dictionary<string, Dictionary<string, ElementId>> store,
+            Document doc, string name, Func<Document, Dictionary<string, ElementId>> build)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
+            var key = ResolveDocKey(doc);
+            lock (_resolveLock)
+            {
+                if (!store.TryGetValue(key, out var index))
+                {
+                    try { index = build(doc); }
+                    catch (Exception ex)
+                    {
+                        StingTools.Core.StingLog.Warn($"Resolver index build: {ex.Message}");
+                        index = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                    }
+                    store[key] = index;
+                }
+                return index.TryGetValue(name, out var id) ? id : ElementId.InvalidElementId;
+            }
+        }
+
         internal static ElementId ResolveFilterIdCached(Document doc, string name)
-            => new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
-                .Cast<ParameterFilterElement>()
-                .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
-                ?? ElementId.InvalidElementId;
+            => LookupCached(_filterIdByDoc, doc, name, d =>
+            {
+                var m = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                foreach (var el in new FilteredElementCollector(d).OfClass(typeof(ParameterFilterElement)))
+                    if (el is ParameterFilterElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
+                        m[f.Name] = f.Id;
+                return m;
+            });
+
         internal static ElementId ResolveFillPattern(Document doc, string name)
-            => new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
-                ?? ElementId.InvalidElementId;
+            => LookupCached(_fillPatternByDoc, doc, name, d =>
+            {
+                var m = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                foreach (var el in new FilteredElementCollector(d).OfClass(typeof(FillPatternElement)))
+                    if (el is FillPatternElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
+                        m[f.Name] = f.Id;
+                return m;
+            });
     }
 }
 
@@ -482,13 +543,36 @@ namespace StingTools.Core.Drawing
             return false;
         }
 
-        /// <summary>Stub Peek overload that accepts an `unresolved` out-list. Real impl was lost to the merge.</summary>
+        /// <summary>
+        /// Peek plus the list of title-block values that still contain
+        /// unsubstituted tokens after resolution.
+        ///
+        /// T-13: this was a stub that cleared `unresolved` and returned an
+        /// empty dictionary — "no title-block params, nothing unresolved" —
+        /// under a comment saying the real implementation was lost to a merge.
+        /// Nothing called it, so it never lied to anyone; it was left as a
+        /// landmine for whoever called it next. Implemented rather than
+        /// deleted because knowing WHICH tokens failed to resolve is the
+        /// diagnostic T-5 notes is missing elsewhere.
+        /// </summary>
         public static System.Collections.Generic.Dictionary<string, string> Peek(
             Document doc, DrawingType dt, System.Collections.Generic.IDictionary<string, string> tokens,
             System.Collections.Generic.List<string> unresolved)
         {
             unresolved?.Clear();
-            return new System.Collections.Generic.Dictionary<string, string>();
+            var resolved = Peek(doc, dt, tokens);
+            if (unresolved != null)
+            {
+                // Anything still carrying {token} or ${PROJ_PARAM} did not
+                // resolve — the applier writes these through literally.
+                var leftover = new System.Text.RegularExpressions.Regex(@"\{[^}]+\}|\$\{[^}]+\}");
+                foreach (var kv in resolved)
+                {
+                    if (!string.IsNullOrEmpty(kv.Value) && leftover.IsMatch(kv.Value))
+                        unresolved.Add($"{kv.Key} = {kv.Value}");
+                }
+            }
+            return resolved;
         }
     }
 }
