@@ -31,6 +31,10 @@ namespace StingTools.Core.Drawing
         public double WidthFt;
         public double HeightFt;
         public int? ScaleHint;
+        /// <summary>The slot this placement came from. Carried so callers
+        /// outside PlaceAccordingToSlots (the producer) can honour the
+        /// slot's ViewportType and ViewType without re-resolving it.</summary>
+        public DrawingSlot Slot;
         public bool HasSize => WidthFt > 1e-9 && HeightFt > 1e-9;
     }
 
@@ -89,6 +93,7 @@ namespace StingTools.Core.Drawing
                         double cyf = (bounds.Min.Y + bounds.Max.Y) / 2.0 + origin.Y;
                         return new SlotPlacement
                         {
+                            Slot = slot,
                             Center    = new XYZ(cxf, cyf, 0),
                             WidthFt   = Math.Abs(bounds.Max.X - bounds.Min.X),
                             HeightFt  = Math.Abs(bounds.Max.Y - bounds.Min.Y),
@@ -141,6 +146,7 @@ namespace StingTools.Core.Drawing
                 double cy = zoneMinY + (slot.NormY + slot.NormH / 2.0) * zoneH;
                 return new SlotPlacement
                 {
+                    Slot = slot,
                     Center    = new XYZ(cx, cy, 0),
                     WidthFt   = slot.NormW * zoneW,
                     HeightFt  = slot.NormH * zoneH,
@@ -463,6 +469,11 @@ namespace StingTools.Core.Drawing
         }
 
         // SLOT-1 helper — resolves a viewport type ElementId by name.
+        /// <summary>Public face of FindViewportTypeId for callers outside
+        /// this class (the producer's per-slot viewport type override).</summary>
+        internal static ElementId ResolveViewportTypeId(Document doc, string typeName)
+            => FindViewportTypeId(doc, typeName);
+
         private static ElementId FindViewportTypeId(Document doc, string typeName)
         {
             return new FilteredElementCollector(doc)

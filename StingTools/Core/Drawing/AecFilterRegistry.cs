@@ -34,11 +34,31 @@ namespace StingTools.Core.Drawing
         /// — the registry can match it back to a definition by name and
         /// create it lazily.
         /// </summary>
+        // V-4: name index. GetByName is called once per pack filter rule while
+        // applying a pack; a linear FirstOrDefault over the 298 shipped filters
+        // made that O(rules x 298) per view, for every view in a batch.
+        private static readonly object _nameIndexLock = new object();
+        private static readonly Dictionary<string, Dictionary<string, AecFilterDefinition>> _byNameByDoc
+            = new Dictionary<string, Dictionary<string, AecFilterDefinition>>(StringComparer.OrdinalIgnoreCase);
+
         public static AecFilterDefinition GetByName(Document doc, string filterName)
         {
             if (string.IsNullOrWhiteSpace(filterName)) return null;
-            return GetLibrary(doc).Filters
-                .FirstOrDefault(f => string.Equals(f.Name, filterName, StringComparison.OrdinalIgnoreCase));
+            var lib = GetLibrary(doc);
+            var key = DocKey(doc);
+            lock (_nameIndexLock)
+            {
+                // Rebuild when the library's filter count changes — the registry
+                // is reloadable, and a stale index would hide new filters.
+                if (!_byNameByDoc.TryGetValue(key, out var index) || index.Count != lib.Filters.Count)
+                {
+                    index = new Dictionary<string, AecFilterDefinition>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var f in lib.Filters)
+                        if (!string.IsNullOrEmpty(f?.Name) && !index.ContainsKey(f.Name)) index[f.Name] = f;
+                    _byNameByDoc[key] = index;
+                }
+                return index.TryGetValue(filterName, out var hit) ? hit : null;
+            }
         }
 
         public static IReadOnlyList<AecFilterDefinition> ListAll(Document doc)

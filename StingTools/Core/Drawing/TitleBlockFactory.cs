@@ -343,10 +343,17 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    if (!string.IsNullOrEmpty(originalSpFile))
-                        app.SharedParametersFilename = originalSpFile;
+                    // T-11: restore unconditionally. Guarding on
+                    // !IsNullOrEmpty meant a user who had NO shared-parameter
+                    // file set kept MR_PARAMETERS.txt as their application-wide
+                    // SP file after running the factory once — a global setting
+                    // silently changed and never put back.
+                    app.SharedParametersFilename = originalSpFile ?? string.Empty;
                 }
-                catch { /* best-effort */ }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TitleBlockFactory: could not restore SharedParametersFilename: {ex.Message}");
+                }
                 // Best-effort cleanup of the staged seed copy.
                 if (!string.IsNullOrEmpty(seedTempCopy))
                 {
