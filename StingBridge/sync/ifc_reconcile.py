@@ -238,6 +238,7 @@ def pull_and_reconcile(
     cursor_path: Path,
     page_limit: int = 200,
     on_progress: Optional[Callable[[str], None]] = None,
+    commit_cursor: bool = True,
 ) -> dict:
     """Pull changes since this document's cursor and reconcile them locally.
 
@@ -245,9 +246,17 @@ def pull_and_reconcile(
     which is exactly the pre-SB-5a behaviour — a hub that is unreachable must
     not cost the operator their ingest.
 
-    The cursor is persisted **after** reconcile, so a crash mid-pass replays the
-    page rather than losing it. Re-applying a delta is a no-op (the engine skips
-    identical payloads); skipping one loses an edit.
+    Cursor persistence is deferred when ``commit_cursor`` is False. Advancing the
+    cursor marks the pulled deltas as consumed, but a reconciled remote win lives
+    only in ``token_map`` (and the write-back copy) until the push carries it to
+    the hub. If the cursor advanced here and the push then failed, the next drop
+    would not re-pull the change and would push the local value back over it —
+    the exact silent cross-host revert this feature exists to prevent. So the
+    watcher passes ``commit_cursor=False`` and calls :func:`commit_pending_cursor`
+    only once the push has succeeded; the value to commit is returned under
+    ``summary["_pending_cursor"]``. Direct callers keep the default (immediate
+    commit), which stays crash-safe because a replayed page re-applies as a no-op
+    (the engine skips identical payloads); skipping a page loses an edit.
     """
     from stingtools_core.sync import CursorStore, PullClient, ReconcileEngine
 
@@ -269,7 +278,37 @@ def pull_and_reconcile(
 
     host_key = cursor_host_key(doc_guid)
     store = CursorStore(cursor_path)
-    cursor = store.read(project_id, host_key)
+
+    # A corrupt cursor must reset, not disable pull. CursorStore.read tolerates
+    # unparseable JSON, but a file that parses to a non-dict ("[]", "null", a
+    # hand-edit) makes its data.get() raise, and that raise is outside the pull
+    # try below — it would propagate to the watcher, degrade to push-only, and
+    # never rewrite the cursor, so pull stays dead for that folder on every
+    # future drop. Treat it as "start from the beginning": a full backfill is
+    # replayable (identical payloads no-op), and the deferred commit overwrites
+    # the bad file with a valid cursor after the next successful push.
+    try:
+        cursor = store.read(project_id, host_key)
+    except Exception as e:  # noqa: BLE001 — a corrupt cursor must not disable pull
+        summary["cursor_reset"] = str(e)
+        log.warning("Cursor unreadable (%s) — starting from the beginning; it will "
+                    "be rewritten after the next successful push", e)
+        emit("Sync cursor was unreadable — re-pulling from the beginning")
+        cursor = None
+
+    def _finish(new_cursor):
+        """Record the drained cursor, committing now or deferring to the push."""
+        summary["cursor"] = new_cursor
+        if commit_cursor:
+            store.write(project_id, host_key, new_cursor)
+        elif new_cursor:
+            summary["_pending_cursor"] = {
+                "cursor_path": str(cursor_path),
+                "project_id": project_id,
+                "host_key": host_key,
+                "cursor": new_cursor,
+            }
+        return summary
 
     try:
         puller = PullClient(ClientHttp(client), base_url, project_id, page_limit=page_limit)
@@ -294,9 +333,7 @@ def pull_and_reconcile(
     if not known:
         if deltas:
             emit(f"Pulled {len(deltas)} change(s), none for elements in this file")
-        store.write(project_id, host_key, puller.last_cursor)
-        summary["cursor"] = puller.last_cursor
-        return summary
+        return _finish(puller.last_cursor)
 
     local_index = build_local_index(token_map, file_modified_utc(ifc_path))
     sidecar = ConflictSidecar(
@@ -335,7 +372,25 @@ def pull_and_reconcile(
     if result.conflicts:
         emit(f"{len(result.conflicts)} conflict(s) recorded in {sidecar.path.name}")
 
-    # Only now — a crash before this point replays the page instead of losing it.
-    store.write(project_id, host_key, puller.last_cursor)
-    summary["cursor"] = puller.last_cursor
-    return summary
+    # Record the drained cursor. With commit_cursor=False (the watcher) this only
+    # stashes it in the summary — it is persisted by commit_pending_cursor after
+    # the push succeeds, so a push failure replays the page instead of dropping
+    # the reconciled change. A crash before this point replays it either way.
+    return _finish(puller.last_cursor)
+
+
+def commit_pending_cursor(pending: Optional[dict]) -> bool:
+    """Persist a cursor deferred by ``pull_and_reconcile(commit_cursor=False)``.
+
+    Returns True if a cursor was written. Split out so the watcher can advance
+    the cursor only *after* the push has landed the reconciled state on the hub
+    — advancing it at reconcile time meant a later push failure discarded the
+    remote edit while the cursor had already moved past it.
+    """
+    if not pending:
+        return False
+    from stingtools_core.sync import CursorStore
+
+    CursorStore(Path(pending["cursor_path"])).write(
+        pending["project_id"], pending["host_key"], pending["cursor"])
+    return True

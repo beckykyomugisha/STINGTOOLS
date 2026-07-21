@@ -263,6 +263,15 @@ class IFCDropHandler:
         result["errors"].extend(push.errors)
         self._emit(f"Synced {push.sent} elements ({push.summary()})")
 
+        # ── SB-5a: advance the pull cursor ONLY now the push has landed ──────
+        # The reconciled remote wins live in token_map (and the write-back
+        # below) but are not durable until the hub has them. Committing the
+        # cursor before the push meant a push failure left the cursor advanced
+        # past a change we then dropped — the next drop would not re-pull it and
+        # would push the local value back over it. Hold the cursor unless the
+        # push fully succeeded, so a failed push replays the page next drop.
+        self._commit_reconcile_cursor(result["reconcile"], push)
+
         # ── Write tokens back into the IFC as IfcPropertySet ─────────────────
         self._emit("Writing STING tokens back to IFC…")
         try:
@@ -326,10 +335,36 @@ class IFCDropHandler:
                 doc_guid=doc_guid,
                 cursor_path=self._cursor_path(path),
                 on_progress=self._on_progress,
+                commit_cursor=False,  # deferred to _commit_reconcile_cursor after the push
             )
         except Exception as exc:  # noqa: BLE001 — reconcile must not fail an ingest
             log.warning("Pull/reconcile skipped for %s: %s", path.name, exc)
             return {"skipped": f"{type(exc).__name__}: {exc}"}
+
+    def _commit_reconcile_cursor(self, reconcile, push) -> None:
+        """Persist the pull cursor stashed by ``pull_and_reconcile``, but only if
+        the push fully succeeded.
+
+        A partial or failed push means the reconciled remote change is not yet on
+        the hub; holding the cursor makes the next drop re-pull and re-apply it
+        (a no-op if it later turns out identical) rather than skipping past it.
+        Popping the key keeps this internal plumbing out of the user-facing
+        result summary.
+        """
+        pending = reconcile.pop("_pending_cursor", None) if isinstance(reconcile, dict) else None
+        if not pending:
+            return
+        if not push.ok:
+            log.warning("Push incomplete (%d element(s) failed) — holding the pull "
+                        "cursor so the next drop re-reconciles instead of losing the "
+                        "change", push.failed)
+            self._emit("Pull cursor held back — push incomplete, will re-reconcile next drop")
+            return
+        try:
+            from ..sync.ifc_reconcile import commit_pending_cursor
+            commit_pending_cursor(pending)
+        except Exception as exc:  # noqa: BLE001 — a cursor write must not fail an ingest
+            log.warning("Could not persist pull cursor: %s — next drop will replay", exc)
 
     def _convert_to_glb(self, ifc_path: Path, result: dict) -> Path | None:
         """Try IfcConvert → GLB. Returns GLB path or None."""

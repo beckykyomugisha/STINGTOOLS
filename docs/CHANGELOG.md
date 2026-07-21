@@ -38,8 +38,20 @@ testable today without an ArchiCAD licence.
   shared cursor the first file to drain the feed consumes every other file's
   changes and they are never seen again. This matches the grain the server
   already keys mappings on.
-- Written **after** reconcile, so a crash mid-pass replays the page rather than
-  losing it. Re-applying a delta is a no-op; skipping one loses an edit.
+- Committed **after the push succeeds**, not at reconcile time. A reconciled
+  remote win lives only in the token map (and the write-back) until the push
+  carries it to the hub; advancing the cursor first meant a push failure left it
+  past a change that never landed, so the next drop would not re-pull it and
+  would push the local value back over it — a silent cross-host revert. The
+  watcher now defers the write (`pull_and_reconcile(commit_cursor=False)`) and
+  calls `commit_pending_cursor` only once `push.ok`; a failed or partial push
+  holds the cursor so the next drop re-reconciles. Re-applying a delta is a
+  no-op; skipping one loses an edit. (Post-review hardening, PR review #457.)
+- A **corrupt cursor resets** rather than disabling pull: a cursor file that
+  parses to a JSON non-dict made `CursorStore.read`'s `data.get()` raise, which
+  degraded the folder to push-only *permanently* (the bad file was never
+  rewritten). The read is now guarded — an unreadable cursor starts a full
+  backfill and is repaired after the next successful push.
 
 **Local timestamps.** An IFC export carries no per-element edit time, so every
 element is stamped with the **file's mtime**. This is not merely a convenience:

@@ -29,7 +29,7 @@ ifcopenshell = pytest.importorskip(
 
 from StingBridge.sync.ifc_reconcile import (  # noqa: E402
     CURSOR_FILENAME, build_local_index, conflict_sidecar_path, cursor_host_key,
-    file_modified_utc,
+    file_modified_utc, pull_and_reconcile,
 )
 from StingBridge.watch.ifc_watcher import IFCDropHandler  # noqa: E402
 
@@ -456,3 +456,108 @@ def test_local_index_stamps_every_element_with_the_file_mtime(tmp_path):
 def test_cursor_host_key_is_document_scoped():
     assert cursor_host_key("abc") != cursor_host_key("def")
     assert cursor_host_key("") == "ifc", "a missing doc guid must still yield a stable key"
+
+
+# ── cursor is committed only after the push (P1 regression) ────────────────────
+
+def test_a_failed_push_does_not_advance_the_cursor(tmp_path):
+    """The cursor must move only once the reconciled state has been pushed.
+
+    Regression guard. Committing the cursor at reconcile time meant a later push
+    failure left the cursor advanced past a change that never reached the hub:
+    the next drop would not re-pull it and would push the local value straight
+    back over the remote edit — the silent cross-host revert SB-5a exists to kill.
+    """
+    src = _write_ifc(tmp_path)
+    _, later, _ = _file_times(src)
+    items = [_delta(WALL_A, {"zone": "Z99"}, later)]
+
+    class _PushDown(_FakeServer):
+        def ingest_ifc_data(self, *a, **kw):
+            raise ConnectionError("hub rejected the push")
+
+    down = _PushDown(items)
+    r1 = IFCDropHandler(down, _Cfg(), cursor_dir=tmp_path).process(str(src))
+
+    assert r1["reconcile"]["applied"] == 1, "the remote edit should reconcile in memory"
+    assert r1["errors"], "the push failure must be surfaced, not swallowed"
+    assert "_pending_cursor" not in r1["reconcile"], "internal cursor plumbing leaked into the result"
+
+    cursor_file = tmp_path / CURSOR_FILENAME
+    assert not cursor_file.exists(), (
+        "the cursor advanced despite the push failing — the reconciled remote "
+        "edit is now unrecoverable on the next drop")
+
+    # The hub recovers; re-dropping the SAME source must re-pull and re-apply,
+    # not skip past the change because the cursor had already moved.
+    up = _FakeServer(items)
+    r2 = IFCDropHandler(up, _Cfg(), cursor_dir=tmp_path).process(str(src))
+
+    assert r2["reconcile"]["pulled"] == 1, "the change was skipped — the cursor had advanced"
+    assert r2["reconcile"]["applied"] == 1
+    assert _pushed(up, WALL_A)["zone"] == "Z99", "the recovered drop failed to re-apply the remote edit"
+    assert cursor_file.exists(), "the cursor should persist once the push finally succeeds"
+
+
+def test_a_successful_push_still_advances_the_cursor(tmp_path):
+    """The deferral must not break the happy path: a clean push commits the cursor."""
+    src = _write_ifc(tmp_path)
+    _, later, _ = _file_times(src)
+    items = [_delta(WALL_A, {"zone": "Z99"}, later)]
+
+    server = _FakeServer(items)
+    result = IFCDropHandler(server, _Cfg(), cursor_dir=tmp_path).process(str(src))
+
+    assert not result["errors"]
+    assert "_pending_cursor" not in result["reconcile"]
+    assert (tmp_path / CURSOR_FILENAME).exists(), "a successful push must persist the cursor"
+
+
+# ── a corrupt cursor resets rather than disabling pull (P2) ────────────────────
+
+def test_a_corrupt_cursor_file_resets_instead_of_disabling_pull(tmp_path):
+    """A cursor file that parses to a JSON non-dict must not crash reconcile into
+    permanent push-only — it should reset, re-pull, and heal after the push."""
+    src = _write_ifc(tmp_path)
+    _, later, _ = _file_times(src)
+    (tmp_path / CURSOR_FILENAME).write_text("[]", encoding="utf-8")  # valid JSON, not a dict
+
+    server = _FakeServer([_delta(WALL_A, {"zone": "Z99"}, later)])
+    result = IFCDropHandler(server, _Cfg(), cursor_dir=tmp_path).process(str(src))
+
+    rec = result["reconcile"]
+    assert rec.get("error") is None, "a corrupt cursor was treated as a pull failure — pull is now dead"
+    assert rec.get("cursor_reset"), "the corrupt cursor should be reported as reset"
+    assert rec["pulled"] == 1, "the corrupt cursor should reset and re-pull from the beginning"
+    assert rec["applied"] == 1
+
+    stored = json.loads((tmp_path / CURSOR_FILENAME).read_text(encoding="utf-8"))
+    assert isinstance(stored, dict), "the corrupt cursor was not repaired after a successful push"
+
+
+# ── an echoed push is neutralised, not re-applied (P2 test gap) ────────────────
+
+def test_an_echoed_push_is_not_re_applied_or_flagged(tmp_path):
+    """Echo/loop guard: the feed has no host/origin filter, so an element we just
+    pushed can reappear in it. When local already equals the echoed payload,
+    reconcile must short-circuit as unchanged — never a conflict, never a revert —
+    however new the echo's timestamp is."""
+    src = _write_ifc(tmp_path)
+    _, later, _ = _file_times(src)
+
+    local = {"disc": "A", "loc": "BLD1", "zone": "Z01", "lvl": "L01",
+             "sys": "", "func": "", "prod": "WALL", "seq": "0001", "status": ""}
+    token_map = {WALL_A: dict(local)}
+
+    # The hub echoes back exactly what we pushed, with a *later* timestamp.
+    server = _FakeServer([_delta(WALL_A, dict(local), later)])
+    summary = pull_and_reconcile(
+        server, token_map=token_map, ifc_path=src,
+        doc_guid="doc-echo", cursor_path=tmp_path / CURSOR_FILENAME)
+
+    assert summary["pulled"] == 1
+    assert summary["unchanged"] == 1, "an identical echo was not recognised as a no-op"
+    assert summary["applied"] == 0 and summary["kept_local"] == 0
+    assert summary["conflicts"] == 0, "an identical echo was recorded as a conflict"
+    assert token_map[WALL_A]["zone"] == "Z01", "an identical echo mutated the local tokens"
+    assert not conflict_sidecar_path(src).exists(), "an identical echo produced a spurious sidecar"
