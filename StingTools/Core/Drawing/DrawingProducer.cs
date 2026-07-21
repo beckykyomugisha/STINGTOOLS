@@ -62,6 +62,11 @@ namespace StingTools.Core.Drawing
         [ThreadStatic] private static Dictionary<string, ElementId> _existingViewCache;
         [ThreadStatic] private static Dictionary<string, ElementId> _existingSheetCache;
         [ThreadStatic] private static Dictionary<string, int>       _packageSheetCount;
+        // GAP-L: the set of sheet numbers in use, primed once per batch so
+        // EnsureUniqueSheetNumber doesn't re-collect every ViewSheet on each
+        // assignment (was O(M²) across an M-sheet batch). Written back as each
+        // number is assigned so later sheets in the same batch see it.
+        [ThreadStatic] private static HashSet<string>               _sheetNumberCache;
         [ThreadStatic] private static string                        _cacheDocKey;
 
         private static string CacheDocKey(Document doc)
@@ -115,6 +120,7 @@ namespace StingTools.Core.Drawing
 
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
                 var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
+                var nums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
                 {
                     var dtId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID) ?? string.Empty;
@@ -126,9 +132,13 @@ namespace StingTools.Core.Drawing
                     if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, shtCtx)] = sheet.Id;
                     if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
                     else pkg[pkgId] = 1;
+                    // Same pass feeds the sheet-number cache — no extra collector.
+                    try { if (!string.IsNullOrEmpty(sheet.SheetNumber)) nums.Add(sheet.SheetNumber); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 _existingSheetCache = s;
                 _packageSheetCount  = pkg;
+                _sheetNumberCache   = nums;
             }
             catch (Exception ex)
             {
@@ -141,6 +151,7 @@ namespace StingTools.Core.Drawing
             _existingViewCache  = null;
             _existingSheetCache = null;
             _packageSheetCount  = null;
+            _sheetNumberCache   = null;
             _cacheDocKey        = null;
         }
 
@@ -952,34 +963,66 @@ namespace StingTools.Core.Drawing
         private static string EnsureUniqueSheetNumber(Document doc, string baseNumber, ElementId excludeId, ProduceResult result)
         {
             if (string.IsNullOrEmpty(baseNumber)) return baseNumber;
-            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
-                {
-                    if (el is ViewSheet vs && vs.Id != excludeId && !string.IsNullOrEmpty(vs.SheetNumber))
-                        existing.Add(vs.SheetNumber);
-                }
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"EnsureUniqueSheetNumber: {ex.Message}");
-                return baseNumber;
-            }
-            if (!existing.Contains(baseNumber)) return baseNumber;
 
-            for (char c = 'A'; c <= 'Z'; c++)
+            // GAP-L: reuse the per-batch sheet-number set when it is primed for
+            // this doc, so an M-sheet batch no longer re-collects every ViewSheet
+            // on each assignment (was O(M²)). The number chosen below is written
+            // back into the cache so a later sheet in the same batch sees it —
+            // matching the old per-call scan, which saw sheets numbered earlier
+            // in the same run. The just-created sheet (excludeId) carries only a
+            // default number that was never added to the cache, so excluding it
+            // is implicit. Falls back to a fresh scan when no batch cache is live.
+            bool useCache = _sheetNumberCache != null && CacheMatchesDoc(doc);
+            HashSet<string> existing;
+            if (useCache)
             {
-                var candidate = baseNumber + "-" + c;
-                if (!existing.Contains(candidate))
+                existing = _sheetNumberCache;
+            }
+            else
+            {
+                existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
                 {
-                    result?.Warnings.Add($"Sheet number '{baseNumber}' already exists; used '{candidate}'.");
-                    return candidate;
+                    foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+                    {
+                        if (el is ViewSheet vs && vs.Id != excludeId && !string.IsNullOrEmpty(vs.SheetNumber))
+                            existing.Add(vs.SheetNumber);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"EnsureUniqueSheetNumber: {ex.Message}");
+                    return baseNumber;
                 }
             }
-            var fallback = baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
-            result?.Warnings.Add($"Sheet number '{baseNumber}' and all -A..-Z variants exist; used '{fallback}'.");
-            return fallback;
+
+            string chosen;
+            if (!existing.Contains(baseNumber))
+            {
+                chosen = baseNumber;
+            }
+            else
+            {
+                chosen = null;
+                for (char c = 'A'; c <= 'Z'; c++)
+                {
+                    var candidate = baseNumber + "-" + c;
+                    if (!existing.Contains(candidate))
+                    {
+                        result?.Warnings.Add($"Sheet number '{baseNumber}' already exists; used '{candidate}'.");
+                        chosen = candidate;
+                        break;
+                    }
+                }
+                if (chosen == null)
+                {
+                    chosen = baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
+                    result?.Warnings.Add($"Sheet number '{baseNumber}' and all -A..-Z variants exist; used '{chosen}'.");
+                }
+            }
+
+            if (useCache) _sheetNumberCache.Add(chosen);
+            return chosen;
         }
 
         private static readonly System.Text.RegularExpressions.Regex _seqWidthRegex

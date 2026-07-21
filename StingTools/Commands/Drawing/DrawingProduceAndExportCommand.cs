@@ -169,7 +169,18 @@ namespace StingTools.Commands.Drawing
                     {
                         try
                         {
-                            var ctx = new DrawingContext { Level = level, Tag = level.Name };
+                            // P-9: the level's identity already rides on
+                            // ctx.Level — it feeds the {lvl} token and the
+                            // level component of DrawingProducer.BuildContextTag.
+                            // Setting Tag = level.Name additionally duplicated it
+                            // into the {mark}/{spool} slots and appended it to the
+                            // context key, so this command's per-level sheet
+                            // identity diverged from ProduceViewsPerLevelCommand
+                            // (which leaves Tag null) and the two produced two full
+                            // sets of sheets. Tag is reserved for an extra
+                            // distinguishing dimension (scope box / room / grid),
+                            // not the level, so leave it null here to converge.
+                            var ctx = new DrawingContext { Level = level };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
 
                             stats.ViewsProduced   += res.ViewIds.Count;
