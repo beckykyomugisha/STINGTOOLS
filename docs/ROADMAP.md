@@ -474,23 +474,61 @@ retention release and the sign-off guard. Still open:
   `CEILING_FOLLOW` / `FLOOR_FOLLOW` rule tokens are normalized to the nearest
   drop engine with an honest warning (Part C.5). A genuine follower router
   (route along wall/ceiling faces, not a drop) is net-new work.
-- **Data-driven Auto-place category checklist.** The 19 category checkboxes
-  are hardcoded; non-placeable ones (Conduits/Pipes/Cable Trays routing
-  outputs; Specialty/Nurse Call needing rule packs) are annotated via tooltips
-  rather than driven from the engine's supported-category set. A registry-driven
-  checklist would prevent UI↔engine drift.
-- **PlacementRule push-to-family-types fields.** `Material` / `GlazingSpec` /
-  `InsulationThicknessMm` / `NominalDiameterMm` / `MaintenanceClearance` and
-  the advisory fields (`ToughenedGlazingRequired` / `MinSlopePercent` /
-  `MinUniformityRatio` / `ExposureClass` / `EmitSupports`) are loaded + edited
-  but not consumed by the placement engine (DEFERRED in the CHANGELOG table).
-  Either wire them into the push-to-family-types pass / a post-validator, or
-  retire the editor cards.
-- **StandardRef ↔ ApplicableStandards.** The profile standards gate keys off
-  the structured `ApplicableStandards`; rules citing standards only via
-  free-text `StandardRef` are kept (not dropped) and the engine warns when the
-  filter is inert. Backfilling `ApplicableStandards` across the rule packs (or
-  a normalized StandardRef token match) would make the standards filter active.
+- ~~**Data-driven Auto-place category checklist.**~~ **Closed (Phase 225)** —
+  the checklist is generated from `PlacementCategoryRegistry`
+  (`STING_CATEGORY_TO_SEED_MAP.json` v2 + the loaded rules). Non-placeable
+  categories render disabled with the registry's own reason; ruleless ones
+  render muted. `Ducts` and `Cable Trays` added to the map.
+- ~~**PlacementRule push-to-family-types fields.**~~ **Closed (Phase 225)** —
+  audit found six of the ten fields were already consumed on the routing /
+  lighting-grid paths. `Material` / `GlazingSpec` / `ToughenedGlazingRequired` /
+  `InsulationThicknessMm` / `NominalDiameterMm` / `MaintenanceClearance` are now
+  pushed to family types (writing `STING_MAINT_CLEAR_TXT` activates
+  `MaintenanceAccessValidator`, which had no writer), and
+  `PlacementAdvisoryValidator` reports fields that cannot take effect on a
+  rule's configuration. Two underlying defects fixed: `MaintenanceClearance` was
+  typed `double` against a class-code ComboBox so every selection was discarded,
+  and the glazing / clearance editors had no commit handler at all.
+- ~~**StandardRef ↔ ApplicableStandards.**~~ **Closed (Phase 225)** —
+  `ApplicableStandards` backfilled across 128 rules in 8 packs (structured
+  coverage 206/408 → 334/408) and matching moved to `StandardsTokenMatcher`,
+  which normalises spacing, edition years and `/`-separated citations. The
+  warn-when-inert fallback is retained and now also reports how many rules
+  bypass the gate untagged.
+
+  ~~Still open in this area: 74 rules carry neither `ApplicableStandards` nor
+  `StandardRef`.~~ **Closed (Phase 226)** — by then 117 rules were untagged; all
+  are now tagged with the governing standard for their category (coverage
+  451/451). Note the behaviour change: those rules used to pass *every* profile,
+  so a single-standard profile now sees far fewer rules (`["BS 7671"]`: 175 → 79).
+  Profiles should list all applicable standards.
+
+  Phase 226 also cleaned the token vocabulary (155 → 121 distinct, 45 → 0 glued-
+  prose tokens) and fixed a `StandardsTokenMatcher` false positive the mangled
+  tokens had been masking: any standard numbered 1800–2199 (`BS EN 1838`, the
+  `EN 1990`–`1999` Eurocodes) collapsed to its prefix and matched every sibling.
+
+- ~~**Editor cards with no commit handler (beyond glazing / clearance).**~~
+  **Closed (Phase 226)** — a systematic audit of the per-rule sync block found 16
+  further controls populated from the rule with no write-back (including
+  `txtStandardsCsv`, the `ApplicableStandards` editor itself). All wired via
+  `CommitField`; only the two intentional read-only displays (`txtSourcePack`,
+  `txtRuleError`) remain uncommitted.
+
+- **Placement Centre in-Revit verification.** The Phase 225/226 UI work has never
+  been exercised in Revit: no interactive session was available and
+  `StingTools.Headless` is a Design Automation library with no local entry point.
+  Outstanding: checklist rendering and grouping, disabled/muted states (the
+  `ItemsControl` binding + `ToolTipService.ShowOnDisabled` are the highest-risk
+  untested pieces — a binding typo renders an empty checklist), All/None, tick
+  preservation across a rule reload, the maintenance-clearance and glazing
+  round-trips, "Push to Families" writes, and the `MaintenanceAccessValidator`
+  type-fallback read path with both instance- and type-scope bindings.
+
+- **Wall/ceiling/floor-follow router (stretch, still open).** `EffectiveRoutingMode`
+  still normalises every `WALL_FOLLOW` / `CEILING_FOLLOW` / `FLOOR_FOLLOW` token to
+  the nearest drop engine with an honest warning. A genuine face-follower is
+  net-new engine work that cannot be verified without a Revit runtime.
 
 ## BOQ / Cost — residual gaps (post Stage-B integration)
 

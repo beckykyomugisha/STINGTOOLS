@@ -13,6 +13,7 @@
       "Priority": 80,
       "VariantHint": "BEDHEAD,TRUNKING",
       "StandardRef": "HTM 02-01 / HTM 08-03",
+      "ApplicableStandards": ["HTM 02-01", "HTM 08-03"],
       "Notes": "Bedhead trunking centred above bed; 4-gas medical services."
     },
     {
@@ -29,6 +30,7 @@
       "Priority": 75,
       "VariantHint": "O2,SUCTION,4GAS",
       "StandardRef": "HTM 02-01",
+      "ApplicableStandards": ["HTM 02-01"],
       "Notes": "Oxygen + suction outlets at 1500 mm AFF beside bedhead."
     },
     {
@@ -42,6 +44,7 @@
       "Priority": 90,
       "VariantHint": "PENDANT",
       "StandardRef": "HTM 02-01 / HBN 26",
+      "ApplicableStandards": ["HTM 02-01", "HBN26"],
       "Notes": "Surgical ceiling pendant at theatre centre."
     },
     {
@@ -55,6 +58,7 @@
       "MaxPerRoom": 1,
       "Priority": 75,
       "StandardRef": "HTM 08-03",
+      "ApplicableStandards": ["HTM 08-03"],
       "VariantHint": "RESET",
       "Notes": "Reset / over-door indicator beside ward-room door."
     },
@@ -67,6 +71,7 @@
       "MaxPerRoom": 1,
       "Priority": 70,
       "StandardRef": "HBN 04-01",
+      "ApplicableStandards": ["HBN04-01"],
       "VariantHint": "BED",
       "Notes": "Hospital bed centred with 600 mm transfer clearance both sides."
     },
@@ -82,6 +87,7 @@
       "Priority": 70,
       "VariantHint": "IFP,WHITEBOARD",
       "StandardRef": "BB103",
+      "ApplicableStandards": ["BB 103"],
       "Notes": "Interactive flat panel front-of-room, 1100 mm AFF (KS3+)."
     },
     {
@@ -95,6 +101,7 @@
       "Priority": 80,
       "VariantHint": "IFP,WHITEBOARD",
       "StandardRef": "BB103 KS1",
+      "ApplicableStandards": ["BB 103KS1"],
       "Notes": "Lower IFP for KS1 \u2014 800 mm AFF."
     },
     {
@@ -108,6 +115,7 @@
       "MaxPerRoom": 0,
       "Priority": 55,
       "StandardRef": "BB103",
+      "ApplicableStandards": ["BB 103"],
       "Notes": "Coat / locker run at 400 mm centres.",
       "VariantHint": "ED_CASEWORK_CLOAK"
     },
@@ -125,6 +133,7 @@
       "MaxPerRoom": 1,
       "Priority": 65,
       "StandardRef": "BB103 / BICSI",
+      "ApplicableStandards": ["BB 103", "BICSI"],
       "Notes": "Teacher wall-plate (HDMI + RJ45) beside IFP."
     },
     {
@@ -137,6 +146,7 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "StandardRef": "BB103",
+      "ApplicableStandards": ["BB 103"],
       "Notes": "1 dining seat per pupil at peak sitting.",
       "VariantHint": "ED_FURNITURE_CANTEEN_DENSITY"
     }

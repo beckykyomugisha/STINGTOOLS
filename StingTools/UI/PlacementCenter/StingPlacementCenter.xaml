@@ -904,43 +904,59 @@
                                 </WrapPanel>
                             </Grid>
 
-                            <!-- Phase 139.8 - explicit category checklist for what to auto-place.
+                            <!-- Auto-place category checklist. Generated from
+                                 PlacementCategoryRegistry (STING_CATEGORY_TO_SEED_MAP.json +
+                                 the loaded rule set) rather than hand-declared, so the UI cannot
+                                 drift from what the engine can actually point-place.
                                  When ALL boxes are off, every category in the active rule pack is allowed.
-                                 When ANY box is ticked, only those categories are placed. -->
+                                 When ANY box is ticked, only those categories are placed.
+                                 Non-placeable categories (routing outputs, host elements) render
+                                 disabled with the registry's own reason as their tooltip. -->
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource LabelStyle}" Text="Auto-place"
-                                           ToolTip="Tick the categories the run should auto-place. Empty = every category in the active rule pack. Ticking a category with no matching rule places nothing. Conduits / Pipes / Cable Trays are routing outputs (see Integrated Routing), not point-placement targets."/>
-                                <WrapPanel Grid.Column="1">
-                                    <CheckBox x:Name="cbCatElec"   Content="Electrical Fixtures"  Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatLtgDev" Content="Lighting Devices"     Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatLtgFix" Content="Lighting Fixtures"    Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatComm"   Content="Communication Devices" Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatData"   Content="Data Devices"         Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatSec"    Content="Security Devices"     Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatFire"   Content="Fire Alarm Devices"   Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatPlm"    Content="Plumbing Fixtures"    Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatHvac"   Content="Air Terminals"        Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatSpr"    Content="Sprinklers"           Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatMech"   Content="Mechanical Equipment" Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target - conduit is created by Integrated Routing (AUTO_CONDUIT), not placed here. Used only as an obstruction during placement."/>
-                                    <CheckBox x:Name="cbCatJBox"   Content="Junction Boxes"       Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target - pipe is created by Integrated Routing (AUTO_PIPE), not placed here. Used only as an obstruction during placement."/>
-                                    <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target - cable tray is created by Integrated Routing, not placed here. Used only as an obstruction during placement."/>
-                                    <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"
-                                              ToolTip="No baseline rules ship for this category - only places when a project / specialty rule pack covers it."/>
-                                    <CheckBox x:Name="cbCatFurn"   Content="Furniture"            Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"
-                                              ToolTip="Requires the healthcare rule pack - no baseline rules or anchor support ship for this category."/>
-                                    <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="6,0,4,2"/>
-                                    <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
-                                </WrapPanel>
+                                           ToolTip="Tick the categories the run should auto-place. Empty = every category in the active rule pack. Greyed-out entries are categories the placement engine cannot point-place (routing outputs and host elements) - hover one for the reason. Muted entries are placeable but have no rule in the active pack, so ticking them places nothing."/>
+                                <StackPanel Grid.Column="1">
+                                    <ItemsControl x:Name="icCategoryChecklist"
+                                                  ItemsSource="{Binding VM.CategoryChecklist, RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Display}"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                          IsEnabled="{Binding IsPlaceable}"
+                                                          ToolTip="{Binding Reason}"
+                                                          ToolTipService.ShowOnDisabled="True"
+                                                          Margin="0,0,8,2">
+                                                    <CheckBox.Style>
+                                                        <Style TargetType="CheckBox">
+                                                            <Style.Triggers>
+                                                                <!-- Placeable, but no rule in the active pack: legal to
+                                                                     tick, places nothing. Muted rather than disabled. -->
+                                                                <DataTrigger Binding="{Binding IsInert}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#999"/>
+                                                                    <Setter Property="FontStyle"  Value="Italic"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </CheckBox.Style>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <WrapPanel Margin="0,2,0,0">
+                                        <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="0,0,4,2"
+                                                ToolTip="Tick every placeable category. Non-placeable categories stay off."/>
+                                        <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
+                                    </WrapPanel>
+                                </StackPanel>
                             </Grid>
                         </StackPanel>
                     </GroupBox>

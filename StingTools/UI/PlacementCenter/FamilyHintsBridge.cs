@@ -161,6 +161,34 @@ namespace StingTools.UI.PlacementCenter
                         if (TrySetString(sym, "STING_STANDARD_REF_TXT",    vm.StandardRef ?? "")) { writes++; any = true; }
                         if (TrySetString(sym, "STING_UNICLASS_PR_TXT",     vm.UniclassPr  ?? "")) { writes++; any = true; }
 
+                        // Specification fields. These were loaded from the rule
+                        // pack and (for glazing) authored across 30 window rules,
+                        // but nothing downstream of a point-placement run ever
+                        // read them — only the routing engines did, and only for
+                        // routing rules. Pushing them onto the family types makes
+                        // them visible to schedules, COBie and the validators.
+                        //
+                        // STING_MAINT_CLEAR_TXT specifically is the parameter
+                        // MaintenanceAccessValidator reads: nothing wrote it
+                        // before, so that validator could never fire. Writing the
+                        // rule's clearance class here is what activates it.
+                        var m = vm.Model;
+                        if (m != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(m.Material)
+                                && TrySetString(sym, "STING_MATERIAL_TXT", m.Material)) { writes++; any = true; }
+                            if (!string.IsNullOrWhiteSpace(m.GlazingSpec)
+                                && TrySetString(sym, "STING_GLAZING_SPEC_TXT", m.GlazingSpec)) { writes++; any = true; }
+                            if (TrySetInteger(sym, "STING_GLAZING_TOUGHENED_YN",
+                                              m.ToughenedGlazingRequired ? 1 : 0)) { writes++; any = true; }
+                            if (m.InsulationThicknessMm > 0
+                                && TrySetLengthMm(sym, "STING_INSULATION_THK_MM", m.InsulationThicknessMm)) { writes++; any = true; }
+                            if (m.NominalDiameterMm > 0
+                                && TrySetLengthMm(sym, "STING_NOMINAL_DIA_MM", m.NominalDiameterMm)) { writes++; any = true; }
+                            if (!string.IsNullOrWhiteSpace(m.MaintenanceClearance)
+                                && TrySetString(sym, "STING_MAINT_CLEAR_TXT", m.MaintenanceClearance)) { writes++; any = true; }
+                        }
+
                         // PC-11 — clearance / weight / envelope / fire separation
                         if (extras != null)
                         {

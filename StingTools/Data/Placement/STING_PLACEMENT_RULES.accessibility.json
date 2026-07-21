@@ -11,10 +11,7 @@
       "AccessibilityCheck": true,
       "HeightStandard": "BS8300_GRAB_RAIL_WC",
       "VariantHint": "GRAB_RAIL,HORIZONTAL",
-      "ApplicableStandards": [
-        "BS8300",
-        "PartM"
-      ],
+      "ApplicableStandards": ["BS 8300", "PartM"],
       "Priority": 80
     },
     {
@@ -24,9 +21,7 @@
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 800.0,
       "VariantHint": "GRAB_RAIL,VERTICAL",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 78
     },
     {
@@ -37,9 +32,7 @@
       "MountingHeightMm": 700.0,
       "DependsOn": "bath",
       "VariantHint": "GRAB_RAIL",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 75
     },
     {
@@ -50,9 +43,7 @@
       "MountingHeightMm": 700.0,
       "DependsOn": "shower",
       "VariantHint": "GRAB_RAIL",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 75
     },
     {
@@ -64,9 +55,7 @@
       "AccessibilityCheck": true,
       "HeightStandard": "BS8300_PULL_CORD",
       "VariantHint": "PULLCORD,EMERGENCY",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 85
     },
     {
@@ -76,9 +65,7 @@
       "MountingHeightMm": 0.0,
       "PerLinearMetre": 2.0,
       "VariantHint": "LOOP_CABLE",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 65
     },
     {
@@ -89,9 +76,7 @@
       "AccessibilityCheck": true,
       "HeightStandard": "BS8300_SOCKET_HIGH",
       "VariantHint": "BELL,INTERCOM",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 70
     },
     {
@@ -102,10 +87,7 @@
       "MountingHeightMm": 0.0,
       "OffsetXMm": -300.0,
       "VariantHint": "TACTILE_HAZARD",
-      "ApplicableStandards": [
-        "BS8300",
-        "PartM"
-      ],
+      "ApplicableStandards": ["BS 8300", "PartM"],
       "Priority": 75
     },
     {
@@ -115,9 +97,7 @@
       "AnchorType": "CORRIDOR_JUNCTION",
       "MountingHeightMm": 0.0,
       "VariantHint": "TACTILE_DIRECTION",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 70
     },
     {
@@ -128,9 +108,7 @@
       "MountingHeightMm": 1000.0,
       "AccessibilityCheck": true,
       "VariantHint": "MIRROR,TILTED",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 65
     },
     {
@@ -140,9 +118,7 @@
       "MountingHeightMm": 800.0,
       "AccessibilityCheck": true,
       "VariantHint": "SHELF",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 55
     },
     {
@@ -153,9 +129,7 @@
       "SideConstraint": "LATCH_SIDE",
       "AccessibilityCheck": true,
       "VariantHint": "ROOM_SIGN,TACTILE",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 70
     },
     {
@@ -165,9 +139,7 @@
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 1500.0,
       "VariantHint": "DIRECTIONAL_SIGN",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 65
     },
     {
@@ -179,10 +151,7 @@
       "AccessibilityCheck": true,
       "HeightStandard": "PARTM_RECEPTION_DESK",
       "VariantHint": "LOWERED",
-      "ApplicableStandards": [
-        "BS8300",
-        "PartM"
-      ],
+      "ApplicableStandards": ["BS 8300", "PartM"],
       "Priority": 70
     },
     {
@@ -192,9 +161,7 @@
       "MountingHeightMm": 900.0,
       "AccessibilityCheck": true,
       "VariantHint": "PUSH_PAD,DDA",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 75
     },
     {
@@ -206,9 +173,7 @@
       "HeightStandard": "BS8300_SOCKET_HIGH",
       "VariantHint": "LIFT_CALL",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 80
     },
     {
@@ -218,9 +183,7 @@
       "MountingHeightMm": 900.0,
       "PerLinearMetre": 1.0,
       "VariantHint": "HANDRAIL",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 75
     },
     {
@@ -229,9 +192,7 @@
       "AnchorType": "ROOM_CENTRE",
       "PerAreaM2": 50.0,
       "VariantHint": "DISABLED_BAY",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 70
     },
     {
@@ -241,9 +202,7 @@
       "MountingHeightMm": 0.0,
       "PerLinearMetre": 1.0,
       "VariantHint": "CONTRAST_STRIP",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 60
     },
     {
@@ -252,9 +211,7 @@
       "AnchorType": "ROOM_CENTRE",
       "PerWorkstation": 10.0,
       "VariantHint": "HEIGHT_ADJUST",
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 65
     }
   ]

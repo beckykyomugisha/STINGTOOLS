@@ -2,6 +2,216 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 226 — Placement Centre: tests actually run, matcher false-positive fixed, remaining editor cards wired, rule set fully tagged)
+
+Verification pass on #458 with a real toolchain. The headline is that the test
+project had **never been executed** — the sandbox that wrote it has no `dotnet`,
+and CI builds only `StingTools/StingTools.csproj`. Everything below was proven
+locally, not asserted.
+
+**1. The test suite runs, and is not vacuous.**
+`dotnet test StingTools.Placement.Tests` → **69 passed / 0 failed** (the earlier
+"45"/"48" claims were never observed by a runner). The shims still match the real
+types, so the project compiles. Because a passing suite proves nothing on its own,
+each load-bearing behaviour was mutation-tested — the fix was reverted and the
+suite re-run:
+
+| Mutation | Result |
+|---|---|
+| zero-coercion removed from `PlacementRule.MaintenanceClearance` | **4 failed** |
+| edition-year stripping disabled in `StandardsTokenMatcher` | **2 failed** |
+| `/` removed from the separator set (the exact pre-fix bug) | **2 failed** |
+| rule-pack data reverted to pre-Phase-224 | **4 failed** |
+
+**2. `StandardsTokenMatcher` had a live false-positive bug — found by cleaning the data.**
+The trailing-year strip fired on any 4-digit group in 1800–2199, so **`"BS EN 1838"`
+(emergency lighting) normalised to `"BSEN"`** — which then substring-matched every
+other BS EN standard. The whole Eurocode family (`EN 1990`–`EN 1999`) is in that
+window. The bug was masked because the mangled space-free tokens (`BSEN1838`) never
+hit the space-separated branch; cleaning them exposed it.
+
+A space-separated 4-digit group is now only treated as an edition year when the
+citation still carries a number without it: `"BS 8233 2014"` → `BS8233` (strip),
+`"BS EN 1838"` → `BSEN1838` (keep), `"Equality Act 2010"` → `EQUALITYACT2010` (keep).
+
+**3. Standards token vocabulary cleaned.**
+Phase 225's backfill built tokens by stripping whitespace out of free text, gluing
+prose onto identifiers: `"ADA §604.4 (432-483mm seat height)"` →
+`"ADA§604.4(432-483mmseatheight)"`, `"BS 8233 daylight"` → `"BS8233daylight"`, and
+three separate spellings of CIBSE Guide B. 284 rules re-tokenised to clean
+identifiers; **155 → 121 distinct tokens, 45 → 0 mangled**. Proven
+behaviour-preserving: a 451-rule × 15-profile gate snapshot taken before and after
+shows **0 changed outcomes** once the matcher bug above is fixed.
+
+**4. All 117 untagged rules tagged — the gate is now total.**
+Rules carrying neither `ApplicableStandards` nor `StandardRef` passed the gate
+unconditionally. All 117 are now tagged with the governing standard for their
+category, refined by category-scoped RuleId keywords. Coverage is **451/451**;
+`onlyStandardRef` and `untagged` are both **0**.
+
+> **Behaviour change — read before upgrading.** Those 117 rules used to be included
+> by *every* profile. A single-standard profile now sees far fewer rules: e.g.
+> `ActiveStandards: ["BS 7671"]` goes from 175 included rules to 79. This is the
+> gate working as designed (a BS 7671-only profile should not place windows), but
+> profiles should list **all** applicable standards, not one. The engine already
+> reports `"Building profile … filtered out N of M rule(s)"` on every run.
+
+An earlier pass of this tagging mis-fired: unscoped RuleId keywords tagged
+`win-residential-bathroom` (a Window) with BS 7671 wet-zone rules and
+`win-carpark-perimeter` with external-lighting rules. Keywords are now scoped to
+the categories they can legitimately apply to, and merge with the category default
+rather than replacing it.
+
+**5. The remaining uncommitted editor cards are wired.**
+Phase 225 fixed three; a systematic audit (every control assigned from a
+`s.<Property>` in the per-rule sync block, cross-referenced against wired handlers)
+found **16 more** populated from the selected rule with no write-back, so their
+edits were discarded on selection change. Notably `txtStandardsCsv` — the
+`ApplicableStandards` editor itself could not be edited. All 16 now commit via
+`CommitField`. The only remaining uncommitted controls are the two intentional
+read-only displays (`txtSourcePack`, `txtRuleError`).
+
+**6. Rule-pack loading is now runtime-verified, not just build-verified.**
+New `RulePackDataTests` deserialises all 17 packs through the real
+`PlacementRuleSet` + `StringOrCsvArrayConverter` path and asserts the coverage and
+token-hygiene invariants, plus the `STING_CATEGORY_TO_SEED_MAP.json` v2
+`placeable`/`reason` contract and that the routing-output categories are
+non-placeable. This is what previously could only happen inside Revit.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**.
+
+**Still not verified — no Revit runtime was available.** `StingTools.Headless` is a
+Design Automation *library* (`OutputType: Library`, read-only engines, no local
+entry point), so it cannot host the Placement Centre. The interactive checks —
+checklist rendering, disabled/muted states, the `ItemsControl` binding and
+`ToolTipService.ShowOnDisabled`, All/None, tick preservation, the clearance and
+glazing round-trips, "Push to Families", and the `MaintenanceAccessValidator` type-
+fallback read path — remain outstanding and are listed in the PR. The stretch
+wall/ceiling/floor-follow router was not attempted for the same reason.
+
+#### Completed (Phase 225 — Placement Centre: data-driven category checklist, rule-field consumption, standards-gate activation)
+
+Closes three of the four residual gaps under ROADMAP § "Placement Centre —
+residual gaps". Built and tested on this machine; **not exercised inside Revit**
+— see the verification checklist in the PR.
+
+**1. The Auto-place checklist is generated, not hand-declared.**
+The 19 category checkboxes were `x:Name`d in XAML with a parallel
+`CategoryChecklist()` tuple array in code-behind and hand-written tooltips —
+three places to keep in sync with the engine, and `Cable Trays` was already
+absent from the seed map it was supposed to mirror. The list now comes from a
+new `Core/Placement/PlacementCategoryRegistry`, which joins
+`STING_CATEGORY_TO_SEED_MAP.json` (bumped to v2 with a `placeable` / `reason` /
+`group` / `order` contract) against the rules actually loaded for the run:
+
+- non-placeable categories (Conduits / Pipes / **Ducts** / **Cable Trays** /
+  Stairs) render **disabled** with the registry's own reason as the tooltip,
+  and `ToolTipService.ShowOnDisabled` so the reason is actually readable;
+- placeable-but-ruleless categories render **muted italic** with a generated
+  "ticking this places nothing until a rule pack covers it" reason — the state
+  that used to look like a bug;
+- a category named only by a rule's `CategoryFilter` and absent from the map is
+  still offered, flagged as having no declared seed, rather than silently dropped;
+- "All" means "all placeable" — `PlacementCategoryCheckItem.IsChecked` refuses
+  non-placeable categories at the setter, so no code path can tick one.
+
+The old "N of M checkboxes are NULL → stale XAML build" diagnostic is replaced
+by the equivalent check for the generated path (empty collection → warn, and
+fall back to "every category allowed").
+
+**2. Rule specification fields are consumed — and the ledger is honest.**
+The ROADMAP listed ten fields as "loaded + edited but not consumed". Auditing
+them found that is true of only some, and that two *separate* defects were
+hiding underneath:
+
+| Field | Actual state before this change |
+|---|---|
+| `MinSlopePercent` | consumed — `InWallChaseRouter` / `WallFollowerRouter` → `SlopeValidator` |
+| `NominalDiameterMm` | consumed — chase depth + `RoutingSupportPlacer` |
+| `InsulationThicknessMm` | consumed — `RoutingSupportPlacer`, `InWallChaseRouter` |
+| `MinUniformityRatio` | consumed — `LightingGridCalculator` |
+| `ExposureClass` | consumed — `InWallChaseRouter` → `ConcreteCoverTable` |
+| `EmitSupports` | consumed — `RoutingSupportPlacer`, `WallFollowerRouter` |
+| `Material` | consumed on the routing path only |
+| `MaintenanceClearance` | **not consumed, and the editor was broken** |
+| `GlazingSpec`, `ToughenedGlazingRequired` | **not consumed, and the editors were broken** |
+
+- **`MaintenanceClearance` was typed `double`** while its editor is a ComboBox
+  offering class codes (`FRONT_600`, `SIDES_300`, …) and `MaintenanceAccessValidator`
+  reads a class-code *string* from `STING_MAINT_CLEAR_TXT`. The view-model parsed
+  the selection with `double.TryParse("FRONT_600")`, which always failed, so the
+  field was always `0` and every selection was silently discarded. Retyped to
+  the class-code string. No rule pack set the field, so there is no data to migrate.
+- **`chkToughenedGlazing`, `cmbGlazingSpec` and `cmbMaintenanceClearance` had no
+  commit handler at all** — populated from the selected rule, never written back,
+  so edits were lost on selection change. This is the real reason the fields
+  looked unconsumed: they were never *edited*. Handlers added.
+- `FamilyHintsBridge.PushRuleToFamilyTypes` now pushes `Material`, `GlazingSpec`,
+  `ToughenedGlazingRequired`, `InsulationThicknessMm`, `NominalDiameterMm` and
+  `MaintenanceClearance` onto the family types. **Writing `STING_MAINT_CLEAR_TXT`
+  is what activates `MaintenanceAccessValidator`** — nothing had ever written that
+  parameter, so that validator could not previously fire.
+- New `Core/Placement/PlacementAdvisoryValidator` runs post-placement and reports
+  fields that are set but cannot take effect on that rule's configuration
+  (`MinSlopePercent` with `RoutingMode: NONE`, `MinUniformityRatio` off a
+  lighting-grid anchor, an unrecognised clearance class code, `ToughenedGlazingRequired`
+  contradicting `GlazingSpec`, …). Advisory only — never blocks a run, never edits
+  the model, capped at 25 entries with the remainder logged. Fields that are
+  push-only rather than dead say so explicitly instead of being reported as discarded.
+
+**3. The standards gate is active.**
+`ApplicableStandards` backfilled from free-text `StandardRef` across **128 rules
+in 8 packs**, taking structured coverage from 206/408 to **334/408**; no rule now
+carries `StandardRef` without `ApplicableStandards`. Backfill was
+formatting-preserving (per-rule text insertion matching local indentation and
+inline style), so the diff is 128 added lines and nothing else.
+
+Matching moved to a new `Core/Placement/StandardsTokenMatcher`, because the
+previous inline comparison missed the pairings that actually occur in the packs
+— `"BS 7671"` vs `"BS7671"`, `"BS EN 12464"` vs `"BS EN 12464-1:2011"`, and
+`"Approved Doc M / BS 8300-2"` (`/` was not a separator). A missed match silently
+drops a rule from the run. The matcher splits on `,;|/`, strips edition years
+while keeping part numbers, and compares on letters+digits only. The
+warn-when-inert fallback is retained and sharpened: with rules tagged, it now
+reports how many rules carry neither field and therefore bypass the gate.
+
+**Tests — new `StingTools.Placement.Tests` (45 passing).** A pure-logic project
+following the `StingTools.Routing.Tests` pattern (no Revit assemblies; minimal
+shims in `TestHelpers/`). Deliberately does **not** touch `StingTools.Tags.Tests`,
+which is owned by an in-flight change. Covers the matcher's regression pairings
+and both halves of the advisory contract — fires when inert, silent when the
+field is on a consuming path.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**, unchanged from baseline.
+
+**Review follow-up (same PR).** Seven points from code review addressed:
+
+- **`MaintenanceAccessValidator` now reads the type as well as the instance.**
+  `PushRuleToFamilyTypes` writes `STING_MAINT_CLEAR_TXT` onto family *types*, but
+  the validator read it via an instance-side `LookupParameter`, which does not
+  resolve a type-bound parameter — so the write could land and still never be
+  read. `ReadString` now falls back to `el.Document.GetElement(el.GetTypeId())`.
+  This is what actually closes the "activates `MaintenanceAccessValidator`" loop.
+- **Backfill token hygiene.** The `StandardRef`→`ApplicableStandards` split ran on
+  prose in the toilet-fixtures pack (`/` inside `l/s` and parentheticals),
+  producing non-standard tokens like `sminextractforWC`, `17inchrim)` and
+  `standardresidential1500mmAFF`. Gating still worked (the real citations survived
+  as prefixes) but the structured field carried noise; 15 arrays re-curated to
+  clean identifiers (`["Approved Doc F", "BS 5720", "CIBSE Guide B2"]`, …).
+- **Legacy-`"0"` coercion.** `PlacementRule.MaintenanceClearance` now coerces a
+  purely-zero numeric to empty, so re-importing an Excel sheet exported under the
+  old `double` shape does not resurrect a `"0"` that the validator would skip and
+  Push-to-Families would stamp. A non-zero typo like `"600"` is kept so the
+  advisory still flags it. Pinned by `PlacementRuleMaintenanceClearanceTests`.
+- **Advisory scoping comment** corrected to state that a null/empty result (tests,
+  or a run that placed nothing) reports on all rules, matching the code.
+- **Test shim fidelity.** `PlacementResultShim.CountsByRule` uses the default
+  case-sensitive comparer, matching the real `PlacementResult`, so it can't be
+  more forgiving than production.
+- **Untagged-count** in the standards-gate warning now counts non-null rules only.
+- **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
+  coerces a rejected tick, so a TwoWay binding reverts its visual.
+
 #### Completed (data sync — gate-param TEXT→YESNO datatype alignment, supersedes PR #337)
 
 Re-applied the gate-parameter datatype fix from PR #337

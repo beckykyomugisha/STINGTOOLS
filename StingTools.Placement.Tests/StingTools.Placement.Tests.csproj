@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- Pure-logic test project for the STING placement rule layer. Mirrors the
+         StingTools.Routing.Tests / StingTools.Clash.Tests pattern: NO reference
+         to Revit assemblies. PlacementRule is already a pure POCO; the only
+         Revit-adjacent type the units under test touch is PlacementResult, and
+         a minimal shim for it lives in TestHelpers/. Run via `dotnet test` on
+         any CI host.
+
+         Deliberately does NOT touch StingTools.Tags.Tests, which is owned by
+         another in-flight change. -->
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>disable</Nullable>
+    <NoWarn>CS0067;CS0168;CS8632;CS0108</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\StingTools\Core\Placement\StandardsTokenMatcher.cs"
+             Link="Placement\StandardsTokenMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Placement\PlacementAdvisoryValidator.cs"
+             Link="Placement\PlacementAdvisoryValidator.cs" />
+    <Compile Include="..\StingTools\Core\Placement\PlacementRule.cs"
+             Link="Placement\PlacementRule.cs" />
+  </ItemGroup>
+
+</Project>

@@ -21,6 +21,7 @@
       "GuaranteeCoverage": true,
       "Priority": 95,
       "StandardRef": "BS 6465-1:2006 cl.5.3; ADA \u00a7604.2; ANSI A117.1-2017",
+      "ApplicableStandards": ["BS 6465-1", "ADA §604.2", "ANSIA117.1-2017"],
       "UniclassPr": "Pr_70_65_75",
       "Notes": "WC close-coupled pan centered on window, 305mm rough-in from back wall (12-inch US standard / BS 6465 min). Floor-mounted. Window wall provides natural ventilation per BS 5925. Toilet faces inward toward door. Accessories DependsOn this RuleId."
     },
@@ -42,6 +43,7 @@
       "GuaranteeCoverage": true,
       "Priority": 98,
       "StandardRef": "BS 8300:2018 cl.12.3; ADA \u00a7604.4 (432-483mm seat height); HTM 04-01",
+      "ApplicableStandards": ["BS 8300", "ADA §604.4", "HTM 04-01"],
       "UniclassPr": "Pr_70_65_75",
       "Notes": "Comfort-height WC for accessible/ADA toilet rooms. Seat at 432-483mm AFF (17-19 inches). Centered on window, 305mm rough-in. Wall-hung variant preferred (floor clearance for wheelchair approach)."
     },
@@ -63,6 +65,7 @@
       "GuaranteeCoverage": true,
       "Priority": 96,
       "StandardRef": "BS 6465-1:2006; DIN 19516",
+      "ApplicableStandards": ["BS 6465-1", "DIN19516"],
       "UniclassPr": "Pr_70_65_75",
       "Notes": "Wall-hung WC with concealed cistern in duct. Pan at 400mm AFF (std) or 430-480mm (comfort). Offset 150mm from back wall (cistern in duct). Use in hotel/en-suite/premium fit-out. Cleaner floor access."
     },
@@ -82,6 +85,7 @@
       "MaxPerRoom": 1,
       "Priority": 70,
       "StandardRef": "BS 6465-1:2006 cl.5.3",
+      "ApplicableStandards": ["BS 6465-1"],
       "UniclassPr": "Pr_70_65_75",
       "Notes": "Fallback rule when no window found. WC placed 400mm from corner, 305mm rough-in from back wall. Mechanical extract ventilation required (Approved Doc F: min 6 l/s intermittent or 15 l/s continuous)."
     },
@@ -101,6 +105,7 @@
       "MaxPerRoom": 0,
       "Priority": 85,
       "StandardRef": "BS 6465-1:2006 cl.5.7; ADA \u00a7605.2 (rim at max 432mm AFF for ADA)",
+      "ApplicableStandards": ["BS 6465-1", "ADA §605.2"],
       "UniclassPr": "Pr_70_65_75_35",
       "Notes": "Urinal rim at 610mm AFF (24 inches, standard). 700mm min centre-to-centre per BS 6465. 150mm from wall face. Flat-back urinal preferred. Privacy screen between stalls at 900mm projection."
     },
@@ -119,6 +124,7 @@
       "MaxPerRoom": 1,
       "Priority": 92,
       "StandardRef": "ADA \u00a7605.2 (max 432mm / 17 inch rim); BS 8300:2018",
+      "ApplicableStandards": ["ADA §605.2", "BS 8300"],
       "UniclassPr": "Pr_70_65_75_35",
       "Notes": "ADA-compliant urinal. Rim at max 432mm AFF. Floor-mounted or low-rim wall-hung. Min 990mm \u00d7 1525mm clear floor space centred on fixture per ADA \u00a7605.3."
     },
@@ -139,6 +145,7 @@
       "GuaranteeCoverage": true,
       "Priority": 88,
       "StandardRef": "BS 6465-1:2006 cl.5.4 (rim 800-900mm); Approved Doc M (850-950mm)",
+      "ApplicableStandards": ["BS 6465-1", "Approved Doc M"],
       "UniclassPr": "Pr_70_65_74",
       "Notes": "Wash basin rim at 850mm AFF (UK standard). Placed on wall opposite to WC or on side wall. Min 450mm clearance from WC centreline (BS 6465). Semi-pedestal or wall-hung preferred. 15mm hot and cold supply; 32mm waste."
     },
@@ -157,6 +164,7 @@
       "MaxPerRoom": 1,
       "Priority": 94,
       "StandardRef": "ADA \u00a7606.3 (max 865mm / 34 inch rim); BS 8300:2018 cl.12.4 (720-740mm for wheelchair)",
+      "ApplicableStandards": ["ADA §606.3", "BS 8300"],
       "UniclassPr": "Pr_70_65_74",
       "Notes": "ADA/BS 8300 accessible basin. Rim at max 865mm AFF (USA) / 720-740mm (BS 8300 wheelchair). Wall-hung with knee clearance min 685mm AFF, 205mm deep, 760mm wide. Insulated pipes. 760mm \u00d7 1220mm clear floor space."
     },
@@ -176,6 +184,7 @@
       "MaxPerRoom": 0,
       "Priority": 82,
       "StandardRef": "BS 6465-1:2006; Approved Doc G",
+      "ApplicableStandards": ["BS 6465-1", "Approved Doc G"],
       "UniclassPr": "Pr_70_65_74",
       "Notes": "Commercial basin on dedicated washhand wall. 600mm min centres for individual basins or semi-circular/trough design. 1 basin per WC pan per BS 6465-3. 15mm hot/cold supply; 32-40mm waste."
     },
@@ -198,6 +207,7 @@
       "RelativeTo": "first",
       "Priority": 90,
       "StandardRef": "BS 6465-1:2006; ADA \u00a7604.7 (178-229mm from front edge, 381-1219mm AFF); BS 8300",
+      "ApplicableStandards": ["BS 6465-1", "ADA §604.7", "BS 8300"],
       "UniclassPr": "Pr_70_65_78_60",
       "Notes": "Toilet paper holder on RIGHT side wall (right when seated, facing door). Centre 200mm from WC centreline, 150mm forward of WC front edge, 600mm AFF (UK standard) / 660mm (US). ADA: 7-9 inches (178-229mm) from front of toilet, 15-48 inches (381-1219mm) AFF."
     },
@@ -219,6 +229,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 85,
       "StandardRef": "BS 6465-1:2006; commercial fit-out standard",
+      "ApplicableStandards": ["BS 6465-1"],
       "UniclassPr": "Pr_70_65_78_60",
       "Notes": "Double-roll toilet paper holder for commercial/high-traffic facilities. Right side, 600mm AFF, 200mm from WC centreline. Reduces service frequency."
     },
@@ -239,6 +250,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 84,
       "StandardRef": "BS 6465-1:2006",
+      "ApplicableStandards": ["BS 6465-1"],
       "UniclassPr": "Pr_70_65_78_60",
       "Notes": "Recessed in-wall toilet paper holder. Right of WC, 600mm AFF, 200mm from centreline. Requires 90mm min stud cavity. Reduces projection into clearance zone. Housing box 150\u00d7150\u00d785mm typical."
     },
@@ -259,6 +271,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 91,
       "StandardRef": "ADA \u00a7604.5.1 (838-965mm / 33-38 inch AFF; 1067mm long, 305mm from back wall); BS 8300:2018 cl.12.3 (800mm AFF, 680mm from back wall)",
+      "ApplicableStandards": ["ADA §604.5.1", "BS 8300"],
       "UniclassPr": "Pr_70_65_78_35",
       "Notes": "Side grab bar, right of WC. 838mm AFF (33 inches). Bar must extend from 305mm behind toilet to 762mm in front of toilet front edge (total 1067mm / 42 inches per ADA). Stainless steel 32-38mm diameter. BS 8300: 800mm AFF, min 700mm long."
     },
@@ -279,6 +292,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 91,
       "StandardRef": "ADA \u00a7604.5.2; BS 8300:2018 cl.12.3 (fold-down on transfer side)",
+      "ApplicableStandards": ["ADA §604.5.2", "BS 8300"],
       "UniclassPr": "Pr_70_65_78_35",
       "Notes": "Left-side fold-down grab bar for transfer space. Positioned on wall opposite the right grab bar. Fold-down type essential: must not block 900mm transfer space. 838mm AFF. 860mm projection from back wall. Swing-down clears when not in use."
     },
@@ -299,6 +313,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 90,
       "StandardRef": "ADA \u00a7604.5.2 (rear bar: 880-965mm / 34.5-38 inch AFF; 914mm long centred on toilet); BS 8300:2018 (200mm above seat)",
+      "ApplicableStandards": ["ADA §604.5.2", "BS 8300"],
       "UniclassPr": "Pr_70_65_78_35",
       "Notes": "Rear grab bar on window/back wall, centred on WC, 880mm AFF. 914mm (36 inch) minimum total length \u2014 152mm (6 in) from centreline to one side, 762mm (30 in) to other side. Provides push-up support from seated position."
     },
@@ -319,6 +334,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 78,
       "StandardRef": "BS 6465-1:2006; Equality Act 2010",
+      "ApplicableStandards": ["BS 6465-1", "Equality Act 2010"],
       "UniclassPr": "Pr_70_65_78",
       "Notes": "Sanitary/feminine hygiene bin, right of WC, floor-mounted. 350mm from WC centreline, tucked against right side wall. Mandatory in all female and unisex WC cubicles per NHS/commercial standards. Swing-lid or pedal-lid type."
     },
@@ -339,6 +355,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 65,
       "StandardRef": "Best practice / NHSS 59 recommendations",
+      "ApplicableStandards": ["NHSS 59"],
       "UniclassPr": "Pr_70_65_78",
       "Notes": "Toilet brush holder, right of WC, floor-mounted against right-side wall. 300mm from WC centreline. Concealed brushes preferred in commercial fit-out; freestanding in residential. Not used in healthcare (infection control \u2014 use disposable rim blocks instead)."
     },
@@ -361,6 +378,7 @@
       "RelativeTo": "first",
       "Priority": 80,
       "StandardRef": "BS 6465-1:2006; HTM 03-01; Approved Doc M (800-1000mm reach range)",
+      "ApplicableStandards": ["BS 6465-1", "HTM 03-01", "Approved Doc M"],
       "UniclassPr": "Pr_70_65_78_55",
       "Notes": "Wall-mounted soap/sanitiser dispenser, left of basin (closer to entry), 150mm from basin centreline, 950mm AFF. Dose: 1ml per pump for hand-washing. Healthcare: alcohol gel dispenser at 1200mm AFF (SHTM 03-01 / HTM 04-01). Stainless steel preferred in commercial."
     },
@@ -381,6 +399,7 @@
       "DependsOn": "toilet-basin-standard",
       "Priority": 72,
       "StandardRef": "BS 6465-1:2006",
+      "ApplicableStandards": ["BS 6465-1"],
       "Notes": "Countertop soap dispenser for vanity/counter units. Left of basin outlet, 100mm from centreline, on counter surface at 900mm."
     },
     {
@@ -402,6 +421,7 @@
       "RelativeTo": "first",
       "Priority": 82,
       "StandardRef": "ADA \u00a7603.3 (bottom edge max 1016mm AFF); BS 8300:2018 cl.12.7 (bottom edge 600-900mm)",
+      "ApplicableStandards": ["ADA §603.3", "BS 8300"],
       "UniclassPr": "Pr_70_65_78",
       "Notes": "Mirror centred on basin, bottom edge at 900mm AFF. ADA max 1016mm (40 inches) AFF for bottom edge. BS 8300: 900mm for standing; 600mm for wheelchair users. Min 300\u00d7400mm. Full-height mirrors (floor to ceiling) comply with all requirements. Wall-hung with no frame projection >12mm over clearance zone."
     },
@@ -422,6 +442,7 @@
       "DependsOn": "toilet-basin-standard",
       "Priority": 70,
       "StandardRef": "BS 6465-1:2006",
+      "ApplicableStandards": ["BS 6465-1"],
       "Notes": "Surface or semi-recessed mirrored medicine cabinet above basin. Bottom edge at 900mm AFF. Recess 120mm min in stud wall. Min width = basin width. Hinged or sliding door. Illuminated cabinet at 1050mm bottom edge preferred for residential."
     },
     {
@@ -441,6 +462,7 @@
       "DependsOn": "toilet-basin-standard",
       "Priority": 75,
       "StandardRef": "ADA \u00a7604.7 / \u00a7606.7 (800-1000mm reach range); BS 8300 (max 1200mm AFF for accessible)",
+      "ApplicableStandards": ["ADA §604.7", "ADA §606.7", "BS 8300"],
       "UniclassPr": "Pr_70_65_78_57",
       "Notes": "Towel ring near basin, 1100mm AFF (standard). ADA: max 1200mm AFF when forward reach. 150-300mm from basin front edge. Chrome or stainless steel. In accessible rooms use max 1000mm AFF for forward reach over obstruction."
     },
@@ -460,6 +482,7 @@
       "MaxPerRoom": 2,
       "Priority": 70,
       "StandardRef": "BS 6465-1:2006; ADA \u00a7604.7",
+      "ApplicableStandards": ["BS 6465-1", "ADA §604.7"],
       "UniclassPr": "Pr_70_65_78_57",
       "Notes": "Towel bar, 1200mm AFF. 600mm min bar length for bath towel. Chrome or stainless steel. In ADA rooms max 1200mm AFF. Position clear of door swing. Heated towel rail as alternative (electrical or water): 1200-1800mm AFF for top rail."
     },
@@ -479,6 +502,7 @@
       "MaxPerRoom": 2,
       "Priority": 62,
       "StandardRef": "ADA \u00a7308 (max 1220mm AFF accessible reach range); standard residential 1500mm AFF",
+      "ApplicableStandards": ["ADA §308"],
       "UniclassPr": "Pr_70_65_78_57",
       "Notes": "Robe/towel hook on back of door or adjacent wall. 1500mm AFF standard (residential). ADA/accessible: max 1220mm AFF. Double hook preferred. 50mm projection only. Back of door reduces wall congestion."
     },
@@ -499,6 +523,7 @@
       "MaxPerRoom": 1,
       "Priority": 78,
       "StandardRef": "ADA \u00a7308 (controls 480-1220mm AFF); BS 8300 (900-1200mm for accessible); CIBSE noise BS 4142",
+      "ApplicableStandards": ["ADA §308", "BS 8300", "BS 4142"],
       "UniclassPr": "Pr_70_65_78_73",
       "Notes": "Commercial hand dryer near exit / door. 1000mm AFF to operating controls. ADA: 1220mm AFF max for operating mechanism. Positioned in exit path from basins. Blade-type dryers 750mm AFF minimum clearance below. SHEV: 32 dB(A) limit per BS EN 60704-2-6. 1-phase 13A or 16A supply required."
     },
@@ -520,6 +545,7 @@
       "DependsOn": "toilet-basin-standard",
       "Priority": 76,
       "StandardRef": "ADA \u00a7308; SHTM 03-01 (healthcare); BS 6465-3",
+      "ApplicableStandards": ["ADA §308", "SHTM 03-01", "BS 6465-3"],
       "UniclassPr": "Pr_70_65_78_73",
       "Notes": "Paper towel dispenser adjacent to basins, 1200mm AFF. Near exit path (reduce dripping). Bottom of dispensing slot at 900mm AFF for ADA reach. In healthcare replace with separate hand-wash step paper towel dispensers at each basin per SHTM 03-01."
     },
@@ -539,6 +565,7 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "StandardRef": "BS 6465-1:2006",
+      "ApplicableStandards": ["BS 6465-1"],
       "Notes": "Waste bin near door, floor-mounted, clear of door swing. Step-open pedal type for hygiene. 7-15L capacity for individual WC rooms."
     },
     {
@@ -557,6 +584,7 @@
       "MaxPerRoom": 2,
       "Priority": 58,
       "StandardRef": "ADA \u00a7308 (max 1220mm AFF for accessible); BS 8300:2018",
+      "ApplicableStandards": ["ADA §308", "BS 8300"],
       "UniclassPr": "Pr_70_65_78",
       "Notes": "Coat hook, back of door, 1500mm AFF. In accessible rooms max 1220mm AFF. Double/triple hook preferred. Back-of-door position avoids wall space conflict. BS 8300: contrasting colour. Max 50mm projection when loaded."
     },
@@ -576,6 +604,7 @@
       "MaxPerRoom": 1,
       "Priority": 80,
       "StandardRef": "ADA \u00a7603; Building Regs Approved Doc M (2015 vol 2 cl.5.2); BS 8300:2018",
+      "ApplicableStandards": ["ADA §603", "Approved Doc M", "BS 8300"],
       "UniclassPr": "Pr_70_65_78",
       "Notes": "Fold-down baby changing station. 864mm AFF when open (34 inches). Max 1321mm AFF (52 inches) to operating mechanism. Must open 180\u00b0 (horizontal). Min 600mm width. Load rated 50kg. On longest clear wall, clear of door swing. Complies with Equality Act 2010 requirements for facilities serving public. Provide in accessible/family WC rooms."
     },
@@ -595,6 +624,7 @@
       "MaxPerRoom": 1,
       "Priority": 55,
       "StandardRef": "BS 6465-1:2006",
+      "ApplicableStandards": ["BS 6465-1"],
       "Notes": "Bathroom accessories shelf at 1350mm AFF. Min 150mm deep. Used for toiletries, spare toilet rolls. Not in accessible rooms (protrusion hazard per ADA)."
     },
     {
@@ -614,6 +644,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 93,
       "StandardRef": "BS 8300:2018 cl.12.6; Approved Doc M (2015) cl.5.2f; BS EN 50134; HTM 08-03",
+      "ApplicableStandards": ["BS 8300", "Approved Doc M", "BS EN 50134", "HTM 08-03"],
       "UniclassPr": "Pr_70_30_74_20",
       "Notes": "Red emergency alarm pull cord. Wall-mounted at 1400mm AFF (mounting point). Red triangular pull handle must hang at 800-1000mm AFF. Secondary pull handle at 100mm AFF (reachable from floor if fallen). Cord colour: red. Two pulls: high (800mm) and low (100mm). Covers: near WC, accessible from floor. Wired to nurse/staff call panel."
     },
@@ -634,6 +665,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 97,
       "StandardRef": "HTM 08-03; NHS Estates; BS EN 50134-1",
+      "ApplicableStandards": ["HTM 08-03", "NHS Estates", "BS EN 50134-1"],
       "Notes": "Healthcare nurse-call pull cord in all patient/clinical toilets. 1400mm AFF mounting point. Pull to 100mm from floor. Right of WC (within reach from seated/fallen position). Zone 1 per HTM 08-03. Wired to staff station. Constant status light."
     },
     {
@@ -653,6 +685,7 @@
       "GuaranteeCoverage": true,
       "Priority": 92,
       "StandardRef": "BS EN 1112:2008; Water Supply (Water Fittings) Regs 1999 (WRAS); WRAS IGN 9-02-04",
+      "ApplicableStandards": ["BS EN 1112", "WRAS", "WRASIGN9-02-04"],
       "UniclassPr": "Pr_70_65_75_50",
       "Notes": "Shower head at 2000mm AFF. WRAS-approved fittings required. Overhead rose preferred for inclusive design. Adjustable slider rail 850-2000mm for accessibility. Hot feed 15mm, cold feed 15mm, thermostatic mixing valve mandatory (TMV3) per BS EN 1111:1999."
     },
@@ -673,6 +706,7 @@
       "DependsOn": "shower-head-standard",
       "Priority": 91,
       "StandardRef": "BS EN 1111:1999 (TMV); HTM 04-01 (TMV3 for healthcare); WRAS",
+      "ApplicableStandards": ["BS EN 1111", "HTM 04-01", "WRAS"],
       "Notes": "Thermostatic shower valve at 1000mm AFF. On the same wall as shower head, below it. TMV3-rated (max 43\u00b0C outlet) for domestic. TMV3-rated mandatory for healthcare (max 41\u00b0C). Integrated outlet diverter for bath/shower. 400mm above floor if bath-shower combo."
     },
     {
@@ -691,6 +725,7 @@
       "MaxPerRoom": 1,
       "Priority": 86,
       "StandardRef": "ADA \u00a7607.4 (432-483mm / 17-19 inch seat AFF); BS 8300:2018 cl.12.5 (480-500mm seat AFF)",
+      "ApplicableStandards": ["ADA §607.4", "BS 8300"],
       "UniclassPr": "Pr_70_65_78",
       "Notes": "Fold-down shower seat at 480mm AFF when deployed. Teak or stainless non-slip. ADA: 432-483mm seat height, 426mm deep, 406mm from back wall, 152mm from side wall. BS 8300: 480-500mm. Load rated 150kg. Hinged fold-up clears 300mm when not in use. Corrosion-resistant fixings."
     },
@@ -710,6 +745,7 @@
       "MaxPerRoom": 2,
       "Priority": 87,
       "StandardRef": "ADA \u00a7608.3 (838mm / 33 inch AFF); BS 8300:2018 cl.12.5",
+      "ApplicableStandards": ["ADA §608.3", "BS 8300"],
       "Notes": "Horizontal shower grab bar at 838mm AFF (33 inches). Min 900mm long. Stainless 32-38mm diameter. Required on shower entry wall and side wall for accessible showers. Supports transfer and balance. BS 8300 equivalent."
     },
     {
@@ -728,6 +764,7 @@
       "MaxPerRoom": 1,
       "Priority": 62,
       "StandardRef": "BS 5386; NHS wash facility guidance",
+      "ApplicableStandards": ["BS 5386"],
       "Notes": "Shower curtain rod at 1900mm AFF. Stainless steel rod 25mm. Must span full shower opening width + 200mm each side for overlap. Reinforced wall fixings (600N load). Antimicrobial curtain material preferred in healthcare."
     },
     {
@@ -746,6 +783,7 @@
       "MaxPerRoom": 1,
       "Priority": 56,
       "StandardRef": "BS 5385-4 (tile fixing); best practice",
+      "ApplicableStandards": ["BS 5385-4"],
       "Notes": "Recessed shampoo/toiletries niche at 1300mm AFF (mid-chest). 300mm \u00d7 300mm \u00d7 100mm deep. Tiled internally. Stainless trim edge. Located on wall adjacent to shower head, 300mm from corner. Tile to full depth with grout sealant."
     },
     {
@@ -765,6 +803,7 @@
       "GuaranteeCoverage": true,
       "Priority": 96,
       "StandardRef": "BS EN 1253; BS EN 12056-2 (min DN50 floor drain); Approved Doc H",
+      "ApplicableStandards": ["BS EN 1253", "BS EN 12056-2", "Approved Doc H"],
       "UniclassPr": "Pr_70_65_75_25",
       "Notes": "Floor drain centred in shower / wet room. Linear drain alternative against wall preferred for inclusive design (no trip hazard). DN50 minimum waste connection. Floor gradient 1:40 to drain. Vertical or horizontal outlet. Stainless anti-bacterial grating for healthcare."
     },
@@ -786,6 +825,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 74,
       "StandardRef": "BS 6465-1:2006; Equality Act 2010; Building Regs M4(3)",
+      "ApplicableStandards": ["BS 6465-1", "Equality Act 2010", "Building Regs M4(3)"],
       "UniclassPr": "Pr_70_65_78",
       "Notes": "Sanitary waste disposal unit, right side WC cubicle, 700mm AFF. Service contract required (typically weekly). 5-7L capacity. Pedal-bin style. Mandatory in all commercial female and unisex WC cubicles."
     },
@@ -805,6 +845,7 @@
       "MaxPerRoom": 1,
       "Priority": 45,
       "StandardRef": "BS 7953:1999 (entrance matting); Approved Doc M",
+      "ApplicableStandards": ["BS 7953", "Approved Doc M"],
       "Notes": "Anti-slip entrance mat at entrance zone, floor level. 600\u00d7600mm min. Compliant with Approved Doc M anti-trip requirements. Recessed mat frame preferred (flush with finished floor)."
     },
     {
@@ -824,6 +865,7 @@
       "MaxPerRoom": 1,
       "Priority": 48,
       "StandardRef": "BS 6465-1:2006; good practice for facilities >10 persons",
+      "ApplicableStandards": ["BS 6465-1"],
       "Notes": "Sanitary product vending machine in female/unisex washrooms. 1200mm AFF to dispensing slot. Recessed or surface-mounted. 240V supply required. Min 300\u00d7400mm wall space."
     },
     {
@@ -843,6 +885,7 @@
       "GuaranteeCoverage": true,
       "Priority": 88,
       "StandardRef": "Approved Doc F (2021): 6 l/s min extract for WC, 8 l/s for bathroom; BS 5720; CIBSE Guide B2",
+      "ApplicableStandards": ["Approved Doc F", "BS 5720", "CIBSE Guide B2"],
       "UniclassPr": "Pr_50_70_14",
       "Notes": "Ceiling extract grille for WC/bathroom mechanical ventilation. Approved Doc F: 6 l/s for WC-only rooms, 8 l/s for bathrooms, 15 l/s for en-suite with bath/shower. Continuous background rate 0.5 air changes/hour (new build). Position over toilet or shower for best capture. Duct to external or MEV heat recovery unit."
     },
@@ -861,6 +904,7 @@
       "MaxPerRoom": 1,
       "Priority": 75,
       "StandardRef": "Approved Doc F (2021); BS EN 13779",
+      "ApplicableStandards": ["Approved Doc F", "BS EN 13779"],
       "Notes": "High-level wall-mounted extract grille / through-wall fan. 200mm below ceiling. On external wall where no ceiling duct route available. PIR trigger preferred (15 min overrun timer). Min 100mm duct dia. IP45 for bathroom zone. BS 7671 zone 1/2 requirements apply within 0.6m of bath/shower."
     },
     {
@@ -880,6 +924,7 @@
       "DependsOn": "toilet-wc-at-window-standard",
       "Priority": 60,
       "StandardRef": "BS 6465-1:2006; BS EN 14649:2004 (bidet requirements)",
+      "ApplicableStandards": ["BS 6465-1", "BS EN 14649"],
       "UniclassPr": "Pr_70_65_75_90",
       "Notes": "Bidet adjacent to WC, 400mm forward offset to allow knee clearance. Rim at 380-400mm AFF. 700mm min centre-to-centre from WC. Hot and cold 15mm supply; 40mm waste. WRAS Type A/B backflow prevention on hot supply. Floor-mounted close-coupled or wall-hung type."
     },
@@ -900,6 +945,7 @@
       "DependsOn": "toilet-basin-standard",
       "Priority": 70,
       "StandardRef": "BS EN 12464-1 (200 lux at mirror plane); BS 7671 zone 2 requirements",
+      "ApplicableStandards": ["BS EN 12464-1", "BS 7671"],
       "Notes": "Mirror / vanity light above basin, 2000mm AFF. IP44 minimum (zone 2 per BS 7671:2018 Section 701). 200 lux at mirror face per BS EN 12464-1. Face-lit units (horizontal tubes each side of mirror) give best shadow-free illumination. Min colour rendering Ra80. Colour temperature 2700-3000K for residential."
     }
   ]

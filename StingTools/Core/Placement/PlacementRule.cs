@@ -289,8 +289,41 @@ namespace StingTools.Core.Placement
         /// <summary>When true the engine validates mandatory IFC property mappings.</summary>
         public bool RequiresIfcMapping { get; set; } = false;
 
-        /// <summary>Minimum maintenance access clearance in millimetres.</summary>
-        public double MaintenanceClearance { get; set; } = 0.0;
+        /// <summary>
+        /// Maintenance access clearance CLASS CODE — one of the codes
+        /// MaintenanceAccessValidator resolves: FRONT_600, FRONT_1000,
+        /// SIDES_300, TOP_900 (empty = no clearance check).
+        ///
+        /// This was typed <c>double</c> up to now, which silently broke the
+        /// whole field: the Centre's editor is a ComboBox offering those class
+        /// codes, and the view-model parsed the selection with
+        /// <c>double.TryParse("FRONT_600")</c> — which always failed, so the
+        /// value was always stored as 0 and the user's choice was discarded.
+        /// Typing it as the class-code string aligns the rule with both the
+        /// editor and the validator's STING_MAINT_CLEAR_TXT contract. No rule
+        /// pack set this field, so there is no data to migrate.
+        ///
+        /// The setter coerces a purely-zero numeric to empty: an Excel sheet
+        /// exported under the old <c>double</c> shape carries the default as the
+        /// literal "0", and re-importing it must not resurrect a value that the
+        /// validator would then silently skip (and that Push-to-Families would
+        /// stamp as "0"). A non-zero numeric such as "600" is a genuine user
+        /// mistake and is kept, so the advisory validator can flag it.
+        /// </summary>
+        private string _maintenanceClearance = "";
+        public string MaintenanceClearance
+        {
+            get => _maintenanceClearance;
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (double.TryParse(v, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var d)
+                    && d == 0.0)
+                    v = "";
+                _maintenanceClearance = v;
+            }
+        }
 
         // ── Manufacturer / catalogue ─────────────────────────────────
 
