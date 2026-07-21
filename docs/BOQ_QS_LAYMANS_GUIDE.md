@@ -739,12 +739,12 @@ A building has **two carbon bills**:
 ```
               A BUILDING'S CARBON  =  two bills
    ┌───────────────────────────┬────────────────────────────┐
-   │   EMBODIED  (one-off)      │   OPERATIONAL  (yearly)    │
-   │   concrete · steel ·       │   electricity · water ·    │
-   │   block · glass · finishes │   cooling · lighting       │
-   │                            │                            │
-   │   kgCO₂e   (A1–A3)         │   kgCO₂e / yr              │
-   │   = the BOQ headline       │   = energy × grid (UG 0.05) │
+   │   EMBODIED  (one-off)     │   OPERATIONAL  (yearly)    │
+   │   concrete · steel ·      │   electricity · water ·    │
+   │   block · glass · finishes│   cooling · lighting       │
+   │                           │                            │
+   │   kgCO₂e   (A1–A3)        │   kgCO₂e / yr              │
+   │   = the BOQ headline      │   = energy × grid (UG 0.05)│
    └───────────────────────────┴────────────────────────────┘
         cut it: use less /            cut it: efficient
         greener material · EPDs        fabric · plant · PV
@@ -770,7 +770,7 @@ And "carbon cost" means two things, both of which StingTools produces:
 | **kgCO₂e / tCO₂e** | Kilograms / tonnes of "CO₂-equivalent" — all greenhouse gases converted to one number so you can add them up. |
 | **Embodied carbon (A1–A3)** | The one-off carbon in the *materials* (product stage: raw → factory → made). The headline number. |
 | **Operational carbon (B6)** | The yearly carbon from running the building = energy used × the **grid factor**. |
-| **Grid factor** | kgCO₂e per kWh of electricity. **Uganda = 0.05** (hydro grid — very clean); UK ≈ 0.21, diesel ≈ 0.70. |
+| **Grid factor** | kgCO₂e per kWh of electricity. **Uganda = 0.05** (hydro grid — very clean); UK ≈ 0.21, diesel ≈ 0.80 (the tool default). |
 | **Fossil vs biogenic** | Fossil = the real emissions (the **headline**). Biogenic = carbon a tree stored while growing (timber), shown as a **separate negative line** — never netted into the headline (RICS WLCA / RIBA 2030 / LETI). |
 | **EPD** | Environmental Product Declaration — a manufacturer's *verified* carbon factor for their actual product. Beats a generic database factor. |
 | **EDGE** | "Excellence in Design for Greater Efficiencies" — the IFC/World Bank green-building standard for emerging markets. Three simple gates (see E6). |
@@ -788,7 +788,7 @@ Carbon isn't in one place; it's wherever a decision is made:
    REVIT MODEL
        │  one take-off  (Refresh)
        ▼
-   QUANTITIES ──× rate ──────────────►  £ COST ─────┐
+   QUANTITIES ──× rate ──────────────►  £ COST ──────┐
        │                                             ├──►  ONE BOQ ROW
        └──× carbon factor ────────────►  kgCO₂e ─────┘     (cost + carbon,
                                             │               side by side)
@@ -801,7 +801,7 @@ Carbon isn't in one place; it's wherever a decision is made:
 | Home | What's there | How you reach it |
 |---|---|---|
 | **The BOQ & Cost Manager** (Part A panel) | Carbon **beside cost**: the live embodied-carbon KPI, Carbon Gap Report, ICMS3 cost+carbon, IFC GWP stamping, carbon-as-cost. | Already open — it's the panel you cost in (E3). |
-| **♻ STING Sustainability** (a 5th dockable panel) | The green **assessment**: EDGE/LEED, the 3-gate dashboard, WBLCA report, green LCC. **4 tabs: SETUP · DASHBOARD · MATERIALS · COST.** | Ribbon **STING Tools → "STING Sustain"** (hidden until toggled). Footer reminds you it's indicative. (E5) |
+| **♻ STING Sustainability** (the 7th of the plugin's 8 dockable panels) | The green **assessment**: EDGE/LEED, the 3-gate dashboard, WBLCA report, green LCC. **4 tabs: SETUP · DASHBOARD · MATERIALS · COST.** | Ribbon **STING Tools → "STING Sustain"** (hidden until toggled). Footer reminds you it's indicative. (E5) |
 | **Discipline & quick tools** | HVAC plant carbon, Electrical operational+embodied rollup, structural carbon, whole-project Carbon Calculator, BREEAM, a carbon heatmap. | Individual buttons on the Main / HVAC / Electrical panels (E9). |
 
 ## E3. Carbon **in the bill** — every carbon touchpoint on the BOQ panel
@@ -813,7 +813,7 @@ You cost the model as usual (Part B); carbon comes along for free off the same t
 | **Embodied carbon (A1–A3)** KPI card (dashboard) | **[live gauge]** "N kgCO₂e/m² (fossil A1–A3)" with a RAG light vs RIBA 2030 / LETI intensity bands (green < ~400, amber, red). Updates on every **Refresh**. | See carbon intensity *beside* the money as you price. | "340 kgCO₂e/m² — amber." |
 | **Carbon Gap Report** (Actions) | **[report/CSV]** Lists materials whose carbon factor is **missing or only database-grade** (not EPD-verified); gives EPD-verified %, the gap tonnage, and a CSV worklist. | Drive EPD sourcing where carbon is unverified — the carbon twin of the Rate Gap Report. | "EPD-verified 42%; 180 t of unverified carbon; top gap: in-situ concrete." |
 | **CO₂ / CO₂-quality columns** (▦ Columns) | **[live]** Per-line embodied carbon + a data-quality flag (Verified-EPD / Database / Estimated / Missing). | Judge each line's carbon the way **Confidence** judges its rate. | A compound wall shows carbon **split per material** (block + render + insulation), not lumped. |
-| **Carbon by phase / level pivot** | **[report/CSV]** tCO₂e per storey per construction phase. | Carbon broken down for a phased programme. | "L02 / Phase 2: 62 t fossil A1–A3." |
+| **Carbon by Phase / Level** pivot — lives on the ♻ **Material Hub** panel (PIVOT group, tag `MAT_CarbonPivot`), *not* the BOQ panel | **[report/CSV]** tCO₂e per storey per construction phase, off the same carbon take-off. | Carbon broken down for a phased programme. | "L02 / Phase 2: 62 t fossil A1–A3." |
 | **★ ICMS3 Report** (Actions, also §B9) | **[report/CSV]** Cost **and** carbon per ICMS3 group, **plus a carbon-as-cost column** (carbon × price) and whole-life cost incl. carbon. | The international cost+carbon deliverable. | "Carbon 480 t · carbon cost UGX 564M @ 1,175/kg · whole-life cost incl. carbon UGX …" |
 | **Stamp IFC Qto** (also §B9) | **[stamps model]** Writes `Pset_StingCost` carbon + EPD provenance onto elements for IFC handover. | Carbon rides into the IFC the FM team receives. | "Stamped 1,240 elements." |
 
@@ -851,17 +851,17 @@ Open it from the ribbon (**STING Sustain**). Four tabs; the footer always reads
 ┌─ ♻ STING SUSTAINABILITY ─────────────────────────────────────────┐
 │  [ SETUP ]   [ DASHBOARD ]   [ MATERIALS ]   [ COST ]            │
 ├──────────────────────────────────────────────────────────────────┤
-│ SETUP      schemes (EDGE/LEED) · EDGE level · country · use ·     │
-│            area · occupancy · Plant & Supply (PV/grid/diesel)     │
-│            ⤓ From model    Save setup    Save supply              │
+│ SETUP      schemes (EDGE/LEED) · EDGE level · country · use ·    │
+│            area · occupancy · Plant & Supply (PV/grid/diesel)    │
+│            ⤓ From model    Save setup    Save supply             │
 │ DASHBOARD  ┌ Energy ┐  ┌ Water ┐  ┌ Materials ┐   ← 3 gate tiles │
-│            Run dashboard · Readiness check · Set baseline ·       │
-│            EDGE/WLC report · Publish to server                    │
-│ MATERIALS  kgCO₂e/m²   +   MJ/m²   +   top-3 hotspots             │
-│            EDGE export · EPD register · LEED scorecard            │
+│            Run dashboard · Readiness check · Set baseline ·      │
+│            EDGE/WLC report · Publish to server                   │
+│ MATERIALS  kgCO₂e/m²   +   MJ/m²   +   top-3 hotspots            │
+│            EDGE export · EPD register · LEED scorecard           │
 │ COST       per-measure LCC grid (capex · net benefit)            │
-│            LCC benefit · Target seeker · Compare options ·        │
-│            Generate deliverable                                   │
+│            LCC benefit · Target seeker · Compare options ·       │
+│            Generate deliverable                                  │
 ├──────────────────────────────────────────────────────────────────┤
 │   "INDICATIVE — the EDGE app owns the certified number."         │
 └──────────────────────────────────────────────────────────────────┘
@@ -874,7 +874,7 @@ You fill: schemes (**EDGE** / **LEED v5**), **EDGE target level** (Certified 20/
 |---|---|---|---|
 | **⤓ From model** | `Sustain_AutoFill` | Reads GFA from Spaces/Rooms + estimates occupancy at the use-density → fills the form. *Don't type what the model already knows.* | "Auto-filled: 170 m²; occupancy 5." |
 | **Save setup** | `Sustain_ProjectSetup` | Locks the inputs to `_BIM_COORD/sustainability/project_setup.json`; the **country cascades** into blank climate/grid/diesel fields. | "Saved. EDGE · office · zone 0A · 170 m²." |
-| **Save supply** | `Sustain_SupplyConfig` | Pins the PV/grid/diesel card as an explicit override (country won't overwrite it). | "hybrid · PV 50 kWp (PR 0.80) · grid 0.05 · diesel 0.70 × 0.30." |
+| **Save supply** | `Sustain_SupplyConfig` | Pins the PV/grid/diesel card as an explicit override (country won't overwrite it). | "hybrid · PV 50 kWp (PR 0.80) · grid 0.05 · diesel 0.80 × 0.30." |
 
 ### DASHBOARD tab — the 3-gate verdict
 | Button | Tag | What / Why | Example |
