@@ -56,6 +56,14 @@ commits, one per numbered fix. Every commit built clean against Revit 2025 (0 wa
   `DrainageInvertDimensioner` placed the invert one wall thickness low; and the MatchLine suite
   had no button, intent or workflow step, which is why its P1 fixes were unreachable.
 
+- **Track B (B1, B3, B5).** Grid dimensioning converged onto one path: `DimGrids` survives and
+  absorbed `dimensionStrategy`; `GridDimensioner` is reduced to `IsDimensionable`. The rule
+  engine's `condition` (evaluator had zero call sites) and per-rule `tagFamily` are wired.
+  `${MAT_*}` tokens resolve instead of blanking the cell, with their O(all-elements) usage scan
+  memoised per document. Spool numbering routes through `SheetSequenceStore`, retiring the third
+  parallel numbering system — and because A1 made the store fail loud, a persistence failure now
+  surfaces instead of issuing a colliding number.
+
 **Needs a Revit smoke test** — in addition to the Phase 223 table:
 
 | Area | Check |
@@ -70,6 +78,11 @@ commits, one per numbered fix. Every commit built clean against Revit 2025 (0 wa
 | Match lines (A7/W-2) | Validate on a multi-level scope-box project reports no bogus drift; the five new buttons dispatch |
 | Title blocks (A8) | Create offers all 31 families; Heal reports a wrong-family sheet |
 | Fabrication (P-13a) | Compose a spool sheet on A1 and on one other size — viewports inside the frame |
+| Grid strategy (B1) | A pack declaring `dimensionStrategy` produces chains of that dimension type |
+| Rule condition (B1) | A rule with a `condition` that evaluates false is skipped; an unparseable one still runs |
+| MAT tokens (B3) | A title block using `${MAT_*}` fills the cell instead of blanking it |
+| Spool numbers (B5) | Compose, restart Revit, compose again — numbering continues, does not reset to 0001 |
+| Spool fallback (B5) | Compose where ExtensibleStorage is unavailable — still composes, warns the number is session-only |
 
 #### Completed (Phase 223 — drawings-production P0 + P1)
 

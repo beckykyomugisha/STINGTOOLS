@@ -142,7 +142,29 @@ Corrections to the review found in this pass (bringing the running total to six)
 
 ### P2 — still open
 
-**Track B, remaining (decisions not yet taken):**
+**Track B — CLOSED except the two data-territory items.**
+
+| Item | Status |
+|---|---|
+| B1 grid-dimensioning convergence | ✅ `DimGrids` survives; `GridDimensioner` reduced to `IsDimensionable` |
+| B1 `dimensionStrategy` | ✅ wired into `DimGrids` via `DimensionStrategy.ResolveType` |
+| B1 `condition` | ✅ wired (evaluator had zero call sites) |
+| B1 per-rule `tagFamily` | ✅ wired, warns when the named family is absent |
+| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ still no-ops — see below |
+| B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
+| B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
+| B5 composer numbering | ✅ routed through `SheetSequenceStore` |
+| B4 checksums | ⬜ data-territory — data PR |
+| B6 unmintable `iso-status-*` filters | ⬜ data-territory — data PR |
+
+`densityMode` / `minSizeMm` / `orientation` / `tag7Depth` remain unwired. They are per-rule
+*refinements* to tagging behaviour rather than the on/off wiring the other fields needed
+(`densityMode` interacts with the existing `denseUntilScale` gate; `minSizeMm` needs a per-element
+size measure; `orientation` and `tag7Depth` need per-tag write paths). Each is a small feature in
+its own right and none of them silently corrupts output today — they simply do nothing — so they
+are better scoped against smoke-test evidence than guessed at.
+
+**Previously listed as remaining (now done):**
 
 - **B1 (rest of the rule engine).** `GridDimensioner`'s axis bug and the drainage invert are
   fixed, but `AnnotationConditionEvaluator` still has no call site and the rule-pack fields
