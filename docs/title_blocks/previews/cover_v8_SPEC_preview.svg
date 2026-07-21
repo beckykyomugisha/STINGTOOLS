@@ -12,7 +12,17 @@
 <text x="563.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">SUIT · REV</text>
 <line x1="678.00" y1="10.00" x2="678.00" y2="52.00" stroke="#3A3E44" stroke-width="0.5"/>
 <text x="681.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">DISCIPLINE</text>
-<text x="13.00" y="64.00" font-family="Helvetica, Arial, sans-serif" font-size="4.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.4">PROJECT</text>
+<text x="13.00" y="63.00" font-family="Helvetica, Arial, sans-serif" font-size="3.0" fill="#5A5F66" font-weight="bold" text-anchor="start" letter-spacing="0.5">PROJECT</text>
+<line x1="13.00" y1="88.00" x2="440.00" y2="88.00" stroke="#9AA0A6" stroke-width="0.5"/>
+<text x="13.00" y="85.00" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="#C6CACF" font-weight="bold" text-anchor="start">PROJECT NAME</text>
+<text x="13.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">PROJECT No.</text>
+<line x1="13.00" y1="110.60" x2="109.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="124.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CLIENT</text>
+<line x1="124.00" y1="110.60" x2="220.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="236.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">WORK STAGE</text>
+<line x1="236.00" y1="110.60" x2="332.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="312.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">SITE / ADDRESS</text>
+<line x1="312.00" y1="110.60" x2="408.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
 <line x1="12.00" y1="132.00" x2="450.00" y2="132.00" stroke="#9AA0A6" stroke-width="0.4"/>
 <rect x="456.00" y="58.00" width="373.00" height="209.81" fill="#F4F5F6" stroke="#3A3E44" stroke-width="0.5" />
 <line x1="456.00" y1="58.00" x2="462.00" y2="58.00" stroke="#9AA0A6" stroke-width="0.5"/>
@@ -73,33 +83,50 @@
 <text x="307.00" y="204.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">DISCIPLINE COLOUR</text>
 <rect x="307.00" y="207.00" width="8.00" height="8.00" fill="#A0A0A0" stroke="#3A3E44" stroke-width="0.3" />
 <text x="311.00" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">ARCH</text>
-<rect x="326.57" y="207.00" width="8.00" height="8.00" fill="#C80000" stroke="#3A3E44" stroke-width="0.3" />
-<text x="330.57" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">STRUCT</text>
-<rect x="346.14" y="207.00" width="8.00" height="8.00" fill="#0080FF" stroke="#3A3E44" stroke-width="0.3" />
-<text x="350.14" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">MECH</text>
-<rect x="365.71" y="207.00" width="8.00" height="8.00" fill="#FFC800" stroke="#3A3E44" stroke-width="0.3" />
-<text x="369.71" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">ELEC</text>
-<rect x="385.29" y="207.00" width="8.00" height="8.00" fill="#00B400" stroke="#3A3E44" stroke-width="0.3" />
-<text x="389.29" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">PLUMB</text>
-<rect x="404.86" y="207.00" width="8.00" height="8.00" fill="#FF6400" stroke="#3A3E44" stroke-width="0.3" />
-<text x="408.86" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">FIRE</text>
-<rect x="424.43" y="207.00" width="8.00" height="8.00" fill="#3C3C3C" stroke="#3A3E44" stroke-width="0.3" />
-<text x="428.43" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">COMBINED</text>
+<rect x="324.12" y="207.00" width="8.00" height="8.00" fill="#C80000" stroke="#3A3E44" stroke-width="0.3" />
+<text x="328.12" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">STRUCT</text>
+<rect x="341.25" y="207.00" width="8.00" height="8.00" fill="#0080FF" stroke="#3A3E44" stroke-width="0.3" />
+<text x="345.25" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">MECH</text>
+<rect x="358.38" y="207.00" width="8.00" height="8.00" fill="#FFC800" stroke="#3A3E44" stroke-width="0.3" />
+<text x="362.38" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">ELEC</text>
+<rect x="375.50" y="207.00" width="8.00" height="8.00" fill="#00B400" stroke="#3A3E44" stroke-width="0.3" />
+<text x="379.50" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">PLUMB</text>
+<rect x="392.62" y="207.00" width="8.00" height="8.00" fill="#FF6400" stroke="#3A3E44" stroke-width="0.3" />
+<text x="396.62" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">FIRE</text>
+<rect x="409.75" y="207.00" width="8.00" height="8.00" fill="#A000C8" stroke="#3A3E44" stroke-width="0.3" />
+<text x="413.75" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">LV/DATA</text>
+<rect x="426.88" y="207.00" width="8.00" height="8.00" fill="#3C3C3C" stroke="#3A3E44" stroke-width="0.3" />
+<text x="430.88" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="normal" text-anchor="middle">COMBINED</text>
 <rect x="12.00" y="264.00" width="246.00" height="206.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
 <rect x="12.00" y="264.00" width="246.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
-<text x="14.50" y="269.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">LATEST ISSUES</text>
-<text x="15.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="bold" text-anchor="start">REV</text>
-<text x="32.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="bold" text-anchor="start">DESCRIPTION</text>
-<text x="213.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="bold" text-anchor="start">DATE</text>
-<text x="242.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="bold" text-anchor="start">BY</text>
-<line x1="14.00" y1="279.00" x2="256.00" y2="279.00" stroke="#9AA0A6" stroke-width="0.3"/>
-<line x1="14.00" y1="288.00" x2="256.00" y2="288.00" stroke="#E4E6E9" stroke-width="0.25"/>
-<line x1="14.00" y1="298.00" x2="256.00" y2="298.00" stroke="#E4E6E9" stroke-width="0.25"/>
-<line x1="14.00" y1="308.00" x2="256.00" y2="308.00" stroke="#E4E6E9" stroke-width="0.25"/>
-<line x1="14.00" y1="318.00" x2="256.00" y2="318.00" stroke="#E4E6E9" stroke-width="0.25"/>
-<line x1="14.00" y1="328.00" x2="256.00" y2="328.00" stroke="#E4E6E9" stroke-width="0.25"/>
-<line x1="14.00" y1="338.00" x2="256.00" y2="338.00" stroke="#E4E6E9" stroke-width="0.25"/>
-<line x1="14.00" y1="348.00" x2="256.00" y2="348.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<text x="14.50" y="269.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">REVISION HISTORY</text>
+<text x="255.50" y="269.30" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="bold" text-anchor="end">FULL ISSUE LOG</text>
+<text x="15.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">REV</text>
+<text x="29.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">DESCRIPTION</text>
+<text x="192.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">SUIT</text>
+<text x="214.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">DATE</text>
+<text x="243.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">BY</text>
+<line x1="14.00" y1="279.00" x2="256.00" y2="279.00" stroke="#3A3E44" stroke-width="0.4"/>
+<line x1="27.00" y1="272.00" x2="27.00" y2="467.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="190.00" y1="272.00" x2="190.00" y2="467.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="212.00" y1="272.00" x2="212.00" y2="467.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="241.00" y1="272.00" x2="241.00" y2="467.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="281.00" x2="256.00" y2="281.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="293.40" x2="256.00" y2="293.40" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="305.80" x2="256.00" y2="305.80" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="318.20" x2="256.00" y2="318.20" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="330.60" x2="256.00" y2="330.60" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="343.00" x2="256.00" y2="343.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="355.40" x2="256.00" y2="355.40" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="367.80" x2="256.00" y2="367.80" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="380.20" x2="256.00" y2="380.20" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="392.60" x2="256.00" y2="392.60" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="405.00" x2="256.00" y2="405.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="417.40" x2="256.00" y2="417.40" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="429.80" x2="256.00" y2="429.80" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="442.20" x2="256.00" y2="442.20" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="454.60" x2="256.00" y2="454.60" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="467.00" x2="256.00" y2="467.00" stroke="#E4E6E9" stroke-width="0.25"/>
 <rect x="264.00" y="264.00" width="186.00" height="84.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
 <rect x="264.00" y="264.00" width="186.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
 <text x="266.50" y="269.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">WHAT CHANGED IN THIS ISSUE</text>
@@ -110,24 +137,30 @@
 <text x="359.00" y="367.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">SCOPE</text>
 <text x="420.00" y="367.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">USED IN</text>
 <line x1="266.00" y1="369.00" x2="448.00" y2="369.00" stroke="#9AA0A6" stroke-width="0.3"/>
-<text x="267.00" y="378.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN ISO 19650-2</text>
-<text x="359.00" y="378.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Info mgmt</text>
-<text x="420.00" y="378.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">All</text>
-<text x="267.00" y="392.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS 7671:2018+A2</text>
-<text x="359.00" y="392.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Wiring regs</text>
-<text x="420.00" y="392.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Power</text>
-<text x="267.00" y="406.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN 62305 §4.3</text>
-<text x="359.00" y="406.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Lightning</text>
-<text x="420.00" y="406.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-4001</text>
-<text x="267.00" y="420.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS 5839-1 §14</text>
-<text x="359.00" y="420.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Fire detect</text>
-<text x="420.00" y="420.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-5001</text>
-<text x="267.00" y="434.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN 12464-1</text>
-<text x="359.00" y="434.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Lighting</text>
-<text x="420.00" y="434.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-1101</text>
-<text x="267.00" y="448.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">CIBSE Guide K</text>
-<text x="359.00" y="448.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Electricity</text>
-<text x="420.00" y="448.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-2001</text>
+<text x="267.00" y="377.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN ISO 19650-2</text>
+<text x="359.00" y="377.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Info mgmt</text>
+<text x="420.00" y="377.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">All</text>
+<text x="267.00" y="388.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN ISO 19650-5</text>
+<text x="359.00" y="388.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Security</text>
+<text x="420.00" y="388.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">All</text>
+<text x="267.00" y="399.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">Uniclass 2015</text>
+<text x="359.00" y="399.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Classification</text>
+<text x="420.00" y="399.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">All</text>
+<text x="267.00" y="411.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS 7671:2018+A2</text>
+<text x="359.00" y="411.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Wiring regs</text>
+<text x="420.00" y="411.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Power</text>
+<text x="267.00" y="422.60" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN 62305 §4.3</text>
+<text x="359.00" y="422.60" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Lightning</text>
+<text x="420.00" y="422.60" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-4001</text>
+<text x="267.00" y="434.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS 5839-1 §14</text>
+<text x="359.00" y="434.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Fire detect</text>
+<text x="420.00" y="434.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-5001</text>
+<text x="267.00" y="445.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN 12464-1</text>
+<text x="359.00" y="445.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Lighting</text>
+<text x="420.00" y="445.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-1101</text>
+<text x="267.00" y="456.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">CIBSE Guide K</text>
+<text x="359.00" y="456.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Electricity</text>
+<text x="420.00" y="456.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-2001</text>
 <rect x="456.00" y="278.00" width="373.00" height="270.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
 <rect x="456.00" y="278.00" width="373.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
 <text x="458.50" y="283.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">DRAWING REGISTER</text>
@@ -161,12 +194,58 @@
 <rect x="12.00" y="478.00" width="440.00" height="74.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
 <rect x="12.00" y="478.00" width="440.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
 <text x="14.50" y="483.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">PROJECT DIRECTORY — STAKEHOLDERS &amp; CONSULTANTS</text>
-<rect x="16.00" y="489.00" width="106.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
-<text x="18.00" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">CLIENT</text>
-<rect x="125.25" y="489.00" width="106.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
-<text x="127.25" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">ARCHITECT</text>
-<rect x="234.50" y="489.00" width="106.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
-<text x="236.50" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">STRUCTURAL</text>
-<rect x="343.75" y="489.00" width="106.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
-<text x="345.75" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">MEP ENGINEER</text>
+<rect x="15.00" y="489.00" width="70.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="16.60" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">CLIENT</text>
+<line x1="16.60" y1="496.00" x2="83.65" y2="496.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="16.60" y="502.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="16.60" y1="504.00" x2="83.65" y2="504.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="16.60" y="513.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="16.60" y1="515.00" x2="83.65" y2="515.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="16.60" y="524.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="16.60" y1="526.00" x2="83.65" y2="526.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="87.75" y="489.00" width="70.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="89.35" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">ARCHITECT</text>
+<line x1="89.35" y1="496.00" x2="156.40" y2="496.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="89.35" y="502.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="89.35" y1="504.00" x2="156.40" y2="504.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="89.35" y="513.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="89.35" y1="515.00" x2="156.40" y2="515.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="89.35" y="524.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="89.35" y1="526.00" x2="156.40" y2="526.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="160.50" y="489.00" width="70.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="162.10" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">STRUCTURAL</text>
+<line x1="162.10" y1="496.00" x2="229.15" y2="496.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="162.10" y="502.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="162.10" y1="504.00" x2="229.15" y2="504.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="162.10" y="513.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="162.10" y1="515.00" x2="229.15" y2="515.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="162.10" y="524.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="162.10" y1="526.00" x2="229.15" y2="526.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="233.25" y="489.00" width="70.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="234.85" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">MEP ENGINEER</text>
+<line x1="234.85" y1="496.00" x2="301.90" y2="496.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="234.85" y="502.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="234.85" y1="504.00" x2="301.90" y2="504.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="234.85" y="513.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="234.85" y1="515.00" x2="301.90" y2="515.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="234.85" y="524.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="234.85" y1="526.00" x2="301.90" y2="526.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="306.00" y="489.00" width="70.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="307.60" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">INFO MANAGER</text>
+<line x1="307.60" y1="496.00" x2="374.65" y2="496.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="307.60" y="502.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="307.60" y1="504.00" x2="374.65" y2="504.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="307.60" y="513.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="307.60" y1="515.00" x2="374.65" y2="515.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="307.60" y="524.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="307.60" y1="526.00" x2="374.65" y2="526.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="378.75" y="489.00" width="70.25" height="59.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="380.35" y="494.00" font-family="Helvetica, Arial, sans-serif" font-size="2.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">PRINCIPAL DESIGNER</text>
+<line x1="380.35" y1="496.00" x2="447.40" y2="496.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="380.35" y="502.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="380.35" y1="504.00" x2="447.40" y2="504.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="380.35" y="513.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="380.35" y1="515.00" x2="447.40" y2="515.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="380.35" y="524.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="380.35" y1="526.00" x2="447.40" y2="526.00" stroke="#C9CCD0" stroke-width="0.25"/>
 </svg>

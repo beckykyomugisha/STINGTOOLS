@@ -14,11 +14,17 @@ This preview differs from the committed Revit family
 STING_TB_COVER_A1_v1.0 (a simpler banner cover in STING_TITLE_BLOCKS.json);
 it is a *design study* for review, not a family generator.
 
-Two review edits are applied and (optionally) highlighted:
+All original blocks from the reference sheet are retained. Edits +
+enrichment applied (the two grid edits are optionally highlighted):
   1. BIM & COORDINATION — 8th field added so the key/value grid is a
-     clean 4x2 (REGION now pairs with VOLUME).
+     clean 4x2 (REGION now pairs with VOLUME); LV/DATA swatch added.
   2. DOCUMENT CONTROL  — a field added to the right column (REVIEWED) so
      the left/right columns have equal rows.
+  3. REVISION HISTORY  — the former "LATEST ISSUES" panel is now a full
+     issue register (15 rows + SUIT column), since the block has room
+     for the whole history rather than only the last few.
+  4. PROJECT block, STANDARDS, and PROJECT DIRECTORY enriched with the
+     metadata / rows / roles the extra space allows.
 
 Discipline swatch colours are the *definitive* STING reference from
 StingColorRegistry.Disciplines (StingTools/Tags/LegendBuilderCommands.cs)
@@ -54,6 +60,7 @@ DISCIPLINES = [
     ("ELEC",     "#FFC800"),   # E  — Electrical
     ("PLUMB",    "#00B400"),   # P  — Plumbing
     ("FIRE",     "#FF6400"),   # FP — Fire protection
+    ("LV/DATA",  "#A000C8"),   # LV — Low voltage / data
     ("COMBINED", "#3C3C3C"),   # federated (proposed — add to registry)
 ]
 
@@ -136,9 +143,18 @@ for i, lab in enumerate(seg_labels):
         line(x0, hb_y, x0, hb_y + hb_h, stroke=LINE, sw=0.5)
     text(x0 + 3, hb_y + 6, lab, size=2.4, weight="bold", spacing="0.2")
 
-# ── PROJECT block (top-left) ─────────────────────────────────────────
+# ── PROJECT block (top-left) — enriched with project metadata ────────
 pj_y, pj_h = 58, 74
-text(M + 1, pj_y + 6, "PROJECT", size=4.2, weight="bold", spacing="0.4")
+text(M + 1, pj_y + 5, "PROJECT", size=3.0, weight="bold", fill=SUB, spacing="0.5")
+# large project-name placeholder rule
+line(M + 1, pj_y + 30, 440, pj_y + 30, stroke=HAIR, sw=0.5)
+text(M + 1, pj_y + 27, "PROJECT NAME", size=6.5, weight="bold", fill="#C6CACF")
+# metadata strip — 4 cells across the project block
+pj_meta = [("PROJECT No.", M + 1), ("CLIENT", M + 112),
+           ("WORK STAGE", M + 224), ("SITE / ADDRESS", M + 300)]
+for lab, mx in pj_meta:
+    kv(mx, pj_y + 50, lab)
+    line(mx, pj_y + 52.6, mx + 96, pj_y + 52.6, stroke=HAIR, sw=0.3)
 line(M, pj_y + pj_h, 450, pj_y + pj_h, stroke=HAIR, sw=0.4)
 
 # ── IMAGE RENDER slot (top-right) — snapped to 16:9 ──────────────────
@@ -230,17 +246,30 @@ for i, (name, col) in enumerate(DISCIPLINES):
     rect(cx, cy, sw_s, sw_s, fill=col, stroke=LINE, sw=0.3)
     text(cx + sw_s / 2, cy + sw_s + 3, name, size=1.9, anchor="middle")
 
-# ── LATEST ISSUES ────────────────────────────────────────────────────
+# ── REVISION HISTORY (full register — the block has room for the ─────
+#    whole issue history, not just the last 4) ─────────────────────────
 li_x, li_y, li_w, li_h = M, 264, 246, 206
-panel(li_x, li_y, li_w, li_h, "LATEST ISSUES")
-cols = [("REV", li_x + 3), ("DESCRIPTION", li_x + 20),
-        ("DATE", li_x + li_w - 45), ("BY", li_x + li_w - 16)]
-for c, cx in cols:
-    text(cx, li_y + 13, c, size=2.4, weight="bold", fill=SUB)
-line(li_x + 2, li_y + 15, li_x + li_w - 2, li_y + 15, stroke=HAIR, sw=0.3)
-for i in range(7):
-    line(li_x + 2, li_y + 24 + i * 10, li_x + li_w - 2, li_y + 24 + i * 10,
-         stroke="#E4E6E9", sw=0.25)
+panel(li_x, li_y, li_w, li_h, "REVISION HISTORY", right_tag="FULL ISSUE LOG")
+# column x-anchors
+c_rev  = li_x + 3
+c_desc = li_x + 17
+c_suit = li_x + li_w - 66
+c_date = li_x + li_w - 44
+c_by   = li_x + li_w - 15
+rh_cols = [("REV", c_rev), ("DESCRIPTION", c_desc),
+           ("SUIT", c_suit), ("DATE", c_date), ("BY", c_by)]
+for c, cx in rh_cols:
+    text(cx, li_y + 13, c, size=2.3, weight="bold", fill=SUB)
+line(li_x + 2, li_y + 15, li_x + li_w - 2, li_y + 15, stroke=LINE, sw=0.4)
+# column separators
+for cx in (c_desc - 2, c_suit - 2, c_date - 2, c_by - 2):
+    line(cx, li_y + 8, cx, li_y + li_h - 3, stroke="#E4E6E9", sw=0.25)
+# 15 empty history rows (was 4-line "latest issues")
+rh_rows = 15
+rh_step = (li_h - 20) / rh_rows
+for i in range(rh_rows + 1):
+    line(li_x + 2, li_y + 17 + i * rh_step, li_x + li_w - 2,
+         li_y + 17 + i * rh_step, stroke="#E4E6E9", sw=0.25)
 
 # ── WHAT CHANGED IN THIS ISSUE ───────────────────────────────────────
 wc_x, wc_y, wc_w, wc_h = li_x + li_w + 6, 264, 186, 84
@@ -254,13 +283,15 @@ for c, cx in sc:
     text(cx, st_y + 13, c, size=2.3, weight="bold", fill=SUB)
 line(st_x + 2, st_y + 15, st_x + st_w - 2, st_y + 15, stroke=HAIR, sw=0.3)
 rows = [("BS EN ISO 19650-2", "Info mgmt", "All"),
+        ("BS EN ISO 19650-5", "Security", "All"),
+        ("Uniclass 2015", "Classification", "All"),
         ("BS 7671:2018+A2", "Wiring regs", "Power"),
         ("BS EN 62305 §4.3", "Lightning", "E-4001"),
         ("BS 5839-1 §14", "Fire detect", "E-5001"),
         ("BS EN 12464-1", "Lighting", "E-1101"),
         ("CIBSE Guide K", "Electricity", "E-2001")]
 for i, (a, b, c) in enumerate(rows):
-    yy = st_y + 24 + i * 14
+    yy = st_y + 23 + i * 11.4
     text(st_x + 3, yy, a, size=2.4)
     text(st_x + 95, yy, b, size=2.4, fill=SUB)
     text(st_x + st_w - 30, yy, c, size=2.4, fill=SUB)
@@ -277,15 +308,23 @@ for i in range(22):
     line(dr_x + 3, dr_y + 26 + i * 10.6, dr_x + dr_w - 3, dr_y + 26 + i * 10.6,
          stroke="#E4E6E9", sw=0.25)
 
-# ── PROJECT DIRECTORY ────────────────────────────────────────────────
+# ── PROJECT DIRECTORY — enriched: 6 ISO 19650 roles + contact lines ──
 pd_x, pd_y, pd_w, pd_h = M, 478, 440, 74
 panel(pd_x, pd_y, pd_w, pd_h, "PROJECT DIRECTORY — STAKEHOLDERS & CONSULTANTS")
-cards = ["CLIENT", "ARCHITECT", "STRUCTURAL", "MEP ENGINEER"]
-cw = (pd_w - 5 * 3) / 4
+cards = ["CLIENT", "ARCHITECT", "STRUCTURAL", "MEP ENGINEER",
+         "INFO MANAGER", "PRINCIPAL DESIGNER"]
+n = len(cards)
+gap = 2.5
+cw = (pd_w - 6 - gap * (n - 1)) / n
 for i, c in enumerate(cards):
-    cx = pd_x + 4 + i * (cw + 3)
+    cx = pd_x + 3 + i * (cw + gap)
     rect(cx, pd_y + 11, cw, pd_h - 15, fill=CARD, stroke=HAIR, sw=0.4)
-    text(cx + 2, pd_y + 16, c, size=2.4, weight="bold", spacing="0.2")
+    text(cx + 1.6, pd_y + 16, c, size=2.2, weight="bold", spacing="0.1")
+    line(cx + 1.6, pd_y + 18, cx + cw - 1.6, pd_y + 18, stroke=HAIR, sw=0.3)
+    for j, sub in enumerate(["Company", "Contact", "Tel · Email"]):
+        sy = pd_y + 24 + j * 11
+        text(cx + 1.6, sy, sub, size=1.9, fill=SUB)
+        line(cx + 1.6, sy + 2, cx + cw - 1.6, sy + 2, stroke="#C9CCD0", sw=0.25)
 
 _svg.append("</svg>")
 
