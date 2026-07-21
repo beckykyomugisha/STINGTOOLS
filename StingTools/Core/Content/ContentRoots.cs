@@ -39,11 +39,12 @@ namespace StingTools.Core.Content
                     // …then the legacy <projDir>/_BIM_COORD/… siblings, so families placed
                     // before consolidation still resolve (dedup drops any overlap). Mirrors the
                     // consolidated-first / legacy-sibling fallback the registries get from
-                    // ProjectFolderEngine.ResolveProjectOverridePath.
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Content"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Symbols"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Seeds"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families"));
+                    // ProjectFolderEngine.ResolveProjectOverridePath — resolved through
+                    // GetLegacyMetaDir so the layout stays owned by ProjectFolderEngine.
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Content"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Symbols"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Seeds"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families"));
                 }
             }
             catch { /* unsaved doc */ }

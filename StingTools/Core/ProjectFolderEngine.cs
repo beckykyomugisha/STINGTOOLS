@@ -503,6 +503,49 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Legacy sibling DIRECTORY for a bucket: &lt;rvtDir&gt;/&lt;bucket&gt;/&lt;subParts…&gt;.
+        /// The directory-shaped counterpart to <see cref="ResolveProjectOverridePath"/>,
+        /// which resolves a single override FILE and so cannot serve callers that need a
+        /// search ROOT (content/family libraries, where the caller globs the folder).
+        /// <para>
+        /// Callers must add this AFTER the consolidated <c>StingPaths.Meta</c> root, never
+        /// instead of it: it exists so content placed before the ISO 19650 consolidation
+        /// still resolves. Returns null for an unsaved document.
+        /// </para>
+        /// <para>
+        /// This lives here rather than at the call site because ProjectFolderEngine owns the
+        /// folder layout and the legacy migration; hand-rolling the sibling path in a consumer
+        /// forks the layout away from the migration that has to move it (and trips the
+        /// path-discipline gate, correctly).
+        /// </para>
+        /// </summary>
+        public static string GetLegacyMetaDir(Document doc, string bucket, params string[] subParts)
+        {
+            if (doc == null || string.IsNullOrEmpty(bucket)) return null;
+            try
+            {
+                string projDir = string.IsNullOrEmpty(doc.PathName)
+                    ? null : Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(projDir)) return null;
+
+                string path = Path.Combine(projDir, bucket);
+                if (subParts != null)
+                {
+                    foreach (var part in subParts)
+                    {
+                        if (!string.IsNullOrEmpty(part)) path = Path.Combine(path, part);
+                    }
+                }
+                return path;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetLegacyMetaDir({bucket}): {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Transient staging area for an outbound channel (e.g. "acc", "sharepoint"),
         /// under &lt;root&gt;/_data/staging/&lt;channel&gt;. Replaces the per-file
         /// "_acc_mirror_tmp" folders and the case-inconsistent "_DATA/sharepoint_queue".
