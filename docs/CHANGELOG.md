@@ -2,6 +2,37 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (data sync — gate-param TEXT→YESNO datatype alignment, supersedes PR #337)
+
+Re-applied the gate-parameter datatype fix from PR #337
+(`claude/sync-gate-datatype-all-files`) fresh on top of current `main`, because
+`main` had added rows inside the CSV regions the stale branch rewrote and the
+branch could no longer merge. Data-file only; no code, no GUID edits.
+
+- **Problem.** The authoritative shared-param sources (`MR_PARAMETERS.txt`/`.csv`,
+  `PARAMETER_REGISTRY.json`, per Phase 194) already declare the gate `_BOOL`
+  parameters as **YESNO**, but `main`'s copies of the binding/config CSVs still
+  carried the pre-YESNO **TEXT** datatype for those same params — contradicting
+  the plugin's own canon.
+- **Exact param set (148 distinct)** re-derived from the original PR diff
+  (`git diff origin/main...origin/claude/sync-gate-datatype-all-files`): 134
+  `TAG_<size>*_BOOL` tag-style matrix switches, 10 `TAG_PARA_STATE_1..10_BOOL`
+  tier gates, and 4 warn/misc gates (`PER_SUST_RECYCLABLE_BOOL`,
+  `TAG_BOX_VISIBLE_BOOL`, `TAG_SCALE_TIER_AUTO_BOOL`, `TAG_WARN_VISIBLE_BOOL`).
+  The PR diff was verified byte-pure: every changed line pair is exactly one
+  `TEXT`→`YESNO` substitution in the datatype column, GUIDs unchanged.
+- **Applied to `main`'s current versions of 10 CSVs**, flipping only the datatype
+  column for those exact params where still `TEXT` (6,261 rows total):
+  `FAMILY_PARAMETER_BINDINGS.csv` (6,180 — one row per bound category),
+  `PARAMETER_CATEGORIES.csv` (1), and the 8
+  `STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}[_DesignConstruction].csv` (10 each —
+  the tier gates; the 128 matrix switches were already YESNO there).
+  `MR_PARAMETERS.txt`/`.csv` untouched (already YESNO); `STING_TAG_CONFIG_v5_0_HEALTH*`
+  untouched (not in the PR's scope).
+- **Byte-purity verified** with a Python differ against `origin/main`: 6,261
+  changed lines, **zero** non-datatype diffs, all GUIDs identical on changed
+  lines, and every file's row count preserved (numstat additions == deletions per
+  file). Data-only change, no `dotnet build` run (Linux sandbox).
 #### Completed (Phase 224 — drawings-production P2, tracks A + D)
 
 Track A (correctness) and Track D (performance) of the P2 tier, on top of Phase 223. Ten
