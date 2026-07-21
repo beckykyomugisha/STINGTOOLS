@@ -43,8 +43,18 @@ namespace StingTools.Commands.Sustainability
 
         public static SustainProjectSetup LoadSetup(Document doc)
         {
-            var setup = SustainProjectSetup.Load(
-                StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out bool found);
+            // Resolve the config CONSOLIDATED-first (<root>/_data/_BIM_COORD/sustainability/)
+            // then fall back to the LEGACY sibling (<projDir>/_BIM_COORD/sustainability/) —
+            // the same consolidated-then-legacy order ClimateRegistry / MepSizingRegistry get
+            // from ProjectFolderEngine.ResolveProjectOverridePath. Without the fallback a
+            // project set up before the ISO 19650 folder consolidation is never found and the
+            // dashboard silently reverts to CreateDefault() carbon/occupancy inputs.
+            string cfgFile = ProjectFolderEngine.ResolveProjectOverridePath(
+                doc, "_BIM_COORD/sustainability/project_setup.json");
+            string sustainDir = !string.IsNullOrEmpty(cfgFile)
+                ? Path.GetDirectoryName(cfgFile)
+                : StingPaths.Meta(doc, "_BIM_COORD", "sustainability");
+            var setup = SustainProjectSetup.Load(sustainDir, out bool found);
             if (!found)
             {
                 // Seed area from the model when no setup exists yet (Spaces preferred,

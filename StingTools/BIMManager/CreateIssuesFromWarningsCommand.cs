@@ -29,8 +29,8 @@ namespace StingTools.BIMManager
     //            sha256(category + severity + first-100-chars-of-desc + sorted elt ids)
     //         → first 12 hex chars. Re-runs with the same warnings produce identical
     //         hashes → no duplicates.
-    //      5. For each group: build a JObject via BIMManagerEngine.CreateIssue so the
-    //         schema matches what RaiseIssueCommand / IssueDashboard / UpdateIssue
+    //      5. For each group: batch.Create(IssueSpec) via IssueStore so the schema
+    //         matches what RaiseIssueCommand / IssueDashboard / UpdateIssue
     //         expect (issue_id, type, priority, status, element_ids, comments, …).
     //      6. Tag every minted issue with the source_hash so subsequent runs can
     //         dedup in O(n).
@@ -45,12 +45,14 @@ namespace StingTools.BIMManager
     //     never appear in the classified Warnings list with severity above Medium
     //     anyway — see the scope filter below.)
     //
-    //  This file deliberately uses BIMManagerEngine.CreateIssue / LoadJsonArray /
-    //  SaveJsonFile / GetBIMManagerFilePath for schema compatibility with the rest
-    //  of the issue tracker. WarningsEngine.CreateIssuesFromWarnings (legacy, in
-    //  Core/WarningsManager.cs) writes a different, hand-rolled JSON shape that
-    //  IssueDashboard cannot read; that legacy method is left in place for the
-    //  callers documented in Core/Phase75Enhancements.cs but is NOT used here.
+    //  This file uses IssueStore.Begin / batch.Create / batch.Commit — one atomic
+    //  batch that owns issue minting, still-open dedup, the audit-chain entry and the
+    //  Planscape server push, and writes the same JSON schema the rest of the issue
+    //  tracker (RaiseIssueCommand / IssueDashboard / UpdateIssue) reads.
+    //  WarningsEngine.CreateIssuesFromWarnings (legacy, in Core/WarningsManager.cs)
+    //  writes a different, hand-rolled JSON shape that IssueDashboard cannot read; that
+    //  legacy method is left in place for the callers documented in
+    //  Core/Phase75Enhancements.cs but is NOT used here.
     // ════════════════════════════════════════════════════════════════════════════
 
     [Transaction(TransactionMode.ReadOnly)]
