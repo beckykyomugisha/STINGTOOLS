@@ -449,11 +449,6 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.INotificationService, Pl
 
 // ── Redis ──
 var redisConn = builder.Configuration["Redis:Connection"] ?? "localhost:6379";
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = redisConn;
-    options.InstanceName = "Planscape:";
-});
 // Phase 175 — single shared multiplexer reused by the SignalR
 // backplane, the cache, the permission-revocation store, AND the
 // Redis-backed rate limiter below. Avoid creating a second connection
@@ -465,6 +460,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // Add a 5s ConnectTimeout so the app doesn't hang on startup if the
 // DNS/network is slow. A blanket try/catch wraps the whole thing as a
 // last-resort guard against any other unexpected failure mode.
+// Built BEFORE the distributed cache so the cache can reuse this exact
+// multiplexer (see ConnectionMultiplexerFactory below).
 ConnectionMultiplexer redisMux;
 try
 {
@@ -495,6 +492,22 @@ catch (Exception ex)
     redisMux = ConnectionMultiplexer.Connect(fallbackOptions);
 }
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
+
+// Distributed cache MUST reuse the shared multiplexer above via
+// ConnectionMultiplexerFactory. Feeding AddStackExchangeRedisCache a raw
+// connection string instead makes RedisCache build its OWN multiplexer with
+// the library defaults (AbortOnConnectFail=true, 5s ConnectTimeout) — so
+// during a Redis outage every cache Get/Set pays its own multi-second connect
+// timeout instead of failing fast against the already-disconnected shared mux
+// (which was created with AbortOnConnectFail=false). InstanceName stays as the
+// key prefix; Configuration is intentionally omitted because it is ignored once
+// a factory is supplied.
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.InstanceName = "Planscape:";
+    options.ConnectionMultiplexerFactory =
+        () => Task.FromResult<IConnectionMultiplexer>(redisMux);
+});
 
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {
