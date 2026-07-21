@@ -30,6 +30,14 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
     /// </summary>
     public TestReplayGuard ReplayGuard { get; } = new();
 
+    /// <summary>
+    /// The handoff-ticket signing secret injected into the test host's configuration.
+    /// Tests mint tickets with this instead of setting a process-global
+    /// <c>PLANSCAPE_HANDOFF_SECRET</c> environment variable that would leak across
+    /// the parallel suite. Test-only; never leaves the in-process host.
+    /// </summary>
+    public const string HandoffSecret = "test-handoff-secret-not-a-real-one-0123456789";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -59,10 +67,17 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
         // literal rather than something readable like "test-key-padding-...".
         builder.UseSetting("Jwt:Key", "qZ7v3Kx9TmR2wLp8Nc5FhJd6Bs4YgVt1Ae0UnXiOrEz");
 
+        // AuthController.HandoffExchange reads PLANSCAPE_HANDOFF_SECRET via
+        // IConfiguration at REQUEST time, so ConfigureAppConfiguration reaches it
+        // (unlike Jwt:Key above, read during host build). Injecting it here lets the
+        // handoff tests mint tickets with a known secret WITHOUT each test class
+        // setting a process-global Environment variable that leaks across the
+        // parallel suite. See HandoffSecret.
         builder.ConfigureAppConfiguration(cfg =>
             cfg.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["RateLimiting:Enabled"] = "false"
+                ["RateLimiting:Enabled"] = "false",
+                ["PLANSCAPE_HANDOFF_SECRET"] = HandoffSecret
             }));
 
         builder.ConfigureServices(services =>

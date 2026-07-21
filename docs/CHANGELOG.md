@@ -14562,3 +14562,50 @@ predicate.
 
 Built without `dotnet build` verification (no .NET SDK in the sandbox); the
 changes are attribute/predicate-level and mirror existing adjacent patterns.
+
+---
+
+## Follow-up 2 — review of #460 (dead soft-delete filter + handoff-secret test leak)
+
+Two more items from the #460 review, both flagged in #463's notes.
+
+### `AppUser` soft-delete query filter was dead (real, pre-existing bug)
+
+`AppUser` sets a soft-delete global filter (`e.HasQueryFilter(u => !u.IsDeleted)` in
+its entity block) **and** is `ITenantScoped`, so `ApplyTenantQueryFilters` — which
+runs *after* the entity blocks — called `HasQueryFilter` again with the tenant
+predicate. EF Core's `HasQueryFilter` **replaces** rather than combines, so the
+tenant filter silently clobbered the soft-delete one: soft-deleted users stayed
+visible to every normal query, contradicting the entity-block comment and the two
+anonymous lookups (handoff, PAT exchange) that rely on `!IsDeleted`.
+
+Fix: `ApplyTenantQueryFilters` now reads each entity's existing filter via
+`GetQueryFilter()` and `AND`s it with the tenant predicate under one shared
+parameter (a small `ParameterReplacer : ExpressionVisitor` rebinds the existing
+lambda's parameter). General, not an AppUser special-case — any future entity with
+its own filter is preserved too. No behavioural change today (nothing sets
+`AppUser.IsDeleted = true` yet), but the guarantee is now real.
+
+### Handoff-secret test isolation
+
+`AuthController.HandoffExchange` read `PLANSCAPE_HANDOFF_SECRET` via
+`Environment.GetEnvironmentVariable`, which forced two test classes to set a
+**process-global** env var in their constructors — leaking across the parallel
+xunit suite. Now read via `IConfiguration` (env vars remain a config source, so a
+deployed secret still resolves; the direct read stays as a fallback). The factory
+injects a known `HandoffSecret` through `ConfigureAppConfiguration` (reached because
+the secret is read at request time, not host-build), and both `HandoffProvisioning`
+and `HandoffReplayGuard` tests drop their `Environment.SetEnvironmentVariable` calls.
+
+### Not done (deliberately)
+
+- **Baselined flakes** `Login_NonexistentUser_Returns401` /
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly` are downstream of the process-global
+  state in **DEP-7** (Hangfire `JobStorage.Current`) / **DEP-13** (Serilog
+  `Log.Logger`). Those are large infra refactors whose mitigations the test-health
+  pass already measured and reverted; not churned here.
+
+Built **without `dotnet build` verification** (no .NET SDK in the sandbox);
+compile is covered by CI's full-solution build (`contract-drift.yml`). The EF filter
+change is exercised by the whole tenant-isolation suite, which runs in
+`planscape-server.yml` — worth confirming that job runs on this PR.
