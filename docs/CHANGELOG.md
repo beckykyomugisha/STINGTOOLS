@@ -33,6 +33,13 @@ to `SUIT`) — and wires STING to populate it automatically.
 - No new shared parameter; reuses `PRJ_DWG_SUITABILITY_COD_TXT`, so it works with
   the existing family with no regeneration. No `dotnet build` run (Linux sandbox);
   verify in Revit.
+- **`STING_TITLE_BLOCKS.json`** gains **`STING_TB_COVER_A1_PORT_v1.0`** — a portrait
+  (594 × 841 mm) mirror of the landscape banner cover, extending the same
+  `A1_common_v2.0` param base, so `TitleBlock_CreateAll` mints a portrait cover
+  alongside the landscape one. Same 9 identity labels / 5 captions / dark-blue
+  banner + amber strip, re-laid-out for portrait; provide a portrait seed at
+  `Families/TitleBlocks/_seeds/STING_TB_COVER_A1_PORT_v1.0.rfa` to carry the full
+  authored layout. Preview: `docs/title_blocks/previews/STING_TB_COVER_A1_PORT_v1.0.svg/.png`.
 - **`docs/title_blocks/cover_v8_spec.py`** gains a `--params` mode that renders a
   **label-authoring guide** (`cover_v8_PARAM_GUIDE.svg/.png`): every cell shows the
   real STING shared parameter it should bind to (harvested from

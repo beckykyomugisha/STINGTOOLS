@@ -13979,6 +13979,299 @@
       "slots": []
     },
     {
+      "id": "STING_TB_COVER_A1_PORT_v1.0",
+      "extends": "A1_common_v2.0",
+      "description": "Project / package cover sheet \u2014 A1 portrait (594 \u00d7 841 mm), NO drawable zone (viewport placement deliberately blocked). Portrait mirror of STING_TB_COVER_A1_v1.0: top dark-blue banner, amber accent strip, large centred project name + address + client + RIBA stage; bottom 100 mm strip carries deliverable status, revision, issue date, transmittal ref. Provide a portrait seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A1_PORT_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
+      "saveAs": "Families/TitleBlocks/STING_TB_COVER_A1_PORT_v1.0.rfa",
+      "templateRft": "Annotations/Titleblocks/A1 metric.rft",
+      "category": "OST_TitleBlocks",
+      "parameters": [
+        {
+          "name": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_REVISION_NR_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_PAPER_SZ_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "A1"
+        },
+        {
+          "name": "PRJ_TB_VARIANT_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "COVER"
+        },
+        {
+          "name": "STING_SHEET_BIM_MODE_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData",
+          "default": "NONBIM"
+        }
+      ],
+      "lines": [
+        {
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            594,
+            0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            594,
+            0
+          ],
+          "to": [
+            594,
+            841
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            594,
+            841
+          ],
+          "to": [
+            0,
+            841
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0,
+            841
+          ],
+          "to": [
+            0,
+            0
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0,
+            781
+          ],
+          "to": [
+            594,
+            781
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0,
+            100
+          ],
+          "to": [
+            594,
+            100
+          ],
+          "style": "Wide Lines"
+        },
+        {
+          "from": [
+            0,
+            60
+          ],
+          "to": [
+            594,
+            60
+          ],
+          "style": "Medium Lines"
+        },
+        {
+          "from": [
+            297,
+            0
+          ],
+          "to": [
+            297,
+            100
+          ],
+          "style": "Thin Lines"
+        }
+      ],
+      "staticText": [
+        {
+          "text": "PROJECT",
+          "anchor": [
+            4,
+            827
+          ],
+          "size": 1.4
+        },
+        {
+          "text": "DELIVERABLE",
+          "anchor": [
+            4,
+            80
+          ],
+          "size": 1.0
+        },
+        {
+          "text": "REVISION",
+          "anchor": [
+            4,
+            40
+          ],
+          "size": 1.0
+        },
+        {
+          "text": "ISSUE DATE",
+          "anchor": [
+            300,
+            80
+          ],
+          "size": 1.0
+        },
+        {
+          "text": "TRANSMITTAL",
+          "anchor": [
+            300,
+            40
+          ],
+          "size": 1.0
+        }
+      ],
+      "labels": [
+        {
+          "param": "PRJ_ORG_PROJECT_NAME_TXT",
+          "anchor": [
+            297,
+            510.5
+          ],
+          "size": 16.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_PROJECT_ADDRESS_TXT",
+          "anchor": [
+            297,
+            485.5
+          ],
+          "size": 4.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_CLIENT_NAME_TXT",
+          "anchor": [
+            297,
+            440.5
+          ],
+          "size": 6.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_ORG_RIBA_STAGE_TXT",
+          "anchor": [
+            297,
+            400.5
+          ],
+          "size": 3.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_DWG_ISSUE_PURPOSE_TXT",
+          "anchor": [
+            297,
+            370.5
+          ],
+          "size": 4.0,
+          "hAlign": "Center"
+        },
+        {
+          "param": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+          "anchor": [
+            4,
+            70
+          ],
+          "size": 2.0
+        },
+        {
+          "param": "PRJ_TB_REVISION_NR_TXT",
+          "anchor": [
+            4,
+            30
+          ],
+          "size": 3.0
+        },
+        {
+          "param": "PRJ_TB_DATE_DRAWN_TXT",
+          "anchor": [
+            300,
+            70
+          ],
+          "size": 2.0
+        },
+        {
+          "param": "PRJ_TB_LAST_TRANSMITTAL_TXT",
+          "anchor": [
+            300,
+            30
+          ],
+          "size": 2.0
+        }
+      ],
+      "filledRegions": [
+        {
+          "topLeft": [
+            0,
+            841
+          ],
+          "bottomRight": [
+            594,
+            781
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#1F4E79"
+        },
+        {
+          "topLeft": [
+            0,
+            100
+          ],
+          "bottomRight": [
+            594,
+            95
+          ],
+          "fillTypeName": "Solid fill",
+          "color": "#F2A341"
+        }
+      ],
+      "slots": []
+    },
+    {
       "id": "STING_TB_DIVIDER_A1_v1.0",
       "extends": "A1_common_v2.0",
       "description": "Discipline section divider \u2014 A1 landscape, large grey background panel, huge centred discipline label (60 mm \u2014 e.g. 'MEP', 'STRUCTURAL', 'ARCHITECTURAL'), project code below. Minimal 50 mm bottom strip carries discipline / project / deliverable identifiers. Used between disciplines in a multi-discipline package.",
