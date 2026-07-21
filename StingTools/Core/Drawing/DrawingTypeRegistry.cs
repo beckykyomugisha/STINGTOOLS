@@ -159,20 +159,24 @@ namespace StingTools.Core.Drawing
             var m = new DrawingType { Id = leaf.Id, Name = leaf.Name, Origin = leaf.Origin, Extends = leaf.Extends };
             foreach (var p in chain)
             {
-                if (!string.IsNullOrEmpty(p.Description))      m.Description = p.Description;
-                if (!string.IsNullOrEmpty(p.Purpose))          m.Purpose = p.Purpose;
-                if (!string.IsNullOrEmpty(p.Discipline))       m.Discipline = p.Discipline;
-                if (!string.IsNullOrEmpty(p.Phase))            m.Phase = p.Phase;
-                if (!string.IsNullOrEmpty(p.PaperSize))        m.PaperSize = p.PaperSize;
-                if (!string.IsNullOrEmpty(p.TitleBlockFamily)) m.TitleBlockFamily = p.TitleBlockFamily;
-                if (!string.IsNullOrEmpty(p.Orientation))      m.Orientation = p.Orientation;
-                if (p.Scale > 0)                               m.Scale = p.Scale;
-                if (!string.IsNullOrEmpty(p.DetailLevel))      m.DetailLevel = p.DetailLevel;
-                if (!string.IsNullOrEmpty(p.ViewTemplateName)) m.ViewTemplateName = p.ViewTemplateName;
-                if (!string.IsNullOrEmpty(p.ViewportTypeName)) m.ViewportTypeName = p.ViewportTypeName;
-                if (!string.IsNullOrEmpty(p.SheetNumberPattern)) m.SheetNumberPattern = p.SheetNumberPattern;
-                if (!string.IsNullOrEmpty(p.SheetNamePattern))   m.SheetNamePattern = p.SheetNamePattern;
-                if (!string.IsNullOrEmpty(p.ViewStylePackId))    m.ViewStylePackId = p.ViewStylePackId;
+                // Carry every field not explicitly merged below. Without
+                // this the fold dropped TitleBlockParams,
+                // TitleBlockParamsBySymbol, TitleBlockSymbolType,
+                // IsoNaming, System, MaterialPack, OptionScope,
+                // ProductionRules, PackageId, TitleBlockVariantRules and
+                // TagTextSizeMm — including the leaf's own values, since
+                // the leaf is just the last link of this same chain. A
+                // project profile using the documented inheritance
+                // produced sheets with empty title-block cells and no ISO
+                // naming, silently.
+                ExtendsMerge.Overlay(p, m, _overlayProps);
+
+                // Object / collection fields keep their hand-written
+                // guards: their POCO defaults are freshly-constructed
+                // instances, so no value comparison can tell "child left
+                // this unset" from "child set it to something equal to
+                // the default". A child therefore still replaces these
+                // wholesale, exactly as before.
                 if (p.Crop != null)          m.Crop = p.Crop;
                 if (p.SectionMarker != null) m.SectionMarker = p.SectionMarker;
                 if (p.Slots != null && p.Slots.Count > 0) m.Slots = p.Slots;
@@ -182,6 +186,39 @@ namespace StingTools.Core.Drawing
             }
             return m;
         }
+
+        // Fields the fold above merges by hand: identity taken from the
+        // leaf, plus the object/collection fields whose defaults are
+        // fresh instances. Every other field — including the scalars the
+        // old fold enumerated — is carried by ExtendsMerge.Overlay, which
+        // treats "equal to a fresh instance's value" as unset.
+        //
+        // That last point also fixes a second inheritance defect the
+        // hand-written guards had: fields with a non-null POCO default
+        // (Purpose "Plan", Discipline/Phase "*", PaperSize "A1",
+        // Orientation "Landscape", Scale 100, DetailLevel "Medium", both
+        // sheet patterns) passed !IsNullOrEmpty on a child that never
+        // declared them, so a child could never inherit any of them — an
+        // A0 parent always came back A1. Known limitation of the
+        // default-as-sentinel approach: a child that explicitly restates
+        // a default (e.g. "discipline": "*") is indistinguishable from
+        // one that omits it and will inherit the parent's value instead.
+        private static readonly HashSet<string> _overlaySkip = new HashSet<string>(StringComparer.Ordinal)
+        {
+            nameof(DrawingType.Id),
+            nameof(DrawingType.Name),
+            nameof(DrawingType.Origin),
+            nameof(DrawingType.Extends),
+            nameof(DrawingType.Crop),
+            nameof(DrawingType.SectionMarker),
+            nameof(DrawingType.Slots),
+            nameof(DrawingType.Annotation),
+            nameof(DrawingType.TokenProfile),
+            nameof(DrawingType.Print),
+        };
+
+        private static readonly System.Reflection.PropertyInfo[] _overlayProps
+            = ExtendsMerge.OverlayProps(typeof(DrawingType), _overlaySkip);
 
         public static IReadOnlyList<DrawingType> ListAll(Document doc)
             => GetLibrary(doc).DrawingTypes;

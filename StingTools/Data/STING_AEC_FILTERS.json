@@ -7339,7 +7339,7 @@
       "rule": {
         "param": "PLM_DEAD_LEG_LENGTH_M",
         "kind": "shared",
-        "op": "greater_than",
+        "op": "greater",
         "value": "0",
         "type": "double"
       },
@@ -7391,9 +7391,8 @@
         "OST_PipeAccessory"
       ],
       "rule": {
-        "kind": "compound",
-        "op": "or",
-        "operands": [
+        "logic": "or",
+        "rules": [
           {
             "param": "PLM_PRESSURE_ZONE_TXT",
             "kind": "shared",
@@ -7433,9 +7432,8 @@
         "OST_PipeAccessory"
       ],
       "rule": {
-        "kind": "compound",
-        "op": "or",
-        "operands": [
+        "logic": "or",
+        "rules": [
           {
             "param": "PLM_FLUID_CATEGORY_TXT",
             "kind": "shared",
@@ -7507,7 +7505,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "Bedhead"
       },
@@ -7531,7 +7529,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "Pendant"
       },
@@ -7554,7 +7552,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "Scrub"
       },
@@ -7646,7 +7644,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "Manifold"
       },
@@ -7718,7 +7716,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "Generator"
       },
@@ -7741,7 +7739,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "ATS"
       },
@@ -7846,7 +7844,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "Temp Sensor"
       },
@@ -7870,7 +7868,7 @@
         "OST_GenericModel"
       ],
       "rule": {
-        "param": "Family Name",
+        "param": "ALL_MODEL_FAMILY_NAME",
         "op": "contains",
         "value": "Calorifier"
       },
@@ -8216,7 +8214,7 @@
           },
           {
             "param": "ELC_LPS_BOND_TYPE_TXT",
-            "op": "isNotEmpty",
+            "op": "hasValue",
             "value": ""
           }
         ]

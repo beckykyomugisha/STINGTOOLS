@@ -66,7 +66,8 @@ namespace StingTools.Commands.Drawing
                     MainContent =
                         "This rewrites every title-block parameter declared by each sheet's profile " +
                         "(titleBlockParams + per-symbol overlays). Scale / detail level / view template / " +
-                        "view-style pack / annotation are NOT touched. Locked sheets are skipped.",
+                        "view-style pack / annotation are NOT touched. Style-locked sheets are skipped, and " +
+                        "title blocks frozen with PRJ_TB_LOCK_BOOL are left untouched.",
                     CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                     DefaultButton = TaskDialogResult.Ok,
                 };
@@ -75,6 +76,7 @@ namespace StingTools.Commands.Drawing
                 var auditRows = new List<HealRow>();
                 int totalParams = 0;
                 int healed = 0;
+                int lockedSkipped = 0;
                 using (TitleBlockParamApplier.Batch())
                 using (var tx = new Transaction(doc, "STING — Heal Title Blocks"))
                 {
@@ -91,6 +93,11 @@ namespace StingTools.Commands.Drawing
                             seq:        DrawingTokenContext.ExtractSeqFromSheetNumber(x.Sheet.SheetNumber));
                         var result = TitleBlockParamApplier.Apply(doc, x.Sheet, dt, tokens);
                         totalParams += result.ParamsWritten;
+                        // T-3: Apply now leaves PRJ_TB_LOCK_BOOL title blocks
+                        // alone. Count them so "healed N of M" doesn't quietly
+                        // read as a failure on a project that locks sheets on
+                        // purpose — a skipped lock is a success, not a miss.
+                        lockedSkipped += result.LockedSkipped;
                         if (result.ParamsWritten > 0) healed++;
                         if (result.ParamsWritten > 0 || result.Warnings.Count > 0)
                         {
@@ -114,6 +121,8 @@ namespace StingTools.Commands.Drawing
                 var sb = new StringBuilder();
                 sb.AppendLine($"Healed title blocks on {healed} of {sheets.Count} sheet(s).");
                 sb.AppendLine($"Total param writes: {totalParams}.");
+                if (lockedSkipped > 0)
+                    sb.AppendLine($"{lockedSkipped} title block(s) skipped — locked with {ParamRegistry.TB_LOCK}.");
                 int withWarn = auditRows.Count(a => a.Warnings != null && a.Warnings.Count > 0);
                 if (withWarn > 0) sb.AppendLine($"{withWarn} sheet(s) emitted warnings — see _BIM_COORD/titleblock_heal_audit.jsonl.");
                 TaskDialog.Show("STING — Heal Title Blocks", sb.ToString());

@@ -2,8 +2,7 @@
 // Wires TitleBlockRevisionSyncer.SyncAll() to a user-invocable command.
 // Writes the newest Revision's number / date / description onto every
 // sheet (SHT_REV_TXT, SHT_REV_DATE_TXT) and onto its title-block
-// instances (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT /
-// PRJ_TB_ISSUE_SUMMARY_TXT).
+// instances (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT).
 
 using System.Text;
 using Autodesk.Revit.Attributes;

@@ -29,6 +29,8 @@ namespace StingTools.Core.Drawing
     {
         public int ParamsWritten { get; set; }
         public int ParametersDeclared { get; set; }
+        /// <summary>Title-block instances skipped because PRJ_TB_LOCK_BOOL was set.</summary>
+        public int LockedSkipped { get; set; }
         public List<string> ParametersMissing { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -72,6 +74,23 @@ namespace StingTools.Core.Drawing
 
             foreach (var tb in tbs)
             {
+                // T-3: PRJ_TB_LOCK_BOOL is documented in MR_PARAMETERS.txt as
+                // "prevents TitleBlockParamApplier from overwriting manually
+                // set values on this sheet", but nothing in the declarative
+                // pipeline read it — only the legacy TitleBlockPopulate
+                // command did. Hand-authored cells were therefore clobbered by
+                // Heal / RevisionSync / Migrate. Skip and report, never skip
+                // silently: an unreported skip looks identical to a
+                // successful write in the result dialog.
+                if (IsTitleBlockLocked(tb))
+                {
+                    r.LockedSkipped++;
+                    r.Warnings.Add(
+                        $"Sheet '{sheet.SheetNumber}' title block is locked ({ParamRegistry.TB_LOCK}); " +
+                        "left untouched.");
+                    continue;
+                }
+
                 // GAP-M: a secondary title block (e.g. a North arrow or a
                 // fabrication-only stamp on the same sheet) typically has
                 // zero of the declared keys. Skip silently rather than
@@ -149,6 +168,33 @@ namespace StingTools.Core.Drawing
         /// helpers. No actual batching is performed — Apply() is
         /// lightweight enough to call per-sheet.
         /// </summary>
+        /// <summary>
+        /// True when the user has frozen this title block with
+        /// PRJ_TB_LOCK_BOOL. Read off the title-block instance, matching the
+        /// legacy TitleBlockPopulate gate; the sheet itself is checked as a
+        /// fallback for projects that bound the parameter to Sheets instead.
+        /// Single definition so the applier, the revision syncer and the heal
+        /// command cannot drift apart on what "locked" means.
+        /// </summary>
+        public static bool IsTitleBlockLocked(Element titleBlock, ViewSheet sheet = null)
+        {
+            try
+            {
+                if (titleBlock != null &&
+                    StingTools.Core.ParameterHelpers.GetInt(titleBlock, ParamRegistry.TB_LOCK, 0) != 0)
+                    return true;
+                if (sheet != null &&
+                    StingTools.Core.ParameterHelpers.GetInt(sheet, ParamRegistry.TB_LOCK, 0) != 0)
+                    return true;
+            }
+            catch (Exception ex)
+            {
+                // Fail open: an unreadable lock flag must not block production.
+                StingTools.Core.StingLog.Warn($"IsTitleBlockLocked: {ex.Message}");
+            }
+            return false;
+        }
+
         public static IDisposable Batch() => NoOpScope.Instance;
 
         private sealed class NoOpScope : IDisposable

@@ -19,8 +19,7 @@
 //     TitleBlockRevisionSyncer.SyncAll writes the newest Revit Revision's
 //     number / date / description onto every stamped sheet (SHT_REV_TXT,
 //     SHT_REV_DATE_TXT) and its title-block instances
-//     (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT /
-//     PRJ_TB_ISSUE_SUMMARY_TXT).
+//     (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT).
 //
 //   Phase D — PDF export
 //     Every STING-stamped sheet is exported to PDF via doc.Export, ordered
