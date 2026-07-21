@@ -26,7 +26,7 @@ BASELINE="$(dirname "$0")/known-failing-tests.txt"
 # "Test Run Failed." / "Total tests: N". Matching just the former made this
 # gate abort with "the run did not complete" on every solution-level run that
 # had failures, which is precisely when its diff is worth reading.
-if ! grep -qE "^\s*(Passed!|Failed!|Test Run (Successful|Failed)\.|Total tests:)" "$OUTPUT"; then
+if ! grep -qE "^[[:space:]]*(Passed!|Failed!|Test Run (Successful|Failed)\.|Total tests:)" "$OUTPUT"; then
   echo "::error::no test summary in output — the run did not complete"
   tail -30 "$OUTPUT"
   exit 1
@@ -35,7 +35,7 @@ fi
 grep -o "Planscape\.Tests\.[A-Za-z0-9_.]*\ \[FAIL\]" "$OUTPUT" \
   | sed 's/ \[FAIL\]//' | sort -u > /tmp/actual-failures.txt
 
-grep -vE '^\s*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
+grep -vE '^[[:space:]]*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
 
 NEW=$(comm -13 /tmp/baseline-failures.txt /tmp/actual-failures.txt)
 FIXED=$(comm -23 /tmp/baseline-failures.txt /tmp/actual-failures.txt)

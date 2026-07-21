@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.Distributed;
 using Planscape.Infrastructure.Data;
 using Planscape.Core.Entities;
 using System.Net.Http.Headers;
@@ -90,6 +91,22 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             // Add InMemory database
             services.AddDbContext<PlanscapeDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));
+
+            // Redis-backed IDistributedCache → in-process memory. With real Redis
+            // in CI, the fixed test GUIDs plus the shared "Planscape:" InstanceName
+            // mean a project-visibility verdict cached by one test class
+            // ("pv:{tenant}:{user}:{project}") is a live cross-test hit for a
+            // parallel class that has different DB state — a flaky, order-dependent
+            // false pass/fail. Give every factory instance its own
+            // MemoryDistributedCache so there is nothing to bleed between hosts.
+            // (The cache-outage regression test builds its own host without this
+            // factory, so its coverage is unaffected.) AddDistributedMemoryCache
+            // uses TryAdd, so the Redis registration must be removed first.
+            var cacheDescriptors = services
+                .Where(d => d.ServiceType == typeof(IDistributedCache))
+                .ToList();
+            foreach (var d in cacheDescriptors) services.Remove(d);
+            services.AddDistributedMemoryCache();
 
             // Build the service provider and seed test data
             var sp = services.BuildServiceProvider();

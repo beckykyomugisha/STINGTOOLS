@@ -27,6 +27,27 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
 {
     public string RouteParam { get; set; } = "projectId";
 
+    // A Redis outage fires the cache-failure paths below on essentially every
+    // gated request. Without a throttle that is two full-stack-trace warnings
+    // per request for the whole outage — a log storm that buries everything
+    // else. The signal ("Redis is down") is identical each time, so warn at
+    // most once per interval across all requests. Interlocked keeps it correct
+    // under the concurrent requests an action filter sees.
+    // 0 (not long.MinValue) so the first failure's (now - last) stays a large
+    // positive tick count rather than overflowing long — the first outage
+    // warning must get through before suppression kicks in.
+    private static long _lastCacheWarnTicks;
+    private static readonly long CacheWarnIntervalTicks = TimeSpan.FromMinutes(1).Ticks;
+
+    private static bool ShouldWarnCacheFailure()
+    {
+        var now = DateTime.UtcNow.Ticks;
+        var last = Interlocked.Read(ref _lastCacheWarnTicks);
+        if (now - last < CacheWarnIntervalTicks) return false;
+        // Only the thread that wins the swap logs; the rest stay quiet.
+        return Interlocked.CompareExchange(ref _lastCacheWarnTicks, now, last) == last;
+    }
+
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         // Phase 175 audit P1-17 — only look up the explicitly-named route
@@ -88,8 +109,9 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger?.LogWarning(ex,
-                    "Project-visibility cache read failed; falling back to the database (decision unaffected).");
+                if (ShouldWarnCacheFailure())
+                    logger?.LogWarning(ex,
+                        "Project-visibility cache read failed; falling back to the database (decision unaffected). Further cache warnings suppressed for up to 1 minute.");
             }
 
             if (cached == "1") { await next(); return; }
@@ -104,7 +126,10 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger?.LogWarning(ex,
+                // The decision was already served correctly from the database and
+                // simply not cached — Debug, not Warning, so an outage can't storm
+                // the log with a second warning per request.
+                logger?.LogDebug(ex,
                     "Project-visibility cache write failed; decision served from the database and not cached.");
             }
         }
