@@ -588,7 +588,13 @@ namespace StingTools.Core.Drawing
                 @"^STING_TB_(A0|A1|A2|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
                 RegexOptions.IgnoreCase);
             if (!m.Success) return null;
-            string master = $"STING_TB_A1_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
+            // Keep the ORIENTATION when picking the master: a _PORT family
+            // propagates from the A1 _PORT seed, not the landscape A1 seed.
+            // Mapping every orientation to the landscape master squished the
+            // portrait/right-strip design (non-uniform paper ratio). Same
+            // orientation => uniform scale => the seed's layout is preserved.
+            string port = m.Groups[2].Success ? "_PORT" : "";
+            string master = $"STING_TB_A1{port}_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
             return string.Equals(master, specId, StringComparison.OrdinalIgnoreCase)
                 ? null : master;
         }
