@@ -14584,7 +14584,11 @@ Fix: `ApplyTenantQueryFilters` now reads each entity's existing filter via
 parameter (a small `ParameterReplacer : ExpressionVisitor` rebinds the existing
 lambda's parameter). General, not an AppUser special-case — any future entity with
 its own filter is preserved too. No behavioural change today (nothing sets
-`AppUser.IsDeleted = true` yet), but the guarantee is now real.
+`AppUser.IsDeleted = true` yet), but the guarantee is now real — and pinned by a
+regression test (`SecurityCriticalPathTests.SoftDeletedUser_ExcludedByGlobalFilter_ButPresentUnderIgnoreQueryFilters`):
+a soft-deleted row is absent from a normal query and present under
+`IgnoreQueryFilters`, with a live row in the same tenant proving the combine did not
+break tenant scoping.
 
 ### Handoff-secret test isolation
 
