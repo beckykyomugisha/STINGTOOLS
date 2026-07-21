@@ -151,6 +151,9 @@ namespace StingTools.Core.Drawing
                     catch (Exception ex) { aux.Warnings.Add("Spot: " + ex.Message); }
                 }
                 stats.DecorativePlaced += aux.DecorativePlaced + aux.SpotsPlaced;
+                // Surface decorative + spot idempotency skips (C-4) so a no-op
+                // re-run reads as "skipped N" rather than looking like a failure.
+                stats.Skipped += aux.Skipped;
                 stats.Warnings.AddRange(aux.Warnings);
             }
 
@@ -853,9 +856,67 @@ namespace StingTools.Core.Drawing
             ProcessSpotRules(doc, view, pack.SpotCoordinateRules, isCoordinate: true, result);
         }
 
+        /// <summary>
+        /// Element ids already carrying a spot elevation — or a spot coordinate,
+        /// when <paramref name="isCoordinate"/> is true — in this view. Built
+        /// once per kind and shared across every spot rule: the guard that keeps
+        /// the spot pass from re-stacking a SpotDimension on every run. Like the
+        /// dimension guard (ViewHasDimensionReferencing) it detects an existing
+        /// spot by what it REFERENCES; a spot whose references are unavailable is
+        /// treated as unknown rather than a match. Fails open with a warning so a
+        /// scan failure places spots (previous behaviour) instead of silently
+        /// omitting them.
+        /// </summary>
+        private static HashSet<ElementId> BuildSpottedElementIndex(Document doc, View view, bool isCoordinate, AnnotationResult result)
+        {
+            var set = new HashSet<ElementId>();
+            try
+            {
+                var bic = isCoordinate ? BuiltInCategory.OST_SpotCoordinates : BuiltInCategory.OST_SpotElevations;
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfCategory(bic)
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is SpotDimension sd)) continue;
+                    try
+                    {
+                        if (!sd.AreReferencesAvailable) continue;   // unknown — not a match
+                        var refs = sd.References;
+                        if (refs == null) continue;
+                        foreach (Reference r in refs)
+                        {
+                            var host = doc.GetElement(r);
+                            if (host != null && host.Id != ElementId.InvalidElementId) set.Add(host.Id);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"BuildSpottedElementIndex: spot {sd.Id} — {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open: an empty index means "place every spot", i.e. the
+                // previous behaviour, rather than silently skipping requested work.
+                result.Warnings.Add($"Could not index existing spot {(isCoordinate ? "coordinates" : "elevations")} " +
+                                    $"in '{view.Name}' ({ex.Message}); duplicate spot dims are possible on this view.");
+            }
+            return set;
+        }
+
         private static void ProcessSpotRules(Document doc, View view, List<SpotAnnotationRule> rules, bool isCoordinate, AnnotationResult result)
         {
             if (rules == null || rules.Count == 0) return;
+
+            // C-4: index elements that already carry a spot dimension of this
+            // kind in the view, once and shared across every rule below, so a
+            // re-run doesn't stack a second SpotElevation / SpotCoordinate onto
+            // each element. The tag, dimension and decorative passes each got an
+            // idempotency guard; the spot pass was the one kind left uncovered,
+            // so re-running DrawingTypePresentation.Apply doubled every spot dim.
+            var spotted = BuildSpottedElementIndex(doc, view, isCoordinate, result);
+
             foreach (var r in rules)
             {
                 if (r == null || string.IsNullOrEmpty(r.Category)) continue;
@@ -886,6 +947,14 @@ namespace StingTools.Core.Drawing
                     {
                         try
                         {
+                            // C-4: skip an element that already carries a spot
+                            // dim of this kind so a re-run places nothing.
+                            if (spotted != null && spotted.Contains(el.Id))
+                            {
+                                result.Skipped++;
+                                continue;
+                            }
+
                             var bb = el.get_BoundingBox(view);
                             if (bb == null) continue;
                             var origin = new XYZ((bb.Min.X + bb.Max.X) / 2.0, (bb.Min.Y + bb.Max.Y) / 2.0, bb.Max.Z);
@@ -901,6 +970,9 @@ namespace StingTools.Core.Drawing
                                 try { sd.ChangeTypeId(symbolId); } catch { }
                             }
                             result.SpotsPlaced++;
+                            // Keep the index current so a later rule of the same
+                            // kind in this run doesn't re-spot the same element.
+                            spotted?.Add(el.Id);
                         }
                         catch (Exception ex) { result.Warnings.Add($"Spot {(isCoordinate ? "coord" : "elev")} '{r.Category}/{el.Id}': {ex.Message}"); }
                     }
