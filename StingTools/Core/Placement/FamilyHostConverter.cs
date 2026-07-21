@@ -735,12 +735,18 @@ namespace StingTools.Core.Placement
                         continue;
                     }
 
+                    // Re-resolve the type from the RELOADED family by name — the
+                    // snapshot's Symbol reference was captured before the family was
+                    // rebuilt + reloaded and may point at a stale / replaced element.
+                    FamilySymbol sym = ResolveReloadedSymbol(doc, reloaded, snap.TypeName) ?? snap.Symbol;
+                    if (sym == null) { res.InstancesFailed++; continue; }
+
                     using var t = new Transaction(doc, "STING Re-place instance");
                     t.Start();
-                    if (snap.Symbol != null && !snap.Symbol.IsActive) snap.Symbol.Activate();
+                    if (!sym.IsActive) sym.Activate();
                     FamilyInstance rep = snap.Level != null
-                        ? doc.Create.NewFamilyInstance(snap.LocationPoint, snap.Symbol, snap.Level, Autodesk.Revit.DB.Structure.StructuralType.NonStructural)
-                        : doc.Create.NewFamilyInstance(snap.LocationPoint, snap.Symbol, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                        ? doc.Create.NewFamilyInstance(snap.LocationPoint, sym, snap.Level, Autodesk.Revit.DB.Structure.StructuralType.NonStructural)
+                        : doc.Create.NewFamilyInstance(snap.LocationPoint, sym, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
                     if (rep != null)
                     {
                         StingTools.Tags.FamilyQuickEditHelpers.RestoreInstanceParams(rep, snap.Params);
@@ -762,7 +768,35 @@ namespace StingTools.Core.Placement
             tg.Assimilate();
 
             if (res.InstancesFailed > 0)
-                res.Notes.Add($"NEXT STEP: {res.InstancesFailed} instance(s) need a manual rehost — a hosted target cannot pick a host automatically in batch. Use Change Host per instance.");
+            {
+                if (!nonHostedTarget)
+                    // Free-standing instances cannot survive a switch to a hosted
+                    // placement — Revit deleted them on reload. They cannot be
+                    // rehosted (there is nothing left to rehost); they must be
+                    // re-placed from scratch on the new hosted family.
+                    res.Notes.Add($"NEXT STEP: {res.InstancesFailed} placed instance(s) were DELETED when the family switched to a hosted placement — a free-standing instance cannot exist without a host. They must be RE-PLACED from scratch on the new family (Change Host cannot recover a deleted instance).");
+                else
+                    res.Notes.Add($"NEXT STEP: {res.InstancesFailed} instance(s) could not be re-placed automatically — re-place them manually.");
+            }
+        }
+
+        // Re-resolve a family type from the reloaded family by name. The snapshot's
+        // Symbol reference was captured before the family was rebuilt + reloaded and
+        // may point at a stale / replaced element after LoadFamily.
+        private static FamilySymbol ResolveReloadedSymbol(Document doc, Family reloaded, string typeName)
+        {
+            if (doc == null || reloaded == null || string.IsNullOrEmpty(typeName)) return null;
+            try
+            {
+                foreach (var id in reloaded.GetFamilySymbolIds())
+                {
+                    if (doc.GetElement(id) is FamilySymbol fs &&
+                        string.Equals(fs.Name, typeName, StringComparison.Ordinal))
+                        return fs;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"P2 re-resolve symbol '{typeName}': {ex.Message}"); }
+            return null;
         }
 
         // ── P2 helpers ──────────────────────────────────────────────────────────

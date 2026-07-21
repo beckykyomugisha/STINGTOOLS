@@ -3378,7 +3378,13 @@ namespace StingTools.UI.PlacementCenter
                     if (r.PathHint.StartsWith("P1"))
                         panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P1 lossless (checkbox toggle — geometry/params/connectors untouched, instances survive)");
                     else
-                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P2 REBUILD (lossy — new .rfa from template; MEP connectors are harvested and re-created, any that cannot be placed are listed with coordinates; host-relative geometry re-anchors to template default; review after){(r.InstanceCount > 0 ? $"; {r.InstanceCount} instance(s) may need manual rehost" : "")}");
+                    {
+                        string instNote = r.InstanceCount <= 0 ? ""
+                            : IsHostedTarget(_fcTemplates?.ByLabel(r.TargetLabel))
+                                ? $"; {r.InstanceCount} instance(s) WILL BE DELETED (hosted target — re-place from scratch)"
+                                : $"; {r.InstanceCount} instance(s) will be re-placed free-standing";
+                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P2 REBUILD (lossy — new .rfa from template; MEP connectors are harvested and re-created, any that cannot be placed are listed with coordinates; host-relative geometry re-anchors to template default; review after){instNote}");
+                    }
                 }
                 if (pending.Any(r => r.PathHint.StartsWith("P2")))
                     panel.AddSection("NOTE").Text("Enable '⚠ Allow lossy rebuild (P2)' before Apply, or the P2 rows report as Skipped.");
@@ -3460,6 +3466,44 @@ namespace StingTools.UI.PlacementCenter
             bool rehost = chkFcRehost?.IsChecked == true;
             bool allowLossy = chkFcAllowLossy?.IsChecked == true;
 
+            // A lossy P2 rebuild to a HOSTED placement (wall/ceiling/floor/roof)
+            // cannot keep free-standing instances: Revit DELETES them on reload and
+            // they must be re-placed from scratch. Confirm the destruction explicitly
+            // — the "Allow lossy rebuild" checkbox alone is not clear enough.
+            if (allowLossy)
+            {
+                var destructive = rows.Where(r =>
+                    r != null && r.InstanceCount > 0 &&
+                    string.Equals(r.PathHint, "P2 rebuild", StringComparison.OrdinalIgnoreCase) &&
+                    IsHostedTarget(_fcTemplates?.ByLabel(r.TargetLabel))).ToList();
+
+                if (destructive.Count > 0)
+                {
+                    int totalInst = destructive.Sum(r => r.InstanceCount);
+                    var confirm = new TaskDialog("STING — Family Converter")
+                    {
+                        MainInstruction = $"{totalInst} placed instance(s) WILL BE DELETED",
+                        MainContent =
+                            $"{destructive.Count} family(ies) convert to a hosted placement (wall/ceiling/floor/roof) via a " +
+                            "lossy rebuild. A free-standing instance cannot exist without a host, so Revit DELETES the " +
+                            "existing placements on reload — they cannot be auto-rehosted and must be RE-PLACED from scratch " +
+                            "on the new family.",
+                        ExpandedContent = string.Join("\n",
+                            destructive.Select(r => $"{r.Name} — {r.InstanceCount} instance(s) → {r.TargetLabel}")),
+                        CommonButtons = TaskDialogCommonButtons.None
+                    };
+                    confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        $"Delete {totalInst} instance(s) and rebuild", "I will re-place them from scratch afterwards.");
+                    confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — make no changes");
+                    confirm.DefaultButton = TaskDialogResult.CommandLink2;
+                    if (confirm.Show() != TaskDialogResult.CommandLink1)
+                    {
+                        Toast("Family conversion cancelled — no changes made.");
+                        return;
+                    }
+                }
+            }
+
             // Capture request data on the WPF thread; the row objects travel with
             // the jobs so statuses can be updated after each conversion.
             var jobs = rows.Select(r => (Row: r, Request: new FamilyHostConversionRequest
@@ -3475,15 +3519,12 @@ namespace StingTools.UI.PlacementCenter
                 var doc = app?.ActiveUIDocument?.Document ?? _doc;
                 var results = new List<(FamilyConverterRow Row, FamilyHostConversionResult Res)>();
 
-                // Batch: bracket the run in a TransactionGroup so it is one undo
-                // item; per-family failures are isolated (continue on error) so
-                // one bad family never aborts the whole batch.
+                // Bracket the whole run — batch OR single selection — in a
+                // TransactionGroup so it is one undo item; per-family failures are
+                // isolated (continue on error) so one bad family never aborts the run.
                 TransactionGroup grp = null;
-                if (batch)
-                {
-                    try { grp = new TransactionGroup(doc, "STING Family Convert (batch)"); grp.Start(); }
-                    catch (Exception ex) { StingLog.Warn($"FcApply batch group: {ex.Message}"); grp = null; }
-                }
+                try { grp = new TransactionGroup(doc, batch ? "STING Family Convert (batch)" : "STING Family Convert (selected)"); grp.Start(); }
+                catch (Exception ex) { StingLog.Warn($"FcApply group: {ex.Message}"); grp = null; }
                 try
                 {
                     foreach (var job in jobs)
@@ -3520,6 +3561,15 @@ namespace StingTools.UI.PlacementCenter
             });
         }
 
+        // A target host is "hosted" (deletes free-standing instances on a P2
+        // rebuild) unless it is a level-based / work-plane-based non-hosted type.
+        private static bool IsHostedTarget(FamilyHostTarget tgt)
+        {
+            if (tgt == null) return false;
+            return !string.Equals(tgt.PlacementType, "WorkPlaneBased", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(tgt.PlacementType, "OneLevelBased", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static string FcStatus(FamilyHostConversionResult res)
         {
             if (res == null) return "";
@@ -3543,7 +3593,7 @@ namespace StingTools.UI.PlacementCenter
                 .Metric("Skipped", skipped.ToString())
                 .Metric("Failed", failed.ToString())
                 .Metric("Instances re-placed", rehosted.ToString())
-                .Metric("Instances needing manual rehost", rehostFail.ToString());
+                .Metric("Instances deleted / to re-place", rehostFail.ToString());
 
             panel.AddSection("PER-FAMILY");
             foreach (var (row, res) in results)

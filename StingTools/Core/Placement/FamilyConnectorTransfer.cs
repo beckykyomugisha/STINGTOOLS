@@ -282,13 +282,11 @@ namespace StingTools.Core.Placement
                     spec.Height = ReadLength(ce, BuiltInParameter.CONNECTOR_HEIGHT);
                     if (spec.Height <= 0) { try { spec.Height = ce.Height; } catch { } }
 
-                    try
-                    {
-                        var pd = ce.get_Parameter(BuiltInParameter.RBS_CONNECTOR_DESCRIPTION);
-                        if (pd != null && pd.StorageType == StorageType.String)
-                            spec.Description = pd.AsString() ?? "";
-                    }
-                    catch { }
+                    // Connector description: BuiltInParameter.RBS_CONNECTOR_DESCRIPTION
+                    // is NOT a valid member of the Revit 2025/2026/2027 API, and
+                    // ConnectorElement has no Description property. If the connector
+                    // exposes a writable "Description" parameter it is now harvested by
+                    // name through HarvestWritableParams (see _dimensionParamNames).
 
                     // Conduit vs cable tray share one Domain value.
                     if (spec.Domain == Domain.DomainCableTrayConduit)
@@ -337,8 +335,10 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"ConnectorTransfer harvest params: {ex.Message}"); }
         }
 
+        // "Description" is intentionally NOT excluded here so it round-trips through
+        // the generic name-based harvest/replay (there is no BuiltInParameter for it).
         private static readonly HashSet<string> _dimensionParamNames = new HashSet<string>(
-            new[] { "Radius", "Diameter", "Width", "Height", "Description" }, StringComparer.OrdinalIgnoreCase);
+            new[] { "Radius", "Diameter", "Width", "Height" }, StringComparer.OrdinalIgnoreCase);
 
         private static double ReadLength(ConnectorElement ce, BuiltInParameter bip)
         {
@@ -609,23 +609,20 @@ namespace StingTools.Core.Placement
 
             if (spec.IsPrimary)
             {
+                // ConnectorElement.IsPrimary is read-only; AssignAsPrimary() is the
+                // documented way to flag the primary connector. There is no valid
+                // BuiltInParameter.RBS_CONNECTOR_ISPRIMARY member in the Revit
+                // 2025/2026/2027 API.
                 try
                 {
-                    var p = ce.get_Parameter(BuiltInParameter.RBS_CONNECTOR_ISPRIMARY);
-                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Integer) p.Set(1);
+                    ce.AssignAsPrimary();
                 }
                 catch (Exception ex) { StingLog.Warn($"ConnectorTransfer set primary: {ex.Message}"); }
             }
 
-            if (!string.IsNullOrEmpty(spec.Description))
-            {
-                try
-                {
-                    var p = ce.get_Parameter(BuiltInParameter.RBS_CONNECTOR_DESCRIPTION);
-                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(spec.Description);
-                }
-                catch (Exception ex) { StingLog.Warn($"ConnectorTransfer set description: {ex.Message}"); }
-            }
+            // Connector description (if writable and captured by name) is replayed via
+            // the generic spec.Params loop below — BuiltInParameter.RBS_CONNECTOR_DESCRIPTION
+            // is not a valid member of the Revit 2025/2026/2027 API.
 
             foreach (var kv in spec.Params)
             {
