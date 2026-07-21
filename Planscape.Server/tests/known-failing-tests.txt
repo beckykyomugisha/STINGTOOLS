@@ -28,19 +28,15 @@
 #
 # Every remaining entry below has a diagnosed cause. None is a mystery.
 
-# ── Require real PostgreSQL; unrunnable on the EF InMemory harness ────────
-# Not bugs. The provider cannot execute the SQL these paths depend on, so the
-# assertion never gets a chance to run. Production is unaffected. The right home
-# is the real-Postgres suite (cf. PostgresSequenceCounterTests) — see ROADMAP.
-#
-#   Search  → EF.Functions.ILike is Npgsql-only; InMemory switches to
-#             client-evaluation and throws (500).
-#   Transmittals → SequenceCounterService.AllocateAsync runs
-#             `INSERT … ON CONFLICT … RETURNING` via SqlQueryRaw (500, and the
-#             MarkSent variant then fails parsing the error body as JSON).
-Planscape.Tests.CoreApiTests.Search_ValidQuery_ReturnsResults
-Planscape.Tests.CoreApiTests.Transmittals_CreateAndList
-Planscape.Tests.CoreApiTests.Transmittals_MarkSent
+# ── Require real PostgreSQL — now SKIPPED, no longer baseline entries ──────
+# The three CoreApiTests that need Postgres-only SQL are now [Fact(Skip=…)] and
+# report as Skipped, not Failed, so they no longer belong here. They run on the
+# EF InMemory host (always InMemory, regardless of PLANSCAPE_TEST_PG), where the
+# SQL they depend on cannot execute:
+#   Search_ValidQuery_ReturnsResults → EF.Functions.ILike is Npgsql-only.
+#   Transmittals_CreateAndList / _MarkSent → SequenceCounterService.AllocateAsync
+#     runs `INSERT … ON CONFLICT … RETURNING` via SqlQueryRaw.
+# Their real home is the Postgres suite (cf. PostgresSequenceCounterTests).
 
 # ── CONFIRMED PRODUCTION DEFECTS in DeliverableStateMachine ───────────────
 # These tests are RIGHT and the engine is WRONG. Deliberately not fixed here:

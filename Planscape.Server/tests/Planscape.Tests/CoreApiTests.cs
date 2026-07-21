@@ -287,7 +287,11 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Transmittals
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    // Skipped rather than baseline-failing: exercises SequenceCounterService.AllocateAsync,
+    // which runs `INSERT … ON CONFLICT … RETURNING` via SqlQueryRaw (Npgsql-only), so it 500s
+    // on the EF InMemory host regardless of PLANSCAPE_TEST_PG (this host is always InMemory).
+    // Belongs in the real-Postgres suite (cf. PostgresSequenceCounterTests).
+    [Fact(Skip = "Requires PostgreSQL (INSERT … ON CONFLICT … RETURNING); unrunnable on the EF InMemory test host.")]
     public async Task Transmittals_CreateAndList()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
@@ -305,7 +309,10 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
     }
 
-    [Fact]
+    // Skipped rather than baseline-failing: same `INSERT … ON CONFLICT … RETURNING` path as
+    // Transmittals_CreateAndList (Npgsql-only), so it 500s on the EF InMemory host regardless
+    // of PLANSCAPE_TEST_PG. Belongs in the real-Postgres suite.
+    [Fact(Skip = "Requires PostgreSQL (INSERT … ON CONFLICT … RETURNING); unrunnable on the EF InMemory test host.")]
     public async Task Transmittals_MarkSent()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
@@ -405,7 +412,11 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Search
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    // Skipped rather than baseline-failing: the search endpoint uses EF.Functions.ILike,
+    // which is Npgsql-only — on the EF InMemory host it switches to client-evaluation and
+    // throws (500), regardless of PLANSCAPE_TEST_PG (this host is always InMemory). Belongs
+    // in the real-Postgres suite.
+    [Fact(Skip = "Requires PostgreSQL (EF.Functions.ILike); unrunnable on the EF InMemory test host.")]
     public async Task Search_ValidQuery_ReturnsResults()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();

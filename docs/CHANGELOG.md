@@ -14613,3 +14613,22 @@ Built **without `dotnet build` verification** (no .NET SDK in the sandbox);
 compile is covered by CI's full-solution build (`contract-drift.yml`). The EF filter
 change is exercised by the whole tenant-isolation suite, which runs in
 `planscape-server.yml` — worth confirming that job runs on this PR.
+
+### Follow-up 2b — test-harness fixes from the #475 build review
+
+Two non-blocking observations from running the build/verify pass:
+
+- **`check-new-failures.sh` completion guard was invocation-fragile.** It required a
+  `^(Passed!|Failed!)` line, which only the VSTest per-project console logger emits;
+  a solution-level `dotnet test Planscape.sln` (or Microsoft.Testing.Platform) prints
+  a different summary, so the gate errored `no test summary` and exited 1 on an
+  otherwise-valid run. The guard now accepts all three summary shapes (`Passed!`/
+  `Failed!`, `Total tests:`, `Test summary:`). Broadening the guard added a
+  false-green risk (a summary whose `[FAIL]` lines we can't parse), so a cross-check
+  now bails if the run's own summary reports failures but none were parsed.
+- **3 Postgres-only `CoreApiTests` were baseline *failures*, not skips.**
+  `Search_ValidQuery_ReturnsResults` (`EF.Functions.ILike`) and `Transmittals_CreateAndList`
+  / `_MarkSent` (`INSERT … ON CONFLICT … RETURNING`) run on the always-InMemory test
+  host regardless of `PLANSCAPE_TEST_PG`, so they can never pass there. Converted to
+  `[Fact(Skip=…)]` (report as Skipped) and removed from `known-failing-tests.txt`, so
+  the baseline shrank to the 6 confirmed `DeliverableStateMachine` defects.
