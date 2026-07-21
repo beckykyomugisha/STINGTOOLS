@@ -56,7 +56,13 @@ namespace StingTools.Core.Clash
                     "ProjectId is the ACC coordination container id.");
                 return Result.Cancelled;
             }
-            string containerId = creds.ProjectId;
+            // N-G3: model-coordination container can differ from the issues
+            // container; use CoordContainerId when set, else fall back.
+            string containerId = !string.IsNullOrEmpty(creds.CoordContainerId)
+                ? creds.CoordContainerId : creds.ProjectId;
+
+            // N-G4: dist->mm factor is configurable (acc.json distToMm, default 1000).
+            double distToMm = LoadDistToMm(doc);
 
             // 1. List model sets and let the user pick.
             List<AccModelSet> sets;
@@ -80,7 +86,7 @@ namespace StingTools.Core.Clash
 
             // 2. Pull clashes (latest test -> resources -> scope files -> join).
             List<AccClashRecord> clashes;
-            try { clashes = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
+            try { clashes = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id, distToMm: distToMm).GetAwaiter().GetResult(); }
             catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); TaskDialog.Show("ACC", "Clash request failed: " + ex.Message); return Result.Failed; }
 
             if (clashes == null || clashes.Count == 0)
@@ -103,13 +109,15 @@ namespace StingTools.Core.Clash
                 PenetrationMm = c.PenetrationMm,
             }).ToList();
 
-            var scored = ClashTriageEngine.Triage(inputs);   // top-N by score
+            // N-G9: triage the FULL set (TriageAll) so the CSV + KPI burn-down
+            // see every clash; the on-screen list + push still take the top 10.
+            var scored = ClashTriageEngine.TriageAll(inputs);
             var byId = clashes.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             // 4. Report + CSV.
             var report = new StringBuilder();
             report.AppendLine($"Model set: {chosen.Name}");
-            report.AppendLine($"Clashes pulled: {clashes.Count}   (top {scored.Count} by triage score)");
+            report.AppendLine($"Clashes pulled: {clashes.Count}   (all triaged; top 10 shown)");
             report.AppendLine();
             foreach (var s in scored.Take(10))
             {
@@ -255,6 +263,35 @@ namespace StingTools.Core.Clash
                 return path;
             }
             catch (Exception ex) { StingLog.Warn("ACC clash CSV: " + ex.Message); return null; }
+        }
+
+        // N-G4: dist->mm factor from acc.json — project override
+        // (<project>/_BIM_COORD/acc.json) merged over the corporate baseline
+        // (Data/STING_ACC_CONFIG.json) by key. Default 1000 (raw dist in metres).
+        private static double LoadDistToMm(Document doc)
+        {
+            double val = 1000.0;
+            try
+            {
+                string baseline = StingToolsApp.FindDataFile("STING_ACC_CONFIG.json");
+                if (!string.IsNullOrEmpty(baseline) && File.Exists(baseline))
+                {
+                    var b = JObject.Parse(File.ReadAllText(baseline));
+                    if (b["distToMm"] != null) val = (double)b["distToMm"];
+                }
+                string projDir = string.IsNullOrEmpty(doc?.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+                if (!string.IsNullOrEmpty(projDir))
+                {
+                    string ov = Path.Combine(projDir, "_BIM_COORD", "acc.json");
+                    if (File.Exists(ov))
+                    {
+                        var o = JObject.Parse(File.ReadAllText(ov));
+                        if (o["distToMm"] != null) val = (double)o["distToMm"];
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ACC distToMm config: " + ex.Message); }
+            return val <= 0 ? 1000.0 : val;
         }
 
         private static string DocShort(string s)

@@ -29,8 +29,10 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Core.Clash;
+using StingTools.Core.Classification;
 using StingTools.Core.Storage;
 using StingTools.Core.Twin;
 using StingTools.ExLink;
@@ -66,13 +68,55 @@ namespace StingTools.Commands.Kpi
         public int BmsNoEndpoint { get; set; }
     }
 
+    /// <summary>N-G6: health-score caps + weights, loaded from
+    /// Data/STING_KPI_CONFIG.json (corporate baseline) merged over
+    /// &lt;project&gt;/_BIM_COORD/kpi_config.json by key — editable without recompiling.</summary>
+    public sealed class KutKpiConfig
+    {
+        public double ClashCap = 200.0, WarningCap = 500.0, StaleCap = 100.0;
+        public double WeightCompliance = 0.40, WeightClash = 0.25, WeightWarnings = 0.20, WeightStale = 0.15;
+
+        public static KutKpiConfig Load(Document doc)
+        {
+            var cfg = new KutKpiConfig();
+            void Apply(string path)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+                    // JObject (not Dictionary<string,double>) so a "_comment" string
+                    // doesn't fail the whole parse.
+                    var j = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path));
+                    // P1 fix: read the numeric straight off the JToken. Value<double?>()
+                    // returns the underlying double with no culture-sensitive ToString round-trip,
+                    // so a comma-decimal locale can't misparse the shipped "0.40" as 4.0 and peg
+                    // the health score at 100. Mirrors LoadDistToMm in AccPullClashesCommand.
+                    double Num(string k, double cur) => j[k] != null && j[k].Type != Newtonsoft.Json.Linq.JTokenType.Null
+                        ? (j[k].Value<double?>() ?? cur) : cur;
+                    cfg.ClashCap          = Num("clashCap", cfg.ClashCap);
+                    cfg.WarningCap        = Num("warningCap", cfg.WarningCap);
+                    cfg.StaleCap          = Num("staleCap", cfg.StaleCap);
+                    cfg.WeightCompliance  = Num("weightCompliance", cfg.WeightCompliance);
+                    cfg.WeightClash       = Num("weightClash", cfg.WeightClash);
+                    cfg.WeightWarnings    = Num("weightWarnings", cfg.WeightWarnings);
+                    cfg.WeightStale       = Num("weightStale", cfg.WeightStale);
+                }
+                catch (Exception ex) { StingLog.Warn("KUT KPI config: " + ex.Message); }
+            }
+            Apply(StingToolsApp.FindDataFile("STING_KPI_CONFIG.json"));
+            string projDir = string.IsNullOrEmpty(doc?.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+            if (!string.IsNullOrEmpty(projDir)) Apply(Path.Combine(projDir, "_BIM_COORD", "kpi_config.json"));
+            // Guard against zero/negative caps (avoid div-by-zero).
+            if (cfg.ClashCap <= 0) cfg.ClashCap = 200; if (cfg.WarningCap <= 0) cfg.WarningCap = 500; if (cfg.StaleCap <= 0) cfg.StaleCap = 100;
+            return cfg;
+        }
+    }
+
     public static class KutKpiEngine
     {
-        // Health-score normalisation caps (documented, tunable).
-        private const double ClashCap = 200.0, WarningCap = 500.0, StaleCap = 100.0;
-
         public static KutKpiSnapshot Gather(Document doc)
         {
+            var cfg = KutKpiConfig.Load(doc);
             var cs = ComplianceScan.Scan(doc, forceRefresh: true);
             int warnings = 0;
             try { warnings = doc.GetWarnings()?.Count ?? 0; } catch { }
@@ -131,6 +175,10 @@ namespace StingTools.Commands.Kpi
             int specTotal = 0, specAssigned = 0;
             try
             {
+                // N-G7: the denominator is only categories that can carry a CSI
+                // section (those with a rule in the map) — rooms/grids/etc. are
+                // excluded so coverage % is meaningful.
+                var specCats = LoadSpecBearingCategories(doc);
                 var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                 var catEnums = SharedParamGuids.AllCategoryEnums;
                 if (catEnums != null && catEnums.Length > 0)
@@ -138,6 +186,8 @@ namespace StingTools.Commands.Kpi
                 foreach (var el in coll)
                 {
                     if (el.Category == null) continue;
+                    // No explicit categories in the map ⇒ fall back to all taggable.
+                    if (specCats.Count > 0 && !specCats.Contains(ParameterHelpers.GetCategoryName(el))) continue;
                     specTotal++;
                     if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION))) specAssigned++;
                 }
@@ -154,10 +204,11 @@ namespace StingTools.Commands.Kpi
             catch (Exception ex) { StingLog.Warn("KUT KPI BMS: " + ex.Message); }
 
             double compliance = cs.TotalElements > 0 ? cs.CompliancePercent : 0;
-            double clashClean = 100.0 * (1.0 - Math.Min(1.0, openClashes / ClashCap));
-            double warnClean  = 100.0 * (1.0 - Math.Min(1.0, warnings / WarningCap));
-            double staleClean = 100.0 * (1.0 - Math.Min(1.0, cs.StaleCount / StaleCap));
-            double health = 0.40 * compliance + 0.25 * clashClean + 0.20 * warnClean + 0.15 * staleClean;
+            double clashClean = 100.0 * (1.0 - Math.Min(1.0, openClashes / cfg.ClashCap));
+            double warnClean  = 100.0 * (1.0 - Math.Min(1.0, warnings / cfg.WarningCap));
+            double staleClean = 100.0 * (1.0 - Math.Min(1.0, cs.StaleCount / cfg.StaleCap));
+            double health = cfg.WeightCompliance * compliance + cfg.WeightClash * clashClean
+                          + cfg.WeightWarnings * warnClean + cfg.WeightStale * staleClean;
 
             return new KutKpiSnapshot
             {
@@ -176,6 +227,28 @@ namespace StingTools.Commands.Kpi
                 SpecTotal = specTotal, SpecAssigned = specAssigned,
                 BmsPoints = bmsPoints, BmsNoEndpoint = bmsNoEndpoint,
             };
+        }
+
+        // N-G7: distinct Revit categories that have a CSI rule (corporate map +
+        // project csi_map.csv). "*" wildcard rules don't restrict, so they're
+        // skipped; an empty set ⇒ caller falls back to all taggable categories.
+        private static HashSet<string> LoadSpecBearingCategories(Document doc)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void AddFrom(string path)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+                    foreach (var r in CsiMasterFormat.ParseCsvLines(File.ReadLines(path)))
+                        if (!string.IsNullOrEmpty(r.Category) && r.Category != "*") set.Add(r.Category);
+                }
+                catch (Exception ex) { StingLog.Warn("KUT KPI spec-bearing cats: " + ex.Message); }
+            }
+            AddFrom(StingToolsApp.FindDataFile("STING_CSI_MASTERFORMAT_MAP.csv"));
+            string projDir = string.IsNullOrEmpty(doc?.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+            if (!string.IsNullOrEmpty(projDir)) AddFrom(Path.Combine(projDir, "_BIM_COORD", "csi_map.csv"));
+            return set;
         }
 
         private static bool IsResolved(string state) =>
@@ -281,6 +354,7 @@ namespace StingTools.Commands.Kpi
             var ctx = ParameterHelpers.GetContext(cmd);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+            var cfg = KutKpiConfig.Load(doc);   // same config the health score is computed from (N-G6)
 
             var snap = KutKpiEngine.Gather(doc);
             if (snap.TotalElements == 0)
@@ -310,7 +384,7 @@ namespace StingTools.Commands.Kpi
             b.AddSection("Headline")
              .RAGBar(snap.CompliancePct, $"Tag / metadata compliance {snap.CompliancePct:F1}%")
              .Metric("Model-health score", $"{snap.HealthScore:F0}/100",
-                     "compliance 40% · clash 25% · warnings 20% · stale 15%",
+                     $"compliance {cfg.WeightCompliance * 100:F0}% · clash {cfg.WeightClash * 100:F0}% · warnings {cfg.WeightWarnings * 100:F0}% · stale {cfg.WeightStale * 100:F0}%",
                      null)
              .Metric("Open clashes", snap.OpenClashes.ToString(),
                      prev != null ? $"burn-down {KutKpiEngine.Delta(snap.OpenClashes, prev.OpenClashes, "", invert: true)}" : "no prior snapshot");
