@@ -703,6 +703,12 @@ namespace StingTools.Core
         {
             public int FilesMoved { get; set; }
             public int FoldersRemoved { get; set; }
+
+            /// <summary>Per-file relocations that threw and did NOT complete. When &gt; 0 the
+            /// consolidation is incomplete: the breadcrumb is withheld so a later consented
+            /// run can finish the stranded files instead of being blocked by HasConsolidated.</summary>
+            public int FilesFailed { get; set; }
+
             public List<string> Warnings { get; set; } = new();
 
             /// <summary>Every file relocation, "source|destination", in the order performed.</summary>
@@ -899,7 +905,7 @@ namespace StingTools.Core
                             rep.FilesMoved++;
                             rep.Moves.Add(f + "|" + dest);
                         }
-                        catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                        catch (Exception ex) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex.Message}"); }
                     }
                     foreach (string f in Directory.GetFiles(projDir, "*_STING_SEQ.json"))
                     {
@@ -911,7 +917,7 @@ namespace StingTools.Core
                             rep.FilesMoved++;
                             rep.Moves.Add(f + "|" + dest);
                         }
-                        catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                        catch (Exception ex) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex.Message}"); }
                     }
                 }
                 catch (Exception ex) { rep.Warnings.Add($"Sidecar scan: {ex.Message}"); }
@@ -940,7 +946,7 @@ namespace StingTools.Core
                                 rep.FilesMoved++;
                                 rep.Moves.Add(f + "|" + dest);
                             }
-                            catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                            catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
                         RetireLegacyFolder(legacy, rep);
                     }
@@ -969,7 +975,7 @@ namespace StingTools.Core
                                     rep.FilesMoved++;
                                     rep.Moves.Add(f + "|" + dst);
                                 }
-                                catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                                catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
                             RetireLegacyFolder(hiddenLegacy, rep);
                         }
@@ -990,7 +996,7 @@ namespace StingTools.Core
                         rep.FilesMoved++;
                         rep.Moves.Add(src + "|" + dst);
                     }
-                    catch (Exception ex2) { rep.Warnings.Add($"Move {src}: {ex2.Message}"); }
+                    catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {src}: {ex2.Message}"); }
                 }
 
                 // 2d. BOQ rate-source heat-map exports
@@ -1015,7 +1021,7 @@ namespace StingTools.Core
                                     rep.FilesMoved++;
                                     rep.Moves.Add(f + "|" + dst);
                                 }
-                                catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                                catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
                             RetireLegacyFolder(boqLegacy, rep);
                         }
@@ -1040,7 +1046,7 @@ namespace StingTools.Core
                                 rep.FoldersRemoved++;
                                 rep.Moves.Add(sub + "|" + dest);
                             }
-                            catch (Exception ex2) { rep.Warnings.Add($"Move {sub}: {ex2.Message}"); }
+                            catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {sub}: {ex2.Message}"); }
                         }
                     }
                 }
@@ -1083,7 +1089,7 @@ namespace StingTools.Core
                                 rep.FilesMoved++;
                                 rep.Moves.Add(f + "|" + dest);
                             }
-                            catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                            catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
                         RetireLegacyFolder(legacy, rep);
                     }
@@ -1092,7 +1098,7 @@ namespace StingTools.Core
 
                 InvalidateFolderStatsCache();
                 WriteConsolidationBreadcrumb(doc, rep);
-                StingLog.Info($"MigrateFromLegacy: {rep.FilesMoved} files moved, {rep.FoldersRemoved} folders retired. Breadcrumb: {rep.BreadcrumbPath}");
+                StingLog.Info($"MigrateFromLegacy: {rep.FilesMoved} files moved, {rep.FoldersRemoved} folders retired, {rep.FilesFailed} failed. Breadcrumb: {(string.IsNullOrEmpty(rep.BreadcrumbPath) ? "(withheld — re-run to finish)" : rep.BreadcrumbPath)}");
             }
             catch (Exception ex)
             {
@@ -1115,6 +1121,19 @@ namespace StingTools.Core
                 // Nothing moved: leave no breadcrumb, so a project that genuinely has
                 // legacy folders later still gets its one consolidation.
                 if (rep.FilesMoved == 0 && rep.FoldersRemoved == 0) return;
+
+                // A straggler remains: at least one file threw on move (RetireLegacyFolder
+                // has already left any folder that still holds files in place). Writing the
+                // breadcrumb now would make HasConsolidated block the retry that would finish
+                // the job, stranding those files in the legacy folder forever. Leave no
+                // breadcrumb so the next consented run completes the move — already-relocated
+                // files are gone from the source, so nothing double-moves (retire-not-delete
+                // is untouched).
+                if (rep.FilesFailed > 0)
+                {
+                    StingLog.Warn($"WriteConsolidationBreadcrumb: {rep.FilesFailed} file(s) failed to move — breadcrumb withheld so the consolidation can be re-run to finish.");
+                    return;
+                }
 
                 string path = ConsolidationBreadcrumbPath(doc);
                 if (string.IsNullOrEmpty(path)) return;
