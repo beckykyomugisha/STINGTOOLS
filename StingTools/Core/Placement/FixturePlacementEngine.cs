@@ -293,9 +293,12 @@ namespace StingTools.Core.Placement
                     // "the standards filter didn't remove anything" is explicable.
                     if (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0)
                     {
-                        int tagged = rules.Count(r => r != null
+                        // Count over non-null rules only, so a null list entry is
+                        // not miscounted as an untagged rule in the warning.
+                        int total   = rules.Count(r => r != null);
+                        int tagged  = rules.Count(r => r != null
                             && (!string.IsNullOrEmpty(r.ApplicableStandards) || !string.IsNullOrEmpty(r.StandardRef)));
-                        int untagged = rules.Count - tagged;
+                        int untagged = total - tagged;
 
                         if (tagged == 0)
                         {
@@ -305,7 +308,7 @@ namespace StingTools.Core.Placement
                         }
                         else if (untagged > 0)
                         {
-                            result.Warnings.Add($"Standards gate: {untagged} of {rules.Count} rule(s) carry neither " +
+                            result.Warnings.Add($"Standards gate: {untagged} of {total} rule(s) carry neither " +
                                                 "ApplicableStandards nor StandardRef, so they bypass the profile's " +
                                                 "ActiveStandards filter and are always included. Tag them to bring them " +
                                                 "under the gate.");
