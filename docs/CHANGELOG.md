@@ -50,6 +50,11 @@ to `SUIT`) — and wires STING to populate it automatically.
   the same whole-sheet affine remap used for working sheets — border, banner,
   strips and label positions scale by paper ratio, text heights stay at ISO 3098
   drafting tiers (unchanged on A0, one tier down on A3). No per-size authoring.
+  `PropagateFromMasterSeed` now copies the **whole** seed design — not just
+  text/lines/filled-regions but also **nested families (logo / QR / symbols),
+  detail components, imports and placed images** (reposition by paper ratio, no
+  scale). Previously those were dropped, which made propagated families look
+  unrelated to a rich hand-authored seed.
 - **`STING_TITLE_BLOCKS.json`** gains the whole **A2** size (594 × 420 landscape /
   420 × 594 portrait), previously absent: `A2_LAND_common_v2.0`, `A2_PORT_common_v2.0`,
   the four `STING_TB_A2_{BIM,NONBIM}[_PORT]_v2.0` working sheets, and

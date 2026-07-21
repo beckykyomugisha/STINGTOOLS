@@ -704,13 +704,21 @@ namespace StingTools.Core.Drawing
                     return 0;
                 }
 
-                // Everything visual: labels + captions (TextElement covers both),
-                // lines (CurveElement), filled regions.
+                // Everything visual: labels + captions (TextElement), lines
+                // (CurveElement), filled regions, AND nested families (logo / QR
+                // / symbols / detail components) and imports — so a rich seed
+                // propagates WHOLE, not just its linework. This was the gap that
+                // made propagated families look unrelated to their seed. Only
+                // pure scaffolding (reference planes, dimensions) is left behind.
                 var ids = new List<ElementId>();
-                foreach (Element e in new FilteredElementCollector(masterDoc, srcView.Id))
+                foreach (Element e in new FilteredElementCollector(masterDoc, srcView.Id)
+                             .WhereElementIsNotElementType())
                 {
-                    if (e is TextElement || e is CurveElement || e is FilledRegion)
+                    if (e is TextElement || e is CurveElement || e is FilledRegion
+                        || e is FamilyInstance || e is ImportInstance)
                         ids.Add(e.Id);
+                    else if (e.Location is LocationPoint && e.Category != null)
+                        ids.Add(e.Id);   // placed images / other point-located graphics
                 }
                 if (ids.Count == 0) return 0;
 
@@ -782,6 +790,21 @@ namespace StingTools.Core.Drawing
                                         var newFr = FilledRegion.Create(
                                             famDoc, fr.GetTypeId(), dstView.Id, newLoops);
                                         if (newFr != null) famDoc.Delete(fr.Id);
+                                    }
+                                    break;
+                                }
+                                default:
+                                {
+                                    // Nested families (logo / QR / symbols),
+                                    // detail components, imports and placed
+                                    // images keep their authored size — only
+                                    // their location remaps by the paper ratio,
+                                    // exactly like text (never scaled).
+                                    if (el?.Location is LocationPoint dlp && dlp.Point != null)
+                                    {
+                                        var dp = dlp.Point;
+                                        ElementTransformUtils.MoveElement(famDoc, id,
+                                            new XYZ(dp.X * (kx - 1), dp.Y * (ky - 1), 0));
                                     }
                                     break;
                                 }
