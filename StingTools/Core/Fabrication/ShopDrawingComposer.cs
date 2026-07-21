@@ -133,7 +133,7 @@ namespace StingTools.Core.Fabrication
             else
             {
                 // 1) DrawingType profile (corporate spool A1 etc.)
-                tbId = ResolveTitleBlockFromDrawingType(doc, drawingType);
+                tbId = ResolveTitleBlockFromDrawingType(doc, drawingType, result);
                 // 2) Project Setup Wizard router — single source of truth
                 //    populated by ProjectSetupCommand. Honoured here so the
                 //    fabrication path obeys the same per-discipline policy
@@ -767,30 +767,80 @@ namespace StingTools.Core.Fabrication
         }
 
         private static ElementId ResolveTitleBlockFromDrawingType(
-            Document doc, StingTools.Core.Drawing.DrawingType dt)
+            Document doc, StingTools.Core.Drawing.DrawingType dt, FabricationResult result)
         {
             if (dt == null || string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
                 return ElementId.InvalidElementId;
             try
             {
-                // Mirror DrawingTypeSheetAdapter.ResolveTitleBlock so the
-                // optional TitleBlockSymbolType variant (Tender / Construction
-                // / As-Built etc.) is honoured on the fabrication path too.
-                var matches = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .Where(fs => string.Equals(
-                        fs.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
+                var declared = dt.TitleBlockFamily;
+
+                // T-1: this tier used to literal-match the profile's declared
+                // name against loaded family names. Drawing types declare
+                // logical names (STING_TB_ASSEMBLY_PIPE) while TitleBlockFactory
+                // saves versioned families (STING_TB_ASSEMBLY_PIPE_v1.0), so the
+                // match never hit and every spool sheet fell through to the
+                // discipline dictionary and ultimately "first title block in the
+                // project". TitleBlockResolver exists precisely for this
+                // mapping; the composer was simply never wired to it.
+                //
+                // Its output is best-effort, not guaranteed concrete: A2/A4 and
+                // unknown vocabulary come back unchanged, and a PRESENT name
+                // resolves to the A1 presentation family regardless of paper
+                // size (review T-6). So try the resolved name, then the declared
+                // one, before giving up.
+                var concrete = StingTools.Core.Drawing.TitleBlockResolver.ToConcreteFamily(doc, dt, declared);
+
+                List<FamilySymbol> Collect(string family) =>
+                    string.IsNullOrWhiteSpace(family)
+                        ? new List<FamilySymbol>()
+                        : new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                            .OfClass(typeof(FamilySymbol))
+                            .Cast<FamilySymbol>()
+                            .Where(fs => string.Equals(fs.FamilyName, family, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+
+                var candidates = new List<string>();
+                foreach (var c in new[] { concrete, declared })
+                    if (!string.IsNullOrWhiteSpace(c) &&
+                        !candidates.Any(x => string.Equals(x, c, StringComparison.OrdinalIgnoreCase)))
+                        candidates.Add(c);
+
+                foreach (var candidate in candidates)
                 {
-                    var picked = matches.FirstOrDefault(fs => string.Equals(
-                        fs.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
-                    if (picked != null) return picked.Id;
+                    var matches = Collect(candidate);
+                    // Built but not yet loaded — pull it from disk on demand,
+                    // same as the production path does.
+                    if (matches.Count == 0 &&
+                        StingTools.Core.Drawing.TitleBlockResolver.EnsureFamilyLoaded(doc, candidate))
+                        matches = Collect(candidate);
+                    if (matches.Count == 0) continue;
+
+                    // Mirror DrawingTypeSheetAdapter.ResolveTitleBlock so the
+                    // optional TitleBlockSymbolType variant (Tender /
+                    // Construction / As-Built etc.) is honoured here too.
+                    if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
+                    {
+                        var picked = matches.FirstOrDefault(fs => string.Equals(
+                            fs.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
+                        if (picked != null) return picked.Id;
+                        result?.Warnings.Add(
+                            $"Title-block type '{dt.TitleBlockSymbolType}' not found in family " +
+                            $"'{candidate}'; used '{matches[0].Name}'.");
+                    }
+                    return matches[0].Id;
                 }
-                var fallback = matches.FirstOrDefault();
-                if (fallback != null) return fallback.Id;
+
+                // Falling through here is not fatal — the caller still tries the
+                // project title-block router and the per-discipline dictionary —
+                // but it was previously silent, which is how spool sheets ended
+                // up on an arbitrary title block with no indication.
+                result?.Warnings.Add(
+                    $"Drawing type '{dt.Id}' declares title block '{declared}'" +
+                    (string.Equals(concrete, declared, StringComparison.OrdinalIgnoreCase)
+                        ? "" : $" (resolved to '{concrete}')") +
+                    " but no such family is loaded or loadable; falling back to the project router.");
             }
             catch (Exception ex)
             {

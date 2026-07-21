@@ -34,6 +34,8 @@ namespace StingTools.Core.Drawing
         public int DimsPlaced      { get; set; }
         public int DecorativePlaced { get; set; }
         public int SpotsPlaced     { get; set; }
+        /// <summary>Annotations not re-created because the view already had them (C-4).</summary>
+        public int Skipped         { get; set; }
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -206,6 +208,14 @@ namespace StingTools.Core.Drawing
             else
                 return;
 
+            // C-4: one scan of this view's existing tags, shared by every
+            // category below. Lazy so a pack with no taggable category never
+            // pays for it. Without this the runner had no idempotency at all:
+            // AutoAnnotationRule.SkipIfTagged (default true) was read nowhere,
+            // so re-running SyncStyles, a drift heal, or DrawingTypePresentation
+            // .Apply doubled every tag on the view.
+            var taggedIndex = new Lazy<HashSet<ElementId>>(() => BuildTaggedElementIndex(doc, view, stats));
+
             var doneCats = new HashSet<long>(); // tag each category at most once
             foreach (var rule in effective)
             {
@@ -217,7 +227,7 @@ namespace StingTools.Core.Drawing
                     long cv = catId.Value;
                     if (!doneCats.Add(cv)) continue;
                     if (!Enum.IsDefined(typeof(BuiltInCategory), unchecked((int)cv))) continue; // skip custom categories
-                    TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats);
+                    TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats, rule, taggedIndex.Value);
                 }
                 catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
             }
@@ -264,8 +274,68 @@ namespace StingTools.Core.Drawing
         /// Drop a single overall dimension chain across all grids
         /// visible in the view. Each grid contributes one reference.
         /// </summary>
+        /// <summary>
+        /// C-4 idempotency for the two dimension chains.
+        ///
+        /// Strategy: detect an existing chain by what it REFERENCES rather than
+        /// by a stamped marker. A marker would need a new shared parameter bound
+        /// to Dimensions — provisioning across MR_PARAMETERS.txt, the .csv
+        /// mirror, PARAMETER_REGISTRY.json and a category binding — whereas
+        /// DimByRules places at most one grid chain and one level chain per
+        /// view, so a coarse "does this view already hold a dimension
+        /// referencing Grids / Levels?" question is exactly as precise as the
+        /// runner needs and requires nothing new.
+        ///
+        /// Residual limitation: Revit can report AreReferencesAvailable == false
+        /// (references lost, or the dimension is in a linked/【unloaded】 state).
+        /// Such a dimension is treated as "unknown" and skipped over rather than
+        /// counted as a match, so in the rare case where every dimension in the
+        /// view is unreadable AND a prior STING chain exists, a duplicate is
+        /// still possible. Failing that way round is deliberate: the alternative
+        /// silently refuses to dimension views that merely contain odd geometry.
+        /// </summary>
+        private static bool ViewHasDimensionReferencing(Document doc, View view, BuiltInCategory targetCat)
+        {
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(Dimension))
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is Dimension dim)) continue;
+                    try
+                    {
+                        if (!dim.AreReferencesAvailable) continue;   // unknown — not a match
+                        var refs = dim.References;
+                        if (refs == null) continue;
+                        foreach (Reference r in refs)
+                        {
+                            var host = doc.GetElement(r);
+                            if (host?.Category == null) continue;
+                            if (host.Category.Id.Value == (long)targetCat) return true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ViewHasDimensionReferencing: dimension {dim.Id} — {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewHasDimensionReferencing({view?.Name}): {ex.Message}");
+            }
+            return false;
+        }
+
         private static void DimGrids(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
+            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Grids))
+            {
+                stats.Skipped++;
+                return;
+            }
+
             var grids = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(BuiltInCategory.OST_Grids)
                 .WhereElementIsNotElementType()
@@ -304,6 +374,12 @@ namespace StingTools.Core.Drawing
         /// </summary>
         private static void DimLevels(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
+            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Levels))
+            {
+                stats.Skipped++;
+                return;
+            }
+
             var levels = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(BuiltInCategory.OST_Levels)
                 .WhereElementIsNotElementType()
@@ -340,8 +416,45 @@ namespace StingTools.Core.Drawing
         /// category. After placing each tag, applies CategoryDepths from
         /// the active ViewStylePack if declared.
         /// </summary>
+        /// <summary>
+        /// Element ids already carrying an IndependentTag in this view.
+        /// Built once per view and shared across every tag rule.
+        /// </summary>
+        private static HashSet<ElementId> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
+        {
+            var set = new HashSet<ElementId>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is IndependentTag tag)) continue;
+                    try
+                    {
+                        foreach (var id in tag.GetTaggedLocalElementIds())
+                            if (id != null && id != ElementId.InvalidElementId) set.Add(id);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"BuildTaggedElementIndex: tag {tag.Id} — {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open with a warning: an empty index means "tag
+                // everything", i.e. the previous behaviour, rather than
+                // silently skipping work the user asked for.
+                stats.Warnings.Add($"Could not index existing tags in '{view.Name}' ({ex.Message}); " +
+                                   "duplicate tags are possible on this view.");
+            }
+            return set;
+        }
+
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
-            BuiltInCategory bic, string catKey, AnnotationRunStats stats)
+            BuiltInCategory bic, string catKey, AnnotationRunStats stats,
+            AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null)
         {
             var elements = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(bic)
@@ -349,7 +462,7 @@ namespace StingTools.Core.Drawing
                 .ToElements();
             if (elements.Count == 0) return;
 
-            ElementId tagTypeId = ResolveTagTypeId(doc, view, pack, catKey, bic);
+            ElementId tagTypeId = ResolveTagTypeId(doc, view, pack, catKey, bic, stats);
             if (tagTypeId == ElementId.InvalidElementId)
             {
                 stats.Warnings.Add($"No tag family available for {catKey} — skipped.");
@@ -380,18 +493,50 @@ namespace StingTools.Core.Drawing
             }
             catch { /* resolver must never throw */ }
 
+            // C-4: honour the rule's skipIfTagged (POCO default true). Only the
+            // config dialog ever read this field before.
+            bool skipIfTagged = rule?.SkipIfTagged ?? true;
+
             foreach (var el in elements)
             {
                 try
                 {
+                    if (skipIfTagged && alreadyTagged != null && alreadyTagged.Contains(el.Id))
+                    {
+                        stats.Skipped++;
+                        continue;
+                    }
+
                     var pt = GetElementCentre(el);
+                    if (pt == null)
+                    {
+                        // A-9: GetElementCentre's comment promised an XYZ.Zero
+                        // sentinel "the caller can detect" but returned null,
+                        // and this call site passed it straight into
+                        // IndependentTag.Create — one exception per element on
+                        // floor / ceiling-heavy categories, flooding the
+                        // warning list and tagging nothing. It now falls back
+                        // to the bounding-box centre, so those categories tag
+                        // properly instead of being skipped; null here means
+                        // even that failed.
+                        stats.Skipped++;
+                        stats.Warnings.Add($"No taggable point for {catKey} element {el.Id} — skipped.");
+                        continue;
+                    }
+
                     // Revit 2025 removed IndependentTag.CanTagHost(doc, Reference) +
                     // renamed the Create parameters. The surrounding try/catch
                     // turns any "can't tag this host" failure into a Skipped
                     // count + warning row, replacing the dropped pre-check.
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
                         new Reference(el), false, TagOrientation.Horizontal, pt);
-                    if (tag != null) stats.TagsPlaced++;
+                    if (tag != null)
+                    {
+                        stats.TagsPlaced++;
+                        // Keep the index current so a later rule covering the
+                        // same element in this run doesn't tag it twice.
+                        alreadyTagged?.Add(el.Id);
+                    }
 
                     // Apply CategoryDepths from the active pack, if declared.
                     // FIX-6: write the tier flags CUMULATIVELY — a depth of N
@@ -450,17 +595,30 @@ namespace StingTools.Core.Drawing
                     var c = lc.Curve;
                     return (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
                 }
-                // View-centre fallback removed: this overload doesn't have a `view`
-                // in scope. Origin XYZ.Zero is a sentinel the caller can detect.
+                // A-9: floors, ceilings, roofs and most system families have no
+                // LocationPoint and no LocationCurve, so both branches above
+                // miss and this used to return null — which the caller fed
+                // straight to IndependentTag.Create. The bounding-box centre is
+                // the natural point for those categories and makes them
+                // taggable rather than merely non-crashing. XYZ.Zero would have
+                // satisfied the old comment but piled every tag at the project
+                // origin, which is worse than skipping.
+                var bb = el.get_BoundingBox(null);
+                if (bb?.Min != null && bb.Max != null)
+                    return (bb.Min + bb.Max) * 0.5;
             }
-            catch { /* best effort */ }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetElementCentre({el?.Id}): {ex.Message}");
+            }
+            // Null means "no usable point" — the caller skips and reports.
             return null;
         }
 
         // ─── Resolution helpers ──────────────────────────────────────────
 
         private static ElementId ResolveTagTypeId(Document doc, View view, AnnotationRulePack pack,
-            string catKey, BuiltInCategory hostCategory)
+            string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats = null)
         {
             ElementId result = ElementId.InvalidElementId;
 
@@ -468,11 +626,44 @@ namespace StingTools.Core.Drawing
             if (pack.TagFamilies != null && pack.TagFamilies.TryGetValue(catKey, out var famName)
                 && !string.IsNullOrWhiteSpace(famName))
             {
-                var byName = new FilteredElementCollector(doc)
+                var named = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
-                    .FirstOrDefault(fs => string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase));
-                if (byName != null) result = byName.Id;
+                    .Where(fs => string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                // A-8: this matched by family name across EVERY category, so a
+                // model family sharing the name could win and then throw once
+                // per element inside IndependentTag.Create. Prefer a symbol in
+                // the expected tag category. The name-only match is kept as a
+                // second choice because TagCategoryFor falls through to the host
+                // category for anything not in its switch, so an exact category
+                // match is not always available — but a non-annotation match is
+                // reported, since that is the case that fails per element.
+                var wantCat = (long)TagCategoryFor(hostCategory);
+                var byCat = named.FirstOrDefault(fs => fs.Category != null && fs.Category.Id.Value == wantCat);
+                var chosen = byCat ?? named.FirstOrDefault();
+
+                if (chosen != null)
+                {
+                    if (byCat == null && chosen.Category?.CategoryType != CategoryType.Annotation)
+                        stats?.Warnings.Add(
+                            $"Tag family '{famName}' for {catKey} is not an annotation family " +
+                            $"(category '{chosen.Category?.Name ?? "none"}') — tagging will likely fail.");
+                    result = chosen.Id;
+                }
+                else
+                {
+                    // Previously silent: a rule naming a family that isn't
+                    // loaded fell straight through to "first loaded tag of the
+                    // category", so the drawing quietly used the wrong tag.
+                    // This is the mechanism that hides the known tagFamilies
+                    // debt (~87 key mismatches, 19 nonexistent STING_TAG_*
+                    // families) at runtime.
+                    stats?.Warnings.Add(
+                        $"Tag family '{famName}' declared for {catKey} is not loaded; " +
+                        "falling back to the first loaded tag of that category.");
+                }
             }
 
             // 2. First loaded tag of the host's tag category (project default)
@@ -591,6 +782,17 @@ namespace StingTools.Core.Drawing
             {
                 var sym = FindFamilySymbolByName(doc, familyName);
                 if (sym == null) { result.Warnings.Add($"Decorative family '{familyName}' not found — skipped."); return; }
+
+                // C-4: the decorative pass had no idempotency either, so every
+                // re-run stacked another north arrow / scale bar / key plan on
+                // the view. One instance of a given family per view is the
+                // whole intent, so an existing instance is the guard.
+                if (ViewHasInstanceOfFamily(doc, view, sym))
+                {
+                    result.Skipped++;
+                    return;
+                }
+
                 if (!sym.IsActive) { try { sym.Activate(); } catch { } }
                 var inset = (sizeMm ?? 0) / 304.8;
                 var pt = ResolvePositionPoint(outline, position, inset);
@@ -598,6 +800,35 @@ namespace StingTools.Core.Drawing
                 result.DecorativePlaced++;
             }
             catch (Exception ex) { result.Warnings.Add($"Decorative '{familyName}': {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// True when this view already owns an instance of the given family
+        /// symbol's family — the guard that keeps the decorative pass from
+        /// re-stacking a north arrow / scale bar / key plan on every run.
+        /// Matched on family rather than symbol so a type swap still counts.
+        /// </summary>
+        private static bool ViewHasInstanceOfFamily(Document doc, View view, FamilySymbol sym)
+        {
+            if (doc == null || view == null || sym == null) return false;
+            try
+            {
+                var famId = sym.Family?.Id;
+                if (famId == null) return false;
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .WhereElementIsNotElementType())
+                {
+                    if (el is FamilyInstance fi && fi.Symbol?.Family?.Id == famId) return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open: place it rather than silently omit a required
+                // north arrow because the scan failed.
+                StingLog.Warn($"ViewHasInstanceOfFamily('{sym.Name}'): {ex.Message}");
+            }
+            return false;
         }
 
         private static XYZ ResolvePositionPoint(BoundingBoxXYZ outline, string position, double inset)
