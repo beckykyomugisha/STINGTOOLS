@@ -572,6 +572,18 @@ namespace StingTools.Core.Drawing
         /// layouts are not derivable from a working-sheet master).</summary>
         private static string ResolveMasterSeedId(string specId)
         {
+            // Cover families (landscape only) propagate from the single A1 cover
+            // master, so one authored A1 cover fans out to A0 / A3 via the same
+            // whole-sheet affine remap used for working sheets.
+            var cov = Regex.Match(specId ?? "",
+                @"^STING_TB_COVER_(A0|A1|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
+            if (cov.Success)
+            {
+                const string coverMaster = "STING_TB_COVER_A1_v1.0";
+                return string.Equals(coverMaster, specId, StringComparison.OrdinalIgnoreCase)
+                    ? null : coverMaster;
+            }
+
             var m = Regex.Match(specId ?? "",
                 @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
                 RegexOptions.IgnoreCase);
@@ -612,6 +624,21 @@ namespace StingTools.Core.Drawing
         private static bool TryGetIsoPaper(string specId, out double wMm, out double hMm)
         {
             wMm = hMm = 0;
+
+            // Cover families are landscape A0 / A1 / A3 (no portrait variant).
+            var cov = Regex.Match(specId ?? "",
+                @"^STING_TB_COVER_(A0|A1|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
+            if (cov.Success)
+            {
+                switch (cov.Groups[1].Value.ToUpperInvariant())
+                {
+                    case "A0": wMm = 1189; hMm = 841; break;
+                    case "A1": wMm = 841;  hMm = 594; break;
+                    case "A3": wMm = 420;  hMm = 297; break;
+                }
+                return true;
+            }
+
             var m = Regex.Match(specId ?? "",
                 @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
                 RegexOptions.IgnoreCase);

@@ -41,6 +41,15 @@ to `SUIT`) — and wires STING to populate it automatically.
   banner + amber strip. Provide seeds at `Families/TitleBlocks/_seeds/STING_TB_COVER_{A0,A3}_v1.0.rfa`
   to carry the full authored layout. Previews:
   `docs/title_blocks/previews/STING_TB_COVER_{A0,A3}_v1.0.svg/.png`.
+- **`TitleBlockFactory.cs`** extends master-seed propagation to **cover families**.
+  `ResolveMasterSeedId` and `TryGetIsoPaper` previously matched only working-sheet
+  ids (`STING_TB_{A0|A1|A3}[_PORT]_{BIM|NONBIM}_v…`); they now also recognise
+  `STING_TB_COVER_{A0|A1|A3}_v…` (landscape) and map A0/A3 covers to the single
+  `STING_TB_COVER_A1_v1.0` master. Result: authoring **one** A1 cover seed and
+  running `TitleBlock_CreateAll` fans the entire cover design out to A0 / A3 via
+  the same whole-sheet affine remap used for working sheets — border, banner,
+  strips and label positions scale by paper ratio, text heights stay at ISO 3098
+  drafting tiers (unchanged on A0, one tier down on A3). No per-size authoring.
 - **`docs/title_blocks/cover_v8_spec.py`** gains a `--params` mode that renders a
   **label-authoring guide** (`cover_v8_PARAM_GUIDE.svg/.png`): every cell shows the
   real STING shared parameter it should bind to (harvested from
