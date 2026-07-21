@@ -609,10 +609,14 @@ namespace StingTools.Core.Placement
 
             if (spec.IsPrimary)
             {
+                // ConnectorElement.IsPrimary is READ-ONLY (getter only), so the old
+                // path — get_Parameter(RBS_CONNECTOR_ISPRIMARY) then p.Set(1) guarded
+                // by !p.IsReadOnly — silently did nothing (the parameter is read-only,
+                // so the guard skipped the write and the connector was never actually
+                // made primary). AssignAsPrimary() is the documented API for this.
                 try
                 {
-                    var p = ce.get_Parameter(BuiltInParameter.RBS_CONNECTOR_ISPRIMARY);
-                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Integer) p.Set(1);
+                    ce.AssignAsPrimary();
                 }
                 catch (Exception ex) { StingLog.Warn($"ConnectorTransfer set primary: {ex.Message}"); }
             }
