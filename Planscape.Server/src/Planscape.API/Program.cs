@@ -847,6 +847,26 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
+    // Licence activation — a validity oracle, so it is rate-limited, but on its
+    // OWN per-IP bucket rather than sharing the strict "auth" bucket with login.
+    // The Revit add-in calls license/activate before any session exists, so many
+    // engineers in one office activate from a single public IP; a bucket shared
+    // with login would make legitimate activations and logins starve each other.
+    // 20/5min per IP comfortably covers a normal office while staying far too slow
+    // to brute-force a high-entropy licence keyspace.
+    options.AddPolicy("license", context =>
+    {
+        var key = $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RedisRateLimitPartition.GetSlidingWindowRateLimiter(
+            key,
+            _ => new RedisSlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(5),
+                ConnectionMultiplexerFactory = () => redisMux,
+            });
+    });
+
     // SEC-EA-06 — API baseline. Partition by user_id (sub) when
     // authenticated so a shared NAT IP doesn't punish concurrent users;
     // IP fallback for anonymous public endpoints.
