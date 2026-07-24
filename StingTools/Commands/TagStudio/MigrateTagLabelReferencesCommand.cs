@@ -39,14 +39,18 @@ namespace StingTools.Commands.TagStudio
     ///      in place).
     ///   3. For each formula that references the OLD name as a token: rewrite
     ///      the formula text via <c>FamilyManager.SetFormula(target, newText)</c>.
-    ///   4. <b>Atomic save-then-publish.</b> <c>SaveAs</c> writes to a temp
-    ///      <c>.rfa.sting-migrate-&lt;guid&gt;.tmp</c> alongside the canonical
-    ///      output path. Only after <c>LoadFamily</c> succeeds does the temp
-    ///      get atomically <c>File.Move</c>'d over the canonical .rfa. If
-    ///      anything fails (SaveAs / LoadFamily / unhandled exception), the
-    ///      temp is deleted and the canonical .rfa stays untouched — the
-    ///      project keeps its previous binding. Closes the original Phase 188
-    ///      caveat about TG-rollback leaving a stale .rfa on disk.
+    ///   4. <b>Atomic save-then-publish.</b> <c>SaveAs</c> writes the family
+    ///      under its EXACT canonical file name inside a throwaway
+    ///      <c>.sting-migrate-&lt;guid&gt;</c> temp SUBFOLDER (a loaded
+    ///      family's project name IS its .rfa file name, so a temp-suffixed
+    ///      file name would make <c>LoadFamily</c> mint a duplicate family
+    ///      instead of overwriting this one). Only after <c>LoadFamily</c>
+    ///      succeeds does the temp get atomically <c>File.Move</c>'d over the
+    ///      canonical .rfa. If anything fails (SaveAs / LoadFamily / unhandled
+    ///      exception), the temp folder is deleted and the canonical .rfa
+    ///      stays untouched — the project keeps its previous binding. Closes
+    ///      the original Phase 188 caveat about TG-rollback leaving a stale
+    ///      .rfa on disk.
     ///
     /// Type-mismatch cases (OLD is text, NEW is number, etc.) are reported
     /// but skipped — the API requires storage-type parity. Add a separate
@@ -104,10 +108,15 @@ namespace StingTools.Commands.TagStudio
             }
 
             // ── Enumerate STING tag families ──
+            // Exclude temp-named duplicates left by pre-fix propagate/migrate runs
+            // ("STING - X Tag.rfa.sting-propagate-<guid>"): they match the prefix
+            // but republishing one would write junk into the canonical .rfa dir
+            // and the "STING - *.rfa" glob would then load it into every project.
             var families = new FilteredElementCollector(doc)
                 .OfClass(typeof(Family))
                 .Cast<Family>()
                 .Where(f => f.Name != null && f.Name.StartsWith(TagFamilyConfig.FamilyPrefix, StringComparison.OrdinalIgnoreCase))
+                .Where(f => !PropagateUniversalTagCommand.IsTempNamed(f.Name))
                 .Where(f => f.FamilyCategory != null)
                 .OrderBy(f => f.Name)
                 .ToList();
@@ -254,6 +263,7 @@ namespace StingTools.Commands.TagStudio
         {
             var result = new FamilyResult();
             Document famDoc = null;
+            string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
             using (var tg = new TransactionGroup(doc, $"STING Migrate Refs: {fam.Name}"))
             {
                 try
@@ -368,11 +378,36 @@ namespace StingTools.Commands.TagStudio
                     // fails (SaveAs / LoadFamily / unhandled exception), the
                     // canonical TagFamilies/<name>.rfa is never replaced and
                     // the project keeps its previous family binding.
+                    // The temp copy keeps the family's EXACT file name (family name
+                    // == file name in Revit) inside a throwaway subfolder, so the
+                    // LoadFamily below overwrites this family in the project
+                    // instead of minting a duplicate named after a temp file.
                     string outDir = TagFamilyConfig.GetOutputDirectory();
-                    string finalPath = Path.Combine(outDir, fam.Name + ".rfa");
-                    string tempPath = Path.Combine(outDir,
-                        fam.Name + ".rfa.sting-migrate-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".tmp");
                     Directory.CreateDirectory(outDir);
+                    string rfaFileName = fam.Name.Replace('/', '-') + ".rfa";
+
+                    // A slash (or any other char stripped by sanitisation) in the
+                    // family name makes the .rfa FILE name diverge from the
+                    // family's project name. LoadFamily keys on the file name, so
+                    // saving under the sanitised name would mint a NEW mis-named
+                    // family and leave the real target untouched. Fail explicitly.
+                    if (!string.Equals(Path.GetFileNameWithoutExtension(rfaFileName), fam.Name, StringComparison.Ordinal))
+                    {
+                        result.ErrorMessage =
+                            $"Family name '{fam.Name}' has no 1:1 file name (sanitised to '{rfaFileName}'); " +
+                            "migrating would create a mis-named duplicate instead of overwriting the family. " +
+                            "Rename the family without '/' and retry.";
+                        StingLog.Warn($"MigrateTagLabelReferences: skipping '{fam.Name}' — sanitised file name diverges from family name");
+                        famDoc.Close(false); famDoc = null;
+                        tg.RollBack();
+                        return result;
+                    }
+
+                    string finalPath = Path.Combine(outDir, rfaFileName);
+                    tempDir = Path.Combine(outDir,
+                        ".sting-migrate-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                    Directory.CreateDirectory(tempDir);
+                    string tempPath = Path.Combine(tempDir, rfaFileName);
 
                     bool savedOk = false;
                     try
@@ -392,8 +427,8 @@ namespace StingTools.Commands.TagStudio
                     // SaveAs failure → roll Pass-1 bindings back + clean up temp.
                     if (!savedOk)
                     {
-                        try { if (File.Exists(tempPath)) File.Delete(tempPath); }
-                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempPath: {delEx.Message}"); }
+                        try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempDir: {delEx.Message}"); }
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{fam.Name}: tg.RollBack after save fail: {rbEx.Message}"); }
                         return result;
                     }
@@ -417,10 +452,10 @@ namespace StingTools.Commands.TagStudio
                     if (!loadedOk)
                     {
                         // LoadFamily failed → the project still references the
-                        // pre-migration family. Discard the temp file and roll
+                        // pre-migration family. Discard the temp folder and roll
                         // the TG back so no half-state survives.
-                        try { File.Delete(tempPath); }
-                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempPath: {delEx.Message}"); }
+                        try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempDir: {delEx.Message}"); }
                         result.ErrorMessage = "LoadFamily back into project failed";
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{fam.Name}: tg.RollBack after load fail: {rbEx.Message}"); }
                         return result;
@@ -436,6 +471,8 @@ namespace StingTools.Commands.TagStudio
                     {
                         if (File.Exists(finalPath)) File.Delete(finalPath);
                         File.Move(tempPath, finalPath);
+                        try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                        catch (Exception tdEx) { StingLog.Warn($"{fam.Name}: delete tempDir: {tdEx.Message}"); }
                     }
                     catch (Exception mvEx)
                     {
@@ -451,6 +488,12 @@ namespace StingTools.Commands.TagStudio
                     StingLog.Error($"MigrateTagLabelReferences: {fam.Name}", ex);
                     try { if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack(); } catch { }
                     try { famDoc?.Close(false); } catch (Exception closeEx) { StingLog.Warn($"Close famDoc: {closeEx.Message}"); }
+                    // Don't leak a half-made temp dir on an unhandled throw.
+                    if (tempDir != null)
+                    {
+                        try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                        catch (Exception delEx) { StingLog.Warn($"{fam.Name}: delete tempDir: {delEx.Message}"); }
+                    }
                 }
             }
             return result;

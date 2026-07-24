@@ -48,6 +48,14 @@ namespace StingTools.Core.Drawing
         public ElementId SheetId { get; set; } = ElementId.InvalidElementId;
         public List<ElementId> ViewportIds { get; } = new List<ElementId>();
         public bool WasIdempotent { get; set; }
+        /// <summary>
+        /// P-9: views already on the sheet that this run left alone. Counted
+        /// separately from ViewportIds so an idempotent re-run reads as
+        /// "reused N" instead of emitting one warning per view.
+        /// </summary>
+        public int ViewportsReused { get; set; }
+        /// <summary>P-9: true when the sheet already existed and was reused.</summary>
+        public bool SheetReused { get; set; }
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -63,6 +71,14 @@ namespace StingTools.Core.Drawing
         [ThreadStatic] private static Dictionary<string, ElementId> _existingSheetCache;
         [ThreadStatic] private static Dictionary<string, int>       _packageSheetCount;
         [ThreadStatic] private static string                        _cacheDocKey;
+        // P-12: view names, collected once per batch. NameExists ran a full
+        // OfClass(View) collector and MakeUniqueViewName calls it up to 100
+        // times per view — O(views^2) on a first run over a large model.
+        [ThreadStatic] private static HashSet<string>                _existingViewNames;
+        // P-12: category name -> BuiltInCategory, built once per document.
+        // Schedule rules resolved their category by iterating ~1,400 enum
+        // members and calling Category.GetCategory on each, per rule.
+        [ThreadStatic] private static Dictionary<string, BuiltInCategory> _categoryByName;
 
         private static string CacheDocKey(Document doc)
         {
@@ -113,6 +129,11 @@ namespace StingTools.Core.Drawing
                 }
                 _existingViewCache = v;
 
+                var names = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+                    if (el is View vn && !vn.IsTemplate && !string.IsNullOrEmpty(vn.Name)) names.Add(vn.Name);
+                _existingViewNames = names;
+
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
                 var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
@@ -139,6 +160,8 @@ namespace StingTools.Core.Drawing
         public static void ResetBatchCaches()
         {
             _existingViewCache  = null;
+            _existingViewNames  = null;
+            _categoryByName     = null;
             _existingSheetCache = null;
             _packageSheetCount  = null;
             _cacheDocKey        = null;
@@ -281,7 +304,8 @@ namespace StingTools.Core.Drawing
                     AnnotationOptions = opts.RunAnnotation
                         ? new AnnotationRunOptions { ViewScale = view.Scale }
                         : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true },
-                    SkipSymbolDriftCheck = true // batch producer — drift via standalone command
+                    SkipSymbolDriftCheck = true, // batch producer — drift via standalone command
+                    ContextScopeBox = ctx?.ScopeBox
                 };
                 var presResult = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
                 result.Warnings.AddRange(presResult.Warnings);
@@ -387,20 +411,10 @@ namespace StingTools.Core.Drawing
                         }
 
                         // Resolve BuiltInCategory from the string name
-                        BuiltInCategory bic = BuiltInCategory.INVALID;
-                        foreach (BuiltInCategory b in Enum.GetValues(typeof(BuiltInCategory)))
-                        {
-                            try
-                            {
-                                var catEl = Category.GetCategory(doc, b);
-                                if (catEl != null && string.Equals(catEl.Name, cat, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    bic = b;
-                                    break;
-                                }
-                            }
-                            catch { }
-                        }
+                        // P-12: was a walk over ~1,400 BuiltInCategory members
+                        // calling Category.GetCategory on each, inside a bare
+                        // catch, once per schedule rule.
+                        BuiltInCategory bic = ResolveCategoryByName(doc, cat);
 
                         if (bic == BuiltInCategory.INVALID)
                         {
@@ -578,7 +592,10 @@ namespace StingTools.Core.Drawing
                     && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage, sheetCtx), out var cachedSheetId))
                 {
                     if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
+                    {
+                        result.SheetReused = true;   // P-9: reuse is not production
                         return vsCached.Id;
+                    }
                     _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage, sheetCtx));
                 }
 
@@ -593,7 +610,7 @@ namespace StingTools.Core.Drawing
                 // Same drawing type, same package, same production context.
                 var exact = candidates.FirstOrDefault(s =>
                     string.Equals(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, StringComparison.Ordinal));
-                if (exact != null) return exact.Id;
+                if (exact != null) { result.SheetReused = true; return exact.Id; }
 
                 // A sheet produced before the context stamp existed carries
                 // no context. Claim it only for an empty-context request —
@@ -603,7 +620,7 @@ namespace StingTools.Core.Drawing
                 {
                     var legacyBlank = candidates.FirstOrDefault(s =>
                         string.IsNullOrEmpty(DrawingTypeStamper.ReadSheetContext(s)));
-                    if (legacyBlank != null) return legacyBlank.Id;
+                    if (legacyBlank != null) { result.SheetReused = true; return legacyBlank.Id; }
                 }
 
                 // ReadSheetContext returns null when STING_SHEET_CONTEXT_TXT
@@ -619,6 +636,7 @@ namespace StingTools.Core.Drawing
                         $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
                         $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
                         "Run LoadSharedParams to bind it, then re-run production.");
+                    result.SheetReused = true;
                     return unstampable.Id;
                 }
             }
@@ -784,6 +802,17 @@ namespace StingTools.Core.Drawing
         {
             try
             {
+                // P-9: on an idempotent re-run ProduceSingleView returns the
+                // EXISTING view, which is already on this sheet. Placing it
+                // again threw inside Viewport.Create and surfaced as a warning
+                // per view per re-run — noise that made a correct no-op look
+                // like a failure. Detect it first and report reuse instead.
+                if (IsViewAlreadyOnSheet(doc, sheetId, viewId, out var existingVpId))
+                {
+                    result.ViewportsReused++;
+                    return existingVpId;
+                }
+
                 var sp = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
                     rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
                 var pt = sp?.Center;
@@ -798,13 +827,123 @@ namespace StingTools.Core.Drawing
                 if (sp != null && !rule.ScaleOverride.HasValue
                     && doc.GetElement(viewId) is View vFit)
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
+
+                // SLOT-3: warn on a view/slot type mismatch rather than
+                // placing it silently into the wrong slot.
+                if (sp?.Slot != null && !string.IsNullOrWhiteSpace(sp.Slot.ViewType)
+                    && doc.GetElement(viewId) is View vChk
+                    && !string.Equals(vChk.ViewType.ToString(), sp.Slot.ViewType, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Warnings.Add(
+                        $"View '{vChk.Name}' ({vChk.ViewType}) placed into slot '{sp.Slot.Label}' " +
+                        $"which expects '{sp.Slot.ViewType}' — type mismatch.");
+                }
+
+                // AUTO-3: a ViewSchedule cannot be placed with Viewport.Create —
+                // it throws. The producer called Viewport.Create unconditionally,
+                // so every schedule its own ProductionRules created was
+                // impossible to place: the rule minted a view that could never
+                // reach a sheet. Schedules need ScheduleSheetInstance.
+                // These three behaviours existed only in
+                // SheetPlacementBridge.PlaceAccordingToSlots, which the producer
+                // never calls; ported rather than restructured because the
+                // bridge is a batch API and routing through it would also pull
+                // in the P-7 slot-origin convention divergence.
+                if (doc.GetElement(viewId) is ViewSchedule scheduleView)
+                {
+                    try
+                    {
+                        var ssi = ScheduleSheetInstance.Create(doc, sheetId, scheduleView.Id, pt);
+                        if (ssi != null)
+                        {
+                            try { StingTools.Core.ParameterHelpers.SetInt(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); }
+                            catch (Exception ex) { StingLog.Warn($"AutoPlaced stamp: {ex.Message}"); }
+                            return ssi.Id;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"ScheduleSheetInstance.Create('{scheduleView.Name}'): {ex.Message}");
+                    }
+                    return ElementId.InvalidElementId;
+                }
+
                 var vp = Viewport.Create(doc, sheetId, viewId, pt);
-                return vp?.Id ?? ElementId.InvalidElementId;
+                if (vp == null) return ElementId.InvalidElementId;
+
+                try { StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); }
+                catch (Exception ex) { StingLog.Warn($"AutoPlaced stamp: {ex.Message}"); }
+
+                // SLOT-1: per-slot viewport type override.
+                if (!string.IsNullOrWhiteSpace(sp?.Slot?.ViewportType))
+                {
+                    var vpTypeId = SheetPlacementBridge.ResolveViewportTypeId(doc, sp.Slot.ViewportType);
+                    if (vpTypeId != null && vpTypeId != ElementId.InvalidElementId)
+                    {
+                        try { vp.ChangeTypeId(vpTypeId); }
+                        catch (Exception ex) { result.Warnings.Add($"Viewport type '{sp.Slot.ViewportType}': {ex.Message}"); }
+                    }
+                    else
+                    {
+                        result.Warnings.Add(
+                            $"Viewport type '{sp.Slot.ViewportType}' not found — slot '{sp.Slot.Label}' uses the default.");
+                    }
+                }
+                return vp.Id;
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"PlaceViewOnSheet: {ex.Message}");
                 return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>
+        /// True when this view already has a viewport (or schedule instance)
+        /// on this sheet. Viewport.CanAddViewToSheet is the canonical test;
+        /// the collector then recovers the existing element's id so callers
+        /// can report reuse rather than re-place.
+        /// </summary>
+        private static bool IsViewAlreadyOnSheet(Document doc, ElementId sheetId, ElementId viewId, out ElementId viewportId)
+        {
+            viewportId = ElementId.InvalidElementId;
+            try
+            {
+                // Schedules are ScheduleSheetInstance, not Viewport, and
+                // CanAddViewToSheet does not describe them.
+                if (doc.GetElement(viewId) is ViewSchedule)
+                {
+                    foreach (var el in new FilteredElementCollector(doc, sheetId)
+                        .OfClass(typeof(ScheduleSheetInstance)))
+                    {
+                        if (el is ScheduleSheetInstance ssi && ssi.ScheduleId == viewId)
+                        {
+                            viewportId = ssi.Id;
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                if (Viewport.CanAddViewToSheet(doc, sheetId, viewId)) return false;
+
+                foreach (var el in new FilteredElementCollector(doc, sheetId).OfClass(typeof(Viewport)))
+                {
+                    if (el is Viewport vp && vp.ViewId == viewId)
+                    {
+                        viewportId = vp.Id;
+                        return true;
+                    }
+                }
+                // CanAddViewToSheet said no but no viewport on THIS sheet owns
+                // it — the view is placed on a different sheet. Not reuse;
+                // let the normal path run and report the real failure.
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsViewAlreadyOnSheet({viewId}): {ex.Message}");
+                return false;   // fail open — attempt the placement
             }
         }
 
@@ -829,7 +968,18 @@ namespace StingTools.Core.Drawing
             string lvl = ctx?.Level?.Name ?? "";
             string room = "";
             try { room = ctx?.Room?.Id?.ToString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return $"{lvl}::{room}::{ctx?.Tag ?? ""}";
+
+            // P-6: the scope box is part of the context's identity. Without it,
+            // two scope boxes on the same level with no ctx.Tag produced the
+            // same key, so the second box matched the first box's view and
+            // silently produced nothing. Appended rather than inserted so
+            // existing per-level stamps (no scope box) keep their current key
+            // and stay idempotent across this change.
+            string sbox = "";
+            try { sbox = ctx?.ScopeBox?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"BuildContextTag scope box: {ex.Message}"); }
+
+            var tag = $"{lvl}::{room}::{ctx?.Tag ?? ""}";
+            return string.IsNullOrEmpty(sbox) ? tag : tag + "::" + sbox;
         }
 
         private static View FindExistingView(Document doc, string dtId, DrawingContext ctx, int ruleIdx)
@@ -882,11 +1032,17 @@ namespace StingTools.Core.Drawing
             string name = baseName;
             int n = 2;
             while (NameExists(doc, name) && n < 100) name = $"{baseName}_({n++})";
+            // P-12: keep the batch name set current so the next probe in this
+            // run sees this name without another collector pass.
+            if (_existingViewNames != null && CacheMatchesDoc(doc)) _existingViewNames.Add(name);
             return name;
         }
 
         private static bool NameExists(Document doc, string name)
         {
+            // P-12: O(1) against the batch name set when primed for this doc.
+            if (_existingViewNames != null && CacheMatchesDoc(doc))
+                return _existingViewNames.Contains(name);
             try
             {
                 return new FilteredElementCollector(doc)
@@ -894,7 +1050,36 @@ namespace StingTools.Core.Drawing
                     .Cast<View>()
                     .Any(v => !v.IsTemplate && string.Equals(v.Name, name, StringComparison.Ordinal));
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            catch (Exception ex) { StingLog.Warn($"NameExists('{name}'): {ex.Message}"); return false; }
+        }
+
+        /// <summary>
+        /// P-12: category-name lookup built once per document instead of
+        /// iterating every BuiltInCategory member per schedule rule.
+        /// </summary>
+        private static BuiltInCategory ResolveCategoryByName(Document doc, string categoryName)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName)) return BuiltInCategory.INVALID;
+            if (_categoryByName == null || !CacheMatchesDoc(doc))
+            {
+                var map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    foreach (Category c in doc.Settings.Categories)
+                    {
+                        if (string.IsNullOrEmpty(c?.Name)) continue;
+                        try
+                        {
+                            var bic = (BuiltInCategory)c.Id.Value;
+                            if (!map.ContainsKey(c.Name)) map[c.Name] = bic;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Category map '{c.Name}': {ex.Message}"); }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveCategoryByName map: {ex.Message}"); }
+                _categoryByName = map;
+            }
+            return _categoryByName.TryGetValue(categoryName, out var hit) ? hit : BuiltInCategory.INVALID;
         }
 
         /// <summary>

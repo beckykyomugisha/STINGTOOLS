@@ -103,7 +103,96 @@ Deliberately deferred, with reasons:
 - **`IFamilyLoadOptions` `overwriteParameterValues` disagreement** (resolver false,
   TitleBlockSlotCommands true) — untouched, since no loading behaviour changed.
 
+### P2 — tracks A + D CLOSED (see CHANGELOG Phase 224)
+
+| Finding | Status |
+|---|---|
+| E-5 / E-13 SheetSequenceStore wipe, silent write failure, Peek off-by-one | ✅ fixed |
+| A-4 / A-10 grid + level dimension chains never placed | ✅ fixed |
+| P-6 / P-13b / P-13c scope-box production | ✅ fixed |
+| P-8 producer schedule placement + per-slot viewport types | ✅ fixed |
+| P-9 re-run warnings + double counting + ctx.Tag divergence | ✅ fixed |
+| E-7 / E-8 / E-9 / E-10 / E-12 / E-14 / V-9 engine small-bore | ✅ fixed |
+| A-12 / A-13 / A-14 legend placement + match-line validate | ✅ fixed |
+| T-8 / T-9 / T-11 / T-13 title-block loose ends | ✅ fixed |
+| V-4 / V-5 / P-12 / P-13a performance | ✅ fixed |
+| A-5 GridDimensioner axes + drainage invert | ✅ fixed |
+| W-2 MatchLine suite unreachable | ✅ fixed (5 buttons + 5 ResolveCommand cases) |
+
+Corrections to the review found in this pass (bringing the running total to six):
+
+- **W-5 was wrong and acting on it would have been destructive.** The instruction was to delete
+  the inline handler copies for `DrawingTypes_SyncStyles` / `DrawingTypes_FromScopeBoxes` as
+  "reimplementations". They are not: the inline versions are read-only (an audit and an
+  advisory) while the command classes WRITE. Deleting them would have turned two read-only
+  buttons into model-writing operations. Resolved by naming instead — the advisories moved to
+  `DrawingTypes_AuditStyleRefs` / `DrawingTypes_SuggestFromScopeBoxes`, the canonical tags now
+  mean the command class everywhere, and new buttons expose the writing commands.
+- **P-7's conclusion does not follow from its evidence.** The two slot data sets are authored to
+  DIFFERENT conventions, each self-consistent with its consumer: `STING_DRAWING_TYPES.json` is
+  bottom-left (pipe-spool tiles 0.05→0.45, 0.55→0.95; every x+w ≤ 0.98) while
+  `SheetTemplateEngine`'s built-ins are centre (normX 0.47/w 0.80, 0.72/w 0.38, 0.72/w 0.40 give
+  right edges of 1.27, 1.10, 1.12 under a bottom-left reading — three of four off-sheet). The
+  defect is the adapter's claim that they share a convention. Still open; see below.
+- **A-5's drainage magnitude is wrong.** The error is one wall thickness, not two: that would
+  require `Diameter` to be the outside diameter, and Revit exposes no inside/outside distinction
+  on `Pipe` or `MEPCurve`.
+- **E-10 is worse than described** — the `Validate` loop sat outside the `try`, so the snapshot
+  clear was skipped on any throw, not merely un-stamped.
+
 ### P2 — still open
+
+**Track B — CLOSED except the two data-territory items.**
+
+| Item | Status |
+|---|---|
+| B1 grid-dimensioning convergence | ✅ `DimGrids` survives; `GridDimensioner` reduced to `IsDimensionable` |
+| B1 `dimensionStrategy` | ✅ wired into `DimGrids` via `DimensionStrategy.ResolveType` |
+| B1 `condition` | ✅ wired (evaluator had zero call sites) |
+| B1 per-rule `tagFamily` | ✅ wired, warns when the named family is absent |
+| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ still no-ops — see below |
+| B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
+| B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
+| B5 composer numbering | ✅ routed through `SheetSequenceStore` |
+| B4 checksums | ⬜ data-territory — data PR |
+| B6 unmintable `iso-status-*` filters | ⬜ data-territory — data PR |
+
+`densityMode` / `minSizeMm` / `orientation` / `tag7Depth` remain unwired. They are per-rule
+*refinements* to tagging behaviour rather than the on/off wiring the other fields needed
+(`densityMode` interacts with the existing `denseUntilScale` gate; `minSizeMm` needs a per-element
+size measure; `orientation` and `tag7Depth` need per-tag write paths). Each is a small feature in
+its own right and none of them silently corrupts output today — they simply do nothing — so they
+are better scoped against smoke-test evidence than guessed at.
+
+**Previously listed as remaining (now done):**
+
+- **B1 (rest of the rule engine).** `GridDimensioner`'s axis bug and the drainage invert are
+  fixed, but `AnnotationConditionEvaluator` still has no call site and the rule-pack fields
+  `condition` / per-rule `tagFamily` / `densityMode` / `minSizeMm` / `orientation` / `tag7Depth`
+  / `dimensionStrategy` remain silent no-ops on 48 shipped types. Recommendation: wire, not
+  delete — deleting means stripping the fields from 48 catalogue entries, which is a Track C
+  data edit. Note that A2 rewrote `DimGrids` correctly, so wiring `dimensionStrategy` would give
+  two implementations of grid dimensioning; converge them in the same pass.
+- **B3 `${MAT_*}` tokens (T-4).** `MaterialTitleBlockTokens.Resolve` still has zero callers.
+  One call site in `TitleBlockParamApplier`'s `${…}` handler would wire it; its O(all-elements)
+  usage scan should be made lazy-once-per-doc at the same time.
+- **B4 checksum persistence (C-5).** Unchanged — no checksum fields ship, so the corporate-lock
+  drift branch is inert. Needs a build-time stamping script plus a decision on whether packs get
+  parity or are documented as deliberately unlocked.
+- **B5 composer numbering (P-11).** `ShopDrawingComposer._sequenceByBucket` is still in-memory
+  per session. Routing it through the (now hardened) `SheetSequenceStore` would retire the third
+  parallel numbering system.
+- **B6 unmintable filters (V-6).** The 8 `iso-status-*` filters bind only `OST_Sheets`, which
+  Revit view filters cannot target. Removal is a Track C data edit.
+
+**Track C (catalogue data) — not started**, gated on smoke-test evidence. C1–C6 as originally
+scoped. Note C3's overlap is confirmed by measurement: pipe-spool ISO spans 0.55→0.95 and BOM
+0.78→0.98, overlapping 0.78→0.95.
+
+**P-7 slot convention** — the divergence is measured and recorded above; converging requires
+rewriting `SheetTemplateEngine`'s built-in numbers and migrating user-saved templates, so it
+wants smoke-test evidence first.
+
 
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
 numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
@@ -307,6 +396,31 @@ glyphs must all survive `Propagate_UniversalTag`, and `Gate_StampStatus` must re
 `STING_GATE_*` params (2 INT + 2 MSG) so badges + message labels render.
 
 
+## MEP visual-tag declutter — remaining coverage (branch `claude/mep-tag-declutter-advice`)
+
+Phase 197 shipped one-tag-per-run for the batch **Smart Place Tags** path
+(`SmartTagPlacementCommand.PlaceTagsInView`) via `Core/Mep/MepRunGrouper.cs`, and suppressed
+real-time per-segment visual tags for PerRun/None categories in `StingAutoTagger`. Remaining visual
+placement paths that still emit one tag per element (not yet policy-aware):
+
+1. **`SmartTagPlacementCommand.PlaceTagsInLinkedViews`** — tags every linked-model element, no run
+   grouping. Linked elements have no writable tokens, so run keys (system/size) read from the linked
+   element directly; the grouper would need a linked-aware overload (its own connector walk in the link
+   doc). Niche path — deferred until someone tags a federated MEP link and hits the clutter.
+2. **`TagSelectedCommand.PlaceVisualTag`** (Organise) — deliberately **left per-element**: an explicit
+   user selection of N segments should yield N tags (the drafter chose them). If a "dedup my selection
+   to runs" affordance is wanted later, add it as an opt-in mode on that command, not a default.
+3. **Reactive vs preventive** — `ClusterTags` still exists as the post-hoc merge into `[×N]` badges.
+   With PerRun now preventive on the main path, `ClusterTags` is mostly redundant for linear MEP but
+   still useful for dense **equipment/fixture** tags (policy `All`). Keep; no change.
+
+**Plumbing smoke-test watch-items** (when the plumbing model test runs): verify sloped drainage
+(1–2 %) is treated as horizontal (grouped) while stacks (vertical) each keep their own tag; verify
+pipes with **no assigned MEP system** still separate physically-distinct runs (connector traversal, not
+attribute grouping); verify `RBS_CALCULATED_SIZE` reads on the plumbing pipe types in use so size
+changes break runs correctly.
+
+
 ## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
 
 PM-1 landed (the §2 correctness bugs + the do-once shared helpers
@@ -437,7 +551,7 @@ Shipped self-serve on planscape.build/downloads. **0.1.0-beta.2 is live** (SB-2,
 | SB-2b | **Revit SEQ reservation is scaffolding only — not wired** | Phase 211 landed the mechanism and its unit tests; nothing calls it, so Revit still allocates purely locally and the online cross-host duplicate window (Revit vs StingBridge minting the same number on the same key) is **OPEN**. Two wiring points: (1) `PlanscapeServerClient.ReserveSeqBlocksAsync` (`StingTools/BIMManager/PlanscapeServerClient.cs:691`) has **zero callers** — a tagging run must pre-compute its per-key counts and reserve one block per key; (2) `TagConfig.BuildAndWriteTag` (`StingTools/Core/TagConfig.cs:2317`) calls `SeqAssigner.AssignNext` without the optional `reservation` argument, so it defaults to `null` → local allocation. Both are single-line-ish changes; the work is not the edit. **Why it waits:** this is the hot path for every tag the plugin writes, and a mistake renumbers a live model. It needs in-Revit runtime verification against a real document — unit tests and a clean compile do not cover the failure modes that matter (transaction scope, partial-run rollback, counter drift after a cancelled command). No Revit runtime is available to the agent that wrote it. Suggest gating behind a config flag on first release so a site can fall back without a redeploy. |
 | SB-3 | ~~Token inference single-sourcing~~ **DONE Phase 205** | ArchiCAD vocabulary moved to `stingtools_core/hosts/archicad.py`; the bridge modules are re-export shims. The two level-derivation functions disagreed on 13 of 31 storey names and the ArchiCAD one collapsed every numbered basement to `B1` — now one implementation, union of both, bug fixed. `ArchiCadHostAdapter` implements the HostAdapter contract. **Follow-on:** the IFC watcher still uses its own extraction rather than `IfcFileHostAdapter`; swapping it needs equivalence coverage first. |
 | SB-4 | ~~Hot-folder contract mismatch~~ **DONE Phase 204** | The Python watcher now follows the C# `processing/ → done/YYYYMMDD_<name>` \| `failed/` + `.log` contract (`StingBridge/watch/hot_folder.py`), keeping the sidecars and moving the `_sting.ifc` output with the source. Also added a start-up sweep of the inbox and `processing/` orphan recovery, both only safe once processed files leave the root. Failure routing reads `result["errors"]`, not just exceptions — routing on exceptions alone archived unopenable files as successes. |
-| SB-5 | **Multi-host Phase B/C** — **tag-slice** engine DONE Phase 207 (corrected Phase 214), wiring open | The change feed (`GET /api/projects/{id}/changes`), `PullClient`/`CursorStore` and the `ReconcileEngine` are landed and verified two-way against real Postgres. Remaining: **SB-5a** wire the IFC-watcher path to pull→reconcile→push (testable today without ArchiCAD — the sensible first cut); **SB-5b** wire the live-ArchiCAD path and delete the 60-second grace heuristic in `sync/engine.py` (needs a licence to exercise the local-index read, so blocked behind SB-1). Also open: §1.4.4 client-side push chunking, §1.4.5 the GlobalId-stability CI fixture, and the Part 2 LoGeoRef coordinate engine. **Scope correction (Phase 214):** what landed is the **TAG slice** of §1.4.1–§1.4.2. The feed carries `kind="tag"` only — **issues / BCF / clash payloads are not implemented** — and **§1.4.3's "surface the loser as a Planscape issue" is not implemented**: conflicts are reported to an `on_conflict` callback that nothing consumes. The seams (`kind` field, callback) exist; the wiring does not. **Two further documented limitations:** rows with a null `LastModifiedUtc` never appear in the feed, so pre-existing elements stay invisible until next edited (a backfill may be needed); and there are **no delete tombstones**, so a deletion in one host never propagates. |
+| SB-5 | **Multi-host Phase B/C** — **tag-slice** engine DONE Phase 207 (corrected Phase 214), wiring open | The change feed (`GET /api/projects/{id}/changes`), `PullClient`/`CursorStore` and the `ReconcileEngine` are landed and verified two-way against real Postgres. Remaining: ~~**SB-5a** wire the IFC-watcher path to pull→reconcile→push~~ **DONE Phase 225** — `StingBridge/sync/ifc_reconcile.py` drains the feed from a **per-document** cursor (`<drop-root>/.sting_sync_cursor.json`, survives restarts), reconciles into the extracted token map *before* SEQ minting so a remote SEQ is adopted rather than re-minted, and the reconciled values reach both the write-back and the push. **SB-5b** wire the live-ArchiCAD path and delete the 60-second grace heuristic in `sync/engine.py` (needs a licence to exercise the local-index read, so blocked behind SB-1). Also closed in Phase 225: ~~§1.4.4 client-side push chunking~~ (`sync/push_chunker.py` — configurable chunk size, retry-with-backoff on transient failures, 413 splits the chunk) and ~~§1.4.5 the GlobalId-stability CI fixture~~ (`test_ifc_globalid_stability.py` — same IFC twice ⇒ zero new mapping rows). Still open: the Part 2 LoGeoRef coordinate engine. **Scope correction (Phase 214):** what landed is the **TAG slice** of §1.4.1–§1.4.2. The feed carries `kind="tag"` only — **issues / BCF / clash payloads are not implemented** — and **§1.4.3's "surface the loser as a Planscape issue" is still not implemented**. Phase 225 consumed the `on_conflict` callback on the IFC path — every conflict is now written to a `<name>.conflicts.jsonl` sidecar (one row per differing token: guid, key, local, remote, winner, applied, reason) and logged — so a conflict is no longer *silent*, but no Planscape issue is raised and the live-ArchiCAD path still consumes nothing. The remaining work is server-contract, owned by the server lane. **Two further documented limitations:** rows with a null `LastModifiedUtc` never appear in the feed, so pre-existing elements stay invisible until next edited (a backfill may be needed); and there are **no delete tombstones**, so a deletion in one host never propagates. |
 | SB-6 | **macOS notarized binary** | `any` zip covers macOS today; a signed native build is deliberate future work. |
 | SB-7 | **Beta feedback loop** | Optional `download_log` table (D1) on the gated endpoint so beta testers can be followed up without the old request-by-email list. |
 
@@ -986,3 +1100,24 @@ so LookupParameter hits directly), and rekey the 998 entries; (2) add the 8 new
 command copying `PRJ_TB_* -> PRJ_ORG_*` on ProjectInformation (SetIfEmpty);
 (5) regenerate STING_TITLE_BLOCK_PARAMETERS.txt; (6) run TitleBlock_CreateAll +
 verify the stamp fills from PRJ_ORG_* in Revit.
+
+## Plumbing tag pipeline — audit follow-ups (branch claude/plumbing-tag-fixes)
+
+FIX 1–4 from the plumbing ISO-19650 tagging audit **landed** on
+`claude/plumbing-tag-fixes` (soil/vent pipes → SAN, hyphen-free seed PROD codes,
+validator PROD allow-list additions, Plumbing Equipment + Pipe Insulation containers).
+The two items below were deliberately left as follow-ups — coupling / ambiguity risk:
+
+- **BUG-2 — live auto-tagging skips pipe/duct curves.** `StingAutoTagger`'s live
+  category list (`Core/StingAutoTagger.cs`, ~line 1106-1131) omits `OST_PipeCurves`,
+  `OST_FlexPipeCurves`, and `OST_DuctCurves`, so pipe/duct/flex curves are not
+  real-time auto-tagged. Adding them is entangled with the MEP run-policy declutter
+  guard on branch `claude/mep-tag-declutter-advice` (PR #395): adding the categories
+  WITHOUT that guard would re-introduce one-tag-per-segment clutter live. Do it as a
+  follow-up on top of PR #395, not in the plumbing-tag-fixes branch.
+
+- **BUG-3 — unassigned pipes fall back to the disc-default SYS.** A pipe with no
+  assigned Revit piping system falls back to the discipline-default SYS; for the "M"
+  default that is "HVAC", so unconnected domestic-water / drainage pipes tag as
+  Mechanical. No safe automatic fix (the pipe categories are shared between mechanical
+  and plumbing) — treat as "assign piping systems before tagging". Advisory only.

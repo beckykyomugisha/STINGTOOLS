@@ -13,25 +13,39 @@ The rules, stated once so every host behaves identically:
 3. **Equal payloads** → no-op, whatever the timestamps say. Applying a delta
    that changes nothing still costs a host write and, in Blender/Revit, an undo
    entry.
-4. **Both changed, timestamps differ** → newer wins.
-5. **Both changed, timestamps equal** → the higher **content digest** wins.
-   Preferring "local" reads as the kind choice but is the one rule that cannot
-   converge: run the same reconcile on both hosts and each keeps its own value
-   forever, with no later edit to break the tie. The digest is a pure function of
-   the token payload, so both hosts compute the *same* winner from the same pair
-   and agree on the first pass. Still reported as a conflict.
-6. **Both changed, remote timestamp missing/unparseable** → local wins. An
-   unordered remote edit cannot be shown to be newer, and silently overwriting
-   the user's work on the strength of a missing field is the worst failure here.
 
-Every conflict is *reported* whether or not it was applied, so §1.4.3's
-"surface the loser rather than clobbering silently" has something to surface.
+Then reconciliation is **per token**, not per element (see `_resolve`):
+
+4. **Blank vs set** — a token that is empty/missing on one side and set on the
+   other is **adopted from the set side, regardless of timestamps**, and is NOT
+   a conflict. This is the asymmetry that matters most for `seq`: a freshly
+   re-exported IFC carries no STING pset, so *every* token is blank locally.
+   Under a per-element LWW the newer export would "win" and the server's known
+   SEQs would be re-minted from scratch — identity churn and counter burn on
+   every re-export. Filling a blank from the other host is never a loss, so it
+   never waits on a clock. Applied uniformly to all `TOKEN_KEYS`.
+5. **Set vs set, differing** — the only genuine conflict — resolves by
+   last-writer-wins on the element's timestamps:
+   - timestamps differ → newer wins;
+   - timestamps equal → higher **content digest** wins (a pure function of the
+     payload, so both hosts pick the *same* winner and converge on the first
+     pass — preferring "local" here never converges);
+   - remote timestamp missing/unparseable → local wins (an unordered remote edit
+     cannot be shown newer, and clobbering the user on a missing field is the
+     worst failure);
+   - local timestamp missing → remote wins, and this is NOT a conflict (an
+     element the host has never written).
+
+The result is a **merge**: blanks are filled from whichever side has the value,
+and only truly contested tokens go to LWW. Every genuine conflict is *reported*
+whether or not it was applied, so §1.4.3's "surface the loser rather than
+clobbering silently" has something to surface; a blank-fill is not one.
 """
 from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Optional
 
@@ -148,7 +162,11 @@ class ReconcileEngine:
             resolution = self._resolve(delta, local)
 
             if resolution.winner == "remote":
-                ok = self._apply(delta)
+                # Apply what reconciliation DECIDED — the merged payload (blanks
+                # filled per token, contested tokens resolved) — not the raw
+                # remote delta, which may carry blanks this host had already
+                # filled locally.
+                ok = self._apply(resolution.delta or delta)
                 resolution.applied = ok
                 if ok:
                     result.applied += 1
@@ -188,48 +206,104 @@ class ReconcileEngine:
         if tokens_equal(local_tokens, remote_tokens):
             return Resolution(gid, "none", "payloads identical", delta=delta)
 
+        # ── Per-token classification (rules 4 & 5) ───────────────────────────
+        # A token blank on one side and set on the other is ADOPTED from the set
+        # side regardless of timestamps — never a conflict (rule 4). Only tokens
+        # set-and-differing on both sides are genuinely contested (rule 5).
+        adopt_remote, adopt_local, contested = [], [], []
+        for k in TOKEN_KEYS:
+            lv, rv = str(local_tokens.get(k) or ""), str(remote_tokens.get(k) or "")
+            if lv == rv:
+                continue
+            if not lv:
+                adopt_remote.append(k)      # remote fills a local blank
+            elif not rv:
+                adopt_local.append(k)       # local fills a remote blank
+            else:
+                contested.append(k)         # a real value-vs-value disagreement
+
+        # Contested tokens (if any) are decided by last-writer-wins on the
+        # element timestamps. Blank-fills below are applied regardless.
+        contested_winner, conflict, lww_reason = (
+            self._lww(delta, local, local_tokens, remote_tokens)
+            if contested else (None, False, None)
+        )
+
+        # Build the merged winning token map: equal → that value; blank-vs-set →
+        # the set value; contested → the LWW winner's value.
+        merged = dict(remote_tokens)
+        for k in TOKEN_KEYS:
+            lv, rv = local_tokens.get(k), remote_tokens.get(k)
+            lvs, rvs = str(lv or ""), str(rv or "")
+            if lvs == rvs or not lvs:
+                merged[k] = rv                       # equal, or adopt remote
+            elif not rvs:
+                merged[k] = lv                       # adopt local into the blank
+            else:
+                merged[k] = rv if contested_winner == "remote" else lv
+
+        reason = self._merge_reason(lww_reason, adopt_remote, adopt_local)
+
+        # If the merge leaves every token at its local value, no write is needed
+        # — the push half carries any local-only fills up to the server.
+        writes = any(str(merged.get(k) or "") != str(local_tokens.get(k) or "")
+                     for k in TOKEN_KEYS)
+        if not writes:
+            return Resolution(gid, "local", reason, conflict=conflict, delta=delta)
+
+        return Resolution(gid, "remote", reason, conflict=conflict,
+                          delta=replace(delta, payload=merged))
+
+    @staticmethod
+    def _merge_reason(lww_reason, adopt_remote, adopt_local) -> str:
+        # Kept exact for the reasons the tests pin (e.g. "remote has no usable
+        # timestamp"): when nothing was blank-filled, the reason IS the LWW
+        # reason verbatim.
+        bits = []
+        if lww_reason:
+            bits.append(lww_reason)
+        if adopt_remote:
+            bits.append(f"adopt remote for blank {','.join(adopt_remote)}")
+        if adopt_local:
+            bits.append(f"keep local for blank {','.join(adopt_local)}")
+        return "; ".join(bits) or "no change"
+
+    def _lww(self, delta: ChangeDelta, local: dict,
+             local_tokens: dict, remote_tokens: dict) -> tuple[Optional[str], bool, str]:
+        """Resolve genuinely-contested tokens. Returns (winner, conflict, reason).
+
+        `winner` is "remote" or "local"; `conflict` is whether the loser must be
+        surfaced. Preserved verbatim from the original element-level rules so the
+        set-vs-set cases behave exactly as before.
+        """
         remote_ts = parse_utc(delta.last_modified_utc)
         local_ts = parse_utc(local.get("modified_utc"))
 
-        # Rule 6 — an unordered remote edit cannot be shown to be newer.
+        # An unordered remote edit cannot be shown to be newer.
         if remote_ts is None:
-            return Resolution(gid, "local", "remote has no usable timestamp",
-                              conflict=True, delta=delta)
+            return "local", True, "remote has no usable timestamp"
 
-        # No local timestamp: the local copy cannot defend itself, so the
-        # ordered remote edit wins. This is the common case for an element the
-        # host has never written — not a real conflict.
+        # No local timestamp: the local copy cannot defend itself, so the ordered
+        # remote edit wins. Common for an element the host never wrote — not a
+        # real conflict.
         if local_ts is None:
-            return Resolution(gid, "remote", "no local timestamp", delta=delta)
+            return "remote", False, "no local timestamp"
 
-        # Rules 4 and 5.
         if remote_ts > local_ts:
-            return Resolution(gid, "remote", f"remote newer ({remote_ts.isoformat()})",
-                              conflict=True, delta=delta)
+            return "remote", True, f"remote newer ({remote_ts.isoformat()})"
         if local_ts > remote_ts:
-            return Resolution(gid, "local", f"local newer ({local_ts.isoformat()})",
-                              conflict=True, delta=delta)
-        # Rule 5 (equal timestamps) — decide by content hash, NOT by "local".
-        #
-        # Preferring local here is the one choice that cannot converge: run the
-        # same reconcile on both hosts and each keeps its own value, forever,
-        # with no further edit to break the tie. Two clocks agreeing to the
-        # second is not rare — a batch write, or a coarse timestamp column.
-        #
-        # The digest is a pure function of the token payload, so both hosts
-        # compute the SAME winner from the same pair of values and converge on
-        # the first pass. It is still reported as a conflict.
+            return "local", True, f"local newer ({local_ts.isoformat()})"
+
+        # Equal timestamps — decide by content hash, NOT by "local". Preferring
+        # local is the one choice that cannot converge; the digest is a pure
+        # function of the payload so both hosts pick the SAME winner.
         local_digest = token_digest(local_tokens)
         remote_digest = token_digest(remote_tokens)
         if remote_digest > local_digest:
-            return Resolution(gid, "remote",
-                              f"timestamps equal - remote wins content tiebreak "
-                              f"({remote_digest[:8]} > {local_digest[:8]})",
-                              conflict=True, delta=delta)
-        return Resolution(gid, "local",
-                          f"timestamps equal - local wins content tiebreak "
-                          f"({local_digest[:8]} > {remote_digest[:8]})",
-                          conflict=True, delta=delta)
+            return "remote", True, (f"timestamps equal - remote wins content tiebreak "
+                                    f"({remote_digest[:8]} > {local_digest[:8]})")
+        return "local", True, (f"timestamps equal - local wins content tiebreak "
+                               f"({local_digest[:8]} > {remote_digest[:8]})")
 
     def _apply(self, delta: ChangeDelta) -> bool:
         try:

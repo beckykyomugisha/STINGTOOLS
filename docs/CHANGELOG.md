@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 224 — CI green again: a cache outage no longer turns 404 into 500)
+#### Completed (Phase 227 — CI green again: a cache outage no longer turns 404 into 500)
 
 - **The real defect was in production code, not the workflow.** The project-visibility
   cache in `ProjectAccessAttribute` (Phase 175 P1-13) is an optimisation over the
@@ -46,6 +46,290 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
 - Verified: `dotnet build Planscape.sln` 0 errors, 14 warnings (unchanged); plugin build
   0 errors / 0 warnings; full suite 67 unique failures both with and without the change,
   the only delta being a per-run random DEP-7 victim.
+
+#### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
+
+A live verification of SB-5a surfaced a real defect in the shared reconcile
+engine (`stingtools_core/sync/reconcile.py`): it decided remote-vs-local **per
+element**, so a token that was blank on one side and set on the other was still
+run through last-writer-wins. The consequence bites every re-export: a fresh
+ArchiCAD/IFC export carries no `STING_TOKENS` pset, so **every** token is blank
+locally and the file's mtime is *newer* than the server rows the last drop
+created. Per-element LWW handed the whole element to the newer local copy — and
+its blank SEQ — so all the server's known SEQs were **re-minted from scratch on
+every re-export**: identity churn and counter burn.
+
+**The rule change.** Reconciliation is now per token. A token empty on one side
+and set on the other is **adopted from the set side regardless of timestamps**,
+and is not a conflict — filling a blank is never a loss, so it never waits on a
+clock. Only tokens set-and-differing on both sides are genuinely contested and go
+to the unchanged LWW + content-digest tiebreak. The result is a **merge**: blanks
+fill from whichever host has the value; contested tokens resolve by time. Applied
+uniformly across all `TOKEN_KEYS`, most consequentially `seq`.
+
+- **Direction matters and is symmetric.** Server has a value the file lacks →
+  adopt it into the file (and mint nothing). File has a value the server lacks →
+  keep it and the push half sends it up. Both sides set and different → LWW.
+- **The subtle case is handled:** an element can lose a genuine zone
+  disagreement to a newer local edit *and still* adopt the server's SEQ into its
+  blank — one element, one merged write, one reported conflict.
+- **Adversarial unit tests** (`tests/test_sync_reconcile.py`, +5): blank-local
+  adopts the server SEQ even when local is newer; all-blank local adopts every
+  server token and mints nothing; blank-remote keeps and pushes the local value;
+  disjoint blanks merge from both sides; a filled blank and a real conflict
+  coexist. All five are **red before this change** (verified by reverting the
+  engine) and green after. The existing 33 LWW/tiebreak tests are unchanged.
+- **Live E2E** (`e2e_ifc_pull_reconcile.py`, scenario 2b, new): seed the project
+  with one drop, regenerate the fixture **fresh and dated newer than the server**,
+  drop it — SEQ is adopted, **zero re-minted**. Red before this change (the newer
+  file re-minted); green after. Full run green against the refreshed local stack.
+
+Core suite 101 passed, StingBridge suite 170 passed. Bumped nothing; no release.
+The live-ArchiCAD path in `sync/engine.py` (SB-5b) is untouched.
+
+#### Completed (Phase 225 — SB-5a: IFC watcher wired to pull → reconcile → push)
+
+The multi-host sync engine landed in Phase 207 (corrected 214) and was verified
+two-way against real Postgres, but **nothing called it**. The IFC drop path was
+still extract → push, so a tag edited in Revit was silently overwritten the next
+time anyone re-exported the IFC. This closes ROADMAP **SB-5a** — the first cut,
+testable today without an ArchiCAD licence.
+
+**Wiring (`StingBridge/sync/ifc_reconcile.py`, new)**
+
+- `pull_and_reconcile` drains the change feed from this document's cursor,
+  reconciles against the extracted element set via the existing
+  `PullClient` / `CursorStore` / `ReconcileEngine`, and applies remote wins into
+  the in-memory token map.
+- `IfcTokenApplyAdapter` mutates the token dicts **in place**, so a remote win
+  reaches both the IFC write-back and the outgoing push with no second plumbing
+  step — two paths reading one object cannot drift apart.
+- Only `TOKEN_KEYS` are copied from a delta; `category`/`family` describe the
+  *authoring* host's element and would let a remote host rename our IFC types.
+  A sparse delta overwrites only the keys it names rather than blanking the rest.
+- **Ordering:** reconcile runs *before* SEQ minting. A remote element that
+  already carries a SEQ hands it over, so `assign_sequences()` mints nothing —
+  the same idempotency the write-back adoption gives us, extended across hosts.
+  Reconciling after minting would burn a counter value on every drop and then
+  immediately overwrite the number just minted.
+
+**Cursor persistence**
+
+- Stored at `<drop-root>/.sting_sync_cursor.json`, in the **root** — a cursor
+  written into `processing/` is archived away with the file, resetting every
+  restart to a full backfill.
+- Keyed per **document**, not per project (`ifc:<hostDocumentGuid>`). A drop
+  folder normally holds several federated exports against one project; with a
+  shared cursor the first file to drain the feed consumes every other file's
+  changes and they are never seen again. This matches the grain the server
+  already keys mappings on.
+- Written **after** reconcile, so a crash mid-pass replays the page rather than
+  losing it. Re-applying a delta is a no-op; skipping one loses an edit.
+
+**Local timestamps.** An IFC export carries no per-element edit time, so every
+element is stamped with the **file's mtime**. This is not merely a convenience:
+leaving it unset would trip the engine's "no local timestamp ⇒ remote wins" rule
+for *every* contested element, silently reverting a freshly exported model to
+whatever the hub last held.
+
+**Conflict sidecar (§1.4.3, local half)**
+
+- Every conflict is written to `<name>.conflicts.jsonl` beside the source and
+  logged as a structured line. One row per **differing token**, schema
+  `{ts, source, guid, key, local, remote, winner, applied, reason}`.
+- Registered in `hot_folder._companions` so it travels to `done/` / `failed/`
+  rather than being stranded in `processing/`.
+- Raising a **Planscape issue** for the loser remains **NOT implemented** —
+  that is server-contract work owned by another lane, so §1.4.3 stays open. The
+  sidecar is the honest local half: a conflict is never *silent*, which was the
+  dangerous part.
+
+**§1.4.4 client-side push chunking (`StingBridge/sync/push_chunker.py`, new)**
+
+Replaces the fixed loop of 100 with no retry, where a single transient 503 lost
+that slice of the model into `result["errors"]`.
+
+- Configurable chunk size (`STING_PUSH_CHUNK_SIZE`, default 100).
+- Retry with capped exponential backoff on transient failures (408/425/429/5xx
+  and transport errors). A 4xx that is not 429/408 is a *decision* and is never
+  retried.
+- **413 splits the chunk** rather than failing: halved and re-queued down to a
+  single element. An operator no longer has to guess a working chunk size before
+  their first successful ingest.
+- A chunk that exhausts its retries is recorded and the run continues — on a
+  large ingest, losing one slice beats abandoning everything after it.
+
+**§1.4.5 GlobalId-stability fixture** (`test_ifc_globalid_stability.py`) — the
+leg of the plan's Revit→IFC→Bonsai fixture that can run in CI today, on the path
+we actually ship: same IFC dropped twice ⇒ **zero new mapping rows**; write-back
+preserves every GlobalId; re-ingesting our own `_sting.ifc` resolves to the same
+elements. That failure mode is invisible from inside one host, which is exactly
+why it needs a standing test.
+
+**Bug found and fixed during review.** The sidecar initially read local values
+from the live token map inside the `on_conflict` callback. Because the adapter
+mutates in place and `ReconcileEngine` applies *before* it reports, every
+remote-wins row recorded `local == remote` — losing the one fact the audit trail
+exists to preserve. Values are now snapshotted pre-apply; covered by a named
+regression test.
+
+**Tests** — 44 new, suite 222 → 266, nothing pre-existing red. Watcher-level
+round-trip over real IFC files with a fake change feed (remote-newer applied to
+both the written-back IFC and the push; local-newer kept and surfaced; sparse
+deltas; absent gids counted `absent` not `failed`), cursor persistence across a
+simulated restart, per-document cursor isolation, degradation paths (pull
+disabled / hub unreachable / no endpoint), and the chunker's retry, split and
+partial-failure behaviour. Verified the new tests bite by mutation.
+
+**Live E2E** (`StingBridge/tests/e2e_ifc_pull_reconcile.py`, new) drives the real
+`IFCDropHandler.process()` — exactly what `process-ifc` runs — against the
+refreshed docker stack (Phase 225/N0), always dropping the same path (the server
+keys a document on `sha1(resolved_path)`): a first drop mints SEQ; re-dropping
+the same untagged export mints **zero** (the pull adopts the numbers it just
+created — the burn-a-counter bug the stale stack exposed); a token edited
+server-side reaches the written-back IFC; a newer local export beats a stale
+server value and is pushed up; and two settled passes are byte-identical with the
+cursor advancing. Complements `e2e_pull_reconcile.py`, which proves the engine;
+this proves the *wiring*.
+
+**CI enforcement** — the StingBridge unit suite (incl. the §1.4.5 GlobalId
+fixture) previously ran nowhere: `multi-host-core.yml` only exercised
+`stingtools-core`, and the GlobalId test `importorskip`s ifcopenshell, so it
+silently skipped everywhere. Added a step to that workflow (it already triggers
+on `StingBridge/**`) that installs `ifcopenshell` + `requests` and runs
+`pytest StingBridge/tests/`, so the write-back can no longer churn GlobalId
+identity unnoticed. Bite verified: mutating `_write_tokens_to_ifc` to reassign
+`el.GlobalId` turns two of the three GlobalId tests red; reverting greens them.
+
+**Known limitations carried forward** (feed contract, unchanged here): the feed
+carries `kind="tag"` only; rows with a null `LastModifiedUtc` never appear, so
+pre-existing elements stay invisible until next edited (a backfill may be
+needed); and there are no delete tombstones, so a deletion never propagates —
+such a delta arrives as `absent` and is counted, not silently dropped.
+
+Not touched: `sync/engine.py`'s live-ArchiCAD flow and its 60-second grace
+heuristic (SB-5b, blocked behind SB-1), `seq_minter.py` contracts, and the
+hot-folder archival contract beyond adding the sidecar to `_companions`.
+
+New files: `StingBridge/sync/ifc_reconcile.py` · `StingBridge/sync/push_chunker.py` ·
+`StingBridge/tests/test_ifc_pull_reconcile.py` ·
+`StingBridge/tests/test_push_chunker.py` ·
+`StingBridge/tests/test_ifc_globalid_stability.py` ·
+`StingBridge/tests/e2e_ifc_pull_reconcile.py`
+
+---
+#### Completed (data sync — gate-param TEXT→YESNO datatype alignment, supersedes PR #337)
+
+Re-applied the gate-parameter datatype fix from PR #337
+(`claude/sync-gate-datatype-all-files`) fresh on top of current `main`, because
+`main` had added rows inside the CSV regions the stale branch rewrote and the
+branch could no longer merge. Data-file only; no code, no GUID edits.
+
+- **Problem.** The authoritative shared-param sources (`MR_PARAMETERS.txt`/`.csv`,
+  `PARAMETER_REGISTRY.json`, per Phase 194) already declare the gate `_BOOL`
+  parameters as **YESNO**, but `main`'s copies of the binding/config CSVs still
+  carried the pre-YESNO **TEXT** datatype for those same params — contradicting
+  the plugin's own canon.
+- **Exact param set (148 distinct)** re-derived from the original PR diff
+  (`git diff origin/main...origin/claude/sync-gate-datatype-all-files`): 134
+  `TAG_<size>*_BOOL` tag-style matrix switches, 10 `TAG_PARA_STATE_1..10_BOOL`
+  tier gates, and 4 warn/misc gates (`PER_SUST_RECYCLABLE_BOOL`,
+  `TAG_BOX_VISIBLE_BOOL`, `TAG_SCALE_TIER_AUTO_BOOL`, `TAG_WARN_VISIBLE_BOOL`).
+  The PR diff was verified byte-pure: every changed line pair is exactly one
+  `TEXT`→`YESNO` substitution in the datatype column, GUIDs unchanged.
+- **Applied to `main`'s current versions of 10 CSVs**, flipping only the datatype
+  column for those exact params where still `TEXT` (6,261 rows total):
+  `FAMILY_PARAMETER_BINDINGS.csv` (6,180 — one row per bound category),
+  `PARAMETER_CATEGORIES.csv` (1), and the 8
+  `STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}[_DesignConstruction].csv` (10 each —
+  the tier gates; the 128 matrix switches were already YESNO there).
+  `MR_PARAMETERS.txt`/`.csv` untouched (already YESNO); `STING_TAG_CONFIG_v5_0_HEALTH*`
+  untouched (not in the PR's scope).
+- **Byte-purity verified** with a Python differ against `origin/main`: 6,261
+  changed lines, **zero** non-datatype diffs, all GUIDs identical on changed
+  lines, and every file's row count preserved (numstat additions == deletions per
+  file). Data-only change, no `dotnet build` run (Linux sandbox).
+#### Completed (Phase 224 — drawings-production P2, tracks A + D)
+
+Track A (correctness) and Track D (performance) of the P2 tier, on top of Phase 223. Ten
+commits, one per numbered fix. Every commit built clean against Revit 2025 (0 warnings,
+0 errors); none has been exercised inside Revit — smoke-test table at the end.
+
+- **A1 `SheetSequenceStore` (E-5, E-13).** `ReadAll` funnelled ANY failure into an empty
+  dictionary, which `Next` then wrote back with one bucket in it, destroying every other
+  counter in the project. Corrupt data does not raise — it parses to nothing, indistinguishable
+  from "empty" unless you count what you saw — so `ParseBuckets` now reports candidate and
+  malformed line counts and `ReadAll` throws rather than returning a dictionary missing what it
+  failed to read. `WriteAll` pre-flights the two silent-corruption cases (no transaction;
+  workshared `ProjectInformation` owned by another user, named via
+  `WorksharingUtils.GetCheckoutStatus`) instead of swallowing them. `Peek` returned the last-used
+  number, not the next.
+- **A2 dimension chains (A-4, A-10).** `DimGrids` put every grid into one `ReferenceArray`; a
+  dimension can only measure mutually parallel references, so orthogonal grids threw every time
+  and the catch swallowed it — P1-3's idempotency guard was guarding an operation that could
+  never succeed. Grids are now split into parallel sets, each dimensioned perpendicular to
+  itself. `DimLevels` was pinned at the project origin and is now anchored to the view's crop,
+  computed in the crop frame.
+- **A3 scope-box production (P-6, P-13b, P-13c, W-5).** `DrawingContext.ScopeBox` was declared,
+  populated, and read by nothing, so "produce from scope boxes" produced uncropped views while
+  the parallel command cropped correctly. Also: the scope-box name now participates in the
+  idempotency key (two boxes on one level collided), the prefix filter matches the canonical
+  binder, and an unmatched level code no longer silently resolves to the lowest level.
+- **A4 producer placement (P-8).** A `ViewSchedule` cannot be placed by `Viewport.Create`, so
+  every schedule a ProductionRule created was impossible to place. Ported `ScheduleSheetInstance`,
+  per-slot viewport types and slot/view type-mismatch warnings from the bridge.
+- **A5 re-run hygiene (P-9).** Idempotent re-runs re-placed already-placed views (one warning
+  each) and counted reused sheets as produced; the two per-level commands used different context
+  tags, so running both duplicated every view.
+- **A6 engine small-bore (E-7…E-10, E-12, E-14, V-9).** Dispatcher continues past an unresolvable
+  routing target instead of returning null; the validator's `[ThreadStatic]` snapshot is
+  doc-stamped and cleared in a `finally`; the view-template cache keeps negative entries;
+  vocabulary tokens now exist; `"ThreeD"` → `"3D"`; three category-tree errors; and
+  `StyleFilterRule.Visible/Halftone` became nullable so pack-wins precedence works as documented.
+- **A7 legends and match-line validate (A-12, A-13, A-14).** `CanAddViewToSheet` cannot detect a
+  legend already on the sheet, so re-runs stacked viewports; placement ignored the title block's
+  origin; validate compared per-view pair instances against adjacency edges; the match-line config
+  cache was one static for all documents.
+- **A8 title blocks (T-8, T-9, T-11, T-13).** The factory left `MR_PARAMETERS.txt` as the user's
+  application-wide shared-parameter file; the create picker exposed 4 of 31 families; heal claimed
+  a per-symbol overlay feature that does not exist and never checked the title-block family; and a
+  stub `Peek` overload returned a false clean bill of health.
+- **D1–D4 performance (V-4, V-5, P-12, P-13a).** The "Cached" resolvers ran a full collector every
+  call and `InvalidateCache` was a no-op; `AecFilterRegistry.GetByName` scanned 298 filters per
+  rule; `ApplyPresentationPreset` walked every ElementType in the document per view; view-name
+  uniquify was O(views²) and schedule category resolution walked ~1,400 enum members per rule;
+  fabrication slot centres sat on the A1 top edge and assumed A1.
+- **B1a/B1d/W-2.** `GridDimensioner`'s chains ran parallel to the grids they measured;
+  `DrainageInvertDimensioner` placed the invert one wall thickness low; and the MatchLine suite
+  had no button, intent or workflow step, which is why its P1 fixes were unreachable.
+
+- **Track B (B1, B3, B5).** Grid dimensioning converged onto one path: `DimGrids` survives and
+  absorbed `dimensionStrategy`; `GridDimensioner` is reduced to `IsDimensionable`. The rule
+  engine's `condition` (evaluator had zero call sites) and per-rule `tagFamily` are wired.
+  `${MAT_*}` tokens resolve instead of blanking the cell, with their O(all-elements) usage scan
+  memoised per document. Spool numbering routes through `SheetSequenceStore`, retiring the third
+  parallel numbering system — and because A1 made the store fail loud, a persistence failure now
+  surfaces instead of issuing a colliding number.
+
+**Needs a Revit smoke test** — in addition to the Phase 223 table:
+
+| Area | Check |
+|---|---|
+| Sequence store (A1) | Produce with no transaction / on a workshared model owned by another user: warns and falls back, never silently reissues a number |
+| Grid dims (A2) | Orthogonal-grid plan: two chains place, each perpendicular to its set |
+| Level dims (A2) | Section away from the project origin: chain is inside the crop |
+| Scope boxes (A3) | Produce from two boxes on one level: two views, each cropped to its own box |
+| Schedules (A4) | A profile whose ProductionRules create a schedule lands it on the sheet |
+| Re-runs (A5) | Second pass reports reuse, no warnings, no new sheets; then run Produce & Export over the same levels |
+| Legends (A7) | Place On All Sheets twice — no stacked viewports; offset-origin title block places on-sheet |
+| Match lines (A7/W-2) | Validate on a multi-level scope-box project reports no bogus drift; the five new buttons dispatch |
+| Title blocks (A8) | Create offers all 31 families; Heal reports a wrong-family sheet |
+| Fabrication (P-13a) | Compose a spool sheet on A1 and on one other size — viewports inside the frame |
+| Grid strategy (B1) | A pack declaring `dimensionStrategy` produces chains of that dimension type |
+| Rule condition (B1) | A rule with a `condition` that evaluates false is skipped; an unparseable one still runs |
+| MAT tokens (B3) | A title block using `${MAT_*}` fills the cell instead of blanking it |
+| Spool numbers (B5) | Compose, restart Revit, compose again — numbering continues, does not reset to 0001 |
+| Spool fallback (B5) | Compose where ExtensibleStorage is unavailable — still composes, warns the number is session-only |
 
 #### Completed (Phase 223 — drawings-production P0 + P1)
 
@@ -2165,6 +2449,10 @@ MEP model before merge.
   `StingCommandHandler` and `OrganiseCommandModule` next to `ClusterTags`/`DeclusterTags`.
 - **Reporting** — `SkipBreakdown` gains `RunSuppressed`/`Runs`; the Smart Place summary now reports how
   many segment tags were collapsed into how many runs.
+- **Real-time coverage.** `StingAutoTagger` now suppresses live per-segment visual tags for PerRun/None
+  categories (token data still written), so drawing a pipe run with visual auto-tagging on no longer
+  drops a tag per segment; the run-level tag comes from Smart Place. Equipment/fixtures (`All`)
+  unchanged. Remaining paths (linked views; explicit `TagSelected`) recorded in ROADMAP.
 - **Distinct from `ClusterTags`.** `ClusterTags` is a *reactive* post-process that merges already-placed
   tags into an `[×N]` badge; this is *preventive* — the redundant tags are never drawn.
 
@@ -6963,6 +7251,61 @@ correct, and `TagConfig.GateToken` emits the bare `if(GATE, …)` for it.
 that `CreateTagFamilies` completes with no "cannot be added" modal and produces
 working tag families (gates render, tiers toggle), including against a TEXT
 `MR_PARAMETERS.txt` to prove the resilience.
+
+#### Completed (Phase 195 — deploy/clobber post-mortem: why the Yes/No fix kept "relapsing")
+
+Operational lesson, not a code change. After Phase 193/194 made the
+gate params Yes/No in the repo, the tag-creation error
+(`shared parameter … cannot be added with type "Text" because it
+conflicts with the existing "Yes/No"`) **kept recurring in Revit** even
+though the committed data was correct. The repeated failures were never
+a logic / canonical-type problem — they were a **runtime data-path
+problem** that was never verified.
+
+**Root cause.** STING resolves its data via
+`DataPath = <folder of the loaded StingTools.dll>\data`
+(`StingToolsApp.cs`), and `TagFamilyCreatorCommand.AddSharedParameters`
+reads each param's *type straight from whatever `MR_PARAMETERS.txt` that
+`DataPath` resolves to* (it is not hardcoded). On this machine both
+Revit add-ins load `C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll`, so
+the live `DataPath` is `CompiledPlugin\data` — and that folder kept
+being **overwritten back to a stale TEXT `MR_PARAMETERS.txt` by a
+parallel build** (the Export Centre `build.bat`, building from a branch
+cut before the Yes/No fix). So `LoadSharedParams` could report 0
+conflicts one moment and `CreateTagFamilies` 141 conflicts minutes
+later — the file on disk at `DataPath` had been re-clobbered in between.
+Every "fix" edited repo files while the runtime kept reading the
+clobbered copy.
+
+**Resolution (what finally worked).**
+1. **Merge the canonical Yes/No data to `main`** (PR #324 — as finally
+   merged, #324 carried the Phase 194 Yes/No correction, so the Phase 194
+   entry below and this step describe the same merged commit, not the
+   original Text-canonical draft) so no branch build can reintroduce
+   TEXT, and pull `main` into the parallel Export Centre branch (#322) so
+   its build carries Yes/No too.
+2. **Deploy to the exact loaded `DataPath`** (`CompiledPlugin\data`),
+   not just `%APPDATA%\…\Addins\2025\data`.
+3. **Verify the loaded file is Yes/No at runtime before recreating** —
+   read the `MR_PARAMETERS.txt` that sits at `DataPath` (and the
+   `Data path:` line in `StingTools.log`), confirm `TAG_PARA_STATE_2_BOOL`
+   etc. read `YESNO` and the tag-config CSV is the current set. Do not
+   assume the deploy reached the loaded path.
+
+After deploying Yes/No to `CompiledPlugin\data` and fully restarting
+Revit, `LoadSharedParams` reported **0 type conflicts** and tag
+families recreated clean.
+
+**Guardrail for next time.** The hazard is multiple `StingTools.dll` +
+`data\` copies on one machine plus a *shared* `CompiledPlugin` deploy
+target that parallel builds overwrite. Keep one install, deploy from
+`main`, and confirm the live `DataPath`'s `MR_PARAMETERS.txt` matches the
+intended type before any tag-family operation. (`FindDataFile` already
+resolves `DataPath\file` directly first and only falls back to a
+recursive first-match when that direct file is absent — so a stale nested
+copy wins only when the intended file is missing at the root, never ahead
+of it. The genuine gap is visibility, not precedence: a future hardening
+could log the resolved path on every load.)
 
 #### Completed (Phase 194 — Yes/No-canonical gates — corrects PR #324's Text-canonical choice)
 
@@ -14593,3 +14936,46 @@ engineering" now have first-shipped implementations:
 - `Data/STING_REFNET_JOINTS.json`
 - `Data/STING_CTF_COEFFICIENTS.json`
 
+
+#### Completed (Phase 195 — Propagate Universal Tag: overwrite-by-file-name fix)
+
+**Bug**: `PropagateUniversalTagCommand` and `MigrateTagLabelReferencesCommand`
+saved the edited family to a temp file named
+`<target>.rfa.sting-propagate-<guid>.tmp` and then `LoadFamily`'d that temp
+file. A loaded family's project name IS its .rfa file name (renaming
+`famDoc.OwnerFamily` does not survive `SaveAs`), so every "successful"
+propagation minted a junk duplicate family named after the temp file
+(e.g. `STING - Air Terminal Tag.rfa.sting-propagate-3f48a862`) and left the
+real target family untouched — confirmed live in Revit 2025.4 (20-family and
+10-family runs both produced duplicate pairs in the Project Browser). The
+canonical on-disk .rfa WAS refreshed correctly (the temp was moved over it),
+so only the in-project overwrite was broken.
+
+**Fix** (both commands): save the clone under the target's EXACT file name
+inside a throwaway temp SUBFOLDER (`TagFamilies/.sting-propagate-<guid>/` /
+`.sting-migrate-<guid>/`), preserving the atomic SaveAs → LoadFamily →
+File.Move pattern while making `LoadFamily` genuinely overwrite the target.
+File names are sanitised (`/` → `-`) to match `GetTieInFamilyFileName`.
+Removed the ineffective `OwnerFamily.Name` rename and its false comment.
+
+**Cleanup**: `PropagateUniversalTagCommand.Execute` now purges any leftover
+`*.rfa.sting-propagate-*` / `*.rfa.sting-migrate-*` duplicate families from
+pre-fix runs before collecting the master/target lists (they otherwise
+pollute the pickers and inflate the target count — observed 210 targets vs
+the 206-family catalogue), and reports the purge count in the summary dialog.
+
+Files: `Commands/TagStudio/PropagateUniversalTagCommand.cs`,
+`Commands/TagStudio/MigrateTagLabelReferencesCommand.cs`.
+Caveat: committed without `dotnet build` verification (Linux sandbox, no
+Revit API). Verify in Revit: run Propagate on one family (Duct smoke test),
+confirm the target family is overwritten in place (no `.rfa.sting-propagate-`
+duplicate appears) and stale duplicates are purged, then scale to ALL.
+
+**Phase 195 follow-up fix**: the pre-flight purge in
+`PropagateUniversalTagCommand` deleted the temp-named junk families and then
+filtered the family list by calling `.Name` on the already-deleted `Family`
+objects — Revit throws `InvalidObjectException` ("The referenced object is
+not valid…") on any property access of a deleted element, so the command
+failed immediately in projects that had junk to purge (confirmed live in
+Revit 2025.4). The keep/junk partition is now computed BEFORE the deletes,
+and the junk name is captured before `doc.Delete` for the failure log path.

@@ -229,7 +229,9 @@ namespace StingTools.Core.Drawing
             "Spool",
             "Coordination",
             "Legend",
-            "ThreeD",
+            "3D",                 // E-8: must match DrawingPurpose.ThreeD ("3D"). "ThreeD"
+                                  // missed the DT-095 scale exemption and every
+                                  // 3D-specific code path for editor-authored profiles.
             "Cover",
             "Startup",
             "Render",
@@ -291,7 +293,12 @@ namespace StingTools.Core.Drawing
             "{disc}-{sys}-{lvl}-{seq:D3}",                        // STING with system
             "{spool}-{disc}-{seq:D3}",                            // Fabrication
             "{disc}-{lvl}-{mark}-{seq:D2}",                       // Section / detail
-            "ISO19650:{prj}-{orig}-{vol}-{lvl}-DR-{role}-{seq:D4}", // Full BS 1192 / ISO 19650-2
+            // E-7: {prj}/{orig} are not tokens DrawingTokenContext emits, nor
+            // members of the validator's _knownTokens, so picking this shipped
+            // suggestion produced literal "{prj}-{orig}" on the sheet plus DT-098
+            // warnings against the tool's own advice. The "ISO19650:" label had
+            // also leaked into the pattern value and would render literally.
+            "{project}-{originator}-{vol}-{lvl}-DR-{role}-{seq:D4}", // Full BS 1192 / ISO 19650-2
         };
 
         public static readonly string[] SheetNamePatterns =
@@ -302,8 +309,10 @@ namespace StingTools.Core.Drawing
             "Spool {spool} — {discipline}",
             "Detail {mark}",
             "Drawing Register",
-            "Cover Page — {prj}",
-            "Issue Status — {datadrop}",
+            "Cover Page — {project}",
+            // E-7: no {datadrop} token exists; {rev} is emitted and carries the
+            // issue identity this pattern wanted.
+            "Issue Status — {rev}",
         };
 
         // ── Tag families (STING category → tag-family map) ──

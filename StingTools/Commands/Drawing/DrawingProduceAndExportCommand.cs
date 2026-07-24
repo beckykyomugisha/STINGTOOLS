@@ -169,7 +169,13 @@ namespace StingTools.Commands.Drawing
                     {
                         try
                         {
-                            var ctx = new DrawingContext { Level = level, Tag = level.Name };
+                            // P-9: ctx.Tag must stay null here. ProduceViewsPerLevelCommand leaves
+                            // it null, and BuildContextTag folds Tag into the view
+                            // idempotency key — so setting it to the level name gave the
+                            // two per-level paths different keys and running both
+                            // DUPLICATED every per-level view, despite both claiming
+                            // idempotency. The level is already in the key via ctx.Level.
+                            var ctx = new DrawingContext { Level = level };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
 
                             stats.ViewsProduced   += res.ViewIds.Count;

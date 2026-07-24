@@ -64,8 +64,20 @@ namespace StingTools.Core.Drawing
                         var elem = doc.GetElement(cached);
                         if (elem is View vTpl && vTpl.IsValidObject && vTpl.IsTemplate)
                             return cached;
+                        // Stale positive entry — the template was deleted or
+                        // renamed. Drop it and re-resolve.
+                        docMap.Remove(name);
                     }
-                    docMap.Remove(name);
+                    else
+                    {
+                        // E-9: a NEGATIVE entry ("this name resolves to nothing")
+                        // used to be evicted on every read, so a template name
+                        // that does not exist paid a full OfClass(View) scan per
+                        // view in a batch — the cache actively defeated itself
+                        // for exactly the case it was meant to make cheap.
+                        // Negative entries now persist until Reload/Prewarm.
+                        return ElementId.InvalidElementId;
+                    }
                 }
             }
 
@@ -206,6 +218,13 @@ namespace StingTools.Core.Drawing
             public AnnotationRunOptions AnnotationOptions { get; set; }
             /// <summary>When true, no writes are made; only validation is run.</summary>
             public bool DryRun { get; set; }
+
+            /// <summary>
+            /// P-6: the scope box this view is being produced FOR, when the
+            /// caller has one. Passed through to DrawingCropApplier, where it
+            /// wins over the profile's static Crop.ScopeBoxName.
+            /// </summary>
+            public Element ContextScopeBox { get; set; }
 
             /// <summary>
             /// Skip the per-view symbol-standard drift scan (step 8.5). That
@@ -536,7 +555,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt);
+                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt, options?.ContextScopeBox);
                     r.Warnings.AddRange(cropWarns);
                     r.CropApplied = true;
                 }
@@ -603,10 +622,10 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
             }
-            else if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
-            {
-                r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
-            }
+            // E-9b: an `else if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))`
+            // stood here — the else branch of that very condition, so provably
+            // unreachable. Its "pack not found" warning is already emitted
+            // inside the if, where resolvedPack is actually tested.
 
             // Token Profile (Phase 135) — Step 7.5 -----------------------
             // Runs between the pack apply and the annotation pass so any
