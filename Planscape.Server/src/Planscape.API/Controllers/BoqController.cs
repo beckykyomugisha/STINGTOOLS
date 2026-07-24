@@ -78,9 +78,14 @@ public class BoqController : ControllerBase
             Architect                   = req.Architect ?? "",
             ContractForm                = req.ContractForm ?? "",
             InsuranceParticulars        = req.InsuranceParticulars,
+            // Daywork percentage ADDITIONS on net prime cost (gross = net × (1 + pct/100),
+            // per the BoqDocument.Daywork*Pct doc-comment). Labour ~115% absorbs statutory
+            // on-costs, supervision and profit; materials/plant are RICS-typical 10-20%.
+            // These are sane FALLBACK defaults only — the tendered figure is set per project.
+            // (Previously 110/112, an implausible ~2.1× net; corrected under #476.)
             DayworkLabourPct            = req.DayworkLabourPct ?? 115m,
-            DayworkMaterialsPct         = req.DayworkMaterialsPct ?? 110m,
-            DayworkPlantPct             = req.DayworkPlantPct ?? 112m,
+            DayworkMaterialsPct         = req.DayworkMaterialsPct ?? 15m,
+            DayworkPlantPct             = req.DayworkPlantPct ?? 15m,
             LocationFactor              = req.LocationFactor ?? 1.000m,
             PricingBasis                = req.PricingBasis ?? "Remeasure",
             Currency                    = req.Currency ?? "UGX",
