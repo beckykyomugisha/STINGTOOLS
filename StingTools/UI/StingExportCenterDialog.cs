@@ -905,13 +905,25 @@ namespace StingTools.UI
             var folderRow = new Grid { Margin = new Thickness(0, 6, 0, 0) };
             folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _folderBox = new TextBox { Text = _profile.Output.LocalFolder ?? "" };
             _folderBox.TextChanged += (_, __) => { _profile.Output.LocalFolder = _folderBox.Text; UpdateStatusLine(); };
             Grid.SetColumn(_folderBox, 0);
             folderRow.Children.Add(_folderBox);
+            var autoBtn = new Button
+            {
+                Content = "⌖ Auto",
+                Margin = new Thickness(4, 0, 0, 0),
+                Padding = new Thickness(8, 2, 8, 2),
+                ToolTip = "Auto-locate the ISO 19650 CDE folder for this export's suitability " +
+                          "(01_WIP / 02_SHARED / 03_PUBLISHED) inside the Document Manager structure.",
+            };
+            autoBtn.Click += (_, __) => AutoLocateOutputFolder(force: true);
+            Grid.SetColumn(autoBtn, 1);
+            folderRow.Children.Add(autoBtn);
             var browse = new Button { Content = "Browse…", Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
             browse.Click += OnBrowseFolderClick;
-            Grid.SetColumn(browse, 1);
+            Grid.SetColumn(browse, 2);
             folderRow.Children.Add(browse);
             destSp.Children.Add(folderRow);
 
@@ -1107,6 +1119,11 @@ namespace StingTools.UI
             if (_fmtDwf   != null) _fmtDwf.IsChecked   = (_profile.Formats & ExportFormats.DWF)   != 0;
             if (_fmtImage != null) _fmtImage.IsChecked = (_profile.Formats & ExportFormats.Image) != 0;
             if (_fmtXml   != null) _fmtXml.IsChecked   = (_profile.Formats & ExportFormats.XML)   != 0;
+
+            // Perfect autolocation — seed the CDE output folder from the Document
+            // Manager structure when this profile has no folder set yet (never
+            // overrides an explicit path).
+            AutoLocateOutputFolder(force: false);
 
             if (_namingBox != null) _namingBox.Text = _profile.Output.NamingTemplate;
             if (_folderBox != null) _folderBox.Text = _profile.Output.LocalFolder;
@@ -1315,6 +1332,65 @@ namespace StingTools.UI
         }
 
         // ── OUTPUT button handlers ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Perfect autolocation — resolve the ISO 19650 CDE folder that matches this
+        /// export's suitability and point the output there, so files land inside the
+        /// Document Manager's project structure instead of next to the .rvt or
+        /// wherever the user last browsed:
+        ///   S0 / S1            → 01_WIP        (work in progress)
+        ///   S2 / S3 + A/B/CR   → 02_SHARED     (shared for coordination / review)
+        ///   S4 / S6 / S7       → 03_PUBLISHED  (approved / issued)
+        /// Called on open / profile switch with force == false (never overrides an
+        /// explicit path) and by the "Auto" button with force == true.
+        /// </summary>
+        private void AutoLocateOutputFolder(bool force)
+        {
+            try
+            {
+                if (_profile?.Output == null) return;
+                if (!force && !string.IsNullOrWhiteSpace(_profile.Output.LocalFolder)) return;
+
+                string folder = ResolveCdeFolder(_profile.Output.CdeSuitability);
+                if (string.IsNullOrEmpty(folder)) return;
+
+                _profile.Output.LocalFolder = folder;
+                if (_folderBox != null) _folderBox.Text = folder;  // TextChanged syncs profile + status line
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoLocateOutputFolder: {ex.Message}"); }
+        }
+
+        /// <summary>Resolve the on-disk CDE bucket path via ProjectFolderEngine
+        /// (auto-bootstraps the project structure), falling back to the generic
+        /// project export directory for unsaved / structureless documents.</summary>
+        private string ResolveCdeFolder(SuitabilityCode suitability)
+        {
+            string bucket = CdeBucketForSuitability(suitability);
+            try
+            {
+                string path = ProjectFolderEngine.GetFolderPath(_doc, bucket);
+                if (!string.IsNullOrEmpty(path)) return path;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveCdeFolder '{bucket}': {ex.Message}"); }
+            try { return OutputLocationHelper.GetOutputDirectory(_doc); }
+            catch (Exception ex) { StingLog.Warn($"ResolveCdeFolder fallback: {ex.Message}"); return null; }
+        }
+
+        private static string CdeBucketForSuitability(SuitabilityCode s)
+        {
+            switch (s)
+            {
+                case SuitabilityCode.S0:
+                case SuitabilityCode.S1:
+                    return "WIP";
+                case SuitabilityCode.S4:
+                case SuitabilityCode.S6:
+                case SuitabilityCode.S7:
+                    return "PUBLISHED";
+                default:
+                    return "SHARED";  // S2 / S3 / A1–A3 / AB / B1–B3 / CR → shared for coordination/review
+            }
+        }
 
         private void OnBrowseFolderClick(object _, RoutedEventArgs __)
         {
