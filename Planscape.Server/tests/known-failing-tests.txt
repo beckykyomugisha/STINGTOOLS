@@ -89,3 +89,13 @@ Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_BroadensGrantBe
 Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_CaseInsensitive
 Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_NarrowsGrantBelowDeployment
 Planscape.Tests.TenantKeywordL2CacheTests.ResolveAsync_HitsL2OnSecondCall
+
+# --- Surfaced by the check-new-failures.sh harness fix (Phase N4) ---
+# These theory cases were ALWAYS failing but invisible: the old extraction
+# regex required a space immediately before "[FAIL]", so a theory's "(args…)"
+# ended the match. They are pre-existing, not regressions — confirmed unrelated
+# to the Hangfire/factory change in the same PR. Part of the DEP-12/DEP-14 role
+# classification backlog documented in ROADMAP.
+Planscape.Tests.RoleExtensionTests.InferRoleByKeyword_RecognisesExtendedWorking
+Planscape.Tests.RoleInferenceTests.InferRoleByKeyword_RecognisesSubmitting
+Planscape.Tests.TenantBimManagerRoleOverrideTests.MalformedOverride_FallsBackToDeployment
