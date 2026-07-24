@@ -1759,6 +1759,13 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(hwsFunc)) return hwsFunc;
             }
 
+            // For SAN, a vent/soil-vent pipe gets FUNC=VNT (validator allows SAN→VNT)
+            if (sysCode == "SAN")
+            {
+                string sanFunc = GetSanSubFunction(el);
+                if (!string.IsNullOrEmpty(sanFunc)) return sanFunc;
+            }
+
             return FuncMap.TryGetValue(sysCode, out string val) ? val : string.Empty;
         }
 
@@ -1837,6 +1844,42 @@ namespace StingTools.Core
                 if (familyName.Contains("CALORIFIER") || familyName.Contains("WATER HEATER")) return "DHW";
             }
             catch (Exception ex) { StingLog.Warn($"HWS sub-function detection failed: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Detect SAN sub-function: a vent / soil-vent pipe gets FUNC=VNT
+        /// (BS EN 12056-2). Reads from connector system name, pipe system type
+        /// parameter, and family name.
+        /// </summary>
+        private static string GetSanSubFunction(Element el)
+        {
+            try
+            {
+                FamilyInstance fi = el as FamilyInstance;
+                if (fi?.MEPModel?.ConnectorManager != null)
+                {
+                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                    {
+                        if (conn.MEPSystem != null)
+                        {
+                            string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
+                            if (sysName.Contains("VENT")) return "VNT";
+                        }
+                    }
+                }
+
+                Parameter pipeSys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                if (pipeSys != null && pipeSys.HasValue)
+                {
+                    string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
+                    if (val.Contains("VENT")) return "VNT";
+                }
+
+                string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
+                if (familyName.Contains("VENT")) return "VNT";
+            }
+            catch (Exception ex) { StingLog.Warn($"SAN sub-function detection failed: {ex.Message}"); }
             return null;
         }
 
@@ -3245,7 +3288,11 @@ namespace StingTools.Core
             if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "HVAC";
             if (sysName.Contains("FRESH AIR") || sysName.Contains("OUTSIDE AIR")) return "HVAC";
             if (sysName.Contains("CHILLED") || sysName.Contains("COOLING")) return "HVAC";
-            if (sysName.Contains("VENT") || sysName.Contains("VENTILATION")) return "HVAC";
+            // Air ventilation is duct/HVAC. For pipe categories, "Vent" = sanitary soil-vent
+            // pipe (BS EN 12056-2) — fall through to the SAN block below.
+            if ((sysName.Contains("VENT") || sysName.Contains("VENTILATION"))
+                && !_pipeCategories.Contains(categoryName ?? ""))
+                return "HVAC";
             // Abbreviated HVAC system names (Revit defaults and common shorthand)
             if (sysName == "SA" || sysName.StartsWith("SA ") || sysName.Contains(" SA ")) return "HVAC";
             if (sysName == "RA" || sysName.StartsWith("RA ") || sysName.Contains(" RA ")) return "HVAC";
@@ -3288,6 +3335,7 @@ namespace StingTools.Core
             if (sysName.Contains("DRAIN") || sysName.Contains("SEWAGE") || sysName.Contains("FOUL")) return "SAN";
             // Abbreviated sanitary
             if (sysName == "SVP" || sysName == "WP" || sysName.StartsWith("SVP ") || sysName.StartsWith("WP ")) return "SAN";
+            if (sysName.Contains("VENT")) return "SAN";  // pipe vent; HVAC vent handled above
 
             // Rainwater
             if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER")) return "RWD";

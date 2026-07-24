@@ -2,6 +2,177 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
+
+A live verification of SB-5a surfaced a real defect in the shared reconcile
+engine (`stingtools_core/sync/reconcile.py`): it decided remote-vs-local **per
+element**, so a token that was blank on one side and set on the other was still
+run through last-writer-wins. The consequence bites every re-export: a fresh
+ArchiCAD/IFC export carries no `STING_TOKENS` pset, so **every** token is blank
+locally and the file's mtime is *newer* than the server rows the last drop
+created. Per-element LWW handed the whole element to the newer local copy — and
+its blank SEQ — so all the server's known SEQs were **re-minted from scratch on
+every re-export**: identity churn and counter burn.
+
+**The rule change.** Reconciliation is now per token. A token empty on one side
+and set on the other is **adopted from the set side regardless of timestamps**,
+and is not a conflict — filling a blank is never a loss, so it never waits on a
+clock. Only tokens set-and-differing on both sides are genuinely contested and go
+to the unchanged LWW + content-digest tiebreak. The result is a **merge**: blanks
+fill from whichever host has the value; contested tokens resolve by time. Applied
+uniformly across all `TOKEN_KEYS`, most consequentially `seq`.
+
+- **Direction matters and is symmetric.** Server has a value the file lacks →
+  adopt it into the file (and mint nothing). File has a value the server lacks →
+  keep it and the push half sends it up. Both sides set and different → LWW.
+- **The subtle case is handled:** an element can lose a genuine zone
+  disagreement to a newer local edit *and still* adopt the server's SEQ into its
+  blank — one element, one merged write, one reported conflict.
+- **Adversarial unit tests** (`tests/test_sync_reconcile.py`, +5): blank-local
+  adopts the server SEQ even when local is newer; all-blank local adopts every
+  server token and mints nothing; blank-remote keeps and pushes the local value;
+  disjoint blanks merge from both sides; a filled blank and a real conflict
+  coexist. All five are **red before this change** (verified by reverting the
+  engine) and green after. The existing 33 LWW/tiebreak tests are unchanged.
+- **Live E2E** (`e2e_ifc_pull_reconcile.py`, scenario 2b, new): seed the project
+  with one drop, regenerate the fixture **fresh and dated newer than the server**,
+  drop it — SEQ is adopted, **zero re-minted**. Red before this change (the newer
+  file re-minted); green after. Full run green against the refreshed local stack.
+
+Core suite 101 passed, StingBridge suite 170 passed. Bumped nothing; no release.
+The live-ArchiCAD path in `sync/engine.py` (SB-5b) is untouched.
+
+#### Completed (Phase 225 — SB-5a: IFC watcher wired to pull → reconcile → push)
+
+The multi-host sync engine landed in Phase 207 (corrected 214) and was verified
+two-way against real Postgres, but **nothing called it**. The IFC drop path was
+still extract → push, so a tag edited in Revit was silently overwritten the next
+time anyone re-exported the IFC. This closes ROADMAP **SB-5a** — the first cut,
+testable today without an ArchiCAD licence.
+
+**Wiring (`StingBridge/sync/ifc_reconcile.py`, new)**
+
+- `pull_and_reconcile` drains the change feed from this document's cursor,
+  reconciles against the extracted element set via the existing
+  `PullClient` / `CursorStore` / `ReconcileEngine`, and applies remote wins into
+  the in-memory token map.
+- `IfcTokenApplyAdapter` mutates the token dicts **in place**, so a remote win
+  reaches both the IFC write-back and the outgoing push with no second plumbing
+  step — two paths reading one object cannot drift apart.
+- Only `TOKEN_KEYS` are copied from a delta; `category`/`family` describe the
+  *authoring* host's element and would let a remote host rename our IFC types.
+  A sparse delta overwrites only the keys it names rather than blanking the rest.
+- **Ordering:** reconcile runs *before* SEQ minting. A remote element that
+  already carries a SEQ hands it over, so `assign_sequences()` mints nothing —
+  the same idempotency the write-back adoption gives us, extended across hosts.
+  Reconciling after minting would burn a counter value on every drop and then
+  immediately overwrite the number just minted.
+
+**Cursor persistence**
+
+- Stored at `<drop-root>/.sting_sync_cursor.json`, in the **root** — a cursor
+  written into `processing/` is archived away with the file, resetting every
+  restart to a full backfill.
+- Keyed per **document**, not per project (`ifc:<hostDocumentGuid>`). A drop
+  folder normally holds several federated exports against one project; with a
+  shared cursor the first file to drain the feed consumes every other file's
+  changes and they are never seen again. This matches the grain the server
+  already keys mappings on.
+- Written **after** reconcile, so a crash mid-pass replays the page rather than
+  losing it. Re-applying a delta is a no-op; skipping one loses an edit.
+
+**Local timestamps.** An IFC export carries no per-element edit time, so every
+element is stamped with the **file's mtime**. This is not merely a convenience:
+leaving it unset would trip the engine's "no local timestamp ⇒ remote wins" rule
+for *every* contested element, silently reverting a freshly exported model to
+whatever the hub last held.
+
+**Conflict sidecar (§1.4.3, local half)**
+
+- Every conflict is written to `<name>.conflicts.jsonl` beside the source and
+  logged as a structured line. One row per **differing token**, schema
+  `{ts, source, guid, key, local, remote, winner, applied, reason}`.
+- Registered in `hot_folder._companions` so it travels to `done/` / `failed/`
+  rather than being stranded in `processing/`.
+- Raising a **Planscape issue** for the loser remains **NOT implemented** —
+  that is server-contract work owned by another lane, so §1.4.3 stays open. The
+  sidecar is the honest local half: a conflict is never *silent*, which was the
+  dangerous part.
+
+**§1.4.4 client-side push chunking (`StingBridge/sync/push_chunker.py`, new)**
+
+Replaces the fixed loop of 100 with no retry, where a single transient 503 lost
+that slice of the model into `result["errors"]`.
+
+- Configurable chunk size (`STING_PUSH_CHUNK_SIZE`, default 100).
+- Retry with capped exponential backoff on transient failures (408/425/429/5xx
+  and transport errors). A 4xx that is not 429/408 is a *decision* and is never
+  retried.
+- **413 splits the chunk** rather than failing: halved and re-queued down to a
+  single element. An operator no longer has to guess a working chunk size before
+  their first successful ingest.
+- A chunk that exhausts its retries is recorded and the run continues — on a
+  large ingest, losing one slice beats abandoning everything after it.
+
+**§1.4.5 GlobalId-stability fixture** (`test_ifc_globalid_stability.py`) — the
+leg of the plan's Revit→IFC→Bonsai fixture that can run in CI today, on the path
+we actually ship: same IFC dropped twice ⇒ **zero new mapping rows**; write-back
+preserves every GlobalId; re-ingesting our own `_sting.ifc` resolves to the same
+elements. That failure mode is invisible from inside one host, which is exactly
+why it needs a standing test.
+
+**Bug found and fixed during review.** The sidecar initially read local values
+from the live token map inside the `on_conflict` callback. Because the adapter
+mutates in place and `ReconcileEngine` applies *before* it reports, every
+remote-wins row recorded `local == remote` — losing the one fact the audit trail
+exists to preserve. Values are now snapshotted pre-apply; covered by a named
+regression test.
+
+**Tests** — 44 new, suite 222 → 266, nothing pre-existing red. Watcher-level
+round-trip over real IFC files with a fake change feed (remote-newer applied to
+both the written-back IFC and the push; local-newer kept and surfaced; sparse
+deltas; absent gids counted `absent` not `failed`), cursor persistence across a
+simulated restart, per-document cursor isolation, degradation paths (pull
+disabled / hub unreachable / no endpoint), and the chunker's retry, split and
+partial-failure behaviour. Verified the new tests bite by mutation.
+
+**Live E2E** (`StingBridge/tests/e2e_ifc_pull_reconcile.py`, new) drives the real
+`IFCDropHandler.process()` — exactly what `process-ifc` runs — against the
+refreshed docker stack (Phase 225/N0), always dropping the same path (the server
+keys a document on `sha1(resolved_path)`): a first drop mints SEQ; re-dropping
+the same untagged export mints **zero** (the pull adopts the numbers it just
+created — the burn-a-counter bug the stale stack exposed); a token edited
+server-side reaches the written-back IFC; a newer local export beats a stale
+server value and is pushed up; and two settled passes are byte-identical with the
+cursor advancing. Complements `e2e_pull_reconcile.py`, which proves the engine;
+this proves the *wiring*.
+
+**CI enforcement** — the StingBridge unit suite (incl. the §1.4.5 GlobalId
+fixture) previously ran nowhere: `multi-host-core.yml` only exercised
+`stingtools-core`, and the GlobalId test `importorskip`s ifcopenshell, so it
+silently skipped everywhere. Added a step to that workflow (it already triggers
+on `StingBridge/**`) that installs `ifcopenshell` + `requests` and runs
+`pytest StingBridge/tests/`, so the write-back can no longer churn GlobalId
+identity unnoticed. Bite verified: mutating `_write_tokens_to_ifc` to reassign
+`el.GlobalId` turns two of the three GlobalId tests red; reverting greens them.
+
+**Known limitations carried forward** (feed contract, unchanged here): the feed
+carries `kind="tag"` only; rows with a null `LastModifiedUtc` never appear, so
+pre-existing elements stay invisible until next edited (a backfill may be
+needed); and there are no delete tombstones, so a deletion never propagates —
+such a delta arrives as `absent` and is counted, not silently dropped.
+
+Not touched: `sync/engine.py`'s live-ArchiCAD flow and its 60-second grace
+heuristic (SB-5b, blocked behind SB-1), `seq_minter.py` contracts, and the
+hot-folder archival contract beyond adding the sidecar to `_companions`.
+
+New files: `StingBridge/sync/ifc_reconcile.py` · `StingBridge/sync/push_chunker.py` ·
+`StingBridge/tests/test_ifc_pull_reconcile.py` ·
+`StingBridge/tests/test_push_chunker.py` ·
+`StingBridge/tests/test_ifc_globalid_stability.py` ·
+`StingBridge/tests/e2e_ifc_pull_reconcile.py`
+
+---
 #### Completed (Phase 203 — ISO IM Phase 3: warnings persist · push · subscribe · audit)
 
 Warnings were live-only. `WarningsEngine.ScanWarnings` computed a rich report behind a 30s
@@ -2541,6 +2712,10 @@ MEP model before merge.
   `StingCommandHandler` and `OrganiseCommandModule` next to `ClusterTags`/`DeclusterTags`.
 - **Reporting** — `SkipBreakdown` gains `RunSuppressed`/`Runs`; the Smart Place summary now reports how
   many segment tags were collapsed into how many runs.
+- **Real-time coverage.** `StingAutoTagger` now suppresses live per-segment visual tags for PerRun/None
+  categories (token data still written), so drawing a pipe run with visual auto-tagging on no longer
+  drops a tag per segment; the run-level tag comes from Smart Place. Equipment/fixtures (`All`)
+  unchanged. Remaining paths (linked views; explicit `TagSelected`) recorded in ROADMAP.
 - **Distinct from `ClusterTags`.** `ClusterTags` is a *reactive* post-process that merges already-placed
   tags into an `[×N]` badge; this is *preventive* — the redundant tags are never drawn.
 
@@ -15024,3 +15199,46 @@ engineering" now have first-shipped implementations:
 - `Data/STING_REFNET_JOINTS.json`
 - `Data/STING_CTF_COEFFICIENTS.json`
 
+
+#### Completed (Phase 195 — Propagate Universal Tag: overwrite-by-file-name fix)
+
+**Bug**: `PropagateUniversalTagCommand` and `MigrateTagLabelReferencesCommand`
+saved the edited family to a temp file named
+`<target>.rfa.sting-propagate-<guid>.tmp` and then `LoadFamily`'d that temp
+file. A loaded family's project name IS its .rfa file name (renaming
+`famDoc.OwnerFamily` does not survive `SaveAs`), so every "successful"
+propagation minted a junk duplicate family named after the temp file
+(e.g. `STING - Air Terminal Tag.rfa.sting-propagate-3f48a862`) and left the
+real target family untouched — confirmed live in Revit 2025.4 (20-family and
+10-family runs both produced duplicate pairs in the Project Browser). The
+canonical on-disk .rfa WAS refreshed correctly (the temp was moved over it),
+so only the in-project overwrite was broken.
+
+**Fix** (both commands): save the clone under the target's EXACT file name
+inside a throwaway temp SUBFOLDER (`TagFamilies/.sting-propagate-<guid>/` /
+`.sting-migrate-<guid>/`), preserving the atomic SaveAs → LoadFamily →
+File.Move pattern while making `LoadFamily` genuinely overwrite the target.
+File names are sanitised (`/` → `-`) to match `GetTieInFamilyFileName`.
+Removed the ineffective `OwnerFamily.Name` rename and its false comment.
+
+**Cleanup**: `PropagateUniversalTagCommand.Execute` now purges any leftover
+`*.rfa.sting-propagate-*` / `*.rfa.sting-migrate-*` duplicate families from
+pre-fix runs before collecting the master/target lists (they otherwise
+pollute the pickers and inflate the target count — observed 210 targets vs
+the 206-family catalogue), and reports the purge count in the summary dialog.
+
+Files: `Commands/TagStudio/PropagateUniversalTagCommand.cs`,
+`Commands/TagStudio/MigrateTagLabelReferencesCommand.cs`.
+Caveat: committed without `dotnet build` verification (Linux sandbox, no
+Revit API). Verify in Revit: run Propagate on one family (Duct smoke test),
+confirm the target family is overwritten in place (no `.rfa.sting-propagate-`
+duplicate appears) and stale duplicates are purged, then scale to ALL.
+
+**Phase 195 follow-up fix**: the pre-flight purge in
+`PropagateUniversalTagCommand` deleted the temp-named junk families and then
+filtered the family list by calling `.Name` on the already-deleted `Family`
+objects — Revit throws `InvalidObjectException` ("The referenced object is
+not valid…") on any property access of a deleted element, so the command
+failed immediately in projects that had junk to purge (confirmed live in
+Revit 2025.4). The keep/junk partition is now computed BEFORE the deletes,
+and the junk name is captured before `doc.Delete` for the failure log path.

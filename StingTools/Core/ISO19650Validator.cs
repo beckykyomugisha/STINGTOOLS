@@ -590,7 +590,9 @@ namespace StingTools.Core
                     "BOL", "UPL", "FLD", "EML", "TRK", "DEC", "CDT", "CFT", "CBLT", "CTF", "SLV", "GEN" } },
                 { "P", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                     "PP", "PFT", "PAC", "FPP", "FIX", "WC", "WHB", "URN", "SNK", "SHW",
-                    "BTH", "DRK", "CWL", "TRP", "BID", "EWS", "MOP", "SLV", "GEN" } },
+                    "BTH", "DRK", "CWL", "TRP", "BID", "EWS", "MOP",
+                    "WCAC", "BSAC", "SHWC", "SHTR", "CALD", "CYLV", "PMPT", "PEQ",
+                    "SLV", "GEN" } },
                 { "FP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                     "SPR", "FAD", "SML", "MCP", "BLL", "STB", "HTD", "FIM", "PP", "PFT",
                     "PAC", "SLV", "GEN" } },
