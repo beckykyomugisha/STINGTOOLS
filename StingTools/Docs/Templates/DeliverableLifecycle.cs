@@ -417,27 +417,29 @@ namespace Planscape.Docs.Templates
         /// rather than `??` because these fields are commonly EMPTY STRINGS, not nulls — `??`
         /// then keeps the empty DocNumber and never falls back to a perfectly good Code.
         /// </summary>
+        /// <summary>
+        /// Identity of a deliverable POCO. IM-13: shares the trim + first-non-blank rule with
+        /// DocumentRegister and CoordStores via <see cref="StingTools.Core.DocumentIdentity"/>,
+        /// so all three stores key the same document the same way.
+        /// </summary>
         internal static string DeliverableKey(dynamic d)
         {
             try
             {
-                string n = (string)d.DocNumber;
-                if (!string.IsNullOrWhiteSpace(n)) return n.Trim();
-                string c = (string)d.Code;
-                return string.IsNullOrWhiteSpace(c) ? "" : c.Trim();
+                return StingTools.Core.DocumentIdentity
+                    .FirstNonBlankValue((string)d.DocNumber, (string)d.Code) ?? "";
             }
             catch { return ""; }
         }
 
         /// <summary>Same identity rule, for a persisted row.</summary>
+        /// <summary>
+        /// Identity of a persisted deliverable row. IM-13: same shared rule as
+        /// <see cref="DeliverableKey"/>, keyed off the canonical DocNumber/Code candidates.
+        /// </summary>
         internal static string RowKey(JObject o)
-        {
-            if (o == null) return "";
-            string n = o.Value<string>("DocNumber");
-            if (!string.IsNullOrWhiteSpace(n)) return n.Trim();
-            string c = o.Value<string>("Code");
-            return string.IsNullOrWhiteSpace(c) ? "" : c.Trim();
-        }
+            => StingTools.Core.DocumentIdentity
+                .FirstNonBlank(o, StingTools.Core.DocumentIdentity.DeliverableKeys) ?? "";
 
         /// <summary>Write the deliverable to deliverables.json. False when nothing was saved.</summary>
         public static bool Persist(Document doc, dynamic d)

@@ -420,18 +420,16 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"CoordStores.MergeFile({legacyPath}): {ex.Message}"); }
         }
 
-        /// <summary>Best-effort row identity across the several schemas these stores use.</summary>
+        /// <summary>
+        /// Best-effort row identity across the several schemas these stores use.
+        /// IM-13: the trim + first-non-blank rule is shared with DocumentRegister and
+        /// DeliverableLifecycle via <see cref="DocumentIdentity"/> — this used to return the
+        /// raw untrimmed value, so a trailing space made the same row key two different ways
+        /// in two different stores. Still returns null (not "") when nothing matches, which is
+        /// what the IsNullOrEmpty callers here expect.
+        /// </summary>
         private static string RowId(JObject row)
-        {
-            if (row == null) return null;
-            foreach (string k in new[] { "id", "issue_id", "document_id", "doc_id", "transmittal_id",
-                                         "meeting_id", "revision_id", "Id", "DocNumber", "number" })
-            {
-                string v = (string)row[k];
-                if (!string.IsNullOrWhiteSpace(v)) return v;
-            }
-            return null;
-        }
+            => DocumentIdentity.FirstNonBlank(row, DocumentIdentity.CoordStoreKeys);
 
         private static void MarkMigrated(string legacyPath)
         {
