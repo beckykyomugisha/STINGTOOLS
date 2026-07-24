@@ -46,6 +46,20 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
 - Verified: `dotnet build Planscape.sln` 0 errors, 14 warnings (unchanged); plugin build
   0 errors / 0 warnings; full suite 67 unique failures both with and without the change,
   the only delta being a per-run random DEP-7 victim.
+- **Follow-up: the seed is now idempotent.** The first server-CI run that actually
+  exercised this branch's test-cache isolation failed 12 tests (16 on re-run) with
+  `An item with the same key has already been added. Key: 11111111-...` thrown from
+  `PlanscapeWebApplicationFactory.SeedTestData`, taking down whole classes
+  (`HandoffProvisioningTests`, `AuditCategoriesConfiguredTests`, `ProjectsControllerTests`).
+  Root cause is not the cache swap: seeding runs inside the `ConfigureWebHost` services
+  callback, which `HostApplicationBuilder` can replay via `HostBuilderAdapter.ApplyChanges()`,
+  and a replay reuses the same `_dbName` — so the same in-memory store is seeded twice.
+  `SeedTestData` now returns early when the fixed test tenant is already present
+  (`IgnoreQueryFilters`, because the tenant filter falls back to `Guid.Empty` here and
+  would match nothing). Deterministic fixed-GUID seed, so the presence check is a complete
+  guard. Product code — including `ProjectAccessAttribute` — is untouched. Does not
+  reproduce locally: the local full suite is byte-identical at 73 failures / 442 tests
+  before and after, so CI is the verification.
 
 #### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
 

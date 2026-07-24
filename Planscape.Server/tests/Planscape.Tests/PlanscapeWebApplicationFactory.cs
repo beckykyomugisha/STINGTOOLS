@@ -119,6 +119,26 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 
     private static void SeedTestData(PlanscapeDbContext db)
     {
+        // This runs from the ConfigureWebHost services callback, which is NOT
+        // guaranteed to fire once per host: HostApplicationBuilder replays the
+        // accumulated ConfigureServices delegates through
+        // HostBuilderAdapter.ApplyChanges(). A second pass rebuilds the service
+        // provider but keeps this factory instance's _dbName, so it re-seeds the
+        // SAME in-memory store and EF InMemory throws
+        // "An item with the same key has already been added. Key: 11111111-..."
+        // out of host construction — which surfaces as every test in the class
+        // failing, not as a seeding error. Observed only in CI (12-16 tests
+        // across HandoffProvisioningTests / AuditCategoriesConfiguredTests /
+        // ProjectsControllerTests); it does not reproduce locally.
+        //
+        // The seed is fixed-GUID and deterministic, so a presence check is a
+        // complete guard: the first pass leaves exactly the state a second pass
+        // would have produced. IgnoreQueryFilters because the tenant query
+        // filter falls back to Guid.Empty when no tenant context is resolvable
+        // here, which would match no rows and defeat the check.
+        if (db.Tenants.IgnoreQueryFilters().Any(t => t.Id == TestData.TenantId))
+            return;
+
         // Create test tenant
         var tenant = new Tenant
         {
