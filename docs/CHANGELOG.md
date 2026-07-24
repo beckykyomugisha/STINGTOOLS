@@ -34,6 +34,9 @@ far enough to fence them. Two independent faults:
    accept the VSTest logger's actual summary shapes. Also folded in the theory-
    case `[FAIL]` extraction fix (a theory's `(args…)` ended the old match, hiding
    every failing theory) — **this half overlaps open PR #460**, credited inline.
+   Also bumped the **CI Gate** wait cap 30 → 60 min: now that "Build & Test" runs
+   the full suite to completion (~33 min) instead of aborting early on the crash,
+   the old 30-min cap timed the gate out on a job that was actually going to pass.
 
 With both fixed the gate runs: **69 unique failing methods (73 cases), all known,
 `check-new-failures.sh` exits 0.** The harness fix surfaced **3** theory-case
