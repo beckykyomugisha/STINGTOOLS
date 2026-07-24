@@ -429,16 +429,18 @@ namespace StingTools.UI
             // Select all / deselect all — operate on the rows currently visible in
             // the grid, so they honour any active search / filter-chip selection.
             var selAllRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            // Momentary action buttons — no checkbox glyph (a static ☑ made
+            // "Select all" look permanently ticked even when nothing was selected).
             var selectAllBtn = new Button
             {
-                Content = "☑ Select all",
+                Content = "Select all",
                 Padding = new Thickness(8, 2, 8, 2),
                 Margin = new Thickness(0, 0, 6, 0),
             };
             selectAllBtn.Click += (_, __) => SetVisibleRowsChecked(true);
             var deselectAllBtn = new Button
             {
-                Content = "☐ Deselect all",
+                Content = "Deselect all",
                 Padding = new Thickness(8, 2, 8, 2),
             };
             deselectAllBtn.Click += (_, __) => SetVisibleRowsChecked(false);
