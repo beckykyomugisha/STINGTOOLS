@@ -1,0 +1,84 @@
+name: Plugin Release (tag-triggered)
+
+# Push a tag matching plugin-* to build the plugin on Windows against the real
+# Revit reference assemblies and publish a GitHub Release with StingTools.dll
+# (and the full CompiledPlugin zip) attached — a clean one-click download for
+# deploying into Revit's add-in folder.
+
+on:
+  push:
+    tags:
+      - 'plugin-*'
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  release:
+    name: Build & publish plugin release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        shell: pwsh
+        run: |
+          dotnet restore Planscape.Server/src/Planscape.Shared/Planscape.Shared.csproj
+          dotnet restore Planscape.Server/src/Planscape.PluginSync/Planscape.PluginSync.csproj
+          dotnet restore StingTools.Standards/StingTools.Standards.csproj
+          dotnet restore StingTools/StingTools.csproj
+
+      - name: Build plugin (Release)
+        shell: pwsh
+        run: dotnet build StingTools/StingTools.csproj --configuration Release --no-restore --nologo -v minimal
+
+      - name: Package CompiledPlugin
+        shell: pwsh
+        run: |
+          $buildOut  = "StingTools\bin\Release"
+          $deployDir = "CompiledPlugin"
+          $dataDir   = "$deployDir\data"
+          New-Item -ItemType Directory -Force -Path $deployDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $dataDir   | Out-Null
+          Copy-Item "$buildOut\StingTools.dll" $deployDir -Force
+          Get-ChildItem "$buildOut\*.dll" |
+            Where-Object { $_.Name -notin @('RevitAPI.dll','RevitAPIUI.dll') } |
+            Copy-Item -Destination $deployDir -Force
+          if (Test-Path "$buildOut\data") {
+            Copy-Item "$buildOut\data\*" $dataDir -Recurse -Force
+          } elseif (Test-Path "StingTools\Data") {
+            Copy-Item "StingTools\Data\*" $dataDir -Recurse -Force
+          }
+          Copy-Item "StingTools.addin" $deployDir -Force
+          Compress-Archive -Path "$deployDir\*" -DestinationPath "StingTools-CompiledPlugin.zip" -Force
+
+      - name: Publish release with the plugin DLL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "CompiledPlugin/StingTools.dll" `
+            "StingTools-CompiledPlugin.zip" `
+            --title "STING Tools plugin — ${{ github.ref_name }}" `
+            --notes @"
+          Prebuilt STING Tools plugin (Export Centre fixes: OnePerSheet PDF filename/watermark, Image path, CDE autolocation, Select all/Deselect all).
+
+          Deploy (Revit closed):
+          1. Download **StingTools.dll** below.
+          2. Open ``%AppData%\Autodesk\Revit\Addins\2025\StingTools.addin`` and read the ``<Assembly>...\StingTools.dll</Assembly>`` path — that folder is your current install.
+          3. Copy the downloaded StingTools.dll into that folder, overwriting the old one.
+          4. Start Revit.
+
+          For a clean install use **StingTools-CompiledPlugin.zip** (DLL + dependencies + data). Only StingTools.dll changed this round.
+          "@
