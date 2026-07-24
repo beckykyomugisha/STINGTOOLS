@@ -8902,9 +8902,11 @@ namespace StingTools.UI
             // "Rev" was bound to DataDrop (DD1-DD4) — a separate field.
             // Re-binding to the correct properties + adding explicit Suitability (S0-S7),
             // DataDrop (DD1-DD4), and CDE State dropdowns from the canonical ISO 19650 lists.
-            var delSuitabilities = new List<string> { "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7" };
+            // IM-14: suitability + CDE-status vocabularies come from the canonical
+            // Iso19650Vocabulary, not from inline copies that silently drift.
+            var delSuitabilities = StingTools.Core.Drawing.Iso19650Vocabulary.SharedSuitabilityCodes.ToList();
             var delDataDrops = new List<string> { "DD1", "DD2", "DD3", "DD4", "—" };
-            var delCDEStates = new List<string> { "WIP", "SHARED", "PUBLISHED", "ARCHIVE", "SUPERSEDED", "WITHDRAWN", "OBSOLETE" };
+            var delCDEStates = StingTools.Core.Drawing.Iso19650Vocabulary.CdeStatesWithTerminal.ToList();
             editDg.Columns.Add(new DataGridTextColumn     { Header = "ID",          Binding = new Binding("Code"),                                                 Width = 80 });
             editDg.Columns.Add(new DataGridTextColumn     { Header = "Title",       Binding = new Binding("Name"),                                                 Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",        ItemsSource = delTypes,          SelectedItemBinding = new Binding("Type"),         Width = 95 });
@@ -9793,12 +9795,10 @@ namespace StingTools.UI
             // projects can add sub-folders (e.g. "05_MODELS/COORDINATION") without leaving the combo.
             var cdeFolderList = GetDefaultFolderPermissions().Select(f => f.Folder).Distinct().ToList();
             // CDE states: strict — WIP/SHARED/PUBLISHED/ARCHIVE + 3 ISO 19650-2 terminal states
-            // (SUPERSEDED/WITHDRAWN/OBSOLETE). Matches BIMManagerEngine.CDEStates exactly.
-            var cdeStateList = new List<string>
-            {
-                "WIP", "SHARED", "PUBLISHED", "ARCHIVE",
-                "SUPERSEDED", "WITHDRAWN", "OBSOLETE"
-            };
+            // (SUPERSEDED/WITHDRAWN/OBSOLETE). IM-14: sourced from Iso19650Vocabulary so this
+            // list cannot drift away from BIMManagerEngine.CDEStates, which it used to only
+            // "match exactly" by hand.
+            var cdeStateList = StingTools.Core.Drawing.Iso19650Vocabulary.CdeStatesWithTerminal.ToList();
             // Role-list presets — match the strings produced by GetDefaultFolderPermissions()
             // so the matrix renders without diff on first open. Custom entries remain possible
             // because EditingElementStyle enables ComboBox.IsEditable for these columns.
