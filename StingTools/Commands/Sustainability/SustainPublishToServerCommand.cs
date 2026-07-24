@@ -46,7 +46,7 @@ namespace StingTools.Commands.Sustainability
                 return Result.Cancelled;
             }
 
-            var snap = EdgeKpiSnapshot.LoadPrevious(projectDir);
+            var snap = EdgeKpiSnapshot.LoadPrevious(StingPaths.Meta(doc, "_BIM_COORD", "sustainability"));
             if (snap == null)
             {
                 TaskDialog.Show("STING Sustainability — Publish",

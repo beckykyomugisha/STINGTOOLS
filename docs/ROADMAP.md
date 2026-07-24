@@ -2,6 +2,27 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## ISO information-management spine — open after Phase 200 remediation
+
+| ID | Item | Detail |
+|---|---|---|
+| IM-1 | **`ExtractIfMissing` runs before consolidation** | `EmbeddedTemplates.ExtractIfMissing` fires on `DocumentOpened` (`Core/StingToolsApp.cs`), before any user-driven consolidation. On a project whose customised templates still sit in a legacy folder, extraction seeds the destination with stock templates first; a later `Folders_Consolidate` then hits the collision guard and renames the user's customised copies aside. Nothing is lost on disk, but the registry keeps loading the stock versions, so the customisation silently stops taking effect. Fix: have extraction skip a project with pending legacy content, or have consolidation prefer the incoming legacy file on collision in `templates/`. |
+| IM-2 | **139 hand-rolled `_BIM_COORD` paths remain** | Tier 2 of `tools/check_path_discipline.ps1` is ratcheted, not zero: 139 sites across 118 files still build `Path.Combine(..., "_BIM_COORD", ...)` by hand instead of calling `StingPaths.Meta` / `CoordStores`. They mostly land in the right place today, so this is layout coupling rather than a live defect — but every one is a place the layout can fork again. Burn the baseline down file-by-file; the gate blocks any increase. |
+| IM-3 | **`PlanscapeProjectLink.ConfigPathForModel(string)` cannot resolve canonically** | It takes a bare model path, which carries no project root, so it falls back to the pre-consolidation sibling (marked `path-discipline: legacy-fallback`). The `WarningsManager` callers were switched to the `ConfigPathFor(Document)` overload, but the BCC still calls the string form with `_data.FilePath` (6 sites in `UI/BIMCoordinationCenter.cs`), so the BCC may read a link config from the old location. Fix: give the BCC a `Document` at those call sites, or resolve the root from a model path. |
+| IM-4 | **Issue schema fork: `issue_id` vs `id`** | **CLOSED — Phase 201.** One canonical identifier (`issue_id`); reads accept `id` / `IssueId` via `IssueSchema.IdOf`; legacy rows upgrade in place on load. See CHANGELOG Phase 201. |
+| IM-5 | **Four forked warning→issue escalation paths** | **CLOSED — Phase 201.** All four collapsed into `IssueEscalationEngine`; identifiers mint through `IssueIdMinter` (per-type high-water mark, reserved across a batch). Note: the `Count + 1` mechanism recorded here was mis-diagnosed — the collision is with *live rows*, not within a batch. Corrected analysis + reproduction in CHANGELOG Phase 201. |
+| IM-7 | **Six issue writers bypassed `IssueStore`'s audit + server push** | **CLOSED — Phase 202.** `CreateIssuesFromWarningsCommand`, `AutoRaiseComplianceIssues` and the four BCF sites now run through `IssueStore.Begin(doc)` batches. Importers whose record IS the mapping work use the new `IssueBatch.Adopt`, which migrates the row on the way in so an importer cannot re-fork the schema. |
+| IM-8 | **`GetNextIssueId` reserved nothing between calls** | **CLOSED — Phase 202.** Retired outright — zero callers remained after IM-7. Replaced by `IssueBatch.MintId` / `IssueBatch.Create`, which hold one minter for the batch. Red/green pair documents the batching failure mode the helper would have had. |
+| IM-9 | **`IssueStatusNormalizer` has no kind for `RESPONDED` / `ACCEPTED`** | Both are written by `UpdateIssueCommand` and filtered on exactly elsewhere, but `Normalize` maps them to `Unknown`. `IsOpen` therefore treats them as open, which is the correct fail-safe, and migration deliberately leaves unrecognised statuses untouched so they are not destroyed — but a `Canonical()` call on either returns `"UNKNOWN"`. Give them their own kinds, or fold `RESPONDED` into `Resolved` and migrate the two exact-match filters with it. |
+| IM-10 | **Watch: closed-without-fixing warnings may ping-pong** | Phase 202 scoped escalation dedup to still-OPEN issues, so a recurrence after closure is reported again — deliberate, and the point of closing an issue. The failure mode to watch for: a coordinator closes an auto-raised warning issue WITHOUT fixing the underlying warning (won't-fix, accepted-risk, false positive). The next scan re-raises it, they close it again, forever. **Do not pre-build this.** If it shows up in practice, the fix is a suppressed / won't-fix status that still participates in dedup — i.e. `FindOpenByDedupKey` gains a "or suppressed" arm so a suppressed finding blocks re-raising without counting as open. Precedent for the storage and the expiry semantics is `Core/Storage/StingValidatorSuppressionSchema` (suppressed codes + reason + expiry). Related: IM-9 — a `SUPPRESSED` status would need its own `IssueStatusKind` rather than falling through to `Unknown`, which `IsOpen` treats as open. |
+| IM-11 | **`POST /warnings/report` does not feed `GET /warnings/trend`** | Verified against a live local server in Phase 203. `PushReport` only updates `Project.WarningCount` and broadcasts `WarningsReported`; it writes no row. `GetTrend` reads `ComplianceSnapshots`, which only `SaveBaseline` creates. So a project that scans continuously but never saves a baseline shows a current warning count and an **empty trend chart** — including on the mobile warnings screen. Not fixed here: EXPECTED SCOPE for Phase 203 was plugin-only, and the consolidation branch's server code predates PR #448. Fix is server-side and one of: have `PushReport` also persist a snapshot (cheap, but inflates `ComplianceSnapshots` at scan cadence — needs a dedupe/interval guard), or add a dedicated warning-report entity. Decide alongside #448. |
+| IM-12 | **`GetTrend` filters `WarningCount > 0`, hiding a clean model** | `WarningsController.GetTrend` has `&& s.WarningCount > 0`. A project that reaches zero warnings drops out of its own trend series at exactly the point worth celebrating, and a genuinely clean model shows an empty chart indistinguishable from "never reported". Phase 203 deliberately snapshots zero-warning scans locally (the clean-model early return now caches + records), so the local store is correct; only the server view is lossy. One-word server fix (`>= 0`), deferred with IM-11 for the same scope reason. |
+| IM-16 | **PR #448 is red: the test-cache isolation block double-seeds the in-memory DB under real Redis** | Blocks #448 (`claude/im-phase0-ci-redis`), which is what turns the server workflow green again and is the prerequisite for IM-11 / IM-12. **Symptom:** 12–16 tests fail with `System.ArgumentException: An item with the same key has already been added. Key: 11111111-1111-1111-1111-111111111111` thrown from `PlanscapeWebApplicationFactory.SeedTestData` — the seed runs twice against one in-memory store. Victims are whole classes (`HandoffProvisioningTests`, `AuditCategoriesConfiguredTests`, and on re-run also `ProjectsControllerTests`), so the victim set grows between runs but the failure reproduces. **Attribution (verified, 2026-07-24):** *not* caused by `main` — `git log <last-green>..main -- Planscape.Server/` is empty; and *not* a merge artefact. The culprit is commit `7fdd2bb53` ("fail-fast cache during Redis outage; isolate test cache"), which reached the branch via PR #472 and is **not** an ancestor of the last green server run `0b26d5c80`, so the workflow had never exercised it. **CI-only:** the full suite run locally on both `main` and the branch gives 73 failures each with all these tests passing, and they pass 12/12 in isolation on `main`. The differing variable is the Redis service the same PR adds on 6379. **Suspect:** the block strips every `IDistributedCache` descriptor and calls `AddDistributedMemoryCache()` inside the same `ConfigureWebHost` services callback that also does `BuildServiceProvider()` + `SeedTestData` — seeding inside a callback that can run more than once is the pre-existing fragility the new code appears to tip over. **Fix direction:** move seeding out of the services callback (or make it idempotent/guarded) rather than reworking the cache swap; needs one CI iteration to confirm, since it does not reproduce locally. |
+| IM-6 | **`StingTools.Clash.Tests` does not build** | Pre-existing on `claude/iso19650-consolidation`: 14 `CS0246` errors because linked "pure-logic" clash files now reference `Autodesk.Revit.*`. The project's Revit-free premise has drifted. Coord-log unit tests were hosted in `StingTools.Tags.Tests` instead. |
+| IM-13 | **Three document-identity resolvers differ on trimming** | **CLOSED — `b76438483` (branch `claude/iso19650-consolidation`).** One shared rule now lives in `Core/DocumentIdentity.cs` (trim + first-non-blank); all three resolvers route through it, each keeping its existing empty sentinel so no caller contract changed. The register's row mapping + id-keyed merge were split into the Revit-free `Core/DocumentRegisterMerge.cs` so the dedup is provable headlessly, and `Merge` re-normalises at key time so no other call site can reintroduce the split namespace. Regression test: `DocumentRegisterMergeTests.TrailingSpaceDocNumber_DedupsWithDeliverable` — verified load-bearing (reverting the trim fails 10 of 14 merge tests). Original finding: `DocumentRegister.First(...)` and `CoordStores.RowId(...)` return the raw first-non-blank candidate key; `DeliverableLifecycle.DeliverableKey`/`RowKey` `.Trim()` first. So a `DocNumber` carrying a trailing space keys as `"PRJ-001"` in `deliverables.json` (RowKey, trimmed) but `"PRJ-001 "` in the register reader (untrimmed `First`), and the two stores fail to dedup in `DocumentRegister.BuildUnified` — the same deliverable shows twice. Low severity (doc numbers rarely carry whitespace), deferred because unifying the key rule changes how existing project files collapse and needs its own verification pass. Fix: one shared `NormalizeId` (trim + candidate-list) used by all three. |
+| IM-14 | **Suitability/status vocabulary is not single-sourced** | **CLOSED — `8ac700189` (branch `claude/iso19650-consolidation`).** `Iso19650Vocabulary` became the canonical source (rather than adding a fourth parallel class — `DocStatusCodes.SuitabilityCodes` already delegated to it): added `SharedSuitabilityCodes` (S0–S7), `TerminalStatuses`, `CdeStates` (aliasing `StingPaths.CdeStates`) and `CdeStatesWithTerminal`. The three exact-duplicate inline arrays in `UI/BIMCoordinationCenter.cs` now read from it. **Deliberately left alone:** the bespoke-label positional `suitCodes[,]` grid, `TitleBlockCommands.ValidSuitabilityCodes` and `DocumentLookups.SuitabilityCodes` (different supersets carrying `A6/A7/B7` and `C1–C3/D1–D2`), and the typed transition maps in `BIMManagerCommands` / `Phase75Enhancements` — none are literal duplicates and repointing them would change behaviour. Original finding: the four CDE containers are now single-sourced (`StingPaths.CdeStates`), but suitability (S0–S7) and status/terminal codes (SUPERSEDED/WITHDRAWN/OBSOLETE) are still spread across `Core/Drawing/Iso19650Vocabulary`, `BIMManager.DocStatusCodes.All`, and inline arrays in `UI/BIMCoordinationCenter.cs`. No canonical suitability enum, so the sets can drift. Fix: promote one `Iso19650Codes` source (states + suitability + status) and repoint the inline arrays, as was done for `CdeStates`. |
+| IM-15 | **P→C revision scheme is hard-coded** | **CLOSED — `f71b98ee3` (branch `claude/iso19650-consolidation`).** Driven from the manifest's `revision_scheme`, which `ProjectManifestBlock` already declared but nothing ever read. New Revit-free `Docs/Templates/RevisionScheme.cs` parses it into preliminary/contractual prefixes and owns `Bump` + `PromoteToContractual`; a single-stage scheme makes promotion a no-op rather than inventing a `C` series. Unset/blank/prefix-less falls back to P/C so existing projects are unchanged. 14 tests in `RevisionSchemeTests`. Original finding: `DeliverableLifecycle.BumpRevision` / `PromoteToContractual` bake in the `P01`→`C01` preliminary→contractual scheme. Appointments that mandate a different revision convention need code changes. Fix: drive the scheme from project config (`PRJ_ORG_*` or the manifest), defaulting to P/C. |
+
 ## Drawings-production deep review (2026-07-20)
 
 Full-surface review of the Drawing Type engine, corporate catalogue, View Style Packs + AEC
@@ -396,6 +417,31 @@ glyphs must all survive `Propagate_UniversalTag`, and `Gate_StampStatus` must re
 `STING_GATE_*` params (2 INT + 2 MSG) so badges + message labels render.
 
 
+## MEP visual-tag declutter — remaining coverage (branch `claude/mep-tag-declutter-advice`)
+
+Phase 197 shipped one-tag-per-run for the batch **Smart Place Tags** path
+(`SmartTagPlacementCommand.PlaceTagsInView`) via `Core/Mep/MepRunGrouper.cs`, and suppressed
+real-time per-segment visual tags for PerRun/None categories in `StingAutoTagger`. Remaining visual
+placement paths that still emit one tag per element (not yet policy-aware):
+
+1. **`SmartTagPlacementCommand.PlaceTagsInLinkedViews`** — tags every linked-model element, no run
+   grouping. Linked elements have no writable tokens, so run keys (system/size) read from the linked
+   element directly; the grouper would need a linked-aware overload (its own connector walk in the link
+   doc). Niche path — deferred until someone tags a federated MEP link and hits the clutter.
+2. **`TagSelectedCommand.PlaceVisualTag`** (Organise) — deliberately **left per-element**: an explicit
+   user selection of N segments should yield N tags (the drafter chose them). If a "dedup my selection
+   to runs" affordance is wanted later, add it as an opt-in mode on that command, not a default.
+3. **Reactive vs preventive** — `ClusterTags` still exists as the post-hoc merge into `[×N]` badges.
+   With PerRun now preventive on the main path, `ClusterTags` is mostly redundant for linear MEP but
+   still useful for dense **equipment/fixture** tags (policy `All`). Keep; no change.
+
+**Plumbing smoke-test watch-items** (when the plumbing model test runs): verify sloped drainage
+(1–2 %) is treated as horizontal (grouped) while stacks (vertical) each keep their own tag; verify
+pipes with **no assigned MEP system** still separate physically-distinct runs (connector traversal, not
+attribute grouping); verify `RBS_CALCULATED_SIZE` reads on the plumbing pipe types in use so size
+changes break runs correctly.
+
+
 ## PM / Cost-Control — remaining (branch `claude/pm-cost-control`)
 
 PM-1 landed (the §2 correctness bugs + the do-once shared helpers
@@ -526,7 +572,7 @@ Shipped self-serve on planscape.build/downloads. **0.1.0-beta.2 is live** (SB-2,
 | SB-2b | **Revit SEQ reservation is scaffolding only — not wired** | Phase 211 landed the mechanism and its unit tests; nothing calls it, so Revit still allocates purely locally and the online cross-host duplicate window (Revit vs StingBridge minting the same number on the same key) is **OPEN**. Two wiring points: (1) `PlanscapeServerClient.ReserveSeqBlocksAsync` (`StingTools/BIMManager/PlanscapeServerClient.cs:691`) has **zero callers** — a tagging run must pre-compute its per-key counts and reserve one block per key; (2) `TagConfig.BuildAndWriteTag` (`StingTools/Core/TagConfig.cs:2317`) calls `SeqAssigner.AssignNext` without the optional `reservation` argument, so it defaults to `null` → local allocation. Both are single-line-ish changes; the work is not the edit. **Why it waits:** this is the hot path for every tag the plugin writes, and a mistake renumbers a live model. It needs in-Revit runtime verification against a real document — unit tests and a clean compile do not cover the failure modes that matter (transaction scope, partial-run rollback, counter drift after a cancelled command). No Revit runtime is available to the agent that wrote it. Suggest gating behind a config flag on first release so a site can fall back without a redeploy. |
 | SB-3 | ~~Token inference single-sourcing~~ **DONE Phase 205** | ArchiCAD vocabulary moved to `stingtools_core/hosts/archicad.py`; the bridge modules are re-export shims. The two level-derivation functions disagreed on 13 of 31 storey names and the ArchiCAD one collapsed every numbered basement to `B1` — now one implementation, union of both, bug fixed. `ArchiCadHostAdapter` implements the HostAdapter contract. **Follow-on:** the IFC watcher still uses its own extraction rather than `IfcFileHostAdapter`; swapping it needs equivalence coverage first. |
 | SB-4 | ~~Hot-folder contract mismatch~~ **DONE Phase 204** | The Python watcher now follows the C# `processing/ → done/YYYYMMDD_<name>` \| `failed/` + `.log` contract (`StingBridge/watch/hot_folder.py`), keeping the sidecars and moving the `_sting.ifc` output with the source. Also added a start-up sweep of the inbox and `processing/` orphan recovery, both only safe once processed files leave the root. Failure routing reads `result["errors"]`, not just exceptions — routing on exceptions alone archived unopenable files as successes. |
-| SB-5 | **Multi-host Phase B/C** — **tag-slice** engine DONE Phase 207 (corrected Phase 214), wiring open | The change feed (`GET /api/projects/{id}/changes`), `PullClient`/`CursorStore` and the `ReconcileEngine` are landed and verified two-way against real Postgres. Remaining: **SB-5a** wire the IFC-watcher path to pull→reconcile→push (testable today without ArchiCAD — the sensible first cut); **SB-5b** wire the live-ArchiCAD path and delete the 60-second grace heuristic in `sync/engine.py` (needs a licence to exercise the local-index read, so blocked behind SB-1). Also open: §1.4.4 client-side push chunking, §1.4.5 the GlobalId-stability CI fixture, and the Part 2 LoGeoRef coordinate engine. **Scope correction (Phase 214):** what landed is the **TAG slice** of §1.4.1–§1.4.2. The feed carries `kind="tag"` only — **issues / BCF / clash payloads are not implemented** — and **§1.4.3's "surface the loser as a Planscape issue" is not implemented**: conflicts are reported to an `on_conflict` callback that nothing consumes. The seams (`kind` field, callback) exist; the wiring does not. **Two further documented limitations:** rows with a null `LastModifiedUtc` never appear in the feed, so pre-existing elements stay invisible until next edited (a backfill may be needed); and there are **no delete tombstones**, so a deletion in one host never propagates. |
+| SB-5 | **Multi-host Phase B/C** — **tag-slice** engine DONE Phase 207 (corrected Phase 214), wiring open | The change feed (`GET /api/projects/{id}/changes`), `PullClient`/`CursorStore` and the `ReconcileEngine` are landed and verified two-way against real Postgres. Remaining: ~~**SB-5a** wire the IFC-watcher path to pull→reconcile→push~~ **DONE Phase 225** — `StingBridge/sync/ifc_reconcile.py` drains the feed from a **per-document** cursor (`<drop-root>/.sting_sync_cursor.json`, survives restarts), reconciles into the extracted token map *before* SEQ minting so a remote SEQ is adopted rather than re-minted, and the reconciled values reach both the write-back and the push. **SB-5b** wire the live-ArchiCAD path and delete the 60-second grace heuristic in `sync/engine.py` (needs a licence to exercise the local-index read, so blocked behind SB-1). Also closed in Phase 225: ~~§1.4.4 client-side push chunking~~ (`sync/push_chunker.py` — configurable chunk size, retry-with-backoff on transient failures, 413 splits the chunk) and ~~§1.4.5 the GlobalId-stability CI fixture~~ (`test_ifc_globalid_stability.py` — same IFC twice ⇒ zero new mapping rows). Still open: the Part 2 LoGeoRef coordinate engine. **Scope correction (Phase 214):** what landed is the **TAG slice** of §1.4.1–§1.4.2. The feed carries `kind="tag"` only — **issues / BCF / clash payloads are not implemented** — and **§1.4.3's "surface the loser as a Planscape issue" is still not implemented**. Phase 225 consumed the `on_conflict` callback on the IFC path — every conflict is now written to a `<name>.conflicts.jsonl` sidecar (one row per differing token: guid, key, local, remote, winner, applied, reason) and logged — so a conflict is no longer *silent*, but no Planscape issue is raised and the live-ArchiCAD path still consumes nothing. The remaining work is server-contract, owned by the server lane. **Two further documented limitations:** rows with a null `LastModifiedUtc` never appear in the feed, so pre-existing elements stay invisible until next edited (a backfill may be needed); and there are **no delete tombstones**, so a deletion in one host never propagates. |
 | SB-6 | **macOS notarized binary** | `any` zip covers macOS today; a signed native build is deliberate future work. |
 | SB-7 | **Beta feedback loop** | Optional `download_log` table (D1) on the gated endpoint so beta testers can be followed up without the old request-by-email list. |
 
@@ -563,6 +609,29 @@ owner-side or follow-on work. Status verified 2026-07-20.
 - Items are grouped by the review that surfaced them (Phase 74 5-agent review, Phase 76 DWG review, Phase 77 review, Phase 78 triage, etc.). The grouping is preserved so you can trace each gap back to its origin.
 - Items marked `~~strikethrough~~` with `**DONE**` are completed — they stay here as a record of what the review covered. When closing a new item, either strike it through in place or move it to `CHANGELOG.md` under the appropriate phase.
 - When adding a new gap, either extend an existing section's table or add a new `### Future Enhancement Gaps — <topic> (Phase N Review)` section at the end.
+
+## Branching + merge discipline (adopted 2026-07-24)
+
+Adopted after `claude/iso19650-consolidation` (PR #453) — a 137-file, ~55-commit
+long-lived branch — went green, dirty, re-synced and re-reviewed for roughly 14
+rounds before it could land. Every round cost a full re-verification, and none of
+it was caused by the work itself: a large branch simply cannot stay in sync with a
+`main` that several sessions push to daily. The branch landed on 2026-07-24 and was
+deleted the same day. The rules below exist so nothing like it is built again.
+
+- **No long-lived stacks.** Each item is a short-lived PR branched fresh off `main`
+  and merged within about a day. Remaining ISO IM work follows this: Phase 4
+  (meetings round-trip), IM-1 / IM-3, IM-11 / IM-12 (server warnings trend),
+  and any defect the tester finds in a deployed build.
+- **One session per branch.** Never point two sessions at the same branch. During
+  the #453 landing, three separate pushes arrived from another session mid-merge,
+  each re-triggering CI and invalidating the head that had just been verified.
+  That is the mechanism behind most of the churn, not the code.
+- **Runtime verification is post-deploy.** The owner ships a compiled build to a
+  tester. Findings come back as small fix-PRs off `main` — they do not gate work
+  that has already merged on green CI.
+- **A branch that has landed gets deleted.** History is preserved in `main`; a
+  surviving branch is only a re-conflict magnet.
 
 ---
 
@@ -1075,3 +1144,174 @@ so LookupParameter hits directly), and rekey the 998 entries; (2) add the 8 new
 command copying `PRJ_TB_* -> PRJ_ORG_*` on ProjectInformation (SetIfEmpty);
 (5) regenerate STING_TITLE_BLOCK_PARAMETERS.txt; (6) run TitleBlock_CreateAll +
 verify the stamp fills from PRJ_ORG_* in Revit.
+
+## Plumbing tag pipeline — audit follow-ups (branch claude/plumbing-tag-fixes)
+
+FIX 1–4 from the plumbing ISO-19650 tagging audit **landed** on
+`claude/plumbing-tag-fixes` (soil/vent pipes → SAN, hyphen-free seed PROD codes,
+validator PROD allow-list additions, Plumbing Equipment + Pipe Insulation containers).
+The two items below were deliberately left as follow-ups — coupling / ambiguity risk:
+
+- **BUG-2 — live auto-tagging skips pipe/duct curves.** `StingAutoTagger`'s live
+  category list (`Core/StingAutoTagger.cs`, ~line 1106-1131) omits `OST_PipeCurves`,
+  `OST_FlexPipeCurves`, and `OST_DuctCurves`, so pipe/duct/flex curves are not
+  real-time auto-tagged. Adding them is entangled with the MEP run-policy declutter
+  guard on branch `claude/mep-tag-declutter-advice` (PR #395): adding the categories
+  WITHOUT that guard would re-introduce one-tag-per-segment clutter live. Do it as a
+  follow-up on top of PR #395, not in the plumbing-tag-fixes branch.
+
+- **BUG-3 — unassigned pipes fall back to the disc-default SYS.** A pipe with no
+  assigned Revit piping system falls back to the discipline-default SYS; for the "M"
+  default that is "HVAC", so unconnected domestic-water / drainage pipes tag as
+  Mechanical. No safe automatic fix (the pipe categories are shared between mechanical
+  and plumbing) — treat as "assign piping systems before tagging". Advisory only.
+---
+
+## ISO 19650 consolidation — deferred work (branch `claude/iso19650-consolidation`)
+
+Work packages WP0-WP5 and WP7 (partial) landed on that branch; the evidence base is
+[`ISO19650_DOC_FOLDER_REVIEW.md`](ISO19650_DOC_FOLDER_REVIEW.md), the work order is
+[`AGENT_FIX_PROMPT_ISO19650_CONSOLIDATION.md`](AGENT_FIX_PROMPT_ISO19650_CONSOLIDATION.md),
+and per-package status is in [`CONSOLIDATION_PROGRESS.md`](CONSOLIDATION_PROGRESS.md).
+Nothing below was attempted-and-reverted; these are packages the session did not reach.
+
+### Dispatch drift — 183 unreachable panel tags (from WP7)
+
+A parity sweep found **183 panel command tags that resolve in neither
+`Core/WorkflowEngine.ResolveCommand` nor `UI/StingCommandHandler`** — mostly the
+`Hvac_*`, `Elec_*`, `Circuit_*`, `Lite_*`, `Photo_*`, `Rprt_*`, `PlumbSym_*` and
+`Plumb_*` families. They work from their own panel button, but a workflow preset naming
+one resolves to null and the step is reported failed.
+
+They are recorded in `tools/dispatch_parity_baseline.txt`, and
+`tools/check_dispatch_parity.ps1` fails only on NEW drift so the number cannot grow
+silently. Closing the gap needs a per-command decision (alias vs genuinely panel-only),
+not a blanket alias pass. Remove a tag's line from the baseline when you wire it.
+
+### WP6 — `Core/StingPaths.cs` path service + path-discipline gate — **COMPLETE**
+
+`Core/StingPaths.cs` is the single path API (`Cde` / `Meta` / `Data` / `Staging` / `Recycle`
+/ `Export` / `ExportFile`) delegating to `ProjectFolderEngine`. All 43 hand-built
+`<projDir>/_BIM_COORD` sibling occurrences across 37 files were migrated onto `StingPaths.Meta`;
+`tools/check_path_discipline.ps1` + `path_discipline_baseline.txt` (now zero) hard-ratchet the
+build against any new sibling. The cross-document `_rootPath` cache, the `OptionFolderManager`
+and `DesignOptionRegistry` `20_MISC/_BIM_COORD` nesting, `CorporateLibrary.Push`'s relative-path
+bug, and the sustainability-cluster relocate/recreate bug were all fixed along the way — the two
+sustainability POCOs stayed Revit-free (they now take the resolved dir; callers resolve via
+`StingPaths`). See `docs/CONSOLIDATION_PROGRESS.md` → "WP6".
+
+**Still open (separate seam):** `ClashManagerDialog` reads `clashes.json` from `_data/_BIM_COORD`
+but the clash writers (`ClashRunCommand`, `ClashXlsxExportCommand`) write to the `20_MISC` export
+dir — a read/writer mismatch that predates WP6 and needs both sides aligned (not just a path move).
+
+### WP7 remainder — shared `Run<T>` helper
+
+Five copy-paste `Run<T>()` helpers across the HVAC / Plumbing / LPS / Sustainability /
+Electrical handlers should collapse into one shared internal helper in `UI/`.
+
+### WP8 — Document Manager unification (the ISO 19650 core)
+
+**Done:**
+- **One vocabulary (WP8.2).** `Iso19650Vocabulary.SuitabilityLabels` is the single source
+  of suitability codes; `BIMManagerEngine.SuitabilityCodes` derives from it. It was
+  extended to the exact union of the two old tables (added S5/CR/AB with register-context
+  meanings) so it is a strict superset — no register row is orphaned — and the register
+  now offers the A/B authorization codes it lacked. `DocStatusCodes` was intentionally
+  *not* merged: it mixes issue-purpose codes (IFC/IFT/…) with suitability and gives "AB" a
+  conflicting meaning, so folding it in would mislabel data. `MidpEngine.SuitRank` (a
+  code→rank map) and `TemplateManifest.SuitabilityScheme` (a config string) are different
+  shapes and stay as-is.
+- **Role gate now real (WP8.3).** `WorkflowEngine.Transition` enforces the transition's
+  `allowed_roles` (resolved via `RoleBasedAccessControl.GetCurrentUserRole()`; K/C are CDE
+  admins; empty = any). Denials are audit-logged (`wf.transition_denied`) and throw.
+
+**Landed (additive):** read-only **unified register view** — `Core/DocumentRegister.cs`
+normalises both stores into one de-duplicated `RegisterEntry` list, exported via the
+`DocRegister_Unified` command (BIM tab → "Unified Register"). Touches neither write path.
+
+**Landed:** the register merge ships as **`Register_Consolidate`** (dry-run → canonical
+`_data/register.json`, sources intact). The **Document Manager** now reads the LIVE unified
+register (both stores merged fresh) once `register.json` exists, so it shows one register
+without going stale. **Still open:** the **BCC** stays deliverable-focused on purpose — its
+grid runs deliverable-lifecycle bulk actions, so register-only rows must not be injected into
+it; a read-only "all documents" surface in BCC would need its own UI + Revit verification.
+Eventually the two source stores retire once the UIs write through the canonical one.
+- **Run the deliverable state machine end-to-end — DONE.** `DeliverableLifecycle` now
+  drives `Planscape.Docs.Workflow.WorkflowEngine`: `Issue` starts the instance (at WIP),
+  every CDE-changing action walks the role-gated `WIP→Shared→Published→Archived` machine one
+  `Transition` per hop, `Cancel` jumps to `Archived` via a new `cancel` transition, and
+  `P→C` revision promotion fires on publish-to-PUBLISHED. A genuine role denial blocks the
+  lifecycle change (returns `Ok=false`); undefined paths / an unstarted engine never block,
+  so the workflow is a tracking overlay that ENFORCES only when a transition declares
+  `allowed_roles` — the default `deliverable_issue_default.json` leaves them empty (permissive)
+  so existing publishing is not broken; organisations opt into strict Check→Review→Approve
+  gates by adding `allowed_roles` in their project workflow override. `Supersede`/`Replace`
+  still mark status directly (they don't map to a CDE state) and are left out of the drive.
+- **Close the physical loop — DONE.** `TemplateEngine.RenderToCde` renders a deliverable into
+  its CDE container `<state>/<discipline>/Documents/` (via `StingPaths.Cde`);
+  `LifecycleCommandHelper` registers the rendered file (`AutoRegisterExport`) so the register's
+  `file_reference` equals the physical location; and **move-on-transition** is wired —
+  `TemplateEngine.PurgeStaleRenders` removes the deliverable's render from the other CDE states
+  (and stale-dated copies) after each (re-)render, so a Publish no longer leaves an orphaned WIP
+  copy — the document lives in exactly one CDE state. Transmittal/notice renders stay in
+  `generated/` (not discipline-scoped deliverables). **Minor remaining:** `AutoRegisterExport`
+  adds a register row per render, so a deliverable's lifecycle accrues rows whose old
+  `file_path`s point at purged files — a dedup/update-in-place on the register would tidy that;
+  and the discipline subfolder uses the raw code (`A`) not the setup folder name
+  (`A_Architectural`).
+- **Acknowledgement capture** for transmittals (drives the workflow `acknowledge`
+  transition — now that the role gate is enforced).
+
+WP5 partially de-risked this: auto-registration now has one method and one schema, and
+lifecycle transitions mirror to the server event-driven.
+
+### WP9 — CDE-first tree + ES root identity
+
+States at the top of the tree with content types inside them, dropping the
+`05_MODELS...20_MISC` numbered folders and the per-folder project-code suffixes; an
+Extensible-Storage root-identity stamp replacing the 8-char filename-prefix multi-model
+heuristic; and a `Folders_ConsolidateAll` migration wizard with a dry-run report.
+
+**Sequencing note:** WP9 changes the physical tree, so it should follow WP6 — with
+`StingPaths` in place the layout change is a change to one resolver (`ProjectSetup`
+defaults + `ExportRoutes`) rather than to every writer.
+
+**Landed (additive):** the ES root-identity **stamp** — `StingProjectRootSchema` stores the
+resolved root (relative to the .rvt) on `ProjectInformation`; `GetRootPath` prefers it as
+step 0, so a project-number rename no longer forks a new `<CODE>` tree. Read is
+transaction-free with graceful fallback; `EnsureStamped` writes best-effort from
+`OnDocumentOpened`. Multi-model guid-sharing is deferred.
+
+**Landed:**
+- **CDE-first tree + routing.** `ProjectFolderMode.CdeFirst` + `ProjectSetup.CreateCdeFirst`
+  nest content types inside the CDE states; the shared `ResolveRoutedFolder` understands the
+  `STATE|ContentType` route encoding (BIM/Mini routes have no `|`, so they resolve exactly as
+  before — zero change for existing projects). A greenfield gate in `LoadOrBootstrapSetup`
+  adopts it only for brand-new projects (no ES stamp / no root / no legacy folders), overridable
+  via `CDE_FIRST_LAYOUT=false`.
+- **Migration wizard.** `Folders_ConsolidateAll` — `ScanLegacy` dry-run preview + confirmation
+  before `MigrateFromLegacy` runs. Writes a report CSV; never auto-runs.
+
+**Multi-model guid-sharing — assessed, intentionally not shipped as an auto-adopt.** Robust
+sibling sharing already comes from `LoadOrDetectSetup`'s sibling scan (folder-based: a sibling
+model adopts a neighbour's root via its `_data/project_setup.json`) plus the ES stamp (per-model
+root stability). A blanket "adopt any sibling root with a matching guid" would either duplicate
+that scan or *risk merging two genuinely-separate projects that happen to share a folder* — the
+hard part is a reliable project-grouping signal, not the guid. So the safe path is: keep the
+setup-scan + ES stamp for the common case, and add explicit guid-adopt only behind a real
+grouping signal (shared project number, or user-declared grouping). The fragile 8-char
+filename-prefix heuristic (`ProjectFolderEngine.cs` sibling block) is now superseded by the
+subdir scan and could be removed in a focused cleanup.
+
+**In-Revit verification** of the CDE-first routing + the two migration commands + the register
+repoint is required before merge — the full runnable checklist is
+[`docs/ISO19650_INREVIT_VERIFICATION.md`](ISO19650_INREVIT_VERIFICATION.md). Note: discipline
+order under CdeFirst is `<state>/<contentType>/<disc>`; revisit if `<state>/<disc>/<contentType>`
+is preferred.
+
+### WP10 — HTTP + storage hygiene
+
+Pooled client for `PluginTelemetry` (currently `new HttpClient()` per call), routing the
+ad-hoc unauthenticated clients through `PlanscapeServerClient`, and resolving the
+workflow-state dual storage (ES `StingWorkflowStateSchema` vs `workflow_state.json`) —
+pick one, migrate, document the storage-ownership rule in CLAUDE.md.

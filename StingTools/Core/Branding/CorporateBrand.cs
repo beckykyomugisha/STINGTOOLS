@@ -145,7 +145,7 @@ namespace StingTools.Core.Branding
                 var projDir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(projDir))
                 {
-                    var over = Path.Combine(projDir, "_BIM_COORD", "brand.json");
+                    var over = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "brand.json");
                     if (File.Exists(over)) return over;
                 }
             }

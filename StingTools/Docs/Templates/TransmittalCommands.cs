@@ -121,18 +121,11 @@ namespace Planscape.Docs.Templates
                 var doc = data.Application.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                // BCC pushes a selection list into a static holder; when not set we
-                // exit early. This intentionally stays decoupled from the UI file.
-                // The file DeliverableLifecycleCommands.cs defines several
-                // IExternalCommand classes (Issue/ReIssue/Publish/Cancel/…)
-                // but no wrapper class of the same name — use one of the
-                // concrete commands to grab the assembly reference.
-                var holder = typeof(Planscape.Docs.Templates.IssueDeliverableCommand).Assembly
-                    .GetType("StingTools.UI.BIMCoordinationCenter");
-                var field = holder?.GetField("SelectedDeliverables",
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-                var selection = field?.GetValue(null) as System.Collections.IEnumerable;
-                if (selection == null)
+                // Direct call — BCC is in the same assembly. The previous reflection
+                // named a field that did not exist, so this command always reported
+                // "nothing selected" no matter what the user picked.
+                var selection = StingTools.UI.BIMCoordinationCenter.SelectedDeliverables;
+                if (selection == null || selection.Count == 0)
                 {
                     TaskDialog.Show("Bulk Issue", "No deliverables selected in BCC.");
                     return Result.Cancelled;

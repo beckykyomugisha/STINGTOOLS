@@ -247,6 +247,19 @@ namespace StingTools.Core
         /// because the per-tick run on a large model is non-trivial.</summary>
         public static bool AutoStartClashScheduler { get; internal set; } = false;
 
+        /// <summary>WP9: When true (default), brand-new (greenfield) projects adopt the ISO
+        /// 19650 CDE-first folder tree (content types nested inside WIP/SHARED/PUBLISHED).
+        /// Existing projects are unaffected. Set CDE_FIRST_LAYOUT=false in project_config.json
+        /// to keep new projects on the numbered BIM tree.</summary>
+        public static bool CdeFirstLayout { get; internal set; } = true;
+
+        /// <summary>BIM-CLASH-LIVE-01: When true (default), LiveClashUpdater attaches
+        /// its geometry/addition/deletion triggers at startup so live clash capture
+        /// works out of the box. Set LIVE_CLASH_TRIGGERS_ENABLED=false in
+        /// project_config.json on models that never use clash detection to skip the
+        /// trigger attachment entirely.</summary>
+        public static bool LiveClashTriggersEnabled { get; internal set; } = true;
+
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
@@ -667,7 +680,7 @@ namespace StingTools.Core
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
-                    "AUTO_CREATE_CDE_FOLDERS",
+                    "AUTO_CREATE_CDE_FOLDERS","LIVE_CLASH_TRIGGERS_ENABLED","CDE_FIRST_LAYOUT",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -941,6 +954,20 @@ namespace StingTools.Core
                 }
 
                 // Auto-bootstrap CDE folder structure on doc open.
+                LiveClashTriggersEnabled = true;
+                if (data.TryGetValue("LIVE_CLASH_TRIGGERS_ENABLED", out object lctObj))
+                {
+                    if (lctObj is bool lb) LiveClashTriggersEnabled = lb;
+                    else if (bool.TryParse(lctObj?.ToString(), out bool lbp)) LiveClashTriggersEnabled = lbp;
+                }
+
+                CdeFirstLayout = true;
+                if (data.TryGetValue("CDE_FIRST_LAYOUT", out object cflObj))
+                {
+                    if (cflObj is bool cb) CdeFirstLayout = cb;
+                    else if (bool.TryParse(cflObj?.ToString(), out bool cbp)) CdeFirstLayout = cbp;
+                }
+
                 AutoCreateCdeFolders = true;
                 if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
                 {
@@ -1732,6 +1759,13 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(hwsFunc)) return hwsFunc;
             }
 
+            // For SAN, a vent/soil-vent pipe gets FUNC=VNT (validator allows SAN→VNT)
+            if (sysCode == "SAN")
+            {
+                string sanFunc = GetSanSubFunction(el);
+                if (!string.IsNullOrEmpty(sanFunc)) return sanFunc;
+            }
+
             return FuncMap.TryGetValue(sysCode, out string val) ? val : string.Empty;
         }
 
@@ -1810,6 +1844,42 @@ namespace StingTools.Core
                 if (familyName.Contains("CALORIFIER") || familyName.Contains("WATER HEATER")) return "DHW";
             }
             catch (Exception ex) { StingLog.Warn($"HWS sub-function detection failed: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Detect SAN sub-function: a vent / soil-vent pipe gets FUNC=VNT
+        /// (BS EN 12056-2). Reads from connector system name, pipe system type
+        /// parameter, and family name.
+        /// </summary>
+        private static string GetSanSubFunction(Element el)
+        {
+            try
+            {
+                FamilyInstance fi = el as FamilyInstance;
+                if (fi?.MEPModel?.ConnectorManager != null)
+                {
+                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                    {
+                        if (conn.MEPSystem != null)
+                        {
+                            string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
+                            if (sysName.Contains("VENT")) return "VNT";
+                        }
+                    }
+                }
+
+                Parameter pipeSys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                if (pipeSys != null && pipeSys.HasValue)
+                {
+                    string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
+                    if (val.Contains("VENT")) return "VNT";
+                }
+
+                string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
+                if (familyName.Contains("VENT")) return "VNT";
+            }
+            catch (Exception ex) { StingLog.Warn($"SAN sub-function detection failed: {ex.Message}"); }
             return null;
         }
 
@@ -3218,7 +3288,11 @@ namespace StingTools.Core
             if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "HVAC";
             if (sysName.Contains("FRESH AIR") || sysName.Contains("OUTSIDE AIR")) return "HVAC";
             if (sysName.Contains("CHILLED") || sysName.Contains("COOLING")) return "HVAC";
-            if (sysName.Contains("VENT") || sysName.Contains("VENTILATION")) return "HVAC";
+            // Air ventilation is duct/HVAC. For pipe categories, "Vent" = sanitary soil-vent
+            // pipe (BS EN 12056-2) — fall through to the SAN block below.
+            if ((sysName.Contains("VENT") || sysName.Contains("VENTILATION"))
+                && !_pipeCategories.Contains(categoryName ?? ""))
+                return "HVAC";
             // Abbreviated HVAC system names (Revit defaults and common shorthand)
             if (sysName == "SA" || sysName.StartsWith("SA ") || sysName.Contains(" SA ")) return "HVAC";
             if (sysName == "RA" || sysName.StartsWith("RA ") || sysName.Contains(" RA ")) return "HVAC";
@@ -3261,6 +3335,7 @@ namespace StingTools.Core
             if (sysName.Contains("DRAIN") || sysName.Contains("SEWAGE") || sysName.Contains("FOUL")) return "SAN";
             // Abbreviated sanitary
             if (sysName == "SVP" || sysName == "WP" || sysName.StartsWith("SVP ") || sysName.StartsWith("WP ")) return "SAN";
+            if (sysName.Contains("VENT")) return "SAN";  // pipe vent; HVAC vent handled above
 
             // Rainwater
             if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER")) return "RWD";

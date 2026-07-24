@@ -85,7 +85,7 @@ namespace StingTools.Commands.Kpi
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc);
                 if (!string.IsNullOrEmpty(outDir))
                 {
-                    var run = ClashPersistence.Load(Path.Combine(outDir, "clashes.json"));
+                    var run = ClashPersistence.Load(ClashPersistence.CanonicalPath(doc));
                     if (run?.Clashes != null)
                     {
                         foreach (var c in run.Clashes)
@@ -254,7 +254,8 @@ namespace StingTools.Commands.Kpi
                     string projDir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                     var edge = string.IsNullOrEmpty(projDir)
                         ? null
-                        : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(projDir);
+                        : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(
+                            StingPaths.Meta(doc, "_BIM_COORD", "sustainability"));
                     if (edge != null)
                     {
                         sb.Append("<h3>EDGE / sustainability (latest snapshot)</h3>");
@@ -403,7 +404,7 @@ namespace StingTools.Commands.Kpi
                 {
                     string projDir2 = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                     string delivJson = string.IsNullOrEmpty(projDir2) ? null
-                        : System.IO.Path.Combine(projDir2, "_BIM_COORD", "deliverables.json");
+                        : System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "deliverables.json");
                     int delivCount = 0;
                     if (!string.IsNullOrEmpty(delivJson) && System.IO.File.Exists(delivJson))
                     {

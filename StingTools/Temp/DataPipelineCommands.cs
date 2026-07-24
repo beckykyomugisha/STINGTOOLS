@@ -4525,7 +4525,7 @@ namespace StingTools.Temp
             {
                 string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
                 if (string.IsNullOrEmpty(projDir)) return;
-                string p = Path.Combine(projDir, "_bim_manager", "material_boq_links.json");
+                string p = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), "material_boq_links.json");
                 if (!File.Exists(p)) return;
                 var arr = JArray.Parse(File.ReadAllText(p));
                 foreach (var item in arr)

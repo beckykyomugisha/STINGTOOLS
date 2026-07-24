@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -192,6 +192,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
             // blocking the login UX. Failures are logged but not fatal.
             if (TenantId != Guid.Empty && UserId != Guid.Empty)
             {
+                // IM Phase 3 — attach the warnings subscriber BEFORE the connection
+                // starts, so a broadcast arriving during startup is not missed.
+                // Wire() is idempotent, so reconnects cannot double-subscribe.
+                try { Core.WarningsRealtimeBridge.Wire(); }
+                catch (Exception ex) { StingLog.Warn($"Planscape: warnings bridge wire failed — {ex.Message}"); }
+
                 _ = Task.Run(async () =>
                 {
                     try { await PlanscapeRealtimeClient.Instance.StartAsync(_serverUrl, _accessToken, TenantId, UserId); }
@@ -513,92 +519,35 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// _bim_manager/issues.json so the BCC can see mobile-created issues.
     /// Existing local-only issues (no server id) are preserved. Server
     /// issues are upserted by their GUID. Returns the number merged.</summary>
+    /// <summary>
+    /// Pull all issues from the server and merge them into the project's issue register.
+    ///
+    /// Phase 2 (IM-4): the mapping used to live here and emitted BOTH "id" and "issue_id"
+    /// for the same record — one more variant of the schema fork — and passed the server's
+    /// own status vocabulary ("Open", "New") straight through, so server-pulled issues were
+    /// invisible to the has_open_issues gate. The mapping now lives in one place,
+    /// IssueStore.MergeFromServer.
+    ///
+    /// <paramref name="issuesJsonPath"/> is accepted for signature compatibility and is no
+    /// longer used to choose a destination — the register resolves through CoordStores.
+    /// </summary>
     public async Task<int> SyncIssuesFromServerAsync(Guid projectId, string issuesJsonPath)
+        => await SyncIssuesFromServerAsync(projectId, (Autodesk.Revit.DB.Document)null);
+
+    /// <summary>Document-based overload — the one new callers should use.</summary>
+    public async Task<int> SyncIssuesFromServerAsync(Guid projectId, Autodesk.Revit.DB.Document doc)
     {
         var arr = await GetIssuesAsync(projectId, "ALL");
         if (arr == null || arr.Count == 0) return 0;
+        if (doc == null)
+        {
+            StingLog.Warn("SyncIssuesFromServer: no Document — cannot resolve the issue register; skipped.");
+            return 0;
+        }
         try
         {
-            // Load existing local array so we can upsert.
-            JArray local;
-            try { local = File.Exists(issuesJsonPath) ? JArray.Parse(File.ReadAllText(issuesJsonPath)) : new JArray(); }
-            catch { local = new JArray(); }
-
-            // Index local items by their server id (if present) for O(1) lookup.
-            var localById = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
-            foreach (JObject loc in local)
-            {
-                string lid = loc.Value<string>("server_id") ?? loc.Value<string>("id") ?? "";
-                if (!string.IsNullOrEmpty(lid)) localById[lid] = loc;
-            }
-
-            int merged = 0;
-            foreach (JObject srv in arr)
-            {
-                string sid = srv.Value<string>("id") ?? "";
-                if (string.IsNullOrEmpty(sid)) continue;
-
-                // Map server camelCase → local snake_case schema expected by BuildCoordData.
-                string assignee = srv.Value<string>("assignee") ?? "";
-                string createdDate = srv.Value<string>("createdAt") ?? srv.Value<string>("created_date") ?? "";
-
-                // Build element_ids JArray from server's linkedElementIds string.
-                var elemArr = new JArray();
-                string linkedRaw = srv.Value<string>("linkedElementIds") ?? "";
-                if (!string.IsNullOrWhiteSpace(linkedRaw) && linkedRaw.StartsWith("["))
-                {
-                    try { elemArr = JArray.Parse(linkedRaw); } catch { /* ignore */ }
-                }
-
-                var mapped = new JObject
-                {
-                    ["id"]               = sid,
-                    ["server_id"]        = sid,
-                    ["issue_id"]         = srv.Value<string>("issueCode") ?? sid,
-                    ["type"]             = srv.Value<string>("type") ?? "",
-                    ["type_description"] = srv.Value<string>("type") ?? "",
-                    ["priority"]         = srv.Value<string>("priority") ?? "MEDIUM",
-                    ["title"]            = srv.Value<string>("title") ?? "",
-                    ["description"]      = srv.Value<string>("description") ?? "",
-                    ["status"]           = srv.Value<string>("status") ?? "OPEN",
-                    ["assignee"]         = assignee,
-                    ["assigned_to"]      = assignee,
-                    ["discipline"]       = srv.Value<string>("discipline") ?? "",
-                    ["revision"]         = srv.Value<string>("revision") ?? "",
-                    ["raised_by"]        = srv.Value<string>("createdBy") ?? "",
-                    ["created_by"]       = srv.Value<string>("createdBy") ?? "",
-                    ["created_date"]     = createdDate,
-                    ["modified_date"]    = srv.Value<string>("updatedAt") ?? createdDate,
-                    ["date_due"]         = srv.Value<string>("dueDate") ?? "",
-                    ["date_closed"]      = srv.Value<string>("resolvedAt") ?? "",
-                    ["source"]           = srv.Value<string>("source") ?? "server",
-                    ["element_ids"]      = elemArr,
-                    ["model_id"]         = srv.Value<string>("modelId") ?? "",
-                    ["model_element_guid"] = srv.Value<string>("modelElementGuid") ?? "",
-                    ["latitude"]         = srv.Value<double?>("latitude"),
-                    ["longitude"]        = srv.Value<double?>("longitude"),
-                    ["linked_transmittals"] = new JArray(),
-                    ["comments"]         = new JArray()
-                };
-
-                if (localById.TryGetValue(sid, out var existing))
-                {
-                    // Replace in-place so local additions (comments, linked_transmittals) survive.
-                    if (existing["comments"] is JArray c && c.Count > 0) mapped["comments"] = c;
-                    if (existing["linked_transmittals"] is JArray lt && lt.Count > 0) mapped["linked_transmittals"] = lt;
-                    int idx = local.IndexOf(existing);
-                    local[idx] = mapped;
-                }
-                else
-                {
-                    local.Add(mapped);
-                    localById[sid] = mapped;
-                }
-                merged++;
-            }
-
-            File.WriteAllText(issuesJsonPath, local.ToString(Newtonsoft.Json.Formatting.Indented));
-            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into {issuesJsonPath}");
+            int merged = Core.IssueStore.MergeFromServer(doc, arr);
+            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into the issue register.");
             return merged;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"SyncIssuesFromServer: {ex.Message}"); return 0; }
@@ -1151,6 +1100,25 @@ public sealed partial class PlanscapeServerClient : IDisposable
         {
             // Route is /warnings/report, not /warnings (was → 404).
             var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/report", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>
+    /// Save a warning baseline. Server action is <c>[HttpPost("baseline")]</c>
+    /// (WarningsController.SaveBaseline), so the <paramref name="payload"/> must match
+    /// <c>SaveWarningBaselineRequest</c>:
+    /// <c>{ warningCount, healthScore, totalElements, compliancePercent }</c>.
+    /// The server persists it as a ComplianceSnapshot — there is no dedicated
+    /// warning entity — which is what GET /warnings/trend reads back.
+    /// </summary>
+    public async Task<bool> PushWarningBaselineAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/baseline", payload);
             return resp.ok;
         }
         catch (Exception ex) { LastError = ex.Message; return false; }
@@ -2184,6 +2152,20 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// Server wins on conflict (last-write-wins by updatedAt).
     /// Uses <paramref name="since"/> for incremental pull; pass null for a full refresh.
     /// </summary>
+    /// <summary>
+    /// Pull issues from the server into the project's issue register.
+    ///
+    /// Phase 2 (IM-4): this used to write to
+    /// <c>OutputLocationHelper.GetOutputDirectory(doc)/issues.json</c> — the MISC *export*
+    /// folder, not the register. Nothing in the plugin ever read that file, so every issue
+    /// pulled here (including everything captured on mobile) was written to an orphan store
+    /// and silently discarded. It is called fire-and-forget on startup, so it had been
+    /// quietly doing this on every session.
+    ///
+    /// Now delegates to IssueStore.MergeFromServer: canonical path, canonical schema,
+    /// normalised status, and a three-way dedup (server_id → server_code → issue_id) so an
+    /// issue this plugin created and pushed is matched rather than duplicated.
+    /// </summary>
     public async Task<int> PullServerIssuesAsync(Autodesk.Revit.DB.Document doc, DateTime? since = null)
     {
         if (!IsConnected) return 0;
@@ -2205,48 +2187,9 @@ public sealed partial class PlanscapeServerClient : IDisposable
             var json = JObject.Parse(resp.body);
             var serverArr = (json["issues"] as JArray) ?? JArray.Parse(resp.body);
 
-            // Load local sidecar
-            var localPath = Path.Combine(Core.OutputLocationHelper.GetOutputDirectory(doc), "issues.json");
-            JArray local = new JArray();
-            if (File.Exists(localPath))
-            {
-                try { local = JArray.Parse(File.ReadAllText(localPath)); }
-                catch (Exception ex) { StingLog.Warn($"PullServerIssues: local parse failed — {ex.Message}"); }
-            }
-
-            // Merge by id — server entry wins when updatedAt is newer
-            var merged = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
-            foreach (var tok in local)
-            {
-                if (tok is JObject obj && obj["id"]?.ToString() is string id && !string.IsNullOrEmpty(id))
-                    merged[id] = obj;
-            }
-
-            int updated = 0;
-            foreach (var tok in serverArr)
-            {
-                if (tok is not JObject sv) continue;
-                var id = sv["id"]?.ToString();
-                if (string.IsNullOrEmpty(id)) continue;
-
-                if (merged.TryGetValue(id, out var lv))
-                {
-                    var svTime = sv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
-                    var lvTime = lv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
-                    if (svTime >= lvTime) { merged[id] = sv; updated++; }
-                }
-                else
-                {
-                    merged[id] = sv;
-                    updated++;
-                }
-            }
-
-            var result = new JArray(merged.Values.Cast<object>().ToArray());
-            Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
-            File.WriteAllText(localPath, result.ToString(Formatting.Indented));
-            StingLog.Info($"PullServerIssues: merged {updated} issue(s) from server into {localPath}");
-            return updated;
+            int merged = Core.IssueStore.MergeFromServer(doc, serverArr);
+            StingLog.Info($"PullServerIssues: merged {merged} issue(s) into the issue register.");
+            return merged;
         }
         catch (Exception ex)
         {

@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  ClashIssueSyncCommand.cs — wire the clash silo into the issue tracker. PM-2.
 //
 //  The audit (§3 HIGH) found clashes never reached issues.json: ClashSlaIntegration
@@ -48,7 +48,7 @@ namespace StingTools.Core.Clash
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();
-                string clashesJson = Path.Combine(outDir, "clashes.json");
+                string clashesJson = ClashPersistence.CanonicalPath(doc);
                 if (!File.Exists(clashesJson))
                 {
                     StingResultPanel.Create("Clash → Issues")
@@ -66,16 +66,26 @@ namespace StingTools.Core.Clash
                     return Result.Cancelled;
                 }
 
-                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-                var issues = BIMManagerEngine.LoadJsonArray(issuesPath) ?? new JArray();
+                // Phase 2: through IssueStore, so clash issues get the same atomic minting,
+                // the `issue.from_clash` audit entry and the server push everything else
+                // gets. Previously this loaded, minted and saved on its own — and persisted
+                // with a raw File.WriteAllText rather than the atomic writer, so a crash
+                // mid-write could truncate the whole register.
+                string issuesPath = IssueStore.PathFor(doc);
+                using var batch = IssueStore.Begin(doc);
+                if (!batch.Ok)
+                {
+                    StingResultPanel.Create("Clash → Issues")
+                        .AddSection("BLOCKED")
+                        .Text("The issue register exists but could not be read; nothing was written.").Show();
+                    return Result.Cancelled;
+                }
+                var issues = batch.Rows;
 
-                // Index existing clash-sourced issues by clash id + the dedup hash.
+                // Index existing clash-sourced issues by clash id.
                 var byClashId = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
-                var existingHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var it in issues.OfType<JObject>())
                 {
-                    string h = it["source_hash"]?.ToString();
-                    if (!string.IsNullOrEmpty(h)) existingHashes.Add(h);
                     string cid = it["clash_id"]?.ToString();
                     if (!string.IsNullOrEmpty(cid)) byClashId[cid] = it;
                 }
@@ -91,8 +101,6 @@ namespace StingTools.Core.Clash
 
                     if (isOpen)
                     {
-                        if (existingHashes.Contains(hash)) { skipped++; continue; }
-
                         string priority = PriorityFor(clash.Severity);
                         string catA = clash.ElementA?.Category ?? "?";
                         string catB = clash.ElementB?.Category ?? "?";
@@ -109,16 +117,28 @@ namespace StingTools.Core.Clash
                         if (clash.ElementB != null && clash.ElementB.ElementId > 0) elemIds.Add(new ElementId((long)clash.ElementB.ElementId));
 
                         string disc = DiscFor(catA);
-                        string nextId = BIMManagerEngine.GetNextIssueId(issues, "CLASH");
-                        var issue = BIMManagerEngine.CreateIssue(nextId, "CLASH", priority, title,
-                            desc.ToString(), "", disc, elemIds, "Clash Run", doc);
-                        issue["source"] = "clash";
-                        issue["source_hash"] = hash;
-                        issue["clash_id"] = clash.Id;
-                        // Normalise the status through the one normalizer.
-                        issue["status"] = IssueStatusNormalizer.Canonical(issue["status"]?.ToString());
-                        issues.Add(issue);
-                        existingHashes.Add(hash);
+                        int before = batch.Created.Count;
+                        // Dedup on (clash, source_hash) is now IssueStore's job — it also
+                        // scopes the check to STILL-OPEN issues, so a clash that reopens
+                        // after its issue was closed raises a fresh one instead of being
+                        // silently skipped forever.
+                        var issue = batch.Create(new IssueSpec
+                        {
+                            Type        = "CLASH",
+                            Priority    = priority,
+                            Title       = title,
+                            Description = desc.ToString(),
+                            Discipline  = disc,
+                            ViewName    = "Clash Run",
+                            Source      = IssueSource.Clash,
+                            SourceHash  = hash,
+                            ElementIds  = elemIds.Select(e => e.Value).ToList(),
+                            Extra       = new JObject { ["clash_id"] = clash.Id },
+                        });
+                        if (issue == null) { skipped++; continue; }
+                        if (batch.Created.Count == before) { skipped++; continue; }
+
+                        string nextId = IssueSchema.IdOf(issue);
                         byClashId[clash.Id] = issue;
                         clash.LinkedIssueGuid = nextId;
                         created++;
@@ -127,21 +147,19 @@ namespace StingTools.Core.Clash
                     else
                     {
                         // Resolved / Void → close the linked issue if still open.
-                        if (byClashId.TryGetValue(clash.Id, out var iss))
+                        if (byClashId.TryGetValue(clash.Id, out var iss) && IssueSchema.IsOpen(iss))
                         {
-                            if (IssueStatusNormalizer.IsOpen(iss["status"]?.ToString()))
-                            {
-                                iss["status"] = IssueStatusNormalizer.Canonical("Closed");
-                                iss["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd");
-                                iss["modified_date"] = DateTime.Now.ToString("o");
+                            // Routed through the batch so the transition is audited
+                            // (`issue.status_changed`) and mirrored to the server.
+                            if (batch.SetStatus(IssueSchema.IdOf(iss), "CLOSED",
+                                                note: $"Clash {clash.Id} is no longer active"))
                                 closed++;
-                            }
                         }
                     }
                 }
 
-                // Persist issues.json (same shape/encoding the rest of the tracker uses).
-                File.WriteAllText(issuesPath, issues.ToString(Formatting.Indented), Encoding.UTF8);
+                // Persist atomically + emit audit entries + push to the server.
+                batch.Commit();
                 // Persist clashes.json so the issue back-links survive.
                 try { ClashPersistence.Save(run, clashesJson); }
                 catch (Exception ex) { StingLog.Warn($"Clash sync: re-save clashes.json: {ex.Message}"); }

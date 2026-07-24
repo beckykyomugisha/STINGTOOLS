@@ -69,6 +69,485 @@ to `SUIT`) — and wires STING to populate it automatically.
   **deliverable/issue ribbon** is added (full ref, deliverable status, CDE, data
   drop, last transmittal, authoriser, sheet x/y, paper·scale, notes ref), and the
   discipline swatches show their **hex codes** from the definitive registry.
+#### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
+
+A live verification of SB-5a surfaced a real defect in the shared reconcile
+engine (`stingtools_core/sync/reconcile.py`): it decided remote-vs-local **per
+element**, so a token that was blank on one side and set on the other was still
+run through last-writer-wins. The consequence bites every re-export: a fresh
+ArchiCAD/IFC export carries no `STING_TOKENS` pset, so **every** token is blank
+locally and the file's mtime is *newer* than the server rows the last drop
+created. Per-element LWW handed the whole element to the newer local copy — and
+its blank SEQ — so all the server's known SEQs were **re-minted from scratch on
+every re-export**: identity churn and counter burn.
+
+**The rule change.** Reconciliation is now per token. A token empty on one side
+and set on the other is **adopted from the set side regardless of timestamps**,
+and is not a conflict — filling a blank is never a loss, so it never waits on a
+clock. Only tokens set-and-differing on both sides are genuinely contested and go
+to the unchanged LWW + content-digest tiebreak. The result is a **merge**: blanks
+fill from whichever host has the value; contested tokens resolve by time. Applied
+uniformly across all `TOKEN_KEYS`, most consequentially `seq`.
+
+- **Direction matters and is symmetric.** Server has a value the file lacks →
+  adopt it into the file (and mint nothing). File has a value the server lacks →
+  keep it and the push half sends it up. Both sides set and different → LWW.
+- **The subtle case is handled:** an element can lose a genuine zone
+  disagreement to a newer local edit *and still* adopt the server's SEQ into its
+  blank — one element, one merged write, one reported conflict.
+- **Adversarial unit tests** (`tests/test_sync_reconcile.py`, +5): blank-local
+  adopts the server SEQ even when local is newer; all-blank local adopts every
+  server token and mints nothing; blank-remote keeps and pushes the local value;
+  disjoint blanks merge from both sides; a filled blank and a real conflict
+  coexist. All five are **red before this change** (verified by reverting the
+  engine) and green after. The existing 33 LWW/tiebreak tests are unchanged.
+- **Live E2E** (`e2e_ifc_pull_reconcile.py`, scenario 2b, new): seed the project
+  with one drop, regenerate the fixture **fresh and dated newer than the server**,
+  drop it — SEQ is adopted, **zero re-minted**. Red before this change (the newer
+  file re-minted); green after. Full run green against the refreshed local stack.
+
+Core suite 101 passed, StingBridge suite 170 passed. Bumped nothing; no release.
+The live-ArchiCAD path in `sync/engine.py` (SB-5b) is untouched.
+
+#### Completed (Phase 225 — SB-5a: IFC watcher wired to pull → reconcile → push)
+
+The multi-host sync engine landed in Phase 207 (corrected 214) and was verified
+two-way against real Postgres, but **nothing called it**. The IFC drop path was
+still extract → push, so a tag edited in Revit was silently overwritten the next
+time anyone re-exported the IFC. This closes ROADMAP **SB-5a** — the first cut,
+testable today without an ArchiCAD licence.
+
+**Wiring (`StingBridge/sync/ifc_reconcile.py`, new)**
+
+- `pull_and_reconcile` drains the change feed from this document's cursor,
+  reconciles against the extracted element set via the existing
+  `PullClient` / `CursorStore` / `ReconcileEngine`, and applies remote wins into
+  the in-memory token map.
+- `IfcTokenApplyAdapter` mutates the token dicts **in place**, so a remote win
+  reaches both the IFC write-back and the outgoing push with no second plumbing
+  step — two paths reading one object cannot drift apart.
+- Only `TOKEN_KEYS` are copied from a delta; `category`/`family` describe the
+  *authoring* host's element and would let a remote host rename our IFC types.
+  A sparse delta overwrites only the keys it names rather than blanking the rest.
+- **Ordering:** reconcile runs *before* SEQ minting. A remote element that
+  already carries a SEQ hands it over, so `assign_sequences()` mints nothing —
+  the same idempotency the write-back adoption gives us, extended across hosts.
+  Reconciling after minting would burn a counter value on every drop and then
+  immediately overwrite the number just minted.
+
+**Cursor persistence**
+
+- Stored at `<drop-root>/.sting_sync_cursor.json`, in the **root** — a cursor
+  written into `processing/` is archived away with the file, resetting every
+  restart to a full backfill.
+- Keyed per **document**, not per project (`ifc:<hostDocumentGuid>`). A drop
+  folder normally holds several federated exports against one project; with a
+  shared cursor the first file to drain the feed consumes every other file's
+  changes and they are never seen again. This matches the grain the server
+  already keys mappings on.
+- Written **after** reconcile, so a crash mid-pass replays the page rather than
+  losing it. Re-applying a delta is a no-op; skipping one loses an edit.
+
+**Local timestamps.** An IFC export carries no per-element edit time, so every
+element is stamped with the **file's mtime**. This is not merely a convenience:
+leaving it unset would trip the engine's "no local timestamp ⇒ remote wins" rule
+for *every* contested element, silently reverting a freshly exported model to
+whatever the hub last held.
+
+**Conflict sidecar (§1.4.3, local half)**
+
+- Every conflict is written to `<name>.conflicts.jsonl` beside the source and
+  logged as a structured line. One row per **differing token**, schema
+  `{ts, source, guid, key, local, remote, winner, applied, reason}`.
+- Registered in `hot_folder._companions` so it travels to `done/` / `failed/`
+  rather than being stranded in `processing/`.
+- Raising a **Planscape issue** for the loser remains **NOT implemented** —
+  that is server-contract work owned by another lane, so §1.4.3 stays open. The
+  sidecar is the honest local half: a conflict is never *silent*, which was the
+  dangerous part.
+
+**§1.4.4 client-side push chunking (`StingBridge/sync/push_chunker.py`, new)**
+
+Replaces the fixed loop of 100 with no retry, where a single transient 503 lost
+that slice of the model into `result["errors"]`.
+
+- Configurable chunk size (`STING_PUSH_CHUNK_SIZE`, default 100).
+- Retry with capped exponential backoff on transient failures (408/425/429/5xx
+  and transport errors). A 4xx that is not 429/408 is a *decision* and is never
+  retried.
+- **413 splits the chunk** rather than failing: halved and re-queued down to a
+  single element. An operator no longer has to guess a working chunk size before
+  their first successful ingest.
+- A chunk that exhausts its retries is recorded and the run continues — on a
+  large ingest, losing one slice beats abandoning everything after it.
+
+**§1.4.5 GlobalId-stability fixture** (`test_ifc_globalid_stability.py`) — the
+leg of the plan's Revit→IFC→Bonsai fixture that can run in CI today, on the path
+we actually ship: same IFC dropped twice ⇒ **zero new mapping rows**; write-back
+preserves every GlobalId; re-ingesting our own `_sting.ifc` resolves to the same
+elements. That failure mode is invisible from inside one host, which is exactly
+why it needs a standing test.
+
+**Bug found and fixed during review.** The sidecar initially read local values
+from the live token map inside the `on_conflict` callback. Because the adapter
+mutates in place and `ReconcileEngine` applies *before* it reports, every
+remote-wins row recorded `local == remote` — losing the one fact the audit trail
+exists to preserve. Values are now snapshotted pre-apply; covered by a named
+regression test.
+
+**Tests** — 44 new, suite 222 → 266, nothing pre-existing red. Watcher-level
+round-trip over real IFC files with a fake change feed (remote-newer applied to
+both the written-back IFC and the push; local-newer kept and surfaced; sparse
+deltas; absent gids counted `absent` not `failed`), cursor persistence across a
+simulated restart, per-document cursor isolation, degradation paths (pull
+disabled / hub unreachable / no endpoint), and the chunker's retry, split and
+partial-failure behaviour. Verified the new tests bite by mutation.
+
+**Live E2E** (`StingBridge/tests/e2e_ifc_pull_reconcile.py`, new) drives the real
+`IFCDropHandler.process()` — exactly what `process-ifc` runs — against the
+refreshed docker stack (Phase 225/N0), always dropping the same path (the server
+keys a document on `sha1(resolved_path)`): a first drop mints SEQ; re-dropping
+the same untagged export mints **zero** (the pull adopts the numbers it just
+created — the burn-a-counter bug the stale stack exposed); a token edited
+server-side reaches the written-back IFC; a newer local export beats a stale
+server value and is pushed up; and two settled passes are byte-identical with the
+cursor advancing. Complements `e2e_pull_reconcile.py`, which proves the engine;
+this proves the *wiring*.
+
+**CI enforcement** — the StingBridge unit suite (incl. the §1.4.5 GlobalId
+fixture) previously ran nowhere: `multi-host-core.yml` only exercised
+`stingtools-core`, and the GlobalId test `importorskip`s ifcopenshell, so it
+silently skipped everywhere. Added a step to that workflow (it already triggers
+on `StingBridge/**`) that installs `ifcopenshell` + `requests` and runs
+`pytest StingBridge/tests/`, so the write-back can no longer churn GlobalId
+identity unnoticed. Bite verified: mutating `_write_tokens_to_ifc` to reassign
+`el.GlobalId` turns two of the three GlobalId tests red; reverting greens them.
+
+**Known limitations carried forward** (feed contract, unchanged here): the feed
+carries `kind="tag"` only; rows with a null `LastModifiedUtc` never appear, so
+pre-existing elements stay invisible until next edited (a backfill may be
+needed); and there are no delete tombstones, so a deletion never propagates —
+such a delta arrives as `absent` and is counted, not silently dropped.
+
+Not touched: `sync/engine.py`'s live-ArchiCAD flow and its 60-second grace
+heuristic (SB-5b, blocked behind SB-1), `seq_minter.py` contracts, and the
+hot-folder archival contract beyond adding the sidecar to `_companions`.
+
+New files: `StingBridge/sync/ifc_reconcile.py` · `StingBridge/sync/push_chunker.py` ·
+`StingBridge/tests/test_ifc_pull_reconcile.py` ·
+`StingBridge/tests/test_push_chunker.py` ·
+`StingBridge/tests/test_ifc_globalid_stability.py` ·
+`StingBridge/tests/e2e_ifc_pull_reconcile.py`
+
+---
+#### Completed (Phase 203 — ISO IM Phase 3: warnings persist · push · subscribe · audit)
+
+Warnings were live-only. `WarningsEngine.ScanWarnings` computed a rich report behind a 30s
+cache and threw it away; nothing was persisted beyond `warnings_baseline.json`, nothing was
+pushed, and `WarningsController` — which has existed server-side with a `PushReport`, a
+`SaveBaseline` and a trend endpoint — had **zero callers**. `PlanscapeServerClient` already
+carried `PushWarningsAsync` / `GetWarningsAsync`; both were dead surface. The mobile
+warnings screen read a table nothing ever wrote, so it had been empty since it shipped.
+
+- **New trend store.** `Core/WarningSnapshotFormat.cs` (pure codec — no Revit, no
+  filesystem, linked into `StingTools.Tags.Tests`) + `Core/WarningSnapshotStore.cs`
+  (document-aware wrapper). Line-delimited `warning_snapshots.jsonl`, one ~200-byte row per
+  scan: totals, severity/category tallies, health-score inputs, baseline total. This is
+  trend data, deliberately **not** a warnings dump. Append-only below a 2,000-row cap;
+  only a file past the cap is ever rewritten. Deliberately mirrors the
+  `CoordLogFormat`/`CoordLog` split rather than extending `CoordStores`, which is
+  array-only (whole-file `JArray.Parse` + indented `WriteArray`) and cannot host JSONL
+  without fighting its legacy-merge path. Root resolves through
+  `ProjectFolderEngine.GetDataPath` — no hand-rolled path, gate unchanged at 139.
+
+- **One choke point.** `WarningSnapshotRecorder.RecordScan` is called from the real-scan
+  exit of `ScanWarnings` only. A 30s cache hit returns before it; a `GetWarnings()` failure
+  returns before it too, because a failed scan is not a result of zero. One snapshot, one
+  audit entry, at most one push per genuine scan.
+
+- **Clean models now count.** The `rawWarnings.Count == 0` early return previously skipped
+  the cache entirely — so on a warning-free model all 15+ callers re-ran `GetWarnings()` —
+  and would have skipped the snapshot. It now caches and records like any other scan. Small
+  deliberate semantic change, flagged because it is the only behaviour that moved.
+
+- **Push wired.** `PushWarningsAsync` on each real scan; new `PushWarningBaselineAsync`
+  (the client had no baseline method) on baseline save. Both follow the
+  `DeliverableServerSync.FireAndForget` idiom: no-op when `ResolvePlanscapeProjectId`
+  returns `Guid.Empty`, never blocking, never a dialog, one `StingLog` line on failure.
+  Payloads are built in the codec so the wire contract is unit-asserted against the server
+  records rather than assumed.
+
+- **Subscribed.** `WarningsReported` registered in `PlanscapeRealtimeClient.RegisterHandlers`
+  (declared event + `c.On`), consumed by the new `Core/WarningsRealtimeBridge`, wired
+  idempotently at login. **Threading is the whole design**: `Raise` invokes subscribers
+  synchronously on the SignalR callback thread, so the bridge touches no Revit API and —
+  critically — does *not* call `InvalidateReportCache()`, which clears
+  `_classificationCache`; clearing a dictionary underneath a Revit-thread enumeration is
+  precisely the `InvalidOperationException` this avoids. Instead it sets one volatile bool
+  (`WarningsEngine.MarkRemoteStale`) that the Revit thread reads and clears on its next
+  scan. No lock, no Dispatcher, nothing that can deadlock or throw into the socket pump.
+
+- **Audit.** `warning.scan_completed` and `warning.baseline_saved` appended to the
+  tamper-evident `_BIM_COORD` chain via `Docs/Workflow/AuditLog`, both wrapped so an audit
+  failure never takes down the scan that succeeded. **No `warning.escalated` event** —
+  Phase 201's `issue.escalated_from_warning` already records every warning→issue
+  escalation, and a second event would double-log the same fact onto the chain.
+
+- **Trend surfacing (minimal).** One line under the BCC Warnings KPI strip —
+  "↓5 since 20 Jul 14:02" — read straight from the local snapshot store, plus any hint left
+  by another session's broadcast. Hidden when there is no prior snapshot. No charts.
+
+- **Baseline scale reconciled.** `warnings_baseline.json` stores a raw
+  `doc.GetWarnings().Count`: it includes suppressed warnings and excludes the synthetic
+  stale-element / BOQ-gap warnings `ScanWarnings` adds. The two figures have never been on
+  the same scale. Snapshots and the server push both use the scan scale so a baseline row
+  is comparable to the scan rows either side of it; the raw count is carried through to the
+  audit entry so it is not lost.
+
+- **Tests** — 15 new in `StingTools.Tags.Tests/WarningSnapshotFormatTests.cs`: codec
+  round-trip, corrupt-line tolerance, append-only growth (prefix byte-identical after 25
+  appends), cap behaviour, delta direction, and the server-DTO field-name contract. That
+  last one is the only real regression guard here — it is the one contract with no
+  compile-time link to the server, inside a call that deliberately swallows its own failure.
+  Writing them caught a genuine defect: `DateTimeStyles.RoundtripKind | AdjustToUniversal`
+  is an illegal combination that throws, and `TryParseLine`'s catch turned every
+  well-formed line into a skipped one — the whole trend store would have read back empty.
+
+- **Two server gaps found and filed, not fixed** (ROADMAP IM-11 / IM-12) — `POST
+  /warnings/report` writes no row so it does not feed `GET /warnings/trend` (only baselines
+  do), and `GetTrend` filters `WarningCount > 0` so a clean model vanishes from its own
+  trend. Both are server-side; Phase 203's expected scope was plugin-only and this branch's
+  server code predates PR #448.
+
+#### Completed (Phase 202 — ISO IM Phase 2b: the last six writers)
+
+Closes ROADMAP **IM-7** and **IM-8**, the two follow-ups filed by Phase 201. Mechanical
+convergence: no new subsystem, no behaviour invented.
+
+- **Six writers converted to `IssueStore.Begin(doc)` batches** —
+  `CreateIssuesFromWarningsCommand`, `AutoRaiseComplianceIssues` (two creation sites), and
+  the four BCF sites in `PlatformLinkCommands` (import command, bidirectional-sync import,
+  the BCF-driven close, and both record builders). They already had the canonical schema and
+  correct minting via the delegating helpers, so IM-4/IM-5 could not regress through them —
+  but they emitted no `issue.*` audit entry and never pushed to the Planscape server. Both
+  gaps now closed.
+- **`IssueBatch.Adopt(row, source, sourceHash)` (new)** — for importers whose record *is* the
+  mapping work. The BCF 2.1 parsers translate a markup XML topic field by field; forcing that
+  back through `IssueSpec` would have meant rewriting the parser rather than fixing anything.
+  `Adopt` runs `IssueSchema.Migrate` on the way in, so an adopted record cannot reintroduce
+  the schema fork, and it mints only when the caller supplied no identifier (or supplied one
+  already in use).
+- **Both BCF builders now produce the canonical base** via `IssueSchema.Create`.
+  `CoordToStingIssue` and `ParseBcfTopicToIssue` each hand-built a partial record missing
+  `created_by` / `modified_by` / `resolved_in_revision` / `linked_transmittals` / `source`,
+  and passed the BCF status vocabulary through unnormalised — BCF speaks `Active` /
+  `Resolved` / `Closed`, none of which the `has_open_issues` gate could read. Now normalised
+  at the boundary.
+- **Dedup semantics on the warnings path changed deliberately.** Its hash index matched a
+  `source_hash` on *any* issue, so once an issue was closed the same warnings could never
+  raise a new one. `IssueStore` scopes the match to still-OPEN issues, so a recurrence after
+  closure is reported again — which is the point of having closed it. Same change the clash
+  path took in Phase 201.
+- **`AutoRaiseComplianceIssues` deduped on a title substring** (`title.Contains("Untagged
+  Elements")`), which broke the moment anyone edited a title. Now a stable `source_hash`.
+- **`GetNextIssueId` retired (IM-8).** Zero callers remained. It rebuilt its minter from the
+  array on every call, so it was correct only because every caller happened to append in the
+  same iteration; a caller that batched creations before saving would have received the same
+  identifier every time. Removed rather than documented, with a pointer to
+  `IssueStore.Begin` / `IssueBatch.MintId` left in its place.
+- **5 further unit tests** (188 total in `StingTools.Tags.Tests`), including the IM-8 red/green
+  pair — `RED_a_minter_rebuilt_per_call_repeats_itself_when_the_caller_batches` asserts three
+  identical `BCF-0001`s; the GREEN counterpart asserts `BCF-0001..0003`.
+
+Verified: plugin build **0 errors / 0 warnings** (`-t:Rebuild`, Revit 2025); Tags.Tests
+**186 passed / 2 failed** (the 2 pre-existing `CsiMasterFormat` failures, unchanged — 181/2
+before); path-discipline gate exit 0, Tier 1 = 0, Tier 2 = 139 unchanged.
+**Runtime-unverified** — not exercised in Revit. BCF round-trip in particular is untested
+against a real `.bcfzip`.
+
+#### Completed (Phase 201 — ISO IM Phase 2: one issue store)
+
+Closes ROADMAP **IM-4** (the `issue_id` / `id` schema fork) and **IM-5** (forked
+warning→issue escalation with colliding identifiers). Nineteen writers created issue
+records in **seven** mutually incompatible JSON shapes; they now converge on one
+repository.
+
+- **`Core/IssueSchema.cs` (new, Revit-free)** — the canonical record. One identifier field
+  (`issue_id`); `IdOf` reads all three historical spellings (`issue_id` / `id` / `IssueId`)
+  so pre-existing stores keep working; `Migrate` upgrades a legacy row in place when a store
+  is loaded, so the fork drains as stores are touched rather than needing a migration
+  command. Also rescues `element_ids` written as a comma-joined **string** by the old
+  string-concatenation writer — every element lookup against those rows had been silently
+  matching nothing. Pure, so it is unit-testable outside Revit.
+- **`Core/IssueStore.cs` (new)** — the repository. Owns the path (always `CoordStores.Issues`),
+  load+migrate, atomic id minting, dedup, atomic persistence, the audit chain and the server
+  push. `IssueStore.Begin(doc)` opens a batch: one load, many creates, one atomic save.
+- **`Core/IssueEscalationEngine.cs` (new)** — one escalation path replacing four. The four had
+  three different dedup rules over the same register, so an issue raised by one entry point
+  was invisible to the next one's dedup check and the same warning could hold three issues at
+  once, under three different identifier spellings.
+- **`IssueIdMinter`** — per-type high-water mark, reserved in memory across a batch, and it
+  will not hand out an identifier that already exists under *any* spelling. `GetNextIssueId`
+  used to scan `issue_id` only, so a register whose highest `NCR` came from an escalation
+  path (`id`) had an invisible high-water mark and the helper reissued that row's identifier.
+- **The `Count + 1` defect, corrected.** ROADMAP IM-5 recorded it as "computes
+  `existingIssues.Count + 1` *inside* its loop, so a multi-group scan emits duplicate IDs."
+  That mechanism does not reproduce: each path appends within the same loop, so the count
+  does advance and a single batch produces distinct (if gappy) identifiers. The real defect
+  is that a count-based ordinal collides with **live rows** whenever a register's numbering
+  has drifted from its row count — after any deletion, or simply once the store mixes types.
+  Minimal reproduction, now a red/green test pair: a register holding one row `NCR-0003`
+  mints `NCR-0002`, then `NCR-0003` — a duplicate of the row already there.
+- **`QuickIssue` minted every issue as `{TYPE}-0001`.** It wrote the identifier as `issue_id`
+  but computed the next number by scanning `id`, a field it never wrote, so the max was
+  always 0. A register could hold a dozen rows all called `RFI-0001`.
+- **`AutoRaiseHandoverGapIssues` had the mirror-image pair of that bug** — emitted `id` (which
+  the register, keyed on `issue_id`, could not see) while scanning `id` for its next ordinal
+  (so it never saw the `issue_id` rows and minted on top of live ones).
+- **`PullServerIssuesAsync` wrote to an orphan store.** It persisted to
+  `OutputLocationHelper.GetOutputDirectory(doc)/issues.json` — the MISC *export* folder, not
+  the register. Nothing read that file, and it is called fire-and-forget on startup, so every
+  issue pulled from the server (including everything captured on mobile) had been written
+  there and discarded on every session. Both server pulls now go through
+  `IssueStore.MergeFromServer`, which dedupes three ways — `server_id` → `server_code` →
+  `issue_id`. The middle step closes the create-then-pull loop: an issue this plugin created
+  and pushed gets its server GUID filled in on the next pull instead of duplicating.
+- **`MobileIssueBridge` retired.** It had zero callers and carried a seventh schema variant
+  (`MOB-`-prefixed ids, `assignee` rather than `assigned_to`, un-normalised server statuses).
+  Its one unique capability — pushing local-only issues upward — survives as
+  `IssueStore.ReconcileToServerAsync`, wired into the Planscape sync command so an issue
+  raised offline still reaches the server.
+- **One open-issue predicate.** `WorkflowEngine.EvaluateSingleCondition` compared the raw
+  status to the literal `"OPEN"` while the other implementation of the same gate routed
+  through `IssueStatusNormalizer` — so `has_open_issues` answered differently depending on
+  which entry point evaluated it, and that one never saw a clash (`"Open"`), an ACC
+  (`"open"`) or a server (`"New"`) issue. Both, plus the BCC KPI counts and the dashboard
+  summaries, now share `IssueSchema.IsOpen`.
+- **Migration deliberately does not canonicalise a status it does not recognise.** `RESPONDED`
+  and `ACCEPTED` are written by `UpdateIssueCommand` and filtered on exactly elsewhere;
+  rewriting them to `"UNKNOWN"` would destroy a distinction the workflow depends on. Canonical
+  spelling is enforced on create, on transition and on read instead. Filed as IM-9.
+- **Audit chain.** `issue.raised`, `issue.escalated_from_warning`, `issue.from_clash` and
+  `issue.status_changed` now append to the tamper-evident `_BIM_COORD` chain
+  (`Docs/Workflow/AuditLog`). No issue writer emitted any audit event before. One entry per
+  creation, named by provenance, with `source` in the payload so a query by provenance works
+  regardless of the action name.
+- **Provenance.** Every record carries `source` — `manual` / `warning` / `clash` / `acc` /
+  `lps` / `server`, plus `bcf` and `compliance` where those are the honest answer.
+- **31 unit tests** in `StingTools.Tags.Tests/IssueSchemaTests.cs` covering schema-fork
+  migration, the duplicate-id regression (with its RED counterpart), and normalizer routing.
+
+Verified: plugin build **0 errors / 0 warnings** (`-t:Rebuild`, Revit 2025); Tags.Tests
+**181 passed / 2 failed** (the 2 are the pre-existing `CsiMasterFormat` failures, unchanged
+— 150/2 before); path-discipline gate exit 0, Tier 1 = 0, Tier 2 = 139 (unchanged, within
+baseline). **Runtime-unverified** — not exercised in Revit. Successor gaps IM-7/IM-8/IM-9
+filed in ROADMAP.
+
+#### Completed (Phase 200 — ISO IM remediation: consent, one coord-log contract, a gate that works)
+
+Remediation of the Phase 199 folder-consolidation work before an information-management
+spine is built on top of it. Six scoped items.
+
+- **Consolidation no longer moves files without consent.** `MigrateFromLegacy` ran
+  unprompted inside `DocumentOpened` on *every* open — relocating project data the user
+  had not asked to relocate, deleting the drained source folders, and leaving no record
+  of what went where. Meanwhile `FolderConsolidateCommand`'s own header claimed "It NEVER
+  runs automatically." The engine now enforces that claim: it refuses to act unless the
+  caller passes `consented: true`, refuses a second time once `.sting_consolidation.json`
+  exists, **never deletes a source** (a drained folder is renamed `*.migrated_yyyyMMdd`),
+  and records every relocation source-to-destination with an undo hint. Document-open only
+  *detects* and logs. The folder-setup dialog and the `FolderMigrate` tag — both of which
+  migrated the instant they were clicked, with no preview — now route through one shared
+  `RunWithConsent` gate.
+- **The coordination log had a three-way contract split**, and the BCC timeline was
+  silently empty because of it: `WarningsManager` wrote JSONL to `coord_log.jsonl`,
+  `MaterialAuditLogger` wrote JSONL *into* `coord_log.json` under a different field
+  schema, and all four readers opened `coord_log.json` and handed the whole file to
+  `DeserializeObject<List<>>` — which threw on the second entry and was swallowed. One
+  contract now: `coord_log.jsonl`, one object per line, via `CoordLog` (paths, with legacy
+  read fallbacks) and `CoordLogFormat` (codec). The codec is Revit-free and covered by 9
+  unit tests in `StingTools.Tags.Tests` — including the multi-entry case that was the
+  actual failure, a corrupt-line case, and legacy whole-array files.
+- **The BCC reported zero open issues.** `BuildCoordData` counted with
+  `IndexOf("\"status\":\"OPEN\"")` — a substring that only appears in *compact* JSON —
+  while `CoordStores.WriteArray` and both auto-escalation writers emit
+  `Formatting.Indented`. It now parses the store and routes status through
+  `IssueStatusNormalizer`, so the other admitted spellings (`Open`, `open`, `New`,
+  `Reopened`) count too.
+- **The Meetings tab was permanently empty.** `CoordData.Meetings` and `.ActionItems` were
+  declared but never assigned; the only loaders lived on a dead legacy tab builder behind a
+  divergent doc-free path probe. `BuildCoordData` now populates both from the canonical
+  `CoordStores.Meetings(doc)`, and 516 lines of unreachable builder + helpers are gone.
+- **Two template-engine artefacts were stranded.** `SearchQueryBuilder` held the one copy
+  (of ten) of `ResolveProjectRoot` missing the canonical branch, so saved searches were
+  written to the `.rvt` sibling, moved away by a consolidation, then recreated empty —
+  losing them on a loop. `distribution_groups.json` was written to the `_BIM_COORD` bucket
+  and read from `STING_BIM_MANAGER`, so the BCC always reported it missing; the reader now
+  asks the owning store for its path.
+- **The path-discipline gate did not work, and had never run.** It was wired into no
+  workflow at all, and its single regex had three holes: it never mentioned
+  `STING_BIM_MANAGER` or `_bim_manager`; its `[^)]*` could not cross a close-paren; and it
+  required one of five hard-coded variable names, so the dominant two-line idiom was
+  invisible. Its "baseline ZERO / WP6 complete" was an artifact of the regex, not of clean
+  source. Rewritten in two tiers (legacy bucket names: hard zero; hand-rolled `_BIM_COORD`:
+  ratcheted), wired into `stingtools-plugin.yml`, and demonstrated against injected
+  residue: the new gate catches all three previously-invisible forms and exits 1, where the
+  old gate reports "OK — 0 remaining across 0 files" and exits 0. Nine legacy sibling sites
+  fixed, writers first — including `LpsAutoIssueRaiser`, which wrote LPS issues to the
+  pre-consolidation folder while every reader used `CoordStores.Issues`. Three genuine
+  legacy fallbacks carry an explicit `path-discipline: legacy-fallback` marker. The Tier-2
+  baseline is now **honest at 139 sites across 118 files** rather than a fictitious zero.
+
+**Deviation from the runner, recorded deliberately:** the runner specified `_BIM_COORD/` as
+the canonical root. The as-built Phase 199 layout resolves to `<PROJECT_CODE>/_data/`, with
+`_BIM_COORD` demoted to a bucket inside it. That deviation is kept — churning it back would
+move every project's files a second time for no gain — on the condition the runner attached,
+which was verified before deciding: every Template Engine v1.1 artefact (`deliverables.json`,
+`transmittals.json`, `workflow_state.json`, `audit_log_*.jsonl`, `doc_sequences.json`,
+templates, workflows, search index) resolves through one shared per-file `ResolveProjectRoot`
+helper used by *both* its writer and its readers, so the two cannot disagree. The two
+artefacts where that did not hold are fixed above.
+
+**Known residual (not fixed; ROADMAP IM-1):** `EmbeddedTemplates.ExtractIfMissing` runs on
+document open, before any consolidation. On a project whose customised templates still sit in
+a legacy folder, extraction seeds stock templates first and a later consolidation renames the
+user's copies aside — nothing is lost on disk, but the customisation stops taking effect.
+
+#### Completed (Phase 199 — ISO 19650 consolidation WP0-WP5 + WP7, branch `claude/iso19650-consolidation`)
+
+Consolidates the fragmented folder-management, document-management, automation and
+integration layers toward one ISO 19650 system, per the review in
+[`ISO19650_DOC_FOLDER_REVIEW.md`](ISO19650_DOC_FOLDER_REVIEW.md). Cut from `main`
+@ `6713f570b`. Release build **0 err / 0 warn** verified after every package on this
+machine. **Not merged; no PR.** In-Revit verification checklist is in the per-package
+commit bodies and `CONSOLIDATION_PROGRESS.md`.
+
+| WP | Commit | Summary |
+|---|---|---|
+| WP0 | `a708b7533` | Review + work order + WP0-WP10 progress tracker |
+| WP1 | `830ea72db` | MIDP join fix; auto-transmittal delegates to `TransmittalOrchestrator`; `_CDE`/`STING_Exports` roots retired; `AUTO_CREATE_CDE_FOLDERS` + `AUTO_RUN_WORKFLOW_ON_OPEN` wired; single `_data/recycle` + `_data/staging`; the two tree builders unified |
+| WP2 | `18af9ece5` | New `Core/CoordStores.cs` — one resolver for issues / meetings / register / transmittals / revisions, with one-time append-merge of legacy copies |
+| WP3 | `f21dcdf34` | Dead reflection bridges replaced with direct calls (BCC deliverable selection, geometry sync, 7× `DrawingTypeStamper`, `RevisionHistoryEntry`) |
+| WP4 | `44f3af74f` | 80 raw `File.WriteAllText` calls on coordination stores made atomic; duplicate atomic-writer collapsed |
+| WP5 | `2e79439ee` | Every dormant automation hook wired or removed; auto-registration facades collapsed to one schema; ExLink batch exports now registered |
+| WP7 | `f97ecb843` | Six panel tag aliases + baseline-based dispatch parity gate (partial — shared `Run<T>` deferred) |
+
+**Three defects fixed that were silently producing wrong results, not just untidiness:**
+the MIDP drift report read the wrong folder *and* the wrong key casing so it always
+resolved empty; every BCC-driven deliverable lifecycle command reflected over fields that
+do not exist, so all of them behaved as "nothing selected"; and issues raised by
+WarningsManager landed in a different physical file from the one the BIM Manager reads.
+
+**Corrections to the review.** Several findings were already fixed on `main`:
+`StingStaleMarker`, `CableManifestUpdater` and `HvacEnvelopeStaleUpdater` are registered
+at startup; `GetAvailablePresets` is no longer triplicated; `RunCommandByTag` is already
+null-hardened. These were verified and left alone rather than "re-fixed" — see
+`CONSOLIDATION_PROGRESS.md`.
+
+**Deferred:** WP6 (`StingPaths` service), WP8 (document-manager unification), WP9
+(CDE-first tree + ES root identity), WP10 (HTTP/storage hygiene), the WP7 `Run<T>`
+extraction, and the 183 unreachable panel tags — all logged in
+[`ROADMAP.md`](ROADMAP.md).
 
 #### Completed (data sync — gate-param TEXT→YESNO datatype alignment, supersedes PR #337)
 
@@ -2300,6 +2779,10 @@ MEP model before merge.
   `StingCommandHandler` and `OrganiseCommandModule` next to `ClusterTags`/`DeclusterTags`.
 - **Reporting** — `SkipBreakdown` gains `RunSuppressed`/`Runs`; the Smart Place summary now reports how
   many segment tags were collapsed into how many runs.
+- **Real-time coverage.** `StingAutoTagger` now suppresses live per-segment visual tags for PerRun/None
+  categories (token data still written), so drawing a pipe run with visual auto-tagging on no longer
+  drops a tag per segment; the run-level tag comes from Smart Place. Equipment/fixtures (`All`)
+  unchanged. Remaining paths (linked views; explicit `TagSelected`) recorded in ROADMAP.
 - **Distinct from `ClusterTags`.** `ClusterTags` is a *reactive* post-process that merges already-placed
   tags into an `[×N]` badge; this is *preventive* — the redundant tags are never drawn.
 
@@ -14783,3 +15266,46 @@ engineering" now have first-shipped implementations:
 - `Data/STING_REFNET_JOINTS.json`
 - `Data/STING_CTF_COEFFICIENTS.json`
 
+
+#### Completed (Phase 195 — Propagate Universal Tag: overwrite-by-file-name fix)
+
+**Bug**: `PropagateUniversalTagCommand` and `MigrateTagLabelReferencesCommand`
+saved the edited family to a temp file named
+`<target>.rfa.sting-propagate-<guid>.tmp` and then `LoadFamily`'d that temp
+file. A loaded family's project name IS its .rfa file name (renaming
+`famDoc.OwnerFamily` does not survive `SaveAs`), so every "successful"
+propagation minted a junk duplicate family named after the temp file
+(e.g. `STING - Air Terminal Tag.rfa.sting-propagate-3f48a862`) and left the
+real target family untouched — confirmed live in Revit 2025.4 (20-family and
+10-family runs both produced duplicate pairs in the Project Browser). The
+canonical on-disk .rfa WAS refreshed correctly (the temp was moved over it),
+so only the in-project overwrite was broken.
+
+**Fix** (both commands): save the clone under the target's EXACT file name
+inside a throwaway temp SUBFOLDER (`TagFamilies/.sting-propagate-<guid>/` /
+`.sting-migrate-<guid>/`), preserving the atomic SaveAs → LoadFamily →
+File.Move pattern while making `LoadFamily` genuinely overwrite the target.
+File names are sanitised (`/` → `-`) to match `GetTieInFamilyFileName`.
+Removed the ineffective `OwnerFamily.Name` rename and its false comment.
+
+**Cleanup**: `PropagateUniversalTagCommand.Execute` now purges any leftover
+`*.rfa.sting-propagate-*` / `*.rfa.sting-migrate-*` duplicate families from
+pre-fix runs before collecting the master/target lists (they otherwise
+pollute the pickers and inflate the target count — observed 210 targets vs
+the 206-family catalogue), and reports the purge count in the summary dialog.
+
+Files: `Commands/TagStudio/PropagateUniversalTagCommand.cs`,
+`Commands/TagStudio/MigrateTagLabelReferencesCommand.cs`.
+Caveat: committed without `dotnet build` verification (Linux sandbox, no
+Revit API). Verify in Revit: run Propagate on one family (Duct smoke test),
+confirm the target family is overwritten in place (no `.rfa.sting-propagate-`
+duplicate appears) and stale duplicates are purged, then scale to ALL.
+
+**Phase 195 follow-up fix**: the pre-flight purge in
+`PropagateUniversalTagCommand` deleted the temp-named junk families and then
+filtered the family list by calling `.Name` on the already-deleted `Family`
+objects — Revit throws `InvalidObjectException` ("The referenced object is
+not valid…") on any property access of a deleted element, so the command
+failed immediately in projects that had junk to purge (confirmed live in
+Revit 2025.4). The keep/junk partition is now computed BEFORE the deletes,
+and the junk name is captured before `doc.Delete` for the failure log path.
