@@ -247,6 +247,25 @@ def main() -> int:
             fail("cursor file was not written")
         ok(f"SEQ unchanged, ZERO re-minted; adopted via pull ({rec2}); cursor persisted")
 
+        # ── 2b. a FRESH re-export, dated NEWER than the server, still adopts ─
+        # The real ArchiCAD case: a new export lands with a current mtime, so it
+        # is NEWER than the server rows the last drop created. Under per-element
+        # LWW the newer local (with its blank SEQ) would win and re-mint every
+        # number — identity churn + counter burn. The per-token adopt-empty rule
+        # (P1) fills the blank SEQ from the server regardless of the newer clock,
+        # so this mints ZERO too. This is the scenario that was red before P1.
+        step("A FRESH re-export dated NEWER than the server must still adopt, not re-mint")
+        write_untagged(src)                        # brand-new export, blank tokens
+        touch(src, time.time() + 3600)             # dated an hour ahead: newest wins LWW
+        r2b = drop(src)
+        if r2b["errors"]:
+            fail(f"fresh re-export drop errored: {r2b['errors']}")
+        toks2b = read_tokens(out)
+        if (toks2b.get(GID_A, {}).get(_SEQ), toks2b.get(GID_B, {}).get(_SEQ)) != (seq_a, seq_b):
+            fail("a NEWER re-export re-minted SEQ — the adopt-empty rule did not fire "
+                 f"(was {seq_a}/{seq_b}, now {toks2b.get(GID_A,{}).get(_SEQ)}/{toks2b.get(GID_B,{}).get(_SEQ)})")
+        ok(f"newer re-export still adopted server SEQs ({seq_a}/{seq_b}); ZERO re-minted")
+
         # ── 3. server-side edit reaches the written-back IFC ────────────────
         step("Edit A's zone SERVER-side (newer) — re-drop carries it into the IFC")
         cli = _Client()
@@ -280,8 +299,13 @@ def main() -> int:
         if not local_b or local_b == "SRVOLD":
             fail(f"local inference unexpectedly produced the server value ({local_b!r})")
         rec4 = r4.get("reconcile") or {}
-        if not rec4.get("kept_local"):
-            fail(f"a newer local export did not win (reconcile={rec4})")
+        # Under the P1 per-token merge the contested ZONE resolves to the newer
+        # local value, while the blank local SEQ is adopted from the server — so
+        # the element is a merged WRITE (applied), not a bare kept_local. The
+        # proof that "local won" is therefore the recorded conflict plus the
+        # written-back/served value being the local one, not the count bucket.
+        if not rec4.get("conflicts"):
+            fail(f"the stale-server zone disagreement was not surfaced (reconcile={rec4})")
         srv_b = cli.server_zone(GID_B)
         if srv_b != local_b:
             fail(f"local value was not pushed to the server "
