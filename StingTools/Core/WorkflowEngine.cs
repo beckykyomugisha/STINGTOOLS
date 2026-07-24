@@ -373,7 +373,7 @@ namespace StingTools.Core
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
-            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "StageComplianceGate",
+            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "DocRegister_Unified", "Register_Consolidate", "Folders_ConsolidateAll", "StageComplianceGate",
             "WarningsSelectElements", "WarningsSuppress",
             "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
             "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
@@ -682,15 +682,11 @@ namespace StingTools.Core
                         {
                             try
                             {
-                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
-                                if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
-                                // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
-                                var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
-                                // PM-1 — normalise the status so the gate sees clash/ACC
-                                // issues too (they spell it "Open"/"open", not "OPEN").
-                                int openCount = issuesArr.Count(i => IssueStatusNormalizer.IsOpen((string)i["status"]));
-                                if (openCount == 0) { RecordSkip("no open issues"); continue; }
+                                // Phase 2 (IM-4): one predicate, shared with EvaluateSingleCondition
+                                // and with the BCC's KPI counts. IssueStore.Load also migrates
+                                // legacy rows, so a PascalCase LPS issue or an "id"-keyed
+                                // escalated warning is counted here like anything else.
+                                if (!IssueStore.HasOpen(doc)) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
                         }
@@ -1440,6 +1436,17 @@ namespace StingTools.Core
                 case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
                 case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
 
+                // Aliases for the tags the Electrical panel handler uses. The panel and
+                // this resolver named the same six commands differently, so any workflow
+                // preset written against the panel's tags resolved to null and the step
+                // was reported as failed. Both spellings now resolve to the same command.
+                case "Panel_FillSlots":            return new Commands.Panels.FillSparesAllSchedulesCommand();
+                case "Panel_AddSpare":             return new Commands.Panels.FillEmptySlotsWithSparesCommand();
+                case "Panel_AddSpace":             return new Commands.Panels.FillEmptySlotsWithSpacesCommand();
+                case "Panel_ConvertSpaceToSpare":  return new Commands.Panels.ConvertSpacesToSparesCommand();
+                case "Panel_ClearSlots":           return new Commands.Panels.ClearSparesAndSpacesCommand();
+                case "Panel_ExcelExport":          return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+
                 // ── Plumbing (Phase 178c → 179) ──
                 case "Plumbing_AutoSizeDrainage": return new Commands.Plumbing.AutoSizeDrainageCommand();
                 case "Plumbing_BackflowAudit":    return new Commands.Plumbing.BackflowAuditCommand();
@@ -1827,6 +1834,9 @@ namespace StingTools.Core
                 case "ListWorkflowPresets":     return new ListWorkflowPresetsCommand();
                 case "AddDocument":             return new BIMManager.AddDocumentCommand();
                 case "DocumentRegister":        return new BIMManager.DocumentRegisterCommand();
+                case "DocRegister_Unified":     return new UnifiedRegisterExportCommand();
+                case "Register_Consolidate":    return new RegisterConsolidateCommand();
+                case "Folders_ConsolidateAll":  return new Commands.Folders.FolderConsolidateCommand();
                 case "StageComplianceGate":     return new BIMManager.StageComplianceGateCommand();
                 case "WarningsSelectElements":  return new WarningsSelectElementsCommand();
                 case "WarningsSuppress":        return new WarningsSuppressCommand();
@@ -2175,18 +2185,24 @@ namespace StingTools.Core
                     case "has_open_issues":
                     case "has_overdue_issues":
                     {
-                        // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues
-                        string issuePath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
-                        if (!File.Exists(issuePath)) return false;
-                        JArray cachedIssues = JArray.Parse(File.ReadAllText(issuePath));
+                        // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues.
+                        //
+                        // Phase 2 (IM-4): this compared the raw status to the literal "OPEN",
+                        // while the OTHER implementation of the same gate (RunWorkflow, above)
+                        // routed through IssueStatusNormalizer. The same gate therefore
+                        // answered differently depending on which entry point evaluated it —
+                        // and this one never saw a clash ("Open"), an ACC ("open") or a
+                        // server-pulled ("New") issue. Both now share IssueStore's predicate.
+                        JArray cachedIssues = IssueStore.Load(doc);
+                        if (cachedIssues.Count == 0) return false;
                         if (condition == "has_open_issues")
-                            return cachedIssues.Any(i => (string)i["status"] == "OPEN");
+                            return cachedIssues.OfType<JObject>().Any(IssueSchema.IsOpen);
                         // has_overdue_issues
                         var slaHrs = new Dictionary<string, int>
                             { { "CRITICAL", 4 }, { "HIGH", 24 }, { "MEDIUM", 168 }, { "LOW", 336 } };
-                        foreach (var oi in cachedIssues)
+                        foreach (var oi in cachedIssues.OfType<JObject>())
                         {
-                            if (oi["status"]?.ToString() != "OPEN") continue;
+                            if (!IssueSchema.IsOpen(oi)) continue;
                             string pri = oi["priority"]?.ToString() ?? "MEDIUM";
                             if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created_date"]?.ToString(), out var created)) continue;
                             int ageH = (int)(DateTime.Now - created).TotalHours;
@@ -2305,8 +2321,8 @@ namespace StingTools.Core
                         // or a resolvable design-day site.
                         try
                         {
-                            string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+                            var setup = Core.Sustainability.SustainProjectSetup.Load(
+                                StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out _);
                             if (!string.IsNullOrWhiteSpace(setup.ClimateSiteId) || !string.IsNullOrWhiteSpace(setup.ClimateZone))
                                 return true;
                             return !string.IsNullOrWhiteSpace(Core.Climate.ClimateRegistry.ActiveSite(doc)?.Id);
@@ -2422,21 +2438,6 @@ namespace StingTools.Core
             _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
             _cachedBuiltInPresetsDataPath = dataDir;
 
-            // Remove any null entries from failed lookups
-            presets.RemoveAll(p => p == null);
-
-            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
-            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
-            _cachedBuiltInPresetsDataPath = dataDir;
-
-            // Remove any null entries from failed lookups
-            presets.RemoveAll(p => p == null);
-
-            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
-            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
-            _cachedBuiltInPresetsDataPath = dataDir;
-
-            // User-defined JSON files
             // Append user-defined JSON presets on top
             AppendUserPresets(presets, dataDir);
 

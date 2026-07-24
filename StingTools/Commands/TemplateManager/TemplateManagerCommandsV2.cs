@@ -163,7 +163,7 @@ namespace StingTools.Commands.TemplateManager
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             string projDir = System.IO.Path.GetDirectoryName(ctx.Doc?.PathName ?? "");
-            string dir = string.IsNullOrEmpty(projDir) ? "" : System.IO.Path.Combine(projDir, "_BIM_COORD");
+            string dir = string.IsNullOrEmpty(projDir) ? "" : StingPaths.Meta(ctx.Doc, "_BIM_COORD");
             string file = "";
             if (!string.IsNullOrEmpty(dir) && System.IO.Directory.Exists(dir))
             {

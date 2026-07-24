@@ -43,8 +43,18 @@ namespace StingTools.Commands.Sustainability
 
         public static SustainProjectSetup LoadSetup(Document doc)
         {
-            string dir = SustainabilityRegistries.ProjectDir(doc);
-            var setup = SustainProjectSetup.Load(dir, out bool found);
+            // Resolve the config CONSOLIDATED-first (<root>/_data/_BIM_COORD/sustainability/)
+            // then fall back to the LEGACY sibling (<projDir>/_BIM_COORD/sustainability/) —
+            // the same consolidated-then-legacy order ClimateRegistry / MepSizingRegistry get
+            // from ProjectFolderEngine.ResolveProjectOverridePath. Without the fallback a
+            // project set up before the ISO 19650 folder consolidation is never found and the
+            // dashboard silently reverts to CreateDefault() carbon/occupancy inputs.
+            string cfgFile = ProjectFolderEngine.ResolveProjectOverridePath(
+                doc, "_BIM_COORD/sustainability/project_setup.json");
+            string sustainDir = !string.IsNullOrEmpty(cfgFile)
+                ? Path.GetDirectoryName(cfgFile)
+                : StingPaths.Meta(doc, "_BIM_COORD", "sustainability");
+            var setup = SustainProjectSetup.Load(sustainDir, out bool found);
             if (!found)
             {
                 // Seed area from the model when no setup exists yet (Spaces preferred,
@@ -206,7 +216,7 @@ namespace StingTools.Commands.Sustainability
                     "Save the project to disk first — project setup writes to <project>/_BIM_COORD/sustainability/.");
                 return Result.Cancelled;
             }
-            setup.Save(dir);
+            setup.Save(StingPaths.Meta(doc, "_BIM_COORD", "sustainability"));
             // WS B4 — offer the data-driven building-use list (registry union) before
             // restoring the form so the saved use resolves against the live options.
             try
@@ -272,7 +282,7 @@ namespace StingTools.Commands.Sustainability
                 Country              = setup.Country,
                 ClimateZone          = setup.ClimateZone
             };
-            EdgeKpiSnapshot.Append(dir, snap);
+            EdgeKpiSnapshot.Append(StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), snap);
 
             // WS I13 — the result is now fresh; arm the stale marker so later
             // envelope/fixture edits flag the dashboard as out of date.
@@ -643,7 +653,7 @@ namespace StingTools.Commands.Sustainability
                 TaskDialog.Show("STING Sustainability", "Save the project to disk first.");
                 return Result.Cancelled;
             }
-            setup.Save(dir);
+            setup.Save(StingPaths.Meta(doc, "_BIM_COORD", "sustainability"));
             TaskDialog.Show("STING Sustainability",
                 $"Supply saved (grid/diesel locked as explicit override).\nMode: {setup.Supply.Mode}\nPV: {setup.Supply.PvKwp:0} kWp (PR {setup.Supply.PvPerformanceRatio:0.00})\n" +
                 $"Grid factor: {setup.Supply.GridCarbonKgco2eKwh:0.00} · Diesel factor: {setup.Supply.DieselCarbonKgco2eKwh:0.00} · " +

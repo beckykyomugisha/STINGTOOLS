@@ -66,8 +66,7 @@ namespace StingTools.Core.Hvac.Loads
                     Apply(JObject.Parse(File.ReadAllText(basePath)), lib);
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-                    string projPath = Path.Combine(projDir, ProjectOverrideRelPath);
+                    string projPath = ProjectFolderEngine.ResolveProjectOverridePath(doc, ProjectOverrideRelPath);
                     if (File.Exists(projPath))
                         Apply(JObject.Parse(File.ReadAllText(projPath)), lib);
                 }

@@ -102,6 +102,21 @@ namespace Planscape.Docs.Search
 
         private static string ResolveProjectRoot(Document doc)
         {
+            // Folder consolidation: nest "_BIM_COORD" inside the unified project
+            // root's _data folder rather than as a sibling of the .rvt.
+            //
+            // This was the ONE copy of this helper (of ten) missing the canonical
+            // branch, and the omission lost data on a loop: saved searches were
+            // written to the .rvt sibling, a consolidation moved them into
+            // _data/_BIM_COORD/ and retired the sibling, and the next save recreated
+            // an empty store back at the sibling — so saved searches silently
+            // disappeared, repeatedly.
+            try
+            {
+                string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
+                if (!string.IsNullOrEmpty(consolidated)) return consolidated;
+            }
+            catch { /* fall through to legacy lookup */ }
             try
             {
                 string p = doc?.PathName;

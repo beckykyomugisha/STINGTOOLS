@@ -233,7 +233,7 @@ namespace StingTools.Temp
             catch (Exception ex) { StingLog.Warn($"BOQTemplateLibrary project path: {ex.Message}"); }
             if (string.IsNullOrEmpty(projDir))
                 projDir = Path.Combine(Path.GetTempPath(), "STING");
-            string dir = Path.Combine(projDir, "_bim_manager");
+            string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "boq_custom_templates.json");
         }

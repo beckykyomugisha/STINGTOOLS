@@ -40,7 +40,7 @@ namespace StingTools.Tags
             // Determine output folder: _bim_manager/qr/ next to .rvt
             string projectDir = string.IsNullOrEmpty(doc.PathName)
                 ? Path.Combine(Path.GetTempPath(), "STING_QR")
-                : Path.Combine(Path.GetDirectoryName(doc.PathName), "_bim_manager", "qr");
+                : ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER", "qr");
             Directory.CreateDirectory(projectDir);
 
             // Project code from doc title

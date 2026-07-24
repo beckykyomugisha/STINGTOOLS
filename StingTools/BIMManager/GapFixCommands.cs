@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // GapFixCommands.cs — 29 Priority Gap Fixes (6 CRITICAL + 8 HIGH + 15 MEDIUM)
 //
 // Phase 67 — Cross-System Automation, CDE Compliance, Data Drop Tracking,
@@ -33,10 +33,12 @@ namespace StingTools.BIMManager
         // ── Helper: Get BIM manager directory ──
         internal static string GetBimDir(Document doc)
         {
-            string docDir = string.IsNullOrEmpty(doc.PathName)
-                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                : Path.GetDirectoryName(doc.PathName);
-            string dir = Path.Combine(docDir ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "_bim_manager");
+            // Consolidated metadata root; only unsaved documents fall back to a
+            // machine-level folder.
+            string dir = StingTools.Core.ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
+            if (string.IsNullOrEmpty(dir))
+                dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                                   "STING_BIM", "STING_BIM_MANAGER");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
         }
@@ -766,73 +768,44 @@ namespace StingTools.BIMManager
             var gaps = sidecar["approaching_gaps"] as JArray;
             if (gaps == null || gaps.Count == 0) return 0;
 
-            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-            JArray issues;
-            try { issues = File.Exists(issuesPath) ? JArray.Parse(File.ReadAllText(issuesPath)) : new JArray(); }
-            catch (Exception ex) { StingLog.Warn($"AutoRaiseHandoverGapIssues: {ex.Message}"); issues = new JArray(); }
-
-            // Dedup: skip if open issue already exists for this deliverable
-            var existingTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var iss in issues)
-            {
-                string status = iss["status"]?.ToString() ?? "";
-                if (status.Equals("CLOSED", StringComparison.OrdinalIgnoreCase)) continue;
-                existingTitles.Add(iss["title"]?.ToString() ?? "");
-            }
-
-            int created = 0;
+            // Phase 2 (IM-4/IM-5): emitted the identifier as "id", which the BIM register
+            // (keyed on "issue_id") could not see — so a handover-gap issue was raised into
+            // a register that then reported it did not exist. Its "next id" scan had the
+            // mirror-image flaw: it read only "id", so it never saw the issue_id rows and
+            // happily minted SI-0001 on top of a live SI-0001.
+            var candidates = new List<EscalationCandidate>();
             foreach (var gap in gaps)
             {
                 string milestone = gap["milestone"]?.ToString() ?? "";
                 string deliverable = gap["deliverable"]?.ToString() ?? "";
-                string title = $"Handover Gap: {deliverable} required for {milestone}";
-
-                if (existingTitles.Contains(title)) continue;
-
-                // Find next ID
-                int maxId = 0;
-                foreach (var iss in issues)
+                candidates.Add(new EscalationCandidate
                 {
-                    string idStr = iss["id"]?.ToString() ?? "";
-                    int dashIdx = idStr.LastIndexOf('-');
-                    if (dashIdx >= 0 && int.TryParse(idStr.Substring(dashIdx + 1), out int num) && num > maxId)
-                        maxId = num;
-                }
-
-                string revision = "";
-                try { revision = Core.PhaseAutoDetect.DetectProjectRevision(doc); }
-                catch (Exception ex2) { StingLog.Warn($"AutoRaiseHandoverGapIssues revision: {ex2.Message}"); }
-
-                var issue = new JObject
-                {
-                    ["id"] = $"SI-{(maxId + 1).ToString().PadLeft(4, '0')}",
-                    ["title"] = title,
-                    ["description"] = $"ISO 19650 data drop '{milestone}' is approaching but deliverable '{deliverable}' is not yet complete. " +
-                                     $"Run command '{gap["command"]}' to generate this deliverable.",
-                    ["type"] = "SI",
-                    ["priority"] = "HIGH",
-                    ["status"] = "OPEN",
-                    ["discipline"] = "BIM",
-                    ["revision"] = revision,
-                    ["created_date"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                    ["created_by"] = Environment.UserName,
-                    ["auto_created"] = true,
-                    ["source"] = "4D_HANDOVER_GAP",
-                    ["milestone"] = milestone,
-                    ["deliverable"] = deliverable,
-                    ["command_tag"] = gap["command"]?.ToString() ?? ""
-                };
-
-                issues.Add(issue);
-                existingTitles.Add(title);
-                created++;
+                    // Was deduped on the exact title string; the milestone+deliverable pair
+                    // is the same identity without depending on the wording.
+                    Key         = $"handover-gap:{milestone}:{deliverable}",
+                    Type        = "SI",
+                    Priority    = "HIGH",
+                    Discipline  = "BIM",
+                    Title       = $"Handover Gap: {deliverable} required for {milestone}",
+                    Description = $"ISO 19650 data drop '{milestone}' is approaching but deliverable " +
+                                  $"'{deliverable}' is not yet complete. " +
+                                  $"Run command '{gap["command"]}' to generate this deliverable.",
+                    Extra       = new JObject
+                    {
+                        ["auto_created"] = true,
+                        ["rule"]         = "4D_HANDOVER_GAP",
+                        ["milestone"]    = milestone,
+                        ["deliverable"]  = deliverable,
+                        ["command_tag"]  = gap["command"]?.ToString() ?? "",
+                    },
+                });
             }
 
+            var result = IssueEscalationEngine.Escalate(doc, candidates, IssueSource.Compliance,
+                                                        cap: candidates.Count);
+            int created = result.Created;
             if (created > 0)
-            {
-                BIMManagerEngine.SaveJsonFile(issuesPath, issues);
                 StingLog.Info($"AutoRaiseHandoverGapIssues: created {created} issues for approaching DD milestones");
-            }
 
             return created;
         }
@@ -1038,7 +1011,7 @@ namespace StingTools.BIMManager
             if (string.IsNullOrEmpty(basePath)) return "Base path required.";
             if (string.IsNullOrEmpty(projectCode)) projectCode = "PROJ";
 
-            var cdeStates = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+            var cdeStates = StingTools.Core.StingPaths.CdeStates;
             var disciplines = new[] { "A-Architecture", "S-Structure", "M-Mechanical", "E-Electrical", "P-Plumbing", "FP-Fire", "G-General" };
             var docTypes = new[] { "MODELS", "DRAWINGS", "SCHEDULES", "SPECIFICATIONS", "REPORTS", "COBie", "BEP" };
 
