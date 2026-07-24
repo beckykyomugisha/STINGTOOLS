@@ -1,15 +1,19 @@
-name: Plugin Release (on [release] commit)
+name: Plugin Release
 
-# Push a commit whose message contains "[release]" to this branch to build the
-# plugin on Windows against the real Revit reference assemblies and publish a
-# GitHub Release with StingTools.dll (and the full CompiledPlugin zip) attached
-# — a clean one-click download for deploying into Revit's add-in folder.
-# The release tag is created server-side by gh (no tag push needed).
+# Build the StingTools plugin on Windows against the real Revit reference
+# assemblies and publish a GitHub Release with StingTools.dll (and the full
+# CompiledPlugin zip) attached — a one-click download for deploying into Revit's
+# add-in folder.
+#
+# Trigger it either way:
+#   • Actions tab → "Plugin Release" → Run workflow (workflow_dispatch), or
+#   • push a tag matching plugin-*  (e.g. `git tag plugin-v1.2 && git push origin plugin-v1.2`)
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - claude/export-center-sheet-settings-gkormo
+    tags:
+      - 'plugin-*'
 
 permissions:
   contents: write
@@ -23,7 +27,6 @@ jobs:
   release:
     name: Build & publish plugin release
     runs-on: windows-latest
-    if: contains(github.event.head_commit.message, '[release]')
     steps:
       - uses: actions/checkout@v4
 
@@ -69,14 +72,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $tag = "plugin-build-${{ github.run_number }}"
+          $tag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "plugin-build-${{ github.run_number }}" }
           gh release create "$tag" `
             --target "${{ github.sha }}" `
             "CompiledPlugin/StingTools.dll" `
             "StingTools-CompiledPlugin.zip" `
             --title "STING Tools plugin — $tag" `
             --notes @"
-          Prebuilt STING Tools plugin. Includes the Export Centre fixes: OnePerSheet PDF filename + reliable success + watermark, Image path robustness, ISO 19650 CDE autolocation, and Select all / Deselect all.
+          Prebuilt STING Tools plugin, built on Windows against the real Revit 2025 reference assemblies.
 
           Deploy (with Revit closed):
           1. Download **StingTools.dll** below.
@@ -84,5 +87,5 @@ jobs:
           3. Copy the downloaded StingTools.dll into that folder, overwriting the old one.
           4. Start Revit.
 
-          For a clean install use **StingTools-CompiledPlugin.zip** (DLL + dependencies + data). Only StingTools.dll changed this round.
+          For a clean install use **StingTools-CompiledPlugin.zip** (DLL + dependencies + data).
           "@
