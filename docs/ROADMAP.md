@@ -1075,3 +1075,24 @@ so LookupParameter hits directly), and rekey the 998 entries; (2) add the 8 new
 command copying `PRJ_TB_* -> PRJ_ORG_*` on ProjectInformation (SetIfEmpty);
 (5) regenerate STING_TITLE_BLOCK_PARAMETERS.txt; (6) run TitleBlock_CreateAll +
 verify the stamp fills from PRJ_ORG_* in Revit.
+
+## Plumbing tag pipeline — audit follow-ups (branch claude/plumbing-tag-fixes)
+
+FIX 1–4 from the plumbing ISO-19650 tagging audit **landed** on
+`claude/plumbing-tag-fixes` (soil/vent pipes → SAN, hyphen-free seed PROD codes,
+validator PROD allow-list additions, Plumbing Equipment + Pipe Insulation containers).
+The two items below were deliberately left as follow-ups — coupling / ambiguity risk:
+
+- **BUG-2 — live auto-tagging skips pipe/duct curves.** `StingAutoTagger`'s live
+  category list (`Core/StingAutoTagger.cs`, ~line 1106-1131) omits `OST_PipeCurves`,
+  `OST_FlexPipeCurves`, and `OST_DuctCurves`, so pipe/duct/flex curves are not
+  real-time auto-tagged. Adding them is entangled with the MEP run-policy declutter
+  guard on branch `claude/mep-tag-declutter-advice` (PR #395): adding the categories
+  WITHOUT that guard would re-introduce one-tag-per-segment clutter live. Do it as a
+  follow-up on top of PR #395, not in the plumbing-tag-fixes branch.
+
+- **BUG-3 — unassigned pipes fall back to the disc-default SYS.** A pipe with no
+  assigned Revit piping system falls back to the discipline-default SYS; for the "M"
+  default that is "HVAC", so unconnected domestic-water / drainage pipes tag as
+  Mechanical. No safe automatic fix (the pipe categories are shared between mechanical
+  and plumbing) — treat as "assign piping systems before tagging". Advisory only.
