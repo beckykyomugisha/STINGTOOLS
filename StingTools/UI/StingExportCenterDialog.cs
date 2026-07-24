@@ -426,6 +426,27 @@ namespace StingTools.UI
             DockPanel.SetDock(chips, Dock.Top);
             dock.Children.Add(chips);
 
+            // Select all / deselect all — operate on the rows currently visible in
+            // the grid, so they honour any active search / filter-chip selection.
+            var selAllRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            var selectAllBtn = new Button
+            {
+                Content = "☑ Select all",
+                Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(0, 0, 6, 0),
+            };
+            selectAllBtn.Click += (_, __) => SetVisibleRowsChecked(true);
+            var deselectAllBtn = new Button
+            {
+                Content = "☐ Deselect all",
+                Padding = new Thickness(8, 2, 8, 2),
+            };
+            deselectAllBtn.Click += (_, __) => SetVisibleRowsChecked(false);
+            selAllRow.Children.Add(selectAllBtn);
+            selAllRow.Children.Add(deselectAllBtn);
+            DockPanel.SetDock(selAllRow, Dock.Top);
+            dock.Children.Add(selAllRow);
+
             // Grid
             _selectGrid = new DataGrid
             {
@@ -1146,6 +1167,30 @@ namespace StingTools.UI
                 };
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+        }
+
+        /// <summary>Check or uncheck every row currently visible in the SELECT grid.
+        /// Respects the active search text / filter chip, so "Select all" after
+        /// filtering to e.g. "Issued" selects only that subset. Falls back to all
+        /// rows when no collection view is available.</summary>
+        private void SetVisibleRowsChecked(bool value)
+        {
+            try
+            {
+                var view = CollectionViewSource.GetDefaultView(_rows);
+                int n = 0;
+                if (view != null)
+                {
+                    foreach (var item in view)
+                        if (item is SheetRow r) { r.IsChecked = value; n++; }
+                }
+                if (n == 0)
+                    foreach (var r in _rows) r.IsChecked = value;
+
+                UpdateStatusLine();
+                RefreshNamingPreview();
+            }
+            catch (Exception ex) { StingLog.Warn($"SetVisibleRowsChecked: {ex.Message}"); }
         }
 
         private void ApplySavedSetSelection()
