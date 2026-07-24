@@ -2,90 +2,82 @@
 #
 # WHY THIS FILE EXISTS
 # --------------------
-# The suite carries 66 uniquely-named pre-existing failures (73 cases, some
-# theories). Making CI red on all of them means CI is red always, which means
-# nobody reads it — that is why the test step used to run with
+# CI fails on NEW failures only: any failing test whose name is not listed here.
+# Gating on "zero failures" while a backlog exists makes CI red always, which
+# means nobody reads it — that is why the test step used to run with
 # `continue-on-error: true` and a comment claiming "No tests yet".
 #
-# So CI fails on NEW failures only: any failing test whose name is not listed
-# here. Fixing one of these is welcome — delete its line in the same PR, and the
-# check then guards the fix from regressing.
+# Fixing one of these is welcome — delete its line in the same PR, and the check
+# then guards the fix from regressing. This file should only ever shrink.
 #
 # Regenerate with (from Planscape.Server/tests/Planscape.Tests):
 #   dotnet test --nologo -v q 2>&1 \
-#     | grep -o "Planscape\.Tests\.[A-Za-z0-9_.]*\ \[FAIL\]" \
-#     | sed 's/ \[FAIL\]//' | sort -u
+#     | grep -oE "Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))? \[FAIL\]" \
+#     | sed -E 's/\(.*\)//; s/ \[FAIL\]//' | sort -u
 #
-# CAVEAT, honestly stated: a handful of these are order/parallelism dependent
-# (see ROADMAP DEP-7 — Program.cs reads the process-wide
-# Hangfire.JobStorage.Current during host build). A test that happened to pass
-# when this file was generated can fail in CI and be reported as "new". If that
-# happens, confirm it against main before treating it as a regression.
+# Theory cases collapse to their base method name — list the method once.
 #
 # Blank lines and lines starting with # are ignored.
-Planscape.Tests.AuthControllerTests.ActivateLicense_ValidKey_ReturnsSuccess
-Planscape.Tests.AuthControllerTests.HealthCheck_ReturnsHealthy
-Planscape.Tests.AuthControllerTests.RefreshToken_ValidToken_ReturnsNewTokens
-Planscape.Tests.AuthControllerTests.Register_NewOrg_Returns201WithToken
-Planscape.Tests.AuthHandlerConcurrentReadsTests.RevocationAndTenantOverride_LaunchInParallel
-Planscape.Tests.BimManagerOrAdminHandlerTests.BimManagerProjectMember_Grants
-Planscape.Tests.BimManagerOrAdminHandlerTests.InactiveProjectMember_Denies
-Planscape.Tests.BimManagerOrAdminHandlerTests.UnrelatedRole_Denies
-Planscape.Tests.BimManagerRoleConfigTests.AppUserIso19650Role_FollowsConfigList
-Planscape.Tests.BimManagerRoleConfigTests.AppUserIso19650Role_GrantsWithoutProjectMember
-Planscape.Tests.BimManagerRoleConfigTests.AppUserNotInTenant_DoesNotGrant
-Planscape.Tests.BimManagerRoleConfigTests.ConfigRoles_AreCaseInsensitive
-Planscape.Tests.BimManagerRoleConfigTests.ConfiguredRoles_NarrowingExcludesOldGrants
-Planscape.Tests.BimManagerRoleConfigTests.ConfiguredRoles_OverrideDefaultK
-Planscape.Tests.BimManagerRoleConfigTests.EmptyOrMalformedConfig_FallsBackToDefaultK
-Planscape.Tests.CoreApiTests.Compliance_History_ReturnsArray
-Planscape.Tests.CoreApiTests.Compliance_PushAndGetLatest
-Planscape.Tests.CoreApiTests.Compliance_Trend_ReturnsDailyData
-Planscape.Tests.CoreApiTests.Documents_CreateAndList
-Planscape.Tests.CoreApiTests.Documents_GetHistory
-Planscape.Tests.CoreApiTests.Documents_TransitionState_WipToShared
-Planscape.Tests.CoreApiTests.Issues_CreateAndList
-Planscape.Tests.CoreApiTests.Issues_SLAReport_ReturnsData
-Planscape.Tests.CoreApiTests.Issues_Update_ChangesStatus
-Planscape.Tests.CoreApiTests.Meetings_AddActionItem_AndGetOpen
-Planscape.Tests.CoreApiTests.Meetings_CreateAndList
-Planscape.Tests.CoreApiTests.Meetings_LogMinutes
-Planscape.Tests.CoreApiTests.Members_AddAndList
-Planscape.Tests.CoreApiTests.Members_GetRoles_ReturnsISO19650Roles
-Planscape.Tests.CoreApiTests.Members_InviteByEmail
-Planscape.Tests.CoreApiTests.Members_MemberRole_CannotAdd
-Planscape.Tests.CoreApiTests.Mim_BulkCreateAssets
-Planscape.Tests.CoreApiTests.Mim_CreateAssetAndList
-Planscape.Tests.CoreApiTests.Mim_CreateMaintenanceTask
-Planscape.Tests.CoreApiTests.Mim_Dashboard_ReturnsMetrics
-Planscape.Tests.CoreApiTests.SeqSync_SyncAndGet
-Planscape.Tests.CoreApiTests.TagSync_SyncElements
-Planscape.Tests.CoreApiTests.TenantIsolation_OtherTenantCannotSyncTags
-Planscape.Tests.CoreApiTests.Transmittals_CreateAndList
-Planscape.Tests.CoreApiTests.Transmittals_MarkSent
-Planscape.Tests.CoreApiTests.Warnings_PushReport
-Planscape.Tests.CoreApiTests.Warnings_SaveBaseline
-Planscape.Tests.CoreApiTests.Warnings_Trend_ReturnsData
-Planscape.Tests.CoreApiTests.Workflows_LogRunAndGetHistory
-Planscape.Tests.CoreApiTests.Workflows_Trend_ReturnsData
+#
+# ── History ───────────────────────────────────────────────────────────────
+# 129 → 73  Phase 201 harness repair (host construction unblocked)
+#  73 → 9   test-health pass: fixed 5 production bugs (claim mapping, two
+#           missing IgnoreQueryFilters, TagSync auth ordering, JSON cycle) plus
+#           fixture rot (tenant query filter, billing plan, project membership,
+#           per-context InMemory store names). See docs/CHANGELOG.md.
+#
+# Every remaining entry below has a diagnosed cause. None is a mystery.
+
+# ── Require real PostgreSQL — now SKIPPED, no longer baseline entries ──────
+# The three CoreApiTests that need Postgres-only SQL are now [Fact(Skip=…)] and
+# report as Skipped, not Failed, so they no longer belong here. They run on the
+# EF InMemory host (always InMemory, regardless of PLANSCAPE_TEST_PG), where the
+# SQL they depend on cannot execute:
+#   Search_ValidQuery_ReturnsResults → EF.Functions.ILike is Npgsql-only.
+#   Transmittals_CreateAndList / _MarkSent → SequenceCounterService.AllocateAsync
+#     runs `INSERT … ON CONFLICT … RETURNING` via SqlQueryRaw.
+# Their real home is the Postgres suite (cf. PostgresSequenceCounterTests).
+
+# ── CONFIRMED PRODUCTION DEFECTS in DeliverableStateMachine ───────────────
+# These tests are RIGHT and the engine is WRONG. Deliberately not fixed here:
+# the remedies change how every tenant's custom workflow vocabulary is
+# classified, which warrants its own PR and review rather than riding along in a
+# test-health pass. Full diagnosis with file:line in docs/ROADMAP.md (DEP-14).
+#
+#   InferRoleByKeyword_RecognisesExtendedWorking — "BLOCKED".Contains("LOCKED")
+#     is true, and the terminal scan precedes the working scan, so every
+#     BLOCKED* state is misclassified as terminal.
+#   InferRoleByKeyword_RecognisesSubmitting — AcceptKeywords "APPROV" is scanned
+#     before SubmitKeywords "FOR_APPROVAL", so ISSUED_FOR_APPROVAL reads as
+#     already approved.
+#   LoadOrDefault_* (4) — tenant/project keyword layers cannot override the
+#     canonical mapping for any state named in states[]/transitions[], the
+#     per-bucket merge lets the platform layer win over the project layer, and
+#     an explicit roles[] block does not suppress built-in inference at runtime.
 Planscape.Tests.DeliverableStateMachineTests.LoadOrDefault_ExplicitRolesWinOverInference
 Planscape.Tests.PlatformKeywordTests.LoadOrDefault_PlatformAndProject_MergesWithProjectWinning
-Planscape.Tests.ProjectVisibilityTests.ListProjects_AsTenantAdmin_SeesAllTenantProjects
-Planscape.Tests.ProjectsControllerTests.CreateProject_DuplicateCode_Returns409
-Planscape.Tests.ProjectsControllerTests.CreateProject_Valid_ReturnsCreated
-Planscape.Tests.ProjectsControllerTests.GetDashboard_ValidProject_ReturnsDashboardData
-Planscape.Tests.ProjectsControllerTests.GetProjects_Authenticated_ReturnsProjectList
-Planscape.Tests.RevocationFloorHandlerTests.NoRevocationFloor_TokenWithoutIatStillGrants
-Planscape.Tests.RevocationFloorHandlerTests.TokenIssuedAfterRevocation_StillGrants
+Planscape.Tests.RoleExtensionTests.InferRoleByKeyword_RecognisesExtendedWorking
 Planscape.Tests.RoleExtensionTests.LoadOrDefault_TenantKeywordsCanOverrideCanonical
+Planscape.Tests.RoleInferenceTests.InferRoleByKeyword_RecognisesSubmitting
 Planscape.Tests.RoleInferenceTests.LoadOrDefault_ExplicitRolesStillWinOverFuzzyInference
-Planscape.Tests.SecurityCriticalPathTests.QuotaGuard_ProjectCap_AllowsBelowLimit
-Planscape.Tests.SecurityCriticalPathTests.QuotaGuard_ProjectCap_DeniesAtTrialLimit
-Planscape.Tests.SecurityCriticalPathTests.TenantQueryFilter_EmptyTenantId_ReturnsNoRows
-Planscape.Tests.TagSyncConflictTests.SyncElements_StaleUpdate_KeepsServerData_AndRecordsConflict
-Planscape.Tests.TenantBimManagerRoleOverrideTests.NullOverride_FallsBackToDeployment
-Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_AppliesToAppUserGrantPath
-Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_BroadensGrantBeyondDeployment
-Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_CaseInsensitive
-Planscape.Tests.TenantBimManagerRoleOverrideTests.TenantOverride_NarrowsGrantBelowDeployment
-Planscape.Tests.TenantKeywordL2CacheTests.ResolveAsync_HitsL2OnSecondCall
+
+# ── Pre-existing order/parallelism flakes (ROADMAP DEP-7) ─────────────────
+# THE ONLY TWO LINES THIS PASS *ADDED*. Both fail intermittently in the full
+# suite and pass in isolation; neither is caused by the changes in this PR, and
+# both were measured on origin/main to confirm that:
+#
+#   Login_NonexistentUser_Returns401 — full suite on main: FAILS 3/3.
+#     Isolated on main: passes. It is more stable on this branch than on main,
+#     which is why the previous baseline (captured on a luckier run) missed it.
+#   Get_WithConfig_ETagDiffersFromBuiltInOnly — stands up a SECOND
+#     WebApplicationFactory (`new PlanscapeWebApplicationFactory()`), which is
+#     verbatim the DEP-7 hazard: Program.cs reads the process-global
+#     Hangfire.JobStorage.Current during host build.
+#
+# Listed so CI is deterministic rather than randomly red. This is a tolerance,
+# not an endorsement — check-new-failures.sh prints a "now PASS" notice on the
+# runs where they succeed, so the entries stay visible. Delete them when DEP-7
+# is fixed. A shared never-disposed JobStorage was tried here as a mitigation
+# and made things worse (cross-factory state bleed); it was reverted.
+Planscape.Tests.AuditCategoriesConfiguredTests.Get_WithConfig_ETagDiffersFromBuiltInOnly
+Planscape.Tests.AuthControllerTests.Login_NonexistentUser_Returns401

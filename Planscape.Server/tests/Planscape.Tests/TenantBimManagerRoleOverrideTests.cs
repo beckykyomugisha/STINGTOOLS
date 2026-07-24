@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 using Xunit;
@@ -114,7 +116,21 @@ public class TenantBimManagerRoleOverrideTests
         var projectId = Guid.NewGuid();
 
         var services = new ServiceCollection();
-        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        // Registered before AddDbContext so DI selects the 3-arg
+        // PlanscapeDbContext ctor — see StubTenantContext below.
+        services.AddSingleton<IHttpContextAccessor>(new StubHttpContextAccessor());
+        services.AddSingleton<ITenantContext>(new StubTenantContext(tenantId));
+        // The name must be hoisted out of the lambda: AddDbContext invokes the
+        // options action once per context instance, so generating it inline would
+        // hand the handler's own scope a brand-new empty store.
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
+        services.AddSingleton<IPermissionRevocationStore, NullPermissionRevocationStore>();
+        // The real resolver, not a stub: it is the subject under test here —
+        // it is what parses Tenant.BimManagerIso19650RolesJson, so the
+        // malformed-override cases only mean anything against the real parser.
+        services.AddScoped<ITenantBimManagerRoleResolver>(s =>
+            new DbTenantBimManagerRoleResolver(s.GetRequiredService<PlanscapeDbContext>()));
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -141,6 +157,7 @@ public class TenantBimManagerRoleOverrideTests
             {
                 db.ProjectMembers.Add(new ProjectMember
                 {
+                    TenantId = tenantId,
                     UserId = userId,
                     ProjectId = projectId,
                     Iso19650Role = projectMemberRole,
@@ -168,5 +185,22 @@ public class TenantBimManagerRoleOverrideTests
         var ctx = new AuthorizationHandlerContext(
             new[] { new BimManagerOrAdminRequirement() }, user, resource: null);
         return (handler, ctx);
+    }
+
+    /// <summary>PlanscapeDbContext filters every ITenantScoped entity on
+    /// <c>TenantId == CurrentTenantId</c>, which degrades to Guid.Empty when
+    /// no ITenantContext is wired — starving the fixture's rows.</summary>
+    private sealed class StubTenantContext : ITenantContext
+    {
+        public StubTenantContext(Guid tenantId) => TenantId = tenantId;
+        public Guid TenantId { get; }
+        public string TenantSlug => "t";
+        public LicenseTier Tier => LicenseTier.Starter;
+        public bool MimEnabled => false;
+    }
+
+    private sealed class StubHttpContextAccessor : IHttpContextAccessor
+    {
+        public HttpContext? HttpContext { get; set; } = new DefaultHttpContext();
     }
 }

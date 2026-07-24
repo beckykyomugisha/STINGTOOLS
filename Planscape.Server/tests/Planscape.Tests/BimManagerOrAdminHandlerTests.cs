@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 using Xunit;
@@ -82,7 +84,21 @@ public class BimManagerOrAdminHandlerTests
 
         // Per-test isolated in-memory DB.
         var services = new ServiceCollection();
-        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        // Both stubs must be registered before AddDbContext so DI selects the
+        // 3-arg PlanscapeDbContext ctor — see StubTenantContext below.
+        services.AddSingleton<IHttpContextAccessor>(new StubHttpContextAccessor());
+        services.AddSingleton<ITenantContext>(new StubTenantContext(tenantId));
+        // The name must be hoisted out of the lambda: AddDbContext invokes the
+        // options action once per context instance, so generating it inline would
+        // hand the handler's own scope a brand-new empty store.
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
+        // The handler resolves both of these from its own scope. Null store =
+        // "no revocation recorded"; the resolver is the real one so tenant
+        // overrides are parsed exactly as in production.
+        services.AddSingleton<IPermissionRevocationStore, NullPermissionRevocationStore>();
+        services.AddScoped<ITenantBimManagerRoleResolver>(s =>
+            new DbTenantBimManagerRoleResolver(s.GetRequiredService<PlanscapeDbContext>()));
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -95,6 +111,7 @@ public class BimManagerOrAdminHandlerTests
             {
                 db.ProjectMembers.Add(new ProjectMember
                 {
+                    TenantId = tenantId,
                     UserId = userId,
                     ProjectId = projectId,
                     Iso19650Role = "K",
@@ -118,5 +135,26 @@ public class BimManagerOrAdminHandlerTests
         var requirement = new BimManagerOrAdminRequirement();
         var ctx = new AuthorizationHandlerContext(new[] { requirement }, user, resource: null);
         return (handler, ctx);
+    }
+
+    /// <summary>
+    /// PlanscapeDbContext applies a global filter of
+    /// <c>BypassTenantFilter || e.TenantId == CurrentTenantId</c> to every
+    /// ITenantScoped entity, and CurrentTenantId falls back to Guid.Empty
+    /// when no ITenantContext is wired. Without this stub the fixture's own
+    /// rows are filtered out and both DB grant paths are dead.
+    /// </summary>
+    private sealed class StubTenantContext : ITenantContext
+    {
+        public StubTenantContext(Guid tenantId) => TenantId = tenantId;
+        public Guid TenantId { get; }
+        public string TenantSlug => "t";
+        public LicenseTier Tier => LicenseTier.Starter;
+        public bool MimEnabled => false;
+    }
+
+    private sealed class StubHttpContextAccessor : IHttpContextAccessor
+    {
+        public HttpContext? HttpContext { get; set; } = new DefaultHttpContext();
     }
 }

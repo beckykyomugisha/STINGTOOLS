@@ -14715,3 +14715,202 @@ engineering" now have first-shipped implementations:
 - `Data/STING_REFNET_JOINTS.json`
 - `Data/STING_CTF_COEFFICIENTS.json`
 
+
+---
+
+## Server test-health pass — DEP-5 / DEP-6a / DEP-10 / DEP-11
+
+Scope: `Planscape.Server` only. Integration-suite failures **73 → 9**
+(430 passing). `check-new-failures.sh` exits 0; `known-failing-tests.txt`
+shrank from 66 entries to 9, and every remaining entry now carries a diagnosis.
+
+### The headline: five of the "drifted assertions" were real bugs
+
+DEP-10 assumed the 73 failures were stale test expectations. Five were not.
+
+| Bug | Effect in production |
+|---|---|
+| `ProjectVisibility.IsTenantAdmin` read `FindFirst("role")`, which JWT inbound claim mapping had already rewritten to the `ClaimTypes.Role` URI | The claim was always null, so the method was **always false**. Tenant Owners and SecurityOfficers lost their see-everything privilege and fell through to the author-or-member predicate: they saw only projects they personally created and got 404 on deep links to any other project in their own tenant. Root cause of ~28 of the 73 failures |
+| `DocumentsController.GetUserRole()` — same claim bug | Every CDE state transition was evaluated as if the caller were a `Viewer`, so nobody could move a document out of WIP |
+| `/api/auth/refresh` missing `IgnoreQueryFilters()` | `AppUser` is `ITenantScoped` and the endpoint is anonymous, so the global tenant filter ran with `CurrentTenantId == Guid.Empty` and matched zero rows — **every refresh returned 401**. Login, ForgotPassword and ResetPassword all bypass the filter and say why; refresh was missed |
+| `/api/auth/license/activate` missing `IgnoreQueryFilters()` | Same mechanism on `LicenseKey`. Licence activation from the Revit add-in — which calls this before any session exists — **could never succeed for anyone**. Its companion test `ActivateLicense_InvalidKey_ReturnsInvalid` was passing for the wrong reason |
+| `TagSyncController.SyncElements` returned on an empty batch **above** the tenant check | This controller takes `projectId` from the body, so `[ProjectAccess]` does not apply and those three lines are its only isolation. A caller from any tenant got 200 for any `projectId` — an existence oracle, and a live hazard the moment anything is added to the empty-batch path |
+
+Also fixed: `DocumentRecord.Project` ↔ `Project.Documents` is a serialization
+cycle, and several controllers return raw entities, so any successful create
+threw mid-response once EF fixup populated the navigation. Latent only because
+the visibility bug 404'd those endpoints first. `ReferenceHandler.IgnoreCycles`
+is now set on the MVC JSON options.
+
+### Fixture rot (the genuine test drift)
+
+- **Global tenant query filter** starved fixtures written before it landed. Handler
+  unit tests built a `DbContext` with no `ITenantContext`, so `CurrentTenantId`
+  was `Guid.Empty` and every seeded row was filtered out — both DB grant paths in
+  `BimManagerOrAdminHandler` were dead. Fixed with a stub tenant context and
+  `TenantId` on seeded `ProjectMember` rows, *not* by bypassing the filter, which
+  would have made the denial tests pass vacuously.
+- **`AddDbContext` invokes its options lambda per context instance**, so
+  `UseInMemoryDatabase(Guid.NewGuid().ToString())` gave the fixture and the
+  handler's own scope two different empty stores. Hoisted to a local.
+- **`Tenant.Plan` was never seeded** in the test factory, defaulting to `Trial`,
+  which now allows one project — and one was already seeded, so every create
+  402'd. `SeedData.cs:60-63` had hit and documented the identical trap.
+- **The seeded project had no `CreatedById` and no `ProjectMember`**, so it was
+  invisible to everyone under the visibility model.
+- **EF InMemory raises `TransactionIgnoredWarning` as an error**, 500-ing any
+  handler that opens a transaction.
+- Assertions genuinely stale: Trial project cap 3 → 1 and Network 10 →
+  unlimited after the repricing; `register` returns `plan`, not `tier`;
+  `/health` is gated to private-network callers (the liveness probe is
+  `/health/live`); `/meetings/actions/open` returns a paginated envelope.
+
+### DEP-6a — `IReplayGuard`
+
+`Core/Interfaces/IReplayGuard.cs` + `Infrastructure/Services/RedisReplayGuard.cs`,
+faked by `TestReplayGuard`. The implementation deliberately does **not** swallow
+transport exceptions: whether an unreachable store fails open or closed is a
+security decision that belongs at the call site, next to the thing it protects.
+Fail-open semantics are unchanged. Four tests cover replay-blocked,
+distinct-tickets-independent, fail-open-on-throw, and guard-actually-consulted.
+
+### Harness
+
+`check-new-failures.sh` required a space immediately before `[FAIL]`, so the `(`
+of a theory case ended the match and **every failing theory case was invisible to
+CI** — a newly-broken theory would have sailed through. Now matched and collapsed
+to the base method name.
+
+### Known limits, stated honestly
+
+- **3 tests need real PostgreSQL** and cannot pass on the InMemory harness:
+  `EF.Functions.ILike` is Npgsql-only, and `SequenceCounterService` runs
+  `INSERT … ON CONFLICT … RETURNING` via `SqlQueryRaw`. Not bugs; they belong in
+  the real-Postgres suite. **Not run against Postgres in this pass.**
+- **6 tests are confirmed production defects in `DeliverableStateMachine`**
+  (ROADMAP DEP-14) — including `"BLOCKED".Contains("LOCKED")` misclassifying
+  every `BLOCKED*` state as terminal. Not fixed here: each remedy changes how
+  every tenant's custom workflow vocabulary is classified.
+- **~22 further `FindFirst("role")` sites remain unmapped** (ROADMAP DEP-12).
+  Audited as fail-closed, so this degrades function rather than opening access.
+  The central fix touches every claim reader and needs its own security review.
+- **Log output cannot be asserted from an integration test** (ROADMAP DEP-13):
+  Serilog's `Log.Logger` is process-global and concurrent hosts race over it.
+- **Two lines were ADDED to the baseline** (the file still went 66 → 11 net):
+  `Login_NonexistentUser_Returns401` and
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly`. Both are pre-existing
+  order/parallelism flakes, confirmed by running `origin/main` — the Login one
+  fails 3/3 there in the full suite and passes in isolation, so the previous
+  baseline simply captured a luckier run. The ETag one stands up a second
+  `WebApplicationFactory`, which is exactly the DEP-7 hazard. Listing them makes
+  CI deterministic instead of randomly red; the check script still prints a
+  "now PASS" notice on runs where they succeed, so they stay visible.
+  A shared never-disposed `JobStorage` was tried as a DEP-7 mitigation and made
+  the suite *worse* (cross-factory state bleed) — reverted, not shipped.
+
+---
+
+## Follow-up — review of #460 (rate-limiter scope + refresh soft-delete guard)
+
+Two fixes stacked on the test-health pass, from a code review of #460.
+
+### Rate limiter: `refresh` and `license/activate` off the shared `auth` bucket
+
+The test-health pass put `[EnableRateLimiting("auth")]` on both endpoints. The
+`auth` policy is a single 5-req/5-min sliding window keyed by **IP only**
+(`Program.cs`) and shared across *every* auth endpoint (login, forgot/reset,
+handoff, PAT exchange). That is right for login but too tight for these two:
+
+- `refresh` is automatic and periodic. Behind a shared egress IP (corporate
+  NAT / VPN) the combined refresh traffic of a handful of users exhausts the
+  bucket and 429s everyone — including re-login, which draws from the same
+  bucket. Moved to the `api` policy (100/60s, per-user or per-IP). The refresh
+  token is a 128-bit random secret, so a strict brute-force limiter adds little.
+- `license/activate` is a validity oracle, so it keeps a limiter — but on its
+  own dedicated per-IP `license` policy (20/5min), not shared with login. The
+  Revit add-in calls it pre-session, so a multi-engineer office activates from
+  one public IP; 20/5min covers that while staying far too slow to walk a
+  high-entropy keyspace.
+
+### `refresh` soft-delete guard
+
+`RefreshToken` disables **all** global query filters with `IgnoreQueryFilters()`
+but re-stated only `IsActive`. Its two sibling anonymous lookups both exclude
+soft-deleted users (handoff exchange: `&& !u.IsDeleted`; PAT exchange: an
+explicit `user.IsDeleted` guard), and `AppUser`'s global `!IsDeleted` filter is
+itself overwritten by the reflection-applied tenant filter — so nothing else
+excluded a soft-deleted user from token refresh. Added `&& !u.IsDeleted` to the
+predicate.
+
+Built without `dotnet build` verification (no .NET SDK in the sandbox); the
+changes are attribute/predicate-level and mirror existing adjacent patterns.
+
+---
+
+## Follow-up 2 — review of #460 (dead soft-delete filter + handoff-secret test leak)
+
+Two more items from the #460 review, both flagged in #463's notes.
+
+### `AppUser` soft-delete query filter was dead (real, pre-existing bug)
+
+`AppUser` sets a soft-delete global filter (`e.HasQueryFilter(u => !u.IsDeleted)` in
+its entity block) **and** is `ITenantScoped`, so `ApplyTenantQueryFilters` — which
+runs *after* the entity blocks — called `HasQueryFilter` again with the tenant
+predicate. EF Core's `HasQueryFilter` **replaces** rather than combines, so the
+tenant filter silently clobbered the soft-delete one: soft-deleted users stayed
+visible to every normal query, contradicting the entity-block comment and the two
+anonymous lookups (handoff, PAT exchange) that rely on `!IsDeleted`.
+
+Fix: `ApplyTenantQueryFilters` now reads each entity's existing filter via
+`GetQueryFilter()` and `AND`s it with the tenant predicate under one shared
+parameter (a small `ParameterReplacer : ExpressionVisitor` rebinds the existing
+lambda's parameter). General, not an AppUser special-case — any future entity with
+its own filter is preserved too. No behavioural change today (nothing sets
+`AppUser.IsDeleted = true` yet), but the guarantee is now real — and pinned by a
+regression test (`SecurityCriticalPathTests.SoftDeletedUser_ExcludedByGlobalFilter_ButPresentUnderIgnoreQueryFilters`):
+a soft-deleted row is absent from a normal query and present under
+`IgnoreQueryFilters`, with a live row in the same tenant proving the combine did not
+break tenant scoping.
+
+### Handoff-secret test isolation
+
+`AuthController.HandoffExchange` read `PLANSCAPE_HANDOFF_SECRET` via
+`Environment.GetEnvironmentVariable`, which forced two test classes to set a
+**process-global** env var in their constructors — leaking across the parallel
+xunit suite. Now read via `IConfiguration` (env vars remain a config source, so a
+deployed secret still resolves; the direct read stays as a fallback). The factory
+injects a known `HandoffSecret` through `ConfigureAppConfiguration` (reached because
+the secret is read at request time, not host-build), and both `HandoffProvisioning`
+and `HandoffReplayGuard` tests drop their `Environment.SetEnvironmentVariable` calls.
+
+### Not done (deliberately)
+
+- **Baselined flakes** `Login_NonexistentUser_Returns401` /
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly` are downstream of the process-global
+  state in **DEP-7** (Hangfire `JobStorage.Current`) / **DEP-13** (Serilog
+  `Log.Logger`). Those are large infra refactors whose mitigations the test-health
+  pass already measured and reverted; not churned here.
+
+Built **without `dotnet build` verification** (no .NET SDK in the sandbox);
+compile is covered by CI's full-solution build (`contract-drift.yml`). The EF filter
+change is exercised by the whole tenant-isolation suite, which runs in
+`planscape-server.yml` — worth confirming that job runs on this PR.
+
+### Follow-up 2b — test-harness fixes from the #475 build review
+
+Two non-blocking observations from running the build/verify pass:
+
+- **`check-new-failures.sh` completion guard was invocation-fragile.** It required a
+  `^(Passed!|Failed!)` line, which only the VSTest per-project console logger emits;
+  a solution-level `dotnet test Planscape.sln` (or Microsoft.Testing.Platform) prints
+  a different summary, so the gate errored `no test summary` and exited 1 on an
+  otherwise-valid run. The guard now accepts all three summary shapes (`Passed!`/
+  `Failed!`, `Total tests:`, `Test summary:`). Broadening the guard added a
+  false-green risk (a summary whose `[FAIL]` lines we can't parse), so a cross-check
+  now bails if the run's own summary reports failures but none were parsed.
+- **3 Postgres-only `CoreApiTests` were baseline *failures*, not skips.**
+  `Search_ValidQuery_ReturnsResults` (`EF.Functions.ILike`) and `Transmittals_CreateAndList`
+  / `_MarkSent` (`INSERT … ON CONFLICT … RETURNING`) run on the always-InMemory test
+  host regardless of `PLANSCAPE_TEST_PG`, so they can never pass there. Converted to
+  `[Fact(Skip=…)]` (report as Skipped) and removed from `known-failing-tests.txt`, so
+  the baseline shrank to the 6 confirmed `DeliverableStateMachine` defects.

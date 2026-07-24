@@ -259,8 +259,9 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         // Get open actions
         var openResp = await client.GetAsync($"{_projBase}/meetings/actions/open");
         Assert.Equal(HttpStatusCode.OK, openResp.StatusCode);
+        // Paginated envelope { items, total, page, pageSize }, not a bare array.
         var openActions = await openResp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(openActions.GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("items").GetArrayLength() >= 1);
     }
 
     [Fact]
@@ -286,7 +287,11 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Transmittals
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    // Skipped rather than baseline-failing: exercises SequenceCounterService.AllocateAsync,
+    // which runs `INSERT … ON CONFLICT … RETURNING` via SqlQueryRaw (Npgsql-only), so it 500s
+    // on the EF InMemory host regardless of PLANSCAPE_TEST_PG (this host is always InMemory).
+    // Belongs in the real-Postgres suite (cf. PostgresSequenceCounterTests).
+    [Fact(Skip = "Requires PostgreSQL (INSERT … ON CONFLICT … RETURNING); unrunnable on the EF InMemory test host.")]
     public async Task Transmittals_CreateAndList()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
@@ -304,7 +309,10 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
     }
 
-    [Fact]
+    // Skipped rather than baseline-failing: same `INSERT … ON CONFLICT … RETURNING` path as
+    // Transmittals_CreateAndList (Npgsql-only), so it 500s on the EF InMemory host regardless
+    // of PLANSCAPE_TEST_PG. Belongs in the real-Postgres suite.
+    [Fact(Skip = "Requires PostgreSQL (INSERT … ON CONFLICT … RETURNING); unrunnable on the EF InMemory test host.")]
     public async Task Transmittals_MarkSent()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
@@ -404,7 +412,11 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Search
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    // Skipped rather than baseline-failing: the search endpoint uses EF.Functions.ILike,
+    // which is Npgsql-only — on the EF InMemory host it switches to client-evaluation and
+    // throws (500), regardless of PLANSCAPE_TEST_PG (this host is always InMemory). Belongs
+    // in the real-Postgres suite.
+    [Fact(Skip = "Requires PostgreSQL (EF.Functions.ILike); unrunnable on the EF InMemory test host.")]
     public async Task Search_ValidQuery_ReturnsResults()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
@@ -575,8 +587,13 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     [Fact]
     public async Task Members_MemberRole_CannotAdd()
     {
+        // viewer@test.org, not member@test.org: this test is about the ROLE
+        // check rejecting a non-manager, so the caller must first be able to
+        // see the project. A non-member gets 404 from the access filter (which
+        // deliberately does not confirm the project exists) and never reaches
+        // the 403 under test.
         var client = await _factory.CreateAuthenticatedClientAsync(
-            "member@test.org", "Password123!");
+            "viewer@test.org", "Password123!");
         var response = await client.PostAsJsonAsync($"{_projBase}/members", new
         {
             userId = TestData.AdminUserId,

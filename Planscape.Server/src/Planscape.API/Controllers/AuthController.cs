@@ -68,18 +68,21 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IPermissionRevocationStore _revocations;
     private readonly IConnectionMultiplexer _redis;
+    private readonly Planscape.Core.Interfaces.IReplayGuard _replayGuard;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(PlanscapeDbContext db,
                           IConfiguration config,
                           IPermissionRevocationStore revocations,
                           IConnectionMultiplexer redis,
+                          Planscape.Core.Interfaces.IReplayGuard replayGuard,
                           ILogger<AuthController> logger)
     {
         _db = db;
         _config = config;
         _revocations = revocations;
         _redis = redis;
+        _replayGuard = replayGuard;
         _logger = logger;
     }
 
@@ -294,15 +297,37 @@ public class AuthController : ControllerBase
     /// <summary>Exchange a refresh token for a new access token.</summary>
     /// <response code="200">New JWT access token and refresh token.</response>
     /// <response code="401">Invalid or expired refresh token.</response>
+    // Rate-limited on the "api" policy (100/60s, per-user or per-IP), NOT the
+    // strict "auth" bucket. "auth" is a single 5-req/5-min limiter keyed by IP
+    // only and SHARED across every auth endpoint (login, forgot/reset, handoff,
+    // PAT exchange). Refresh is automatic and periodic, so behind a shared egress
+    // IP (corporate NAT / VPN) the combined refresh traffic of a handful of users
+    // would exhaust that bucket and 429 everyone — including re-login, which draws
+    // from the same bucket, producing a lockout cascade. The refresh token is a
+    // 128-bit random secret, so a strict brute-force limiter buys little here;
+    // 100/60s prevents abuse without starving shared IPs.
+    [EnableRateLimiting("api")]
     [HttpPost("refresh")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest req)
     {
         var refreshHash = HashRefreshToken(req.RefreshToken);
+        // IgnoreQueryFilters: AppUser is ITenantScoped and this endpoint is
+        // anonymous, so CurrentTenantId is Guid.Empty and the global tenant
+        // filter matched zero rows — every refresh returned 401. Login,
+        // ForgotPassword and ResetPassword all bypass the filter for exactly
+        // this reason; refresh was missed.
+        //
+        // IgnoreQueryFilters removes ALL global filters, so !IsDeleted must be
+        // re-stated in the predicate — the two sibling anonymous lookups both do
+        // (handoff exchange: `&& !u.IsDeleted`; PAT exchange: an explicit
+        // `user.IsDeleted` guard). Without it a soft-deleted user left IsActive
+        // could mint fresh tokens.
         var user = await _db.Users
+            .IgnoreQueryFilters()
             .Include(u => u.Tenant)
-            .FirstOrDefaultAsync(u => u.RefreshToken == refreshHash && u.IsActive);
+            .FirstOrDefaultAsync(u => u.RefreshToken == refreshHash && u.IsActive && !u.IsDeleted);
 
         if (user == null || user.RefreshTokenExpiresAt < DateTime.UtcNow)
             return Unauthorized(new { message = "Invalid or expired refresh token" });
@@ -805,11 +830,24 @@ public class AuthController : ControllerBase
 
     /// <summary>Activate a licence key to unlock a tier (Professional / Premium / Enterprise).</summary>
     /// <response code="200">Activation result with tier, MIM flag, and server URL.</response>
+    // Unauthenticated, and it answers "is this key valid?" — a brute-force oracle
+    // over the licence keyspace, so it needs a limiter. It uses the dedicated
+    // "license" policy rather than "auth": "auth" is one 5/5min bucket keyed by IP
+    // and shared with login, but the Revit add-in calls this pre-session, so a
+    // multi-engineer office activating from one public IP would collide with each
+    // other and with logins. "license" is its own per-IP bucket, sized for a
+    // legitimate office burst while still far too slow to walk a high-entropy key.
+    [EnableRateLimiting("license")]
     [HttpPost("license/activate")]
     [ProducesResponseType(typeof(LicenseActivationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<LicenseActivationResponse>> ActivateLicense([FromBody] LicenseActivationRequest req)
     {
+        // IgnoreQueryFilters: LicenseKey is ITenantScoped and this endpoint is
+        // anonymous (the Revit add-in calls it before any session exists), so
+        // the global tenant filter ran with CurrentTenantId == Guid.Empty and
+        // excluded every key — activation could never succeed for anyone.
         var key = await _db.LicenseKeys
+            .IgnoreQueryFilters()
             .Include(k => k.Tenant)
             .FirstOrDefaultAsync(k => k.Key == req.LicenseKey && k.IsActive);
 
@@ -957,7 +995,13 @@ public class AuthController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<ActionResult> HandoffExchange([FromBody] HandoffExchangeRequest req)
     {
-        var secret = Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
+        // Read via IConfiguration (environment variables are a config source, so a
+        // deployed PLANSCAPE_HANDOFF_SECRET env var still resolves here). This lets a
+        // WebApplicationFactory inject the secret through config instead of setting a
+        // process-global env var that leaks across parallel test classes. The direct
+        // env-var read is kept as a belt-and-braces fallback.
+        var secret = _config?["PLANSCAPE_HANDOFF_SECRET"]
+                     ?? Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
         if (string.IsNullOrEmpty(secret))
         {
             _logger.LogError("Handoff exchange attempted but PLANSCAPE_HANDOFF_SECRET is unset");
@@ -1004,14 +1048,17 @@ public class AuthController : ControllerBase
         // duplicate session for the same legitimate user inside a 120s window.
         try
         {
-            var redisDb = _redis.GetDatabase();
-            var fresh = await redisDb.StringSetAsync(
-                $"handoff:jti:{p.Jti}", 1, TimeSpan.FromMinutes(5), When.NotExists);
+            var fresh = await _replayGuard.TryClaimAsync(
+                $"handoff:jti:{p.Jti}", TimeSpan.FromMinutes(5));
             if (!fresh)
                 return Unauthorized(new { message = "Ticket already used — go back to planscape.build and try again." });
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
         {
+            // Filter stays transport-specific on purpose. Widening it to `catch
+            // Exception` would silently convert a *logic* bug in the guard into
+            // a fail-open too, which is a different and much worse trade than
+            // the deliberate one documented above.
             _logger.LogWarning(ex, "Redis unavailable during handoff jti check; single-use protection degraded.");
         }
 

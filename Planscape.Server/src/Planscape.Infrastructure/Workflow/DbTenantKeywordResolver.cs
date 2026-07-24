@@ -47,6 +47,14 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
     private static readonly StripedBoundedLruCache<string, IReadOnlyDictionary<string, IReadOnlyCollection<string>>> _cache
         = new(totalCapacity: 256, stripeCount: 8, comparer: StringComparer.Ordinal);
 
+    /// <summary>
+    /// Test-only: evict the process-static L1 so the next resolve starts cold.
+    /// Constructing a new resolver is NOT enough — the cache is static on
+    /// purpose — so a test that wants to exercise the L2 read path has no other
+    /// way to get there.
+    /// </summary>
+    internal static void ClearL1ForTests() => _cache.Clear();
+
     private static readonly IReadOnlyDictionary<string, IReadOnlyCollection<string>> Empty
         = new Dictionary<string, IReadOnlyCollection<string>>();
 

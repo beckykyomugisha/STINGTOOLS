@@ -42,8 +42,11 @@ public class TenantKeywordL2CacheTests
         Assert.Equal(0, l2.HitCount);   // no GetString returned data on first call
         Assert.Equal(1, l2.SetCount);   // wrote through
 
-        // Second call from a fresh resolver instance — simulates a
-        // process boundary. L1 will start cold; L2 should serve.
+        // Second call from a fresh resolver instance — simulates a process
+        // boundary. A new instance alone is NOT a cold start: L1 is static so
+        // it survives, and the second resolve short-circuits there without ever
+        // consulting L2. Evicting L1 is what actually crosses the boundary.
+        DbTenantKeywordResolver.ClearL1ForTests();
         var freshResolver = new DbTenantKeywordResolver(db, l2);
         var second = await freshResolver.ResolveAsync(tenantId);
         Assert.Contains("PARKED", second["working"]);
