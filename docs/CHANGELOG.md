@@ -2,6 +2,39 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 226 — DEP-6a: a real-Redis test for the handoff jti replay guard)
+
+The `/api/auth/handoff/exchange` single-use guard is a Redis
+`SET handoff:jti:{jti} … When.NotExists`: the first redemption wins, a replay of
+the same ticket loses. It had **no automated test** — the integration host
+connects Redis lazily and the guard **fails open** when Redis is absent, so any
+test would pass or fail on whether a docker Redis happened to be running.
+
+- **The test** — `HandoffProvisioningTests.Handoff_SameTicketReplayed_SecondRedemptionIsRejected`
+  mints one ticket and exchanges it twice: first `200`, replay `401 "Ticket
+  already used"`, and asserts the replay provisioned **no** second account. It
+  lives in the existing handoff test class on purpose — same `IClassFixture`,
+  same `PLANSCAPE_HANDOFF_SECRET`, so it cannot race the env var against a
+  parallel test class.
+- **Gating** — a `[SkippableFact]` on `PLANSCAPE_TEST_REDIS`, mirroring
+  `PostgresSequenceCounterTests`' `PLANSCAPE_TEST_PG`: **Skipped**, never falsely
+  Passed, when no Redis is present. It uses the factory's real
+  `IConnectionMultiplexer` (default `localhost:6379`) rather than a fake, so the
+  guard is proven end-to-end through the HTTP endpoint, not in a stub.
+- **CI** — a dedicated `redis-single-use` job in `planscape-server.yml` stands up
+  a `redis:7-alpine` service and runs only this test with the flag set. It is a
+  separate job so the Redis service cannot change the app's Redis connectivity in
+  the `build` job and silently shift the known-failing baseline the full-suite
+  gate diffs against.
+- **Proven to bite** — with `PLANSCAPE_TEST_REDIS=1` but `Redis__Connection`
+  pointed at a dead port, the guard fails open, the replay returns `200`, and the
+  test goes red. With the docker Redis up it passes; with no flag it skips.
+- **Fail-open is deliberate** (DEP-6): availability over integrity, bounded by the
+  120 s ticket TTL. The test comment and ROADMAP DEP-6a/DEP-6 record it so the
+  choice stays a decision, not an accident.
+
+Closes ROADMAP **DEP-6a**.
+
 #### Completed (Phase 225 — SB-5a: IFC watcher wired to pull → reconcile → push)
 
 The multi-host sync engine landed in Phase 207 (corrected 214) and was verified
