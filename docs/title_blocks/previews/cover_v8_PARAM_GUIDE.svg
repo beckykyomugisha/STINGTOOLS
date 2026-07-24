@@ -1,0 +1,336 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="841.0mm" height="594.0mm" viewBox="0 0 841.0 594.0">
+<rect x="0" y="0" width="841.0" height="594.0" fill="#FFFFFF"/>
+<rect x="6.00" y="6.00" width="829.00" height="582.00" fill="none" stroke="#3A3E44" stroke-width="0.8" />
+<rect x="8.00" y="8.00" width="825.00" height="578.00" fill="none" stroke="#3A3E44" stroke-width="0.3" />
+<text x="420.50" y="5.00" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#1565C0" font-weight="bold" text-anchor="middle">LABEL-AUTHORING GUIDE  ·  ${PARAM} = shared parameter to bind  ·  (… manual) = free text</text>
+<rect x="12.00" y="10.00" width="817.00" height="42.00" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="15.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">CONSULTING ENGINEERS  ·  LEAD APPOINTED PARTY</text>
+<text x="15.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_COMPANY_NAME_TXT}</text>
+<line x1="250.00" y1="10.00" x2="250.00" y2="52.00" stroke="#3A3E44" stroke-width="0.5"/>
+<text x="253.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">DOCUMENT No.</text>
+<text x="253.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_FULL_REF_TXT}</text>
+<line x1="470.00" y1="10.00" x2="470.00" y2="52.00" stroke="#3A3E44" stroke-width="0.5"/>
+<text x="473.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">ISSUE DATE</text>
+<text x="473.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_REVISION_DATE_TXT}</text>
+<line x1="560.00" y1="10.00" x2="560.00" y2="52.00" stroke="#3A3E44" stroke-width="0.5"/>
+<text x="563.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">SUIT · REV</text>
+<text x="563.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_DWG_SUITABILITY_COD_TXT}</text>
+<text x="563.00" y="25.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_REVISION_NR_TXT}</text>
+<line x1="678.00" y1="10.00" x2="678.00" y2="52.00" stroke="#3A3E44" stroke-width="0.5"/>
+<text x="681.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">DISCIPLINE</text>
+<text x="681.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DISCIPLINE_TXT}</text>
+<text x="13.00" y="63.00" font-family="Helvetica, Arial, sans-serif" font-size="3.0" fill="#5A5F66" font-weight="bold" text-anchor="start" letter-spacing="0.5">PROJECT</text>
+<line x1="13.00" y1="88.00" x2="440.00" y2="88.00" stroke="#9AA0A6" stroke-width="0.5"/>
+<text x="13.00" y="85.00" font-family="Helvetica, Arial, sans-serif" font-size="6.5" fill="#C6CACF" font-weight="bold" text-anchor="start">PROJECT NAME</text>
+<text x="13.00" y="92.00" font-family="Consolas, 'Courier New', monospace" font-size="2.1" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_ORG_PROJECT_NAME_TXT}</text>
+<text x="13.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">PROJECT No.</text>
+<line x1="13.00" y1="110.60" x2="109.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="13.00" y="112.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_ORG_PROJECT_NUMBER_TXT}</text>
+<text x="124.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CLIENT</text>
+<line x1="124.00" y1="110.60" x2="220.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="124.00" y="112.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_CLIENT_NAME_TXT}</text>
+<text x="236.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">WORK STAGE</text>
+<line x1="236.00" y1="110.60" x2="332.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="236.00" y="112.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_ORG_RIBA_STAGE_TXT}</text>
+<text x="312.00" y="108.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">SITE / ADDRESS</text>
+<line x1="312.00" y1="110.60" x2="408.00" y2="110.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="312.00" y="112.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_ORG_PROJECT_ADDRESS_TXT}</text>
+<line x1="12.00" y1="132.00" x2="450.00" y2="132.00" stroke="#9AA0A6" stroke-width="0.4"/>
+<rect x="456.00" y="58.00" width="373.00" height="209.81" fill="#F4F5F6" stroke="#3A3E44" stroke-width="0.5" />
+<line x1="638.50" y1="162.91" x2="646.50" y2="162.91" stroke="#9AA0A6" stroke-width="0.4"/>
+<line x1="642.50" y1="158.91" x2="642.50" y2="166.91" stroke="#9AA0A6" stroke-width="0.4"/>
+<text x="459.00" y="64.00" font-family="Helvetica, Arial, sans-serif" font-size="3.2" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">IMAGE RENDER</text>
+<text x="826.00" y="64.00" font-family="Helvetica, Arial, sans-serif" font-size="3.0" fill="#E0A800" font-weight="bold" text-anchor="end">16 : 9</text>
+<text x="642.50" y="263.81" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="normal" text-anchor="middle">373 × 210 mm   ·   1920 × 1080 px @ min 150 dpi</text>
+<rect x="12.00" y="138.00" width="285.00" height="118.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="12.00" y="138.00" width="285.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="14.50" y="143.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">DOCUMENT CONTROL</text>
+<rect x="15.00" y="150.00" width="90.33" height="20.00" fill="#EFEFEF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="17.00" y="155.00" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">SUITABILITY</text>
+<text x="17.00" y="160.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_DWG_SUITABILITY_COD_TXT}</text>
+<rect x="108.33" y="150.00" width="90.33" height="20.00" fill="#EFEFEF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="110.33" y="155.00" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">STATUS</text>
+<text x="110.33" y="160.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DELIVERABLE_STATUS_TXT}</text>
+<rect x="201.67" y="150.00" width="90.33" height="20.00" fill="#EFEFEF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="203.67" y="155.00" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">REVISION</text>
+<text x="203.67" y="160.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_REVISION_NR_TXT}</text>
+<text x="16.00" y="179.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">PURPOSE</text>
+<line x1="16.00" y1="181.60" x2="130.00" y2="181.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="16.00" y="183.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_DWG_ISSUE_PURPOSE_TXT}</text>
+<text x="16.00" y="194.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">SECURITY</text>
+<line x1="16.00" y1="196.60" x2="130.00" y2="196.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="16.00" y="198.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_ORG_SECURITY_CLASS_TXT}</text>
+<text x="16.00" y="209.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">DRAWN</text>
+<line x1="16.00" y1="211.60" x2="130.00" y2="211.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="16.00" y="213.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DRAWN_BY_TXT}</text>
+<text x="16.00" y="224.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">DATE</text>
+<line x1="16.00" y1="226.60" x2="130.00" y2="226.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="16.00" y="228.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DATE_DRAWN_TXT}</text>
+<text x="168.75" y="179.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">LOD</text>
+<line x1="168.75" y1="181.60" x2="254.25" y2="181.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="168.75" y="183.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_LOIN_LOD_TXT}</text>
+<text x="168.75" y="194.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">AUTHORISED</text>
+<line x1="168.75" y1="196.60" x2="254.25" y2="196.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="168.75" y="198.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_AUTHORISED_BY_TXT}</text>
+<text x="168.75" y="209.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CHECKED</text>
+<line x1="168.75" y1="211.60" x2="254.25" y2="211.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="168.75" y="213.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_CHECKED_BY_TXT}</text>
+<text x="168.75" y="224.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">APPROVED</text>
+<line x1="168.75" y1="226.60" x2="254.25" y2="226.60" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="168.75" y="228.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_APVD_BY_TXT}</text>
+<text x="283.00" y="229.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="normal" text-anchor="middle">SCAN — VERIFY ISSUE</text>
+<rect x="273.00" y="231.00" width="20.00" height="20.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.4" />
+<rect x="303.00" y="138.00" width="145.00" height="118.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="303.00" y="138.00" width="145.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="305.50" y="143.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">BIM &amp; COORDINATION</text>
+<text x="307.00" y="150.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CDE STATE</text>
+<text x="307.00" y="154.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DELIVERABLE_CDE_TXT}</text>
+<text x="378.40" y="150.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">FEDERATION</text>
+<text x="378.40" y="154.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_FEDERATION_STATUS_TXT}</text>
+<text x="307.00" y="159.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">COORD SYS</text>
+<text x="307.00" y="164.10" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(coord system — manual)</text>
+<text x="378.40" y="159.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">GROUND LVL</text>
+<text x="378.40" y="164.10" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_LEVEL_TXT}</text>
+<text x="307.00" y="169.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">PROJECT N</text>
+<text x="307.00" y="173.60" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(project north — manual)</text>
+<text x="378.40" y="169.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CLASS</text>
+<text x="378.40" y="173.60" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(Uniclass — manual)</text>
+<text x="307.00" y="178.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">REGION</text>
+<text x="307.00" y="183.10" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(region — manual)</text>
+<text x="378.40" y="178.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">VOLUME</text>
+<text x="378.40" y="183.10" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_VOLUME_TXT}</text>
+<line x1="306.00" y1="186.00" x2="445.00" y2="186.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="307.00" y="191.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Naming standard:  BS EN ISO 19650-2 : 2018</text>
+<text x="307.00" y="196.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Units mm  ·  Revit 2025  ·  IFC 4</text>
+<line x1="306.00" y1="199.00" x2="445.00" y2="199.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="307.00" y="204.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">DISCIPLINE COLOUR (hex)</text>
+<text x="310.50" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">A</text>
+<rect x="307.00" y="208.00" width="7.00" height="7.00" fill="#A0A0A0" stroke="#3A3E44" stroke-width="0.3" />
+<text x="310.50" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#A0A0A0</text>
+<text x="327.62" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">S</text>
+<rect x="324.12" y="208.00" width="7.00" height="7.00" fill="#C80000" stroke="#3A3E44" stroke-width="0.3" />
+<text x="327.62" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#C80000</text>
+<text x="344.75" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">M</text>
+<rect x="341.25" y="208.00" width="7.00" height="7.00" fill="#0080FF" stroke="#3A3E44" stroke-width="0.3" />
+<text x="344.75" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#0080FF</text>
+<text x="361.88" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">E</text>
+<rect x="358.38" y="208.00" width="7.00" height="7.00" fill="#FFC800" stroke="#3A3E44" stroke-width="0.3" />
+<text x="361.88" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#FFC800</text>
+<text x="379.00" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">P</text>
+<rect x="375.50" y="208.00" width="7.00" height="7.00" fill="#00B400" stroke="#3A3E44" stroke-width="0.3" />
+<text x="379.00" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#00B400</text>
+<text x="396.12" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">FP</text>
+<rect x="392.62" y="208.00" width="7.00" height="7.00" fill="#FF6400" stroke="#3A3E44" stroke-width="0.3" />
+<text x="396.12" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#FF6400</text>
+<text x="413.25" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">LV</text>
+<rect x="409.75" y="208.00" width="7.00" height="7.00" fill="#A000C8" stroke="#3A3E44" stroke-width="0.3" />
+<text x="413.25" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#A000C8</text>
+<text x="430.38" y="207.20" font-family="Helvetica, Arial, sans-serif" font-size="1.8" fill="#5A5F66" font-weight="normal" text-anchor="middle">—</text>
+<rect x="426.88" y="208.00" width="7.00" height="7.00" fill="#3C3C3C" stroke="#3A3E44" stroke-width="0.3" />
+<text x="430.38" y="218.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#1A1A1A" font-weight="bold" text-anchor="middle">#3C3C3C</text>
+<rect x="12.00" y="264.00" width="246.00" height="200.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="12.00" y="264.00" width="246.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="14.50" y="269.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">REVISION HISTORY</text>
+<text x="255.50" y="269.30" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="bold" text-anchor="end">NATIVE REVISION SCHEDULE</text>
+<text x="15.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">REV</text>
+<text x="15.00" y="280.50" font-family="Helvetica, Arial, sans-serif" font-size="1.55" fill="#1565C0" font-weight="normal" text-anchor="start">Revision Number</text>
+<text x="29.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">DESCRIPTION</text>
+<text x="29.00" y="280.50" font-family="Helvetica, Arial, sans-serif" font-size="1.55" fill="#1565C0" font-weight="normal" text-anchor="start">Revision Description</text>
+<text x="192.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">SUIT</text>
+<text x="192.00" y="280.50" font-family="Helvetica, Arial, sans-serif" font-size="1.55" fill="#1565C0" font-weight="normal" text-anchor="start">Issued to ⇒ rename</text>
+<text x="214.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">DATE</text>
+<text x="214.00" y="280.50" font-family="Helvetica, Arial, sans-serif" font-size="1.55" fill="#1565C0" font-weight="normal" text-anchor="start">Revision Date</text>
+<text x="243.00" y="277.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">BY</text>
+<text x="243.00" y="280.50" font-family="Helvetica, Arial, sans-serif" font-size="1.55" fill="#1565C0" font-weight="normal" text-anchor="start">Issued by</text>
+<line x1="14.00" y1="282.00" x2="256.00" y2="282.00" stroke="#3A3E44" stroke-width="0.4"/>
+<line x1="27.00" y1="272.00" x2="27.00" y2="461.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="190.00" y1="272.00" x2="190.00" y2="461.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="212.00" y1="272.00" x2="212.00" y2="461.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="241.00" y1="272.00" x2="241.00" y2="461.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="285.00" x2="256.00" y2="285.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="297.57" x2="256.00" y2="297.57" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="310.14" x2="256.00" y2="310.14" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="322.71" x2="256.00" y2="322.71" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="335.29" x2="256.00" y2="335.29" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="347.86" x2="256.00" y2="347.86" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="360.43" x2="256.00" y2="360.43" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="373.00" x2="256.00" y2="373.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="385.57" x2="256.00" y2="385.57" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="398.14" x2="256.00" y2="398.14" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="410.71" x2="256.00" y2="410.71" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="423.29" x2="256.00" y2="423.29" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="435.86" x2="256.00" y2="435.86" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="448.43" x2="256.00" y2="448.43" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="14.00" y1="461.00" x2="256.00" y2="461.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<rect x="264.00" y="264.00" width="186.00" height="80.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="264.00" y="264.00" width="186.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="266.50" y="269.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">WHAT CHANGED IN THIS ISSUE</text>
+<text x="267.00" y="277.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_REVISION_DESCRIPTION_TXT}</text>
+<rect x="264.00" y="350.00" width="186.00" height="114.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="264.00" y="350.00" width="186.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="266.50" y="355.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">STANDARDS &amp; REFERENCES</text>
+<text x="447.50" y="355.30" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="bold" text-anchor="end">static legend</text>
+<text x="267.00" y="363.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">REF / STANDARD</text>
+<text x="359.00" y="363.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">SCOPE</text>
+<text x="420.00" y="363.00" font-family="Helvetica, Arial, sans-serif" font-size="2.3" fill="#5A5F66" font-weight="bold" text-anchor="start">USED IN</text>
+<line x1="266.00" y1="365.00" x2="448.00" y2="365.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="267.00" y="373.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN ISO 19650-2</text>
+<text x="359.00" y="373.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Info mgmt</text>
+<text x="420.00" y="373.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">All</text>
+<text x="267.00" y="384.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN ISO 19650-5</text>
+<text x="359.00" y="384.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Security</text>
+<text x="420.00" y="384.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">All</text>
+<text x="267.00" y="395.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">Uniclass 2015</text>
+<text x="359.00" y="395.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Classification</text>
+<text x="420.00" y="395.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">All</text>
+<text x="267.00" y="406.60" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS 7671:2018+A2</text>
+<text x="359.00" y="406.60" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Wiring regs</text>
+<text x="420.00" y="406.60" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Power</text>
+<text x="267.00" y="417.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN 62305 §4.3</text>
+<text x="359.00" y="417.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Lightning</text>
+<text x="420.00" y="417.80" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-4001</text>
+<text x="267.00" y="429.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS 5839-1 §14</text>
+<text x="359.00" y="429.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Fire detect</text>
+<text x="420.00" y="429.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-5001</text>
+<text x="267.00" y="440.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">BS EN 12464-1</text>
+<text x="359.00" y="440.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Lighting</text>
+<text x="420.00" y="440.20" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-1101</text>
+<text x="267.00" y="451.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="normal" text-anchor="start">CIBSE Guide K</text>
+<text x="359.00" y="451.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Electricity</text>
+<text x="420.00" y="451.40" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">E-2001</text>
+<rect x="456.00" y="278.00" width="373.00" height="258.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="456.00" y="278.00" width="373.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="458.50" y="283.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">DRAWING REGISTER</text>
+<text x="826.50" y="283.30" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="bold" text-anchor="end">LIVE</text>
+<text x="642.50" y="284.00" font-family="Helvetica, Arial, sans-serif" font-size="2.0" fill="#1565C0" font-weight="normal" text-anchor="middle">Revit schedule placed at print — ExportSheetRegister</text>
+<text x="460.00" y="292.00" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="bold" text-anchor="start">SHEET No.</text>
+<text x="526.00" y="292.00" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="bold" text-anchor="start">TITLE</text>
+<text x="815.00" y="292.00" font-family="Helvetica, Arial, sans-serif" font-size="2.6" fill="#5A5F66" font-weight="bold" text-anchor="start">REV</text>
+<line x1="459.00" y1="294.00" x2="826.00" y2="294.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="459.00" y1="304.00" x2="826.00" y2="304.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="314.60" x2="826.00" y2="314.60" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="325.20" x2="826.00" y2="325.20" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="335.80" x2="826.00" y2="335.80" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="346.40" x2="826.00" y2="346.40" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="357.00" x2="826.00" y2="357.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="367.60" x2="826.00" y2="367.60" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="378.20" x2="826.00" y2="378.20" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="388.80" x2="826.00" y2="388.80" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="399.40" x2="826.00" y2="399.40" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="410.00" x2="826.00" y2="410.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="420.60" x2="826.00" y2="420.60" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="431.20" x2="826.00" y2="431.20" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="441.80" x2="826.00" y2="441.80" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="452.40" x2="826.00" y2="452.40" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="463.00" x2="826.00" y2="463.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="473.60" x2="826.00" y2="473.60" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="484.20" x2="826.00" y2="484.20" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="494.80" x2="826.00" y2="494.80" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="505.40" x2="826.00" y2="505.40" stroke="#E4E6E9" stroke-width="0.25"/>
+<line x1="459.00" y1="516.00" x2="826.00" y2="516.00" stroke="#E4E6E9" stroke-width="0.25"/>
+<rect x="12.00" y="470.00" width="440.00" height="68.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="12.00" y="470.00" width="440.00" height="7.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="14.50" y="475.30" font-family="Helvetica, Arial, sans-serif" font-size="3.5" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">PROJECT DIRECTORY — STAKEHOLDERS &amp; CONSULTANTS</text>
+<rect x="15.00" y="481.00" width="70.25" height="53.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="16.60" y="486.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">CLIENT</text>
+<line x1="16.60" y1="488.00" x2="83.65" y2="488.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="16.60" y="492.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_CLIENT_NAME_TXT}</text>
+<text x="16.60" y="497.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="16.60" y1="499.00" x2="83.65" y2="499.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="16.60" y="505.50" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="16.60" y1="507.50" x2="83.65" y2="507.50" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="16.60" y="514.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="16.60" y1="516.00" x2="83.65" y2="516.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="87.75" y="481.00" width="70.25" height="53.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="89.35" y="486.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">ARCHITECT / LEAD</text>
+<line x1="89.35" y1="488.00" x2="156.40" y2="488.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="89.35" y="492.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_COMPANY_NAME_TXT}</text>
+<text x="89.35" y="497.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="89.35" y1="499.00" x2="156.40" y2="499.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="89.35" y="505.50" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="89.35" y1="507.50" x2="156.40" y2="507.50" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="89.35" y="514.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="89.35" y1="516.00" x2="156.40" y2="516.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="160.50" y="481.00" width="70.25" height="53.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="162.10" y="486.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">STRUCTURAL</text>
+<line x1="162.10" y1="488.00" x2="229.15" y2="488.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="162.10" y="492.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT}</text>
+<text x="162.10" y="497.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="162.10" y1="499.00" x2="229.15" y2="499.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="162.10" y="505.50" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="162.10" y1="507.50" x2="229.15" y2="507.50" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="162.10" y="514.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="162.10" y1="516.00" x2="229.15" y2="516.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="233.25" y="481.00" width="70.25" height="53.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="234.85" y="486.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">MEP ENGINEER</text>
+<line x1="234.85" y1="488.00" x2="301.90" y2="488.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="234.85" y="492.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_MEP_CONSULTANTS_NAME_TXT}</text>
+<text x="234.85" y="497.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="234.85" y1="499.00" x2="301.90" y2="499.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="234.85" y="505.50" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="234.85" y1="507.50" x2="301.90" y2="507.50" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="234.85" y="514.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="234.85" y1="516.00" x2="301.90" y2="516.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="306.00" y="481.00" width="70.25" height="53.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="307.60" y="486.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">CONTRACTOR</text>
+<line x1="307.60" y1="488.00" x2="374.65" y2="488.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="307.60" y="492.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_CONTRACTOR_NAME_TXT}</text>
+<text x="307.60" y="497.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="307.60" y1="499.00" x2="374.65" y2="499.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="307.60" y="505.50" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="307.60" y1="507.50" x2="374.65" y2="507.50" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="307.60" y="514.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="307.60" y1="516.00" x2="374.65" y2="516.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="378.75" y="481.00" width="70.25" height="53.00" fill="#DADCDF" stroke="#9AA0A6" stroke-width="0.4" />
+<text x="380.35" y="486.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.1">INFO MANAGER</text>
+<line x1="380.35" y1="488.00" x2="447.40" y2="488.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<text x="380.35" y="492.00" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(info manager — manual)</text>
+<text x="380.35" y="497.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Company</text>
+<line x1="380.35" y1="499.00" x2="447.40" y2="499.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="380.35" y="505.50" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Contact</text>
+<line x1="380.35" y1="507.50" x2="447.40" y2="507.50" stroke="#C9CCD0" stroke-width="0.25"/>
+<text x="380.35" y="514.00" font-family="Helvetica, Arial, sans-serif" font-size="1.9" fill="#5A5F66" font-weight="normal" text-anchor="start">Tel · Email</text>
+<line x1="380.35" y1="516.00" x2="447.40" y2="516.00" stroke="#C9CCD0" stroke-width="0.25"/>
+<rect x="12.00" y="546.00" width="817.00" height="28.00" fill="#FFFFFF" stroke="#3A3E44" stroke-width="0.5" />
+<rect x="12.00" y="546.00" width="817.00" height="6.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
+<text x="14.50" y="550.90" font-family="Helvetica, Arial, sans-serif" font-size="2.8" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">DELIVERABLE / ISSUE RIBBON</text>
+<text x="14.00" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">FULL REF</text>
+<text x="14.00" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_FULL_REF_TXT}</text>
+<line x1="14.00" y1="568.00" x2="91.70" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="93.70" y1="553.00" x2="93.70" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="95.70" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">DELIVERABLE STATUS</text>
+<text x="95.70" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DELIVERABLE_STATUS_TXT}</text>
+<line x1="95.70" y1="568.00" x2="173.40" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="175.40" y1="553.00" x2="175.40" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="177.40" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">CDE STATE</text>
+<text x="177.40" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DELIVERABLE_CDE_TXT}</text>
+<line x1="177.40" y1="568.00" x2="255.10" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="257.10" y1="553.00" x2="257.10" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="259.10" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">DATA DROP</text>
+<text x="259.10" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DELIVERABLE_DATADROP_TXT}</text>
+<line x1="259.10" y1="568.00" x2="336.80" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="338.80" y1="553.00" x2="338.80" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="340.80" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">LAST TRANSMITTAL</text>
+<text x="340.80" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_LAST_TRANSMITTAL_TXT}</text>
+<line x1="340.80" y1="568.00" x2="418.50" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="420.50" y1="553.00" x2="420.50" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="422.50" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">AUTHORISED BY</text>
+<text x="422.50" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_AUTHORISED_BY_TXT}</text>
+<line x1="422.50" y1="568.00" x2="500.20" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="502.20" y1="553.00" x2="502.20" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="504.20" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">AUTH DATE</text>
+<text x="504.20" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_AUTHORISED_DATE_TXT}</text>
+<line x1="504.20" y1="568.00" x2="581.90" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="583.90" y1="553.00" x2="583.90" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="585.90" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">SHEET x OF y</text>
+<text x="585.90" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_OF_TOTAL_TXT}</text>
+<line x1="585.90" y1="568.00" x2="663.60" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="665.60" y1="553.00" x2="665.60" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="667.60" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">PAPER · SCALE</text>
+<text x="667.60" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_PAPER_SZ_TXT}</text>
+<line x1="667.60" y1="568.00" x2="745.30" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+<line x1="747.30" y1="553.00" x2="747.30" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
+<text x="749.30" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">NOTES / LEGEND</text>
+<text x="749.30" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_NOTES_LEGEND_REF_TXT}</text>
+<line x1="749.30" y1="568.00" x2="827.00" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
+</svg>

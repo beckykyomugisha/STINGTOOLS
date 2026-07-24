@@ -3777,6 +3777,25 @@ namespace StingTools.UI
                 ToolTip = "Approver name written to the revision's 'Issued by' field — shown in the title-block revision schedule's APPR./ISSUED BY column. Defaults to your Windows user name." };
             issuedByBox.Text = Environment.UserName;
 
+            // Feeds Revision.IssuedTo — STING repurposes that native field as the
+            // SUIT column of the title-block revision schedule (Revit's Revision
+            // object has no suitability field). "— default" leaves it to
+            // CreateRevisionCommand, which inherits the drawing's current
+            // suitability so the column is never blank.
+            var suitDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0),
+                MinWidth = 170,
+                ToolTip = "ISO 19650 suitability stamped into the revision's SUIT column ('Issued to' field). '— default' inherits the drawing's current suitability (PRJ_DWG_SUITABILITY_COD_TXT)." };
+            foreach (var pair in new[] {
+                ("— default", ""), ("S0 — WIP", "S0"), ("S1 — Coordination", "S1"),
+                ("S2 — Information", "S2"), ("S3 — Review & comment", "S3"),
+                ("S4 — Stage approval", "S4"), ("S6 — PIM authorised", "S6"),
+                ("S7 — AIM authorised", "S7"), ("A1 — Approved", "A1"),
+                ("B1 — Partial sign-off", "B1") })
+            {
+                suitDropdown.Items.Add(new ComboBoxItem { Content = pair.Item1, Tag = pair.Item2 });
+            }
+            suitDropdown.SelectedIndex = 0;
+
             var createBtn = new Button
             {
                 Content = "Create Revision", Height = 28, Padding = new Thickness(14,0,14,0),
@@ -3815,7 +3834,8 @@ namespace StingTools.UI
                 string selDesc = descBox.Text?.Trim()?.Replace("|", "/");
                 if (string.IsNullOrEmpty(selDesc)) selDesc = "Revision";
                 string selIssuedBy = issuedByBox.Text?.Trim()?.Replace("|", "/") ?? "";
-                DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}|{selIssuedBy}");
+                string selSuit = (suitDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}|{selIssuedBy}|{selSuit}");
             };
 
             // Phase 104: "Delete code" removes the currently-selected ISO revision code
@@ -3877,6 +3897,8 @@ namespace StingTools.UI
             formRow.Children.Add(descBox);
             formRow.Children.Add(new TextBlock { Text = "Issued by: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
             formRow.Children.Add(issuedByBox);
+            formRow.Children.Add(new TextBlock { Text = "Suitability: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
+            formRow.Children.Add(suitDropdown);
             formRow.Children.Add(createBtn);
             createFormBorder.Child = formRow;
             stack.Children.Add(createFormBorder);

@@ -2,6 +2,73 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
+
+The cover title-block family's revision history is a **native Revit Revision
+Schedule**, which is hard-locked to six built-in fields (Sequence / Number /
+Date / Description / Issued to / Issued by) — there is no way to add a
+"Suitability" column, and Revit's `Revision` object has no suitability field.
+STING already *captured* a suitability at issue time but only **logged** it. This
+change adopts the standard workaround — repurpose the native **Issued to** field
+as the ISO 19650 **SUIT** column (the user renames that schedule column heading
+to `SUIT`) — and wires STING to populate it automatically.
+
+- **`RevisionManagementCommands.cs`** — every revision-creation path now stamps
+  `Revision.IssuedTo`: `CreateRevisionCommand` (optional 6th pipe field, else
+  inherits the drawing's `PRJ_DWG_SUITABILITY_COD_TXT`), `IssueSheetsForRevisionCommand`
+  (its form suitability `parts[3]`, previously log-only), the auto-revision-on-tag-change
+  path (inherits the drawing suitability), and the approval / review-revision paths
+  (approval inherits; a review revision defaults to `S3`). All stamps precede
+  `Issued = true` (Revit locks revision props once issued). `IssuedBy` (the BY
+  column) is untouched.
+- **`BIMCoordinationCenter.cs`** — the BCC *Create Revision* form gains a
+  Suitability dropdown (S0–S7 / A1 / B1 + "— default"); its value rides the
+  existing pipe dispatch as the new 6th field.
+- **`TitleBlockRevisionSyncer.cs`** — on sync, the latest revision's `IssuedTo`
+  is mirrored into `PRJ_DWG_SUITABILITY_COD_TXT` on the sheet and every
+  title-block instance, **only** when it is a recognised ISO 19650 code
+  (`TitleBlockEngine.ValidSuitabilityCodes`), so an arbitrary "issued to" string
+  can never clobber a DrawingType-set suitability, and it is never cleared. Keeps
+  the DOCUMENT CONTROL suitability chip in step with the current issue.
+- No new shared parameter; reuses `PRJ_DWG_SUITABILITY_COD_TXT`, so it works with
+  the existing family with no regeneration. No `dotnet build` run (Linux sandbox);
+  verify in Revit.
+- **`STING_TITLE_BLOCKS.json`** propagates the landscape cover to two more sizes —
+  **`STING_TB_COVER_A0_v1.0`** (1189 × 841 mm) and **`STING_TB_COVER_A3_v1.0`**
+  (420 × 297 mm) — both landscape mirrors of `STING_TB_COVER_A1_v1.0` with geometry
+  scaled from A1, extending the same `A1_common_v2.0` param base. `TitleBlock_CreateAll`
+  now mints A0 / A1 / A3 covers with identical identity labels / captions / dark-blue
+  banner + amber strip. Provide seeds at `Families/TitleBlocks/_seeds/STING_TB_COVER_{A0,A3}_v1.0.rfa`
+  to carry the full authored layout. Previews:
+  `docs/title_blocks/previews/STING_TB_COVER_{A0,A3}_v1.0.svg/.png`.
+- **`TitleBlockFactory.cs`** extends master-seed propagation to **cover families**.
+  `ResolveMasterSeedId` and `TryGetIsoPaper` previously matched only working-sheet
+  ids (`STING_TB_{A0|A1|A3}[_PORT]_{BIM|NONBIM}_v…`); they now also recognise
+  `STING_TB_COVER_{A0|A1|A2|A3}_v…` (landscape) and map A0/A2/A3 covers to the single
+  `STING_TB_COVER_A1_v1.0` master. Result: authoring **one** A1 cover seed and
+  running `TitleBlock_CreateAll` fans the entire cover design out to A0 / A2 / A3 via
+  the same whole-sheet affine remap used for working sheets — border, banner,
+  strips and label positions scale by paper ratio, text heights stay at ISO 3098
+  drafting tiers (unchanged on A0, one tier down on A3). No per-size authoring.
+  `PropagateFromMasterSeed` now copies the **whole** seed design — not just
+  text/lines/filled-regions but also **nested families (logo / QR / symbols),
+  detail components, imports and placed images** (reposition by paper ratio, no
+  scale). Previously those were dropped, which made propagated families look
+  unrelated to a rich hand-authored seed.
+- **`STING_TITLE_BLOCKS.json`** gains the whole **A2** size (594 × 420 landscape /
+  420 × 594 portrait), previously absent: `A2_LAND_common_v2.0`, `A2_PORT_common_v2.0`,
+  the four `STING_TB_A2_{BIM,NONBIM}[_PORT]_v2.0` working sheets, and
+  `STING_TB_COVER_A2_v1.0` — all scaled from the A3 equivalents (A2 = √2 × A3) so
+  they share the same format. `TitleBlock_CreateAll` now propagates to A0 / A1 / A2 / A3
+  (A4 deliberately excluded per project convention). The `TitleBlockFactory` A2 regex
+  + dimension entries let the master-seed remap target A2 too.
+- **`docs/title_blocks/cover_v8_spec.py`** gains a `--params` mode that renders a
+  **label-authoring guide** (`cover_v8_PARAM_GUIDE.svg/.png`): every cell shows the
+  real STING shared parameter it should bind to (harvested from
+  `STING_TITLE_BLOCKS.json`), free-text cells are flagged `(… — manual)`, a bottom
+  **deliverable/issue ribbon** is added (full ref, deliverable status, CDE, data
+  drop, last transmittal, authoriser, sheet x/y, paper·scale, notes ref), and the
+  discipline swatches show their **hex codes** from the definitive registry.
 #### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
 
 A live verification of SB-5a surfaced a real defect in the shared reconcile

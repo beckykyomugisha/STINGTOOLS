@@ -8,11 +8,16 @@
 // For every non-placeholder sheet it reads the newest Revision by
 // SequenceNumber and writes:
 //   - on the ViewSheet:            SHT_REV_TXT, SHT_REV_DATE_TXT
+//                                  (+ PRJ_DWG_SUITABILITY_COD_TXT when the
+//                                   revision carries a valid ISO 19650 SUIT)
 //   - on each title-block instance: PRJ_TB_REVISION_NR_TXT,
 //                                   PRJ_TB_REVISION_DATE_TXT,
 //                                   PRJ_TB_REVISION_DESCRIPTION_TXT
-// Those three TB params are the ones STING_TITLE_BLOCKS.json actually
-// binds labels to, so the writes are visible on the drawing.
+//                                   (+ PRJ_DWG_SUITABILITY_COD_TXT, same guard)
+// Those TB params are the ones STING_TITLE_BLOCKS.json actually binds
+// labels to, so the writes are visible on the drawing. The suitability
+// mirror comes from Revision.IssuedTo — the native field STING repurposes
+// as the SUIT column of the revision schedule (see RevisionManagement).
 //
 // The value written is Revision.RevisionNumber (e.g. "P01"), NEVER the
 // internal SequenceNumber (1, 2, 3...). A "R{SequenceNumber}" fallback
@@ -71,6 +76,15 @@ namespace StingTools.Core.Drawing
         private const string TbRevNrParam   = "PRJ_TB_REVISION_NR_TXT";
         private const string TbRevDateParam = "PRJ_TB_REVISION_DATE_TXT";
         private const string TbRevDescParam = "PRJ_TB_REVISION_DESCRIPTION_TXT";
+
+        // Drawing suitability (ISO 19650). STING repurposes Revision.IssuedTo as
+        // the SUIT column of the native revision schedule; the latest issue's
+        // suitability is mirrored here so the DOCUMENT CONTROL suitability chip
+        // (and any suitability schedule) stays in step with the current issue.
+        // Only written when IssuedTo is a recognised ISO 19650 suitability code,
+        // so an arbitrary "issued to" string can never clobber a DrawingType-set
+        // value.
+        private const string DwgSuitabilityParam = "PRJ_DWG_SUITABILITY_COD_TXT";
 
         /// <summary>
         /// Syncs revision data for every non-placeholder sheet in the document.
@@ -153,7 +167,7 @@ namespace StingTools.Core.Drawing
             try { revIds = sheet.GetAllRevisionIds(); }
             catch { revIds = null; }
 
-            string revNr = "", revDate = "", revDesc = "";
+            string revNr = "", revDate = "", revDesc = "", revSuit = "";
 
             if (revIds != null && revIds.Count > 0)
             {
@@ -170,13 +184,21 @@ namespace StingTools.Core.Drawing
                     revNr   = ResolveRevisionNumber(latest);
                     revDate = latest.RevisionDate ?? "";
                     revDesc = latest.Description  ?? "";
+                    try { revSuit = latest.IssuedTo ?? ""; } catch { revSuit = ""; }
                 }
             }
+
+            // Only mirror the suitability when the repurposed IssuedTo field holds
+            // a recognised ISO 19650 code — otherwise leave the existing
+            // (DrawingType-set) suitability untouched. Never cleared here.
+            bool suitValid = !string.IsNullOrWhiteSpace(revSuit) &&
+                             StingTools.Docs.TitleBlockEngine.ValidSuitabilityCodes.Contains(revSuit);
 
             // Sheet-level params. When there are no revisions these are written
             // as empty, clearing stale values from a prior revision.
             if (WriteIfChanged(sheet, SheetRevParam,     revNr))   result.ParamsWritten++;
             if (WriteIfChanged(sheet, SheetRevDateParam, revDate)) result.ParamsWritten++;
+            if (suitValid && WriteIfChanged(sheet, DwgSuitabilityParam, revSuit)) result.ParamsWritten++;
 
             // Revision box on every title-block instance on this sheet.
             foreach (var tb in CollectTitleBlocks(doc, sheet))
@@ -198,6 +220,11 @@ namespace StingTools.Core.Drawing
                 if (WriteParamIfExists(tb, TbRevNrParam,   revNr))   result.ParamsWritten++;
                 if (WriteParamIfExists(tb, TbRevDateParam, revDate)) result.ParamsWritten++;
                 if (WriteParamIfExists(tb, TbRevDescParam, revDesc)) result.ParamsWritten++;
+
+                // Suitability chip on the title block (DOCUMENT CONTROL box) —
+                // kept in step with the current issue's SUIT value. Guarded so a
+                // non-suitability "issued to" string never overwrites it.
+                if (suitValid && WriteParamIfExists(tb, DwgSuitabilityParam, revSuit)) result.ParamsWritten++;
 
                 // T-12: PRJ_TB_ISSUE_SUMMARY_TXT is NOT a revision field. The
                 // registry defines it as "Short free-text summary of the issue
