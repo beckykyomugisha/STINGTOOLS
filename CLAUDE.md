@@ -8,7 +8,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **1,204+ source files** (1,204 C# + 14 XAML, ~572,000 lines of code) across 38+ command directories
+- **~1,440 C# source files · ~656k lines** in the plugin (`StingTools/`) + 14 XAML, across 38+ command directories — *rounded; see the [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) for exact, dated, reproducible metrics*
 - **1,580+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 4 `IDockablePaneProvider`s + 4+ `IUpdater`s
 - **100+ runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes template engine v1.1 pack (16 templates + 5 workflow definitions), HVAC/climate/RTS/acoustic data, CSI/MasterFormat maps, CTF coefficients, IDU catalogues, Cx task library, and more
 - **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (8 tabs) + ribbon retained for legacy compat
@@ -22,11 +22,206 @@ The codebase is currently at **Phase 194**. Per-phase history (Phase 179 onward)
 
 | File | Purpose | When to edit |
 |---|---|---|
-| `CLAUDE.md` (this file, **1 file · ~4,875 lines**) | **Stable reference** — architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
+| `CLAUDE.md` (this file — **stable reference + a dated [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) snapshot**) | Architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
 | `docs/CHANGELOG.md` | **Phase-by-phase history** — every `Completed (Phase X)` block in chronological order | When a new phase of work lands; append a new `#### Completed (Phase N — …)` section |
 | `docs/ROADMAP.md` | **Open gaps & future work** — automation-gap tables, future-enhancement lists, deep-review findings | When new gaps are identified or an item is closed (move it to `CHANGELOG.md`) |
 
 When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than extending this file. When you identify a new gap, add it to `docs/ROADMAP.md` — that keeps this file focused on what the code **is** rather than what it has been or might become.
+
+---
+
+## Codebase Review — General Assessment, Gaps & Recommendations
+
+> **This is a dated, reproducible snapshot — not a static fact sheet.** Numbers rot; qualitative
+> findings age slowly. **Trust the date, and re-measure before acting.** The living backlog lives in
+> [`docs/ROADMAP.md`](docs/ROADMAP.md); this section is the point-in-time assessment that feeds it.
+>
+> **Last measured: 2026-07-24, on `main` @ commit `3f4b72de1` (PR #479).**
+>
+> <details><summary><b>Method — copy/paste to refresh every number below</b></summary>
+>
+> ```bash
+> # plugin size
+> find StingTools -name '*.cs' | wc -l                                            # cs files
+> find StingTools -name '*.cs' -exec cat {} + | wc -l                             # lines
+> # tech-debt markers
+> grep -rIn --include='*.cs' -E 'catch\s*(\([^)]*\))?\s*\{\s*\}' StingTools | wc -l   # empty catches
+> grep -rIn --include='*.cs' 'TaskDialog' StingTools | wc -l                      # UI coupling
+> grep -rIn --include='*.cs' -iE 'stub|not implemented|placeholder|for now|temporarily' StingTools | wc -l
+> grep -rIn --include='*.cs' -E '//\s*(TODO|FIXME|HACK|XXX)\b' StingTools | wc -l
+> # god-files (exclude obj/ generated .g.cs)
+> find StingTools -name '*.cs' -not -path '*/obj/*' -exec wc -l {} + | sort -rn | head -10
+> # tests + whether any exercises the plugin assembly
+> grep -rIn --include='*.cs' -E '\[(Fact|Theory|Test)\]' *.Tests | wc -l
+> grep -rIl --include='*.csproj' 'StingTools/StingTools' *.Tests || echo "NONE cover the plugin"
+> # build (Windows + Revit + .NET SDK)
+> dotnet build StingTools/StingTools.csproj -c Debug -clp:Summary
+> ```
+> </details>
+
+### Verdict
+
+A remarkably broad, genuinely functional AEC/BIM platform that **compiles clean (0 errors / 0
+warnings)** and has real, runtime-verified end-to-end paths (see
+[`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md) — 3-host IFC resolve, issues/BCF lifecycle, live
+plugin↔server connect were *run*, not just written). The dominant risks are **not
+correctness-in-the-small** but **scale management**: a ~656k-line plugin monolith with almost no
+automated coverage of its own surface, several 6k–12k-line god-files, and headline documentation that
+has drifted from the code. Treat it as a mature product carrying **structural tech debt**, not a
+prototype.
+
+### Snapshot (2026-07-24 @ `3f4b72de1`)
+
+| Metric | Value |
+|---|---|
+| Plugin (`StingTools/`) | **1,443 C# files · 655,982 lines**; ~496 files declare `IExternalCommand` (≈1,580 command classes) |
+| Server (`Planscape.Server/`) | 583 C# files · 119,867 lines |
+| Workspace | 23 `.csproj`, 9 test projects, **140 markdown docs** (23 root + 117 `docs/`) |
+| Build | `dotnet build` → **0 errors, 0 warnings** (Windows + Revit 2025 + .NET 8 SDK) |
+| Tests | **774 test methods; 0 exercise `StingTools.csproj`** |
+| Empty `catch` blocks | 683 · `TaskDialog` sites 7,650 · `StingLog` sites 9,530 |
+| Stub/placeholder markers | 646 · `NotImplementedException` 10 · `TODO/FIXME/HACK` 51 |
+| EF migrations | 83 (present & applied — see §9) |
+
+### 1. Build & compile health
+
+- **Build is GREEN — 0 errors, 0 warnings** on a Windows box with Revit 2025 + the .NET 8 SDK.
+- **The plugin does not build in isolation.** It `ProjectReference`s `Planscape.Shared`,
+  `Planscape.PluginSync`, and `StingTools.Standards` (`.csproj` lines 123–127), so the Revit plugin
+  build-depends on the *server* solution's shared libraries. There is also a **cross-project compile
+  hack**: `BIMManager/BcfEngine.cs` is `<Compile Remove>`d and compiled *into* `Planscape.Shared` to
+  dodge a duplicate-type collision. Fragile — moving either project breaks it silently.
+- **Nullable reference types are disabled project-wide** (`<Nullable>disable</Nullable>`), and six
+  warning codes are **suppressed rather than fixed** via `NoWarn` (`CS0414;CS0649;CS0472;CS8600;
+  CS8602;CS8625` — self-described in the `.csproj` as "merge-leftover noise"). The clean baseline is
+  therefore partly achieved by suppression, not by the compiler being fully satisfied.
+- **CI exists** (11 GitHub Actions workflows: `stingtools-plugin.yml`, `planscape-server.yml`,
+  `contract-drift.yml`, `multi-host-core.yml`, …) — worth referencing from the build docs.
+- **Stale caveats.** Many sections below carry *"committed without `dotnet build` verification (Linux
+  sandbox)"*, and the Healthcare section says *"EF migration not run yet."* **Both are historical**:
+  this machine builds 0/0 and 83 EF migrations exist. Trust the build, not the per-section caveat.
+
+### 2. Documentation accuracy — the headline facts have drifted
+
+CLAUDE.md is the single onboarding surface, so wrong headline facts mis-inform every human/AI who
+starts here. Measured drift (fixed in this pass where cheap; see Quick Stats + Documentation Map):
+
+| Claim in this file | Measured (2026-07-24) |
+|---|---|
+| Documentation Map: "this file · **~4,875 lines**" | **2,304 lines** |
+| Quick Stats: "1,204 C# files, ~572,000 lines" | **1,443 files / 655,982 lines** (plugin alone) |
+| `StingCommandHandler.cs` "4,817 lines" (later section) | **9,519 lines** |
+| Assembly "v1.0.0.0" | `.csproj` `<Version>` = **2.2.0** |
+| Healthcare: "EF migration not run yet" | **83 migrations** present |
+| "committed without `dotnet build` verification" (many sections) | Builds **0/0** on Windows+Revit |
+
+**Sustainable fix applied:** the Quick Stats and Documentation Map now round + point *here* (one
+dated, reproducible source) instead of carrying exact numbers that re-rot within a phase or two.
+
+### 3. Testing — the biggest structural gap
+
+- **774 test methods across 9 projects, but none reference `StingTools.csproj`.** Every test targets
+  a Revit-free side library (`Sustainability` 365 · `Boq` 121 · `Tags` 84 · `Cost` 63 · `Clash` 56 ·
+  `Routing` 41 · `Scheduling` 30 · `Licensing` 14). `StingTools.Connectivity.Tests` is **empty (0)**.
+- Consequence: the ~656k-line plugin — every command, the auto-tagger `IUpdater`, the dispatch layer,
+  the placement/routing/fabrication engines — has **zero direct automated coverage**. Regressions are
+  only caught by a human loading Revit.
+- Root cause is architectural (§5): command logic is fused to the Revit API and `TaskDialog`, so it
+  can't run headlessly. The fix is **extraction, not more test files**.
+
+### 4. Error handling & robustness
+
+- **683 empty/near-empty `catch` blocks**, against a stated convention of "never use silent catch."
+  **Read this fairly**: most are the legitimate Revit best-effort idiom — `try { x =
+  el.get_Parameter(...); } catch { }` around optional API reads that *throw* when a parameter or
+  geometry is absent (e.g. dozens in
+  [`BIMManager/PublishModelCommand.cs`](StingTools/BIMManager/PublishModelCommand.cs)). That is a
+  normal, defensible pattern.
+- The genuine risk is the **subset wrapping writes, transactions, or I/O** — there a swallowed
+  exception hides a real failure and leaves partial state with no log line. `StingLog` is already
+  everywhere (**9,530 sites**); the gap is discipline at the risky sites.
+- **Recommendation**: add a `TryRead`/`SafeGet` helper for the benign optional-read idiom (so those
+  sites stop counting as "silent catches"), and require `StingLog.Warn/Error` in every catch that
+  wraps a mutation. Then the empty-catch count becomes a meaningful signal again.
+
+### 5. Architecture & maintainability
+
+- **God-files** (source only, excluding generated `obj/**/*.g.cs`):
+  [`UI/BIMCoordinationCenter.cs`](StingTools/UI/BIMCoordinationCenter.cs) **11,971**,
+  [`BIMManager/BIMManagerCommands.cs`](StingTools/BIMManager/BIMManagerCommands.cs) **10,819**,
+  [`UI/StingCommandHandler.cs`](StingTools/UI/StingCommandHandler.cs) **9,519**,
+  `Tags/LegendBuilderCommands.cs` 7,313, `UI/BOQCostManagerPanel.cs` 6,937,
+  `Organise/TagOperationCommands.cs` 6,604, `Core/WarningsManager.cs` 6,013. These are
+  merge-conflict magnets and defeat code review.
+- **Central dispatch bottleneck.** `StingCommandHandler` maps 590+ button tags in one 9.5k-line
+  `IExternalEventHandler` — every panel change touches it; it is the most contended file in the tree.
+- **UI/logic fusion.** **7,650 `TaskDialog` sites** interleave user dialogs directly into
+  command/engine logic. This is the concrete reason §3 can't happen — you cannot run the logic
+  without a Revit UI thread. **Extracting a pure "compute → result record" layer from a thin
+  "present" layer is the single highest-leverage refactor available.**
+- **Command sprawl.** ~1,580 command classes is a lot of surface to keep discoverable; dead/silent
+  commands are already tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
+  and `SILENT_BUTTONS_TODO.md`.
+
+### 6. Stubs & "for-now" scaffolding
+
+**646 stub/placeholder/"for now" markers, 10 `NotImplementedException`, 51 `TODO/FIXME/HACK`.**
+Combined with the many "ships parameter specs only / real `.rfa` comes from manufacturers" caveats, a
+meaningful slice of the catalogued surface is **spec-complete but not runtime-complete**. Legitimate
+for a data-driven family/seed system, but it means "command exists" ≠ "workflow produces a real
+deliverable." Make that distinction explicit wherever it matters to a user.
+
+### 7. Data-layer integrity
+
+- **100+ runtime JSON/CSV/TXT config files** in `StingTools/Data/` are the real behaviour surface
+  (tag config, parameter registry, sizing rules, drawing types, filters, seeds), loaded by
+  `Newtonsoft.Json` with a **corporate-baseline + project-override** layering pattern.
+- Risk: **a schema/field-name typo in a data file is not a compile error** — Newtonsoft silently
+  leaves mistyped fields at default, so it surfaces as a runtime no-op or a `catch{}`-swallowed load.
+  There is no build-time validation gate. Add a validation pass (or unit tests over the shipped data
+  files) so data edits fail loudly, not silently. (This matches the memory rule: *valid JSON + green
+  build can still be runtime-dead — check Newtonsoft field types.*)
+
+### 8. Server & platform (`Planscape.Server`)
+
+ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **83 migrations present**
+and the stack is verified running locally in [`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
+committed secrets** — `appsettings.Production.template.json` uses `__REPLACE_WITH_…__` placeholders
+and `render.yaml` marks JWT key / owner password `sync: false`. Good hygiene. Open items are honestly
+tracked as **🟡 PARTIAL** (live 2-participant meetings, GLB viewer render, a site-photos route 404, a
+geofence cached-boundary inconsistency) — they need a browser/2-client harness, not more backend code.
+
+### 9. Repo & documentation hygiene
+
+- **140 markdown docs**, many overlapping (`REVIEW_LOG.md`, `PROGRESS.md`, `SYSTEM_STATUS.md`,
+  `MERGE_SUMMARY.md`, dozens of `*_AUDIT.md` / `*_PLAN.md` / `*_PROMPT.md` at root) with no single
+  index — valuable history, but hard to know which doc is current.
+- **Branch sprawl.** This assessment was itself first drafted on a task branch **247 commits behind
+  `main`** and re-synced to `main` before final measurement — a reminder that per-session `claude/*`
+  branches drift fast; always re-base and re-measure before trusting a branch's numbers.
+
+### Prioritised recommendations
+
+**P0 — cheap, high-value**
+1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, "EF not run",
+   the blanket "committed without build verification" caveat) and pointed them at this dated source.
+2. Populate or delete `StingTools.Connectivity.Tests` (an empty project is a false coverage signal).
+3. Add a `docs/INDEX.md` (or prune) so the 140-doc sprawl has one authoritative table of contents.
+
+**P1 — structural, schedule deliberately**
+4. Carve a pure "compute → result record" layer out of the top `TaskDialog`-heavy commands so logic
+   becomes headlessly testable; back it with a new plugin-facing `StingTools.*.Tests` project. Prove
+   the pattern on one high-value engine (BOQ or placement) first, then propagate.
+5. Add a `SafeGet`/`TryRead` helper for the benign optional-read idiom and require logging in every
+   catch that wraps a mutation — restores the empty-catch count as a real signal (§4).
+6. Add build-time (or unit-test) validation of the shipped `Data/*.json` against expected shape (§7).
+
+**P2 — hygiene, ongoing**
+7. Split the 6k–12k-line god-files by feature area; break `StingCommandHandler` dispatch into
+   per-tab partials or a registry.
+8. Retire the `BcfEngine` cross-project compile hack; give the plugin its own `.sln`.
+9. Adopt nullable incrementally via per-file `#nullable enable` on new/edited files rather than a
+   big-bang flip.
 
 ---
 
