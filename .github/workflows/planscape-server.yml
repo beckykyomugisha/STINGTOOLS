@@ -130,6 +130,62 @@ jobs:
           # Dummy connection so EF tooling doesn't crash; --no-connect should suffice
           ConnectionStrings__Default: "Host=localhost;Database=ci_check;Username=ci;Password=ci"
 
+  # ── Redis single-use (handoff jti replay) ─────────────────────────────────────
+  #
+  # DEP-6a. The handoff jti guard is a Redis `SET … When.NotExists` that FAILS
+  # OPEN when Redis is absent — so the replay proof is meaningful only against a
+  # real Redis. It is env-gated (PLANSCAPE_TEST_REDIS) exactly like the Postgres
+  # tests, and SKIPS otherwise. It lives in its OWN job with its own Redis
+  # service on purpose: attaching a Redis service to the `build` job would make
+  # the app connect to it in every step and could silently shift the
+  # known-failing baseline the full-suite gate diffs against. Here it is
+  # isolated — only the one replay test runs, and it must be green.
+  redis-single-use:
+    name: Redis single-use (handoff jti replay)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Planscape.Server
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore Planscape.sln
+
+      - name: Build
+        run: dotnet build Planscape.sln --no-restore --configuration Release
+
+      # Must PASS (not skip): PLANSCAPE_TEST_REDIS is set and the redis service
+      # is healthy, so a silent skip here would be the same false comfort the
+      # Postgres gate removes. The app's default Redis:Connection is
+      # localhost:6379, which the service maps.
+      - name: Run handoff jti replay test
+        env:
+          PLANSCAPE_TEST_REDIS: "1"
+          Jwt__Key: "ci-only-3xJ9pQ7wR2mV5nB8kL4hT6yG1sD0aZfE"
+        run: |
+          dotnet test Planscape.sln --no-build --configuration Release \
+            --filter "FullyQualifiedName~Handoff_SameTicketReplayed_SecondRedemptionIsRejected" \
+            --verbosity normal
+
   # ── Docker Build & Push ───────────────────────────────────────────────────────
   docker:
     name: Docker Build & Push
