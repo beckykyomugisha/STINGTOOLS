@@ -21,6 +21,12 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = $"PlanscapeTest_{Guid.NewGuid():N}";
 
+    // One never-disposed storage for the whole test process — see the assignment
+    // in ConfigureServices for why (DEP-7). Static so all factory instances,
+    // across parallel test classes, resolve JobStorage.Current to the same live
+    // object rather than racing to set and dispose their own.
+    private static readonly Hangfire.InMemory.InMemoryStorage SharedHangfireStorage = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -85,7 +91,21 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             services.AddHangfire(cfg => cfg.UseInMemoryStorage());
             // Static RecurringJob.* APIs read JobStorage.Current, which the DI
             // registration alone does not set.
-            Hangfire.JobStorage.Current = new Hangfire.InMemory.InMemoryStorage();
+            //
+            // DEP-7: JobStorage.Current is PROCESS-GLOBAL. Giving every factory
+            // instance its own storage and disposing it with the host meant a
+            // sibling host built after a teardown read a disposed storage during
+            // its ~40 static RecurringJob.AddOrUpdate registrations and died with
+            // `ObjectDisposedException: Hangfire.InMemory.State.Dispatcher` —
+            // reported against whichever test ran next, and often aborting the
+            // whole run before it could print a summary (CI then failed with "the
+            // run did not complete"). Point every factory at ONE process-lifetime
+            // storage that is never disposed, so the static reads are always
+            // valid however the parallel host builds interleave. InMemoryStorage
+            // is built for concurrent access and AddOrUpdate is idempotent, so
+            // sharing it across factories is safe; no Hangfire server runs, so the
+            // jobs are only ever registered, never executed.
+            Hangfire.JobStorage.Current = SharedHangfireStorage;
 
             // Add InMemory database
             services.AddDbContext<PlanscapeDbContext>(options =>

@@ -96,7 +96,12 @@ jobs:
           printf '  - %s\n' "${REQUIRED[@]}"
           echo "Head SHA: $HEAD_SHA"
 
-          deadline=$(( $(date +%s) + 1800 ))   # 30 min hard cap (real builds ~3 min)
+          deadline=$(( $(date +%s) + 3600 ))   # 60 min hard cap. The server "Build & Test"
+                                                # now runs the full integration suite to
+                                                # completion (~33 min) instead of aborting
+                                                # early on the Hangfire crash, so the old
+                                                # 30 min cap timed the gate out on a job that
+                                                # was actually going to pass.
           while : ; do
             runs="$(gh api --paginate \
               "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs" \

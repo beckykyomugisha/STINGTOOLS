@@ -2,6 +2,76 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 227 — N4+N6: unbreak the server test gate; close DEP-7 (Hangfire) + restore the HTTP handoff test)
+
+The `planscape-server` CI gate was **permanently red on `main`** — not because of
+the ~73 known-failing tests it was built to fence, but because the gate never got
+far enough to fence them. Two independent faults:
+
+1. **The suite aborted before printing a summary (DEP-7).** Program.cs registered
+   its ~31 recurring jobs through the **static** `RecurringJob.AddOrUpdate`, which
+   reads the process-global `JobStorage.Current`. Under the test
+   `WebApplicationFactory` that global is set (and disposed) per host, so a host
+   built while a sibling tore down read a disposed storage and died with
+   `ObjectDisposedException: Hangfire.InMemory.State.Dispatcher`, aborting the run.
+   **Fix (the one ROADMAP DEP-7 names):** resolve the injected
+   `IRecurringJobManager` once and register through it — it uses *this host's*
+   DI storage, never the global static, so there is no cross-host race.
+   Production is unchanged: the manager resolves the same Postgres storage the
+   static read from `JobStorage.Current`. A first attempt that only pointed every
+   factory at one never-disposed shared `InMemoryStorage` cut local
+   `ObjectDisposedException`s 24 → 0 but **still flooded under CI's higher
+   parallelism** (the run reached only "Total tests: 6"), because
+   `AddHangfire(UseInMemoryStorage())` itself transiently mutates the global — the
+   injected manager removes the dependency entirely. That shared-storage change is
+   kept as harmless defence-in-depth. `ObjectDisposedException` **→ 0**, suite
+   completes deterministically. (The HTTP-provisioning-failure test DEP-7 also
+   blocked is N6, below.)
+2. **`check-new-failures.sh` could not read the run it was given.** It gated on a
+   `^(Passed!|Failed!)` summary line that `dotnet test` on a **solution** never
+   emits (it prints `Total tests:/Failed:` + `Test Run Failed.`), so *every*
+   complete run was declared "did not complete" and failed the gate. **Fix:**
+   accept the VSTest logger's actual summary shapes. Also folded in the theory-
+   case `[FAIL]` extraction fix (a theory's `(args…)` ended the old match, hiding
+   every failing theory) — **this half overlaps open PR #460**, credited inline.
+   Also bumped the **CI Gate** wait cap 30 → 60 min: now that "Build & Test" runs
+   the full suite to completion (~33 min) instead of aborting early on the crash,
+   the old 30-min cap timed the gate out on a job that was actually going to pass.
+
+With both fixed the gate runs: **69 unique failing methods (73 cases), all known,
+`check-new-failures.sh` exits 0.** The harness fix surfaced **3** theory-case
+failures (`RoleExtensionTests` / `RoleInferenceTests` / `TenantBimManagerRoleOverrideTests`)
+that were always failing but invisible to the broken regex — added to
+`known-failing-tests.txt` with a note (pre-existing, DEP-12/DEP-14 role backlog),
+not regressions.
+
+**Scope and overlap with #460.** This PR deliberately does **not** re-implement
+#460's five production-bug fixes (the `FindFirst("role")` visibility bug ~28
+tests, the CDE role bug, the two missing `IgnoreQueryFilters`, the TagSync tenant
+check) or its fixture-rot fixes — that is #460's landed-but-unmerged work and
+re-doing it here would duplicate another session's changes. What this PR adds is
+the **infrastructure #460 itself depends on**: #460 could not have gone green
+either, because it never fixed the summary-detection harness bug. Landing this
+makes the gate functional so the 73 → 9 shrink (whoever lands it) is finally
+measurable and enforced. The genuine failure-count reduction here is only the one
+Hangfire-cascade test; the larger burn-down remains #460's scope, flagged here
+rather than duplicated.
+
+**DEP-7 HTTP test (N6) — RESTORED.** Because the injected-manager fix removes the
+global-static dependency entirely (not just tames it), a second factory is now
+safe, so the HTTP provisioning-failure test Phase 212 had to drop is back:
+`HandoffProvisioningFailureHttpTests`, a `[CollectionDefinition(DisableParallelization)]`
+class standing up a second factory whose DbContext throws the `(TenantId, Code)`
+`DbUpdateException` via a `SaveChangesInterceptor`, asserting `/handoff/exchange`
+still returns 200 and provisions no orphan project — the recovery proven
+end-to-end, not just in the `EnsureStarterProjectAsync` unit. Measured: with the
+injected manager, adding that second factory keeps the full clean-env suite at
+**73 failures (zero new)**, `ObjectDisposedException` **0**, the new test green
+in-suite. (A first attempt on the weaker shared-storage-only fix had destabilised
+the suite 73→76 / ObjDisposed 0→8 — that was the global-static dependency, which
+this fix removes.) Closes DEP-7.
+
+
 #### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
 
 The cover title-block family's revision history is a **native Revit Revision

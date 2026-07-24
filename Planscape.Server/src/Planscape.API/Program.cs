@@ -1476,19 +1476,29 @@ app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
 }
 
 // ── Recurring background jobs ──
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ComplianceCheckJob>(
+//
+// DEP-7: register through the INJECTED IRecurringJobManager, not the static
+// RecurringJob.* facade. The static reads the process-global JobStorage.Current;
+// under the test WebApplicationFactory that global is set (and disposed) per
+// host, so a host built while a sibling tears down reads a disposed storage and
+// dies with ObjectDisposedException, aborting the whole run. The injected
+// manager uses THIS host's DI-registered storage, so there is no cross-host
+// race. Production is unchanged — the manager resolves the same Postgres storage
+// the static would have read from JobStorage.Current.
+var recurringJobs = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ComplianceCheckJob>(
     "compliance-snapshot", "compliance", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Hourly);
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
     "sla-escalation", "default", j => j.ExecuteAsync(CancellationToken.None),
     "*/15 * * * *");
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
     "stale-warning-cleanup", "default", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
 // Backfills cross-host ExternalElementMapping rows dropped by a fire-and-forget
 // upsert (TagSync/ArchiCAD) from the committed TaggedElement rows. Hourly so a
 // dropped mapping recovers well within an issue-resolution session.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.MappingReconciliationJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.MappingReconciliationJob>(
     "cross-host-mapping-reconcile", "default", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Hourly);
 // Phase 175 audit P1-15 — every 30s, scan presigned-URL uploads.
@@ -1500,16 +1510,16 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.MappingReconciliation
 // queue. ClamAV streams every uploaded attachment through clamscan,
 // which can spike CPU + disk for several seconds per scan. Worker
 // container picks this up; API process never blocks on it.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
     "clamav-scan-pending", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Minutely);
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *");
 // #3 — scheduled ACC issue push. Sibling to PlatformSyncJob (which is
 // element-centric + pull-only); this sweeps every active ACC connection and
 // pushes open Planscape issues → ACC, idempotent via the ConfigJson dedup map.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.AccSyncService>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.AccSyncService>(
     "acc-issue-sync", "platform-sync", s => s.SyncAllActiveAsync(CancellationToken.None),
     "*/30 * * * *");
 // BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
@@ -1517,11 +1527,11 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.AccSyncService>(
 // 50 GB tenant database is many minutes of disk + CPU; running it on
 // the API process previously caused noticeable latency spikes during
 // the dump window.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
     "database-backup", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     "15 2 * * *");
 // FLEX-13 — nightly 03:15 UTC purge of custom fields past the 30-day grace period.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
     "custom-fields-purge", "default", j => j.ExecuteAsync(CancellationToken.None),
     "15 3 * * *");
 // P7 + P8 — every 10 minutes, produce glTF + thumbnail derivatives for
@@ -1530,7 +1540,7 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>
 // burner in the platform; one large model can consume 100% of one
 // core for 5+ minutes. Routed to "heavy" queue (worker-only) so
 // it can never starve API request CPU.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "model-derivatives", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     "*/10 * * * *");
 
@@ -1540,28 +1550,28 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
 // Project.DigestHour follow-up. Stays on the "default" queue (not
 // "photo-redaction") because rendering thumbnails is light.
 // Phase 179 — daily retention sweep at 03:30 UTC, ahead of digest at 17:00.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
     "photo-retention",
     j => j.ExecuteAsync(CancellationToken.None),
     "30 3 * * *", new RecurringJobOptions { QueueName = "default" });
 // Phase 180 — daily 07:00 UTC checklist-due nudge.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
     "photo-checklist-due",
     j => j.ExecuteAsync(CancellationToken.None),
     "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
 // Phase 180 — daily 02:00 UTC smart-album materialiser.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>(
     "photo-smart-album",
     j => j.ExecuteAsync(CancellationToken.None),
     "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
 
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
     "site-photo-digest", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 17 * * *");
 
 // S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
 // expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
     "trial-state", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 6 * * *");
 
@@ -1569,41 +1579,41 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>
 // cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
 // the trial state machine so today's freezes get a billing reminder
 // today rather than tomorrow).
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
     "dunning", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 7 * * *");
 
 // S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
 // + emails a payment link 24 h before the current period ends. Stripe
 // subscriptions self-renew; this only handles the FW corridor.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
     "fw-renewals", "default", j => j.ExecuteAsync(CancellationToken.None),
     "30 5 * * *");
 
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
     "outbox", "default", j => j.ExecuteAsync(CancellationToken.None),
     "* * * * *");
 
 // S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
 // and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
 // a clean slate.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
     "demo-reset", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 2 * * *");
 
 // GAP-18 — daily retention archive: auto-transition PUBLISHED docs past their
 // RetentionExpiresAt date to ARCHIVE. Runs at 03:30 UTC (06:30 EAT) so it
 // completes before office hours in East Africa.
-RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>(
+recurringJobs.AddOrUpdate<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>(
     "document-retention-archive", "maintenance", j => j.ExecuteAsync(CancellationToken.None),
     "30 3 * * *");
 
 // S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
 // 5xx counts from Redis (populated by the request middleware in S7.2.1)
 // and pages the founder when burn rate exceeds the threshold.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
     "sla-burn", "default", j => j.ExecuteAsync(CancellationToken.None),
     "*/5 * * * *");
 
@@ -1611,7 +1621,7 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
 // PendingErasureAt has elapsed (set by /api/data-rights/erase) and
 // hard-deletes them. Runs at 04:00 UTC (07:00 EAT) — late enough that
 // any cancel-erase from yesterday has landed before today's sweep.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
     "data-erasure", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 4 * * *");
 
@@ -1619,13 +1629,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
 // 06:00 UTC (08:00 BST / 09:00 EAT) — early enough that FM teams see
 // alerts at the start of their working day, late enough that any
 // completed-overnight tasks have been recorded.
-RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
+recurringJobs.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
     "maintenance-task-scheduler", "default", j => j.ExecuteAsync(),
     "0 6 * * *");
 
 // Gap 3 — retry site-photo redactions that failed due to transient errors.
 // Runs every 4 hours; capped at 50 photos per run to avoid queue floods.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.RetryFailedRedactionJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.RetryFailedRedactionJob>(
     "retry-failed-redactions", "photo-redaction",
     j => j.RunAsync(CancellationToken.None),
     "0 */4 * * *");
@@ -1645,44 +1655,44 @@ using (var scope = app.Services.CreateScope())
 
 // S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
 // expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
     "trial-state", "default", j => j.ExecuteAsync(CancellationToken.None), "0 6 * * *");
 
 // S2.6 — daily dunning job. Walks Overdue invoices on the 0/3/7-day
 // cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
 // the trial state machine so today's freezes get a billing reminder
 // today rather than tomorrow).
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
     "dunning", "default", j => j.ExecuteAsync(CancellationToken.None), "0 7 * * *");
 
 // S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
 // + emails a payment link 24 h before the current period ends. Stripe
 // subscriptions self-renew; this only handles the FW corridor.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
     "fw-renewals", "default", j => j.ExecuteAsync(CancellationToken.None), "30 5 * * *");
 
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
     "outbox", "default", j => j.ExecuteAsync(CancellationToken.None), "* * * * *");
 
 // S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
 // and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
 // a clean slate.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
     "demo-reset", "default", j => j.ExecuteAsync(CancellationToken.None), "0 2 * * *");
 
 // S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
 // 5xx counts from Redis (populated by the request middleware in S7.2.1)
 // and pages the founder when burn rate exceeds the threshold.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
     "sla-burn", "default", j => j.ExecuteAsync(CancellationToken.None), "*/5 * * * *");
 
 // S7.4.1 — daily GDPR/POPIA erasure job. Walks tenants whose
 // PendingErasureAt has elapsed (set by /api/data-rights/erase) and
 // hard-deletes them. Runs at 04:00 UTC (07:00 EAT) — late enough that
 // any cancel-erase from yesterday has landed before today's sweep.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
     "data-erasure", "default", j => j.ExecuteAsync(CancellationToken.None), "0 4 * * *");
 
 // Seed the well-known 'planscape' platform tenant idempotently on startup
