@@ -1294,7 +1294,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Phase 75: Create ISO 19650 CDE folder structure
-                var cdeFolders = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+                var cdeFolders = StingTools.Core.StingPaths.CdeStates;
                 foreach (var f in cdeFolders) Directory.CreateDirectory(Path.Combine(packageDir, f));
                 // Sub-folders per discipline
                 var discFolders = new[] { "MODELS", "DRAWINGS", "SCHEDULES", "COBie", "REPORTS" };

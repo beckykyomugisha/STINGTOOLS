@@ -1011,7 +1011,7 @@ namespace StingTools.BIMManager
             if (string.IsNullOrEmpty(basePath)) return "Base path required.";
             if (string.IsNullOrEmpty(projectCode)) projectCode = "PROJ";
 
-            var cdeStates = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+            var cdeStates = StingTools.Core.StingPaths.CdeStates;
             var disciplines = new[] { "A-Architecture", "S-Structure", "M-Mechanical", "E-Electrical", "P-Plumbing", "FP-Fire", "G-General" };
             var docTypes = new[] { "MODELS", "DRAWINGS", "SCHEDULES", "SPECIFICATIONS", "REPORTS", "COBie", "BEP" };
 

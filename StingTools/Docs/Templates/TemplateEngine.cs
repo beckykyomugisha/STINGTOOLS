@@ -80,10 +80,12 @@ namespace Planscape.Docs.Templates
                 string expected = Sanitise(docNumber) + "_" + templateId;
                 string keepFull = string.IsNullOrEmpty(keepPath) ? null : Path.GetFullPath(keepPath);
 
+                // Derive from the single CDE-state source so a layout change follows here too.
                 // ARCHIVE is deliberately EXCLUDED: under ISO 19650 the archived issue is the
                 // retained record of what was issued, so a later re-issue must never delete it.
-                foreach (string state in new[] { "WIP", "SHARED", "PUBLISHED" })
+                foreach (string state in StingTools.Core.StingPaths.CdeStates)
                 {
+                    if (string.Equals(state, "ARCHIVE", StringComparison.OrdinalIgnoreCase)) continue;
                     string dir = StingTools.Core.StingPaths.Cde(Document, state, discipline, "Documents");
                     if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
                     foreach (string f in Directory.GetFiles(dir))

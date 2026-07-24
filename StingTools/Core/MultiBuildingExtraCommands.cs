@@ -88,7 +88,7 @@ namespace StingTools.Core
                 }
 
                 var locs = LocVocabularyOverride.GetAllLocCodes();
-                var states = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+                var states = StingPaths.CdeStates;
                 var subs = new[] { "MODELS", "DRAWINGS", "SCHEDULES", "BOQ", "COBie", "REPORTS" };
 
                 // Build per-building subfolders INSIDE the unified CDE state folders

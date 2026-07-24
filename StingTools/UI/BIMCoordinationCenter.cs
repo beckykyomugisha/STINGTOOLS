@@ -8511,7 +8511,7 @@ namespace StingTools.UI
             var cdePanel = new StackPanel { Margin = new Thickness(0, 4, 0, 12) };
             // CDE flow diagram: WIP → SHARED → PUBLISHED → ARCHIVE
             var cdeFlow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 8) };
-            string[] cdeStates = { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+            string[] cdeStates = StingTools.Core.StingPaths.CdeStates;  // single source; parallel arrays below index-align
             string[] cdeSuit = { "S0-S2", "S3", "S4-S6", "S7" };
             string[] cdeDesc = { "Work In Progress\nInternal development", "Shared for\ncoordination review", "Published for\napproval & use", "Archived for\nrecord keeping" };
             Color[] cdeColors = { Color.FromRgb(0xFF, 0xB3, 0x00), Color.FromRgb(0x15, 0x65, 0xC0), CGreen, Color.FromRgb(0x75, 0x75, 0x75) };
