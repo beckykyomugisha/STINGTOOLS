@@ -136,11 +136,24 @@ namespace Planscape.Docs.Templates
                 d.Status = newStatus;
                 if (!string.IsNullOrEmpty(newSuitability)) d.Suitability = newSuitability;
                 if (!string.IsNullOrEmpty(newCde))         d.CDE = newCde;
-                if (bumpRevision)                          d.Revision = BumpRevision((string)d.Revision ?? "P01");
-                // ISO 19650: promote the preliminary P-series revision to the contractual
-                // C-series once the deliverable is authorised for publication.
+                // Revision prefixes come from the project manifest (default P→C), so an
+                // appointment mandating another convention is configuration, not a code change.
+                var revScheme = SchemeFor(m);
+                if (bumpRevision)
+                {
+                    string before = (string)d.Revision ?? revScheme.FirstPreliminary;
+                    string after  = revScheme.Bump(before);
+                    // Bump returns the input unchanged when it cannot parse the sequence
+                    // (it refuses to persist a corrupting sentinel). Say so, or the
+                    // re-issue silently keeps the old revision number.
+                    if (!string.IsNullOrWhiteSpace(before) && string.Equals(before, after, StringComparison.Ordinal))
+                        StingLog.Warn($"BumpRevision: cannot increment revision '{before}'; leaving it unchanged.");
+                    d.Revision = after;
+                }
+                // ISO 19650: promote the preliminary revision series to the contractual
+                // series once the deliverable is authorised for publication.
                 if (string.Equals(newCde, "PUBLISHED", StringComparison.OrdinalIgnoreCase))
-                    d.Revision = PromoteToContractual((string)d.Revision);
+                    d.Revision = revScheme.PromoteToContractual((string)d.Revision);
                 d.IssuedBy = user;
 
                 AppendRevHistory(d, reason, user, templateId);
@@ -344,42 +357,14 @@ namespace Planscape.Docs.Templates
             catch (Exception ex) { StingLog.Warn($"SyncWorkflowFields: {ex.Message}"); }
         }
 
-        /// <summary>ISO 19650 P→C revision promotion (P01 → C01). Idempotent for non-P revisions.</summary>
-        private static string PromoteToContractual(string rev)
-        {
-            if (string.IsNullOrWhiteSpace(rev)) return "C01";
-            rev = rev.Trim();
-            if (!rev.StartsWith("P", StringComparison.OrdinalIgnoreCase)) return rev;
-            // A bare "P" carries no number: "C" + "" would stamp the deliverable with a
-            // malformed single-letter revision that no later BumpRevision can parse.
-            string suffix = rev.Substring(1);
-            return suffix.Length == 0 ? "C01" : "C" + suffix;
-        }
-
-        private static string BumpRevision(string cur)
-        {
-            // No revision yet ⇒ this IS the first one. Returning P02 skipped P01 entirely.
-            if (string.IsNullOrWhiteSpace(cur)) return "P01";
-            cur = cur.Trim();
-            try
-            {
-                string prefix = new string(cur.TakeWhile(char.IsLetter).ToArray());
-                string numStr = new string(cur.SkipWhile(char.IsLetter).ToArray());
-                if (int.TryParse(numStr, out int n))
-                    return $"{prefix}{(n + 1).ToString(new string('0', Math.Max(numStr.Length, 1)))}";
-
-                // Letter-only sequences (P, A, B…) advance the letter.
-                if (numStr.Length == 0 && prefix.Length == 1 && prefix[0] != 'Z' && prefix[0] != 'z')
-                    return ((char)(prefix[0] + 1)).ToString();
-            }
-            catch (Exception ex) { StingLog.Warn($"BumpRevision('{cur}'): {ex.Message}"); }
-
-            // Unparseable. The old code returned cur + "+1" — a sentinel that was then WRITTEN
-            // to the revision field and persisted, corrupting the sequence permanently. Keep the
-            // value as-is and let the caller/user resolve it.
-            StingLog.Warn($"BumpRevision: cannot increment revision '{cur}'; leaving it unchanged.");
-            return cur;
-        }
+        /// <summary>
+        /// Resolves the project's revision scheme from the manifest. The parsing rules and
+        /// the Bump / PromoteToContractual behaviour live in the Revit-free
+        /// <see cref="RevisionScheme"/> so they can be unit-tested outside Revit; this
+        /// wrapper only supplies the manifest value. Unset ⇒ the ISO 19650 P→C default.
+        /// </summary>
+        private static RevisionScheme SchemeFor(TemplateManifest m)
+            => RevisionScheme.Parse(m?.Project?.RevisionScheme);
 
         private static void AppendRevHistory(dynamic d, string reason, string user, string templateId)
         {
