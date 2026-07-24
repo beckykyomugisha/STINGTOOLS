@@ -2345,6 +2345,111 @@ in Revit — the one-family (Duct) smoke test is the user's next step before sca
 - Tests: `StingTools.Tags.Tests` → 134 pass, 2 fail (pre-existing `CsiMasterFormatTests`
   section-normalization failures, unrelated to this work).
 
+#### Completed (Family Converter — change a family's host / placement type)
+
+Branch `claude/family-converter-7fa3c2`. **Build-verified** `dotnet build -t:Rebuild` = 0 errors /
+0 new warnings vs the 6-warning baseline (new files emit 0 warnings). **Runtime-unverified** — the
+sandbox compiles but cannot drive Revit's UI; the tab appearing and a real conversion re-hosting an
+instance need a running Revit (see the PR handover checklist).
+
+A durable tool that changes a Revit family's host / placement type (e.g. Ceiling-hosted → Face-based)
+and keeps it working across the project library. `Family.FamilyPlacementType` is read-only in the API,
+so the engine picks one of two mechanisms per `(source → target)` pair:
+
+- **New `Core/Placement/FamilyHostConverter.cs`** — pure engine (no UI / no `TaskDialog`).
+  - **P1 — checkbox toggle (lossless):** Unhosted level-based → Face-based by setting
+    `BuiltInParameter.FAMILY_WORK_PLANE_BASED` on the `OwnerFamily` inside the family doc, then
+    `LoadFamily` overwrite. Geometry / params / connectors untouched; existing instances survive.
+    (The design spec named `FAMILY_WORK_PLANE_BASED_PARAM`, which does not exist in the Revit 2025 API —
+    the real member is `FAMILY_WORK_PLANE_BASED`.)
+  - **P2 — template rebuild (lossy, gated behind the "Allow lossy rebuild" toggle):** `NewFamilyDocument`
+    from the target host `.rft`, `ElementTransformUtils.CopyElements` for geometry + reference planes,
+    recreate family parameters (shared by GUID via the shared-parameter file where present, family by
+    name/type otherwise), formulas, and types via `FamilyManager`, re-apply the original category
+    (gated through `FamilyCategoryCompatibility.ModelFamilyGroup`), `SaveAs` a new `.rfa` under
+    `_BIM_COORD/Families/Converted`, then `LoadFamily` overwrite. Best-effort non-interactive instance
+    rehost (free-standing re-place for Face-based / Unhosted targets; hosted targets are flagged for a
+    manual host pick — a face/host cannot be picked in batch). MEP connectors do **not** survive
+    `CopyElements` and are transferred by `FamilyConnectorTransfer` (see the addendum block below);
+    host-relative geometry re-anchors to the template default and is flagged for review.
+  - Per-document registry (`FamilyHostTemplateRegistry`) layering corporate baseline over a
+    `<project>/_BIM_COORD/family_host_templates.json` override, mirroring `MepSizingRegistry`.
+  - §9 edge cases: non-model / in-place / curve-driven families refused; already-at-target reported as
+    no-change; missing `.rft` skipped with the resolved path; workshared families owned by another user
+    skipped with an ownership note; nested-usage families flagged.
+- **New `Data/Placement/STING_FAMILY_HOST_TEMPLATES.json`** — 6-target matrix (Face / Unhosted / Wall /
+  Ceiling / Floor / Roof) + path rules (`Unhosted → FaceBased` = P1; everything else = P2).
+- **New "Family Converter" tab** in the modeless Placement Centre (`StingPlacementCenter.xaml[.cs]`),
+  immediately after "Library". Scan / Import-folder / Load-`.rfa` toolbar, a per-row
+  `DataGridTemplateColumn` target combo (per-row `AllowedTargets`, not a column-wide list) with a live
+  P1/P2 Path hint that recomputes on selection, and Apply Selected / Apply All Pending / Save-Reload /
+  Audit Only. Everything routes through the existing `RunInlineAction` bridge and renders into the shared
+  inline Report panel (`bdrReport`) — no pop-ups except the OS file/folder pickers. Batch runs isolate
+  per-family failures so one bad family never aborts the run. Reuses `StingFamilyLoadOptions`,
+  `InstanceRehostSnapshot`, `FamilyQuickEditHelpers`, `FamilyCategoryCompatibility`, and
+  `SymbolLibraryCreator.ResolveTemplateFolder`.
+
+
+#### Completed (Family Converter addendum — connector preservation + shared-parameter integrity)
+
+Branch `claude/family-converter-7fa3c2`, on top of the block above. Spec:
+`docs/superpowers/specs/2026-07-18-family-converter-addendum.md`. **Build-verified**
+`dotnet build -t:Rebuild` against Revit 2025 = 0 errors / 0 warnings (the tree's current baseline is
+0/0 — the addendum predicted 6, but `origin/main` has moved 186 commits since it was written and the
+0/0 fix has landed). **Runtime-unverified** — whether connectors survive a real ceiling→face
+conversion and mate to a system needs a running Revit.
+
+- **A — MEP connectors now survive a P2 rebuild.** `ElementTransformUtils.CopyElements` does not carry
+  `ConnectorElement`s between family documents, so a rebuilt MEP family previously had none and could
+  not join a system; the engine merely counted them and said "re-add manually". New
+  **`Core/Placement/FamilyConnectorTransfer.cs`** is a two-tier transfer engine:
+  - **Tier 1 (STING seeds)** — resolve the backing `SymbolDefinition` from `Data/Seeds/STING_SEED_*.json`
+    (matched on seed id, definition name, or a type-variant name) and re-mint declaratively via
+    `SymbolLibraryCreator.AddConnectors` (widened `private` → `internal`). Exact, no geometric guessing.
+    A re-mint that yields nothing falls through to Tier 2 rather than reporting a false success.
+  - **Tier 2 (any vendor / legacy family)** — harvest every connector (domain, system classification,
+    origin, coordinate system, profile, radius/width/height, primary flag, description and every
+    writable non-dimensional parameter), then re-create each with three attempts, best fidelity first:
+    **(A)** the copied `PlanarFace` whose plane contains the origin (0.5 mm tol), whose normal aligns
+    (dot > 0.999) and onto which the origin genuinely projects — created on `face.Reference`;
+    **(B)** a minted `ModelCurve` at the harvested origin/normal, created on its endpoint reference —
+    the same technique `SymbolLibraryCreator.AddConnectorList` already uses to author seed connectors;
+    **(C)** reported as manual with exact origin XYZ, normal, domain, shape and size.
+    Geometry options set `ComputeReferences = true` — without it `face.Reference` is null and connector
+    creation silently fails.
+  - The blanket "connectors were NOT transferred" note is replaced with real accounting:
+    `{harvested} harvested · {recreated} re-created ({n} on copied faces, {n} on reference lines) ·
+    {n} need manual re-add`, plus the per-connector detail list. Only connectors actually created are
+    claimed, and reference-line placements are counted separately and flagged for review.
+  - *Deviation from the spec:* the addendum went straight from "no face match" to "report as manual".
+    Attempt B is inserted before that, recovering connectors hosted on reference planes or whose host
+    face failed to copy.
+- **B — shared-parameter integrity.** `CopyFamilyParameters` previously resolved shared params through
+  whatever file the user happened to have pointed, so every STING shared parameter would silently
+  degrade to a plain family parameter — the family still loads, but tags, schedules, ExLink and COBie
+  quietly stop working on it. Now:
+  - STING's `MR_PARAMETERS.txt` is **pinned** for the duration of the copy and **always restored in a
+    `finally`**, even on throw.
+  - **Both** files are searched by GUID — STING's first, then the user's original — so vendor shared
+    params that exist only in the user's file still resolve. A parameter only falls back when it is in
+    neither. Implemented as ordered passes (pin file → add what it defines → move on) because an
+    `ExternalDefinition` is only reliably usable while its own file is the pinned one.
+  - **Pre-flight in Audit Only**: `FamilyHostConverter.PreflightSharedParameters` opens each pending
+    P2 family read-only and reports "N shared parameter(s) would fall back", naming each one and both
+    resolved file paths, so the loss is a decision rather than a discovery. It runs through the existing
+    `RunInlineAction` bridge and appends to the same Audit report.
+- **C — build baseline.** No code change; `origin/main` merged in (186 commits, not the 2 the addendum
+  predicted). The one conflict was `docs/CHANGELOG.md`, resolved keeping both sides.
+
+**API notes** — verified against Revit 2025 `RevitAPI.dll` / `RevitAPI.xml` rather than assumed:
+the addendum's `ConnectorElement.Create*` signature list is correct as written;
+`Domain.DomainCableTrayConduit` covers both conduit and cable tray and they are discriminated via
+`BuiltInParameter.RBS_CABLETRAYCONDUIT_CONNECTORELEM_TYPE`; `ConnectorElement` exposes
+`SystemClassification` (`MEPSystemClassification`), not the per-domain system enums, whose names map
+1:1 except Electrical `DataCircuit` → `Data` (mapped by name with a concrete fallback, since the
+factories reject `UndefinedSystemType`).
+
+
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
 Branch `claude/placement-matrix`. Build clean `-c Release` (0/0). **Model-modifying — verify placement
