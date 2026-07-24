@@ -122,6 +122,18 @@ class BridgeConfig:
     ifc_drop_dir: str = ""           # folder to watch for IFC files
     building_name: str = ""          # drives the LOC token; AC exposes no building name
 
+    # Bidirectional sync (SB-5a / plan §1.4)
+    # Pull remote changes and reconcile them before pushing. On by default:
+    # extract-and-push alone silently reverts edits made in any other host.
+    # Turn off to restore the pre-SB-5a push-only behaviour.
+    pull_reconcile: bool = True
+    # §1.4.4 — elements per POST. Lower it if the server rejects large bodies;
+    # a 413 also self-corrects by splitting, so this is a tuning knob not a
+    # prerequisite.
+    push_chunk_size: int = 100
+    # Re-sends of a chunk after a transient failure (timeout / 5xx / 429).
+    push_max_retries: int = 3
+
     @classmethod
     def from_env(cls, config_file: str | None = None) -> "BridgeConfig":
         file_values = load_config_file(config_file)
@@ -167,4 +179,7 @@ class BridgeConfig:
             watch_interval_s=get_int("WATCH_INTERVAL", "300"),
             ifc_drop_dir=get("IFC_DROP_DIR", ""),
             building_name=get("BUILDING_NAME", ""),
+            pull_reconcile=get_bool("PULL_RECONCILE"),
+            push_chunk_size=get_int("PUSH_CHUNK_SIZE", "100"),
+            push_max_retries=get_int("PUSH_MAX_RETRIES", "3"),
         )
