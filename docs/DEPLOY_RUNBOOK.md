@@ -304,9 +304,60 @@ Only EF queries use the pooler. Hangfire (advisory locks, `LISTEN/NOTIFY`) and
 
 ## Cost / scaling notes
 
-Frankfurt starter tiers: api £6 + worker £6 + web £6 + converter £6 + redis ~£6 +
-minio £6 + 10 GB disk ~£2 + db £6 ≈ **£44/mo**, plus free-tier LiveKit/Firebase/Resend.
-Swapping MinIO for R2 (free tier) removes the storage service + disk (~£8) and adds redundancy.
+Render bills in **USD**. Frankfurt, all-starter: api $7 + worker $7 + web $7 +
+converter $7 + redis $10 + minio $7 + 10 GB disk ~$2.50 + db $6 ≈ **$54/mo**,
+plus free-tier LiveKit/Firebase/Resend. Swapping MinIO for R2 (free tier) removes
+the storage service + disk (~$9.50) and adds redundancy.
+
+> Any **£12/month** figure in older notes refers to the retired 2-service
+> blueprint (api + db only), not this 7-service one.
+
+### Capacity per API tier
+
+Two different numbers, and mixing them up is how you under-buy:
+
+- **Connected** — logged in, WebSocket open, light use. Cheap: idle SignalR
+  connections cost tens of KB, and Render enforces no WebSocket cap.
+- **Active** — driving issues / markup / CRDT. This is what burns CPU, and it
+  is the number to size on.
+
+| Tier | $/mo | Connected | **Active** | Firms | Notes |
+|---|---|---|---|---|---|
+| Free | 0 | 1–3 | 1 | **0** | Spins down after 15 min, killing every WebSocket; no persistent disk so MinIO can't run. Demo only. |
+| Starter | 7 | 20–30 | **10–15** | 3–6 | Current default. |
+| Standard | 25 | 60–100 | **30–50** | 10–20 | First honest production tier. Single instance — a deploy drops all WebSockets. |
+| Pro | 85 | 150–250 | **80–120** | 30–60 | First tier with autoscaling. **Scale out from here, not up.** |
+| Pro Plus | 175 | 300–500 | **150–250** | 60–120 | DB becomes the bottleneck; pair with `pro-8gb`. |
+| Pro Max | 225 | ≈ Pro Plus | ≈ Pro Plus | — | **Skip.** 16 GB but still 4 CPU — worse $/CPU than Pro Plus for a CPU-bound app. |
+| Pro Ultra | 450 | 600–1000 | 300–500 | 150+ | Prefer 3–4 × Pro: cheaper, no single point of failure. |
+
+Derived from ~40 req/s per vCPU on this app's `.Include()`-heavy list endpoints
+(`MeetingsController` has 12, `AuthController` 10, `IssuesController` 8), ~10
+req/min per active coordinator, minus the Hangfire background floor — note
+`ClamAvScannerJob` is `Cron.Minutely`, so there is load even at zero users.
+Treat these as planning figures, not measurements: no load test has been run
+against production hardware.
+
+The Redis SignalR backplane is already wired, so horizontal scaling works —
+**3 × Pro ($255) beats 1 × Pro Ultra ($450)** on both throughput and resilience.
+
+### Two things that bite before the tier does
+
+1. **Connection ceiling** — see § Database connection budget above. Pool
+   exhaustion hits at ~30–40 concurrent *requests* on any tier; buying a bigger
+   instance does not fix it.
+2. **Bandwidth** — a 500 MB IFC/GLB × 20 coordinators/day is ~300 GB/mo ≈ **$45**
+   at $0.15/GB overage, which can exceed the compute bill. Serve models by
+   presigned URL from object storage, never proxied through the API.
+
+### Suggested progression
+
+| Stage | API | Worker | DB | ≈ $/mo |
+|---|---|---|---|---|
+| Pilot, 1–2 firms | Starter | Starter | basic-256mb | ~54 (all 7 services) |
+| First paying firms (≤50 active) | **Standard** | Starter | **basic-1gb + PgBouncer** | ~90 |
+| 10–50 firms | Pro ×2 | Standard | pro-8gb | ~300 |
+| 50–150 firms | Pro ×4 | Pro | pro-16gb | ~700 |
 
 To launch leaner, you can **omit `planscape-worker` and `planscape-converter`**
 (remove them from `render.yaml` or suspend in Render): the API degrades
