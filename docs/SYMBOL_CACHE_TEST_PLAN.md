@@ -1,0 +1,164 @@
+# W-1 / W-2 / W-3 — Revit test checklist
+
+**Branch**: `claude/iso-symbols-p0p1` · **PR**: #498
+**Purpose**: verify in Revit what unit tests structurally cannot reach — where files are written,
+when they are regenerated, and whether the P0 geometry repairs are actually visible.
+
+Everything below is unverified in Revit. Logic-level checks pass (7/7 W-1, 4/4 W-3), but those
+prove the manifest *reports* correctly, not that the builder *acts* on it.
+
+**Log for every step**: `C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.log`
+**Shared library**: `C:\ProgramData\STING\ContentLibrary\Symbols`
+**Buttons**: dock panel → **SETUP** tab → Symbols section
+
+---
+
+## Step 0 — Deploy
+
+Close Revit first; the DLL is locked while it runs.
+
+```bash
+cd "C:/Dev/STINGTOOLS/.claude/worktrees/iso-annotation-symbols-88c820" && dotnet build StingTools/StingTools.csproj -c Release -p:RevitApiPath="C:\Program Files\Autodesk\Revit 2025" -t:Rebuild
+```
+
+```bash
+cp -r "C:/Dev/STINGTOOLS/.claude/worktrees/iso-annotation-symbols-88c820/StingTools/bin/Release/." "C:/Dev/STINGTOOLS/CompiledPlugin/"
+```
+
+✅ Build reports `0 Warning(s), 0 Error(s)` and `CompiledPlugin\StingTools.dll` timestamp is now.
+❌ If Revit was open the copy fails silently on the DLL — close it and repeat.
+
+> All three Revit versions point at `CompiledPlugin`, so this deploys to 2025/2026/2027 at once.
+
+---
+
+## Step 1 — W-3, fresh project → shared library
+
+A project with **no** `_BIM_COORD\Families\Symbols` folder.
+
+1. Delete `C:\ProgramData\STING\ContentLibrary` if present, so the run is genuinely cold.
+2. Open/save a test project that has never built symbols.
+3. SETUP → Symbols → **SLD** (one catalogue — faster than Create All for a first pass).
+
+| | Expect |
+|---|---|
+| ✅ | `C:\ProgramData\STING\ContentLibrary\Symbols\SLD\IEC\` contains `.rfa` files |
+| ✅ | `C:\ProgramData\STING\ContentLibrary\Symbols\.sting_library.json` exists |
+| ✅ | Sidecar shows `"generatorVersion": "2"` and a `catalogues` entry for `STING_SLD_SYMBOLS.json` with a 64-char hash |
+| ❌ | Families landed in the project's `_BIM_COORD` instead → shared root was rejected; check the log for `not writable` |
+| ❌ | Families landed in `%TEMP%\STING_Symbols` → both roots failed |
+
+**This is the step most likely to fail on a locked-down machine.** `%PROGRAMDATA%` is writable here,
+but the write-probe fallback exists precisely because that varies.
+
+---
+
+## Step 2 — W-1, cache is honoured when fresh
+
+Immediately after Step 1, click **SLD** again.
+
+| | Expect |
+|---|---|
+| ✅ | Result reports families as existing, **not** rebuilt (`Created` 0 / `Existed` > 0) |
+| ✅ | No `rebuilding cached families` line in the log |
+| ✅ | `.rfa` timestamps unchanged |
+| ❌ | Rebuilds every time → the sidecar isn't being read or saved; check for a `SymbolCacheManifest.Save` warning |
+
+---
+
+## Step 3 — W-1, catalogue edit invalidates
+
+1. Note the modified time of `...\Symbols\SLD\IEC\SLD_MCB.rfa`.
+2. Edit `CompiledPlugin\data\Symbols\STING_SLD_SYMBOLS.json` — change any `symbolSize` (e.g. `3.0` → `3.1`). Save.
+3. Click **SLD**.
+
+| | Expect |
+|---|---|
+| ✅ | Log: `rebuilding 'STING_SLD_SYMBOLS.json' — catalogue content changed` |
+| ✅ | `SLD_MCB.rfa` timestamp updated |
+| ✅ | Sidecar hash for that catalogue changed |
+| ✅ | **Other** catalogues untouched — `Lighting\*.rfa` timestamps unchanged (per-catalogue isolation) |
+| ❌ | Everything rebuilt → hashing is per-library not per-catalogue |
+
+Revert the edit afterwards, or leave it — Step 4 rebuilds regardless.
+
+---
+
+## Step 4 — W-2, `Symbols_Rebuild`
+
+SETUP → Symbols → **Rebuild**. Dialog offers *Stale only* / *Force all*.
+
+**4a — Stale only**, with everything already current:
+
+| | Expect |
+|---|---|
+| ✅ | Report: `Every catalogue was already current — nothing to rebuild.` |
+
+**4b — Force all**:
+
+| | Expect |
+|---|---|
+| ✅ | Report header `Rebuild mode: FORCE ALL`, `Rebuilt` ≈ every symbol in the library |
+| ✅ | Log shows `forced rebuild` as the cause |
+| ✅ | All `.rfa` timestamps updated |
+| ❌ | Cancel produces no dialog / no action → dispatch tag not wired |
+
+---
+
+## Step 5 — W-3, existing project library is NOT orphaned
+
+**The guard I could not test headlessly** (`ExistingProjectLibrary` takes a `Document`). It protects
+every library built before this change, so it matters most.
+
+1. Open a project that **already has** `<project>\_BIM_COORD\Families\Symbols\` with `.rfa` in it.
+   If none exists, make one: temporarily rename `C:\ProgramData\STING\ContentLibrary`, build SLD
+   into the project, then restore the name.
+2. Click **SLD**.
+
+| | Expect |
+|---|---|
+| ✅ | Log: `ResolveOutputRoot: using the project's existing symbol library at '<project>\_BIM_COORD\Families\Symbols'` |
+| ✅ | Families rebuild **in the project folder**, not in ProgramData |
+| ✅ | Because generator version moved 1 → 2, they genuinely rebuild rather than skip |
+| ❌ | Build goes to ProgramData while the project copies stay stale → the guard failed, and stale families will keep winning the read path. **Stop and report — this is the regression that matters.** |
+
+---
+
+## Step 6 — P0 geometry is actually visible
+
+The counts said 206 filled regions and 115 arcs were repaired. Confirm on real geometry rather than
+trusting the numbers.
+
+Place these on a drafting view (SETUP → Symbols → **Place View**, or load the `.rfa` directly):
+
+| Symbol | Was | Should now be |
+|---|---|---|
+| `BS_TX_2W` (SLD/BS) | two **full circles** | two **semicircles** (0→180° sweep) — a 2-winding transformer |
+| `IEEE_TX_2W` (SLD/IEEE) | full circles | semicircles |
+| `ELEC_C_POL` (Electrical) | full circle | 90→270° arc — polarised capacitor |
+| `EARTH_LPS_TERMINAL` (Earth) | **no solid fill** | solid filled region present |
+| `DRN_GREASE_TRAP` (DrainAbove) | no solid fill | solid filled region present |
+
+❌ Full circles or missing fills means the alias fix didn't take — check the deployed DLL is current.
+
+---
+
+## Step 7 — Nothing else regressed
+
+| | Expect |
+|---|---|
+| ✅ | SETUP → Symbols → **Validate** reports 880 symbols, 0 empty-geometry, 0 extent violations |
+| ✅ | 142 param-less annotations still reported — expected, that's P3 scope |
+| ✅ | **Reload** still works and is distinct from Rebuild (loads, never regenerates) |
+| ✅ | Place a socket (`ELEC_SOCKET_SINGLE`) — should now be ~86 mm, not 4 mm (P1) |
+
+---
+
+## Reporting back
+
+For each failing step: the step number, the log lines around it, and where files actually landed vs
+expected. Step 5 failing is the one that should stop a merge; Steps 1 and 6 failing are also
+blocking. Step 3's isolation check failing is a performance issue, not a correctness one.
+
+If all seven pass, W-1/W-2/W-3 are verified and W-4 (converging the four resolvers) becomes safe to
+start — it changes three live lookup paths at once, so it needs this baseline proven first.
