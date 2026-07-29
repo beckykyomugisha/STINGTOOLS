@@ -215,6 +215,8 @@ rewriting `SheetTemplateEngine`'s built-in numbers and migrating user-saved temp
 wants smoke-test evidence first.
 
 
+### P2 — still open
+
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
 numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
 C-4/A-6/A-7 annotation and match-line idempotency; A-3 legend in-place refresh; P-5/E-2 section
