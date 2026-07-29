@@ -570,6 +570,7 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 3.5,
+      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -2102,6 +2103,7 @@
       "discipline": "Electrical",
       "subcategory": "ATEXZone",
       "symbolSize": 6.0,
+      "overallExtent": 0.6,
       "description": "Hazardous area zone boundary line marker for electrical floor plan drawings — IEC 60079-10-1 / ATEX Directive 2014/34/EU",
       "parameters": [
         {

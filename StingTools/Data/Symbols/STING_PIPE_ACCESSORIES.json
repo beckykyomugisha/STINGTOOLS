@@ -1325,6 +1325,7 @@
       "discipline": "Mechanical",
       "subcategory": "Instrument",
       "symbolSize": 4.0,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RANGE_BAR",
@@ -1397,6 +1398,7 @@
       "discipline": "Mechanical",
       "subcategory": "Instrument",
       "symbolSize": 4.0,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RANGE_C",

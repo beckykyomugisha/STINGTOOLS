@@ -291,6 +291,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 5.0,
+      "overallExtent": 0.8,
       "parameters": [
         {
           "name": "ZONE_REF",

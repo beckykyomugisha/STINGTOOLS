@@ -89,6 +89,7 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -164,6 +165,7 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -292,6 +294,7 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 5.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -606,6 +609,7 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.5,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -661,6 +665,7 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 5.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -744,6 +749,7 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 5.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -998,6 +1004,7 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 5.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",

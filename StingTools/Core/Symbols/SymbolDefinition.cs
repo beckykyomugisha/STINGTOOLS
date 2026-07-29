@@ -143,6 +143,20 @@ namespace StingTools.Core.Symbols
         /// <summary>Visible symbol size in millimetres at 1:100 (drives geometry scale).</summary>
         [JsonProperty("symbolSize")]  public double SymbolSize { get; set; } = 3.0;
 
+        /// <summary>
+        /// Largest legal absolute normalised coordinate for this symbol's geometry.
+        ///
+        /// The catalogue convention is a body normalised to -0.5..+0.5. Some symbol
+        /// classes legitimately draw beyond that box — SLD breakers and transformers
+        /// carry terminal leads, and the LPS symbols carry earth stems — so those
+        /// declare a larger extent rather than being squashed into the body box.
+        ///
+        /// Consumed by Symbols_Validate as the strict gate. The creator keeps its own
+        /// permissive +/-2.0 crash-guard so a bad edit degrades to a warning rather
+        /// than a malformed curve.
+        /// </summary>
+        [JsonProperty("overallExtent")] public double OverallExtent { get; set; } = 0.5;
+
         [JsonProperty("parameters", NullValueHandling = NullValueHandling.Ignore)]
         public List<ParameterDefinition> Parameters { get; set; }
             = new List<ParameterDefinition>();
@@ -373,6 +387,30 @@ namespace StingTools.Core.Symbols
         [JsonProperty("endDeg")]   public double EndDeg { get; set; } = 360;
         [JsonProperty("style", NullValueHandling = NullValueHandling.Ignore)]
         public string Style { get; set; }
+
+        // ── Spelling aliases ────────────────────────────────────────────
+        // 375 of the 620 arcs in the shipped catalogues spell the sweep
+        // "startAngle"/"endAngle" rather than the canonical
+        // "startDeg"/"endDeg". Newtonsoft silently ignored those keys, so
+        // StartDeg/EndDeg kept their 0/360 defaults and every one of those
+        // arcs rendered as a FULL CIRCLE instead of the intended sweep.
+        //
+        // The alias only writes while the canonical property still holds its
+        // default, so an explicit startDeg/endDeg always wins regardless of
+        // key order. Getters return null so the alias never re-serialises.
+        [JsonProperty("startAngle", NullValueHandling = NullValueHandling.Ignore)]
+        public double? StartAngle
+        {
+            get => null;
+            set { if (value.HasValue && StartDeg == 0) StartDeg = value.Value; }
+        }
+
+        [JsonProperty("endAngle", NullValueHandling = NullValueHandling.Ignore)]
+        public double? EndAngle
+        {
+            get => null;
+            set { if (value.HasValue && EndDeg == 360) EndDeg = value.Value; }
+        }
     }
 
     public sealed class FilledRegionDefinition
@@ -381,6 +419,24 @@ namespace StingTools.Core.Symbols
             = new List<Point2D>();
         [JsonProperty("fillType", NullValueHandling = NullValueHandling.Ignore)]
         public string FillType { get; set; }
+
+        // ── Spelling alias ──────────────────────────────────────────────
+        // 206 of the 217 filled regions in the shipped catalogues spell the
+        // boundary "vertices". Newtonsoft ignored that key, leaving Boundary
+        // empty, and DrawFilledRegion returns silently on an empty boundary —
+        // so 95% of all filled regions in the library never rendered, with no
+        // warning. The canonical key wins when both are present.
+        [JsonProperty("vertices", NullValueHandling = NullValueHandling.Ignore)]
+        public List<Point2D> Vertices
+        {
+            get => null;
+            set
+            {
+                if (value != null && value.Count > 0 &&
+                    (Boundary == null || Boundary.Count == 0))
+                    Boundary = value;
+            }
+        }
     }
 
     public sealed class Point2D

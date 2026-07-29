@@ -1458,6 +1458,7 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "CIRCUIT_REF",

@@ -773,6 +773,7 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 5.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "FLOW_LS",
@@ -1217,6 +1218,7 @@
       "discipline": "Mechanical",
       "subcategory": "Damper",
       "symbolSize": 5.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ACTUATOR_TYPE",
@@ -1618,6 +1620,7 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 6.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -2641,6 +2644,7 @@
       "discipline": "HVAC",
       "subcategory": "HVAC Equipment",
       "symbolSize": 7.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "Symbol Scale",

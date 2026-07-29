@@ -10,6 +10,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 3.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -92,6 +93,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 4.0,
+      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -173,6 +175,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 5.0,
+      "overallExtent": 0.75,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -260,6 +263,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 3.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -337,6 +341,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 4.0,
+      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -526,6 +531,7 @@
       "discipline": "Electrical",
       "subcategory": "Drive",
       "symbolSize": 4.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -614,6 +620,7 @@
       "discipline": "Electrical",
       "subcategory": "Drive",
       "symbolSize": 4.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -721,6 +728,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 3.5,
+      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -789,6 +797,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 4.0,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -875,6 +884,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 3.5,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "SPD_CLASS",
@@ -959,6 +969,7 @@
       "discipline": "Electrical",
       "subcategory": "Transformer",
       "symbolSize": 5.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "RATING_KVA",
@@ -1027,6 +1038,7 @@
       "discipline": "Electrical",
       "subcategory": "Transformer",
       "symbolSize": 5.5,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RATING_KVA",
@@ -1096,6 +1108,7 @@
       "discipline": "Electrical",
       "subcategory": "Transformer",
       "symbolSize": 4.5,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RATING_KVA",
@@ -1153,6 +1166,7 @@
       "discipline": "Electrical",
       "subcategory": "Transformer",
       "symbolSize": 6.0,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RATING_KVA",
@@ -1248,6 +1262,7 @@
       "discipline": "Electrical",
       "subcategory": "Instrument",
       "symbolSize": 3.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "RANGE_A",
@@ -1299,6 +1314,7 @@
       "discipline": "Electrical",
       "subcategory": "Instrument",
       "symbolSize": 3.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "RANGE_V",
@@ -1758,6 +1774,7 @@
       "discipline": "Electrical",
       "subcategory": "Source",
       "symbolSize": 5.0,
+      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "RATING_KVA",
@@ -1823,6 +1840,7 @@
       "discipline": "Electrical",
       "subcategory": "Source",
       "symbolSize": 5.0,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "RATING_KVA",
@@ -1987,6 +2005,7 @@
       "discipline": "Electrical",
       "subcategory": "Source",
       "symbolSize": 5.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ARRAY_KWP",
@@ -2059,6 +2078,7 @@
       "discipline": "Electrical",
       "subcategory": "Switching",
       "symbolSize": 5.0,
+      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "RATING_A",
@@ -2139,6 +2159,7 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 4.0,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RATING_KW",
@@ -2222,6 +2243,7 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 3.5,
+      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "RATING_KW",
@@ -2315,6 +2337,7 @@
       "discipline": "Electrical",
       "subcategory": "Load",
       "symbolSize": 3.5,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "RATING_KW",
@@ -2431,6 +2454,7 @@
       "discipline": "Electrical",
       "subcategory": "Distribution",
       "symbolSize": 6.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "DB_REF",
@@ -2580,6 +2604,7 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 4.0,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RATING_A",
@@ -2652,6 +2677,7 @@
       "discipline": "Electrical",
       "subcategory": "Switching",
       "symbolSize": 4.0,
+      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "RATING_A",
@@ -2703,6 +2729,7 @@
       "discipline": "Electrical",
       "subcategory": "LPS",
       "symbolSize": 5.0,
+      "overallExtent": 0.8,
       "description": "Air terminal / finial — BS EN 62305-3 / NFPA 780",
       "parameters": [
         {
@@ -2760,6 +2787,7 @@
       "discipline": "Electrical",
       "subcategory": "LPS",
       "symbolSize": 4.0,
+      "overallExtent": 0.75,
       "description": "Down conductor routing symbol — BS EN 62305-3 §5.3",
       "parameters": [
         {
@@ -2825,6 +2853,7 @@
       "discipline": "Electrical",
       "subcategory": "LPS",
       "symbolSize": 5.0,
+      "overallExtent": 0.8,
       "description": "Earth electrode / earth pit — BS EN 62305-3 §5.4 / NFPA 780",
       "parameters": [
         {
@@ -2886,6 +2915,7 @@
       "discipline": "Electrical",
       "subcategory": "LPS",
       "symbolSize": 6.0,
+      "overallExtent": 0.65,
       "description": "Main equipotential bonding bar / MEB — BS EN 62305-3",
       "parameters": [
         {
@@ -2959,6 +2989,7 @@
       "discipline": "Electrical",
       "subcategory": "HazardousArea",
       "symbolSize": 6.0,
+      "overallExtent": 0.65,
       "description": "Zone 0 — continuous presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
       "parameters": [
         {
@@ -3043,6 +3074,7 @@
       "discipline": "Electrical",
       "subcategory": "HazardousArea",
       "symbolSize": 6.0,
+      "overallExtent": 0.65,
       "description": "Zone 1 — likely presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
       "parameters": [
         {
@@ -3115,6 +3147,7 @@
       "discipline": "Electrical",
       "subcategory": "HazardousArea",
       "symbolSize": 6.0,
+      "overallExtent": 0.65,
       "description": "Zone 2 — unlikely presence of explosive atmosphere (IEC 60079-10-1 / DSEAR)",
       "parameters": [
         {
@@ -3351,6 +3384,7 @@
       "discipline": "Electrical",
       "subcategory": "Notation",
       "symbolSize": 4.0,
+      "overallExtent": 0.55,
       "description": "ABC (positive / clockwise) phase rotation notation — IEC 60034-8",
       "parameters": [
         {
@@ -3416,6 +3450,7 @@
       "discipline": "Electrical",
       "subcategory": "Notation",
       "symbolSize": 4.0,
+      "overallExtent": 0.55,
       "description": "ACB (negative / counter-clockwise) phase rotation notation — IEC 60034-8",
       "parameters": [
         {
