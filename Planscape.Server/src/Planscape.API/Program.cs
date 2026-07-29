@@ -1202,7 +1202,9 @@ if (rateLimitingEnabled)
             "[rate-limit] RateLimiting:Enabled=false IGNORED — the environment is "
           + "Production and the auth limiter is not optional there.");
     }
-    app.UseRateLimiter();
+    // NOTE: the actual UseRateLimiter() call is deliberately DEFERRED until
+    // after UseAuthentication() — see "rate limiter mounts here" below. Placing
+    // it here silently degraded every per-user policy to per-IP.
 }
 else
 {
@@ -1242,6 +1244,29 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseAuthentication();
+
+// ── rate limiter mounts here, AFTER authentication ──────────────────────────
+// It used to run before UseAuthentication(). At that point context.User is the
+// anonymous principal, so the "api" policy's partition key lookup
+//     User.FindFirst("sub") ?? User.FindFirst("user_id")
+// always returned null and every request silently fell through to the
+// `ip:{RemoteIpAddress}` branch. The per-user budget therefore never existed:
+// one shared 100 req/min bucket per source IP, so an entire firm behind one
+// office NAT shared it. At ~10 req/min per active coordinator that starts
+// returning 429s at roughly 10 coordinators — far below any Render tier limit.
+//
+// Measured before the move: 400 distinct users, round-robin, 18,255 requests
+// offered over 2.7 min → 299 succeeded (112/min) and 98.36% got 429. A working
+// per-user partition would have allowed 40,000/min.
+// Reproduce with load/tier-capacity.js; see docs/DEPLOY_RUNBOOK.md.
+//
+// Policies that partition by IP on purpose ("auth", "tagsync") are unaffected —
+// they read RemoteIpAddress directly and never looked at claims.
+if (rateLimitingEnabled)
+{
+    app.UseRateLimiter();
+}
+
 // S9 — push correlation ID + tenant + user into Serilog LogContext.
 // Must run AFTER UseAuthentication so the JWT claims are populated.
 app.UseMiddleware<Planscape.API.Middleware.CorrelationIdMiddleware>();

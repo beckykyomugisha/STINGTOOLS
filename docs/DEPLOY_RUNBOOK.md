@@ -331,12 +331,35 @@ Two different numbers, and mixing them up is how you under-buy:
 | Pro Max | 225 | ≈ Pro Plus | ≈ Pro Plus | — | **Skip.** 16 GB but still 4 CPU — worse $/CPU than Pro Plus for a CPU-bound app. |
 | Pro Ultra | 450 | 600–1000 | 300–500 | 150+ | Prefer 3–4 × Pro: cheaper, no single point of failure. |
 
-Derived from ~40 req/s per vCPU on this app's `.Include()`-heavy list endpoints
-(`MeetingsController` has 12, `AuthController` 10, `IssuesController` 8), ~10
-req/min per active coordinator, minus the Hangfire background floor — note
-`ClamAvScannerJob` is `Cron.Minutely`, so there is load even at zero users.
-Treat these as planning figures, not measurements: no load test has been run
-against production hardware.
+Originally derived from ~40 req/s per vCPU. **That estimate was too pessimistic**
+— see the measured results below. The table above is left deliberately
+conservative because the measurements were taken on developer hardware, which is
+faster than a shared cloud vCPU, and because run-to-run variance there is large.
+
+### What has actually been measured
+
+Method: `load/tier-capacity.js` against an API container pinned to Render
+Starter limits (0.5 CPU / 512 MB) via `docker/docker-compose.loadtest.yml`, with
+Postgres capped at `max_connections=100` to mirror a Render basic tier, and a
+project seeded with 5,000 issues so the `.Include()` chains hydrate real rows.
+
+Robust and reproducible:
+
+| Finding | Evidence |
+|---|---|
+| **The EF pool cap holds.** Peak observed `planscape-api-ef` connections was **exactly 20**, the configured cap, at every load level. | `pg_stat_activity` sampled every 3s across all runs |
+| **No connection exhaustion.** Zero `53300` / 5xx at any offered rate. | failure rate 0.00% in every run past the limiter fix |
+| **Saturation shows up as latency, not errors.** p95 rose ~25× while failures stayed at 0.00%. | 240 rps → p95 78 ms; 250 rps → p95 935 ms |
+| **RAM is not the Starter constraint; CPU is.** | 274 MB of the 512 MB ceiling at ~150 req/s |
+
+Indicative, high variance — **do not quote these as capacity guarantees**:
+on a 0.5-CPU container, p95 stayed under ~500 ms up to roughly 120–180 req/s
+offered. Four runs at an identical 150 req/s produced p95 of 101, 2527, 424 and
+108 ms, so a shared workstation cannot pin a number more precisely than that.
+Re-run on an actual Render instance to get figures worth quoting.
+
+Still not measured: SignalR fan-out under concurrent CRDT editing (the
+`CrdtHub.Push` write-per-update path), and sustained multi-hour load.
 
 The Redis SignalR backplane is already wired, so horizontal scaling works —
 **3 × Pro ($255) beats 1 × Pro Ultra ($450)** on both throughput and resilience.
@@ -349,6 +372,67 @@ The Redis SignalR backplane is already wired, so horizontal scaling works —
 2. **Bandwidth** — a 500 MB IFC/GLB × 20 coordinators/day is ~300 GB/mo ≈ **$45**
    at $0.15/GB overage, which can exceed the compute bill. Serve models by
    presigned URL from object storage, never proxied through the API.
+
+### Measuring tier capacity yourself
+
+Everything below runs against a local dev stack. Budget ~20 minutes.
+
+**1. Pin the API to the tier you want to measure.**
+
+```bash
+cd Planscape.Server
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.loadtest.yml \
+  --env-file .env.local up -d --build postgres redis api
+```
+
+Defaults to Starter (0.5 CPU / 512 MB). For Standard:
+`API_CPUS=1 API_MEMORY=2g docker compose ... up -d api`.
+
+**2. Seed users, membership and issues.** Distinct users are not optional — the
+`api` policy budgets 100 req/min per user, so a single account measures the rate
+limiter rather than the server. 400 users ≈ 666 req/s of headroom.
+
+```bash
+docker exec -i docker-postgres-1 psql -U planscape -d planscape < load/seed-loadtest-data.sql
+```
+
+**3. Mint tokens.** Bulk login is impossible by design: the `auth` policy allows
+5 logins per 5 minutes per IP. Sign tokens with the dev key instead.
+
+```bash
+JWT_KEY=$(grep '^JWT_KEY=' .env.local | cut -d= -f2-) \
+  python load/mint-loadtest-tokens.py > load/loadtest-tokens.json
+```
+
+> `loadtest-tokens.json` holds **valid signed JWTs** and is gitignored. Only ever
+> generate it against a dev key.
+
+**4. Run, ramping `PEAK_RPS` to find the knee.**
+
+```bash
+docker run --rm --network host -v "$PWD/load:/load" \
+  -e BASE_URL=http://localhost:5000 -e PROJECT_ID=<guid> -e PEAK_RPS=150 \
+  grafana/k6 run /load/tier-capacity.js
+```
+
+The knee is where p95 crosses the budget while **failure rate stays at 0** —
+that is CPU saturation. A run that instead shows high failures with a *low* p95
+is not saturation: it is 429s, and it means either too few seeded users or the
+offered rate exceeds `users × 100 / 60`.
+
+**5. Watch the pools while it runs**, to confirm the cap holds and nothing
+approaches the 97-connection ceiling:
+
+```bash
+docker exec docker-postgres-1 psql -U planscape -d planscape \
+  -c "SELECT application_name, count(*) FROM pg_stat_activity GROUP BY 1 ORDER BY 2 DESC;"
+```
+
+**Interpreting the result honestly.** Your CPU core is faster than a shared
+cloud vCPU, so treat any figure as an upper bound. Client and server also share
+the host, so k6's own CPU competes with the API. Variance on a workstation is
+large — repeat each point at least three times and quote the range, not the best
+run.
 
 ### Suggested progression
 

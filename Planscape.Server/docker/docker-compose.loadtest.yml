@@ -1,0 +1,53 @@
+# docker-compose.loadtest.yml — pin the API to a Render instance type so the
+# capacity numbers in docs/DEPLOY_RUNBOOK.md can be MEASURED, not modelled.
+#
+# Render web instance types (confirmed against render.com/docs/compute-plans):
+#   Free       512 MB / 0.1 CPU     Starter   512 MB / 0.5 CPU
+#   Standard     2 GB / 1   CPU     Pro         4 GB / 2   CPU
+#   Pro Plus     8 GB / 4   CPU     Pro Max    16 GB / 4   CPU
+#   Pro Ultra   32 GB / 8   CPU
+#
+# Usage — emulate a Starter box (the default) and run the capacity suite:
+#
+#   cd Planscape.Server
+#   docker compose -f docker/docker-compose.yml \
+#                  -f docker/docker-compose.loadtest.yml \
+#                  --env-file .env.local up -d postgres redis api
+#
+#   API_CPUS=1 API_MEMORY=2g docker compose ... up -d api   # Standard
+#
+# CAVEATS — read before quoting any number this produces:
+#   - Your CPU core is not Render's. A modern desktop core is materially faster
+#     than a shared cloud vCPU, so treat results as an UPPER BOUND and derate.
+#   - `cpus:` throttles via CFS quota, which is how Render limits too, but the
+#     memory ceiling behaves differently: here the container is OOM-killed,
+#     on Render the instance restarts. Same signal, different blast radius.
+#   - Postgres and Redis are unconstrained here so the API is the bottleneck
+#     under test. On Render the database has its own (smaller) instance.
+
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPUS:-0.5}"
+          memory: "${API_MEMORY:-512m}"
+    environment:
+      # Match the production connection budget so pool exhaustion reproduces
+      # here exactly as it would on Render. See Program.cs "Connection budget".
+      - Database__MaxPoolSize=${API_EF_POOL:-20}
+      - Database__HangfireMaxPoolSize=${API_HANGFIRE_POOL:-10}
+      # Serilog at Warning: Information-level request logging is itself a
+      # measurable share of CPU at high RPS and would skew the result.
+      - Serilog__MinimumLevel__Default=${LOADTEST_LOG_LEVEL:-Warning}
+
+  # Postgres with a Render-like connection ceiling, so "too many clients"
+  # reproduces at the same point it would in production. Render basic tiers
+  # allow 100 with 10 reserved; max_connections=100 mirrors that exactly.
+  postgres:
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=${PG_MAX_CONNECTIONS:-100}"
+      - "-c"
+      - "shared_buffers=${PG_SHARED_BUFFERS:-64MB}"

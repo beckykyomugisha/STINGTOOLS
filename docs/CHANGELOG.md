@@ -2,6 +2,58 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Planscape Server — the API rate limit was per-IP, not per-user; found by measuring)
+
+Follow-on from the connection-budget work. The tier capacity table was modelled,
+not measured, so this builds the harness to measure it — and the first real run
+found a P1.
+
+**`app.UseRateLimiter()` ran before `app.UseAuthentication()`.** At that point
+`context.User` is the anonymous principal, so the `api` policy's partition key
+lookup (`User.FindFirst("sub") ?? User.FindFirst("user_id")`) always returned
+null and every request fell through to the `ip:{RemoteIpAddress}` branch. The
+per-user budget never existed: one shared 100 req/min bucket per source IP, so
+an entire firm behind one office NAT shared it. At ~10 req/min per active
+coordinator that starts returning 429s at roughly **10 coordinators in one
+office** — far below any Render tier limit, and exactly the kind of ceiling the
+capacity question was asking about.
+
+Measured before: 400 distinct users, round-robin, 18,255 requests offered over
+2.7 min → 299 succeeded (112/min, i.e. one 100/min bucket) and 98.36% got 429.
+A working per-user partition would have allowed 40,000/min. Measured after:
+one user gets exactly 100×200 then 30×429; a second user on the **same IP**
+still gets 200. Policies that partition by IP deliberately (`auth`, `tagsync`)
+read `RemoteIpAddress` directly and are unaffected.
+
+New load-test harness under `Planscape.Server/load/`:
+
+- `tier-capacity.js` — k6, ramping-arrival-rate (not ramping-vus, which
+  self-throttles and measures the client instead of the server). Drives a
+  weighted read mix over a pool of per-user tokens.
+- `seed-loadtest-data.sql` — 400 users + membership + 5,000 issues. Both counts
+  are load-bearing: one account measures the rate limiter, and an empty project
+  makes the `.Include()` chains hydrate nothing (knee measured at 240 req/s
+  empty vs ~120-180 req/s with real rows).
+- `mint-loadtest-tokens.py` — signs tokens directly, because the `auth` policy
+  caps logins at 5 per 5 min per IP and bulk login is impossible by design.
+  Output is gitignored: it contains valid signed JWTs.
+- `docker/docker-compose.loadtest.yml` — pins the API to a Render instance type
+  (default Starter: 0.5 CPU / 512 MB) and caps Postgres at `max_connections=100`
+  to mirror a basic tier.
+
+What the harness confirmed about the previous phase: peak `planscape-api-ef`
+connections was **exactly 20**, the configured cap, at every load level, with
+zero connection-exhaustion failures. Saturation manifests as latency, not
+errors — p95 rose ~25× while the failure rate stayed at 0.00%. RAM is not the
+Starter constraint (274 MB of 512 MB at ~150 req/s); CPU is.
+
+Capacity figures themselves remain deliberately conservative in the runbook:
+four runs at an identical 150 req/s produced p95 of 101, 2527, 424 and 108 ms,
+so a shared workstation cannot pin a number worth quoting. The method and the
+derating caveats are documented; re-run on a real Render instance for figures
+you can publish. Build 0 errors; suite unchanged at 377 passed / 73 pre-existing
+failures.
+
 #### Completed (Planscape Server — Postgres connection budget; the URL format Npgsql can't parse)
 
 Started as a capacity question ("what can each Render tier hold?") and turned up

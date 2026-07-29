@@ -109,3 +109,7 @@ tools/bin/
 # .example template is tracked.
 fohlio_connection.json
 **/fohlio_connection.json
+
+# Load-test artifacts — loadtest-tokens.json contains VALID signed JWTs
+Planscape.Server/load/loadtest-tokens.json
+Planscape.Server/load/tier-capacity-result.json
