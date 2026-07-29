@@ -144,6 +144,35 @@ namespace StingTools.Core.Symbols
         [JsonProperty("symbolSize")]  public double SymbolSize { get; set; } = 3.0;
 
         /// <summary>
+        /// Real-world size in millimetres for MODEL-category symbols
+        /// (MEPEquipment / MEPAccessory / etc.).
+        ///
+        /// <para>Why this exists: <see cref="SymbolSize"/> is a PAPER-space target.
+        /// That is correct for GenericAnnotation, which Revit plots at a constant
+        /// size regardless of view scale. Model-category families live in MODEL
+        /// space, so building them at <see cref="SymbolSize"/> produced devices a
+        /// few millimetres across — a 13A socket 4 mm wide, plotting at 0.08 mm on
+        /// a 1:50 sheet. Those families were effectively invisible.</para>
+        ///
+        /// <para>Model-category geometry is therefore driven by this value, and the
+        /// schematic glyph is carried separately by <see cref="PlanSymbol"/>. Unset
+        /// (0) falls back to <see cref="SymbolSize"/> with a build warning.</para>
+        /// </summary>
+        [JsonProperty("realSizeMm")] public double RealSizeMm { get; set; } = 0;
+
+        /// <summary>
+        /// Id of the GenericAnnotation symbol nested into this model family to
+        /// provide its plan-view schematic glyph.
+        ///
+        /// <para>Real geometry alone plots as a small rectangle in plan, which is
+        /// not how MEP devices are drafted. The nested annotation keeps the
+        /// schematic legible at any scale while the model geometry stays
+        /// dimensionally correct for clash, quantities and COBie.</para>
+        /// </summary>
+        [JsonProperty("planSymbol", NullValueHandling = NullValueHandling.Ignore)]
+        public string PlanSymbol { get; set; }
+
+        /// <summary>
         /// Largest legal absolute normalised coordinate for this symbol's geometry.
         ///
         /// The catalogue convention is a body normalised to -0.5..+0.5. Some symbol

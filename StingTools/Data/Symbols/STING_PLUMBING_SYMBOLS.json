@@ -10,6 +10,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 5.5,
+      "realSizeMm": 360,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -113,6 +114,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 6.5,
+      "realSizeMm": 700,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -209,6 +211,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 4.0,
+      "realSizeMm": 400,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -291,6 +294,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 5.0,
+      "realSizeMm": 550,
       "overallExtent": 0.8,
       "parameters": [
         {
@@ -382,6 +386,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 6.0,
+      "realSizeMm": 600,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -468,6 +473,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 6.0,
+      "realSizeMm": 600,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -578,6 +584,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 8.0,
+      "realSizeMm": 1000,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -703,6 +710,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 5.0,
+      "realSizeMm": 600,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -796,6 +804,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 8.0,
+      "realSizeMm": 900,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -897,6 +906,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 17.0,
+      "realSizeMm": 1700,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1014,6 +1024,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 4.5,
+      "realSizeMm": 360,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1078,6 +1089,7 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 3.0,
+      "realSizeMm": 150,
       "parameters": [],
       "geometry": {
         "arcs": [
@@ -1129,6 +1141,7 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 3.5,
+      "realSizeMm": 150,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1196,6 +1209,7 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 4.0,
+      "realSizeMm": 250,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1275,6 +1289,7 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -1360,6 +1375,7 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -1429,6 +1445,7 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 120,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -1504,6 +1521,7 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 4.5,
+      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -1603,6 +1621,7 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 150,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1662,6 +1681,7 @@
       "discipline": "Plumbing",
       "subcategory": "Filter",
       "symbolSize": 5.0,
+      "realSizeMm": 180,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1753,6 +1773,7 @@
       "discipline": "Plumbing",
       "subcategory": "Connector",
       "symbolSize": 5.0,
+      "realSizeMm": 150,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1830,6 +1851,7 @@
       "discipline": "Plumbing",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "realSizeMm": 200,
       "parameters": [
         {
           "name": "SET_PRESSURE_BAR",
@@ -1929,6 +1951,7 @@
       "discipline": "Plumbing",
       "subcategory": "Equipment",
       "symbolSize": 7.0,
+      "realSizeMm": 500,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -2027,6 +2050,7 @@
       "discipline": "Plumbing",
       "subcategory": "Equipment",
       "symbolSize": 7.0,
+      "realSizeMm": 500,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",

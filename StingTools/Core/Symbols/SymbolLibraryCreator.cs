@@ -93,6 +93,43 @@ namespace StingTools.Core.Symbols
         private static double Scale(double normCoord, double symbolSizeMm)
             => normCoord * MmToFt(symbolSizeMm);
 
+        /// <summary>
+        /// Millimetre size the symbol's normalised geometry is expanded to.
+        ///
+        /// <para>Annotation and detail templates plot in PAPER space — Revit holds
+        /// them at a constant plotted size at any view scale — so
+        /// <c>symbolSize</c> is exactly right there, and the "Symbol Scale"
+        /// parameter carried by 520 annotation symbols is inert by design. It is
+        /// left in place deliberately: it is harmless, and stripping it would make
+        /// existing project families diverge from newly built ones.</para>
+        ///
+        /// <para>Model templates live in MODEL space, where a paper-space size
+        /// yields a device a few millimetres across. Those use
+        /// <c>realSizeMm</c>. Falling back to <c>symbolSize</c> for a model family
+        /// is a defect, so it warns rather than failing silently.</para>
+        /// </summary>
+        private static double ResolveGeometrySizeMm(SymbolDefinition def, TemplateKind kind,
+            SymbolCreationResult result)
+        {
+            double paper = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+            if (!IsModelSpaceTemplate(kind)) return paper;
+
+            if (def.RealSizeMm > 0) return def.RealSizeMm;
+
+            result?.Warnings.Add(
+                $"{def.Id}: model-category symbol has no realSizeMm — falling back to the " +
+                $"paper-space symbolSize ({paper:F1}mm). The family will be built a few " +
+                "millimetres across and will be effectively invisible in model views.");
+            return paper;
+        }
+
+        /// <summary>
+        /// True when the template places geometry in model space, where sizes are
+        /// real-world rather than plotted.
+        /// </summary>
+        private static bool IsModelSpaceTemplate(TemplateKind kind)
+            => kind == TemplateKind.Model;
+
         // ─────────────────────────────────────────────────────────────────
         // Fix 5 — Geometry coordinate range validation
         // ─────────────────────────────────────────────────────────────────
@@ -577,7 +614,7 @@ namespace StingTools.Core.Symbols
             // ref-level plane already created by the .rft.
             SketchPlane sketch = ResolveSketchPlane(fdoc, kind, def.Id, result);
 
-            double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+            double s = ResolveGeometrySizeMm(def, kind, result);
 
             // Fix 4 — resolve the effective textHeightMm from the standard.
             double stdTextHeightMm = std?.AnnotationRules?.TextHeightMm ?? 2.5;
@@ -1512,7 +1549,13 @@ namespace StingTools.Core.Symbols
         {
             if (!fdoc.IsFamilyDocument) return;
             if (connectors == null) return;
-            double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+
+            // Must match DrawGeometry's size exactly. Connector offsets are
+            // normalised against the same box as the linework, so resolving them
+            // differently would leave connectors floating off the geometry.
+            // Connectors only exist on model templates, so this always takes the
+            // realSizeMm path in practice.
+            double s = ResolveGeometrySizeMm(def, ResolveTemplateKind(def), result);
 
             foreach (var c in connectors)
             {

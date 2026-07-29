@@ -155,22 +155,60 @@ The Label is never in the mutation path, so it survives.
 
 **Exit**: `Symbols_Validate` reports 0 empty-geometry and 0 unexplained overflow.
 
-### P1 — Make scale parametric (2–3 days) ← highest value
+### P1 — Real-world sizing for model-category symbols ✅ part 1 done
 
-The fix for the compound defect in §2.
+**This phase was re-scoped during implementation. The original plan was wrong** and is recorded
+here because the reasoning matters.
 
-- Add a `SYMBOL_SIZE_MM` length parameter to every generated family.
-- Bind geometry to it instead of baking coordinates, so the normalised `-0.5..+0.5` box becomes a
-  real parametric extent.
-- Emit the formula `SYMBOL_SIZE_MM = target_mm * Symbol Scale` via `formulaBindings` — closing
-  V-3 and activating the contract `MepSymbolEngine` already documents.
-- Verify against `IsoSymbolPlacer`, which already writes `Symbol Scale` and currently gets ignored.
+The original P1 proposed adding a `Symbol Scale` formula to *every* generated family. That would
+have broken 726 of them. Annotation and detail templates draw in **paper space** — Revit already
+holds them at a constant plotted size at any view scale — so a scale formula there double-scales.
 
-**Risk**: parametric symbolic curves in annotation families need dimensions driving them; this is
-the one place where generated geometry may not fully substitute for hand-drafting. Prototype on
-3 symbols before committing to all 884.
+The parameter distribution showed the mismatch exactly:
 
-**Exit**: one symbol placed at 1:50 and 1:100 renders at identical paper size.
+| Family type | Count | Declares `Symbol Scale` | Actually needs it |
+|---|---:|---:|---|
+| GenericAnnotation | 726 | 520 | no — paper space |
+| MEPEquipment / MEPAccessory | 154 | **0** | yes — model space |
+
+It is on precisely the wrong set.
+
+The real defect underneath was worse. All 154 model-category symbols had geometry expanded by
+`Scale(coord, symbolSize)` — a *paper* dimension — while living in **model** space. So
+`ELEC_SOCKET_SINGLE` was a 4 mm object (real 13A plates are 86 mm), `ELEC_SWITCH_1G` 3.5 mm,
+`ELEC_EV_CHARGER` 6 mm. At 1:50 a 4 mm object plots at 0.08 mm. **Those 154 families were
+effectively invisible in any model view**, and since none declared `Symbol Scale`, the placer's
+write-back could not rescue them.
+
+**Decision taken**: hybrid — real-world model geometry plus a nested annotation glyph for plan
+legibility. Model stays dimensionally correct for clash, quantities and COBie; plans stay schematic.
+
+**Done in this pass**:
+- `SymbolDefinition.RealSizeMm` + `PlanSymbol` added to the schema.
+- `ResolveGeometrySizeMm(def, kind, result)` — the single size-resolution point. Paper templates
+  keep `symbolSize`; model templates use `realSizeMm` and **warn loudly** on fallback rather than
+  silently building a millimetre-scale device.
+- The connector path resolves size through the same helper. It previously had its own copy of the
+  expression, which would have left connectors floating off the geometry once sizes diverged.
+- `realSizeMm` populated on all 154, from BS 1363 / BS 5839 / BS 6465 / BS EN 12845 plate and
+  fixture dimensions and typical plant envelopes. Range 50 mm (sprinkler head) to 2000 mm (AHU).
+- `Symbol Scale` left on the 520 annotation symbols and documented as inert by design, so nobody
+  later "fixes" it into breaking them.
+
+**Verified**: 154/154 model symbols carry `realSizeMm`; 726 annotation symbols carry none; no
+symbol has a real size smaller than its paper size. Build 0 warnings / 0 errors.
+
+**Honest scope note**: the model geometry is the existing *schematic* linework expanded to
+real-world size, not manufacturer-accurate 3D. For plate-type devices (sockets, switches, call
+points) an 86 mm outline is genuinely close to the product. For plant (AHU, FCU) it is a correct
+footprint but not a detailed model. Swapping in manufacturer families remains
+`Symbols_SwapToManufacturer`'s job.
+
+**Still open — P1 part 2**: `PlanSymbol` is in the schema but unpopulated, and the generator does
+not yet nest. Most of the 154 have no GenericAnnotation twin to nest, so this needs ~154 glyph
+annotations authored first. That is P4-scale content work, not a code gap.
+
+**Exit for part 2**: a socket placed in a 1:50 plan shows its schematic glyph, not an 86 mm square.
 
 ### P2 — Seed inheritance (3–4 days code + authoring)
 
