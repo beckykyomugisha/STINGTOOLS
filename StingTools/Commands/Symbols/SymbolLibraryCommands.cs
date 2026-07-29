@@ -105,8 +105,13 @@ namespace StingTools.Commands.Symbols
             return Path.Combine(baseDir, "_BIM_COORD", "symbol_size_config.json");
         }
 
+        /// <param name="rebuildMode">
+        /// Forces every family in the catalogue to be regenerated even when the
+        /// cache manifest reports it fresh. Normal builds leave this false and let
+        /// <see cref="SymbolCacheManifest"/> decide — see Symbols_Rebuild.
+        /// </param>
         public static SymbolCreationResult RunBatch(Document doc, string jsonName, string subFolder,
-            SymbolSizeConfig sizeConfig = null)
+            SymbolSizeConfig sizeConfig = null, bool rebuildMode = false)
         {
             var aggregate = new SymbolCreationResult();
             string jsonPath = StingToolsApp.FindDataFile(jsonName);
@@ -125,7 +130,7 @@ namespace StingTools.Commands.Symbols
                 sizeConfig = SymbolSizeConfig.LoadOrDefault(ResolveSizeConfigPath(doc));
 
             var r = SymbolLibraryCreator.CreateAllFromFile(doc, jsonPath, outFolder,
-                loadIntoProject: true, sizeConfig: sizeConfig);
+                loadIntoProject: true, rebuildMode: rebuildMode, sizeConfig: sizeConfig);
             aggregate.Created += r.Created;
             aggregate.Existed += r.Existed;
             aggregate.Failed  += r.Failed;

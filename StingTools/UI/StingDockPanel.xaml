@@ -1967,6 +1967,7 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="Symbols_CreateLighting" Click="Cmd_Click" ToolTip="Create lighting tag families"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="Symbols_CreateFP" Click="Cmd_Click" ToolTip="Fire protection — sprinklers, detectors, alarm devices, valves"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Reload" Tag="Symbols_Reload" Click="Cmd_Click" ToolTip="Reload every previously-created symbol family from disk"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rebuild" Tag="Symbols_Rebuild" Click="Cmd_Click" ToolTip="Rebuild generated symbol families whose catalogue or generator has changed (or force-rebuild all)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="Symbols_Inspect" Click="Cmd_Click" ToolTip="Read-only diagnostic — defined vs loaded counts per group"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Proj" Tag="Symbols_SwitchProject" Click="Cmd_Click" ToolTip="Switch Project Standard — swap every symbol overlay in the project to a chosen standard"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std View" Tag="Symbols_SwitchView" Click="Cmd_Click" ToolTip="Switch View Standard — set the symbol standard for the active view only"/>

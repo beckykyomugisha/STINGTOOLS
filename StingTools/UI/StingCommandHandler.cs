@@ -499,6 +499,7 @@ namespace StingTools.UI
                     case "Symbols_CreateLighting": RunCommand<Commands.Symbols.CreateLightingSymbolsCommand>(app); break;
                     case "Symbols_CreateFP":       RunCommand<Commands.Symbols.CreateFPSymbolsCommand>(app); break;
                     case "Symbols_Reload":         RunCommand<Commands.Symbols.ReloadSymbolLibraryCommand>(app); break;
+                    case "Symbols_Rebuild":        RunCommand<Commands.Symbols.SymbolRebuildCommand>(app); break;
                     case "Symbols_Inspect":        RunCommand<Commands.Symbols.InspectSymbolLibraryCommand>(app); break;
                     case "Symbols_ConfigSizes":    RunCommand<Commands.Symbols.ConfigureSymbolSizesCommand>(app); break;
 

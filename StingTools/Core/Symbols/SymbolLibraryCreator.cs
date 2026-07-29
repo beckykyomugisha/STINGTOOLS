@@ -206,6 +206,21 @@ namespace StingTools.Core.Symbols
             var app = hostDoc.Application;
             var templateFolder = ResolveTemplateFolder(app);
 
+            // ── Cache invalidation (W-1) ──────────────────────────────────
+            // Existence alone is not freshness. A .rfa on disk may have been
+            // built from an older catalogue, or by an older generator whose
+            // output differed even though every catalogue byte is identical.
+            // rebuildMode forces a rebuild regardless (Symbols_RebuildAll).
+            var cache = SymbolCacheManifest.Load(outputFolder);
+            bool hashStale = cache.IsCatalogueStale(jsonPath, out string staleReason);
+            bool catalogueStale = rebuildMode || hashStale;
+            if (catalogueStale)
+            {
+                string cause = rebuildMode ? "forced rebuild" : staleReason;
+                StingLog.Info($"SymbolLibraryCreator: rebuilding '{Path.GetFileName(jsonPath)}' — {cause}.");
+                result.Warnings.Add($"{Path.GetFileName(jsonPath)}: rebuilding cached families — {cause}.");
+            }
+
             foreach (var def in lib.Symbols)
             {
                 if (string.IsNullOrWhiteSpace(def?.Id))
@@ -227,7 +242,11 @@ namespace StingTools.Core.Symbols
                 }
 
                 var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
-                if (File.Exists(rfaPath))
+                // W-1 — a stale catalogue (or generator) means the .rfa on disk was
+                // built from something that no longer describes this symbol, so
+                // existence no longer licenses a skip. Fall through to BuildOne,
+                // which overwrites via SaveAsOptions.OverwriteExistingFile.
+                if (File.Exists(rfaPath) && !catalogueStale)
                 {
                     // If the .rfa loads cleanly, count it as Existed and
                     // move on. If LoadFamily returns false (Revit's
@@ -286,6 +305,23 @@ namespace StingTools.Core.Symbols
                 }
             }
 
+            // ── Record the build (W-1) ────────────────────────────────────
+            // Only stamp the catalogue as built when nothing failed. Recording a
+            // partial build would mark the catalogue fresh and permanently strand
+            // the families that did not make it — the exact failure mode this
+            // whole mechanism exists to stop.
+            if (result.Failed == 0)
+            {
+                cache.RecordCatalogue(jsonPath);
+                cache.Save(outputFolder);
+            }
+            else
+            {
+                result.Warnings.Add(
+                    $"{Path.GetFileName(jsonPath)}: {result.Failed} symbol(s) failed — cache not " +
+                    "stamped, so the next run will retry this catalogue.");
+            }
+
             return result;
         }
 
@@ -298,10 +334,13 @@ namespace StingTools.Core.Symbols
         private static void BuildVariant(Document hostDoc, Application app, SymbolDefinition baseDef,
             string emitId, StandardGeometryOverride overrideDef,
             string outputFolder, string templateFolder, bool loadIntoProject,
-            SymbolCreationResult result)
+            SymbolCreationResult result, bool catalogueStale = false)
         {
             var rfaPath = Path.Combine(outputFolder, emitId + ".rfa");
-            if (File.Exists(rfaPath))
+            // W-1 — same existence-is-not-freshness rule as the main build loop.
+            // This method currently has no call site; the guard is here so wiring
+            // it later cannot silently reintroduce an uninvalidatable cache.
+            if (File.Exists(rfaPath) && !catalogueStale)
             {
                 result.Existed++;
                 result.CreatedRfaPaths.Add(rfaPath);
