@@ -83,7 +83,8 @@ namespace StingTools.Core.Content
 
         /// <summary>Firm-wide content root: STING_CONTENT_LIB env →
         /// %APPDATA%/STING/sting_content.json:"content_root" → (legacy)
-        /// STING_SYMBOL_LIB / sting_symbols.json:"symbol_library_root". Null when unset.</summary>
+        /// STING_SYMBOL_LIB / sting_symbols.json:"symbol_library_root" →
+        /// %PROGRAMDATA%/STING/ContentLibrary (W-3 default). Null only on error.</summary>
         public static string ResolveSharedRoot()
         {
             try
@@ -109,6 +110,22 @@ namespace StingTools.Core.Content
                     var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(legacyCfg));
                     var lib = (string)root["symbol_library_root"];
                     if (!string.IsNullOrWhiteSpace(lib)) return lib.Trim();
+                }
+
+                // W-3 — machine-wide default, delegated to the symbol engine so the
+                // two shared-root resolvers cannot drift apart. Content lives one
+                // level above the symbols sub-folder that resolver returns.
+                //
+                // Returned whether or not it exists yet, matching how the project and
+                // baseline tiers are assembled above: Resolve() does not filter on
+                // existence and its consumers already tolerate a missing folder.
+                // Gating this on Directory.Exists would make the answer depend on
+                // whether a build had happened to run first.
+                var symbolsDefault = Symbols.MepSymbolEngine.DefaultSharedLibraryRoot;
+                if (!string.IsNullOrEmpty(symbolsDefault))
+                {
+                    var contentDefault = Path.GetDirectoryName(symbolsDefault);
+                    if (!string.IsNullOrEmpty(contentDefault)) return contentDefault;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ContentRoots.ResolveSharedRoot: {ex.Message}"); }

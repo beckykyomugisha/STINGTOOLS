@@ -159,6 +159,23 @@ namespace StingTools.Commands.Symbols
                 if (fs != null) return fs;
             }
 
+            // Tier 1c: the firm-wide shared library (W-3). Required, not optional:
+            // once ResolveOutputRoot can write to a shared root, a project that has
+            // no local library will have its families there and nowhere else. Without
+            // this tier those builds would succeed and then resolve to nothing.
+            try
+            {
+                string sharedRoot = MepSymbolEngine.ResolveSharedLibraryRoot();
+                if (!string.IsNullOrEmpty(sharedRoot) && Directory.Exists(sharedRoot))
+                {
+                    string subfolder = ResolveSubfolder(jsonFile);
+                    fs = TryLoad(doc, Path.Combine(sharedRoot, subfolder, symbolId + ".rfa"))
+                      ?? TryLoad(doc, Path.Combine(sharedRoot, symbolId + ".rfa"));
+                    if (fs != null) return fs;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveFamilySymbol shared-root probe: {ex.Message}"); }
+
             // Tier 2: search seed folder Families/<discipline>/
             string seedFolder = ResolveSeedFolder(jsonFile);
             if (!string.IsNullOrEmpty(seedFolder))

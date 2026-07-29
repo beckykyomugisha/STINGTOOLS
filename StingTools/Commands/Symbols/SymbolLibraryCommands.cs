@@ -54,6 +54,19 @@ namespace StingTools.Commands.Symbols
 
         public static string ResolveOutputRoot(Document doc)
         {
+            // W-3 — a project that ALREADY has a generated library keeps writing
+            // there, even once a shared root exists.
+            //
+            // Without this, defaulting the shared root would strand every existing
+            // library: builds would move to the shared root while the read path
+            // (projectFirst precedence) still found the older project-local copies
+            // first. The stale families would keep winning and W-1's invalidation
+            // would silently accomplish nothing. Migration is a deliberate act, not
+            // a side effect of an upgrade.
+            string existingProjectLib = ExistingProjectLibrary(doc);
+            if (!string.IsNullOrEmpty(existingProjectLib))
+                return existingProjectLib;
+
             // Firm-wide shared library takes precedence so one build serves every
             // project. STING_SYMBOL_LIB (or sting_symbols.json) points directly at
             // the symbols root; the per-standard sub-folders land beneath it.
@@ -86,6 +99,38 @@ namespace StingTools.Commands.Symbols
             var outDir = Path.Combine(baseDir, "_BIM_COORD", "Families", "Symbols");
             Directory.CreateDirectory(outDir);
             return outDir;
+        }
+
+        /// <summary>
+        /// The project's own generated-symbol folder, but only when it already holds
+        /// built families. An empty or absent folder returns null so a fresh project
+        /// goes to the shared library instead of minting a private copy.
+        /// </summary>
+        private static string ExistingProjectLibrary(Document doc)
+        {
+            try
+            {
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
+                string dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) return null;
+
+                string lib = Path.Combine(dir, "_BIM_COORD", "Families", "Symbols");
+                if (!Directory.Exists(lib)) return null;
+
+                // Any .rfa anywhere beneath it counts — the build fans out into
+                // per-standard sub-folders (SLD/IEC, Lighting, …), so a top-level
+                // check alone would miss a populated library.
+                bool populated = Directory.EnumerateFiles(lib, "*.rfa", SearchOption.AllDirectories).Any();
+                if (!populated) return null;
+
+                StingLog.Info($"ResolveOutputRoot: using the project's existing symbol library at '{lib}'.");
+                return lib;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ExistingProjectLibrary: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>

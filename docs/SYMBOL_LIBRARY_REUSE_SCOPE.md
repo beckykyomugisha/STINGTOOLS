@@ -2,7 +2,22 @@
 
 **Branch**: `claude/iso-symbols-p0p1`
 **Date**: 2026-07-29
-**Status**: Scope. No implementation.
+**Status**: W-1, W-2, W-3 implemented. W-4, W-5 outstanding.
+
+> **Implementation notes (2026-07-29)**
+>
+> - **W-1 / W-2 landed.** Two corrections to this scope: the second skip site
+>   (`SymbolLibraryCreator:303`) is inside `BuildVariant`, which has **no call site** — it is dead
+>   code, guarded anyway so wiring it later cannot reintroduce the bug. And W-2 shipped as one
+>   `Symbols_Rebuild` command with a mode prompt rather than a command plus a `--force` variant.
+> - **W-3 landed, but was larger than scoped.** Defaulting the shared root alone would have broken
+>   symbol lookup: `EquipmentSymbolCommands.ResolveFamilySymbol` never read the shared root (only
+>   `MepSymbolEngine` did), so families written to the new default would have resolved to nothing.
+>   W-3 therefore had to take a slice of W-4 — the read-path fix — plus an `ExistingProjectLibrary`
+>   guard so projects that already hold a generated library keep building in place. Without that
+>   guard, builds would have moved to the shared root while `projectFirst` precedence kept finding
+>   the older project-local copies first, and W-1's invalidation would have silently accomplished
+>   nothing.
 **Trigger**: [PR #498](https://github.com/beckykyomugisha/STINGTOOLS/pull/498) changes the built output
 of ~360 symbols, and **no existing project will pick the fixes up** — see R-1.
 
