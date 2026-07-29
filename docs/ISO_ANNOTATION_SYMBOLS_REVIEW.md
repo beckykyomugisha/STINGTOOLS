@@ -4,6 +4,11 @@
 **Date**: 2026-07-29
 **Status**: Research / advisory. No code changed.
 
+> **§5 is superseded** by [`ISO_ANNOTATION_SYMBOLS_PLAN.md`](ISO_ANNOTATION_SYMBOLS_PLAN.md).
+> That plan assumed view-marker families had to be hand-authored one by one. They don't — a Label
+> can be *inherited* from a seed `.rfa`, which cuts the manual cost to ~10 seeds. §1–§4 of this
+> document (inventory, gaps, drawing-production state, GRAITEC comparison) remain accurate.
+
 ---
 
 ## 1. What StingTools already has
