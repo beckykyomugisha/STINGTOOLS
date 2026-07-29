@@ -426,6 +426,19 @@ namespace StingTools.UI
             DockPanel.SetDock(chips, Dock.Top);
             dock.Children.Add(chips);
 
+            // Bulk select row — operates on the currently filtered/visible rows so it
+            // respects an active search or filter chip.
+            var bulkRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            var selectAllBtn = new Button { Content = "Select All", FontSize = 11, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 6, 0) };
+            selectAllBtn.Click += (_, __) => SetVisibleRowsChecked(true);
+            bulkRow.Children.Add(selectAllBtn);
+
+            var deselectAllBtn = new Button { Content = "Deselect All", FontSize = 11, Padding = new Thickness(10, 3, 10, 3) };
+            deselectAllBtn.Click += (_, __) => SetVisibleRowsChecked(false);
+            bulkRow.Children.Add(deselectAllBtn);
+            DockPanel.SetDock(bulkRow, Dock.Top);
+            dock.Children.Add(bulkRow);
+
             // Grid
             _selectGrid = new DataGrid
             {
@@ -1144,6 +1157,20 @@ namespace StingTools.UI
                         || (r.Discipline ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0
                         || (r.PaperSize ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
                 };
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+        }
+
+        /// <summary>Checks/unchecks every row currently passing the active search/filter
+        /// chip — not the full underlying set — so bulk selection matches what's on screen.</summary>
+        private void SetVisibleRowsChecked(bool value)
+        {
+            try
+            {
+                var view = CollectionViewSource.GetDefaultView(_rows);
+                foreach (var obj in view)
+                    if (obj is SheetRow r) r.IsChecked = value;
+                UpdateStatusLine();
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
