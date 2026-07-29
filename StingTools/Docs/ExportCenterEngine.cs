@@ -1143,6 +1143,25 @@ namespace StingTools.Docs
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             opts ??= new DWGExportOptions();
+
+            // MergedViews = true makes each exported sheet a SINGLE self-contained DWG with
+            // every view merged into its model space. Left at Revit's default of false, each
+            // view placed on a sheet is written out as its OWN extra sidecar .dwg next to the
+            // real one and referenced as an XREF — so exporting 2 sheets could litter the
+            // output folder with a dozen files like
+            // "<sheet>-Drafting View - SITE LOCATION PLAN.dwg", which reads as the exporter
+            // ignoring the selection and dumping every view. It also silently broke the
+            // multi-layout merge, whose per-sheet sources live in a temp staging folder: the
+            // merged output carried unresolvable xref pointers back into it, so model space
+            // showed only "Xref <temp path>" placeholder text with X1..Xn listed "Not Found".
+            // BUT leaving it false is what makes Revit's own sheets correct, and that matters
+            // more. With MergedViews = false Revit writes one xref per view, all sitting at the
+            // model origin, and isolates them with per-viewport layer freezes — which is why
+            // every exported viewport's Target is (0,0,0) and why the sheets look right.
+            // Setting it true merges the views out across model space while the viewports still
+            // target the origin, so the framing no longer matches the geometry. The sidecar
+            // files are the price of Revit-accurate sheets, so OnePerSheet keeps the default.
+            // Only ModelSpaceOnly — which explicitly wants geometry and no paper space — merges.
             opts.MergedViews = profile.Dwg.OutputMode == DwgOutputMode.ModelSpaceOnly;
             opts.FileVersion = MapDwgVersion(profile.Dwg.DwgVersion);
             return opts;
@@ -1225,10 +1244,29 @@ namespace StingTools.Docs
                     row.OutputPath = merged;
                     row.FileSizeBytes = new FileInfo(merged).Length;
                     row.Success = true;
-                    try { Directory.Delete(temp, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    // Merge() can succeed while having skipped one or more sheets whose page
+                    // setup/plot device it couldn't resolve — surface that instead of reporting
+                    // a silent full success (this is how sheets used to come out at the wrong
+                    // paper size, or missing entirely, without any visible warning).
+                    if (ExportCenterDwgMerger.LastWarning != null)
+                        result.Warnings.Add($"DWG multi-layout merge for '{groupName}': {ExportCenterDwgMerger.LastWarning}");
+
+                    // Only delete the staging folder once every xref is confirmed bound —
+                    // an unbound xref is still a LIVE external reference into this folder, and
+                    // deleting it out from under the saved file is exactly how sheets came back
+                    // showing as "Not Found" when reopened.
+                    if (ExportCenterDwgMerger.AllXrefsBound)
+                        try { Directory.Delete(temp, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    else
+                        result.Warnings.Add($"DWG multi-layout merge for '{groupName}': kept the staging folder at '{temp}' " +
+                                            "because not every xref bound successfully — deleting it would have broken those " +
+                                            "references in the saved file.");
                 }
                 else
                 {
+                    if (ExportCenterDwgMerger.LastWarning != null)
+                        result.Warnings.Add($"DWG multi-layout merge for '{groupName}': {ExportCenterDwgMerger.LastWarning}");
+
                     // Method B — ODA File Converter (free): version-normalise +
                     // emit merge_manifest.json. Doesn't produce a true single
                     // multi-layout DWG, but the user gets staged files at the
