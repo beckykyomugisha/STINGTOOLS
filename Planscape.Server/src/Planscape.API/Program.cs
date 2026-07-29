@@ -72,9 +72,64 @@ builder.Host.UseSerilog((ctx, sp, lc) =>
 // row read at the database. Default OFF: the EF query filter is the
 // only barrier until the operator flips the flag (rollout-safe).
 var rlsEnabled = builder.Configuration.GetValue<bool>("Database:RlsEnabled");
+
+// ── Connection budget ──
+// Npgsql defaults to 100 connections per pool PER PROCESS. Render Postgres
+// allows ~97 client connections on every basic tier (100 minus 10 reserved)
+// and only reaches 200 at pro-8gb, so api(100) + worker(100) + Hangfire's
+// own storage pool blows the ceiling at ~30-40 concurrent requests — well
+// before CPU or RAM become the limit. Cap every pool and keep the total
+// across processes under the server's max_connections.
+//
+// Default budget, sized for a 97-connection server:
+//   api    : EF 20 + Hangfire 10 = 30
+//   worker : EF 15 + Hangfire 15 = 30
+//   spare  : 37 for psql, migrations, backups, Render's own probes
+// Raise Database:MaxPoolSize / Database:HangfireMaxPoolSize together with
+// the database plan — see docs/DEPLOY_RUNBOOK.md.
+var isWorkerRole = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api")
+    .Equals("worker", StringComparison.OrdinalIgnoreCase);
+var efMaxPool = builder.Configuration.GetValue("Database:MaxPoolSize", isWorkerRole ? 15 : 20);
+var hangfireMaxPool = builder.Configuration.GetValue("Database:HangfireMaxPoolSize", isWorkerRole ? 15 : 10);
+var roleTag = isWorkerRole ? "worker" : "api";
+
+// The direct (5432) connection. Always required: Hangfire and pg_dump can
+// never go through a transaction pooler.
+var dbConnDirect = Planscape.Infrastructure.Data.PgConnectionStrings.WithPool(
+    builder.Configuration.GetConnectionString("Default"),
+    efMaxPool,
+    $"planscape-{roleTag}-ef");
+
+// The optional PgBouncer (6432) connection, from ConnectionStrings:Pooled.
+//
+// SAFETY GATE — PgBouncer runs in TRANSACTION pooling mode, which hands a
+// server connection to a different client after each transaction. The RLS
+// interceptor sets `SET app.current_tenant` at SESSION scope, so under a
+// transaction pooler that value would leak to whichever tenant got the
+// connection next: a cross-tenant data disclosure, not just a bug.
+// Therefore: pooler ONLY while RLS is off. If Database:RlsEnabled is
+// flipped on, we fall back to the direct connection automatically.
+// To use both, RlsConnectionInterceptor must first move to `SET LOCAL`
+// inside an explicit transaction.
+var pooledRaw = builder.Configuration.GetConnectionString("Pooled");
+var usePooler = !string.IsNullOrWhiteSpace(pooledRaw) && !rlsEnabled;
+
+var dbConnForEf = usePooler
+    ? Planscape.Infrastructure.Data.PgConnectionStrings.WithPool(
+        pooledRaw, efMaxPool, $"planscape-{roleTag}-ef-pooled")
+    : dbConnDirect;
+
+if (!string.IsNullOrWhiteSpace(pooledRaw) && rlsEnabled)
+{
+    Console.Error.WriteLine(
+        "[STARTUP WARN] ConnectionStrings:Pooled is set but Database:RlsEnabled=true. " +
+        "Ignoring the pooler and using the direct connection: session-scoped " +
+        "SET app.current_tenant is unsafe under PgBouncer transaction pooling.");
+}
+
 builder.Services.AddDbContext<PlanscapeDbContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default"));
+    options.UseNpgsql(dbConnForEf);
     if (rlsEnabled)
     {
         options.AddInterceptors(new Planscape.Infrastructure.Data.RlsConnectionInterceptor());
@@ -521,24 +576,30 @@ builder.Services.AddSingleton<Planscape.Infrastructure.SignalR.IProjectMembershi
 // (Postgres DDL doesn't honour Hangfire's advisory-lock serialisation).
 // The api process is the schema steward; the worker waits for it to
 // finish by retrying its first connect.
-var planscapeRoleEarly = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api").ToLowerInvariant();
+// Role comes from isWorkerRole, resolved once in the connection budget above.
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
+    // ALWAYS the direct (5432) connection, never the PgBouncer pooler:
+    // Hangfire relies on advisory locks and LISTEN/NOTIFY, both of which
+    // are session-scoped and break under transaction pooling. Its pool is
+    // budgeted separately from EF's — see the connection budget above.
     .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(
-        builder.Configuration.GetConnectionString("Default")),
+        Planscape.Infrastructure.Data.PgConnectionStrings.WithPool(
+            builder.Configuration.GetConnectionString("Default"),
+            hangfireMaxPool,
+            $"planscape-{roleTag}-hangfire")),
         new Hangfire.PostgreSql.PostgreSqlStorageOptions
         {
-            PrepareSchemaIfNecessary = planscapeRoleEarly != "worker",
+            PrepareSchemaIfNecessary = !isWorkerRole,
         }));
 // Phase 178 — Worker-vs-API split. When PLANSCAPE_ROLE = "worker" the
 // process additionally subscribes to the heavy photo-redaction queue
 // (face/plate detect + watermark composition) and gets bigger worker
 // counts. The default API role never picks photo-redaction jobs, so a
 // burst of approvals at digest time can't starve API request CPU.
-var planscapeRole = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api").ToLowerInvariant();
-var isWorker = planscapeRole == "worker";
+var isWorker = isWorkerRole;
 // Phase 178b — Heavy-job queue (T2-26). Workloads that spike CPU /
 // disk I/O are routed onto a dedicated "heavy" queue that the API
 // process does NOT subscribe to. This keeps API p50 latency stable

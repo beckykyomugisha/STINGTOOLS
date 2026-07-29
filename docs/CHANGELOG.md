@@ -2,6 +2,45 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Planscape Server — Postgres connection budget; the URL format Npgsql can't parse)
+
+Started as a capacity question ("what can each Render tier hold?") and turned up
+three defects that cap capacity well below any tier limit.
+
+- **Unbounded connection pools.** Npgsql defaults to 100 connections per pool
+  *per process*; Render Postgres allows ~97 on every basic tier. `planscape-api`
+  alone could exhaust the database, and api + worker + Hangfire breached the
+  ceiling at ~30–40 concurrent requests — far below the CPU/RAM limit anyone
+  would be sizing for. New `Planscape.Infrastructure/Data/PgConnectionStrings.cs`
+  caps every pool;
+  budget is api 20+10, worker 15+15 = 60, leaving 37 spare. Tunable via
+  `Database__MaxPoolSize` / `Database__HangfireMaxPoolSize`.
+- **The connection string format was never parseable in production.** Render
+  (like Heroku/Fly/Railway/Neon) injects `postgresql://user:pass@host/db`;
+  Npgsql 8 accepts only the keyword form and throws on a URL. No converter
+  existed anywhere in the tree. `PgConnectionStrings.Normalise` handles both,
+  including percent-encoded credentials and query params (`sslmode`).
+- **Nightly backups were dumping nothing.** `DatabaseBackupJob` split the
+  connection string on `;` and `=` — neither present in a URL — so every field
+  fell through to its default and `pg_dump` ran against `localhost/planscape`.
+  It also truncated passwords containing `;`. Now uses the real parser.
+
+PgBouncer support added but **gated**: EF uses the pooler only while
+`Database:RlsEnabled` is false, because `RlsConnectionInterceptor` sets
+`app.current_tenant` at session scope and transaction pooling would leak it
+across tenants. Hangfire (advisory locks, `LISTEN/NOTIFY`) and `pg_dump` always
+stay on the direct 5432 connection. `ConnectionStrings__Pooled` ships commented
+out in `render.yaml` — `connectionPoolString` doesn't resolve until pooling is
+enabled on the Render dashboard, so uncommenting early fails the deploy.
+Connections are now tagged with `application_name` for `pg_stat_activity`.
+
+Also consolidated three separate `PLANSCAPE_ROLE` reads in `Program.cs` into one.
+
+Verified: build 0 errors (14 pre-existing warnings); 16 new tests pass; full
+suite 377 passed / 73 failed — the same 73 fail on the unmodified baseline
+(440 tests → 456), so no regression. The pooler path itself is untested; it
+needs a real PgBouncer. See `docs/DEPLOY_RUNBOOK.md` § Database connection budget.
+
 #### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
 
 The cover title-block family's revision history is a **native Revit Revision

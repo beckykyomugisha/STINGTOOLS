@@ -251,6 +251,57 @@ Optional feature smoke tests:
 
 ---
 
+## Database connection budget
+
+Render Postgres allows **~97 client connections on every basic tier** (100 minus
+10 Render reserves), reaching 200 only at `pro-8gb` and 400 at `pro-16gb`.
+Npgsql's own default is **100 connections per pool, per process** — so a single
+API container can exhaust the whole database on its own, and api + worker +
+Hangfire breaches the ceiling at roughly 30–40 concurrent requests, long before
+CPU or RAM are the limit. The symptom is `53300: sorry, too many clients
+already` and blanket 500s.
+
+Every pool is therefore capped in `Program.cs` ("Connection budget"):
+
+| Process | EF pool | Hangfire pool | Total |
+|---|---|---|---|
+| `planscape-api` | 20 | 10 | 30 |
+| `planscape-worker` | 15 | 15 | 30 |
+| **Sum** | | | **60** — leaves 37 spare |
+
+The spare is for `psql`, migrations, the nightly `pg_dump`, and Render's probes.
+Override with `Database__MaxPoolSize` / `Database__HangfireMaxPoolSize`, and
+**raise the database plan at the same time** — `PgConnectionStringsTests` asserts
+the default budget stays under 97 so a bump can't silently overshoot.
+
+Connections are tagged via `application_name`
+(`planscape-api-ef`, `planscape-worker-hangfire`, …), so when it does go wrong:
+
+```bash
+psql "$DATABASE_URL" -c "SELECT application_name, count(*) FROM pg_stat_activity GROUP BY 1 ORDER BY 2 DESC;"
+```
+
+### Enabling PgBouncer (optional)
+
+Render ships connection pooling free on paid databases, but it is **off by
+default** and `connectionPoolString` does not resolve until you turn it on — so
+the `ConnectionStrings__Pooled` blocks in `render.yaml` ship commented out.
+
+1. Render → `planscape-db` → Settings → enable **Connection Pooling**
+2. Uncomment `ConnectionStrings__Pooled` on **both** `planscape-api` and
+   `planscape-worker` in `render.yaml`, then redeploy.
+
+Only EF queries use the pooler. Hangfire (advisory locks, `LISTEN/NOTIFY`) and
+`pg_dump` always stay on the direct 5432 connection.
+
+> **Safety gate.** PgBouncer runs in *transaction* pooling mode, handing a server
+> connection to a different client after each transaction. `RlsConnectionInterceptor`
+> sets `app.current_tenant` at *session* scope, which under transaction pooling
+> would leak one tenant's setting to the next — a cross-tenant disclosure. The app
+> therefore ignores `ConnectionStrings:Pooled` whenever `Database:RlsEnabled=true`
+> and logs a startup warning. To use both, the interceptor must first move to
+> `SET LOCAL` inside an explicit transaction.
+
 ## Cost / scaling notes
 
 Frankfurt starter tiers: api £6 + worker £6 + web £6 + converter £6 + redis ~£6 +

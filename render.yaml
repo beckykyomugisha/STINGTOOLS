@@ -56,10 +56,27 @@ services:
       - key: PLANSCAPE_HANDOFF_SECRET
         sync: false
       # Database — injected automatically from planscape-db below.
+      # This is the DIRECT (port 5432) connection. Hangfire (advisory locks +
+      # LISTEN/NOTIFY) and the nightly pg_dump always use this one.
       - key: ConnectionStrings__Default
         fromDatabase:
           name: planscape-db
           property: connectionString
+      # OPTIONAL — PgBouncer (port 6432). Render ships connection pooling free
+      # on paid databases but it is OFF by default, and `connectionPoolString`
+      # only resolves once you enable it, so this stays commented out until
+      # you do. To turn it on:
+      #   1. Render → planscape-db → Settings → enable Connection Pooling
+      #   2. Uncomment the three lines below (and the matching pair on
+      #      planscape-worker), then redeploy.
+      # The app reads ConnectionStrings:Pooled for EF queries only, and
+      # ignores it entirely when Database:RlsEnabled=true — session-scoped
+      # SET app.current_tenant leaks across tenants under transaction
+      # pooling. See Program.cs "Connection budget".
+      # - key: ConnectionStrings__Pooled
+      #   fromDatabase:
+      #     name: planscape-db
+      #     property: connectionPoolString
       # Redis — auto-wired from the planscape-redis Key Value instance below.
       - key: Redis__Connection
         fromService:
@@ -111,6 +128,12 @@ services:
         fromDatabase:
           name: planscape-db
           property: connectionString
+      # Uncomment together with the API's ConnectionStrings__Pooled block
+      # after enabling Connection Pooling on planscape-db.
+      # - key: ConnectionStrings__Pooled
+      #   fromDatabase:
+      #     name: planscape-db
+      #     property: connectionPoolString
       - key: Redis__Connection
         fromService:
           type: keyvalue
