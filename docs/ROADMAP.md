@@ -215,6 +215,60 @@ rewriting `SheetTemplateEngine`'s built-in numbers and migrating user-saved temp
 wants smoke-test evidence first.
 
 
+### P2 — still open
+
+**Track B — CLOSED except the two data-territory items.**
+
+| Item | Status |
+|---|---|
+| B1 grid-dimensioning convergence | ✅ `DimGrids` survives; `GridDimensioner` reduced to `IsDimensionable` |
+| B1 `dimensionStrategy` | ✅ wired into `DimGrids` via `DimensionStrategy.ResolveType` |
+| B1 `condition` | ✅ wired (evaluator had zero call sites) |
+| B1 per-rule `tagFamily` | ✅ wired, warns when the named family is absent |
+| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ still no-ops — see below |
+| B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
+| B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
+| B5 composer numbering | ✅ routed through `SheetSequenceStore` |
+| B4 checksums | ⬜ data-territory — data PR |
+| B6 unmintable `iso-status-*` filters | ⬜ data-territory — data PR |
+
+`densityMode` / `minSizeMm` / `orientation` / `tag7Depth` remain unwired. They are per-rule
+*refinements* to tagging behaviour rather than the on/off wiring the other fields needed
+(`densityMode` interacts with the existing `denseUntilScale` gate; `minSizeMm` needs a per-element
+size measure; `orientation` and `tag7Depth` need per-tag write paths). Each is a small feature in
+its own right and none of them silently corrupts output today — they simply do nothing — so they
+are better scoped against smoke-test evidence than guessed at.
+
+**Previously listed as remaining (now done):**
+
+- **B1 (rest of the rule engine).** `GridDimensioner`'s axis bug and the drainage invert are
+  fixed, but `AnnotationConditionEvaluator` still has no call site and the rule-pack fields
+  `condition` / per-rule `tagFamily` / `densityMode` / `minSizeMm` / `orientation` / `tag7Depth`
+  / `dimensionStrategy` remain silent no-ops on 48 shipped types. Recommendation: wire, not
+  delete — deleting means stripping the fields from 48 catalogue entries, which is a Track C
+  data edit. Note that A2 rewrote `DimGrids` correctly, so wiring `dimensionStrategy` would give
+  two implementations of grid dimensioning; converge them in the same pass.
+- **B3 `${MAT_*}` tokens (T-4).** `MaterialTitleBlockTokens.Resolve` still has zero callers.
+  One call site in `TitleBlockParamApplier`'s `${…}` handler would wire it; its O(all-elements)
+  usage scan should be made lazy-once-per-doc at the same time.
+- **B4 checksum persistence (C-5).** Unchanged — no checksum fields ship, so the corporate-lock
+  drift branch is inert. Needs a build-time stamping script plus a decision on whether packs get
+  parity or are documented as deliberately unlocked.
+- **B5 composer numbering (P-11).** `ShopDrawingComposer._sequenceByBucket` is still in-memory
+  per session. Routing it through the (now hardened) `SheetSequenceStore` would retire the third
+  parallel numbering system.
+- **B6 unmintable filters (V-6).** The 8 `iso-status-*` filters bind only `OST_Sheets`, which
+  Revit view filters cannot target. Removal is a Track C data edit.
+
+**Track C (catalogue data) — not started**, gated on smoke-test evidence. C1–C6 as originally
+scoped. Note C3's overlap is confirmed by measurement: pipe-spool ISO spans 0.55→0.95 and BOM
+0.78→0.98, overlapping 0.78→0.95.
+
+**P-7 slot convention** — the divergence is measured and recorded above; converging requires
+rewriting `SheetTemplateEngine`'s built-in numbers and migrating user-saved templates, so it
+wants smoke-test evidence first.
+
+
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
 numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
 C-4/A-6/A-7 annotation and match-line idempotency; A-3 legend in-place refresh; P-5/E-2 section
