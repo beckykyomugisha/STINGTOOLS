@@ -7729,7 +7729,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
-      "sheetNamePattern": "Room Data Sheet — {room}",
+      "sheetNamePattern": "Room Data Sheet — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8003,7 +8003,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-SCH-{seq:D3}",
-      "sheetNamePattern": "Medical Gas Schematic — {gas}",
+      "sheetNamePattern": "Medical Gas Schematic — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8139,7 +8139,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-EES-{seq:D3}",
-      "sheetNamePattern": "Essential Power Single-Line — {area}",
+      "sheetNamePattern": "Essential Power Single-Line — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8547,7 +8547,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MRI Zoning — {area}",
+      "sheetNamePattern": "MRI Zoning — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8683,7 +8683,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-BHD-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Bedhead Elevations — {area}",
+      "sheetNamePattern": "Bedhead Elevations — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8757,7 +8757,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "OR Ceiling RCP — {area}",
+      "sheetNamePattern": "OR Ceiling RCP — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9165,7 +9165,7 @@
       "viewportTypeName": "STING Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-NM-{seq:D3}",
-      "sheetNamePattern": "Nuclear Medicine — {area}",
+      "sheetNamePattern": "Nuclear Medicine — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
