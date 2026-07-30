@@ -533,7 +533,10 @@ else
 builder.Services.AddSingleton<Planscape.Core.Interfaces.INotificationService, Planscape.Infrastructure.Services.NotificationService>();
 
 // ── Redis ──
-var redisConn = builder.Configuration["Redis:Connection"] ?? "localhost:6379";
+// Render (and most managed-Redis providers) inject connection strings as a
+// redis:// URL, which StackExchange.Redis's own parser does not understand —
+// see RedisConnectionStrings for the full failure mode this avoids.
+var redisConn = RedisConnectionStrings.Normalise(builder.Configuration["Redis:Connection"]);
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = redisConn;
