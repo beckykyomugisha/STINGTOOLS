@@ -615,6 +615,74 @@ Local `dotnet build` → 0 errors.
   exact bundle) but the live camera/mic/screen behaviour was **not** machine-verified — it requires
   two real browser tabs against the running LiveKit + Postgres stack. That is what this matrix is for.
 
+## S1 — server-ENFORCED mute / remove (LiveKit RoomService) · marker `s1-enforce` (meeting-sync) · SERVED + unit-tested
+
+Closes the first "needs new code" row of §2b in `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`.
+M3's mute-all / remove were host-gated **signals** the target client self-applied — host
+authority over the *signal* was enforced (`HubTenantGuard.IsSessionHostAsync`), but a modified
+client could simply ignore them. The media is now cut off at the SFU.
+
+**Server — new `Planscape.Infrastructure/SignalR/LiveKitRoomService.cs`.** Twirp client for
+`livekit.RoomService` (`ListParticipants` / `MutePublishedTrack` / `RemoveParticipant`),
+deliberately the same transport + raw-HMAC-HS256 auth as the existing `LiveKitEgressClient`
+(no new transport). It lives in Infrastructure, not API, because the caller is `MeetingHub`
+and Infrastructure cannot reference API. One real difference from the egress client: room-scoped
+admin APIs need **both** `video.roomAdmin` **and** `video.room` naming the room, so the JWT is
+minted per room — a `roomAdmin`-only grant is silently 401'd.
+
+**`MeetingHub` now does two things per moderation action, not one:**
+- `MuteAll` → `MuteAllMicrophonesAsync(room = sessionId, except = the host's identity)`: lists the
+  room and mutes every remote **microphone** track. Screen-share audio is deliberately spared
+  (source `SCREEN_SHARE_AUDIO`), already-muted tracks are skipped (idempotent). Then the existing
+  `Moderation` broadcast still fires so each client's mic button paints "off".
+- `RemoveParticipant(sessionId, targetConnectionId, targetUserId)` → `RemoveParticipant` on the SFU,
+  then the existing group-scoped signal so the target also leaves the co-presence plane (roster,
+  markup, SignalR group). **New third arg** `targetUserId` = the LiveKit identity; the connection id
+  can't be used (SignalR exposes no connection→user map, and behind the Redis backplane the target's
+  connection may be on another instance). It is **not trusted**: the server re-checks the user is a
+  participant of *that* session before evicting, so a host can't aim it at a room they don't own.
+- The broadcast now carries **`enforced`**. When LiveKit is unconfigured, moderation degrades to the
+  old advisory behaviour rather than failing the meeting, and the client toast says
+  "Host **asked** everyone to mute" instead of "Host muted everyone" — the UI never claims more
+  than actually happened.
+
+**Proof (this is a server-side change; SERVED-grep alone would not cover it):**
+- `dotnet build Planscape.API` → **0 errors** (7 pre-existing warnings).
+- **17 new tests, all passing, 0 skipped** (`LiveKitRoomServiceTests`): config gate, unconfigured
+  no-op, server-URL normalisation, mic-vs-screen-share-audio classification, camelCase +
+  snake_case response parsing, degenerate/identity-less/sid-less payloads, and the room-scoped
+  HS256 grant. Plus a `[SkippableFact]` that hits the **real docker-compose LiveKit on :7880**
+  and asserts on the RAW Twirp response — `ListParticipantsAsync` swallows a 401 as "empty", so
+  only the raw status distinguishes "authenticated, room empty" from "grant rejected". It **ran**
+  (0 skipped) and LiveKit accepted the grant.
+- SERVED: `docker compose build --no-cache api && up -d --force-recreate api`;
+  `curl /meeting-sync.js` → 200, `STING_MEETINGSYNC_BUILD = "s1-enforce"`, plus
+  `removeParticipant(cid, p.userId)` and the `m.enforced` toast, in the served bundle.
+
+**Trap worth recording:** `Planscape/assets/viewer/*.js` is the CANONICAL viewer source —
+the API build (`SyncCoordinationViewer`) and the Docker image (minified `dist/` overlay) both copy
+it *onto* `wwwroot/`. Editing only `wwwroot/` builds green and serves the OLD file. Both copies must
+move together. (Also: `docker compose build … | tail` masks the exit code — two "successful" builds
+here had actually failed on a missing `JWT_KEY` and the served marker never changed.)
+
+**2-tab test — PENDING-HUMAN-VERIFY** (needs two real webcam tabs; cannot be machine-verified here):
+- [ ] **Mute is real, not advisory:** both tabs Join A/V with mics live. Host clicks 🔇. Tab 2's mic
+      mutes AND the host still hears nothing **after tab 2 un-mutes itself from its own UI** without
+      the host re-muting — i.e. the SFU dropped the track, it wasn't just a client-side toggle.
+      (Pre-S1 the peer could un-mute and be heard again immediately.)
+- [ ] **Toast wording matches reality:** with LiveKit configured the toast reads "Host muted everyone
+      🔇"; with `LiveKit__ServerUrl` unset it reads "Host **asked** everyone to mute 🔇".
+- [ ] **Screen-share audio survives a mute-all:** presenter shares a tab WITH audio, host clicks 🔇 →
+      mics mute, the shared tab's audio keeps playing.
+- [ ] **Mute-all doesn't mute the host** (they're exempted by identity).
+- [ ] **Remove really evicts:** host clicks ✖ on tab 2 → tab 2's LiveKit connection drops (video/audio
+      gone for everyone) *and* it leaves the roster. Tab 2 clicking "Join A/V" again re-joins (removal
+      is an eviction, not a ban — note whether a ban is wanted).
+- [ ] **Remove is idempotent / safe:** ✖ on someone who never joined A/V → they still drop from the
+      co-presence roster, no error toast, no hub exception.
+- [ ] **Non-host can't:** a non-host tab has no 🔇/✖ buttons, and invoking `MuteAll` from its console
+      does nothing (host gate).
+
 ## Cloud demo unblock — free-tier deployment (2026-07-31)
 
 Full research + cost analysis: `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`. Summary:

@@ -281,3 +281,14 @@ SERVED-proven (`curl localhost:5000/livekit-av.js` 200 + `N1-presence`; `meeting
   M4 `a362c4582` · M5 docs.
 - Known follow-ups: mobile parity for markup/chat/AEC; server-enforced mute/remove (LiveKit SDK);
   late-join replay of markup/hand state.
+
+## Track B follow-ups — branch `claude/livekit-corporate-ui-research-3233e0` (do not merge)
+Closing the "genuinely needs new code" rows of `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md` §2b.
+Full write-ups + the exact 2-tab checklists live in `docs/MEETINGS_AUDIT.md`.
+
+| Slice | Status | Marker | Proof |
+|---|---|---|---|
+| S1 server-enforced mute/remove | DONE-SERVED + unit-tested | `s1-enforce` (meeting-sync) | New `LiveKitRoomService` (Twirp `livekit.RoomService`, same pattern as `LiveKitEgressClient`); `MeetingHub.MuteAll` mutes every remote mic track on the SFU, `RemoveParticipant` evicts. `dotnet build` 0 errors; **17 tests pass, 0 skipped** — incl. a `[SkippableFact]` that RAN against the real docker LiveKit :7880 and proved the room-scoped admin grant is accepted. Served bundle greps `s1-enforce` + `removeParticipant(cid, p.userId)` + `m.enforced`. |
+
+Honest limits: live A/V behaviour is **not** machine-verified here — no two-webcam-tab harness in
+this environment. Every runtime claim is filed as PENDING-HUMAN-VERIFY in `docs/MEETINGS_AUDIT.md`.

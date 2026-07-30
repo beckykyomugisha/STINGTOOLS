@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "ws1d-syncview";
+  var STING_MEETINGSYNC_BUILD = "s1-enforce";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -201,7 +201,13 @@
     });
     conn.on("Moderation", function (m) {
       if (!m || !m.action) return;
-      if (m.action === "mute-all") { window.dispatchEvent(new CustomEvent("sting:selfMute")); toast("Host muted everyone 🔇"); }
+      // S1 — `enforced` says whether the server ALSO acted on the LiveKit SFU
+      // (mute the track / evict the participant) or only relayed the request.
+      // Word the toast to match; never imply enforcement that didn't happen.
+      if (m.action === "mute-all") {
+        window.dispatchEvent(new CustomEvent("sting:selfMute"));
+        toast(m.enforced ? "Host muted everyone 🔇" : "Host asked everyone to mute 🔇");
+      }
       else if (m.action === "remove") {
         if (m.connectionId && m.connectionId === state.myConnId) {
           toast("You were removed from the meeting");
@@ -478,7 +484,7 @@
       wrap.appendChild(rosterChip(p.displayName + badge + (p.hand ? " ✋" : "") + avSuffix(String(p.userId)), colorFor(p.displayName)));
       if (isHost()) {  // host controls: make-host (★) + remove (✖)
         wrap.appendChild(miniBtn("★", "Make host", function () { makeHost(p.userId); }));
-        wrap.appendChild(miniBtn("✖", "Remove", function () { removeParticipant(cid); }));
+        wrap.appendChild(miniBtn("✖", "Remove", function () { removeParticipant(cid, p.userId); }));
       }
       host.appendChild(wrap);
     });
@@ -546,6 +552,9 @@
     var b = document.getElementById("meetHand"); if (b) b.style.background = state.myHand ? "rgba(244,180,0,0.9)" : "rgba(255,255,255,0.14)";
     renderPresence();
   }
+  // S1 — the server now ALSO mutes on the SFU (LiveKit RoomService). Don't claim
+  // enforcement before the server says it happened: the optimistic toast is the
+  // honest "asked", the Moderation echo upgrades it to "muted".
   function muteAll() { if (state.conn) state.conn.invoke("MuteAll", sessionId).catch(noop); toast("Asked everyone to mute"); }
   function makeHost(userId) {
     if (!userId) return;
@@ -553,7 +562,13 @@
       { method: "POST", headers: jsonHeadersMS(), body: JSON.stringify({ userId: String(userId) }) })
       .then(function (r) { if (r.ok) toast("Host changed"); else toast("Make-host failed"); }).catch(noop);
   }
-  function removeParticipant(cid) { if (state.conn && cid) state.conn.invoke("RemoveParticipant", sessionId, cid).catch(noop); }
+  // S1 — send the target's userId too: it's the LiveKit identity the server evicts
+  // with RoomService.RemoveParticipant (the connection id is SignalR-only and, with
+  // the Redis backplane, may not even live on this instance). Server re-validates it
+  // is a participant of this session before acting.
+  function removeParticipant(cid, uid) {
+    if (state.conn && cid) state.conn.invoke("RemoveParticipant", sessionId, cid, uid ? String(uid) : null).catch(noop);
+  }
   // WS1d — push the host's current viewer appearance (isolate/ghost/colour) to followers now.
   function syncMyView() {
     var viz = (typeof window !== "undefined") && window.STING_VIEWER_VIZ;
