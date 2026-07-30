@@ -259,8 +259,14 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         // Get open actions
         var openResp = await client.GetAsync($"{_projBase}/meetings/actions/open");
         Assert.Equal(HttpStatusCode.OK, openResp.StatusCode);
+        // GetOpenActions returns the paged envelope { items, total, page, pageSize }.
+        // This used to call GetArrayLength() on the root, which was right when the
+        // endpoint returned a bare array and has thrown
+        // "requires an element of type 'Array', but the target element has type
+        // 'Object'" since pagination was added.
         var openActions = await openResp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(openActions.GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("items").GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("total").GetInt32() >= 1);
     }
 
     [Fact]
@@ -286,9 +292,25 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Transmittals
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: TransmittalsController numbers transmittals via
+    /// SequenceCounterService.AllocateAsync, which issues
+    /// `INSERT … ON CONFLICT … RETURNING` with gen_random_uuid() — Postgres-only,
+    /// non-composable SQL. On the EF InMemory provider the call throws
+    /// "Relational-specific methods can only be used when the context is using a
+    /// relational database provider" and the request 500s, which is a property of
+    /// the test provider, not of the code.
+    ///
+    /// Skipped rather than reworked: a test that silently no-ops when its
+    /// dependency is missing reports safety it did not check. Set
+    /// PLANSCAPE_TEST_PG to run it — see PostgresSequenceCounterTests.
+    /// </summary>
+    [SkippableFact]
     public async Task Transmittals_CreateAndList()
     {
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         var createResp = await client.PostAsJsonAsync($"{_projBase}/transmittals", new
@@ -304,9 +326,25 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
     }
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: TransmittalsController numbers transmittals via
+    /// SequenceCounterService.AllocateAsync, which issues
+    /// `INSERT … ON CONFLICT … RETURNING` with gen_random_uuid() — Postgres-only,
+    /// non-composable SQL. On the EF InMemory provider the call throws
+    /// "Relational-specific methods can only be used when the context is using a
+    /// relational database provider" and the request 500s, which is a property of
+    /// the test provider, not of the code.
+    ///
+    /// Skipped rather than reworked: a test that silently no-ops when its
+    /// dependency is missing reports safety it did not check. Set
+    /// PLANSCAPE_TEST_PG to run it — see PostgresSequenceCounterTests.
+    /// </summary>
+    [SkippableFact]
     public async Task Transmittals_MarkSent()
     {
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         var createResp = await client.PostAsJsonAsync($"{_projBase}/transmittals", new
@@ -404,9 +442,19 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Search
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: SearchController uses EF.Functions.ILike, an
+    /// Npgsql-specific translation. On EF InMemory it throws "The 'ILike' method
+    /// is not supported because the query has switched to client-evaluation" and
+    /// the request 500s — a property of the test provider, not the code.
+    /// Set PLANSCAPE_TEST_PG to run it.
+    /// </summary>
+    [SkippableFact]
     public async Task Search_ValidQuery_ReturnsResults()
     {
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         // Create an issue to search for

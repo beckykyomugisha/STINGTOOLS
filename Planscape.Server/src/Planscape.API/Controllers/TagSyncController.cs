@@ -67,15 +67,24 @@ public class TagSyncController : ControllerBase
     [HttpPost("sync")]
     public async Task<ActionResult<TagSyncResponse>> SyncElements([FromBody] TagSyncRequest request)
     {
-        if (request.Elements.Count == 0)
-            return Ok(new TagSyncResponse { Received = 0 });
-
         if (request.Elements.Count > 50_000)
             return BadRequest(new { message = "Maximum 50,000 elements per sync request" });
 
+        // Tenant + project ownership FIRST, before the empty-payload fast path.
+        //
+        // The zero-element short-circuit used to sit above this, so a caller
+        // from another tenant (or with no tenant claim at all) got 200 OK for a
+        // project they cannot see, while the same request carrying one element
+        // correctly got 404. Nothing was written or disclosed either way, but
+        // the endpoint answered two different things about the same
+        // authorization question — and any future work inside the fast path
+        // would have inherited an unauthorised caller.
         if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+
+        if (request.Elements.Count == 0)
+            return Ok(new TagSyncResponse { Received = 0 });
 
         int created = 0, updated = 0;
         var conflicts = new List<SyncConflictDto>();

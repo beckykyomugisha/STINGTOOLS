@@ -21,6 +21,8 @@ import type {
   SearchResponse,
   Transmittal,
   SitePhoto,
+  AccessToken,
+  MintedAccessToken,
 } from './types';
 
 // ── Projects ──
@@ -509,4 +511,33 @@ export function rejectPhoto(projectId: string, photoId: string, reason: string):
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
+}
+
+// ── Personal access tokens ──
+// Long-lived headless credentials, used by StingBridge (STING_PLANSCAPE_TOKEN)
+// and any other non-interactive client. A PAT is exchanged for a normal JWT at
+// /api/auth/token/exchange; it is never accepted as a bearer token directly, so
+// the API stays single-scheme.
+
+export function listAccessTokens(): Promise<AccessToken[]> {
+  return api<AccessToken[]>('/api/auth/tokens');
+}
+
+/**
+ * Mint a token. The plaintext in the response is unrecoverable afterwards —
+ * the server keeps only a hash — so the caller MUST surface it immediately.
+ */
+export function createAccessToken(body: {
+  name: string;
+  expiresInDays?: number;
+}): Promise<MintedAccessToken> {
+  return api<MintedAccessToken>('/api/auth/tokens', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Soft-revoke, so the audit trail survives. Returns 204. */
+export function revokeAccessToken(id: string): Promise<void> {
+  return api<void>(`/api/auth/tokens/${id}`, { method: 'DELETE' });
 }

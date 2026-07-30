@@ -2128,7 +2128,23 @@ databases:
     plan: starter               # £6/mo
 ```
 
-**Cost at launch**: API £6 + DB £6 = **£12/month**. Redis is optional — refresh-token tracking + JTI blacklist degrade gracefully without it.
+> **The YAML above is abridged and out of date.** It shows the retired 2-service
+> shape (api + db). The live blueprint at [`render.yaml`](render.yaml) provisions
+> **7 services** — api, worker, web, converter, redis, minio (+disk), db — and
+> the database plan names changed (`starter` → `basic-256mb`). Read the real file.
+
+**Cost at launch**: Render bills in USD. All-starter across the 7 services ≈
+**$54/month** (api $7 + worker $7 + web $7 + converter $7 + redis $10 + minio $7
++ 10 GB disk ~$2.50 + db $6). The **£12/month** previously quoted here was the
+2-service shape only. Redis is optional for a single instance (refresh-token
+tracking + JTI blacklist degrade gracefully) but required once you run more than
+one API instance — it is the SignalR backplane.
+
+**Capacity**: size on *active* coordinators (driving issues/markup/CRDT), not on
+logged-in users. Starter ≈ 10–15 active, Standard ≈ 30–50, Pro ≈ 80–120 and the
+first tier with autoscaling. Note that DB **connection ceiling does not scale
+with RAM** — every basic tier and `pro-4gb` allows 100 (~97 usable). Full table,
+connection budget and PgBouncer procedure: [`docs/DEPLOY_RUNBOOK.md`](docs/DEPLOY_RUNBOOK.md).
 
 **Deploy steps**:
 1. Render dashboard → Blueprints → New Blueprint Instance → connect `beckykyomugisha/stingtools`

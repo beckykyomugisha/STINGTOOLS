@@ -106,7 +106,6 @@ Render dashboard → **Env Groups → planscape-shared** → set:
 |---|---|
 | `Jwt__Key` | the `openssl rand -base64 48` output |
 | `PLANSCAPE_OWNER_PASSWORD` | the owner login password |
-| `PLANSCAPE_HANDOFF_SECRET` | another `openssl rand -base64 48` output. **Shared with Cloudflare** — the same value must later be set on the Pages side. See §3e. |
 | `Storage__S3__ServiceUrl` | **MinIO default:** the `planscape-minio` internal URL (Render → planscape-minio → Connect → Internal URL, e.g. `http://planscape-minio:9000`). **R2/S3:** their endpoint, or blank for AWS S3. |
 | `Storage__S3__AccessKey` | **= `MINIO_ROOT_USER`** (same value as 3d) — or the R2/S3 access key |
 | `Storage__S3__SecretKey` | **= `MINIO_ROOT_PASSWORD`** (same value as 3d) — or the R2/S3 secret key |
@@ -127,6 +126,30 @@ preset for the provisioned MinIO — only change them if you switch to AWS S3
 `Jwt__Issuer/Audience`, `Acc__CallbackUrl`,
 `Cors__Origins__*`, `Serilog__*`, `PLANSCAPE_OWNER_EMAIL` are already set to
 working defaults in the Blueprint — leave them.
+
+### 3a-bis. `PLANSCAPE_HANDOFF_SECRET` — per-service, NOT in the env group
+
+> **Corrected 2026-07-30.** This key was previously listed in the §3a
+> `planscape-shared` table. That is wrong and fails silently.
+
+`render.yaml` declares `PLANSCAPE_HANDOFF_SECRET` as a **per-service**
+`sync: false` variable on **`planscape-api`** (line 74) and **`planscape-worker`**
+(line 143). It is *not* a member of the `planscape-shared` env group, so setting
+it there leaves both services with the value still empty.
+
+Set it **twice**, once per service, to the **same** string:
+
+- Render → **planscape-api** → Environment → `PLANSCAPE_HANDOFF_SECRET`
+- Render → **planscape-worker** → Environment → `PLANSCAPE_HANDOFF_SECRET`
+
+```bash
+openssl rand -base64 48      # generate ONCE, paste the same value into both
+```
+
+The same value goes on Cloudflare Pages in §3e. It is an HMAC shared secret, not
+a JWT key — it must be **byte-identical** in all three places. A mismatch (or a
+blank on one service) rejects every handoff with nothing obviously wrong in
+either system's logs.
 
 ### 3b. `planscape-api` and `planscape-worker` (per-service)
 On **each** service set:
@@ -162,7 +185,7 @@ signed-in customer across to the cloud app:
 
 | Key | Value |
 |---|---|
-| `PLANSCAPE_HANDOFF_SECRET` | **the same string** set on Render in §3a. Both sides verify against it; a mismatch rejects every handoff. |
+| `PLANSCAPE_HANDOFF_SECRET` | **the same string** set on Render in §3a-bis — on *both* `planscape-api` and `planscape-worker`. Both sides verify against it; a mismatch rejects every handoff. |
 | `CLOUD_APP_ORIGIN` | `https://app.planscape.build` — where the customer is sent |
 
 ```bash
@@ -209,7 +232,14 @@ Render once the CNAME verifies.)
 
 ```bash
 # API healthy + schema materialised (EnsureCreated path — see §1)
-curl -fsS https://api.planscape.build/health         # → 200
+#
+# /health/live, not /health. The full diagnostic at /health is gated in
+# Production on a private-network caller AND an X-Health-Token header (S11), so
+# from your laptop it answers 403 — which looks exactly like a failed deploy and
+# is not one. /health/live is the anonymous liveness probe, and is what
+# render.yaml points healthCheckPath at for the same reason.
+curl -fsS https://api.planscape.build/health/live     # → {"status":"alive"}
+curl -fsS https://api.planscape.build/health/ready    # → {"status":"ready"} (DB reachable)
 
 # Owner login works (PlatformOwnerSeeder ran)
 curl -fsS -X POST https://api.planscape.build/api/auth/login \
@@ -251,11 +281,197 @@ Optional feature smoke tests:
 
 ---
 
+## Database connection budget
+
+Render Postgres allows **~97 client connections on every basic tier** (100 minus
+10 Render reserves), reaching 200 only at `pro-8gb` and 400 at `pro-16gb`.
+Npgsql's own default is **100 connections per pool, per process** — so a single
+API container can exhaust the whole database on its own, and api + worker +
+Hangfire breaches the ceiling at roughly 30–40 concurrent requests, long before
+CPU or RAM are the limit. The symptom is `53300: sorry, too many clients
+already` and blanket 500s.
+
+Every pool is therefore capped in `Program.cs` ("Connection budget"):
+
+| Process | EF pool | Hangfire pool | Total |
+|---|---|---|---|
+| `planscape-api` | 20 | 10 | 30 |
+| `planscape-worker` | 15 | 15 | 30 |
+| **Sum** | | | **60** — leaves 37 spare |
+
+The spare is for `psql`, migrations, the nightly `pg_dump`, and Render's probes.
+Override with `Database__MaxPoolSize` / `Database__HangfireMaxPoolSize`, and
+**raise the database plan at the same time** — `PgConnectionStringsTests` asserts
+the default budget stays under 97 so a bump can't silently overshoot.
+
+Connections are tagged via `application_name`
+(`planscape-api-ef`, `planscape-worker-hangfire`, …), so when it does go wrong:
+
+```bash
+psql "$DATABASE_URL" -c "SELECT application_name, count(*) FROM pg_stat_activity GROUP BY 1 ORDER BY 2 DESC;"
+```
+
+### Enabling PgBouncer (optional)
+
+Render ships connection pooling free on paid databases, but it is **off by
+default** and `connectionPoolString` does not resolve until you turn it on — so
+the `ConnectionStrings__Pooled` blocks in `render.yaml` ship commented out.
+
+1. Render → `planscape-db` → Settings → enable **Connection Pooling**
+2. Uncomment `ConnectionStrings__Pooled` on **both** `planscape-api` and
+   `planscape-worker` in `render.yaml`, then redeploy.
+
+Only EF queries use the pooler. Hangfire (advisory locks, `LISTEN/NOTIFY`) and
+`pg_dump` always stay on the direct 5432 connection.
+
+> **Safety gate.** PgBouncer runs in *transaction* pooling mode, handing a server
+> connection to a different client after each transaction. `RlsConnectionInterceptor`
+> sets `app.current_tenant` at *session* scope, which under transaction pooling
+> would leak one tenant's setting to the next — a cross-tenant disclosure. The app
+> therefore ignores `ConnectionStrings:Pooled` whenever `Database:RlsEnabled=true`
+> and logs a startup warning. To use both, the interceptor must first move to
+> `SET LOCAL` inside an explicit transaction.
+
 ## Cost / scaling notes
 
-Frankfurt starter tiers: api £6 + worker £6 + web £6 + converter £6 + redis ~£6 +
-minio £6 + 10 GB disk ~£2 + db £6 ≈ **£44/mo**, plus free-tier LiveKit/Firebase/Resend.
-Swapping MinIO for R2 (free tier) removes the storage service + disk (~£8) and adds redundancy.
+Render bills in **USD**. Frankfurt, all-starter: api $7 + worker $7 + web $7 +
+converter $7 + redis $10 + minio $7 + 10 GB disk ~$2.50 + db $6 ≈ **$54/mo**,
+plus free-tier LiveKit/Firebase/Resend. Swapping MinIO for R2 (free tier) removes
+the storage service + disk (~$9.50) and adds redundancy.
+
+> Any **£12/month** figure in older notes refers to the retired 2-service
+> blueprint (api + db only), not this 7-service one.
+
+### Capacity per API tier
+
+Two different numbers, and mixing them up is how you under-buy:
+
+- **Connected** — logged in, WebSocket open, light use. Cheap: idle SignalR
+  connections cost tens of KB, and Render enforces no WebSocket cap.
+- **Active** — driving issues / markup / CRDT. This is what burns CPU, and it
+  is the number to size on.
+
+| Tier | $/mo | Connected | **Active** | Firms | Notes |
+|---|---|---|---|---|---|
+| Free | 0 | 1–3 | 1 | **0** | Spins down after 15 min, killing every WebSocket; no persistent disk so MinIO can't run. Demo only. |
+| Starter | 7 | 20–30 | **10–15** | 3–6 | Current default. |
+| Standard | 25 | 60–100 | **30–50** | 10–20 | First honest production tier. Single instance — a deploy drops all WebSockets. |
+| Pro | 85 | 150–250 | **80–120** | 30–60 | First tier with autoscaling. **Scale out from here, not up.** |
+| Pro Plus | 175 | 300–500 | **150–250** | 60–120 | DB becomes the bottleneck; pair with `pro-8gb`. |
+| Pro Max | 225 | ≈ Pro Plus | ≈ Pro Plus | — | **Skip.** 16 GB but still 4 CPU — worse $/CPU than Pro Plus for a CPU-bound app. |
+| Pro Ultra | 450 | 600–1000 | 300–500 | 150+ | Prefer 3–4 × Pro: cheaper, no single point of failure. |
+
+Originally derived from ~40 req/s per vCPU. **That estimate was too pessimistic**
+— see the measured results below. The table above is left deliberately
+conservative because the measurements were taken on developer hardware, which is
+faster than a shared cloud vCPU, and because run-to-run variance there is large.
+
+### What has actually been measured
+
+Method: `load/tier-capacity.js` against an API container pinned to Render
+Starter limits (0.5 CPU / 512 MB) via `docker/docker-compose.loadtest.yml`, with
+Postgres capped at `max_connections=100` to mirror a Render basic tier, and a
+project seeded with 5,000 issues so the `.Include()` chains hydrate real rows.
+
+Robust and reproducible:
+
+| Finding | Evidence |
+|---|---|
+| **The EF pool cap holds.** Peak observed `planscape-api-ef` connections was **exactly 20**, the configured cap, at every load level. | `pg_stat_activity` sampled every 3s across all runs |
+| **No connection exhaustion.** Zero `53300` / 5xx at any offered rate. | failure rate 0.00% in every run past the limiter fix |
+| **Saturation shows up as latency, not errors.** p95 rose ~25× while failures stayed at 0.00%. | 240 rps → p95 78 ms; 250 rps → p95 935 ms |
+| **RAM is not the Starter constraint; CPU is.** | 274 MB of the 512 MB ceiling at ~150 req/s |
+
+Indicative, high variance — **do not quote these as capacity guarantees**:
+on a 0.5-CPU container, p95 stayed under ~500 ms up to roughly 120–180 req/s
+offered. Four runs at an identical 150 req/s produced p95 of 101, 2527, 424 and
+108 ms, so a shared workstation cannot pin a number more precisely than that.
+Re-run on an actual Render instance to get figures worth quoting.
+
+Still not measured: SignalR fan-out under concurrent CRDT editing (the
+`CrdtHub.Push` write-per-update path), and sustained multi-hour load.
+
+The Redis SignalR backplane is already wired, so horizontal scaling works —
+**3 × Pro ($255) beats 1 × Pro Ultra ($450)** on both throughput and resilience.
+
+### Two things that bite before the tier does
+
+1. **Connection ceiling** — see § Database connection budget above. Pool
+   exhaustion hits at ~30–40 concurrent *requests* on any tier; buying a bigger
+   instance does not fix it.
+2. **Bandwidth** — a 500 MB IFC/GLB × 20 coordinators/day is ~300 GB/mo ≈ **$45**
+   at $0.15/GB overage, which can exceed the compute bill. Serve models by
+   presigned URL from object storage, never proxied through the API.
+
+### Measuring tier capacity yourself
+
+Everything below runs against a local dev stack. Budget ~20 minutes.
+
+**1. Pin the API to the tier you want to measure.**
+
+```bash
+cd Planscape.Server
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.loadtest.yml \
+  --env-file .env.local up -d --build postgres redis api
+```
+
+Defaults to Starter (0.5 CPU / 512 MB). For Standard:
+`API_CPUS=1 API_MEMORY=2g docker compose ... up -d api`.
+
+**2. Seed users, membership and issues.** Distinct users are not optional — the
+`api` policy budgets 100 req/min per user, so a single account measures the rate
+limiter rather than the server. 400 users ≈ 666 req/s of headroom.
+
+```bash
+docker exec -i docker-postgres-1 psql -U planscape -d planscape < load/seed-loadtest-data.sql
+```
+
+**3. Mint tokens.** Bulk login is impossible by design: the `auth` policy allows
+5 logins per 5 minutes per IP. Sign tokens with the dev key instead.
+
+```bash
+JWT_KEY=$(grep '^JWT_KEY=' .env.local | cut -d= -f2-) \
+  python load/mint-loadtest-tokens.py > load/loadtest-tokens.json
+```
+
+> `loadtest-tokens.json` holds **valid signed JWTs** and is gitignored. Only ever
+> generate it against a dev key.
+
+**4. Run, ramping `PEAK_RPS` to find the knee.**
+
+```bash
+docker run --rm --network host -v "$PWD/load:/load" \
+  -e BASE_URL=http://localhost:5000 -e PROJECT_ID=<guid> -e PEAK_RPS=150 \
+  grafana/k6 run /load/tier-capacity.js
+```
+
+The knee is where p95 crosses the budget while **failure rate stays at 0** —
+that is CPU saturation. A run that instead shows high failures with a *low* p95
+is not saturation: it is 429s, and it means either too few seeded users or the
+offered rate exceeds `users × 100 / 60`.
+
+**5. Watch the pools while it runs**, to confirm the cap holds and nothing
+approaches the 97-connection ceiling:
+
+```bash
+docker exec docker-postgres-1 psql -U planscape -d planscape \
+  -c "SELECT application_name, count(*) FROM pg_stat_activity GROUP BY 1 ORDER BY 2 DESC;"
+```
+
+**Interpreting the result honestly.** Your CPU core is faster than a shared
+cloud vCPU, so treat any figure as an upper bound. Client and server also share
+the host, so k6's own CPU competes with the API. Variance on a workstation is
+large — repeat each point at least three times and quote the range, not the best
+run.
+
+### Suggested progression
+
+| Stage | API | Worker | DB | ≈ $/mo |
+|---|---|---|---|---|
+| Pilot, 1–2 firms | Starter | Starter | basic-256mb | ~54 (all 7 services) |
+| First paying firms (≤50 active) | **Standard** | Starter | **basic-1gb + PgBouncer** | ~90 |
+| 10–50 firms | Pro ×2 | Standard | pro-8gb | ~300 |
+| 50–150 firms | Pro ×4 | Pro | pro-16gb | ~700 |
 
 To launch leaner, you can **omit `planscape-worker` and `planscape-converter`**
 (remove them from `render.yaml` or suspend in Render): the API degrades

@@ -33,7 +33,15 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
     {
         var client = _factory.CreateClient();
         var response = await client.PostAsJsonAsync("/api/auth/login",
-            new { email = "admin@test.org", password = "WrongPassword" });
+            // Deliberately NOT admin@test.org. SEC-EA-09 counts failed logins per
+            // email (5 per 5 minutes, Redis-backed), and admin@test.org is the
+            // account CreateAuthenticatedClientAsync uses for nearly every test in
+            // the suite. Burning one of its five attempts here put the whole suite
+            // one bad run away from a cascade of 429s on setup. A successful login
+            // clears the counter, which is why this only ever failed in bursts.
+            //
+            // TestData seeds member@test.org for exactly this kind of use.
+            new { email = "member@test.org", password = "WrongPassword" });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
@@ -42,7 +50,14 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
     {
         var client = _factory.CreateClient();
         var response = await client.PostAsJsonAsync("/api/auth/login",
-            new { email = "nobody@test.org", password = "Password123!" });
+            // Unique per run. SEC-EA-09 keeps a per-EMAIL failed-login counter in
+            // Redis (5 per 5 minutes) and the dev Redis is shared and persistent,
+            // so a fixed address like "nobody@test.org" accumulated a failure on
+            // every suite run and returned 429 instead of 401 from the sixth run
+            // within the window onward — 3 failures in 8 consecutive runs.
+            // A fresh address each run tests the same thing without inheriting
+            // state from the last one.
+            new { email = $"nobody-{Guid.NewGuid():N}@test.org", password = "Password123!" });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
@@ -64,8 +79,17 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(string.IsNullOrEmpty(json.GetProperty("accessToken").GetString()));
-        Assert.Equal("Starter", json.GetProperty("tier").GetString());
-        Assert.True(json.GetProperty("licenseKey").GetString()!.StartsWith("STING-TRIAL-"));
+
+        // Registration moved from LicenseTier + a minted "STING-TRIAL-…" licence
+        // key to BillingPlan + a dated trial. The response carries neither
+        // "tier" nor "licenseKey" any more, so the old assertions threw
+        // KeyNotFoundException off GetProperty rather than failing an assert.
+        // Pinned to the current contract: a new org lands on the Trial plan
+        // (AuthController sets Plan = BillingPlan.Trial) with a 30-day window.
+        Assert.Equal("Trial", json.GetProperty("plan").GetString());
+        Assert.Equal("new-corp", json.GetProperty("tenantSlug").GetString());
+        Assert.True(json.GetProperty("trialExpiresAt").GetDateTime() > DateTime.UtcNow);
+        Assert.True(json.GetProperty("limits").GetProperty("maxProjects").GetInt32() >= 1);
     }
 
     [Fact]
@@ -219,14 +243,46 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
 
     // ── Health Check ──────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Covers the two probe endpoints, not legacy /health.
+    ///
+    /// /health returns the full diagnostic (which database, which push
+    /// provider, a Redis ping) and the S11 hardening therefore gates it on the
+    /// caller being loopback/RFC1918 — plus an X-Health-Token in Production.
+    /// TestServer dispatches in-process and leaves
+    /// HttpContext.Connection.RemoteIpAddress null, so that gate correctly
+    /// fails and the endpoint answers 403. This test used to assert 200 from
+    /// it, which stopped being the contract when the hardening landed.
+    ///
+    /// /health/live and /health/ready are the endpoints Render's health check
+    /// and the mobile ping actually call, and they are AllowAnonymous by
+    /// design — so they are what a test should pin.
+    /// </summary>
     [Fact]
-    public async Task HealthCheck_ReturnsHealthy()
+    public async Task HealthProbes_ReportAliveAndReady()
+    {
+        var client = _factory.CreateClient();
+
+        var live = await client.GetAsync("/health/live");
+        Assert.Equal(HttpStatusCode.OK, live.StatusCode);
+        Assert.Equal("alive",
+            (await live.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+
+        var ready = await client.GetAsync("/health/ready");
+        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+        Assert.Equal("ready",
+            (await ready.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+    }
+
+    /// <summary>
+    /// The full diagnostic must stay shut to a caller with no private-network
+    /// provenance. Pins the S11 behaviour the test above used to contradict.
+    /// </summary>
+    [Fact]
+    public async Task HealthDiagnostic_WithoutPrivateCaller_IsRefused()
     {
         var client = _factory.CreateClient();
         var response = await client.GetAsync("/health");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("healthy", json.GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }

@@ -42,6 +42,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
           </form>
           <NotificationBell />
+          <Link href="/settings/tokens" className="text-slate-500 transition hover:text-slate-900">
+            Tokens
+          </Link>
           <span className="text-slate-500">{user.email}</span>
           <button
             onClick={() => {

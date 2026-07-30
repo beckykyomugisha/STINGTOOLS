@@ -1990,6 +1990,13 @@ public class PlanscapeDbContext : DbContext
         });
     }
 
+    /// <remarks>
+    /// Covers only types implementing <see cref="ITenantScoped"/>. Notably that
+    /// EXCLUDES <see cref="Tenant"/> itself, which is deliberate and load-bearing
+    /// — filtering it would break the pre-auth slug-uniqueness check in
+    /// AuthController.Register and let duplicate slugs through. See the remarks
+    /// on the Tenant entity for the full reasoning and the 2026-07-30 audit.
+    /// </remarks>
     private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
     {
         var entityTypes = modelBuilder.Model.GetEntityTypes()

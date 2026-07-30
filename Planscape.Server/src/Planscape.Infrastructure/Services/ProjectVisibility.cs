@@ -24,7 +24,23 @@ public static class ProjectVisibility
     /// </summary>
     public static bool IsTenantAdmin(ClaimsPrincipal user)
     {
-        var role = user.FindFirst("role")?.Value ?? "";
+        // Read BOTH the raw "role" claim and the mapped one.
+        //
+        // JwtBearer leaves MapInboundClaims at its default of true, so the
+        // handler rewrites the token's "role" claim to the long
+        // ClaimTypes.Role URI before the principal reaches us. Looking only for
+        // "role" therefore found nothing and this method returned false for
+        // EVERY caller — the documented admin bypass above never once fired,
+        // and an Owner could only see projects they had authored or been added
+        // to. GetUserId (below) already guards against exactly this by checking
+        // NameIdentifier before "sub"; this one was missed.
+        //
+        // Kept tolerant of both spellings rather than switching wholesale to
+        // ClaimTypes.Role: principals built by hand in tests, and any future
+        // host that turns claim mapping off, carry the short form.
+        var role = user.FindFirst(ClaimTypes.Role)?.Value
+                   ?? user.FindFirst("role")?.Value
+                   ?? "";
         return role is "Admin" or "Owner" or "SecurityOfficer";
     }
 

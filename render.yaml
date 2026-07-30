@@ -36,8 +36,26 @@ services:
     dockerContext: .            # repo root — the Dockerfile COPYs from Planscape/ and Planscape.Server/
     branch: main
     region: frankfurt           # eu-central-1 — closest to UK/Europe clients
-    plan: starter               # £6/mo — upgrade to standard when >60 concurrent users
-    healthCheckPath: /health
+    # $7/mo, 512 MB / 0.5 CPU. Holds ~20-30 connected and 10-15 ACTIVELY
+    # coordinating users. Go to standard ($25, 2 GB / 1 CPU) at ~30 active,
+    # or when CPU is >70% sustained. Autoscaling is Pro-gated ($85), so
+    # below Pro this is a single box and every deploy drops all WebSockets.
+    # Full tier capacity table: docs/DEPLOY_RUNBOOK.md § Cost / scaling notes.
+    plan: starter
+    # /health/live, NOT /health.
+    #
+    # /health is the full diagnostic (which database, which push provider, a
+    # Redis ping) and the S11 hardening gates it on
+    #   Development ? isPrivate : isPrivate && tokenOk
+    # In Production that means a private-network caller AND a matching
+    # X-Health-Token header. Render's health prober cannot send that header, so
+    # /health would answer 403, Render would mark the service unhealthy, and the
+    # deploy would never go live — on a healthy app.
+    #
+    # /health/live is AllowAnonymous by design and returns {status:"alive"}.
+    # It is the liveness contract; /health/ready adds a DB CanConnect check if
+    # you would rather gate on dependencies too.
+    healthCheckPath: /health/live
     autoDeploy: true
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -56,10 +74,27 @@ services:
       - key: PLANSCAPE_HANDOFF_SECRET
         sync: false
       # Database — injected automatically from planscape-db below.
+      # This is the DIRECT (port 5432) connection. Hangfire (advisory locks +
+      # LISTEN/NOTIFY) and the nightly pg_dump always use this one.
       - key: ConnectionStrings__Default
         fromDatabase:
           name: planscape-db
           property: connectionString
+      # OPTIONAL — PgBouncer (port 6432). Render ships connection pooling free
+      # on paid databases but it is OFF by default, and `connectionPoolString`
+      # only resolves once you enable it, so this stays commented out until
+      # you do. To turn it on:
+      #   1. Render → planscape-db → Settings → enable Connection Pooling
+      #   2. Uncomment the three lines below (and the matching pair on
+      #      planscape-worker), then redeploy.
+      # The app reads ConnectionStrings:Pooled for EF queries only, and
+      # ignores it entirely when Database:RlsEnabled=true — session-scoped
+      # SET app.current_tenant leaks across tenants under transaction
+      # pooling. See Program.cs "Connection budget".
+      # - key: ConnectionStrings__Pooled
+      #   fromDatabase:
+      #     name: planscape-db
+      #     property: connectionPoolString
       # Redis — auto-wired from the planscape-redis Key Value instance below.
       - key: Redis__Connection
         fromService:
@@ -111,6 +146,12 @@ services:
         fromDatabase:
           name: planscape-db
           property: connectionString
+      # Uncomment together with the API's ConnectionStrings__Pooled block
+      # after enabling Connection Pooling on planscape-db.
+      # - key: ConnectionStrings__Pooled
+      #   fromDatabase:
+      #     name: planscape-db
+      #     property: connectionPoolString
       - key: Redis__Connection
         fromService:
           type: keyvalue
@@ -309,13 +350,47 @@ databases:
     region: frankfurt
     # Render retired the legacy Postgres plan names (starter/standard/pro) —
     # new databases must use the current instance types. basic-256mb is the
-    # ~£6/mo entry tier; move to basic-1gb when data outgrows it.
+    # ~$6/mo entry tier; move to basic-1gb once you have paying firms.
+    #
+    # CONNECTION CEILING, not storage, is what bites first: every basic tier
+    # (and pro-4gb) allows 100 connections, ~97 usable. 200 only at pro-8gb,
+    # 400 at pro-16gb. Program.cs budgets the pools against 97 — raise
+    # Database__MaxPoolSize and this plan together, never one alone.
     plan: basic-256mb
 
-# ── Indicative cost (Frankfurt starter tiers) ───────────────────────────────
-# api £6 + worker £6 + web £6 + converter £6 + redis ~£6 + minio £6 + 10GB disk
-# ~£2 + db £6 ≈ £44/mo. External: LiveKit Cloud (free tier), Firebase (free),
-# Resend (free tier). Drop planscape-worker + planscape-converter to save ~£12
-# if you don't need IFC conversion / photo redaction yet (the API degrades
-# gracefully). Swap planscape-minio for Cloudflare R2 (free tier) to remove the
-# storage service + disk cost and gain redundancy.
+# ── Indicative cost (Frankfurt, all-starter) ────────────────────────────────
+# Render bills in USD. api $7 + worker $7 + web $7 + converter $7 + redis $10
+# + minio $7 + 10GB disk ~$2.50 + db $6 ≈ $54/mo. External: LiveKit Cloud
+# (free tier), Firebase (free), Resend (free tier).
+#
+# NB: any "£12/month" figure you find in older notes refers to the retired
+# 2-service blueprint (api + db only), not this 7-service one.
+#
+# Drop planscape-worker + planscape-converter to save ~$14 if you don't need
+# IFC conversion / photo redaction yet (the API degrades gracefully). Swap
+# planscape-minio for Cloudflare R2 (free tier) to remove the storage service
+# + disk (~$9.50) and gain redundancy. Redis is optional (the app fails open)
+# but required once you run more than one API instance — it's the SignalR
+# backplane.
+#
+# ── Capacity per API tier ───────────────────────────────────────────────────
+# "Connected" = logged in with a WebSocket open, light use. "Active" = driving
+# issues / markup / CRDT. Derived from: ~40 req/s per vCPU on this app's
+# .Include()-heavy list endpoints, ~10 req/min per active coordinator, minus
+# the Hangfire background floor (ClamAvScannerJob is Cron.Minutely).
+#
+#   Free      $0    — 0 firms. Spins down after 15 min (kills every WS), no
+#                     persistent disk so MinIO can't run. Demo only.
+#   Starter   $7    — 3-6 small firms.  ~20-30 connected /  10-15 active
+#   Standard  $25   — 10-20 firms.      ~60-100 connected /  30-50 active
+#   Pro       $85   — 30-60 firms.     ~150-250 connected /  80-120 active
+#                     First tier with autoscaling; scale OUT from here.
+#   Pro Plus  $175  — 60-120 firms.    ~300-500 connected / 150-250 active
+#   Pro Max   $225  — skip. 16 GB but still 4 CPU, so worse $/CPU than Pro
+#                     Plus for a CPU-bound app.
+#   Pro Ultra $450  — prefer 3-4 x Pro instead: cheaper, no single point of
+#                     failure, and the Redis backplane already supports it.
+#
+# Bandwidth can exceed compute: a 500 MB IFC/GLB x 20 coordinators/day is
+# ~300 GB/mo ≈ $45 at $0.15/GB overage. Serve models by presigned URL from
+# object storage, never proxied through the API.
