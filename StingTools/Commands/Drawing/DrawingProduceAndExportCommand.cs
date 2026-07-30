@@ -54,7 +54,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // ── Scope dialog ────────────────────────────────────────────────
