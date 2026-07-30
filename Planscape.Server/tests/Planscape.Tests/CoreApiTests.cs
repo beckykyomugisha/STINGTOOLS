@@ -308,9 +308,8 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     [SkippableFact]
     public async Task Transmittals_CreateAndList()
     {
-        Skip.If(string.IsNullOrWhiteSpace(
-                Environment.GetEnvironmentVariable("PLANSCAPE_TEST_PG")),
-            "PLANSCAPE_TEST_PG is not set — transmittal numbering needs real PostgreSQL.");
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
 
         var client = await _factory.CreateAuthenticatedClientAsync();
 
@@ -343,9 +342,8 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     [SkippableFact]
     public async Task Transmittals_MarkSent()
     {
-        Skip.If(string.IsNullOrWhiteSpace(
-                Environment.GetEnvironmentVariable("PLANSCAPE_TEST_PG")),
-            "PLANSCAPE_TEST_PG is not set — transmittal numbering needs real PostgreSQL.");
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
 
         var client = await _factory.CreateAuthenticatedClientAsync();
 
@@ -454,9 +452,8 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     [SkippableFact]
     public async Task Search_ValidQuery_ReturnsResults()
     {
-        Skip.If(string.IsNullOrWhiteSpace(
-                Environment.GetEnvironmentVariable("PLANSCAPE_TEST_PG")),
-            "PLANSCAPE_TEST_PG is not set — ILike search needs real PostgreSQL.");
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
 
         var client = await _factory.CreateAuthenticatedClientAsync();
 

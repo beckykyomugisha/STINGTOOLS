@@ -33,7 +33,15 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
     {
         var client = _factory.CreateClient();
         var response = await client.PostAsJsonAsync("/api/auth/login",
-            new { email = "admin@test.org", password = "WrongPassword" });
+            // Deliberately NOT admin@test.org. SEC-EA-09 counts failed logins per
+            // email (5 per 5 minutes, Redis-backed), and admin@test.org is the
+            // account CreateAuthenticatedClientAsync uses for nearly every test in
+            // the suite. Burning one of its five attempts here put the whole suite
+            // one bad run away from a cascade of 429s on setup. A successful login
+            // clears the counter, which is why this only ever failed in bursts.
+            //
+            // TestData seeds member@test.org for exactly this kind of use.
+            new { email = "member@test.org", password = "WrongPassword" });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
@@ -42,7 +50,14 @@ public class AuthControllerTests : IClassFixture<PlanscapeWebApplicationFactory>
     {
         var client = _factory.CreateClient();
         var response = await client.PostAsJsonAsync("/api/auth/login",
-            new { email = "nobody@test.org", password = "Password123!" });
+            // Unique per run. SEC-EA-09 keeps a per-EMAIL failed-login counter in
+            // Redis (5 per 5 minutes) and the dev Redis is shared and persistent,
+            // so a fixed address like "nobody@test.org" accumulated a failure on
+            // every suite run and returned 429 instead of 401 from the sixth run
+            // within the window onward — 3 failures in 8 consecutive runs.
+            // A fresh address each run tests the same thing without inheriting
+            // state from the last one.
+            new { email = $"nobody-{Guid.NewGuid():N}@test.org", password = "Password123!" });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
