@@ -89,7 +89,22 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 
             // Add InMemory database
             services.AddDbContext<PlanscapeDbContext>(options =>
-                options.UseInMemoryDatabase(_dbName));
+                options.UseInMemoryDatabase(_dbName)
+                    // Endpoints that wrap multi-step writes in an explicit
+                    // transaction (tag sync, transmittals, search indexing)
+                    // hit TransactionIgnoredWarning, which EF escalates to an
+                    // exception by default — so the request 500'd on a
+                    // limitation of the test provider rather than anything in
+                    // the code under test. Production is PostgreSQL, where the
+                    // transaction is real and this warning cannot arise.
+                    //
+                    // The trade-off is explicit: suppressing it means these
+                    // tests do not verify rollback semantics. Anything that
+                    // depends on atomicity needs the real-Postgres harness, not
+                    // this one.
+                    .ConfigureWarnings(w =>
+                        w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId
+                            .TransactionIgnoredWarning)));
 
             // Build the service provider and seed test data
             var sp = services.BuildServiceProvider();

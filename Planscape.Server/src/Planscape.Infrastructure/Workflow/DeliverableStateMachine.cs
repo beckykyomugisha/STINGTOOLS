@@ -317,30 +317,41 @@ public sealed class DeliverableStateMachine
             // the built-in inference vocabulary. Shape:
             //   { "keywords": { "working": ["WAITING_ON_X", "PARKED"], … } }
             // Only the six canonical role buckets are recognised; anything
-            // else is silently ignored (so a typo doesn't 500). We don't
-            // re-run inference here — the loop above only had access to
-            // the built-in vocab, so tenants who relied on a custom
-            // keyword for a *declared* state must also include it in the
-            // explicit `roles` block. Custom keywords still fire via
-            // <see cref="RoleOf"/> for any state queried at runtime that
-            // isn't in the precomputed table.
+            // else is silently ignored (so a typo doesn't 500). Declared
+            // states ARE re-resolved against these keywords below — see the
+            // hasRolesBlock guard there. This comment previously said they were
+            // not, and told tenants to duplicate the mapping into an explicit
+            // `roles` block; that workaround is no longer needed.
             // Phase 150 — merge platform-wide keywords below the
             // project's own. Project entries win on key collisions so
             // a tenant can still override a platform default.
             var customKeywords = MergeKeywordLayers(
                 ParseCustomKeywords(root),  // project — highest priority
                 platformKeywords);          // platform — fallback
-            // If the loader didn't pre-resolve a role for a declared
-            // state but the tenant-supplied keywords would, do that
-            // resolution now so RoleOf for those states is the cheap
-            // dict lookup path.
+            // Resolve declared states against the tenant keywords now, so RoleOf
+            // stays a cheap dict lookup for them.
+            //
+            // The guard is `hasRolesBlock`, NOT `roles.ContainsKey`. Both the
+            // explicit "roles" block and the built-in inference above write into
+            // the same dictionary, so ContainsKey could not tell them apart —
+            // and because the inference pass had already claimed every declared
+            // state, a tenant keyword could never take effect on one. That made
+            // the documented promise on CustomKeywords ("working": ["LOCKED"]
+            // overrides the canonical LOCKED → terminal) false for exactly the
+            // states a project declares, which is all of them in practice.
+            //
+            // Priority is explicit roles > tenant keywords > built-in inference.
+            // hasRolesBlock distinguishes the top tier: when it is set, the
+            // inference branch never ran, so every entry present is explicit and
+            // must be left alone. When it is not set, every entry came from
+            // inference and a tenant keyword outranks it.
             if (customKeywords.Count > 0)
             {
                 var allDeclared = new HashSet<string>(states, StringComparer.OrdinalIgnoreCase);
                 foreach (var (from, to) in transitions) { allDeclared.Add(from); allDeclared.Add(to); }
                 foreach (var declared in allDeclared)
                 {
-                    if (roles.ContainsKey(declared)) continue;
+                    if (hasRolesBlock && roles.ContainsKey(declared)) continue;
                     var inferred = InferFromCustomKeywords(declared, customKeywords);
                     if (inferred != null) roles[declared] = inferred;
                 }
@@ -552,6 +563,25 @@ public sealed class DeliverableStateMachine
         foreach (var layer in nonEmpty)
             foreach (var role in layer.Keys) allRoles.Add(role);
 
+        // A keyword may appear in DIFFERENT buckets in different layers — a
+        // project saying working:["LOCKED"] over a platform saying
+        // terminal:["LOCKED"]. Concatenating per-bucket keeps both, and the
+        // conflict is then settled by RolePriority at inference time, where
+        // terminal outranks working — so the platform silently won and layer
+        // precedence meant nothing for exactly the case it exists to handle.
+        //
+        // Claim each keyword for the highest-priority layer that mentions it,
+        // and let no later layer re-add it under a different role.
+        var claimedBy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var layer in nonEmpty)                 // already priority-ordered
+            foreach (var (role, entries) in layer)
+                foreach (var kw in entries)
+                {
+                    if (string.IsNullOrWhiteSpace(kw)) continue;
+                    var norm = kw.Trim().ToUpperInvariant();
+                    if (!claimedBy.ContainsKey(norm)) claimedBy[norm] = role;
+                }
+
         foreach (var role in allRoles)
         {
             var combined = new List<string>();
@@ -561,7 +591,16 @@ public sealed class DeliverableStateMachine
             // collapses equal strings).
             foreach (var layer in nonEmpty)
             {
-                if (layer.TryGetValue(role, out var entries)) combined.AddRange(entries);
+                if (!layer.TryGetValue(role, out var entries)) continue;
+                foreach (var kw in entries)
+                {
+                    if (string.IsNullOrWhiteSpace(kw)) continue;
+                    // Skip keywords a higher-priority layer claimed for another role.
+                    if (claimedBy.TryGetValue(kw.Trim().ToUpperInvariant(), out var owner)
+                        && !string.Equals(owner, role, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    combined.Add(kw);
+                }
             }
             var deduped = combined
                 .Where(s => !string.IsNullOrWhiteSpace(s))
