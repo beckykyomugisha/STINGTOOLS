@@ -283,3 +283,27 @@ export interface SitePhoto {
   rejectedAt?: string | null;
   rejectedReason?: string | null;
 }
+
+// ── Personal access tokens (StingBridge / headless credentials) ──
+export interface AccessToken {
+  id: string;
+  name: string;
+  /**
+   * A random display slug — deliberately NOT a slice of the secret. The server
+   * used to use the token's own first characters here, which leaked 7 of its 43
+   * characters to anyone who could read the token list. Do not present this as
+   * something the user can match against their stored token; it will not match.
+   */
+  prefix: string;
+  createdAt: string;
+  lastUsedAt?: string | null;
+  expiresAt?: string | null;
+}
+
+/**
+ * Response to minting. `token` is the ONLY time the plaintext secret exists
+ * outside the caller's hands — the server stores a hash and cannot re-issue it.
+ */
+export interface MintedAccessToken extends AccessToken {
+  token: string;
+}
