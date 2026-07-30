@@ -185,6 +185,30 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// Dispatch that works from a dialog shown DURING command execution.
+        ///
+        /// A modal dialog opened inside an IExternalCommand (the drawing-production
+        /// config dialog, and the VG / Object Styles editors it launches) is still
+        /// on the Revit API thread, and the ExternalEvent that is running that very
+        /// command cannot be re-raised — Raise() returns Denied, so every button in
+        /// those dialogs reported "open the dock panel first" and did nothing. Run
+        /// synchronously when we hold the API thread, and fall back to the async
+        /// queue when we don't (a modeless window with no command in flight).
+        /// </summary>
+        public static bool DispatchCommandSmart(string tag, string param1 = "", string param2 = "")
+        {
+            if (string.IsNullOrEmpty(tag)) return false;
+            var app = StingCommandHandler.CurrentApp;
+            if (app != null)
+            {
+                try { if (DispatchCommandSync(app, tag, param1, param2)) return true; }
+                catch (Exception ex)
+                { StingTools.Core.StingLog.Warn($"DispatchCommandSmart sync '{tag}': {ex.Message}"); }
+            }
+            return DispatchCommand(tag, param1, param2);
+        }
+
+        /// <summary>
         /// Deterministic synchronous dispatch for callers already on the Revit
         /// API thread (Hub ribbon commands). Bypasses ExternalEvent.Raise()
         /// entirely — runs the command immediately and returns false only when
@@ -2079,6 +2103,35 @@ namespace StingTools.UI
         }
 
         // ── Status bar helper ──────────────────────────────────────
+
+        /// <summary>
+        /// Clear the "Running: {tag}…" placeholder once that dispatch finishes.
+        /// Called from StingCommandHandler's execute finally-block. Deliberately
+        /// conservative: it only rewrites the label while it still shows THIS
+        /// tag, so a command that reported its own outcome keeps it.
+        /// </summary>
+        public void ResolveRunningStatus(string tag)
+        {
+            if (txtStatus == null || string.IsNullOrEmpty(tag)) return;
+            Action apply = () =>
+            {
+                try
+                {
+                    var cur = txtStatus.Text ?? "";
+                    if (!cur.StartsWith("Running: " + tag, StringComparison.OrdinalIgnoreCase)) return;
+                    // Must go through UpdateStatus, NOT txtStatus.Text directly:
+                    // UpdateStatus is also what releases FreezeTagSubTabs (any
+                    // message not starting "Running:" triggers UnfreezeTagSubTabs).
+                    // Writing Text here bypassed that, so a frozen Tag Studio would
+                    // have stayed frozen with the label claiming it had finished —
+                    // strictly worse than the sticky label this method fixes.
+                    UpdateStatus(tag + " — finished");
+                }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveRunningStatus: {ex.Message}"); }
+            };
+            if (txtStatus.Dispatcher.CheckAccess()) apply();
+            else txtStatus.Dispatcher.BeginInvoke(apply);
+        }
 
         public void UpdateStatus(string message)
         {

@@ -2,6 +2,73 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 225 — drawings-production autonomous completion)
+
+Closes the drawings-production workstream on top of Phases 223/224. Every commit built
+clean against Revit 2025 (0 warnings, 0 errors). **Nothing below has been exercised
+inside Revit** — the smoke rows at the end of each section are the human's next action.
+
+**Runtime fixes — dead buttons, engine, editor.** Three commits that made
+drawing production actually run from the dock panel.
+
+- **`CurrentApp` fallback, 28 sites across 16 files.** `StingCommandHandler.RunCommand<T>`
+  calls `cmd.Execute(null, …)` by design and commands are expected to fall back to
+  `StingCommandHandler.CurrentApp` — a convention `TitleBlockFactoryCommands` documents
+  explicitly. 16 of the 17 `Commands/Drawing` files never did, so they read
+  `commandData?.Application?.ActiveUIDocument?.Document`, got null, and returned
+  "No active document" on their first line. Every drawing-production button was dead
+  from the panel; `DrawingTypeEditorCommand` built its editor with a null `Document`,
+  which is why the title-block dropdown came back blank. `BulkReStampDrawingTypeCommand`
+  and `TitleBlockRevisionSyncCommand` used non-null-safe `commandData.Application` and
+  threw `NullReferenceException` rather than failing quietly.
+- **Engine: six defects.** `AnnotationRunner` passed an `int` to `Enum.IsDefined` but
+  `BuiltInCategory`'s underlying type is `long` in Revit 2024+, so every tag rule threw
+  and the per-rule catch turned it into a warning — auto-tagging placed **nothing**.
+  A 4-level run stacked all four plans on one sheet because `STING_SHEET_CONTEXT_TXT`
+  was unbound and `ReadSheetContext` returned null for every sheet; sheet-context claims
+  are now tracked per batch. Fit-to-slot measured a stale paper-space `View.Outline`
+  (the crop it depends on is set earlier in the same transaction) and is now measured
+  from model-space geometry needing no regeneration — an earlier attempt regenerated
+  per viewport, costing 80+ full regenerations on a 20-type × 4-level batch and reading
+  as a hang. `A1_LAND_common_v2.0` declared no drawable of its own and inherited
+  `A1_common`'s, so its slot grid and drawable rect disagreed — given its own, the two
+  A1 landscape families now resolve 13 slots instead of 8. Every crop path forced
+  `CropBoxVisible = true`; now a declared `cropBoxVisible` defaulting off. A
+  `purposeTag`/`slotRef` matching nothing fell through to the `norm*` fractions in
+  silence and now warns, naming the slots the family offers. Title-block slot maps are
+  memoised — the reference-plane override pass calls `Document.EditFamily`, which was
+  opening the same family once per sheet.
+- **UI: editor close, in-dialog dispatch, select-all, picker.** The Drawing Type Editor
+  would not close — Close/Save set `DialogResult`, which may only be set on a window
+  shown with `ShowDialog()`, and the editor is modeless on purpose (a modal window
+  blocks Revit's `ExternalEvent` queue). Buttons inside dialogs opened *during* command
+  execution were dead: re-raising the same `ExternalEvent` from inside its own handler
+  is denied, so `DispatchCommandSmart` now runs synchronously when the API thread is
+  already held. The per-level config dialog shipped both lists fully ticked with no way
+  to clear them — added Select all / Deselect all. The title-block picker offered
+  "Family : Type" strings while `TitleBlockResolver.IsLoadedTitleBlock` matches bare
+  `FamilySymbol.FamilyName`, so any pick wrote a value that could never match. The
+  panel's "Running: <tag>…" label was set on dispatch and never cleared; resolved in the
+  handler's `finally` via `UpdateStatus` (not `txtStatus.Text` directly — `UpdateStatus`
+  is also what releases `FreezeTagSubTabs`, so a direct write would have left Tag Studio
+  frozen while claiming the command had finished).
+
+**Needs a Revit smoke test** (human):
+
+| Area | Check |
+|---|---|
+| Panel dispatch | Every Drawing button on the dock panel runs — spot-check Inspect, Doctor, Renumber, Editor; none returns "No active document" |
+| Drawing Type Editor | Opens with a populated title-block dropdown; both Close and Save dismiss the window |
+| In-dialog buttons | Per-level production config dialog: Select all / Deselect all drive both lists; RevitVgEditor → Object Styles opens |
+| Title-block picker | A family picked from the picker resolves during production (bare family name, not "Family : Type") |
+| Status label | After a command finishes, "Running: <tag>…" clears **and** Tag Studio sub-tabs unfreeze |
+| Auto-tagging | A DrawingType with autoTag rules places Room / Door / Window / Stair tags — previously placed nothing |
+| Per-level sheets | A 4-level run produces 4 sheets, not 1 stacked sheet. **Bind `STING_SHEET_CONTEXT_TXT` first (run LoadSharedParams once)** — without it the per-batch claim works within a run but sheet identity does not survive a session restart |
+| Fit-to-slot | Views scale from the cropped extent; a 20-type × 4-level batch completes without a hang |
+| A1 landscape | An A1 landscape title block resolves 13 slots (not 8); viewports land inside the frame |
+| Crop visibility | Produced drawings carry no visible crop rectangle unless `cropBoxVisible` is declared |
+| Slot miss | A typo'd `purposeTag` / `slotRef` warns and names the slots the family offers |
+
 #### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
 
 The cover title-block family's revision history is a **native Revit Revision

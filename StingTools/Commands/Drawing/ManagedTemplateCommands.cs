@@ -38,7 +38,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 // Pick a pack (only packs that are NOT already managed)
@@ -262,7 +262,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 var managedPacks = ViewStylePackRegistry.ListAll(doc)
