@@ -212,6 +212,49 @@ profile placed through `DrawingProducer`.
 | Migration idempotency | Save a template after the migration, reopen, apply again — slots do not drift down-left on the second open |
 | Layout presets | Regression check: `Apply Layout Preset` for the built-in presets still centres viewports as before (unchanged by this PR) |
 
+**B4 — corporate-lock checksums (finding C-5).** `DrawingTypeRegistry.ComputeChecksums`
+already hashed every corporate `DrawingType` and demoted a mismatched entry to
+`origin = "project"`, but the shipped catalogue carried no `checksum` fields, so the whole
+branch was inert: a hand-edit to the corporate baseline was silently accepted as corporate.
+All 93 entries now ship a checksum, stamped by `tools/StampDrawingTypeChecksums`.
+
+The tool is **C#, not Python**, and deliberately so. The hash is
+`SHA256(JsonConvert.SerializeObject(drawingType, Formatting.None))` with `Checksum` nulled
+first — the C# object's serialisation, not the file's bytes. Reproducing that elsewhere means
+re-implementing Newtonsoft's property ordering, every `NullValueHandling` attribute, every
+POCO default and the `TolerantScaleConverter` write path, then keeping all of it in step with
+`DrawingType` forever. **A wrong hash is worse than no hash**: it makes every type report drift
+on first load, flipping all 93 to `project` and disabling the lock completely. So the project
+`<Compile Include>`s `Core/Drawing/DrawingType.cs` and `Core/Drawing/AnnotationRulePack.cs` —
+which between them hold the entire object graph and reference no Revit API — and the hash comes
+from the same source the plugin runs.
+
+- Stamping produced **exactly 93 added lines and no deletions**: the tool edits the raw text
+  rather than re-serialising, because the file mixes raw UTF-8 em-dashes with `\uXXXX` escapes
+  and a `JsonConvert` round-trip would renormalise every such string.
+- The run re-reads and re-hashes what it wrote before reporting success, and `-- --check`
+  verifies without writing (non-zero exit on a missing or stale checksum — CI-gate ready,
+  not yet wired).
+- Drift detection was exercised: tampering with one `sheetNamePattern` produced
+  `DRIFT arch-plan-A1-1to100` with both hashes, and restoring the file returned all 93 to clean.
+
+**View style packs are deliberately left unlocked.** A drawing type decides what gets produced,
+how it is cropped and how it is numbered — an unnoticed edit changes the identity of an issued
+deliverable. A view style pack decides appearance, where an unnoticed edit is visible the moment
+the drawing is opened and corrupts nothing. Locking packs would also start reporting drift on
+every project that has ever hand-tuned a corporate pack: a behaviour change with no evidence
+behind it. Reasoning recorded in `CLAUDE.md`; the declared-but-unused `ViewStylePack.Checksum`
+should be wired or dropped, logged in ROADMAP.
+
+**Needs a Revit smoke test** (human):
+
+| Area | Check |
+|---|---|
+| Clean load | Open a project and run `DrawingTypes_Inspect` — no checksum-drift warnings in `StingTools.log`, and every type still reports `origin: corporate` |
+| Drift detection | Hand-edit one value in the deployed `data/STING_DRAWING_TYPES.json`, reload — the log names that type, reports both hashes, and its origin flips to `project` |
+| Extends chain | A type that `extends` a drifted parent logs the ACC-01 "inherits drifted fields" warning |
+| Project override | A `_BIM_COORD/drawing_types.json` override still wins by id and is not checksum-checked (project origin is skipped) |
+
 #### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
 
 The cover title-block family's revision history is a **native Revit Revision

@@ -174,7 +174,7 @@ Corrections to the review found in this pass (bringing the running total to six)
 | B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ Phase 225 — separate PR (`fix/drawings-p2-rulefields`) |
 | B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
 | B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
-| B4 checksums | ⬜ Phase 225 — separate PR (`fix/drawings-p2-checksums`) |
+| B4 checksums | ✅ Phase 225 — all 93 stamped by `tools/StampDrawingTypeChecksums`; packs deliberately unlocked |
 | B5 composer numbering | ✅ routed through `SheetSequenceStore` |
 | B6 unmintable `iso-status-*` filters | ✅ Phase 225 — removed; filter library 298 → 290 |
 
@@ -213,6 +213,16 @@ not survive verification and are recorded here so they are not re-raised:
 - **ISO 19650 suitability colouring has no mechanism.** The 8 `iso-status-*` filters were the
   attempt and could never work — Revit view filters cannot target `OST_Sheets`. A title-block
   parameter or a view-template route would work; a view filter never will.
+
+- **`ViewStylePack.Checksum` is declared but never computed.** Drawing types were locked in
+  Phase 225; packs were deliberately left unlocked (reasoning in `CLAUDE.md`). The field should
+  either be wired to a `ViewStylePackRegistry.ComputeChecksums` or dropped, rather than left as
+  a property that looks like a lock and is not one.
+- **`tools/StampDrawingTypeChecksums` is not gated by CI.** It has a `--check` mode that exits
+  non-zero on a missing or stale checksum, but the plugin workflows name specific `.csproj`
+  paths so the tool is never built. Until it is wired, a change to `STING_DRAWING_TYPES.json` or
+  to the `DrawingType` model can ship with stale hashes — which surfaces in Revit as every type
+  reporting drift.
 
 **SURFACED AND NOT ACTED ON — needs a drainage engineer.** `DrainageInvertDimensioner` places
 the invert one wall thickness low. The geometry fix is understood, but the corrected value is an
