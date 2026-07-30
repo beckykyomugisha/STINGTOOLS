@@ -170,6 +170,48 @@ forced through.
 | Rebar filter | Apply the `struct-pt-tendon` filter — post-tensioned rebar is overridden, not just framing and floors |
 | Filters | Run `AecFilters_Create` — 290 filters, and no "non-filterable category" errors |
 
+**P-7 — slot-convention convergence.** `DrawingSlot` has always been bottom-left
+anchored: `DrawingTypeValidator` rejects a slot whose `normX+normW` exceeds 1.0,
+`SheetPlacementBridge` denormalises with `(normX + normW/2)`, and
+`STING_DRAWING_TYPES.json` is authored to match. `SheetTemplateEngine`'s
+`TemplateViewSlot` meant the slot **centre** — `cx = zone.Min.X + normX * zone.Width` —
+and its six built-in templates were authored accordingly (0.47 / 0.72 / 0.5 against
+widths of 0.8). Read as bottom-left most of those run off the sheet (0.72 + 0.40 = 1.12);
+read as centre, `DrawingTypeSheetAdapter`'s straight copy of a `DrawingSlot` into a
+`TemplateViewSlot` shifted every slot up and right by half its own extent — which is why
+one profile placed through *Create From Template* landed differently from the same
+profile placed through `DrawingProducer`.
+
+- All 16 built-in slot coordinates re-authored bottom-left; every one now satisfies
+  `normX+normW ≤ 1` and `normY+normH ≤ 1`.
+- Placement adds half the extent, matching `SheetPlacementBridge` exactly; save steps
+  back from `GetBoxCenter` by half the viewport, so a saved template round-trips.
+- **User-saved libraries migrate on load.** `SheetTemplateLibrary.CurrentVersion` is
+  `"2.0"`; anything older is converted by `MigrateSlotOrigin`. Guarded by the version
+  stamp rather than by inspecting the numbers — a centre-anchored slot and a bottom-left
+  one are not distinguishable by value, so running it twice would shift everything
+  down-left again. In-memory only: the converted library persists on the next save, so
+  opening a project never silently rewrites the user's file.
+- A third convention exists and is now documented rather than converted:
+  `LayoutSlotPreset` (`SheetManagerEngineExt`) declared itself `"0.0 = left / 0.0 =
+  bottom"` while both its denormalise and its save treat the values as a centre, and all
+  its built-in presets are authored around 0.5. It is a separate saved format that never
+  exchanges slots with the other two. Comment corrected; converging it is in ROADMAP.
+
+`DrawingProducer` → `SheetPlacementBridge` → `DrawingSlot` and `DrawingTypeSheetAdapter`
+→ `TemplateViewSlot` now agree.
+
+**Needs a Revit smoke test** (human):
+
+| Area | Check |
+|---|---|
+| Built-in templates | `Create From Template` for each of the six built-ins — every viewport lands inside the title-block frame, none off-sheet |
+| Template round-trip | `Save Sheet Template` from a laid-out sheet, then create a new sheet from it — viewports land where they were saved |
+| Adapter parity | Produce one drawing type via `DrawingProducer` and the same type via `Create From Template` — viewports land in the same place |
+| Legacy migration | Open a project with a pre-existing `.sting_sheet_templates.json` (version 1.0) — the log reports the migrated slot count, and applying a saved template places viewports correctly |
+| Migration idempotency | Save a template after the migration, reopen, apply again — slots do not drift down-left on the second open |
+| Layout presets | Regression check: `Apply Layout Preset` for the built-in presets still centres viewports as before (unchanged by this PR) |
+
 #### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
 
 The cover title-block family's revision history is a **native Revit Revision
