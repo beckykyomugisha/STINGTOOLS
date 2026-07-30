@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { AuthProvider } from '@/lib/auth';
 import { NotificationsProvider } from '@/lib/notifications';
 import { ThemeProvider, themeInitScript } from '@/lib/theme';
+import { ToastProvider } from '@/components/ui';
 
 export const metadata: Metadata = {
   title: 'Planscape — Coordination',
@@ -25,7 +26,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen antialiased">
         <ThemeProvider>
           <AuthProvider>
-            <NotificationsProvider>{children}</NotificationsProvider>
+            {/* U3 — ToastProvider wraps everything because the grid contract
+                makes a failed optimistic save's toast the ONLY signal the user
+                gets that their edit was rolled back. */}
+            <ToastProvider>
+              <NotificationsProvider>{children}</NotificationsProvider>
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

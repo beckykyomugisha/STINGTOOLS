@@ -90,7 +90,7 @@ contrast passes, that a grid edit round-trips against a live API. All of that is
 |---|---|---|
 | U1 design tokens | DONE | `npm run typecheck` clean · `npm run build` ✓ Compiled successfully · `npm test` **32 passed** incl. 8 new token-contract tests |
 | U2 shell chrome | DONE | typecheck clean · build ✓ Compiled successfully · `npm test` **45 passed** incl. 13 new breadcrumb / nav-model / tenant-switch tests |
-| U3 primitives | — | — |
+| U3 primitives | DONE | typecheck clean · build ✓ · `npm test` **59 passed** incl. 14 DataGrid tests that assert the contract itself — optimistic apply, **rollback + server message on failure**, no-op on unchanged value, Escape abandons, edit never navigates |
 | U4 route migration | — | — |
 | U5 polish + a11y | — | — |
 
@@ -134,3 +134,22 @@ Run `cd planscape-web && npm install && npm run dev`, point `NEXT_PUBLIC_API_BAS
 - [ ] **Full-bleed:** content now fills the width — the old `max-w-5xl` cap is gone, so a wide table
       uses the screen instead of scrolling inside a 64rem column.
 - [ ] **Skip link:** press Tab on page load — the first stop is "Skip to content" and it jumps past the rail.
+
+### U3 — primitives
+- [ ] **Modal / Drawer:** open one → focus moves inside, Tab cycles within it, Escape closes and
+      focus returns to the trigger, the background does not scroll.
+- [ ] **Tabs:** arrow keys move between tabs (roving tabindex), not just clicks.
+- [ ] **Grid sort:** click a header → ▲, again → ▼, again → back to server order.
+- [ ] **Grid filter:** typing narrows across ALL columns; a no-match says "No rows match that
+      filter", not "nothing here yet".
+- [ ] **Inline edit — success:** click an editable cell → editor appears → change it → cell keeps the
+      new value and a success toast appears.
+- [ ] **Inline edit — failure (the important one):** stop the API (or edit a row you lack permission
+      on) → the cell **snaps back** to its previous value and an error toast shows the server's own
+      message, and that toast does NOT auto-dismiss.
+- [ ] **Selection:** filter the grid, then select-all → only the visible rows are selected; the count
+      chip matches.
+- [ ] **Row click vs cell edit:** clicking a non-editable cell opens the detail route; clicking an
+      editable cell or a checkbox does not navigate.
+- [ ] **Toast stacking:** trigger three failures — they stack bottom-right, each dismissible, and
+      don't cover the grid toolbar.
