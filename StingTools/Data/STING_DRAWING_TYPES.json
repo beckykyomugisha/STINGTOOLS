@@ -1897,8 +1897,8 @@
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
-        "volume": "01",
-        "type": "DR",
+        "volume": "02",
+        "type": "SP",
         "role": "M",
         "suitability": "S2",
         "revision": "P01"
@@ -7073,7 +7073,7 @@
       "description": "Multi-Discipline 3d on A1 at NA.",
       "isoNaming": {
         "volume": "01",
-        "type": "DR",
+        "type": "VS",
         "role": "Z",
         "suitability": "S2",
         "revision": "P01"
@@ -7221,7 +7221,7 @@
       },
       "isoNaming": {
         "volume": "01",
-        "type": "DR",
+        "type": "VS",
         "role": "Z",
         "suitability": "S2",
         "revision": "P01"
@@ -7399,7 +7399,7 @@
       "viewTemplateName": "STING - Multi-Discipline 3D View",
       "isoNaming": {
         "volume": "01",
-        "type": "DR",
+        "type": "VS",
         "role": "Z",
         "suitability": "S2",
         "revision": "P01"
@@ -7526,8 +7526,8 @@
         "autoTag": true
       },
       "isoNaming": {
-        "volume": "01",
-        "type": "DR",
+        "volume": "02",
+        "type": "SP",
         "role": "E",
         "suitability": "S2",
         "revision": "P01"
