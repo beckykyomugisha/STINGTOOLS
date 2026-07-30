@@ -126,25 +126,51 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine();
 
             int ok = 0, failed = 0;
+            // T-XX: (id, LabelsPlaced) for every family that built with ZERO
+            // working value cells — neither its own seed nor a master seed was
+            // available, so PROJECT NAME / REV / DATE / etc. all render blank.
+            // Surfaced as one consolidated punch-list below instead of relying
+            // on the per-family warning line (which callers can miss when
+            // scrolling a 30+ family report).
+            var needsSeed = new List<string>();
             foreach (var rawSpec in concrete)
             {
                 // Flatten extends chain so the factory sees a complete spec.
                 var spec = TitleBlockSpecRegistry.Resolve(lib, rawSpec);
                 var build = TitleBlockFactory.Build(uiApp, spec, sharedFile);
                 if (build.Ok) ok++; else failed++;
+                string labelSrc = build.BuiltFromSeed ? "(seed)"
+                    : build.PropagatedFromMaster ? "(master)"
+                    : "(none)";
                 sb.AppendLine($"{(build.Ok ? "✓" : "✗")} {spec.Id,-30}  "
                     + $"params {build.ParametersAdded,3}  lines {build.LinesPlaced,3}  "
-                    + $"labels {build.LabelsPlaced,3} {(build.BuiltFromSeed ? "(seed)" : "(none)"),-6}  "
+                    + $"labels {build.LabelsPlaced,3} {labelSrc,-8}  "
                     + $"slots {build.SlotsPlaced}  "
                     + $"→ {build.SavedPath ?? "(not saved)"}");
                 foreach (var w in build.Warnings.Take(3)) sb.AppendLine($"    ! {w}");
                 foreach (var e in build.Errors.Take(3))   sb.AppendLine($"    ✗ {e}");
                 foreach (var w in build.Warnings) StingLog.Warn($"TitleBlockCreateAll '{spec.Id}': {w}");
                 foreach (var e in build.Errors)   StingLog.Error($"TitleBlockCreateAll '{spec.Id}': {e}");
+
+                if (build.Ok && build.LabelsPlaced == 0)
+                    needsSeed.Add(spec.Id);
             }
 
             sb.AppendLine();
             sb.AppendLine($"Done.  succeeded {ok},  failed {failed}.");
+
+            if (needsSeed.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"⚠ {needsSeed.Count} famil{(needsSeed.Count == 1 ? "y builds" : "ies build")} as a BARE FRAME "
+                    + "— zero working value cells (PROJECT NAME / REV / DATE / etc. render blank).");
+                sb.AppendLine("  Revit 2025 removed the API used to author labels from a blank template, so each of");
+                sb.AppendLine("  these needs its OWN hand-authored seed at the path below (copy an existing seed in the");
+                sb.AppendLine("  Family Editor, wire its labels to these params, Save As):");
+                foreach (var id in needsSeed)
+                    sb.AppendLine($"    - Families/TitleBlocks/_seeds/{id}.rfa");
+            }
+
             TaskDialog.Show("STING — Title Block Factory", sb.ToString());
             return failed == 0 ? Result.Succeeded : Result.Failed;
         }
