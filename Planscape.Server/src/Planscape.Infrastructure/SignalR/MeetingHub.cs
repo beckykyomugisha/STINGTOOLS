@@ -183,11 +183,17 @@ public class MeetingHub : Hub
         if (!Guid.TryParse(sessionId, out var sid)
             || !await HubTenantGuard.IsSessionHostAsync(Context.User, _db, sid)) return;
 
-        // room == sessionId (MeetingRoomController.LiveKitToken), identity == userId.
-        var mutedTracks = await _lkRooms.MuteAllMicrophonesAsync(sessionId, CallerUserId(), Context.ConnectionAborted);
+        // G2 — the room is tenant-scoped (LiveKitRoom.Name), NOT the bare session id, and
+        // must match what MeetingRoomController minted into the participants' tokens or
+        // this mutes an empty room. identity == userId. IsSessionHostAsync has already
+        // checked the tenant claim against the session, so it is safe to build from here.
+        var room = LiveKitRoomFor(sid);
+        var mutedTracks = room is null
+            ? 0
+            : await _lkRooms.MuteAllMicrophonesAsync(room, CallerUserId(), Context.ConnectionAborted);
 
         await Clients.OthersInGroup(Group(sessionId)).SendAsync("Moderation",
-            new { action = "mute-all", by = Context.UserIdentifier, enforced = _lkRooms.IsConfigured, mutedTracks });
+            new { action = "mute-all", by = Context.UserIdentifier, enforced = _lkRooms.IsConfigured && room is not null, mutedTracks });
     }
 
     /// <summary>
@@ -216,13 +222,27 @@ public class MeetingHub : Hub
         {
             var inSession = await _db.MeetingViewerParticipants.IgnoreQueryFilters()
                 .AnyAsync(p => p.SessionId == sid && p.UserId == targetUid);
-            if (inSession)
+            var room = LiveKitRoomFor(sid);   // G2 — tenant-scoped, see MuteAll
+            if (inSession && room is not null)
                 enforced = await _lkRooms.RemoveParticipantAsync(
-                    sessionId, targetUid.ToString(), Context.ConnectionAborted);
+                    room, targetUid.ToString(), Context.ConnectionAborted);
         }
 
         await Clients.Group(Group(sessionId)).SendAsync("Moderation",
             new { action = "remove", connectionId = targetConnectionId, by = Context.UserIdentifier, enforced });
+    }
+
+    /// <summary>
+    /// G2 — the tenant-scoped LiveKit room for a session, built from the connection's own
+    /// tenant claim. Null when the connection carries no usable tenant, in which case
+    /// moderation falls back to signal-only rather than guessing at a room name (a wrong
+    /// name would silently act on nothing, which is worse than not acting).
+    /// Only call after a HubTenantGuard check has tied the claim to the session.
+    /// </summary>
+    private string? LiveKitRoomFor(Guid sessionId)
+    {
+        var tenantId = HubTenantGuard.TenantIdOf(Context.User);
+        return tenantId == Guid.Empty ? null : LiveKitRoom.Name(tenantId, sessionId);
     }
 
     /// <summary>The caller's user id — the LiveKit identity minted for them by

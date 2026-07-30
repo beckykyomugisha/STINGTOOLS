@@ -789,6 +789,71 @@ plus `selectAndZoomResult` / `focusNextClashGuid` / `meetClashNote`; `curl /view
       disappears.
 - [ ] **Promote still works** on a clash whose element didn't resolve (⚑→ is independent of zoom).
 
+## B1 — two-firm tenancy: G1 recording keys + G2 LiveKit room names · server-only · 493 tests green
+
+Closes gaps **G1** and **G2** from `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md` §4b. Both were
+"defence-in-depth, not an active leak" — worth doing *now*, while no real recording exists, because
+both get harder once there is production data.
+
+**One source of truth: `Planscape.Infrastructure/SignalR/LiveKitRoom.cs`.** The room name is
+addressed by four independent features — participant tokens (`MeetingRoomController`), egress
+recording (`LiveKitEgressClient`), and the S1 moderation admin calls (`LiveKitRoomService`
+mute/remove) — and **a mismatch is silent**: nothing throws, the mute just mutes an empty room and
+the egress records one. So it is built in exactly one place and never re-derived inline.
+
+**G2 — room name is now `t{tenantId:N}-{sessionId:N}`** (was the bare `sessionId.ToString()`).
+Call sites updated: token minting (uses `session.TenantId`, authoritative because the row was
+fetched under the tenant filter, so it cannot disagree with the caller's claim), egress
+`EnsureRoomAsync` + `StartAsync`, and `MeetingHub.MuteAll` / `RemoveParticipant` (tenant from the
+connection's claim via a new `HubTenantGuard.TenantIdOf`; when the claim is missing, moderation
+falls back to signal-only rather than guessing a room name — a *wrong* name would silently act on
+nothing, which is worse than not acting).
+
+Two deviations from the findings doc, both deliberate:
+- The doc wrote `t{tenantId}-{sessionId}`; **dashless ("N") GUIDs** are used so the single hyphen
+  unambiguously separates the halves. With dashed GUIDs neither a human nor `TryParse` can tell
+  where the tenant ends. 66 chars, well inside LiveKit's limit.
+- **SignalR group names were deliberately NOT changed.** `meeting:{sessionId}` is a different
+  namespace, already tenant-guarded by `HubTenantGuard`, and renaming it is a much larger, riskier
+  change that G2 does not ask for. Conflating the two is the obvious mistake here.
+
+**G1 — recording key is now `t_{tenantId}/{sessionId}/{ts}.{ext}`** (was `{sessionId}/{ts}.{ext}` at
+the bucket root, while every other stored file lands under `t_{tenantId}/…` per
+`LocalFileStorageService.SaveScopedAsync`). The key is built by `LiveKitRoom.RecordingKey`, and
+`StartAsync` now takes `tenantId` + `sessionId` alongside the room because the object store is a
+**different namespace** from the room name. The findings doc said `t_{tenantId}/{room}/…`, but with
+G2 applied the room already embeds the tenant, so that would render
+`t_{tenant}/t{tenant}-{session}/…`; the session GUID is used instead, keeping the historical
+`{sessionId}/{yyyyMMddHHmmss}.{ext}` tail that the N2 write-up documents.
+
+**Read paths needed no change, and this was verified rather than assumed:** `MeetingRecording
+.StorageKey` is stored verbatim and handed straight back to `GetPresignedGetUrl`, the egress webhook
+matches on `EgressId` (never the room or key), and **nothing anywhere parses the room name back**
+(grepped `sessionId.ToString()`, `room`, `RoomName`, `StorageKey`, `GetPresignedGetUrl` across
+`Planscape.Server`, plus the viewer/mobile clients — the JS `state.room` is the LiveKit SDK Room
+object, not a name string).
+
+**Proof:** `dotnet build` 0 errors · **full suite 493 passed / 0 failed / 9 skipped** (476
+pre-existing + 17 `LiveKitRoomServiceTests`; the 17 new `LiveKitRoomTenancyTests` bring the total to
+502). The length assertion in those new tests **caught a real off-by-one** in `TryParse` (66, not
+65) before it shipped. Functional REST proof of the live endpoint is recorded below.
+
+**PENDING-HUMAN-VERIFY:**
+- [ ] **Recording lands under the tenant prefix:** record a session → MinIO `recordings` bucket shows
+      `t_<tenantId>/<sessionId>/<ts>.mp4`, not `<sessionId>/<ts>.mp4`. Playback from the meeting's
+      Recordings list still works (the presigned URL is built from the stored key, so it should).
+- [ ] **Old recordings still play:** any recording made *before* this change has a legacy
+      un-prefixed key. It must still presign and play — keys are stored, not recomputed. (If a legacy
+      row fails, that is the one real migration risk here.)
+- [ ] **Two tabs still meet:** both tabs join the same session and see each other. This is the
+      regression check for G2 — if the token's room and the client's expectation disagree, each tab
+      lands in its own empty room and sees no one.
+- [ ] **Moderation still enforces after the rename:** host mute-all/remove still actually cuts the
+      SFU (S1's checklist), proving the hub builds the same room name the token did.
+- [ ] **Sessions in flight across a deploy:** a session that was live *before* this deploy has tokens
+      naming the old room. Expect those clients to need a rejoin; confirm the failure is a clean
+      "rejoin to continue" rather than a silent one-way mute.
+
 ## Cloud demo unblock — free-tier deployment (2026-07-31)
 
 Full research + cost analysis: `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`. Summary:
