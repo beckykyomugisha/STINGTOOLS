@@ -1877,7 +1877,7 @@
       "categories": [
         "OST_StructuralFraming",
         "OST_Floors",
-        "OST_StructuralRebar"
+        "OST_Rebar"
       ],
       "rule": {
         "param": "ALL_MODEL_TYPE_COMMENTS",
