@@ -106,7 +106,6 @@ Render dashboard → **Env Groups → planscape-shared** → set:
 |---|---|
 | `Jwt__Key` | the `openssl rand -base64 48` output |
 | `PLANSCAPE_OWNER_PASSWORD` | the owner login password |
-| `PLANSCAPE_HANDOFF_SECRET` | another `openssl rand -base64 48` output. **Shared with Cloudflare** — the same value must later be set on the Pages side. See §3e. |
 | `Storage__S3__ServiceUrl` | **MinIO default:** the `planscape-minio` internal URL (Render → planscape-minio → Connect → Internal URL, e.g. `http://planscape-minio:9000`). **R2/S3:** their endpoint, or blank for AWS S3. |
 | `Storage__S3__AccessKey` | **= `MINIO_ROOT_USER`** (same value as 3d) — or the R2/S3 access key |
 | `Storage__S3__SecretKey` | **= `MINIO_ROOT_PASSWORD`** (same value as 3d) — or the R2/S3 secret key |
@@ -127,6 +126,30 @@ preset for the provisioned MinIO — only change them if you switch to AWS S3
 `Jwt__Issuer/Audience`, `Acc__CallbackUrl`,
 `Cors__Origins__*`, `Serilog__*`, `PLANSCAPE_OWNER_EMAIL` are already set to
 working defaults in the Blueprint — leave them.
+
+### 3a-bis. `PLANSCAPE_HANDOFF_SECRET` — per-service, NOT in the env group
+
+> **Corrected 2026-07-30.** This key was previously listed in the §3a
+> `planscape-shared` table. That is wrong and fails silently.
+
+`render.yaml` declares `PLANSCAPE_HANDOFF_SECRET` as a **per-service**
+`sync: false` variable on **`planscape-api`** (line 74) and **`planscape-worker`**
+(line 143). It is *not* a member of the `planscape-shared` env group, so setting
+it there leaves both services with the value still empty.
+
+Set it **twice**, once per service, to the **same** string:
+
+- Render → **planscape-api** → Environment → `PLANSCAPE_HANDOFF_SECRET`
+- Render → **planscape-worker** → Environment → `PLANSCAPE_HANDOFF_SECRET`
+
+```bash
+openssl rand -base64 48      # generate ONCE, paste the same value into both
+```
+
+The same value goes on Cloudflare Pages in §3e. It is an HMAC shared secret, not
+a JWT key — it must be **byte-identical** in all three places. A mismatch (or a
+blank on one service) rejects every handoff with nothing obviously wrong in
+either system's logs.
 
 ### 3b. `planscape-api` and `planscape-worker` (per-service)
 On **each** service set:
@@ -162,7 +185,7 @@ signed-in customer across to the cloud app:
 
 | Key | Value |
 |---|---|
-| `PLANSCAPE_HANDOFF_SECRET` | **the same string** set on Render in §3a. Both sides verify against it; a mismatch rejects every handoff. |
+| `PLANSCAPE_HANDOFF_SECRET` | **the same string** set on Render in §3a-bis — on *both* `planscape-api` and `planscape-worker`. Both sides verify against it; a mismatch rejects every handoff. |
 | `CLOUD_APP_ORIGIN` | `https://app.planscape.build` — where the customer is sent |
 
 ```bash
