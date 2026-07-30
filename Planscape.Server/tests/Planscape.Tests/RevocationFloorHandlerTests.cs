@@ -108,6 +108,7 @@ public class RevocationFloorHandlerTests
         services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddSingleton<ITenantBimManagerRoleResolver>(new NoopTenantRoleResolver());
         services.AddSingleton<IPermissionRevocationStore>(new FakeRevocationStore(revocationFloor));
+        services.AddTenantContextDouble();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -128,6 +129,10 @@ public class RevocationFloorHandlerTests
             }
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var handler = new BimManagerOrAdminHandler(sp.GetRequiredService<IServiceScopeFactory>(), config: null);
 

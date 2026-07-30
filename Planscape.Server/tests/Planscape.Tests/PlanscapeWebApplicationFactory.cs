@@ -110,6 +110,19 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             Slug = "test-org",
             ContactEmail = "admin@test.org",
             Tier = LicenseTier.Premium,
+            // Plan, not just Tier. QuotaAttribute gates writes on
+            // BillingPlanLimits.For(tenant.Plan), and an unset Plan is
+            // BillingPlan.Trial — which caps projects at 1. The seed below
+            // already creates one, so the cap was reached before any test ran
+            // and every "create project" short-circuited with 402
+            // PaymentRequired. MaxProjects = 50 above is the legacy field and
+            // does not feed the quota guard.
+            //
+            // Enterprise = unlimited on every axis, so quotas stay out of the
+            // way of tests that are about something else. SeedData.cs does the
+            // same for the demo sandbox, for the same reason. Quota behaviour
+            // itself is covered by SecurityCriticalPathTests.
+            Plan = BillingPlan.Enterprise,
             MaxUsers = 100,
             MaxProjects = 50,
             MimEnabled = true,

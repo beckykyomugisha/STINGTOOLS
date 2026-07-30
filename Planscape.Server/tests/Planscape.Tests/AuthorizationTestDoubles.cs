@@ -41,13 +41,27 @@ internal static class AuthorizationTestDoubles
     {
         services.AddSingleton<IPermissionRevocationStore, NullRevocationStore>();
         services.AddScoped<ITenantBimManagerRoleResolver, DbTenantBimManagerRoleResolver>();
+        services.AddTenantContextDouble();
+        return services;
+    }
+
+    /// <summary>
+    /// Just the ambient-tenant wiring, for suites that register their own
+    /// revocation store or role resolver and must not have them overridden.
+    ///
+    /// Both registrations are needed or neither takes effect:
+    /// PlanscapeDbContext's tenant-aware constructor asks for
+    /// (DbContextOptions, IHttpContextAccessor, ITenantContext). Miss one and EF
+    /// quietly picks the options-only constructor instead, leaving
+    /// _tenantContext null and CurrentTenantId at Guid.Empty — the "fails
+    /// closed, no rows" path the filter documents. Registering only
+    /// ITenantContext changes nothing at all, which makes this easy to
+    /// half-apply and conclude it didn't work.
+    /// </summary>
+    public static IServiceCollection AddTenantContextDouble(this IServiceCollection services)
+    {
         services.AddSingleton<TestTenantContext>();
         services.AddSingleton<ITenantContext>(sp => sp.GetRequiredService<TestTenantContext>());
-        // Both of these, or neither takes effect: PlanscapeDbContext's tenant-aware
-        // constructor asks for (DbContextOptions, IHttpContextAccessor, ITenantContext).
-        // Miss one and EF quietly selects the options-only constructor instead,
-        // leaving _tenantContext null and CurrentTenantId at Guid.Empty — the exact
-        // "fails closed, no rows" path the filter documents.
         services.AddHttpContextAccessor();
         return services;
     }

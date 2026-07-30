@@ -108,6 +108,7 @@ public class AuthHandlerConcurrentReadsTests
         services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddSingleton(revocationStore);
         services.AddSingleton(tenantResolver);
+        services.AddTenantContextDouble();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -125,6 +126,10 @@ public class AuthHandlerConcurrentReadsTests
             });
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var handler = new BimManagerOrAdminHandler(
             sp.GetRequiredService<IServiceScopeFactory>(), config: null);
