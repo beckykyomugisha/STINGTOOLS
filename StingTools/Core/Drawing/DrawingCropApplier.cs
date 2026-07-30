@@ -81,6 +81,7 @@ namespace StingTools.Core.Drawing
             if (contextScopeBox != null && contextScopeBox.Id != ElementId.InvalidElementId)
             {
                 SetScopeBox(view, contextScopeBox.Id, warnings);
+                ApplyCropVisibility(view, crop, warnings);
                 // Stamp the profile's declared kind so the drift detector still
                 // compares against the profile, not against this override.
                 try { DrawingTypeStamper.StampCrop(view, crop.Kind ?? string.Empty, crop.MarginMm); }
@@ -128,6 +129,10 @@ namespace StingTools.Core.Drawing
                         break;
                 }
 
+                // One place decides whether the crop frame is drawn — the three
+                // setters above no longer force it on.
+                ApplyCropVisibility(view, crop, warnings);
+
                 // Phase 183 — stamp crop kind + margin so the drift
                 // detector can spot bbox-derived crops that have fallen
                 // behind the profile. No-op when the params aren't bound.
@@ -154,6 +159,20 @@ namespace StingTools.Core.Drawing
             catch { return null; }
         }
 
+        /// <summary>
+        /// Apply the profile's crop-boundary visibility. Previously SetScopeBox,
+        /// SetTightBboxCrop and SetRoomBoundaryCrop each hardcoded
+        /// CropBoxVisible = true, so every produced drawing carried a visible
+        /// crop rectangle regardless of the profile. Now declared once, on
+        /// DrawingCropStrategy, and defaulted off.
+        /// </summary>
+        private static void ApplyCropVisibility(View view, DrawingCropStrategy crop, List<string> warnings)
+        {
+            if (view == null || crop == null) return;
+            try { view.CropBoxVisible = crop.CropBoxVisible; }
+            catch (Exception ex) { warnings.Add($"CropBoxVisible: {ex.Message}"); }
+        }
+
         private static void SetScopeBox(View view, ElementId scopeBoxId, List<string> warnings)
         {
             try
@@ -162,7 +181,6 @@ namespace StingTools.Core.Drawing
                 if (p == null || p.IsReadOnly) { warnings.Add("VIEWER_VOLUME_OF_INTEREST_CROP not writable."); return; }
                 p.Set(scopeBoxId);
                 view.CropBoxActive = true;
-                view.CropBoxVisible = true;
             }
             catch (Exception ex) { warnings.Add($"SetScopeBox: {ex.Message}"); }
         }
@@ -181,7 +199,6 @@ namespace StingTools.Core.Drawing
                 if (cropBox == null) return;
 
                 view.CropBoxActive  = true;
-                view.CropBoxVisible = true;
                 view.CropBox        = cropBox;
             }
             catch (Exception ex) { warnings.Add($"TightBbox: {ex.Message}"); }
@@ -337,7 +354,6 @@ namespace StingTools.Core.Drawing
                 if (cropBox == null) return;
 
                 view.CropBoxActive  = true;
-                view.CropBoxVisible = true;
                 view.CropBox        = cropBox;
             }
             catch (Exception ex) { warnings.Add($"RoomBoundary: {ex.Message}"); }

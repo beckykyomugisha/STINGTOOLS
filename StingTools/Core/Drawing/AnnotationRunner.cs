@@ -245,7 +245,12 @@ namespace StingTools.Core.Drawing
                     if (catId == ElementId.InvalidElementId) continue;
                     long cv = catId.Value;
                     if (!doneCats.Add(cv)) continue;
-                    if (!Enum.IsDefined(typeof(BuiltInCategory), unchecked((int)cv))) continue; // skip custom categories
+                    // BuiltInCategory's underlying type is long (Revit 2024+), so
+                    // handing Enum.IsDefined an int threw "Enum underlying type
+                    // and the object must be same type" for EVERY rule — the
+                    // per-rule catch below swallowed it as a warning, so the
+                    // whole auto-tag pass silently placed nothing. Pass the long.
+                    if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
                     TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats, rule, taggedIndex.Value);
                 }
                 catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }

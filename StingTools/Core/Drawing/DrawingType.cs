@@ -519,6 +519,16 @@ namespace StingTools.Core.Drawing
         [JsonProperty("kind")]        public string Kind { get; set; } = "ScopeBoxOrBbox";
         [JsonProperty("scopeBoxName")] public string ScopeBoxName { get; set; }
         [JsonProperty("marginMm")]    public double MarginMm { get; set; } = 150.0;
+
+        /// <summary>
+        /// Whether the crop BOUNDARY is drawn on the sheet. Every crop path
+        /// used to force this on, so production drawings shipped with a visible
+        /// crop rectangle around each viewport. Defaults to false — a produced
+        /// drawing should show its content, not its cropping frame. Set true
+        /// per drawing type when the boundary is wanted (coordination or
+        /// check prints, where the extent of the crop is the point).
+        /// </summary>
+        [JsonProperty("cropBoxVisible")] public bool CropBoxVisible { get; set; } = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────
