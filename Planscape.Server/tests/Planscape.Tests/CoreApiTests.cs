@@ -286,9 +286,26 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Transmittals
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: TransmittalsController numbers transmittals via
+    /// SequenceCounterService.AllocateAsync, which issues
+    /// `INSERT … ON CONFLICT … RETURNING` with gen_random_uuid() — Postgres-only,
+    /// non-composable SQL. On the EF InMemory provider the call throws
+    /// "Relational-specific methods can only be used when the context is using a
+    /// relational database provider" and the request 500s, which is a property of
+    /// the test provider, not of the code.
+    ///
+    /// Skipped rather than reworked: a test that silently no-ops when its
+    /// dependency is missing reports safety it did not check. Set
+    /// PLANSCAPE_TEST_PG to run it — see PostgresSequenceCounterTests.
+    /// </summary>
+    [SkippableFact]
     public async Task Transmittals_CreateAndList()
     {
+        Skip.If(string.IsNullOrWhiteSpace(
+                Environment.GetEnvironmentVariable("PLANSCAPE_TEST_PG")),
+            "PLANSCAPE_TEST_PG is not set — transmittal numbering needs real PostgreSQL.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         var createResp = await client.PostAsJsonAsync($"{_projBase}/transmittals", new
@@ -304,9 +321,26 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
     }
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: TransmittalsController numbers transmittals via
+    /// SequenceCounterService.AllocateAsync, which issues
+    /// `INSERT … ON CONFLICT … RETURNING` with gen_random_uuid() — Postgres-only,
+    /// non-composable SQL. On the EF InMemory provider the call throws
+    /// "Relational-specific methods can only be used when the context is using a
+    /// relational database provider" and the request 500s, which is a property of
+    /// the test provider, not of the code.
+    ///
+    /// Skipped rather than reworked: a test that silently no-ops when its
+    /// dependency is missing reports safety it did not check. Set
+    /// PLANSCAPE_TEST_PG to run it — see PostgresSequenceCounterTests.
+    /// </summary>
+    [SkippableFact]
     public async Task Transmittals_MarkSent()
     {
+        Skip.If(string.IsNullOrWhiteSpace(
+                Environment.GetEnvironmentVariable("PLANSCAPE_TEST_PG")),
+            "PLANSCAPE_TEST_PG is not set — transmittal numbering needs real PostgreSQL.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         var createResp = await client.PostAsJsonAsync($"{_projBase}/transmittals", new
