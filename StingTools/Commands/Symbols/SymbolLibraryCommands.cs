@@ -111,20 +111,32 @@ namespace StingTools.Commands.Symbols
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-                string dir = Path.GetDirectoryName(doc.PathName);
-                if (string.IsNullOrEmpty(dir)) return null;
 
-                string lib = Path.Combine(dir, "_BIM_COORD", "Families", "Symbols");
-                if (!Directory.Exists(lib)) return null;
+                // Both layouts must be probed, in the same order ContentRoots uses:
+                // the consolidated <root>/_data/_BIM_COORD/… and the legacy
+                // <projDir>/_BIM_COORD/… sibling. Hand-assembling the legacy form
+                // alone would miss a populated library on any project that has been
+                // consolidated — and missing it is precisely the orphaning this guard
+                // exists to prevent. Path layout stays owned by StingPaths /
+                // ProjectFolderEngine rather than being rebuilt here.
+                foreach (var lib in new[]
+                {
+                    StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols"),
+                    ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Symbols"),
+                })
+                {
+                    if (string.IsNullOrEmpty(lib) || !Directory.Exists(lib)) continue;
 
-                // Any .rfa anywhere beneath it counts — the build fans out into
-                // per-standard sub-folders (SLD/IEC, Lighting, …), so a top-level
-                // check alone would miss a populated library.
-                bool populated = Directory.EnumerateFiles(lib, "*.rfa", SearchOption.AllDirectories).Any();
-                if (!populated) return null;
+                    // Any .rfa anywhere beneath it counts — the build fans out into
+                    // per-standard sub-folders (SLD/IEC, Lighting, …), so a top-level
+                    // check alone would miss a populated library.
+                    if (!Directory.EnumerateFiles(lib, "*.rfa", SearchOption.AllDirectories).Any())
+                        continue;
 
-                StingLog.Info($"ResolveOutputRoot: using the project's existing symbol library at '{lib}'.");
-                return lib;
+                    StingLog.Info($"ResolveOutputRoot: using the project's existing symbol library at '{lib}'.");
+                    return lib;
+                }
+                return null;
             }
             catch (Exception ex)
             {
