@@ -614,3 +614,43 @@ Local `dotnet build` → 0 errors.
 - **No 2-tab live A/V proof in this build pass:** every slice was SERVED-proven (container serves the
   exact bundle) but the live camera/mic/screen behaviour was **not** machine-verified — it requires
   two real browser tabs against the running LiveKit + Postgres stack. That is what this matrix is for.
+
+## Cloud demo unblock — free-tier deployment (2026-07-31)
+
+Full research + cost analysis: `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`. Summary:
+
+- **Confirmed live** (curled 2026-07-31): `https://planscape-api-free.onrender.com` (`/health/live`
+  → `{"status":"alive"}`, `/health` → 403 as designed) and `https://planscape-web-free.onrender.com`.
+  Neither URL had a Render collision suffix.
+- **Neither deployment has LiveKit configured** — `render.free.yaml` declared no LiveKit keys at all
+  until this pass added `LiveKit__Url` / `LiveKit__ApiKey` / `LiveKit__ApiSecret` as `sync: false`
+  placeholders (mirroring `render.yaml`). Every SERVED item in M1–M5/N1/N3/N4 above is blocked on
+  these three values, not on any missing code.
+- **What's still a human step, and why:** signing up for LiveKit Cloud creates an account, and
+  pasting the resulting secret into Render's dashboard means typing a credential into a field —
+  both are actions an agent should not take on the user's behalf even with permission. Free tier
+  needs no card; total time is a few minutes:
+  1. https://cloud.livekit.io → sign up (free) → create a project.
+  2. Project Settings → Keys → copy API Key, API Secret, WSS URL.
+  3. Render dashboard → `planscape-api-free` → Environment tab → paste into `LiveKit__Url` (the
+     `wss://…` value), `LiveKit__ApiKey`, `LiveKit__ApiSecret` → save (service restarts
+     automatically, no redeploy needed for env-var-only changes).
+- **A real identity collision to expect during the test, not a bug to chase:** `planscape-web`'s
+  own live page and the embedded viewer's `livekit-av.js` both authenticate to LiveKit as
+  `identity = userId` (`MeetingRoomController.cs:355`). LiveKit disconnects the older connection on
+  a duplicate identity. Only the iframe not passing `?autojoin=1` currently prevents a collision. If
+  a tab's video drops the instant someone clicks "Join A/V" *inside the embedded viewer*, this is
+  why — not a regression.
+
+**2-tab test — PENDING-HUMAN-VERIFY** (once the 3 env vars above are set on Render):
+1. Two browser profiles (or one InPrivate + one normal), both signed in as different users on
+   `https://planscape-web-free.onrender.com`, same project, same meeting.
+2. Tab 1: start/join the meeting from the `planscape-web` live page (not the embedded viewer) and
+   grant camera/mic. Confirm local tile renders.
+3. Tab 2: join the same meeting the same way. Confirm tab 1 sees tab 2's remote tile within a few
+   seconds, and vice versa (audio optional to check, video is the real signal).
+4. Only then, in Tab 1, open the embedded viewer surface and click "Join A/V" there. Expect Tab 1's
+   `planscape-web` video to drop per the identity-collision note above — confirm it's this, not a
+   crash, then note whether that's an acceptable UX or worth a follow-up fix (route the iframe
+   client to a distinct identity, e.g. `{userId}-viewer`).
+5. Leave/rejoin, then close one tab entirely — confirm the other participant sees the leave.

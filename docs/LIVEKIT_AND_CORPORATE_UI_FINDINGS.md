@@ -361,14 +361,19 @@ does **not** gate the camera demo, the UI shell, or the isolation hardening.
 
 ## 6. Open questions for the user
 
-1. **The deployed free-tier URL is not recorded anywhere in the repo.** `render.free.yaml` says the
-   `*.onrender.com` hostnames aren't known until first deploy, and no doc captured them afterwards.
-   Needed to curl a SERVED proof against the deployment. (Worth committing to `docs/` once known.)
-2. **LiveKit Cloud signup** creates an account and issues API keys — per the brief's own rule, that
-   is an account-level action to confirm before doing. Free tier needs no card.
-3. **Dual-firm membership** (§4b/G3): does one human ever need to belong to both firms?
+1. ~~The deployed free-tier URL is not recorded anywhere in the repo.~~ **Resolved 2026-07-31** —
+   curled directly: `https://planscape-api-free.onrender.com` (`/health/live` → alive, `/health` →
+   403 as designed) and `https://planscape-web-free.onrender.com`, neither with a collision suffix.
+   Now recorded in `render.free.yaml`'s header comment and `docs/MEETINGS_AUDIT.md`.
+2. **LiveKit Cloud signup** still needs the human: creating the account and pasting the resulting
+   secret into Render's dashboard are both actions an agent shouldn't take even with permission
+   (account creation; typing a credential into a field). `render.free.yaml` now has the 3 env vars
+   declared as `sync: false` placeholders with exact copy-paste steps in the comment above them —
+   the only remaining work is those 5 minutes of human hands. See `docs/MEETINGS_AUDIT.md` "Cloud
+   demo unblock" for the walkthrough and the 2-tab test to run once it's wired.
+3. **Dual-firm membership** (§4b/G3): does one human ever need to belong to both firms? Still open.
 4. **ACC grid contract**: which columns are editable, and is a headless primitive library acceptable
-   (§3c)?
+   (§3c)? Still open — see the plain-language explainer given alongside this update.
 
 ---
 
