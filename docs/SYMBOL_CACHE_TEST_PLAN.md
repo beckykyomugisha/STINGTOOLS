@@ -43,8 +43,8 @@ A project with **no** `_BIM_COORD\Families\Symbols` folder.
 | | Expect |
 |---|---|
 | ✅ | `C:\ProgramData\STING\ContentLibrary\Symbols\SLD\IEC\` contains `.rfa` files |
-| ✅ | `C:\ProgramData\STING\ContentLibrary\Symbols\.sting_library.json` exists |
-| ✅ | Sidecar shows `"generatorVersion": "2"` and a `catalogues` entry for `STING_SLD_SYMBOLS.json` with a 64-char hash |
+| ✅ | **`...\Symbols\SLD\IEC\.sting_library.json`** exists — the sidecar sits in the *catalogue's own sub-folder*, not at the `Symbols` root, because `RunBatch` builds each catalogue into `<root>\<subFolder>` |
+| ✅ | Sidecar shows `"generatorVersion": "2"`, a `catalogues` entry for `STING_SLD_SYMBOLS.json` with a 64-char hash, and an empty `failedSymbols` |
 | ❌ | Families landed in the project's `_BIM_COORD` instead → shared root was rejected; check the log for `not writable` |
 | ❌ | Families landed in `%TEMP%\STING_Symbols` → both roots failed |
 
@@ -77,8 +77,11 @@ Immediately after Step 1, click **SLD** again.
 | ✅ | Log: `rebuilding 'STING_SLD_SYMBOLS.json' — catalogue content changed` |
 | ✅ | `SLD_MCB.rfa` timestamp updated |
 | ✅ | Sidecar hash for that catalogue changed |
-| ✅ | **Other** catalogues untouched — `Lighting\*.rfa` timestamps unchanged (per-catalogue isolation) |
+| ✅ | **Other** catalogues untouched — `Lighting\*.rfa` timestamps unchanged |
 | ❌ | Everything rebuilt → hashing is per-library not per-catalogue |
+
+> Isolation here is structural as well as hash-based: each catalogue builds into its own sub-folder
+> with its own sidecar, so cross-contamination would require a path bug rather than a hashing bug.
 
 Revert the edit afterwards, or leave it — Step 4 rebuilds regardless.
 

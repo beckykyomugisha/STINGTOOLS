@@ -10,7 +10,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 5.5,
-      "realSizeMm": 360,
+      "realSizeMm": 560,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -211,7 +211,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 4.0,
-      "realSizeMm": 400,
+      "realSizeMm": 350,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -294,7 +294,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 5.0,
-      "realSizeMm": 550,
+      "realSizeMm": 500,
       "overallExtent": 0.8,
       "parameters": [
         {
@@ -584,7 +584,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 8.0,
-      "realSizeMm": 1000,
+      "realSizeMm": 800,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -804,7 +804,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 8.0,
-      "realSizeMm": 900,
+      "realSizeMm": 800,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1024,7 +1024,7 @@
       "discipline": "Plumbing",
       "subcategory": "Sanitary",
       "symbolSize": 4.5,
-      "realSizeMm": 360,
+      "realSizeMm": 600,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1089,7 +1089,7 @@
       "discipline": "Plumbing",
       "subcategory": "Drainage",
       "symbolSize": 3.0,
-      "realSizeMm": 150,
+      "realSizeMm": 100,
       "parameters": [],
       "geometry": {
         "arcs": [
@@ -1951,7 +1951,7 @@
       "discipline": "Plumbing",
       "subcategory": "Equipment",
       "symbolSize": 7.0,
-      "realSizeMm": 500,
+      "realSizeMm": 450,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",

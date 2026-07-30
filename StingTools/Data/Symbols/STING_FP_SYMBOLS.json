@@ -238,7 +238,7 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
-      "realSizeMm": 75,
+      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -298,7 +298,7 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 5.0,
-      "realSizeMm": 75,
+      "realSizeMm": 80,
       "overallExtent": 0.55,
       "parameters": [
         {
@@ -619,7 +619,7 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.5,
-      "realSizeMm": 100,
+      "realSizeMm": 110,
       "overallExtent": 0.6,
       "parameters": [
         {
@@ -676,7 +676,7 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 5.0,
-      "realSizeMm": 130,
+      "realSizeMm": 200,
       "overallExtent": 0.6,
       "parameters": [
         {
@@ -761,7 +761,7 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 5.0,
-      "realSizeMm": 130,
+      "realSizeMm": 200,
       "overallExtent": 0.6,
       "parameters": [
         {
@@ -901,7 +901,7 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 4.0,
-      "realSizeMm": 87,
+      "realSizeMm": 80,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1020,7 +1020,7 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 5.0,
-      "realSizeMm": 110,
+      "realSizeMm": 130,
       "overallExtent": 0.55,
       "parameters": [
         {
@@ -1075,7 +1075,7 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 4.0,
-      "realSizeMm": 110,
+      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1255,7 +1255,7 @@
       "discipline": "FireProtection",
       "subcategory": "Panel",
       "symbolSize": 6.0,
-      "realSizeMm": 300,
+      "realSizeMm": 250,
       "parameters": [
         {
           "name": "PANEL_REF",

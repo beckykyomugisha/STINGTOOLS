@@ -10,7 +10,7 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 6.0,
-      "realSizeMm": 300,
+      "realSizeMm": 595,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -217,7 +217,7 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 6.0,
-      "realSizeMm": 300,
+      "realSizeMm": 595,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -493,7 +493,7 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 4.0,
-      "realSizeMm": 125,
+      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -586,7 +586,7 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 6.0,
-      "realSizeMm": 500,
+      "realSizeMm": 600,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -709,7 +709,7 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 5.5,
-      "realSizeMm": 400,
+      "realSizeMm": 600,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -781,7 +781,7 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 5.0,
-      "realSizeMm": 400,
+      "realSizeMm": 500,
       "overallExtent": 0.6,
       "parameters": [
         {
@@ -1411,7 +1411,7 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
-      "realSizeMm": 1000,
+      "realSizeMm": 800,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -1546,7 +1546,7 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
-      "realSizeMm": 1000,
+      "realSizeMm": 800,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -1856,7 +1856,7 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 16.0,
-      "realSizeMm": 2000,
+      "realSizeMm": 3000,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -2087,7 +2087,7 @@
       "discipline": "Mechanical",
       "subcategory": "Fan",
       "symbolSize": 6.0,
-      "realSizeMm": 600,
+      "realSizeMm": 700,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -2176,7 +2176,7 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 90,
+      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2218,7 +2218,7 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 90,
+      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2260,7 +2260,7 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 90,
+      "realSizeMm": 60,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2302,7 +2302,7 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 90,
+      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",

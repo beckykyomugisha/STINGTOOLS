@@ -210,7 +210,7 @@ namespace StingTools.Core.Symbols
             // Existence alone is not freshness. A .rfa on disk may have been
             // built from an older catalogue, or by an older generator whose
             // output differed even though every catalogue byte is identical.
-            // rebuildMode forces a rebuild regardless (Symbols_RebuildAll).
+            // rebuildMode forces a rebuild regardless (Symbols_Rebuild -> Force all).
             var cache = SymbolCacheManifest.Load(outputFolder);
             bool hashStale = cache.IsCatalogueStale(jsonPath, out string staleReason);
             bool catalogueStale = rebuildMode || hashStale;
@@ -221,6 +221,11 @@ namespace StingTools.Core.Symbols
                 result.Warnings.Add($"{Path.GetFileName(jsonPath)}: rebuilding cached families — {cause}.");
             }
 
+            // Every id this run considered, and the subset that failed. Used to carry a
+            // per-symbol retry list in the sidecar (see RecordFailures).
+            var attemptedIds = new List<string>();
+            var failedIds = new List<string>();
+
             foreach (var def in lib.Symbols)
             {
                 if (string.IsNullOrWhiteSpace(def?.Id))
@@ -229,6 +234,8 @@ namespace StingTools.Core.Symbols
                     result.Errors.Add("Symbol with empty id skipped.");
                     continue;
                 }
+
+                attemptedIds.Add(def.Id);
 
                 // Apply project-level size config (global multiplier / category / per-symbol override).
                 if (sizeConfig != null)
@@ -246,7 +253,9 @@ namespace StingTools.Core.Symbols
                 // built from something that no longer describes this symbol, so
                 // existence no longer licenses a skip. Fall through to BuildOne,
                 // which overwrites via SaveAsOptions.OverwriteExistingFile.
-                if (File.Exists(rfaPath) && !catalogueStale)
+                // IsSymbolStale additionally retries anything that failed last run,
+                // whose on-disk file may be a survivor of a failed regeneration.
+                if (File.Exists(rfaPath) && !catalogueStale && !cache.IsSymbolStale(def.Id))
                 {
                     // If the .rfa loads cleanly, count it as Existed and
                     // move on. If LoadFamily returns false (Revit's
@@ -273,6 +282,7 @@ namespace StingTools.Core.Symbols
                     {
                         result.Warnings.Add($"{def.Id}: stale .rfa delete failed — {ex.Message}; skipping rebuild.");
                         result.Failed++;
+                        failedIds.Add(def.Id);
                         continue;
                     }
                 }
@@ -295,32 +305,33 @@ namespace StingTools.Core.Symbols
                     else
                     {
                         result.Failed++;
+                        failedIds.Add(def.Id);
                     }
                 }
                 catch (Exception ex2)
                 {
                     result.Failed++;
+                    failedIds.Add(def.Id);
                     result.Errors.Add($"{def.Id}: {ex2.Message}");
                     StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex2);
                 }
             }
 
             // ── Record the build (W-1) ────────────────────────────────────
-            // Only stamp the catalogue as built when nothing failed. Recording a
-            // partial build would mark the catalogue fresh and permanently strand
-            // the families that did not make it — the exact failure mode this
-            // whole mechanism exists to stop.
-            if (result.Failed == 0)
-            {
-                cache.RecordCatalogue(jsonPath);
-                cache.Save(outputFolder);
-            }
-            else
-            {
+            // Stamp the catalogue hash and carry the failure set forward. Failures are
+            // tracked per symbol rather than blocking the whole catalogue: a symbol
+            // that fails leaves whatever was on disk before (BuildOne's SaveAs is its
+            // last step), so a stale family that failed to regenerate would otherwise
+            // be served silently. Recording the id forces a retry next run while every
+            // symbol that did build stays cached.
+            cache.RecordCatalogue(jsonPath);
+            cache.RecordFailures(attemptedIds, failedIds);
+            cache.Save(outputFolder);
+
+            if (failedIds.Count > 0)
                 result.Warnings.Add(
-                    $"{Path.GetFileName(jsonPath)}: {result.Failed} symbol(s) failed — cache not " +
-                    "stamped, so the next run will retry this catalogue.");
-            }
+                    $"{Path.GetFileName(jsonPath)}: {failedIds.Count} symbol(s) failed and are " +
+                    "flagged for retry on the next build.");
 
             return result;
         }

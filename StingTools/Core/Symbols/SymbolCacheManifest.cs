@@ -75,6 +75,25 @@ namespace StingTools.Core.Symbols
         public Dictionary<string, string> Catalogues { get; set; }
             = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Symbol ids that failed to build on the last run, and must be retried even
+        /// while their catalogue is otherwise fresh.
+        ///
+        /// <para>Needed because BuildOne writes its .rfa via SaveAs as the very last
+        /// step. A symbol that fails therefore leaves whatever was on disk before —
+        /// so if a *stale* family failed to regenerate, the stale file survives. With
+        /// only a catalogue-level hash, stamping would mark it fresh and that stale
+        /// geometry would be served silently forever.</para>
+        ///
+        /// <para>The alternative — refusing to stamp the catalogue whenever anything
+        /// failed — is worse: one permanently-failing symbol would force every other
+        /// symbol in that catalogue to rebuild on every run, defeating the point of
+        /// the cache.</para>
+        /// </summary>
+        [JsonProperty("failedSymbols")]
+        public HashSet<string> FailedSymbols { get; set; }
+            = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         // ── Load / save ──────────────────────────────────────────────────
 
         /// <summary>
@@ -165,6 +184,35 @@ namespace StingTools.Core.Symbols
             if (string.IsNullOrEmpty(key)) return;
             string hash = HashFile(cataloguePath);
             if (!string.IsNullOrEmpty(hash)) Catalogues[key] = hash;
+        }
+
+        /// <summary>
+        /// True when this specific symbol must be rebuilt regardless of its
+        /// catalogue's freshness, because it failed on the previous run.
+        /// </summary>
+        public bool IsSymbolStale(string symbolId)
+            => !string.IsNullOrEmpty(symbolId)
+               && FailedSymbols != null
+               && FailedSymbols.Contains(symbolId);
+
+        /// <summary>
+        /// Replaces the recorded failure set for the symbols just processed.
+        /// <paramref name="attempted"/> is every id this run considered, so ids that
+        /// have since succeeded are cleared while failures in other catalogues are
+        /// left intact.
+        /// </summary>
+        public void RecordFailures(IEnumerable<string> attempted, IEnumerable<string> failed)
+        {
+            if (FailedSymbols == null)
+                FailedSymbols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (attempted != null)
+                foreach (var id in attempted)
+                    if (!string.IsNullOrEmpty(id)) FailedSymbols.Remove(id);
+
+            if (failed != null)
+                foreach (var id in failed)
+                    if (!string.IsNullOrEmpty(id)) FailedSymbols.Add(id);
         }
 
         // ── Helpers ──────────────────────────────────────────────────────
