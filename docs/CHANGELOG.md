@@ -255,6 +255,62 @@ should be wired or dropped, logged in ROADMAP.
 | Extends chain | A type that `extends` a drifted parent logs the ACC-01 "inherits drifted fields" warning |
 | Project override | A `_BIM_COORD/drawing_types.json` override still wins by id and is not checksum-checked (project origin is skipped) |
 
+**The four "inert" annotation rule fields.** Resolved one way or the other, with no
+half-alive fields left. Checking each against its consumer changed the answer for two of
+them.
+
+- **`minSizeMm` — the review was wrong; it is wired.**
+  `MEPDimensioner.CollectMepCurves` reads `AutoAnnotationRule.MinSizeMm`, converts mm to
+  feet and filters MEP curves below that diameter out of the dimension set. Left alone.
+  Worth knowing: it is honoured by **dimension** rules only, so a tag rule declaring
+  `minSizeMm` still has no effect.
+- **`orientation` — wired.** `IndependentTag.Create` took a hardcoded
+  `TagOrientation.Horizontal`. The field's three documented values map one-to-one onto
+  Revit's enum (`Horizontal` / `Vertical` / `Model` = `AnyModelDirection`), so this is a
+  lookup, not an interpretation. Unset keeps Horizontal — what every tag got before — and
+  an unrecognised value warns once per category instead of being swallowed.
+- **`tag7Depth` — wired.** The per-element depth write already existed a few lines below,
+  where the pack's `CategoryDepths` is applied as `TAG_PARA_DEPTH_INT` plus cumulative
+  `TAG_PARA_STATE_n_BOOL`. A rule's own depth is the most specific declaration available,
+  so it now sources that same write and wins over the pack for the elements the rule
+  covers. Clamped 1..10, as `TagStyleEngine.SetParagraphDepth` clamps.
+- **`densityMode` — deleted.** It had no reader; the only code touching it *set* it
+  (`DrawingProductionConfigDialog` seeded new rules with `"All"` and offered a "Density"
+  column users could type into, which did nothing). It is not wireable without inventing
+  semantics on two counts. First, the declared vocabulary and the shipped data disagree:
+  the field's comment says `All` / `RepresentativeOne` / `LargestOnly`, while **45 of the
+  46 rules in the catalogue say `"Heroes"`** — a value that appears nowhere in the
+  codebase. Second, even given a vocabulary, `RepresentativeOne` and `LargestOnly` need a
+  per-element grouping and size measure the tag path does not have, plus a decision about
+  how they compose with the pack-level `denseUntilScale` gate that already thins
+  annotation by view scale. That is design, not wiring. Removed from
+  `AutoAnnotationRule`, from the dialog's grid column and both seed rules, and from all 46
+  catalogue rules across 6 drawing types.
+
+**Checksums restamped.** Removing `densityMode` changes `AutoAnnotationRule`'s
+serialisation, and `AutoAnnotationRule` is nested inside every `DrawingType`, so the
+corporate checksums stamped in the previous PR needed re-running — the first live instance
+of the rule in `tools/StampDrawingTypeChecksums/README.md`: re-run the stamper after **any**
+change to the model files, not only after data edits. Without it those types would have
+reported drift in Revit and silently demoted themselves to `origin = "project"`.
+
+**6 of 93 changed, not all 93** — worth recording because it is the non-obvious part.
+`DensityMode` carried `NullValueHandling.Ignore`, so a type whose rules never set it
+serialised identically before and after the property existed. Only the 6 drawing types
+that actually declared `densityMode` moved. A field *without* `NullValueHandling.Ignore`
+would have shifted all 93.
+
+**Needs a Revit smoke test** (human):
+
+| Area | Check |
+|---|---|
+| Tag orientation | A rule with `"orientation": "Vertical"` places vertical tags; `"Model"` places model-direction tags; omitting it still places horizontal |
+| Bad orientation | A rule with `"orientation": "Sideways"` warns once for that category and tags horizontally |
+| Rule depth | A rule with `"tag7Depth": 3` writes `TAG_PARA_DEPTH_INT = 3` and `TAG_PARA_STATE_1..3 = Yes`, `4..10 = No` on the tagged elements |
+| Depth precedence | With both a pack `CategoryDepths` entry and a rule `tag7Depth` for the same category, the rule's value wins |
+| Config dialog | The tag-rule grid opens with no "Density" column and adding a rule still works |
+| Checksums | `DrawingTypes_Inspect` reports no checksum drift — the restamp took |
+
 #### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
 
 The cover title-block family's revision history is a **native Revit Revision

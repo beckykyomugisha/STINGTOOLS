@@ -625,6 +625,34 @@ namespace StingTools.Core.Drawing
             return set;
         }
 
+        /// <summary>
+        /// Map a rule's declared <c>orientation</c> onto Revit's TagOrientation.
+        /// The three accepted values mirror the enum exactly — Horizontal,
+        /// Vertical, Model (= AnyModelDirection) — so no interpretation is
+        /// involved. Unset or unrecognised falls back to Horizontal, which is
+        /// what every tag got before the field was read, and warns once per
+        /// category so a typo is visible rather than silently ignored.
+        /// </summary>
+        private static TagOrientation ResolveTagOrientation(
+            AutoAnnotationRule rule, string catKey, AnnotationRunStats stats)
+        {
+            var declared = rule?.Orientation;
+            if (string.IsNullOrWhiteSpace(declared)) return TagOrientation.Horizontal;
+
+            switch (declared.Trim().ToLowerInvariant())
+            {
+                case "horizontal": return TagOrientation.Horizontal;
+                case "vertical":   return TagOrientation.Vertical;
+                case "model":
+                case "anymodeldirection": return TagOrientation.AnyModelDirection;
+                default:
+                    stats?.Warnings.Add(
+                        $"Rule orientation '{declared}' for {catKey} is not one of " +
+                        "Horizontal / Vertical / Model — tagging horizontally.");
+                    return TagOrientation.Horizontal;
+            }
+        }
+
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
             BuiltInCategory bic, string catKey, AnnotationRunStats stats,
             AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null)
@@ -678,6 +706,22 @@ namespace StingTools.Core.Drawing
             }
             catch { /* resolver must never throw */ }
 
+            // A rule's own tag7Depth is the most specific depth declaration
+            // there is, so it wins over the pack's per-category depth for the
+            // elements this rule covers. Same write as the pack path below
+            // (TAG_PARA_DEPTH_INT + cumulative TAG_PARA_STATE_n_BOOL), just a
+            // different source — the field had no reader at all before, so a
+            // rule asking for depth 3 silently got whatever the pack said.
+            if (rule?.Tag7Depth.HasValue == true && rule.Tag7Depth.Value > 0)
+            {
+                resolvedDepth = Math.Max(1, Math.Min(10, rule.Tag7Depth.Value));
+                hasDepth = true;
+            }
+
+            // Per-rule tag orientation. IndependentTag.Create took a hardcoded
+            // TagOrientation.Horizontal, so the field was inert.
+            TagOrientation orientation = ResolveTagOrientation(rule, catKey, stats);
+
             // C-4: honour the rule's skipIfTagged (POCO default true). Only the
             // config dialog ever read this field before.
             bool skipIfTagged = rule?.SkipIfTagged ?? true;
@@ -714,7 +758,7 @@ namespace StingTools.Core.Drawing
                     // turns any "can't tag this host" failure into a Skipped
                     // count + warning row, replacing the dropped pre-check.
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), false, TagOrientation.Horizontal, pt);
+                        new Reference(el), false, orientation, pt);
                     if (tag != null)
                     {
                         stats.TagsPlaced++;

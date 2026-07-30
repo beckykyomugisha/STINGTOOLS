@@ -171,7 +171,9 @@ Corrections to the review found in this pass (bringing the running total to six)
 | B1 `dimensionStrategy` | ✅ wired into `DimGrids` via `DimensionStrategy.ResolveType` |
 | B1 `condition` | ✅ wired (evaluator had zero call sites) |
 | B1 per-rule `tagFamily` | ✅ wired, warns when the named family is absent |
-| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ Phase 225 — separate PR (`fix/drawings-p2-rulefields`) |
+| B1 `minSizeMm` | ✅ was never inert — `MEPDimensioner` reads it (review error) |
+| B1 `orientation` / `tag7Depth` | ✅ Phase 225 — wired in `AnnotationRunner` |
+| B1 `densityMode` | ✅ Phase 225 — deleted; semantics were unrecoverable |
 | B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
 | B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
 | B4 checksums | ✅ Phase 225 — all 93 stamped by `tools/StampDrawingTypeChecksums`; packs deliberately unlocked |
@@ -223,6 +225,17 @@ not survive verification and are recorded here so they are not re-raised:
   paths so the tool is never built. Until it is wired, a change to `STING_DRAWING_TYPES.json` or
   to the `DrawingType` model can ship with stale hashes — which surfaces in Revit as every type
   reporting drift.
+
+- **`AnnotationRulePack.TagDepths` is inert in exactly the way `tag7Depth` was.** The
+  per-category depth dictionary is edited by `DrawingTypeEditorDialog` (a real UI, with
+  add / rename / set-depth) and read by no engine — `AnnotationRunner` resolves depth from
+  the *ViewStylePack's* `CategoryDepths`, not from the pack's `TagDepths`. It was left in
+  place rather than deleted alongside `densityMode` because deleting it removes a working
+  editor surface, which is a bigger call than dropping an unreferenced field. Either point
+  `AnnotationRunner` at it or retire the UI with it.
+- **`minSizeMm` applies to dimension rules only.** `MEPDimensioner` honours it; the tag
+  path ignores it, so a tag rule declaring `minSizeMm` silently has no effect. Either
+  honour it when collecting taggable elements or reject it on tag rules in the validator.
 
 **SURFACED AND NOT ACTED ON — needs a drainage engineer.** `DrainageInvertDimensioner` places
 the invert one wall thickness low. The geometry fix is understood, but the corrected value is an

@@ -4565,7 +4565,7 @@
       "id": "pres-3d-axon-A1",
       "name": "Presentation 3D Axonometric \u2014 A1",
       "origin": "corporate",
-      "checksum": "04caf11a267541418c75c3824e28c7654b1dc916d74060f7577cbadcca5c0232",
+      "checksum": "47582a3726d9247c7338fdd499a371f96a93be72a020af628e0868578b445519",
       "purpose": "3D",
       "discipline": "*",
       "paperSize": "A1",
@@ -4652,57 +4652,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -4740,7 +4732,7 @@
       "id": "pres-perspective-A1",
       "name": "Presentation Perspective \u2014 A1",
       "origin": "corporate",
-      "checksum": "bc4c0d9ecf31884e1ade0165fbd55920f675d8b66ebf060d3b3cb1a52b23fe76",
+      "checksum": "46224be21bfe6adef3ab6df0fc9a3430c4152d88c96aaf3722cd678ef557b5b9",
       "purpose": "3D",
       "discipline": "A",
       "paperSize": "A1",
@@ -4801,57 +4793,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -6301,7 +6285,7 @@
       "id": "pres-narrative-A1",
       "name": "Client Narrative — A1 (TAG7 prose)",
       "origin": "corporate",
-      "checksum": "d88161418e50aa7843d91cd668c99e94a3e545f9de8b0a100761127515fb8dda",
+      "checksum": "896850a27a7758d604c1f71d7438a2e4cc6c148ebd56f257317ea5e301319593",
       "purpose": "Plan",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6326,43 +6310,37 @@
             "ruleType": "AutoTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "All"
+            "skipIfTagged": true
           }
         ]
       },
@@ -6780,7 +6758,7 @@
       "id": "pres-3d-exterior-A1",
       "name": "Presentation 3D Exterior",
       "origin": "corporate",
-      "checksum": "18de6ee6ddfdf20224bf8ebbec4def95bf0d2dd1d002e48dc2b84c55bf0de9bd",
+      "checksum": "1b9e8525fae8f89b4934c7fcf824e0ba27341bbb07f3341e28e6ca8db547bf7c",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6837,57 +6815,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -6926,7 +6896,7 @@
       "name": "Presentation 3D Interior Cut-Away",
       "description": "Apply a Section Box manually before generating with this profile. The section box should cut at ceiling height to expose the interior. Pairs naturally with pres-interior-terracotta or pres-interior-sage.",
       "origin": "corporate",
-      "checksum": "62fce42c50e0c9001747f600e95bfff6096e05ed0ceca3ad976d4a6e332bf15e",
+      "checksum": "eef9df4e88b9c98f63a839809f77934d82e8b6317e3ecb71c70e7f2aa85a25dd",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6983,57 +6953,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -7071,7 +7033,7 @@
       "name": "Presentation Composite Sheet",
       "description": "4-slot composite presentation sheet — main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
       "origin": "corporate",
-      "checksum": "db382b5382201b69d1694a2e62b1e454445cd040d2d2794f419e935af9aad9fb",
+      "checksum": "55732addc31181d0f8f88eb8f3271a706448301a7800c871fc0b9b9ea624340c",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -7156,57 +7118,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,

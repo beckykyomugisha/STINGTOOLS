@@ -385,11 +385,10 @@ namespace StingTools.UI
             _tagGrid.Columns.Add(MakeTextCol("Tag Family", "TagFamily"));
             _tagGrid.Columns.Add(MakeTextCol("Leader",     "LeaderStyle"));
             _tagGrid.Columns.Add(MakeTextCol("Depth",      "Tag7Depth"));
-            _tagGrid.Columns.Add(MakeTextCol("Density",    "DensityMode"));
             _tagGrid.Columns.Add(MakeBoolCol("Skip Tagged","SkipIfTagged"));
             sp.Children.Add(_tagGrid);
             var addTag = new Button { Content = "+ Add Tag Rule", Margin = new Thickness(0,4,0,4), HorizontalAlignment = HorizontalAlignment.Left };
-            addTag.Click += (s,e) => _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "*", SkipIfTagged = true, DensityMode = "All" });
+            addTag.Click += (s,e) => _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "*", SkipIfTagged = true });
             sp.Children.Add(addTag);
 
             sp.Children.Add(MakeCardHeader("Dim Rules"));
@@ -682,7 +681,7 @@ namespace StingTools.UI
             // Seed annotation rules with one wildcard row so the user has
             // something to edit rather than an empty grid.
             if (_tagRows != null && _tagRows.Count == 0)
-                _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "Rooms", SkipIfTagged = true, DensityMode = "All" });
+                _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "Rooms", SkipIfTagged = true });
             if (_dimRows != null && _dimRows.Count == 0)
                 _dimRows.Add(new AutoAnnotationRule { RuleType = "AutoDim", Category = "Grids" });
         }
