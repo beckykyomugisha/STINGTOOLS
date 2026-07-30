@@ -683,6 +683,73 @@ here had actually failed on a missing `JWT_KEY` and the served marker never chan
 - [ ] **Non-host can't:** a non-host tab has no 🔇/✖ buttons, and invoking `MuteAll` from its console
       does nothing (host gate).
 
+## S2 — late-join state replay · markers `s2-latejoin` (livekit-av + meeting-sync) · SERVED
+
+Closes the second "needs new code" row of §2b. `MeetingHub` mirrors live ops, so a tab that
+joined mid-session saw a **blank markup canvas**, missed every **raised hand**, and — less
+obviously — had an **empty roster**, because `ParticipantJoined` only fires at the *other*
+clients when someone new arrives. Nothing told the newcomer who was already there.
+
+**Fixed with a peer round-trip, not a server buffer.** On join (and on every SignalR
+*reconnect* — a reconnect is a late join) the client invokes `RequestState`; the hub relays
+`StateRequested` to the rest of the room; peers answer with `SendState`, which the hub relays
+back as `StateReplay`.
+
+Why peers rather than a server-side buffer: the hub stays a wire and holds no meeting state, so
+there is nothing to bound, evict, or lose on an instance restart, and it works unchanged behind
+the Redis backplane — a buffer would live on one instance and be invisible to the others. The
+clients already hold the authoritative copy of exactly what needs replaying.
+
+**Who answers what:**
+- **Every peer** answers with its own roster row + hand state — small, and only that peer knows it.
+- **One peer** answers with the markup canvas, so the joiner doesn't receive N copies of the same
+  strokes. Normally the **host** (it owns the shared surface). When the host is the one *rejoining*,
+  no host is left to answer, so any peer holding strokes answers instead; the joiner applies only
+  the **first** snapshot it receives, making duplicates harmless.
+- The markup snapshot carries `{strokes, granted, surface?, documentId?}`. The surface is included
+  when the room is on a document, so a late joiner lands on the **right document** instead of sitting
+  on the 3D model while everyone else annotates a drawing.
+
+**Two deliberate design calls, written down because they look like bugs otherwise:**
+- `SendState` relays to the **group** with a `to` field the client filters on, NOT to
+  `Clients.Client(targetConnectionId)`. A connection id is not a session-scoped capability, so
+  relaying to an arbitrary one would let a caller push a payload at any connection whose id they
+  learned. Group-scoped keeps the blast radius inside the session, and the extra recipients learn
+  nothing — they already receive every one of these ops live.
+- The replying peer's identity (`fromConnectionId` / `fromUserId`) is **stamped server-side**, so a
+  replay cannot claim to come from someone else.
+- Replay **replaces** the local stroke list rather than appending: the snapshot IS the current
+  canvas, and a joiner that already received some strokes live would otherwise double-draw.
+
+**Proof:** `dotnet build` → 0 errors; both viewer bundles `node --check` clean;
+`docker compose build --no-cache api && up -d --force-recreate api`; `curl /livekit-av.js` and
+`curl /meeting-sync.js` → 200 with `STING_MEETING_BUILD = "s2-latejoin"` /
+`STING_MEETINGSYNC_BUILD = "s2-latejoin"`, plus `RequestState` / `StateRequested` / `StateReplay` /
+`markupSnapshot` present in the served bundles.
+
+**2-tab test — PENDING-HUMAN-VERIFY** (this is a timing/ordering feature; it cannot be
+machine-verified without two real browser sessions):
+- [ ] **Strokes replay:** tab 1 (host) shares a document and draws 3–4 strokes. THEN open tab 2 on the
+      same `?meeting=`. Tab 2 lands on the **same document** and shows **all** the earlier strokes,
+      with a "Caught up — N markup strokes" toast. (Pre-S2 it showed a blank canvas.)
+- [ ] **No double-draw:** tab 2 then watches tab 1 draw one more stroke → it appears **once**, and the
+      earlier strokes are not duplicated.
+- [ ] **Clear then join:** host clicks 🗑 Clear, then a 3rd tab joins → it shows an empty canvas (not
+      the pre-clear strokes).
+- [ ] **Hands replay:** tab 2 raises ✋ *before* tab 3 joins → tab 3's roster shows tab 2 with ✋
+      immediately, without waiting for a toggle.
+- [ ] **Roster replay:** tab 3 joining shows **both** existing participants in its roster right away
+      (this was broken before S2 too — the roster only filled as people arrived *after* you).
+- [ ] **Grant replays:** host turns 👥 Grant on, then a new tab joins → that tab's markup toolbar is
+      enabled without the host re-toggling.
+- [ ] **Reconnect is a late join:** kill tab 2's network ~15 s while tab 1 keeps drawing, then restore →
+      on reconnect tab 2 catches up to the full canvas rather than being permanently short the strokes
+      it missed.
+- [ ] **Host rejoin:** the HOST closes and reopens the tab while a peer holds strokes → the host still
+      catches up (the "requester is host → any peer answers" path), and only one snapshot is applied.
+- [ ] **No storm:** with 4+ tabs, one more joining produces one `StateRequested` and one reply per peer —
+      check the console/network panel shows no repeated request loop.
+
 ## Cloud demo unblock — free-tier deployment (2026-07-31)
 
 Full research + cost analysis: `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`. Summary:

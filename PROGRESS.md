@@ -289,6 +289,7 @@ Full write-ups + the exact 2-tab checklists live in `docs/MEETINGS_AUDIT.md`.
 | Slice | Status | Marker | Proof |
 |---|---|---|---|
 | S1 server-enforced mute/remove | DONE-SERVED + unit-tested | `s1-enforce` (meeting-sync) | New `LiveKitRoomService` (Twirp `livekit.RoomService`, same pattern as `LiveKitEgressClient`); `MeetingHub.MuteAll` mutes every remote mic track on the SFU, `RemoveParticipant` evicts. `dotnet build` 0 errors; **17 tests pass, 0 skipped** — incl. a `[SkippableFact]` that RAN against the real docker LiveKit :7880 and proved the room-scoped admin grant is accepted. Served bundle greps `s1-enforce` + `removeParticipant(cid, p.userId)` + `m.enforced`. |
+| S2 late-join state replay | DONE-SERVED | `s2-latejoin` (livekit-av + meeting-sync) | Peer round-trip `RequestState` → `StateRequested` → `SendState` → `StateReplay` (no server-side buffer: hub stays a wire, works behind the Redis backplane). Replays markup strokes + grant + the shared document, every peer's raised hand, and the roster a late joiner never received. Served bundles grep `s2-latejoin` on BOTH files + `RequestState`/`StateReplay`/`markupSnapshot`/`applyMarkupSnapshot`. |
 
 Honest limits: live A/V behaviour is **not** machine-verified here — no two-webcam-tab harness in
 this environment. Every runtime claim is filed as PENDING-HUMAN-VERIFY in `docs/MEETINGS_AUDIT.md`.

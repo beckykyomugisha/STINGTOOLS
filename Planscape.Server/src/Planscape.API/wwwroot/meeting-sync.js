@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "s1-enforce";
+  var STING_MEETINGSYNC_BUILD = "s2-latejoin";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -51,6 +51,9 @@
     myConnId: "",            // our own SignalR connection id (set after start)
     hostUserId: "",          // session host's user id (from room state / RoomChanged)
     myHand: false,
+    // S2 — late-join replay: apply the FIRST markup snapshot we're sent per join,
+    // so a second replier can't redraw a canvas we already caught up on.
+    markupReplayed: false,
     // M4 — AEC functions
     lastPickGuid: "",        // last picked element (for issue link + viewpoint)
     meetingId: "",           // linked formal Meeting (agenda/actions/minutes)
@@ -220,11 +223,56 @@
       }
     });
 
-    conn.onreconnected(function () { state.myConnId = conn.connectionId || state.myConnId; conn.invoke("JoinSession", sessionId, displayName).catch(noop); });
+    // ── S2 — late-join state replay ────────────────────────────────────────
+    // A peer is asking the room what it missed. Everyone answers with their own
+    // roster row + hand (small, and only they know it). Markup is answered by ONE
+    // client so the joiner doesn't receive N copies of the same canvas.
+    conn.on("StateRequested", function (r) {
+      if (!r || !r.connectionId || r.connectionId === state.myConnId) return;
+      var payload = { displayName: displayName, hand: !!state.myHand };
+      // The host owns the shared surface, so it is the natural single replier.
+      // When the HOST is the one rejoining, no host is left to answer — any peer
+      // holding strokes answers instead, and the joiner applies only the first
+      // snapshot it gets (see StateReplay), so duplicates are harmless.
+      var requesterIsHost = r.userId && state.hostUserId && String(r.userId) === state.hostUserId;
+      if (isHost() || requesterIsHost) {
+        var snap = localMarkupSnapshot();
+        if (snap && ((snap.strokes && snap.strokes.length) || snap.surface || snap.granted)) payload.markup = snap;
+      }
+      conn.invoke("SendState", sessionId, r.connectionId, payload).catch(noop);
+    });
+    // A reply. Group-scoped by design (see MeetingHub.SendState) — ignore the ones
+    // addressed to somebody else. Identity fields are server-stamped, not claimed.
+    conn.on("StateReplay", function (m) {
+      if (!m || m.to !== state.myConnId) return;
+      var p = m.payload || {};
+      if (m.fromConnectionId) {
+        var prev = state.participants.get(m.fromConnectionId) || {};
+        state.participants.set(m.fromConnectionId, {
+          displayName: p.displayName || prev.displayName || "Guest",
+          userId: String(m.fromUserId || prev.userId || ""),
+          hand: !!p.hand,
+        });
+        renderPresence();
+      }
+      // First markup snapshot wins — a second would redraw the same canvas.
+      if (p.markup && !state.markupReplayed) {
+        state.markupReplayed = true;
+        window.dispatchEvent(new CustomEvent("sting:docMarkupReplay", { detail: p.markup }));
+      }
+    });
+
+    conn.onreconnected(function () {
+      state.myConnId = conn.connectionId || state.myConnId;
+      // A reconnect is a late join too: strokes drawn while we were offline never
+      // reached us, and the roster we rebuilt is empty until people move again.
+      state.markupReplayed = false;
+      conn.invoke("JoinSession", sessionId, displayName).then(requestState).catch(noop);
+    });
 
     conn.start()
       .then(function () { state.myConnId = conn.connectionId || ""; return conn.invoke("JoinSession", sessionId, displayName); })
-      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); buildConferenceUI(); buildAecUI(); fetchRoomState(); setStatus("live"); })
+      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); buildConferenceUI(); buildAecUI(); fetchRoomState(); setStatus("live"); requestState(); })
       .catch(function (e) { console.warn("[meeting] connect failed", e); setStatus("offline"); });
 
     window.addEventListener("beforeunload", function () {
@@ -552,6 +600,22 @@
     var b = document.getElementById("meetHand"); if (b) b.style.background = state.myHand ? "rgba(244,180,0,0.9)" : "rgba(255,255,255,0.14)";
     renderPresence();
   }
+  // ── S2 — late-join state replay (sender side) ─────────────────────────────
+  // Ask the room what happened before we arrived. Peers answer via SendState;
+  // the handlers registered in connect() apply the answers. Fired after JoinSession
+  // (the hub only relays to a group we're actually in) and again after a reconnect.
+  function requestState() {
+    if (state.conn) state.conn.invoke("RequestState", sessionId).catch(noop);
+  }
+  // The markup canvas lives in livekit-av.js. A CustomEvent dispatch is synchronous,
+  // so filling `box` in the listener and reading it back here needs no callback,
+  // no polling, and no load-order dependency between the two scripts.
+  function localMarkupSnapshot() {
+    var box = { snapshot: null };
+    try { window.dispatchEvent(new CustomEvent("sting:markupSnapshotRequest", { detail: box })); } catch (e) {}
+    return box.snapshot;
+  }
+
   // S1 — the server now ALSO mutes on the SFU (LiveKit RoomService). Don't claim
   // enforcement before the server says it happened: the optimistic toast is the
   // honest "asked", the Moderation echo upgrades it to "muted".
