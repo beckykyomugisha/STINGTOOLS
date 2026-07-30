@@ -1,3 +1,33 @@
+/* U1 — token VALUES first. tokens.css holds only custom-property declarations,
+ * deliberately with no `@layer` wrapper: postcss-import inlines an @import above
+ * `@tailwind base`, and a `@layer base` block up there is a hard Tailwind error
+ * ("@layer base is used but no matching @tailwind base directive is present").
+ * Custom properties need no layer to work, so the split is: values here, and the
+ * base RULES that consume them below, where @layer is legal. */
+@import './tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: hsl(var(--bg));
+    color: hsl(var(--fg));
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* One focus ring for the whole app, on :focus-visible so a mouse click
+   * doesn't paint it but a Tab does. Components must not remove this. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}

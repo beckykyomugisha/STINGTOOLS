@@ -1,0 +1,101 @@
+/* tokens.css — U1. The single source of design truth for planscape-web.
+ *
+ * Everything is an HSL triple (no `hsl()` wrapper) so Tailwind can compose it
+ * with an alpha channel: `hsl(var(--surface) / 0.6)`. That is the one reason
+ * the values look bare — do not "fix" them into full colours.
+ *
+ * Dark mode is `class`-based (`<html class="dark">`), not media-query-based, so
+ * a user preference can override the OS. The `prefers-color-scheme` block only
+ * seeds the FIRST paint before the theme script runs.
+ *
+ * Naming is by ROLE, not by colour: `--surface-2`, `--danger`, `--ring`. A token
+ * called `--slate-100` would tell a future reader nothing about when to use it,
+ * and would be a lie the moment the ramp is retuned.
+ */
+
+:root {
+  /* ── neutrals: the app chrome ─────────────────────────────────────── */
+  --bg: 210 20% 98%;            /* page behind everything */
+  --surface: 0 0% 100%;         /* cards, panels, grid rows */
+  --surface-2: 210 20% 96%;     /* rail, toolbars, table headers */
+  --surface-3: 210 16% 93%;     /* hover, pressed, zebra */
+  --border: 214 20% 88%;        /* hairlines */
+  --border-strong: 214 16% 78%; /* input borders, focus-adjacent */
+
+  /* ── text ─────────────────────────────────────────────────────────── */
+  --fg: 222 30% 12%;            /* primary copy */
+  --fg-muted: 215 16% 42%;      /* labels, secondary cells */
+  --fg-subtle: 215 14% 58%;     /* placeholders, disabled */
+  --fg-on-accent: 0 0% 100%;
+
+  /* ── brand + status ───────────────────────────────────────────────── */
+  --accent: 214 90% 44%;        /* primary action, active nav */
+  --accent-hover: 214 90% 38%;
+  --accent-subtle: 214 90% 96%; /* selected row, chip background */
+
+  --success: 152 58% 34%;
+  --success-subtle: 152 50% 94%;
+  --warning: 38 92% 42%;
+  --warning-subtle: 38 92% 94%;
+  --danger: 0 72% 45%;
+  --danger-subtle: 0 72% 96%;
+  --info: 199 89% 40%;
+  --info-subtle: 199 89% 95%;
+
+  /* ── focus ring: one ring for the whole app, never removed ────────── */
+  --ring: 214 90% 50%;
+
+  /* ── elevation. Tuned for a light background; the dark block below
+   *    replaces them with deeper, lower-alpha shadows because the same
+   *    shadow on a dark surface reads as mud. ─────────────────────── */
+  --shadow-sm: 0 1px 2px 0 hsl(222 30% 12% / 0.06);
+  --shadow-md: 0 2px 8px -1px hsl(222 30% 12% / 0.10), 0 1px 3px -1px hsl(222 30% 12% / 0.06);
+  --shadow-lg: 0 12px 28px -6px hsl(222 30% 12% / 0.16), 0 4px 10px -4px hsl(222 30% 12% / 0.08);
+
+  /* ── shell geometry: the rail/topbar sizes several components need to
+   *    agree on (sticky offsets, grid heights). ────────────────────── */
+  --rail-w: 15rem;
+  --rail-w-collapsed: 3.5rem;
+  --topbar-h: 3.25rem;
+}
+
+.dark {
+  --bg: 222 30% 8%;
+  --surface: 222 26% 11%;
+  --surface-2: 222 24% 14%;
+  --surface-3: 222 22% 18%;
+  --border: 222 18% 22%;
+  --border-strong: 222 16% 32%;
+
+  --fg: 210 25% 96%;
+  --fg-muted: 215 16% 68%;
+  --fg-subtle: 215 14% 52%;
+  --fg-on-accent: 0 0% 100%;
+
+  --accent: 213 94% 62%;
+  --accent-hover: 213 94% 70%;
+  --accent-subtle: 213 60% 18%;
+
+  --success: 152 52% 50%;
+  --success-subtle: 152 40% 16%;
+  --warning: 38 92% 58%;
+  --warning-subtle: 38 60% 18%;
+  --danger: 0 78% 62%;
+  --danger-subtle: 0 50% 20%;
+  --info: 199 89% 60%;
+  --info-subtle: 199 60% 18%;
+
+  --ring: 213 94% 62%;
+
+  --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.40);
+  --shadow-md: 0 2px 8px -1px hsl(0 0% 0% / 0.50), 0 1px 3px -1px hsl(0 0% 0% / 0.40);
+  --shadow-lg: 0 12px 28px -6px hsl(0 0% 0% / 0.60), 0 4px 10px -4px hsl(0 0% 0% / 0.45);
+}
+
+/* First-paint seed only — the theme script (U2) sets .dark explicitly and
+ * wins, so an explicit light choice on a dark-set OS is honoured. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    color-scheme: dark;
+  }
+}
