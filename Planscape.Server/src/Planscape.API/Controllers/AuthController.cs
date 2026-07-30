@@ -300,7 +300,18 @@ public class AuthController : ControllerBase
     public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest req)
     {
         var refreshHash = HashRefreshToken(req.RefreshToken);
+        // IgnoreQueryFilters, for the same reason Login (above) uses it: AppUser
+        // is ITenantScoped and this endpoint is anonymous, so CurrentTenantId is
+        // Guid.Empty and the global filter matched no user at all. Refresh
+        // therefore ALWAYS answered 401 — every session died at access-token
+        // expiry (30 min) and the user was bounced back to the login screen,
+        // with the refresh token itself perfectly valid.
+        //
+        // Safe because the lookup is keyed on the refresh-token hash: only the
+        // holder of the secret can select the row, and IsActive is still
+        // enforced here and re-checked below.
         var user = await _db.Users
+            .IgnoreQueryFilters()
             .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.RefreshToken == refreshHash && u.IsActive);
 
@@ -420,7 +431,13 @@ public class AuthController : ControllerBase
         if (await _db.Tenants.AnyAsync(t => t.Slug == normalisedSlug))
             return Conflict(new { message = $"Organisation slug '{normalisedSlug}' is already taken" });
 
-        if (await _db.Users.AnyAsync(u => u.Email == req.Email))
+        // IgnoreQueryFilters: AppUser is ITenantScoped and registration is
+        // anonymous, so without it CurrentTenantId is Guid.Empty, this check
+        // matched nothing, and the "Email already registered" guard could never
+        // fire — a second signup on the same address silently created another
+        // account. The slug check above happens to work only because Tenant is
+        // not tenant-scoped.
+        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == req.Email))
             return Conflict(new { message = "Email already registered" });
 
         if (req.Password.Length < 8)
@@ -817,7 +834,20 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(LicenseActivationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<LicenseActivationResponse>> ActivateLicense([FromBody] LicenseActivationRequest req)
     {
+        // IgnoreQueryFilters is REQUIRED here, not an optimisation.
+        //
+        // LicenseKey implements ITenantScoped, so the global filter narrows it
+        // to CurrentTenantId. This endpoint is anonymous — the plugin calls it
+        // to discover which tenant a key belongs to, before it has a JWT — so
+        // CurrentTenantId is Guid.Empty and the filter matched nothing. Every
+        // activation of a perfectly good key therefore answered
+        // { valid = false, "Invalid license key" }.
+        //
+        // Bypassing the filter is safe because the lookup is keyed on the
+        // secret itself: you can only find the row if you already hold the key.
+        // Same reasoning as the Tenants lookup in the handoff path below.
         var key = await _db.LicenseKeys
+            .IgnoreQueryFilters()
             .Include(k => k.Tenant)
             .FirstOrDefaultAsync(k => k.Key == req.LicenseKey && k.IsActive);
 
