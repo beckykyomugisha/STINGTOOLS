@@ -218,9 +218,16 @@ not survive verification and are recorded here so they are not re-raised:
 the invert one wall thickness low. The geometry fix is understood, but the corrected value is an
 engineering number on a drainage deliverable and is not an autonomous call. Left unwired.
 
-**P-7 slot convention** — Phase 225, separate PR (`fix/drawings-p7-slots`): re-author
-`SheetTemplateEngine`'s built-in slots bottom-left to match the JSON convention, with a
-conversion for user-saved templates.
+**P-7 slot convention** — ✅ closed in Phase 225. `TemplateViewSlot` converged on the
+bottom-left convention: 16 built-in slots re-authored, placement and save maths aligned
+with `SheetPlacementBridge`, and pre-2.0 user libraries migrated on load by
+`MigrateSlotOrigin` (version-guarded, in-memory until the next save).
+
+**Still open — a third slot convention.** `LayoutSlotPreset` (`SheetManagerEngineExt`) is
+centre-anchored. Its comments claimed bottom-left and have been corrected, but the format
+itself was not converted: it is a separate saved preset format that never exchanges slots
+with `DrawingSlot` or `TemplateViewSlot`, so converging it means a second user-data
+migration for no current correctness gain. Worth doing when that area is next touched.
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
 numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
 C-4/A-6/A-7 annotation and match-line idempotency; A-3 legend in-place refresh; P-5/E-2 section
