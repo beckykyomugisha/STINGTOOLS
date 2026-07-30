@@ -428,7 +428,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Architectural Section",
       "viewStylePackId": "corp-standard-section",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{mark}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "SECTION {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -6588,7 +6588,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-presentation-rich",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "M-PR-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP PRESENTATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -6693,7 +6693,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-coordination",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "M-TE-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP TECHNICAL — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -6821,7 +6821,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Fabrication Shop",
       "viewStylePackId": "corp-fabrication-shop",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "M-FB-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP FABRICATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -6946,7 +6946,7 @@
       "viewTemplateName": "STING - Multi-Discipline 3D View",
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-burgund-green",
-      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNumberPattern": "PRES-{disc}-EX-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Exterior 3D",
       "crop": {
         "kind": "None",
@@ -7095,7 +7095,7 @@
       "viewTemplateName": "STING - Multi-Discipline 3D View",
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-interior-sage",
-      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNumberPattern": "PRES-{disc}-IC-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Interior Cut-Away",
       "crop": {
         "kind": "None",
@@ -7241,7 +7241,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "detailLevel": "Coarse",
       "viewStylePackId": "pres-burgund-green",
-      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNumberPattern": "PRES-{disc}-CP-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Composite",
       "crop": {
         "kind": "None",
@@ -7567,7 +7567,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING:corp-coordination:FloorPlan",
       "viewStylePackId": "corp-coordination",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "E-CO-{lvl}-{seq:D3}",
       "sheetNamePattern": "ELECTRICAL COORDINATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
