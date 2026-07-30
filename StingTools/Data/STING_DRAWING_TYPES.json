@@ -10549,12 +10549,6 @@
     {
       "discipline": "H",
       "phase": "*",
-      "docType": "RDS",
-      "drawingTypeId": "health-rds-A3"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
       "docType": "EQP_LAYOUT",
       "drawingTypeId": "health-eqp-pln-A1-1to50"
     },
@@ -10589,22 +10583,10 @@
       "drawingTypeId": "health-ess-power-riser-A1"
     },
     {
-      "discipline": "E",
-      "phase": "*",
-      "docType": "IPS",
-      "drawingTypeId": "health-ips-pln-A1-1to50"
-    },
-    {
       "discipline": "H",
       "phase": "*",
       "docType": "DECON_FLOW",
       "drawingTypeId": "health-decon-flow-A1-1to50"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
-      "docType": "MORTUARY",
-      "drawingTypeId": "health-mortuary-pln-A3-1to100"
     },
     {
       "discipline": "A",
@@ -10623,12 +10605,6 @@
       "phase": "*",
       "docType": "MRI_ZONING",
       "drawingTypeId": "health-mri-zoning-A1-1to50"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
-      "docType": "LIGATURE",
-      "drawingTypeId": "health-ligature-pln-A1-1to50"
     },
     {
       "discipline": "H",
@@ -10659,12 +10635,6 @@
       "phase": "*",
       "docType": "HEALTHCARE_LOADS",
       "drawingTypeId": "health-struct-loads-A1-1to100"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
-      "docType": "RTLS",
-      "drawingTypeId": "health-rtls-coverage-A1-1to100"
     },
     {
       "discipline": "H",
