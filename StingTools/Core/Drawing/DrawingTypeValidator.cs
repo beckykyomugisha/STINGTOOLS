@@ -161,16 +161,23 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Info, "DT-061",
                     "sheetNamePattern is empty — sheets will be named by Revit's default.");
 
-            // DT-095: scale must be positive on every purpose except 3D /
-            // Perspective, where assigning view.Scale = 0 throws and the
-            // engine logs + skips the assignment by design.
+            // DT-095: scale must be positive on every purpose where scale
+            // actually applies. Assigning view.Scale = 0 throws, and the engine
+            // logs + skips the assignment by design — so the warning only means
+            // something where a scale was expected. 3D / Perspective never carry
+            // one; neither do Schedule or Schematic, which are the other two
+            // purposes the shipped catalogue authors as "scale": "NA" (a riser
+            // or single-line diagram is drawn NTS, and a schedule is a table).
             if (dt.Scale <= 0)
             {
-                bool isThreeD = string.Equals(dt.Purpose, DrawingPurpose.ThreeD, StringComparison.OrdinalIgnoreCase)
-                             || string.Equals(dt.Purpose, "Perspective", StringComparison.OrdinalIgnoreCase);
-                if (!isThreeD)
+                bool scaleNotApplicable =
+                       string.Equals(dt.Purpose, DrawingPurpose.ThreeD,     StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(dt.Purpose, "Perspective",             StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(dt.Purpose, DrawingPurpose.Schedule,   StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(dt.Purpose, DrawingPurpose.Schematic,  StringComparison.OrdinalIgnoreCase);
+                if (!scaleNotApplicable)
                     r.Add(ValidationSeverity.Warning, "DT-095",
-                        $"Scale is {dt.Scale} — must be a positive integer for non-3D drawing types. Set scale > 0 or use purpose '3D'/'Perspective' for views where scale is not applicable.");
+                        $"Scale is {dt.Scale} — must be a positive integer for drawing types where scale applies. Set scale > 0, or use purpose '3D'/'Perspective'/'Schedule'/'Schematic' for views where it does not.");
             }
 
             // DT-096: ISO naming tokens in the sheet number pattern need an
