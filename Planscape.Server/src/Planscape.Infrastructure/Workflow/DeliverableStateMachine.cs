@@ -66,6 +66,13 @@ public sealed class DeliverableStateMachine
         new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// True when the source JSON supplied an explicit <c>"roles"</c> block.
+    /// <see cref="RoleOf"/> then returns "none" for any state that block did
+    /// not name, instead of inferring one. See the comment in RoleOf.
+    /// </summary>
+    public bool RoleInferenceDisabled { get; init; }
+
+    /// <summary>
     /// Resolve the semantic role for a state name. O(1) for any state
     /// declared in the machine (loader pre-populates roles for every
     /// state in <c>states[]</c> plus every endpoint of
@@ -76,6 +83,15 @@ public sealed class DeliverableStateMachine
     {
         var key = state?.ToUpperInvariant() ?? "";
         if (SemanticRoles.TryGetValue(key, out var role)) return role;
+
+        // An explicit "roles" block is a closed statement of intent: the author
+        // enumerated the states that carry a semantic role, so anything absent
+        // is deliberately role-less. Falling through to inference here would
+        // silently re-add roles they left out — e.g. "REJECTED_BY_QA" inferring
+        // "rejecting" and firing the rejection-reason side-effect on a flow that
+        // never asked for it. The loader disables inference in that case; only
+        // machines built WITHOUT a roles block infer.
+        if (RoleInferenceDisabled) return "none";
         // Phase 149 — memoised on-demand inference for state names the
         // caller didn't pre-declare. Keeps RoleOf O(1) amortised even
         // when the controller queries an unknown state. Each machine
@@ -340,6 +356,7 @@ public sealed class DeliverableStateMachine
                 SemanticRoles = roles,
                 CustomKeywords = customKeywords,
                 IsCustom = true,
+                RoleInferenceDisabled = hasRolesBlock,
             };
         }
         catch
