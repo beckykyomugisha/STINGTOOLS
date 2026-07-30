@@ -3,6 +3,32 @@ namespace Planscape.Core.Entities;
 /// <summary>
 /// Multi-tenant organization. Each tenant has isolated data and its own license tier.
 /// </summary>
+/// <remarks>
+/// DELIBERATELY NOT <c>ITenantScoped</c> — do not "fix" this.
+///
+/// <c>PlanscapeDbContext.ApplyTenantQueryFilters</c> adds a global
+/// <c>TenantId == CurrentTenantId</c> filter to every type implementing that
+/// interface. Tenant has no TenantId — it *is* the tenant — and the exclusion is
+/// load-bearing:
+///
+///   • <c>AuthController.Register</c> checks slug uniqueness with
+///     <c>_db.Tenants.AnyAsync(t => t.Slug == …)</c> before any tenant context
+///     exists. Filtered, that query finds nothing and DUPLICATE SLUGS are
+///     accepted. <c>Register_DuplicateSlug_Returns409</c> is the regression guard.
+///   • Subdomain/tenant resolution looks a tenant up by slug the same way.
+///   • The cloud→server handoff path resolves a tenant before authentication.
+///
+/// Audited 2026-07-30: every Tenant read in the API is keyed on the CALLER'S OWN
+/// claim (<c>User.FindFirst("tenant_id")</c> via each controller's GetTenantId,
+/// or <c>ITenantContext.TenantId</c>), never on a route or query parameter, so no
+/// authenticated request can reach another organisation's row. The exceptions are
+/// intentional: <c>PlatformRevenueController</c> is platform-owner-only and
+/// cross-tenant by design, and <c>AuthController</c> uses explicit
+/// <c>IgnoreQueryFilters()</c> where it must resolve a tenant pre-auth.
+///
+/// If a future endpoint takes a tenant id from the request, constrain it at that
+/// call site — do not add a global filter here.
+/// </remarks>
 public class Tenant
 {
     public Guid Id { get; set; } = Guid.NewGuid();
