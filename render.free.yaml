@@ -1,0 +1,143 @@
+# render.free.yaml — FREE-TIER proof-of-life Blueprint for Planscape.
+#
+# ⚠️ THIS IS NOT THE PRODUCTION BLUEPRINT. `render.yaml` (the paid stack, ~$54/mo)
+# is the real one. Use this only to get Planscape onto the public internet with
+# NO payment method — while the production card is still being sorted.
+#
+# HOW TO USE: Render → New Blueprint Instance → connect the repo → in the
+# "Blueprint Path" field type `render.free.yaml` (Render auto-detects only the
+# root `render.yaml`, so this must be named explicitly). Free instances need no
+# card.
+#
+# HONEST CAVEATS — this is a demo, not a launch:
+#   • Free web services SLEEP after ~15 min idle; first request then cold-starts
+#     (~30–60 s). WebSockets/SignalR drop on sleep.
+#   • 512 MB RAM is TIGHT for the .NET API — it may OOM under real load.
+#   • The free Postgres is TIME-LIMITED (Render deletes free databases after a
+#     fixed window — check current terms; historically ~30 days). Do not put data
+#     you care about here.
+#   • NO worker and NO converter: heavy Hangfire jobs (IFC→GLB conversion, photo
+#     redaction, nightly backup) DO NOT RUN. The API handles light in-process
+#     work only. That is fine for proving sign-in + projects + the cloud handoff.
+#   • File storage points at Cloudflare R2 (you already have R2 enabled), because
+#     free tier has no persistent disk for MinIO.
+#
+# Services get *.onrender.com URLs (no custom domain here). After the first
+# deploy you must set two sync:false vars that depend on those URLs — see the
+# NEXT_PUBLIC_API_BASE and Cors__Origins__0 notes below.
+#
+# Service names carry a `-free` suffix so this can coexist with the paid
+# blueprint in the same workspace without a name collision.
+
+services:
+  # ── Planscape API (ASP.NET Core 8) — FREE ───────────────────────────────────
+  - type: web
+    name: planscape-api-free
+    runtime: docker
+    dockerfilePath: ./Planscape.Server/docker/Dockerfile
+    dockerContext: .
+    branch: main
+    region: frankfurt
+    plan: free
+    # /health/live (anonymous liveness), NOT /health (gated → 403s the prober).
+    healthCheckPath: /health/live
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080
+      # Fresh DB → materialise schema from the model (the EF migration set is
+      # incomplete by design). Do NOT remove.
+      - key: PLANSCAPE_USE_ENSURE_CREATED
+        value: "true"
+      # Cloud handoff HMAC secret. MUST equal the value set on the
+      # planscape.build Cloudflare Pages project (PLANSCAPE_HANDOFF_SECRET there).
+      # On the paid blueprint this is set on BOTH api and worker; here there is
+      # only the api, so once.
+      - key: PLANSCAPE_HANDOFF_SECRET
+        sync: false
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: planscape-db-free
+          property: connectionString
+      - key: Redis__Connection
+        fromService:
+          type: keyvalue
+          name: planscape-redis-free
+          property: connectionString
+      # ── JWT ──
+      - key: Jwt__Key
+        sync: false             # openssl rand -base64 48
+      - key: Jwt__Issuer
+        value: Planscape
+      - key: Jwt__Audience
+        value: Planscape.Client
+      # ── Platform owner bootstrap ──
+      - key: PLANSCAPE_OWNER_EMAIL
+        value: davis@planscape.build
+      - key: PLANSCAPE_OWNER_PASSWORD
+        sync: false
+      # ── Storage → Cloudflare R2 (no free disk for MinIO) ──
+      # Create a bucket (e.g. planscape-app) and an R2 API token, then set:
+      - key: Storage__Provider
+        value: S3
+      - key: Storage__S3__BucketName
+        sync: false             # e.g. planscape-app (create it in R2 first)
+      - key: Storage__S3__Region
+        value: auto             # R2 uses "auto"
+      - key: Storage__S3__ServiceUrl
+        sync: false             # https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+      - key: Storage__S3__AccessKey
+        sync: false             # R2 API token — Access Key ID
+      - key: Storage__S3__SecretKey
+        sync: false             # R2 API token — Secret Access Key
+      - key: Storage__S3__ForcePathStyle
+        value: "true"           # true for R2
+      # ── CORS — the browser origins allowed to call this API ──
+      # planscape.build is the marketing site (handoff origin). The cloud app on
+      # free tier is a *.onrender.com URL not known until first deploy — after
+      # planscape-web-free is up, set this to its URL and redeploy.
+      - key: Cors__Origins__0
+        value: https://planscape.build
+      - key: Cors__Origins__1
+        sync: false             # https://planscape-web-free-XXXX.onrender.com (post-deploy)
+      - key: Serilog__MinimumLevel__Default
+        value: Warning
+
+  # ── Planscape Web (Next.js) — FREE ──────────────────────────────────────────
+  - type: web
+    name: planscape-web-free
+    runtime: node
+    rootDir: planscape-web
+    branch: main
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Baked into the client bundle at BUILD time. Set this to the
+      # planscape-api-free *.onrender.com URL after the API's first deploy, then
+      # trigger a manual redeploy of this service so the new value is baked in.
+      - key: NEXT_PUBLIC_API_BASE
+        sync: false             # https://planscape-api-free-XXXX.onrender.com
+
+  # ── Redis / Key Value — FREE ────────────────────────────────────────────────
+  - type: keyvalue
+    name: planscape-redis-free
+    region: frankfurt
+    plan: free                  # if the validator rejects this line, remove it —
+                                # Render may default Key Value to the free tier.
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []             # internal connections only
+
+databases:
+  # ── PostgreSQL — FREE (time-limited; see caveats at top) ────────────────────
+  - name: planscape-db-free
+    databaseName: planscape
+    user: planscape
+    region: frankfurt
+    plan: free
