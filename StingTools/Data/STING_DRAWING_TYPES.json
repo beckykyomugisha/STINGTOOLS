@@ -10161,6 +10161,18 @@
       "drawingTypeId": "mep-plan-fabrication"
     },
     {
+      "discipline": "*",
+      "phase": "HANDOVER",
+      "docType": "*",
+      "drawingTypeId": "handover-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "ELEVATION",
+      "drawingTypeId": "pres-exterior-elev-A1"
+    },
+    {
       "discipline": "P",
       "phase": "*",
       "docType": "SPOOL",
@@ -10249,12 +10261,6 @@
       "phase": "*",
       "docType": "LEGEND",
       "drawingTypeId": "legend-A3"
-    },
-    {
-      "discipline": "*",
-      "phase": "HANDOVER",
-      "docType": "*",
-      "drawingTypeId": "handover-A1"
     },
     {
       "discipline": "A",
@@ -10381,12 +10387,6 @@
       "phase": "PRESENTATION",
       "docType": "PERSPECTIVE",
       "drawingTypeId": "pres-perspective-A1"
-    },
-    {
-      "discipline": "*",
-      "phase": "PRESENTATION",
-      "docType": "ELEVATION",
-      "drawingTypeId": "pres-exterior-elev-A1"
     },
     {
       "discipline": "*",
