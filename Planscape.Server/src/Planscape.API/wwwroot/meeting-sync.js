@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "s2-latejoin";
+  var STING_MEETINGSYNC_BUILD = "s3-clashguid";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -58,7 +58,9 @@
     lastPickGuid: "",        // last picked element (for issue link + viewpoint)
     meetingId: "",           // linked formal Meeting (agenda/actions/minutes)
     modelId: "",             // session model (informational)
-    clash: { list: [], idx: -1, on: false },
+    // S3 — tryQueue/awaitGuid/missed drive the "element A, then element B, else say
+    // it isn't in this model" fallback for clash focus (selectAndZoom answers async).
+    clash: { list: [], idx: -1, on: false, tryQueue: [], awaitGuid: "", missed: [] },
     // N1 — live A/V state from livekit-av.js, keyed by participant identity (= userId).
     av: {},
   };
@@ -739,7 +741,12 @@
     nav.appendChild(toolBtn(null, "◀", "Previous clash", function () { stepClash(-1); }));
     nav.appendChild(toolBtn(null, "▶", "Next clash", function () { stepClash(1); }));
     nav.appendChild(toolBtn(null, "⚑→", "Promote this clash to an issue", promoteClash));
-    cp.appendChild(info); cp.appendChild(nav);
+    // S3 — a persistent line for "this clash's element isn't in the loaded model",
+    // so the reason the camera didn't move stays on screen after the toast fades.
+    var note = document.createElement("div");
+    note.id = "meetClashNote";
+    note.style.cssText = "display:none;color:#f4b400;font-size:10px;line-height:1.3";
+    cp.appendChild(info); cp.appendChild(note); cp.appendChild(nav);
     panel.appendChild(cp);
     renderAecMeeting();
   }
@@ -797,12 +804,50 @@
     state.clash.idx = (state.clash.idx + delta + state.clash.list.length) % state.clash.list.length;
     renderClash(); focusClash(state.clash.list[state.clash.idx]);
   }
+  // S3 — a clash's elementAGuid is not guaranteed to be a federated IfcGuid (it can
+  // be a clash-row identity, per the clash-job follow-up), and even a real guid may
+  // belong to a model this viewer hasn't loaded. Previously selectAndZoom just
+  // returned and the camera didn't move — indistinguishable from a broken button.
+  // Now: try element A, fall back to element B, and if neither resolves SAY SO.
+  // Full federated-guid matching is still out of scope; this only stops it failing
+  // silently.
   function focusClash(c) {
-    var guid = c && (c.elementAGuid || c.ElementAGuid);
-    if (!guid) return;
+    var a = c && (c.elementAGuid || c.ElementAGuid);
+    var b = c && (c.elementBGuid || c.ElementBGuid);
+    state.clash.tryQueue = [a, b].filter(Boolean);
+    state.clash.missed = [];
+    setClashNote("");   // stepping to a new clash clears the previous warning
+    if (!state.clash.tryQueue.length) { setClashNote("⚠ this clash carries no element guid"); return; }
+    focusNextClashGuid();
+  }
+  function focusNextClashGuid() {
+    var guid = state.clash.tryQueue.shift();
+    if (!guid) {   // every candidate missed
+      state.clash.awaitGuid = "";
+      var msg = "⚠ element not in the loaded model — camera not moved";
+      setClashNote(msg);
+      toast("Clash element not found in this model (" + state.clash.missed.join(", ").slice(0, 40) + "…) — camera not moved");
+      return;
+    }
+    state.clash.awaitGuid = guid;
     state.lastPickGuid = guid;
     postCmd({ type: "selectAndZoom", payload: { guid: guid } });
     if (state.conn) state.conn.invoke("BroadcastHighlight", sessionId, [guid]).catch(noop);
+  }
+  // The viewer answers every selectAndZoom with found true/false (S3).
+  window.addEventListener("sting:selectAndZoomResult", function (e) {
+    var d = (e && e.detail) || {};
+    if (!state.clash.awaitGuid || d.guid !== state.clash.awaitGuid) return;   // not ours
+    state.clash.awaitGuid = "";
+    if (d.found) { state.clash.tryQueue = []; setClashNote(""); return; }
+    state.clash.missed.push(String(d.guid).slice(0, 8));
+    focusNextClashGuid();   // fall back to element B, or report
+  });
+  function setClashNote(text) {
+    var n = document.getElementById("meetClashNote");
+    if (!n) return;
+    n.textContent = text || "";
+    n.style.display = text ? "block" : "none";
   }
   function promoteClash() {
     var c = state.clash.list[state.clash.idx]; if (!c) return;

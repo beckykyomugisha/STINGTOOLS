@@ -750,6 +750,45 @@ machine-verified without two real browser sessions):
 - [ ] **No storm:** with 4+ tabs, one more joining produces one `StateRequested` and one reply per peer —
       check the console/network panel shows no repeated request loop.
 
+## S3 — clash focus fails LOUDLY (element-guid miss) · marker `s3-clashguid` (meeting-sync) · SERVED
+
+Partial close of the fifth §2b row. M4's clash stepper calls `selectAndZoom` with the clash's
+`elementAGuid`, which **is not guaranteed to be a federated IfcGuid** (it can be a clash-row
+identity, per the clash-job follow-up) — and even a real guid may belong to a model this viewer
+hasn't loaded. `selectAndZoomByGuid` did `if (!found) return;`, so the camera simply didn't move.
+To a user stepping clashes that is indistinguishable from a broken ▶ button.
+
+**Scope is deliberately narrow: make it visible, don't fix federation matching.**
+- `viewer.html` `selectAndZoomByGuid` now returns a boolean, `console.warn`s the unmatched guid,
+  and dispatches `sting:selectAndZoomResult {guid, found}` (same-window CustomEvent —
+  `meeting-sync.js` shares the document).
+- `focusClash` **tries element A, then falls back to element B** before giving up. A clash has two
+  sides; if only one is in the loaded model, framing that one is still a useful review.
+- If neither resolves: a toast plus a **persistent amber line in the clash panel**
+  ("⚠ element not in the loaded model — camera not moved"), so the reason stays on screen after the
+  toast fades. It clears when you step to a clash that does resolve.
+- A clash carrying no element guid at all now says so instead of doing nothing.
+
+Still out of scope (unchanged, still a real gap): actually resolving a clash-row identity to a
+federated IfcGuid. Camera-follow and promote-to-issue continue to work regardless — only the
+zoom depends on the guid matching.
+
+**Proof:** `node --check` clean; `curl /meeting-sync.js` → `STING_MEETINGSYNC_BUILD = "s3-clashguid"`
+plus `selectAndZoomResult` / `focusNextClashGuid` / `meetClashNote`; `curl /viewer.html` →
+`sting:selectAndZoomResult` present.
+
+**2-tab test — PENDING-HUMAN-VERIFY** (needs a project with clashes):
+- [ ] **Resolvable clash:** ⧉ → ▶ on a clash whose element IS in the loaded model → camera flies to
+      it, no warning line, follower tab's camera follows (M4 behaviour unchanged).
+- [ ] **Unresolvable clash:** step to a clash whose guid isn't in the model → a toast fires AND the
+      amber "⚠ element not in the loaded model — camera not moved" line appears under "Clash N/M".
+      Console shows `[viewer] selectAndZoom: no loaded mesh with elementGuid …`.
+- [ ] **B-side fallback:** on a clash where A is missing but B is present → the camera frames the
+      **B** element and NO warning appears.
+- [ ] **Warning clears:** step from an unresolvable clash to a resolvable one → the amber line
+      disappears.
+- [ ] **Promote still works** on a clash whose element didn't resolve (⚑→ is independent of zoom).
+
 ## Cloud demo unblock — free-tier deployment (2026-07-31)
 
 Full research + cost analysis: `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`. Summary:
