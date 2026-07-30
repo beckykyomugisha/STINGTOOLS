@@ -4103,6 +4103,16 @@ namespace StingTools.UI
                     try { var r = BOQCostManagerPanel.PendingActionResolve; BOQCostManagerPanel.PendingActionResolve = null; r?.Invoke(); }
                     catch (Exception exR) { StingLog.Warn($"BOQ PendingActionResolve: {exR.Message}"); }
 
+                    // Same idea for the dock panel's own status line. Cmd_Click
+                    // sets "Running: <tag>…" when it raises the event, and nothing
+                    // ever cleared it — so a command that finished instantly (or
+                    // reported nothing) left the panel reading as permanently
+                    // in-flight. Resolve it here, at the one place every dispatch
+                    // converges. Only overwrites the label when it still shows
+                    // THIS tag, so a command that reported its own status wins.
+                    try { StingDockPanel.LastInstance?.ResolveRunningStatus(tag); }
+                    catch (Exception exS) { StingLog.Warn($"ResolveRunningStatus '{tag}': {exS.Message}"); }
+
                     // P0.1 — release the BOQ dispatch busy-guard so the Actions
                     // surface accepts the next click and the buttons un-grey. This
                     // is the universal reset point (fires on every command, not just

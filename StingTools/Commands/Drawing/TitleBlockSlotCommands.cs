@@ -536,7 +536,57 @@ namespace StingTools.Commands.Drawing
         ///      or migrated layouts may still have them.
         ///
         /// JSON is the authoritative source.</summary>
+        // SLOT-5 — per-family slot-map memo. The reference-plane override pass
+        // below calls Document.EditFamily, which OPENS the family document; that
+        // ran once per sheet, uncached, so an M-sheet batch opened and closed the
+        // same title-block family M times. Cached by family name and dropped
+        // whenever the document changes or a batch starts, so an operator who
+        // nudges slots in the Family Editor still gets a fresh read on the next
+        // production run rather than a stale map for the session.
+        private static readonly object _slotMapLock = new object();
+        private static Dictionary<string, Dictionary<string, SlotBounds>> _slotMapCache;
+        private static string _slotMapDocKey;
+
+        /// <summary>Drop the cached slot maps. Called at batch boundaries by
+        /// DrawingProducer so a re-run re-reads the family.</summary>
+        public static void ClearSlotMapCache()
+        {
+            lock (_slotMapLock) { _slotMapCache = null; _slotMapDocKey = null; }
+        }
+
         public static Dictionary<string, SlotBounds> ReadSlotBoundsFromTitleBlock(Document doc, Element titleBlock)
+        {
+            var cacheKey = GetFamilyName(doc, titleBlock);
+            var docKey = doc?.PathName ?? "";
+            if (!string.IsNullOrEmpty(cacheKey))
+            {
+                lock (_slotMapLock)
+                {
+                    if (!string.Equals(_slotMapDocKey, docKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _slotMapCache = null;
+                        _slotMapDocKey = docKey;
+                    }
+                    if (_slotMapCache != null && _slotMapCache.TryGetValue(cacheKey, out var hit))
+                        return hit;
+                }
+            }
+
+            var computed = ReadSlotBoundsFromTitleBlockCore(doc, titleBlock);
+
+            if (!string.IsNullOrEmpty(cacheKey))
+            {
+                lock (_slotMapLock)
+                {
+                    if (_slotMapCache == null)
+                        _slotMapCache = new Dictionary<string, Dictionary<string, SlotBounds>>(StringComparer.OrdinalIgnoreCase);
+                    _slotMapCache[cacheKey] = computed;
+                }
+            }
+            return computed;
+        }
+
+        private static Dictionary<string, SlotBounds> ReadSlotBoundsFromTitleBlockCore(Document doc, Element titleBlock)
         {
             var result = new Dictionary<string, SlotBounds>(StringComparer.OrdinalIgnoreCase);
             var familyName = GetFamilyName(doc, titleBlock);
