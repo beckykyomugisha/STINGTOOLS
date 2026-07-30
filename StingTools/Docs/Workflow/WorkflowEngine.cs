@@ -16,9 +16,156 @@ using StingTools.Core;
 
 namespace Planscape.Docs.Workflow
 {
+    /// <summary>
+    /// Thrown when a transition's <c>allowed_roles</c> gate rejects the acting user. A distinct
+    /// type so callers can react to a DENIAL specifically instead of substring-matching the
+    /// message — and so an unrelated failure can never be mistaken for "permitted".
+    /// </summary>
+    public class WorkflowRoleDeniedException : InvalidOperationException
+    {
+        public WorkflowRoleDeniedException(string message) : base(message) { }
+    }
+
     public static class WorkflowEngine
     {
         private static readonly object _lock = new object();
+
+        /// <summary>
+        /// Role gate for one transition. Empty/absent allowed_roles ⇒ any role; the Information
+        /// Manager (K) and Coordinator (C) administer the CDE and are always permitted.
+        /// </summary>
+        private static bool IsRolePermitted(WorkflowTransition transition, out string actingRole)
+        {
+            actingRole = "?";
+            try { actingRole = RoleBasedAccessControl.GetCurrentUserRole(); }
+            catch (Exception ex)
+            {
+                // Fail CLOSED when the role cannot be resolved but the gate is active.
+                StingLog.Warn($"IsRolePermitted: role lookup failed: {ex.Message}");
+                return transition?.AllowedRoles == null || transition.AllowedRoles.Count == 0;
+            }
+            if (transition?.AllowedRoles == null || transition.AllowedRoles.Count == 0) return true;
+            string role = actingRole;   // out params cannot be captured by the lambda below
+            return string.Equals(role, "K", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(role, "C", StringComparison.OrdinalIgnoreCase)
+                || transition.AllowedRoles.Any(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Simulate a sequence of actions from the document's current state and report the first
+        /// role denial WITHOUT mutating anything. Lets a caller that must walk several hops
+        /// verify the whole path up front — otherwise an early hop is committed to disk and the
+        /// later denial leaves the workflow ahead of the record it describes, with no rollback.
+        /// Returns true when every hop is permitted (or the path can't be resolved, which the
+        /// caller handles as a non-blocking condition).
+        /// </summary>
+        public static bool ValidatePath(Document doc, string docId, IEnumerable<string> actions, out string denyReason)
+        {
+            denyReason = null;
+            if (actions == null) return true;
+            var plan = actions.ToList();
+            if (plan.Count == 0) return true;
+
+            lock (_lock)
+            {
+                try
+                {
+                    var reg = WorkflowRegistry.Load(doc);
+                    // SelectInstance — the same rule Transition uses, so validation and mutation
+                    // can never be talking about different instances of the same document.
+                    var inst = SelectInstance(LoadStore(doc), docId, false);
+                    if (inst == null) return true;
+                    var wf = reg.Get(inst.WorkflowId);
+                    if (wf == null) return true;
+
+                    string state = inst.State;
+                    foreach (string action in plan)
+                    {
+                        var t = wf.Transitions.FirstOrDefault(x =>
+                            string.Equals(x.From, state, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(x.Action, action, StringComparison.OrdinalIgnoreCase));
+                        if (t == null)
+                        {
+                            // A single undefined hop stays non-blocking (Transition throws, the
+                            // caller warns, nothing is half-written). But in a MULTI-hop plan an
+                            // undefined hop means the plan disagrees with the workflow definition
+                            // — proceeding would commit the earlier hops and then fail, which is
+                            // exactly the partial-commit this method exists to prevent.
+                            if (plan.Count == 1) return true;
+                            denyReason = $"Action '{action}' is not defined from state '{state}' in workflow " +
+                                         $"'{wf.Id}'. The {plan.Count}-step path was not started.";
+                            return false;
+                        }
+                        if (!IsRolePermitted(t, out string role))
+                        {
+                            denyReason = $"Role '{role}' is not permitted to perform '{action}' from '{state}' " +
+                                         $"(requires one of: {string.Join(", ", t.AllowedRoles)}).";
+                            return false;
+                        }
+                        state = t.To;
+                    }
+                    return true;
+                }
+                catch (Exception ex) { StingLog.Warn($"ValidatePath: {ex.Message}"); return true; }
+            }
+        }
+
+        /// <summary>
+        /// Re-open a closed (terminal-state) instance when <paramref name="action"/> is a defined
+        /// transition out of its current state, so terminal-state exits declared in the workflow
+        /// JSON — Published→Archived via cancel/archive — can actually run. Returns false when no
+        /// such transition exists, leaving the instance closed. Cancelling a published deliverable
+        /// otherwise wrote Status=Cancelled with no workflow movement and no audit row.
+        /// </summary>
+        public static bool Reopen(Document doc, string docId, string action)
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    var store = LoadStore(doc);
+                    var inst = SelectInstance(store, docId, true);
+                    if (inst == null) return false;
+                    if (!inst.Closed) return true;
+
+                    var wf = WorkflowRegistry.Load(doc).Get(inst.WorkflowId);
+                    bool defined = wf?.Transitions.Any(t =>
+                        string.Equals(t.From, inst.State, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(t.Action, action, StringComparison.OrdinalIgnoreCase)) == true;
+                    if (!defined) return false;
+
+                    inst.Closed = false;
+                    SaveStore(doc, store);
+                    try
+                    {
+                        AuditLog.Append(doc, "wf.reopened", docId, new JObject
+                        {
+                            ["workflow_id"] = inst.WorkflowId,
+                            ["instance_id"] = inst.Id,
+                            ["state"]       = inst.State,
+                            ["for_action"]  = action
+                        });
+                    }
+                    catch (Exception aex) { StingLog.Warn($"wf.reopened audit: {aex.Message}"); }
+                    return true;
+                }
+                catch (Exception ex) { StingLog.Warn($"Reopen({docId}, {action}): {ex.Message}"); return false; }
+            }
+        }
+
+        /// <summary>
+        /// The one rule for picking a document's instance, shared by Transition, ValidatePath,
+        /// Reopen and GetInstance. Latest-wins: pre-fix project files can contain several
+        /// instances per document (the terminal-state leak), and three different selection rules
+        /// meant the state that was planned from, validated and mutated could all differ.
+        /// </summary>
+        private static WorkflowInstance SelectInstance(List<WorkflowInstance> store, string docId, bool includeClosed)
+        {
+            if (store == null) return null;
+            IEnumerable<WorkflowInstance> m = store.Where(i => string.Equals(i.DocId, docId, StringComparison.Ordinal));
+            if (!includeClosed) m = m.Where(i => !i.Closed);
+            return m.LastOrDefault();
+        }
 
         public static string Start(Document doc, string workflowId, string docId)
         {
@@ -57,7 +204,7 @@ namespace Planscape.Docs.Workflow
             {
                 var reg = WorkflowRegistry.Load(doc);
                 var store = LoadStore(doc);
-                var inst = store.FirstOrDefault(i => string.Equals(i.DocId, docId, StringComparison.Ordinal) && !i.Closed);
+                var inst = SelectInstance(store, docId, false);
                 if (inst == null) throw new InvalidOperationException($"No open workflow instance for doc '{docId}'.");
 
                 var wf = reg.Get(inst.WorkflowId);
@@ -68,6 +215,38 @@ namespace Planscape.Docs.Workflow
                     string.Equals(t.Action, action,    StringComparison.OrdinalIgnoreCase));
                 if (transition == null)
                     throw new InvalidOperationException($"Action '{action}' not valid from state '{inst.State}'.");
+
+                // Enforce the transition's role gate. Previously allowed_roles was declared
+                // in the workflow JSON but never checked, so Check→Review→Approve gates could
+                // be driven by anyone. The acting role is resolved from project_config.json
+                // (USER_ROLE); the Information Manager (K) and Coordinator (C) administer the
+                // CDE and are always permitted. An empty allowed_roles means "any role".
+                if (!IsRolePermitted(transition, out string actingRole))
+                {
+                    // Audit is best-effort and must NEVER swallow the denial: if it threw here
+                    // the caller would see a generic exception and (previously) treat the
+                    // transition as permitted — a fail-open security hole.
+                    try
+                    {
+                        AuditLog.Append(doc, "wf.transition_denied", docId, new JObject
+                        {
+                            ["workflow_id"]   = wf.Id,
+                            ["instance_id"]   = inst.Id,
+                            ["from"]          = inst.State,
+                            ["action"]        = action,
+                            ["user"]          = byUser,
+                            ["role"]          = actingRole,
+                            ["allowed_roles"] = new JArray(transition.AllowedRoles)
+                        });
+                    }
+                    catch (Exception aex) { StingLog.Warn($"wf.transition_denied audit: {aex.Message}"); }
+
+                    // Typed, so callers match on the TYPE rather than substring-matching the
+                    // message (which silently disabled every gate if the wording changed).
+                    throw new WorkflowRoleDeniedException(
+                        $"Role '{actingRole}' is not permitted to perform '{action}' from '{inst.State}' " +
+                        $"(requires one of: {string.Join(", ", transition.AllowedRoles)}).");
+                }
 
                 string from = inst.State;
                 inst.State = transition.To;
@@ -99,11 +278,17 @@ namespace Planscape.Docs.Workflow
             }
         }
 
-        public static WorkflowInstance GetInstance(Document doc, string docId)
-        {
-            var store = LoadStore(doc);
-            return store.FirstOrDefault(i => string.Equals(i.DocId, docId, StringComparison.Ordinal) && !i.Closed);
-        }
+        public static WorkflowInstance GetInstance(Document doc, string docId) => GetInstance(doc, docId, false);
+
+        /// <summary>
+        /// Latest instance for a document. <paramref name="includeClosed"/> matters because
+        /// Published and Archived are TERMINAL: entering them closes the instance, after which
+        /// the default lookup returns null. A caller that treats null as "never started" would
+        /// then Start a brand-new instance back at WIP on every later action — leaking one
+        /// instance per action and recording a WIP→… history for an already-published document.
+        /// </summary>
+        public static WorkflowInstance GetInstance(Document doc, string docId, bool includeClosed)
+            => SelectInstance(LoadStore(doc), docId, includeClosed);
 
         public static List<WorkflowInstance> GetMyQueue(Document doc, string userEmail)
         {

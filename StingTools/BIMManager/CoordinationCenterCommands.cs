@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -602,8 +602,9 @@ namespace StingTools.BIMManager
             _currentUser = null;
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName) ?? "";
-                string bimDir = Path.Combine(dir, "STING_BIM_MANAGER");
+                // Canonical bucket. This read the pre-consolidation sibling, so a
+                // consolidated project silently fell back to default policy.
+                string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                 string path = Path.Combine(bimDir, "access_control.json");
 
                 if (!File.Exists(path))
@@ -725,7 +726,7 @@ namespace StingTools.BIMManager
                     Path.GetDirectoryName(doc.PathName) ?? "",
                     "STING_BIM_MANAGER");
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(
+                OutputLocationHelper.WriteAllTextAtomic(
                     Path.Combine(dir, "access_control.json"),
                     JsonConvert.SerializeObject(_policy, Formatting.Indented));
             }
@@ -789,7 +790,8 @@ namespace StingTools.BIMManager
             data["generated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             data["generated_by"] = Environment.UserName;
 
-            string bimDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "STING_BIM_MANAGER");
+            // Canonical bucket — this WROTE to the pre-consolidation sibling.
+            string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
 
             // Issues
             try
@@ -802,13 +804,13 @@ namespace StingTools.BIMManager
                     data["issues_summary"] = new JObject
                     {
                         ["total"] = issues.Count,
-                        ["open"] = issues.Count(i => i["status"]?.ToString() == "OPEN"),
+                        ["open"] = issues.OfType<JObject>().Count(IssueSchema.IsOpen),
                         ["in_progress"] = issues.Count(i => i["status"]?.ToString() == "IN_PROGRESS"),
                         ["closed"] = issues.Count(i => i["status"]?.ToString() == "CLOSED"),
                         ["overdue"] = issues.Count(i =>
                         {
                             if (!DateTime.TryParse(i["sla_deadline"]?.ToString(), out var dl)) return false;
-                            return DateTime.Now > dl && i["status"]?.ToString() != "CLOSED";
+                            return DateTime.Now > dl && IssueSchema.IsOpen(i as JObject);
                         })
                     };
                 }
@@ -1649,7 +1651,9 @@ render();
             int issueCount = 0, txCount = 0, actionCount = 0;
             double compliancePct = 0;
 
-            string bimDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "STING_BIM_MANAGER");
+            // Canonical bucket — the agenda read the pre-consolidation sibling and so
+            // summarised an empty project after consolidation.
+            string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
 
             // Compliance
             try
@@ -1670,7 +1674,7 @@ render();
                 if (File.Exists(issuePath))
                 {
                     var issues = JArray.Parse(File.ReadAllText(issuePath));
-                    var open = issues.Where(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "RESOLVED").ToList();
+                    var open = issues.OfType<JObject>().Where(IssueSchema.IsOpen).ToList();
                     issueCount = open.Count;
 
                     var critical = open.Where(i => i["priority"]?.ToString() == "CRITICAL").ToList();

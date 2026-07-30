@@ -44,6 +44,12 @@ namespace StingTools.Core
         private static readonly Queue<long> _recentlyProcessedQueue = new Queue<long>();
         private static volatile int _processedCount;
         private static bool _visualTaggingEnabled = false;
+        // Observability for MEP declutter: running count of live per-segment visual
+        // tags skipped because the element's category is under a one-tag-per-run / None
+        // policy. Previously silent (unlike Smart Place's RunSuppressed report); a
+        // throttled summary is logged so the hot path stays cheap. See the visual-tag
+        // placement block in Execute().
+        private static int _visualPolicySuppressedCount;
         private static HashSet<string> _allowedDiscs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // D1: Cached context to avoid rebuilding PopulationContext on every trigger
@@ -763,8 +769,31 @@ namespace StingTools.Core
                                 }
                                 catch (Exception atEx) { StingLog.Warn($"AutoTagger MODIFIED_BY stamp: {atEx.Message}"); }
 
-                                // Visual tag placement
-                                if (_visualTaggingEnabled && doc.ActiveView != null
+                                // Visual tag placement.
+                                // MEP declutter: for categories under a one-tag-per-run
+                                // (or None) policy — pipes/ducts/conduit/tray by default —
+                                // suppress real-time per-segment tags. Placing them live as
+                                // each segment is drawn would re-create the exact clutter the
+                                // run-grouper removes, and a run can't be resolved from a
+                                // single element-addition event. Token data is already written
+                                // above; the run-level visual tag comes from Smart Place Tags.
+                                // Equipment / fixtures (policy = All) still auto-tag visually.
+                                bool visualPolicyAllows =
+                                    StingTools.Core.Mep.MepRunGrouper.ResolvePolicy(el)
+                                        == StingTools.Core.Mep.TagVisualPolicy.All;
+                                // Observability: record when a live per-segment tag is
+                                // gated off by run/None policy so the suppression is not
+                                // silent. Cheap running counter + throttled summary (first
+                                // hit, then every 50th) — no per-element log storm.
+                                if (_visualTaggingEnabled && !visualPolicyAllows)
+                                {
+                                    int suppressed = System.Threading.Interlocked.Increment(ref _visualPolicySuppressedCount);
+                                    if (suppressed == 1 || suppressed % 50 == 0)
+                                        StingLog.Info(
+                                            $"StingAutoTagger: {suppressed} live MEP visual tag(s) suppressed by one-tag-per-run policy; " +
+                                            "run-level tags come from Smart Place Tags.");
+                                }
+                                if (_visualTaggingEnabled && visualPolicyAllows && doc.ActiveView != null
                                     && !(doc.ActiveView is ViewSheet)
                                     && doc.ActiveView.CanBePrinted)
                                 {
@@ -1259,7 +1288,9 @@ namespace StingTools.Core
 
             TaskDialog.Show("STING Auto-Tagger",
                 $"Visual tag placement: {(StingAutoTagger.IsVisualTaggingEnabled ? "ENABLED" : "DISABLED")}\n\n" +
-                "When enabled, the auto-tagger will also place visual annotation tags on newly placed elements.");
+                "When enabled, the auto-tagger will also place visual annotation tags on newly placed elements.\n" +
+                "Linear MEP runs (pipes/ducts/tray/conduit) are tagged once per run by Smart Place Tags, " +
+                "not live per-segment — token data is still written to every segment.");
             return Result.Succeeded;
         }
     }
@@ -1277,6 +1308,9 @@ namespace StingTools.Core
             sb.AppendLine($"Auto-Tagger: {(StingAutoTagger.IsEnabled ? "ENABLED" : "DISABLED")}");
             sb.AppendLine($"Visual Tags: {(StingAutoTagger.IsVisualTaggingEnabled ? "ENABLED" : "DISABLED")}");
             sb.AppendLine($"Stale Marker: {(StingStaleMarker.IsEnabled ? "ENABLED" : "DISABLED")}");
+            sb.AppendLine();
+            sb.AppendLine("Note: Linear MEP runs (pipes/ducts/tray/conduit) are tagged once per");
+            sb.AppendLine("run by Smart Place Tags, not live per-segment by the auto-tagger.");
             sb.AppendLine();
             sb.AppendLine("Discipline Filter:");
             sb.AppendLine("  M = Mechanical, E = Electrical, P = Plumbing");

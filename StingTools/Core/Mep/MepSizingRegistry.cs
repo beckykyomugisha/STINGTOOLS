@@ -301,8 +301,7 @@ namespace StingTools.Core.Mep
                 // 2. Project override
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-                    string projPath = Path.Combine(projDir, ProjectOverrideRelPath);
+                    string projPath = ProjectFolderEngine.ResolveProjectOverridePath(doc, ProjectOverrideRelPath);
                     if (File.Exists(projPath))
                     {
                         JObject projJ = JObject.Parse(File.ReadAllText(projPath));

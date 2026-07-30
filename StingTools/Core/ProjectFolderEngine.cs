@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -101,41 +101,79 @@ namespace StingTools.Core
             ["Letter"]         = "CORRESPONDENCE",
         };
 
+        // Explicit GLOBAL override only (user-configured PROJECT_FOLDER_ROOT / the
+        // RootPath setter). Computed per-document roots are NOT stored here — that was
+        // the cross-document contamination vector: the single static returned whichever
+        // document resolved last, so a second project opened before its own setup was
+        // bootstrapped adopted the first project's root.
         private static string _rootPath;
+
+        // Most recently resolved root, for the document-less RootPath display getter only.
+        private static string _lastResolvedRoot;
 
         // ── Phase 167: Per-document ProjectSetup cache ────────────────────
         private static readonly ConcurrentDictionary<string, ProjectSetup> _setupCache = new();
+
+        // Authoritative per-document root cache, keyed on the .rvt path.
+        private static readonly ConcurrentDictionary<string, string> _rootByDoc =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        // Greenfield verdict captured at document-open, before anything creates the root.
+        private static readonly ConcurrentDictionary<string, bool> _greenfieldByDoc =
+            new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Drop the cached setup for a specific document (call on close).</summary>
         public static void InvalidateSetupCache(string docPath)
         {
             if (string.IsNullOrEmpty(docPath)) return;
             _setupCache.TryRemove(docPath, out _);
+            _rootByDoc.TryRemove(docPath, out _);
+            _greenfieldByDoc.TryRemove(docPath, out _);
+            _folderStatsByDoc.TryRemove(docPath, out _);
         }
 
         /// <summary>Drop all cached setups.</summary>
-        public static void InvalidateAllSetupCaches() => _setupCache.Clear();
+        public static void InvalidateAllSetupCaches()
+        {
+            _setupCache.Clear();
+            _rootByDoc.Clear();
+        }
+
+        /// <summary>Cache a resolved root per-document and record it as the most recent for display.</summary>
+        private static void RememberRoot(Document doc, string root)
+        {
+            if (string.IsNullOrEmpty(root)) return;
+            _lastResolvedRoot = root;
+            string key = doc?.PathName;
+            if (!string.IsNullOrEmpty(key)) _rootByDoc[key] = root;
+        }
 
         // PERF-02: Folder stats cache
-        private static List<FolderStats> _folderStatsCache;
-        private static DateTime _folderStatsCacheTime = DateTime.MinValue;
+        // PERF-02: folder-stats cache, keyed PER DOCUMENT. A single global cache returned
+        // document A's stats for document B whenever two projects were open inside the 10s
+        // window — the same cross-document contamination class the per-document root cache
+        // was introduced to fix.
+        private static readonly ConcurrentDictionary<string, (DateTime When, List<FolderStats> Stats)>
+            _folderStatsByDoc = new(StringComparer.OrdinalIgnoreCase);
         private static readonly TimeSpan FolderStatsCacheDuration = TimeSpan.FromSeconds(10);
 
         /// <summary>Invalidate the folder stats cache (call after file operations).</summary>
-        public static void InvalidateFolderStatsCache() { _folderStatsCacheTime = DateTime.MinValue; }
+        public static void InvalidateFolderStatsCache() { _folderStatsByDoc.Clear(); }
 
-        // CONFIG-02: Configurable discipline list
-        private static string[] _disciplineFolders = new[]
-        {
-            "A_Architectural", "M_Mechanical", "E_Electrical",
-            "P_Plumbing", "S_Structural", "FP_Fire", "Z_General"
-        };
+        // CONFIG-02: Optional discipline-list override. Null ⇒ use the project
+        // setup's own Disciplines (ProjectSetup.DefaultBimDisciplines by default),
+        // which keeps this builder and the auto-bootstrap path in agreement.
+        private static string[] _disciplineFolders;
 
         /// <summary>Set custom discipline folder names from config.</summary>
         public static void SetDisciplineFolders(string[] folders)
         {
             if (folders != null && folders.Length > 0) _disciplineFolders = folders;
         }
+
+        /// <summary>Effective discipline folder names: config override, else the setup's own list.</summary>
+        private static IEnumerable<string> EffectiveDisciplines(ProjectSetup setup)
+            => _disciplineFolders ?? (IEnumerable<string>)setup?.Disciplines ?? ProjectSetup.DefaultBimDisciplines;
 
         // ── Allowed file extensions for import validation (OP-002) ──
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -148,19 +186,36 @@ namespace StingTools.Core
 
         // ── Root path ─────────────────────────────────────────────────────
 
-        /// <summary>Get or set the project folder root. Persisted to project_config.json.</summary>
+        /// <summary>
+        /// Explicit global project-folder root override (persisted to project_config.json
+        /// as PROJECT_FOLDER_ROOT). The getter falls back to the most recently resolved
+        /// root for document-less display callers. Setting this establishes a global
+        /// override for every document — per-document roots are cached separately.
+        /// </summary>
         public static string RootPath
         {
-            get => _rootPath;
+            get => !string.IsNullOrEmpty(_rootPath) ? _rootPath : _lastResolvedRoot;
             set { _rootPath = value; StingLog.Info($"ProjectFolderEngine root set: {value}"); }
         }
 
         /// <summary>
-        /// Resolve the root path. Uses: ProjectSetup → explicit RootPath → project dir → user docs → temp.
+        /// Resolve the root path. Order: per-doc ProjectSetup → per-doc cache →
+        /// explicit global override → project dir → user docs → temp. The result is
+        /// cached per-document so two projects open at once never share a root.
         /// </summary>
         public static string GetRootPath(Document doc)
         {
-            // Phase 167: Honour persisted ProjectSetup first
+            // 0. ES root-identity stamp — a STABLE stored root that survives a project-number
+            //    rename (which would otherwise fork a new <CODE> tree). Only used when it
+            //    resolves to an existing directory; absent/stale ⇒ fall through unchanged.
+            try
+            {
+                string stamped = Storage.StingProjectRootSchema.ResolveStampedRoot(doc);
+                if (!string.IsNullOrEmpty(stamped)) { RememberRoot(doc, stamped); return stamped; }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetRootPath stamp lookup: {ex.Message}"); }
+
+            // 1. Phase 167: Honour persisted ProjectSetup first (per-document, authoritative)
             try
             {
                 var setup = LoadOrDetectSetup(doc);
@@ -170,16 +225,29 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(resolved))
                     {
                         try { Directory.CreateDirectory(resolved); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        if (Directory.Exists(resolved)) return resolved;
+                        if (Directory.Exists(resolved)) { RememberRoot(doc, resolved); return resolved; }
                     }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GetRootPath setup lookup: {ex.Message}"); }
 
-            if (!string.IsNullOrEmpty(_rootPath) && Directory.Exists(_rootPath))
-                return _rootPath;
+            // 2. Per-document cache — keyed on the .rvt path, so a second project opened
+            //    before its setup is bootstrapped can never adopt the first project's root
+            //    (the old single static _rootPath fast-path did exactly that).
+            string docKey = doc?.PathName;
+            if (!string.IsNullOrEmpty(docKey) && _rootByDoc.TryGetValue(docKey, out string cachedRoot)
+                && Directory.Exists(cachedRoot))
+                return cachedRoot;
 
-            // Try project directory: name root after the project code so the
+            // 3. Explicit global override only (user-configured PROJECT_FOLDER_ROOT).
+            //    Computed per-doc roots no longer leak into _rootPath.
+            if (!string.IsNullOrEmpty(_rootPath) && Directory.Exists(_rootPath))
+            {
+                RememberRoot(doc, _rootPath);
+                return _rootPath;
+            }
+
+            // 4. Try project directory: name root after the project code so the
             // user sees one container per project (e.g. FIRESTONE_LIBERIA/),
             // not a generic "STING_Project" sibling.
             if (doc != null && !string.IsNullOrEmpty(doc.PathName))
@@ -189,16 +257,16 @@ namespace StingTools.Core
                 {
                     string code = DetectProjectCode(doc);
                     string stingRoot = Path.Combine(projDir, code);
-                    try { Directory.CreateDirectory(stingRoot); _rootPath = stingRoot; return stingRoot; }
+                    try { Directory.CreateDirectory(stingRoot); RememberRoot(doc, stingRoot); return stingRoot; }
                     catch (Exception ex2) { StingLog.Warn($"ProjectFolderEngine: Cannot create at project dir: {ex2.Message}"); }
                 }
             }
 
-            // Fallback to Documents/<code> when project dir is unwritable
+            // 5. Fallback to Documents/<code> when project dir is unwritable
             string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             string codeDocs = doc != null ? DetectProjectCode(doc) : "STING_Project";
             string fallback = Path.Combine(docsDir, codeDocs);
-            try { Directory.CreateDirectory(fallback); _rootPath = fallback; return fallback; }
+            try { Directory.CreateDirectory(fallback); RememberRoot(doc, fallback); return fallback; }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Documents fallback failed: {ex.Message}"); }
 
             return Path.GetTempPath();
@@ -301,16 +369,75 @@ namespace StingTools.Core
             try
             {
                 string code = DetectProjectCode(doc);
-                var setup = ProjectSetup.CreateBIM(code, code); // root = relative folder named after the code
+                // Greenfield (brand-new) projects adopt the ISO 19650 CDE-first tree; any
+                // project with an existing root / legacy folders / setup keeps the numbered
+                // BIM tree so nothing an existing project relies on is force-restructured.
+                bool cdeFirst = TagConfig.CdeFirstLayout && IsGreenfield(doc, code);
+                var setup = cdeFirst
+                    ? ProjectSetup.CreateCdeFirst(code, code)
+                    : ProjectSetup.CreateBIM(code, code); // root = relative folder named after the code
                 setup.RootPathIsRelative = true;
                 setup.ProjectName = "";
                 try { setup.ProjectName = doc.ProjectInformation?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 InitializeSetup(doc, setup);
-                StingLog.Info($"LoadOrBootstrapSetup: minted default BIM setup for {code}");
+                StingLog.Info($"LoadOrBootstrapSetup: minted default {(cdeFirst ? "CdeFirst" : "BIM")} setup for {code}");
                 return setup;
             }
             catch (Exception ex) { StingLog.Warn($"LoadOrBootstrapSetup: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// A project is "greenfield" (safe to adopt the CDE-first tree) only when nothing of
+        /// STING's exists for it yet: no ES root stamp, no &lt;projDir&gt;/&lt;code&gt; root, and no
+        /// legacy sibling folders next to the .rvt. Any of these ⇒ an established project that
+        /// keeps the numbered BIM tree.
+        /// </summary>
+        private static bool IsGreenfield(Document doc, string code)
+        {
+            // Prefer the verdict captured at document-open, BEFORE anything created the root.
+            string key = doc?.PathName;
+            if (!string.IsNullOrEmpty(key) && _greenfieldByDoc.TryGetValue(key, out bool captured))
+                return captured;
+            return ProbeGreenfield(doc, code);
+        }
+
+        /// <summary>
+        /// Record whether this document is greenfield, evaluated BEFORE any STING code has had
+        /// a chance to create the project root. Must be called at the very top of
+        /// DocumentOpened: <see cref="GetRootPath"/> creates &lt;projDir&gt;/&lt;CODE&gt; as a side
+        /// effect, and the first thing that touched it (the sustainability pre-warm) ran before
+        /// the bootstrap — so by the time <see cref="IsGreenfield"/> looked, the folder always
+        /// existed and the CdeFirst layout could never be selected. Idempotent per document.
+        /// </summary>
+        public static void CaptureGreenfieldState(Document doc)
+        {
+            try
+            {
+                string key = doc?.PathName;
+                if (string.IsNullOrEmpty(key) || doc.IsFamilyDocument) return;
+                if (_greenfieldByDoc.ContainsKey(key)) return;
+                _greenfieldByDoc[key] = ProbeGreenfield(doc, DetectProjectCode(doc));
+            }
+            catch (Exception ex) { StingLog.Warn($"CaptureGreenfieldState: {ex.Message}"); }
+        }
+
+        /// <summary>Side-effect-free greenfield probe (creates nothing).</summary>
+        private static bool ProbeGreenfield(Document doc, string code)
+        {
+            try
+            {
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return false;
+                if (Storage.StingProjectRootSchema.Read(doc) != null) return false;
+                string projDir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(projDir)) return false;
+                if (Directory.Exists(Path.Combine(projDir, code))) return false;
+                foreach (string legacy in new[] { "_BIM_COORD", "STING_BIM_MANAGER", "_bim_manager",
+                                                  "_CDE", "STING_Exports", "STING_Project" })
+                    if (Directory.Exists(Path.Combine(projDir, legacy))) return false;
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"ProbeGreenfield: {ex.Message}"); return false; }
         }
 
         /// <summary>
@@ -329,6 +456,105 @@ namespace StingTools.Core
             try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetMetaPath: {ex.Message}"); }
             return p;
         }
+
+        /// <summary>
+        /// Resolve a project override file declared as a relative path such as
+        /// <c>"_BIM_COORD/climate_data.json"</c>. Prefers the CONSOLIDATED
+        /// &lt;root&gt;/_data/&lt;bucket&gt;/&lt;file&gt; location — where <see cref="MigrateFromLegacy"/>
+        /// relocates it on document open — and falls back to the legacy
+        /// &lt;rvtDir&gt;/&lt;relPath&gt; sibling. Returns null when neither exists.
+        /// <para>
+        /// Without this, a registry that hard-codes the sibling path silently stops finding
+        /// its override the first time the project is opened after consolidation, and the
+        /// engine quietly reverts to corporate defaults — a wrong-answer regression rather
+        /// than a visible failure.
+        /// </para>
+        /// </summary>
+        public static string ResolveProjectOverridePath(Document doc, string relPath)
+        {
+            if (doc == null || string.IsNullOrEmpty(relPath)) return null;
+            try
+            {
+                string norm  = relPath.Replace('\\', '/');
+                int slash    = norm.IndexOf('/');
+                string bucket = slash > 0 ? norm.Substring(0, slash) : null;
+                string rest   = slash > 0 ? norm.Substring(slash + 1) : norm;
+                string restOs = rest.Replace('/', Path.DirectorySeparatorChar);
+
+                if (!string.IsNullOrEmpty(bucket))
+                {
+                    string metaDir = GetMetaPath(doc, bucket);
+                    if (!string.IsNullOrEmpty(metaDir))
+                    {
+                        string consolidated = Path.Combine(metaDir, restOs);
+                        if (File.Exists(consolidated)) return consolidated;
+                    }
+                }
+
+                string projDir = Path.GetDirectoryName(doc.PathName ?? "");
+                if (!string.IsNullOrEmpty(projDir))
+                {
+                    string legacy = Path.Combine(projDir, norm.Replace('/', Path.DirectorySeparatorChar));
+                    if (File.Exists(legacy)) return legacy;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveProjectOverridePath({relPath}): {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Legacy sibling DIRECTORY for a bucket: &lt;rvtDir&gt;/&lt;bucket&gt;/&lt;subParts…&gt;.
+        /// The directory-shaped counterpart to <see cref="ResolveProjectOverridePath"/>,
+        /// which resolves a single override FILE and so cannot serve callers that need a
+        /// search ROOT (content/family libraries, where the caller globs the folder).
+        /// <para>
+        /// Callers must add this AFTER the consolidated <c>StingPaths.Meta</c> root, never
+        /// instead of it: it exists so content placed before the ISO 19650 consolidation
+        /// still resolves. Returns null for an unsaved document.
+        /// </para>
+        /// <para>
+        /// This lives here rather than at the call site because ProjectFolderEngine owns the
+        /// folder layout and the legacy migration; hand-rolling the sibling path in a consumer
+        /// forks the layout away from the migration that has to move it (and trips the
+        /// path-discipline gate, correctly).
+        /// </para>
+        /// </summary>
+        public static string GetLegacyMetaDir(Document doc, string bucket, params string[] subParts)
+        {
+            if (doc == null || string.IsNullOrEmpty(bucket)) return null;
+            try
+            {
+                string projDir = string.IsNullOrEmpty(doc.PathName)
+                    ? null : Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(projDir)) return null;
+
+                string path = Path.Combine(projDir, bucket);
+                if (subParts != null)
+                {
+                    foreach (var part in subParts)
+                    {
+                        if (!string.IsNullOrEmpty(part)) path = Path.Combine(path, part);
+                    }
+                }
+                return path;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetLegacyMetaDir({bucket}): {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Transient staging area for an outbound channel (e.g. "acc", "sharepoint"),
+        /// under &lt;root&gt;/_data/staging/&lt;channel&gt;. Replaces the per-file
+        /// "_acc_mirror_tmp" folders and the case-inconsistent "_DATA/sharepoint_queue".
+        /// </summary>
+        public static string GetStagingPath(Document doc, string channel)
+            => GetMetaPath(doc, "staging", channel);
+
+        /// <summary>The single project recycle bin: &lt;root&gt;/_data/recycle/.</summary>
+        public static string GetRecyclePath(Document doc) => GetMetaPath(doc, "recycle");
 
         /// <summary>
         /// Persist the setup, build folder structure on disk, write FOLDER_INDEX.txt,
@@ -520,18 +746,185 @@ namespace StingTools.Core
         {
             public int FilesMoved { get; set; }
             public int FoldersRemoved { get; set; }
+
+            /// <summary>Per-file relocations that threw and did NOT complete. When &gt; 0 the
+            /// consolidation is incomplete: the breadcrumb is withheld so a later consented
+            /// run can finish the stranded files instead of being blocked by HasConsolidated.</summary>
+            public int FilesFailed { get; set; }
+
             public List<string> Warnings { get; set; } = new();
+
+            /// <summary>Every file relocation, "source|destination", in the order performed.</summary>
+            public List<string> Moves { get; set; } = new();
+
+            /// <summary>Legacy folders renamed aside rather than deleted, "original|retiredAs".</summary>
+            public List<string> RetiredFolders { get; set; } = new();
+
+            /// <summary>Where the breadcrumb was written, empty when nothing moved.</summary>
+            public string BreadcrumbPath { get; set; } = "";
+
+            /// <summary>
+            /// Non-empty when the run was declined rather than performed — no consent,
+            /// or already consolidated. Callers must treat this as "nothing happened".
+            /// </summary>
+            public string SkippedReason { get; set; } = "";
+
+            public bool DidRun => string.IsNullOrEmpty(SkippedReason);
+        }
+
+        /// <summary>One legacy source folder a consolidation would move, with its file count and destination.</summary>
+        public class LegacyScanItem
+        {
+            public string Source { get; set; }
+            public string Destination { get; set; }
+            public int FileCount { get; set; }
+        }
+
+        /// <summary>Dry-run preview of what <see cref="MigrateFromLegacy"/> would consolidate. Moves nothing.</summary>
+        public class LegacyScanReport
+        {
+            public List<LegacyScanItem> Items { get; set; } = new();
+            public int TotalFiles => Items.Sum(i => i.FileCount);
+        }
+
+        /// <summary>
+        /// Enumerate the legacy sibling folders next to the .rvt that a consolidation would
+        /// fold into the unified &lt;root&gt;/_data (or routed export folders), with per-source
+        /// file counts. Read-only — nothing is moved. Backs the Folders_ConsolidateAll dry-run.
+        /// </summary>
+        public static LegacyScanReport ScanLegacy(Document doc)
+        {
+            var rep = new LegacyScanReport();
+            try
+            {
+                string projDir = doc != null ? Path.GetDirectoryName(doc.PathName ?? "") : null;
+                if (string.IsNullOrEmpty(projDir)) return rep;
+                string dataPath = GetDataPath(doc);
+
+                int Count(string dir)
+                {
+                    try { return Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories).Count(); }
+                    catch { return 0; }
+                }
+
+                // Metadata buckets folded into _data/<bucket>/
+                foreach (string bucket in new[] { "_BIM_COORD", "_bim_manager", "STING_BIM_MANAGER", ".bimmanager" })
+                {
+                    string src = Path.Combine(projDir, bucket);
+                    if (!Directory.Exists(src)) continue;
+                    int n = Count(src);
+                    if (n > 0) rep.Items.Add(new LegacyScanItem
+                    {
+                        Source = src,
+                        Destination = string.IsNullOrEmpty(dataPath) ? "<root>/_data/" + bucket : Path.Combine(dataPath, bucket),
+                        FileCount = n
+                    });
+                }
+
+                // Separate CDE tree + export dumps, routed by content/extension
+                foreach (string legacy in new[] { "_CDE", "STING_Exports", "STING_Project" })
+                {
+                    string src = Path.Combine(projDir, legacy);
+                    if (!Directory.Exists(src)) continue;
+                    int n = Count(src);
+                    if (n > 0) rep.Items.Add(new LegacyScanItem
+                    {
+                        Source = src,
+                        Destination = "routed into the unified CDE / export / _data folders by type",
+                        FileCount = n
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ScanLegacy: {ex.Message}"); }
+            return rep;
+        }
+
+        /// <summary>Breadcrumb recording that a consolidation already ran for this project.</summary>
+        public static string ConsolidationBreadcrumbPath(Document doc)
+        {
+            string dataPath = GetDataPath(doc);
+            return string.IsNullOrEmpty(dataPath)
+                ? ""
+                : Path.Combine(dataPath, ".sting_consolidation.json");
+        }
+
+        /// <summary>
+        /// True once a consolidation has completed for this project. The breadcrumb is
+        /// what makes the migration at-most-once — re-running it after the user has
+        /// reorganised their folders by hand would drag files back.
+        /// </summary>
+        public static bool HasConsolidated(Document doc)
+        {
+            try
+            {
+                string p = ConsolidationBreadcrumbPath(doc);
+                return !string.IsNullOrEmpty(p) && File.Exists(p);
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Rename a drained legacy folder aside instead of deleting it, so a
+        /// consolidation is reversible by hand. Returns the retired path, or "" if
+        /// the folder still holds files (in which case it is left completely alone).
+        /// </summary>
+        private static string RetireLegacyFolder(string legacyDir, MigrationReport rep)
+        {
+            try
+            {
+                if (!Directory.Exists(legacyDir)) return "";
+                if (Directory.EnumerateFiles(legacyDir, "*.*", SearchOption.AllDirectories).Any())
+                    return "";   // something did not move — never touch it
+
+                string retired = legacyDir + ".migrated_" + DateTime.Now.ToString("yyyyMMdd");
+                if (Directory.Exists(retired)) retired = GetUniqueFileName(retired);
+                Directory.Move(legacyDir, retired);
+                rep.FoldersRemoved++;
+                rep.RetiredFolders.Add(legacyDir + "|" + retired);
+                return retired;
+            }
+            catch (Exception ex)
+            {
+                rep.Warnings.Add($"Retire {legacyDir}: {ex.Message}");
+                return "";
+            }
         }
 
         /// <summary>
         /// Detect legacy STING folders (_BIM_COORD, STING_BIM_MANAGER, STING_Exports,
         /// STING_Project) and .sting_*.json sidecar files alongside the .rvt; consolidate
         /// them into the new {ProjectCode}\ root.
+        ///
+        /// This MOVES a user's project data on disk, so it is opt-in and at-most-once:
+        /// <paramref name="consented"/> must be true (the caller having obtained explicit
+        /// consent), and it refuses to run a second time once the breadcrumb exists.
+        /// It never deletes a source folder — drained folders are renamed
+        /// <c>*.migrated_yyyyMMdd</c> so the operation can be undone by hand — and it
+        /// records every relocation in <c>.sting_consolidation.json</c>.
+        ///
+        /// It previously ran unprompted on every DocumentOpened, which moved files the
+        /// user had not asked to move, repeatedly, with no record of what went where.
         /// </summary>
-        public static MigrationReport MigrateFromLegacy(Document doc)
+        /// <param name="consented">
+        /// True only when the user has explicitly agreed to this specific run. Callers
+        /// wired to an automatic event MUST NOT pass true.
+        /// </param>
+        public static MigrationReport MigrateFromLegacy(Document doc, bool consented = false)
         {
             var rep = new MigrationReport();
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return rep;
+
+            if (!consented)
+            {
+                rep.SkippedReason = "consent required — call the Folders_Consolidate command";
+                return rep;
+            }
+
+            if (HasConsolidated(doc))
+            {
+                rep.SkippedReason = "already consolidated (" + ConsolidationBreadcrumbPath(doc) + ")";
+                return rep;
+            }
 
             try
             {
@@ -553,8 +946,9 @@ namespace StingTools.Core
                             if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                             File.Move(f, dest);
                             rep.FilesMoved++;
+                            rep.Moves.Add(f + "|" + dest);
                         }
-                        catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                        catch (Exception ex) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex.Message}"); }
                     }
                     foreach (string f in Directory.GetFiles(projDir, "*_STING_SEQ.json"))
                     {
@@ -564,8 +958,9 @@ namespace StingTools.Core
                             if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                             File.Move(f, dest);
                             rep.FilesMoved++;
+                            rep.Moves.Add(f + "|" + dest);
                         }
-                        catch (Exception ex) { rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                        catch (Exception ex) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex.Message}"); }
                     }
                 }
                 catch (Exception ex) { rep.Warnings.Add($"Sidecar scan: {ex.Message}"); }
@@ -592,11 +987,11 @@ namespace StingTools.Core
                                 if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                                 File.Move(f, dest);
                                 rep.FilesMoved++;
+                                rep.Moves.Add(f + "|" + dest);
                             }
-                            catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                            catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
-                        try { if (!Directory.EnumerateFiles(legacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(legacy, true); rep.FoldersRemoved++; } }
-                        catch (Exception ex2) { rep.Warnings.Add($"Delete {legacy}: {ex2.Message}"); }
+                        RetireLegacyFolder(legacy, rep);
                     }
                     catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
@@ -621,11 +1016,11 @@ namespace StingTools.Core
                                     if (File.Exists(dst)) dst = GetUniqueFileName(dst);
                                     File.Move(f, dst);
                                     rep.FilesMoved++;
+                                    rep.Moves.Add(f + "|" + dst);
                                 }
-                                catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                                catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
-                            try { if (!Directory.EnumerateFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(hiddenLegacy, true); rep.FoldersRemoved++; } }
-                            catch (Exception ex2) { rep.Warnings.Add($"Delete {hiddenLegacy}: {ex2.Message}"); }
+                            RetireLegacyFolder(hiddenLegacy, rep);
                         }
                         catch (Exception ex2) { rep.Warnings.Add($"Process {hiddenLegacy}: {ex2.Message}"); }
                     }
@@ -642,8 +1037,9 @@ namespace StingTools.Core
                         if (File.Exists(dst)) dst = GetUniqueFileName(dst);
                         File.Move(src, dst);
                         rep.FilesMoved++;
+                        rep.Moves.Add(src + "|" + dst);
                     }
-                    catch (Exception ex2) { rep.Warnings.Add($"Move {src}: {ex2.Message}"); }
+                    catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {src}: {ex2.Message}"); }
                 }
 
                 // 2d. BOQ rate-source heat-map exports
@@ -666,11 +1062,11 @@ namespace StingTools.Core
                                     if (File.Exists(dst)) dst = GetUniqueFileName(dst);
                                     File.Move(f, dst);
                                     rep.FilesMoved++;
+                                    rep.Moves.Add(f + "|" + dst);
                                 }
-                                catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                                catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                             }
-                            try { if (!Directory.EnumerateFiles(boqLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(boqLegacy, true); rep.FoldersRemoved++; } }
-                            catch (Exception ex2) { rep.Warnings.Add($"Delete {boqLegacy}: {ex2.Message}"); }
+                            RetireLegacyFolder(boqLegacy, rep);
                         }
                         catch (Exception ex2) { rep.Warnings.Add($"Process {boqLegacy}: {ex2.Message}"); }
                     }
@@ -691,8 +1087,9 @@ namespace StingTools.Core
                                 if (Directory.Exists(dest)) dest = GetUniqueFileName(dest);
                                 Directory.Move(sub, dest);
                                 rep.FoldersRemoved++;
+                                rep.Moves.Add(sub + "|" + dest);
                             }
-                            catch (Exception ex2) { rep.Warnings.Add($"Move {sub}: {ex2.Message}"); }
+                            catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {sub}: {ex2.Message}"); }
                         }
                     }
                 }
@@ -733,25 +1130,18 @@ namespace StingTools.Core
                                 if (File.Exists(dest)) dest = GetUniqueFileName(dest);
                                 File.Move(f, dest);
                                 rep.FilesMoved++;
+                                rep.Moves.Add(f + "|" + dest);
                             }
-                            catch (Exception ex2) { rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                            catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
-                        try
-                        {
-                            // Only delete if empty after migration
-                            if (!Directory.EnumerateFiles(legacy, "*.*", SearchOption.AllDirectories).Any())
-                            {
-                                Directory.Delete(legacy, true);
-                                rep.FoldersRemoved++;
-                            }
-                        }
-                        catch (Exception ex2) { rep.Warnings.Add($"Delete {legacy}: {ex2.Message}"); }
+                        RetireLegacyFolder(legacy, rep);
                     }
                     catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
 
                 InvalidateFolderStatsCache();
-                StingLog.Info($"MigrateFromLegacy: {rep.FilesMoved} files moved, {rep.FoldersRemoved} folders removed.");
+                WriteConsolidationBreadcrumb(doc, rep);
+                StingLog.Info($"MigrateFromLegacy: {rep.FilesMoved} files moved, {rep.FoldersRemoved} folders retired, {rep.FilesFailed} failed. Breadcrumb: {(string.IsNullOrEmpty(rep.BreadcrumbPath) ? "(withheld — re-run to finish)" : rep.BreadcrumbPath)}");
             }
             catch (Exception ex)
             {
@@ -759,6 +1149,70 @@ namespace StingTools.Core
                 StingLog.Warn($"MigrateFromLegacy: {ex.Message}");
             }
             return rep;
+        }
+
+        /// <summary>
+        /// Record exactly what a consolidation moved, so the user can see what
+        /// happened and undo it: every relocation is listed source-to-destination,
+        /// and every retired folder names the <c>*.migrated_yyyyMMdd</c> it became.
+        /// Presence of this file is also what stops a second run.
+        /// </summary>
+        private static void WriteConsolidationBreadcrumb(Document doc, MigrationReport rep)
+        {
+            try
+            {
+                // Nothing moved: leave no breadcrumb, so a project that genuinely has
+                // legacy folders later still gets its one consolidation.
+                if (rep.FilesMoved == 0 && rep.FoldersRemoved == 0) return;
+
+                // A straggler remains: at least one file threw on move (RetireLegacyFolder
+                // has already left any folder that still holds files in place). Writing the
+                // breadcrumb now would make HasConsolidated block the retry that would finish
+                // the job, stranding those files in the legacy folder forever. Leave no
+                // breadcrumb so the next consented run completes the move — already-relocated
+                // files are gone from the source, so nothing double-moves (retire-not-delete
+                // is untouched).
+                if (rep.FilesFailed > 0)
+                {
+                    StingLog.Warn($"WriteConsolidationBreadcrumb: {rep.FilesFailed} file(s) failed to move — breadcrumb withheld so the consolidation can be re-run to finish.");
+                    return;
+                }
+
+                string path = ConsolidationBreadcrumbPath(doc);
+                if (string.IsNullOrEmpty(path)) return;
+
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+                var payload = new JObject
+                {
+                    ["consolidated_utc"] = DateTime.UtcNow.ToString("o"),
+                    ["model"]            = doc?.PathName ?? "",
+                    ["files_moved"]      = rep.FilesMoved,
+                    ["folders_retired"]  = rep.FoldersRemoved,
+                    ["moves"]            = new JArray(rep.Moves.Select(m => (JToken)new JObject
+                    {
+                        ["from"] = m.Split('|')[0],
+                        ["to"]   = m.Split('|').Length > 1 ? m.Split('|')[1] : "",
+                    })),
+                    ["retired_folders"]  = new JArray(rep.RetiredFolders.Select(m => (JToken)new JObject
+                    {
+                        ["original"]   = m.Split('|')[0],
+                        ["retired_as"] = m.Split('|').Length > 1 ? m.Split('|')[1] : "",
+                    })),
+                    ["warnings"]         = new JArray(rep.Warnings.Select(w => (JToken)w)),
+                    ["undo_hint"]        = "No source was deleted. To undo, move files back "
+                                         + "and rename each *.migrated_* folder to its original name.",
+                };
+
+                File.WriteAllText(path, payload.ToString(Newtonsoft.Json.Formatting.Indented));
+                rep.BreadcrumbPath = path;
+            }
+            catch (Exception ex)
+            {
+                rep.Warnings.Add($"Breadcrumb: {ex.Message}");
+                StingLog.Warn($"WriteConsolidationBreadcrumb: {ex.Message}");
+            }
         }
 
         /// <summary>UI-bindable folder tree node.</summary>
@@ -855,28 +1309,28 @@ namespace StingTools.Core
             try
             {
                 var setup = LoadOrDetectSetup(doc);
-                string folderId = null;
+                string route = null;
                 if (setup != null && setup.ExportRoutes != null &&
                     setup.ExportRoutes.TryGetValue(exportTypeKey ?? "", out string routed))
                 {
-                    folderId = routed;
+                    route = routed;
                 }
-                if (string.IsNullOrEmpty(folderId) && ExportTypeToFolder.TryGetValue(exportTypeKey ?? "", out string fb))
-                    folderId = fb;
-                if (string.IsNullOrEmpty(folderId)) folderId = "MISC";
+                bool cdeFirst = setup != null && setup.Mode == ProjectFolderMode.CdeFirst;
+                if (string.IsNullOrEmpty(route) && !cdeFirst && ExportTypeToFolder.TryGetValue(exportTypeKey ?? "", out string fb))
+                    route = fb;
+                if (string.IsNullOrEmpty(route)) route = "MISC";
 
-                string folder;
-                if (string.Equals(folderId, "_DATA", StringComparison.OrdinalIgnoreCase))
-                    folder = GetDataPath(doc);
-                else
-                    folder = GetFolderPath(doc, folderId);
+                string folder = ResolveRoutedFolder(doc, route);
                 if (string.IsNullOrEmpty(folder)) folder = GetRootPath(doc);
 
-                // Discipline sub-routing
+                // Discipline sub-routing. For a "STATE|ContentType" (CdeFirst) route the
+                // discipline nests under the content-type folder; for a plain folder id the
+                // legacy rule applies (only folders flagged HasDisciplineSubfolders).
                 if (!string.IsNullOrEmpty(disciplineCode) && setup != null)
                 {
-                    var fdef = setup.GetFolder(folderId);
-                    if (fdef != null && fdef.HasDisciplineSubfolders && setup.Disciplines != null)
+                    bool applyDisc = route.IndexOf('|') > 0
+                        || (setup.GetFolder(route)?.HasDisciplineSubfolders ?? false);
+                    if (applyDisc && setup.Disciplines != null)
                     {
                         string match = setup.Disciplines.FirstOrDefault(d =>
                             d.StartsWith(disciplineCode + "_", StringComparison.OrdinalIgnoreCase) ||
@@ -937,58 +1391,60 @@ namespace StingTools.Core
 
         // ── Folder creation ───────────────────────────────────────────────
 
-        /// <summary>Create the full ISO 19650 folder structure.</summary>
+        /// <summary>
+        /// Create the full ISO 19650 folder structure.
+        /// <para>
+        /// Builds from the active <see cref="ProjectSetup"/> (bootstrapped from
+        /// <see cref="ProjectSetup.CreateBIM"/> when absent) so this entry point and the
+        /// auto-bootstrap path produce an IDENTICAL tree. Previously the two builders
+        /// disagreed — 7 vs 5 discipline subfolders and 14 vs 4 issue subfolders — so the
+        /// shape of a project's folders depended on which code path ran first.
+        /// </para>
+        /// </summary>
         public static int CreateFolderStructure(Document doc)
         {
             string root = GetRootPath(doc);
-            string code = doc != null ? DetectProjectCode(doc) : "";
-            int created = 0;
-            foreach (var (id, name, desc, _) in Folders)
+            if (string.IsNullOrEmpty(root)) return 0;
+
+            var setup = LoadOrBootstrapSetup(doc);
+            if (setup == null)
             {
-                string suffixed = ProjectSetup.WithCodeSuffix(name, code);
-                string path = Path.Combine(root, suffixed);
+                StingLog.Warn("CreateFolderStructure: no project setup available");
+                return 0;
+            }
+
+            int created = 0;
+            foreach (var f in setup.CustomFolders)
+            {
+                if (setup.HiddenFolders.Contains(f.Id, StringComparer.OrdinalIgnoreCase)) continue;
+
+                string path = Path.Combine(root, f.DisplayName);
                 if (!Directory.Exists(path))
                 {
                     try { Directory.CreateDirectory(path); created++; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {suffixed}: {ex.Message}"); }
+                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {f.DisplayName}: {ex.Message}"); continue; }
                 }
-            }
-            // Create sub-folders for CDE folders (CONFIG-02: configurable)
-            foreach (string cdeFolder in new[] { "01_WIP", "02_SHARED", "03_PUBLISHED" })
-            {
-                string cdePath = Path.Combine(root, ProjectSetup.WithCodeSuffix(cdeFolder, code));
-                foreach (string disc in _disciplineFolders)
+
+                if (f.HasDisciplineSubfolders)
                 {
-                    string discPath = Path.Combine(cdePath, disc);
-                    if (!Directory.Exists(discPath))
+                    foreach (string disc in EffectiveDisciplines(setup))
                     {
+                        string discPath = Path.Combine(path, disc);
+                        if (Directory.Exists(discPath)) continue;
                         try { Directory.CreateDirectory(discPath); created++; }
                         catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {discPath}: {ex.Message}"); }
                     }
                 }
-            }
 
-            // Create clash sub-folders
-            string clashRoot = Path.Combine(root, ProjectSetup.WithCodeSuffix("12_CLASHES", code));
-            foreach (string sub in new[] { "BCF", "Reports", "Snapshots" })
-            {
-                string subPath = Path.Combine(clashRoot, sub);
-                if (!Directory.Exists(subPath))
+                if (f.SubFolders != null)
                 {
-                    try { Directory.CreateDirectory(subPath); created++; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create clash sub: {ex.Message}"); }
-                }
-            }
-
-            // Create issue sub-folders by type
-            string issueRoot = Path.Combine(root, ProjectSetup.WithCodeSuffix("11_ISSUES", code));
-            foreach (string sub in new[] { "RFI", "TQ", "NCR", "EWN", "SI", "VO", "AI", "CVI", "CE", "DESIGN", "CLASH", "SNAGGING", "RFA", "PMI" })
-            {
-                string subPath = Path.Combine(issueRoot, sub);
-                if (!Directory.Exists(subPath))
-                {
-                    try { Directory.CreateDirectory(subPath); created++; }
-                    catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create issue sub: {ex.Message}"); }
+                    foreach (string sub in f.SubFolders)
+                    {
+                        string subPath = Path.Combine(path, sub);
+                        if (Directory.Exists(subPath)) continue;
+                        try { Directory.CreateDirectory(subPath); created++; }
+                        catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {subPath}: {ex.Message}"); }
+                    }
                 }
             }
 
@@ -1017,6 +1473,23 @@ namespace StingTools.Core
                     try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetFolderPath: {ex.Message}"); }
                     return p;
                 }
+
+                // CdeFirst has no numbered content folders (05_MODELS…20_MISC). Callers still
+                // pass those ids (MigrateFromLegacy routes by extension, briefcase export, …),
+                // and falling through to the built-in list below would mint BIM-numbered
+                // siblings inside a CDE-first tree — the very sprawl this layout removes.
+                // Route the unknown id to that setup's own MISC instead.
+                if (setup != null && setup.Mode == ProjectFolderMode.CdeFirst)
+                {
+                    var misc = setup.GetFolder("MISC");
+                    if (misc != null)
+                    {
+                        string mp = Path.Combine(root, misc.DisplayName);
+                        try { Directory.CreateDirectory(mp); } catch (Exception ex) { StingLog.Warn($"GetFolderPath MISC: {ex.Message}"); }
+                        StingLog.Warn($"GetFolderPath: '{folderId}' is not part of the CdeFirst layout — routed to {misc.DisplayName}.");
+                        return mp;
+                    }
+                }
             }
             catch (Exception ex) { StingLog.Warn($"GetFolderPath setup: {ex.Message}"); }
 
@@ -1038,25 +1511,56 @@ namespace StingTools.Core
         /// <summary>Get the folder path for an export type key (e.g. "PDF", "COBie", "BCF").</summary>
         public static string GetExportFolder(Document doc, string exportTypeKey)
         {
+            ProjectSetup setup = null;
             // Phase 167: honour ProjectSetup ExportRoutes first
             try
             {
-                var setup = LoadOrDetectSetup(doc);
+                setup = LoadOrDetectSetup(doc);
                 if (setup != null && setup.ExportRoutes != null &&
                     !string.IsNullOrEmpty(exportTypeKey) &&
-                    setup.ExportRoutes.TryGetValue(exportTypeKey, out string folderId) &&
-                    !string.IsNullOrEmpty(folderId))
+                    setup.ExportRoutes.TryGetValue(exportTypeKey, out string route) &&
+                    !string.IsNullOrEmpty(route))
                 {
-                    if (string.Equals(folderId, "_DATA", StringComparison.OrdinalIgnoreCase))
-                        return GetDataPath(doc);
-                    return GetFolderPath(doc, folderId);
+                    return ResolveRoutedFolder(doc, route);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GetExportFolder setup lookup: {ex.Message}"); }
 
+            // CdeFirst projects have no numbered content folders (05_MODELS…20_MISC), so an
+            // unmatched key must land in that mode's own MISC rather than mint a stray
+            // BIM-style folder via the ExportTypeToFolder fallback.
+            if (setup != null && setup.Mode == ProjectFolderMode.CdeFirst)
+                return GetFolderPath(doc, "MISC");
+
             if (ExportTypeToFolder.TryGetValue(exportTypeKey ?? "", out string folderId2))
                 return GetFolderPath(doc, folderId2);
             return GetFolderPath(doc, "MISC");
+        }
+
+        /// <summary>
+        /// Resolve a route value to a folder. Values are "_DATA" (→ _data), "STATE|ContentType"
+        /// (→ a CDE state's content-type subfolder, CdeFirst mode), or a plain folder id
+        /// (→ that top-level folder). BIM/Mini route values never contain '|', so they resolve
+        /// exactly as before.
+        /// </summary>
+        private static string ResolveRoutedFolder(Document doc, string route)
+        {
+            if (string.Equals(route, "_DATA", StringComparison.OrdinalIgnoreCase))
+                return GetDataPath(doc);
+
+            int bar = route.IndexOf('|');
+            if (bar > 0)
+            {
+                string state = route.Substring(0, bar);
+                string contentType = route.Substring(bar + 1);
+                string stateDir = GetFolderPath(doc, state);
+                if (string.IsNullOrEmpty(stateDir)) return GetFolderPath(doc, "MISC");
+                string p = Path.Combine(stateDir, contentType);
+                try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"ResolveRoutedFolder: {ex.Message}"); }
+                return p;
+            }
+
+            return GetFolderPath(doc, route);
         }
 
         /// <summary>Get timestamped export path routed to the correct folder.</summary>
@@ -1069,6 +1573,45 @@ namespace StingTools.Core
 
         // ── File inventory ────────────────────────────────────────────────
 
+        /// <summary>Is this folder id one of the four ISO 19650 CDE container states?</summary>
+        private static bool IsCdeStateId(string id) =>
+            string.Equals(id, "WIP",       StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "SHARED",    StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "PUBLISHED", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "ARCHIVE",   StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The folders to inventory for this document: the ACTIVE ProjectSetup's folders when
+        /// one exists, else the built-in numbered list. The inventory used to iterate the static
+        /// <see cref="Folders"/> array only, so under a CdeFirst setup (00_WIP, 01_SHARED …)
+        /// none of the state folders matched and every file in them was invisible to the
+        /// Document Manager while folder stats reported them empty.
+        /// </summary>
+        private static IEnumerable<(string Id, string Display, string Desc, string Cde, string BuiltInName)>
+            EffectiveFolders(Document doc)
+        {
+            ProjectSetup setup = null;
+            try { setup = LoadOrDetectSetup(doc); }
+            catch (Exception ex) { StingLog.Warn($"EffectiveFolders setup: {ex.Message}"); }
+
+            if (setup?.CustomFolders != null && setup.CustomFolders.Count > 0)
+            {
+                foreach (var f in setup.CustomFolders)
+                {
+                    if (setup.HiddenFolders != null &&
+                        setup.HiddenFolders.Contains(f.Id, StringComparer.OrdinalIgnoreCase)) continue;
+                    var meta = Folders.FirstOrDefault(x => string.Equals(x.Id, f.Id, StringComparison.OrdinalIgnoreCase));
+                    string cde = IsCdeStateId(f.Id) ? f.Id.ToUpperInvariant() : (meta.CDE ?? "");
+                    yield return (f.Id, f.DisplayName, meta.Description ?? f.Id, cde, meta.Name);
+                }
+                yield break;
+            }
+
+            string code = doc != null ? DetectProjectCode(doc) : "";
+            foreach (var (id, name, desc, cde) in Folders)
+                yield return (id, ProjectSetup.WithCodeSuffix(name, code), desc, cde, name);
+        }
+
         /// <summary>
         /// Scan the folder structure and return all files with metadata.
         /// </summary>
@@ -1077,15 +1620,15 @@ namespace StingTools.Core
             var files = new List<ProjectFile>();
             string root = GetRootPath(doc);
             if (!Directory.Exists(root)) return files;
-            string codeAF = doc != null ? DetectProjectCode(doc) : "";
 
-            foreach (var (id, name, desc, cde) in Folders)
+            foreach (var (id, name, desc, cde, builtInName) in EffectiveFolders(doc))
             {
-                string folderPath = Path.Combine(root, ProjectSetup.WithCodeSuffix(name, codeAF));
+                string folderPath = Path.Combine(root, name);
                 if (!Directory.Exists(folderPath))
                 {
                     // Backwards-compat: fall back to the un-suffixed legacy path
-                    string legacyPath = Path.Combine(root, name);
+                    if (string.IsNullOrEmpty(builtInName)) continue;
+                    string legacyPath = Path.Combine(root, builtInName);
                     if (!Directory.Exists(legacyPath)) continue;
                     folderPath = legacyPath;
                 }
@@ -1131,21 +1674,21 @@ namespace StingTools.Core
         /// <summary>Get folder statistics (cached for 10 seconds — PERF-02).</summary>
         public static List<FolderStats> GetFolderStats(Document doc)
         {
-            if (_folderStatsCache != null && (DateTime.Now - _folderStatsCacheTime) < FolderStatsCacheDuration)
-                return _folderStatsCache;
+            string statsKey = doc?.PathName ?? "<no-doc>";
+            if (_folderStatsByDoc.TryGetValue(statsKey, out var cached) &&
+                (DateTime.Now - cached.When) < FolderStatsCacheDuration && cached.Stats != null)
+                return cached.Stats;
 
             var stats = new List<FolderStats>();
             string root = GetRootPath(doc);
             if (!Directory.Exists(root)) return stats;
-            string codeFS = doc != null ? DetectProjectCode(doc) : "";
 
-            foreach (var (id, name, desc, cde) in Folders)
+            foreach (var (id, name, desc, cde, builtInName) in EffectiveFolders(doc))
             {
-                string suffixedName = ProjectSetup.WithCodeSuffix(name, codeFS);
-                string folderPath = Path.Combine(root, suffixedName);
-                if (!Directory.Exists(folderPath))
+                string folderPath = Path.Combine(root, name);
+                if (!Directory.Exists(folderPath) && !string.IsNullOrEmpty(builtInName))
                 {
-                    string legacyFs = Path.Combine(root, name);
+                    string legacyFs = Path.Combine(root, builtInName);
                     if (Directory.Exists(legacyFs)) folderPath = legacyFs;
                 }
                 int fileCount = 0;
@@ -1179,30 +1722,75 @@ namespace StingTools.Core
                     Exists = Directory.Exists(folderPath)
                 });
             }
-            _folderStatsCache = stats;
-            _folderStatsCacheTime = DateTime.Now;
+            _folderStatsByDoc[statsKey] = (DateTime.Now, stats);
             return stats;
         }
 
         // ── File operations ───────────────────────────────────────────────
 
-        /// <summary>Soft-delete: move file to _RECYCLE subfolder (OP-005). Hard-delete if recycle fails.</summary>
+        /// <summary>
+        /// Resolve the ONE recycle bin for the project that owns <paramref name="filePath"/>:
+        /// &lt;root&gt;/_data/recycle/. Walks up from the file looking for the project root
+        /// (the ancestor containing a "_data" folder). Falls back to a sibling "_RECYCLE"
+        /// only for files outside any StingTools project root.
+        /// </summary>
+        private static string ResolveRecycleDir(string filePath)
+        {
+            try
+            {
+                var dir = new DirectoryInfo(Path.GetDirectoryName(filePath) ?? "");
+                for (int depth = 0; dir != null && depth < 8; depth++, dir = dir.Parent)
+                {
+                    string data = Path.Combine(dir.FullName, "_data");
+                    if (Directory.Exists(data)) return Path.Combine(data, "recycle");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveRecycleDir: {ex.Message}"); }
+            return Path.Combine(Path.GetDirectoryName(filePath) ?? "", "_RECYCLE");
+        }
+
+        /// <summary>
+        /// Record where a recycled file came from, so RestoreFile can put it back even
+        /// though the bin is now central rather than a sibling of the original folder.
+        /// </summary>
+        private static void RecordRecycleOrigin(string recycleDir, string recycledName, string originalPath)
+        {
+            try
+            {
+                string indexPath = Path.Combine(recycleDir, "recycle_index.json");
+                JObject index;
+                try { index = File.Exists(indexPath) ? JObject.Parse(File.ReadAllText(indexPath)) : new JObject(); }
+                catch (Exception ex) { StingLog.Warn($"recycle_index parse failed — starting fresh: {ex.Message}"); index = new JObject(); }
+                index[recycledName] = originalPath;
+                OutputLocationHelper.WriteAllTextAtomic(indexPath, index.ToString(Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"RecordRecycleOrigin: {ex.Message}"); }
+        }
+
+        /// <summary>Soft-delete: move file to the project recycle bin (OP-005). Hard-delete if recycle fails.</summary>
         public static bool DeleteFile(string filePath)
         {
             try
             {
                 if (!File.Exists(filePath)) return false;
                 string name = Path.GetFileName(filePath);
-                string dir = Path.GetDirectoryName(filePath) ?? "";
 
-                // Try soft-delete to _RECYCLE
-                string recycleDir = Path.Combine(dir, "_RECYCLE");
+                // Soft-delete into the single project recycle bin
+                string recycleDir = ResolveRecycleDir(filePath);
                 try
                 {
                     if (!Directory.Exists(recycleDir)) Directory.CreateDirectory(recycleDir);
+                    // Uniquify: the bin is now CENTRAL (one per project), so two same-named
+                    // files recycled in the same second — e.g. a bulk delete of Plan.pdf from
+                    // both 01_WIP/A and 02_SHARED/A — would collide. Previously the collision
+                    // threw, fell into the catch below and HARD-DELETED the second file while
+                    // reporting success.
                     string recyclePath = Path.Combine(recycleDir, $"{DateTime.Now:yyyyMMdd_HHmmss}_{name}");
+                    if (File.Exists(recyclePath)) recyclePath = GetUniqueFileName(recyclePath);
+                    string recycledName = Path.GetFileName(recyclePath);
                     File.Move(filePath, recyclePath);
-                    StingLog.Info($"ProjectFolderEngine: Recycled {name} → _RECYCLE");
+                    RecordRecycleOrigin(recycleDir, recycledName, filePath);
+                    StingLog.Info($"ProjectFolderEngine: Recycled {name} → {recycleDir}");
                     LogActivity(null, "RECYCLE", name, filePath);
                     InvalidateFolderStatsCache();
                     RaiseFileChanged("RECYCLE", name, filePath);
@@ -1223,17 +1811,26 @@ namespace StingTools.Core
             return false;
         }
 
-        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        /// <summary>Restore a file from the project recycle bin.</summary>
         public static bool RestoreFile(string recyclePath, string originalDir = null)
         {
             try
             {
                 if (!File.Exists(recyclePath)) return false;
-                string name = Path.GetFileName(recyclePath);
+                string recycledName = Path.GetFileName(recyclePath);
+                string name = recycledName;
                 // Strip timestamp prefix (yyyyMMdd_HHmmss_)
                 if (name.Length > 16 && name[15] == '_')
                     name = name.Substring(16);
-                string targetDir = originalDir ?? Path.GetDirectoryName(Path.GetDirectoryName(recyclePath)) ?? "";
+
+                // Prefer the recorded origin — the bin is central, so the old
+                // "parent of the parent" guess no longer locates the source folder.
+                string targetDir = originalDir;
+                if (string.IsNullOrEmpty(targetDir))
+                    targetDir = LookupRecycleOrigin(Path.GetDirectoryName(recyclePath) ?? "", recycledName);
+                if (string.IsNullOrEmpty(targetDir))
+                    targetDir = Path.GetDirectoryName(Path.GetDirectoryName(recyclePath)) ?? "";
+
                 string targetPath = Path.Combine(targetDir, name);
                 if (File.Exists(targetPath)) targetPath = GetUniqueFileName(targetPath);
                 File.Move(recyclePath, targetPath);
@@ -1245,6 +1842,20 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.RestoreFile: {ex.Message}"); }
             return false;
+        }
+
+        /// <summary>Original directory a recycled file came from, or null when unknown.</summary>
+        private static string LookupRecycleOrigin(string recycleDir, string recycledName)
+        {
+            try
+            {
+                string indexPath = Path.Combine(recycleDir, "recycle_index.json");
+                if (!File.Exists(indexPath)) return null;
+                var index = JObject.Parse(File.ReadAllText(indexPath));
+                string original = (string)index[recycledName];
+                return string.IsNullOrEmpty(original) ? null : Path.GetDirectoryName(original);
+            }
+            catch (Exception ex) { StingLog.Warn($"LookupRecycleOrigin: {ex.Message}"); return null; }
         }
 
         /// <summary>Rename a file and log the activity.</summary>
@@ -1388,8 +1999,15 @@ namespace StingTools.Core
                     config = JObject.Parse(File.ReadAllText(configPath));
                 else
                     config = new JObject();
-                config["PROJECT_FOLDER_ROOT"] = _rootPath ?? "";
-                File.WriteAllText(configPath, config.ToString(Newtonsoft.Json.Formatting.Indented));
+                // Persist PROJECT_FOLDER_ROOT only when a genuine global override is set.
+                // Auto-populating it with a computed per-document root (the old behaviour)
+                // re-introduced the override next session and leaked one project's root
+                // onto every other project — the cross-session form of the same bug.
+                if (!string.IsNullOrEmpty(_rootPath))
+                {
+                    config["PROJECT_FOLDER_ROOT"] = _rootPath;
+                    File.WriteAllText(configPath, config.ToString(Newtonsoft.Json.Formatting.Indented));
+                }
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.SaveRootToConfig: {ex.Message}"); }
         }
@@ -1731,54 +2349,138 @@ namespace StingTools.Core
         /// <summary>
         /// When files are moved to PUBLISHED or SHARED, auto-log a transmittal record.
         /// Called from BulkUpdateCDE and MoveFile when target is a CDE folder.
+        /// <para>
+        /// Delegates to <see cref="Planscape.Docs.Templates.TransmittalOrchestrator"/> so
+        /// auto-logged transmittals share ONE store, ONE id scheme (TX-NNNN), the rendered
+        /// document, the workflow instance and the hash-chained audit entry with
+        /// user-initiated transmittals. Recipients come from the default distribution
+        /// group when one is configured. If the orchestrator cannot complete (typically
+        /// no transmittal template registered in the project manifest), a minimal stub row
+        /// is still written so the CDE move is never silently unrecorded.
+        /// </para>
         /// </summary>
         public static void AutoLogTransmittal(Document doc, List<string> filePaths, string cdeStatus)
         {
             if (filePaths == null || filePaths.Count == 0) return;
             if (cdeStatus != "SHARED" && cdeStatus != "PUBLISHED") return;
 
+            string user;
+            try { user = doc?.Application?.Username ?? Environment.UserName; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); user = Environment.UserName; }
+
             try
             {
-                string bimDir = GetMetaPath(doc, "STING_BIM_MANAGER");
-                if (string.IsNullOrEmpty(bimDir))
+                var request = new Planscape.Docs.Templates.TransmittalRequest
+                {
+                    Subject      = $"Auto-transmittal: {filePaths.Count} file(s) → {cdeStatus}",
+                    Reason       = "CDE state change",
+                    Method       = "CDE",
+                    IssueDate    = DateTime.UtcNow,
+                    IssuedBy     = user,
+                    CoveringNote = $"Automatically raised when {filePaths.Count} file(s) moved to {cdeStatus}.",
+                    Recipients   = ResolveAutoTransmittalRecipients(doc),
+                    Documents    = filePaths.Select(f => new Planscape.Docs.Templates.TransmittalDocumentRef
+                    {
+                        Number      = Path.GetFileNameWithoutExtension(f),
+                        Title       = Path.GetFileName(f),
+                        Suitability = cdeStatus == "PUBLISHED" ? "S4" : "S2",
+                        FilePath    = f
+                    }).ToList()
+                };
+
+                var result = Planscape.Docs.Templates.TransmittalOrchestrator.Create(doc, request);
+                if (result != null && result.Ok)
+                {
+                    string id = result.Record?.Value<string>("id") ?? request.TransmittalId;
+                    LogActivity(doc, "AUTO_TRANSMITTAL", id, $"{filePaths.Count} files moved to {cdeStatus}");
+                    StingLog.Info($"ProjectFolderEngine: Auto-transmittal {id} created for {filePaths.Count} files → {cdeStatus}");
+                    return;
+                }
+
+                StingLog.Warn($"AutoLogTransmittal: orchestrator declined ({result?.Error ?? "no result"}) — writing stub row");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoLogTransmittal: orchestrator failed ({ex.Message}) — writing stub row");
+            }
+
+            WriteStubTransmittal(doc, filePaths, cdeStatus, user);
+        }
+
+        /// <summary>
+        /// Recipients for an auto-raised transmittal: the members of the first configured
+        /// distribution group (preferring one named/ided "default"), else empty so the
+        /// orchestrator records an unaddressed CDE notice rather than a fake recipient.
+        /// </summary>
+        private static List<string> ResolveAutoTransmittalRecipients(Document doc)
+        {
+            try
+            {
+                var groups = Planscape.Docs.Workflow.DistributionGroups.LoadAll(doc);
+                if (groups == null || groups.Count == 0) return new List<string>();
+
+                var group = groups.FirstOrDefault(g =>
+                                string.Equals(g?.Id, "default", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(g?.Name, "default", StringComparison.OrdinalIgnoreCase))
+                            ?? groups[0];
+
+                return (group?.Members ?? new List<Planscape.Docs.Workflow.DistributionMember>())
+                       .Select(m => string.IsNullOrWhiteSpace(m?.Email) ? m?.Name : m.Email)
+                       .Where(s => !string.IsNullOrWhiteSpace(s))
+                       .ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveAutoTransmittalRecipients: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
+        /// <summary>
+        /// Last-resort transmittal row, written only when the orchestrator cannot run.
+        /// Uses the orchestrator's own store and id prefix so there is still exactly one
+        /// transmittal store per project.
+        /// </summary>
+        private static void WriteStubTransmittal(Document doc, List<string> filePaths, string cdeStatus, string user)
+        {
+            try
+            {
+                string metaDir = GetMetaPath(doc, "_BIM_COORD");
+                if (string.IsNullOrEmpty(metaDir))
                 {
                     StingLog.Warn("AutoLogTransmittal: cannot resolve metadata path");
                     return;
                 }
 
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = Path.Combine(metaDir, "transmittals.json");
                 JArray arr;
-                if (File.Exists(transPath))
-                    arr = JArray.Parse(File.ReadAllText(transPath));
-                else
-                    arr = new JArray();
-
-                string transId = $"TR-{DateTime.Now:yyyyMMdd-HHmmss}";
-                string user = "";
-                try { user = doc?.Application?.Username ?? Environment.UserName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); user = Environment.UserName; }
-
-                var trans = new JObject
+                try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
+                catch (Exception ex)
                 {
-                    ["transmittal_id"] = transId,
-                    ["title"] = $"Auto-transmittal: {filePaths.Count} files → {cdeStatus}",
-                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
-                    ["status"] = "AUTO_GENERATED",
-                    ["cde_status"] = cdeStatus,
-                    ["recipient"] = "(auto-logged)",
-                    ["created_by"] = user,
-                    ["revision"] = "",
-                    ["documents"] = new JArray(filePaths.Select(f => Path.GetFileName(f)))
-                };
-                arr.Add(trans);
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    StingLog.Warn($"transmittals.json parse failed — starting fresh: {ex.Message}");
+                    arr = new JArray();
+                }
 
-                // Log activity
-                LogActivity(doc, "AUTO_TRANSMITTAL", transId,
-                    $"{filePaths.Count} files moved to {cdeStatus}");
+                string transId = $"TX-{(arr.Count + 1):D4}";
+                arr.Add(new JObject
+                {
+                    ["id"]           = transId,
+                    ["subject"]      = $"Auto-transmittal: {filePaths.Count} file(s) → {cdeStatus}",
+                    ["reason"]       = "CDE state change",
+                    ["method"]       = "CDE",
+                    ["issue_date"]   = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    ["status"]       = "AUTO_GENERATED",
+                    ["cde_status"]   = cdeStatus,
+                    ["recipients"]   = new JArray(ResolveAutoTransmittalRecipients(doc)),
+                    ["issued_by"]    = user,
+                    ["documents"]    = new JArray(filePaths.Select(f => Path.GetFileName(f)))
+                });
 
-                StingLog.Info($"ProjectFolderEngine: Auto-transmittal {transId} created for {filePaths.Count} files → {cdeStatus}");
+                OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                LogActivity(doc, "AUTO_TRANSMITTAL", transId, $"{filePaths.Count} files moved to {cdeStatus}");
+                StingLog.Info($"ProjectFolderEngine: stub auto-transmittal {transId} for {filePaths.Count} files → {cdeStatus}");
             }
-            catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.AutoLogTransmittal: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.WriteStubTransmittal: {ex.Message}"); }
         }
 
         // ── Clash Grouping ────────────────────────────────────────────────
@@ -1808,7 +2510,7 @@ namespace StingTools.Core
 
                 foreach (var g in byDisc.OrderByDescending(x => x.Count()))
                 {
-                    int open = g.Count(c => c["status"]?.ToString() != "CLOSED");
+                    int open = g.Count(c => IssueSchema.IsOpen(c as JObject));
                     int critical = g.Count(c => c["priority"]?.ToString() == "CRITICAL" || c["priority"]?.ToString() == "HIGH");
                     groups.Add(new ClashGroup
                     {
@@ -2013,9 +2715,11 @@ namespace StingTools.Core
             // Wrap in a try so a missing ACC connection never blocks the caller.
             try
             {
-                // Build a minimal package dir alongside the file
+                // Stage under the single machine-state root (<root>/_data/staging/acc)
+                // instead of littering an "_acc_mirror_tmp" folder beside every published file.
                 string fileName = Path.GetFileName(localFilePath);
-                string tmpDir = Path.Combine(Path.GetDirectoryName(localFilePath), "_acc_mirror_tmp");
+                string tmpDir = GetStagingPath(doc, "acc")
+                                ?? Path.Combine(Path.GetDirectoryName(localFilePath), "_acc_mirror_tmp");
                 Directory.CreateDirectory(tmpDir);
                 string dest = Path.Combine(tmpDir, fileName);
                 File.Copy(localFilePath, dest, overwrite: true);
@@ -2039,8 +2743,8 @@ namespace StingTools.Core
                 // SharePoint: stage the file in a well-known export folder.
                 // The existing SharePointExportCommand handles the actual upload;
                 // here we create a sidecar that tells it which file to upload.
-                string bimDir = GetRootPath(doc);
-                string spStageDir = Path.Combine(bimDir, "_DATA", "sharepoint_queue");
+                string spStageDir = GetStagingPath(doc, "sharepoint");
+                if (string.IsNullOrEmpty(spStageDir)) return;
                 Directory.CreateDirectory(spStageDir);
                 string entry = $"{{\"file\":\"{localFilePath.Replace("\\", "\\\\")}\",\"cdeState\":\"{cdeState}\",\"cloudRoot\":\"{cloudRoot.Replace("\\", "\\\\")}\"}}";
                 string queueFile = Path.Combine(spStageDir, $"{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileName(localFilePath)}.json");

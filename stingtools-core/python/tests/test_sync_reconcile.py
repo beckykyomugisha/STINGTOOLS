@@ -252,6 +252,83 @@ def test_category_and_family_are_still_excluded():
     assert adapter.applied == []
 
 
+# ── rule 4: blank-vs-set is adoption, not a conflict (P1) ─────────────────────
+
+def test_blank_local_seq_adopts_the_server_seq_even_when_local_is_newer():
+    """A fresh re-export (no STING pset, newest mtime) must NOT re-mint: the
+    server's SEQ fills the local blank regardless of the newer local timestamp."""
+    a = _Adapter()
+    local_side = tokens(seq="")                       # every inferred token, blank seq
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=NOW - timedelta(hours=1), seq="0042")],   # server OLDER…
+        {"g1": {"tokens": local_side, "modified_utc": iso(NOW), "element": "h"}})  # …local NEWER
+    assert r.applied == 1, "the blank seq must be filled from the server"
+    assert a.applied[0].payload["seq"] == "0042"
+    assert r.conflicts == [], "filling a blank is not a conflict"
+
+
+def test_all_blank_local_adopts_every_server_token_and_mints_nothing():
+    """The whole-element case: an untagged export adopts every server token."""
+    a = _Adapter()
+    blank = {k: "" for k in
+             ("disc", "loc", "zone", "lvl", "sys", "func", "prod", "seq", "status")}
+    server = tokens(seq="0007")
+    r = ReconcileEngine(a).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=server,
+                     last_modified_utc=iso(NOW - timedelta(days=1)))],  # server older
+        {"g1": {"tokens": blank, "modified_utc": iso(NOW), "element": "h"}})  # local newest
+    assert r.applied == 1
+    for k in ("disc", "seq", "sys"):
+        assert a.applied[0].payload[k] == server[k]
+    assert r.conflicts == [], "adopting into blanks is not a conflict"
+
+
+def test_blank_remote_keeps_and_pushes_the_local_value():
+    """Reverse direction: the server lacks a value the file has → local kept,
+    the push half sends it up, and the server value is never blanked out."""
+    a = _Adapter()
+    remote_blank_seq = tokens(seq="")
+    r = ReconcileEngine(a).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote_blank_seq,
+                     last_modified_utc=iso(NOW + timedelta(hours=1)))],  # server NEWER
+        {"g1": local(ts=NOW, seq="0099")})                              # file has the seq
+    assert r.kept_local == 1, "a value the server lacks must not blank out the file"
+    assert a.applied == []
+    assert r.conflicts == []
+
+
+def test_disjoint_blanks_merge_from_both_sides():
+    """Server fills seq, file fills zone — both survive, no conflict."""
+    a = _Adapter()
+    local_side = tokens(seq="", zone="Z09")      # local: zone set, seq blank
+    remote_side = tokens(seq="0042", zone="")    # remote: seq set, zone blank
+    r = ReconcileEngine(a).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote_side,
+                     last_modified_utc=iso(NOW))],
+        {"g1": {"tokens": local_side, "modified_utc": iso(NOW), "element": "h"}})
+    assert r.applied == 1
+    assert a.applied[0].payload["seq"] == "0042", "seq adopted from the server"
+    assert a.applied[0].payload["zone"] == "Z09", "zone kept from the file"
+    assert r.conflicts == [], "disjoint blank-fills are not a conflict"
+
+
+def test_local_wins_the_contest_but_still_adopts_the_server_blank_fill():
+    """The subtle merge: local wins a genuine zone disagreement AND still adopts
+    the server's SEQ into its blank — one element, one write, one conflict."""
+    a = _Adapter()
+    local_side = tokens(seq="", zone="Z01")      # local zone Z01, seq blank
+    remote_side = tokens(seq="0042", zone="Z99")  # server zone Z99, seq set
+    r = ReconcileEngine(a).reconcile(              # LOCAL newer → local zone wins
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote_side,
+                     last_modified_utc=iso(NOW))],
+        {"g1": {"tokens": local_side,
+                "modified_utc": iso(NOW + timedelta(minutes=5)), "element": "h"}})
+    assert r.applied == 1, "a write is still needed — to adopt the server's seq"
+    assert a.applied[0].payload["seq"] == "0042", "blank-fill adopted despite losing zone"
+    assert a.applied[0].payload["zone"] == "Z01", "local won the real disagreement"
+    assert len(r.conflicts) == 1, "only the zone was a genuine conflict"
+
+
 # ── rule 6: missing timestamps ───────────────────────────────────────────────
 
 def test_remote_without_a_timestamp_cannot_win():

@@ -96,6 +96,15 @@ namespace Planscape.Docs.Workflow
 
         private static string Safe(Func<string> f) { try { return f(); } catch { return null; } }
 
+        /// <summary>
+        /// Where this store lives. Public because readers outside the template engine
+        /// (the BCC transmittal panel) were resolving it independently and landing in
+        /// the STING_BIM_MANAGER bucket while this writer used _BIM_COORD — so the
+        /// panel reported "No distribution_groups.json found" no matter how many
+        /// groups existed. One owner, one path.
+        /// </summary>
+        public static string ResolveStorePath(Document doc) => StorePath(doc);
+
         private static string StorePath(Document doc)
         {
             string root = ResolveProjectRoot(doc);

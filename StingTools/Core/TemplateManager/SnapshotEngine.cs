@@ -117,10 +117,8 @@ namespace StingTools.Core.TemplateManager
                 snap.Counters["filters"] = snap.Filters.Count.ToString();
 
                 // Persist
-                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                if (string.IsNullOrEmpty(projDir)) projDir = Path.GetTempPath();
                 string ts2 = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string dir = Path.Combine(projDir, "_BIM_COORD", DirName, ts2);
+                string dir = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD", DirName), ts2);
                 Directory.CreateDirectory(dir);
                 string path = Path.Combine(dir, "state.json");
                 File.WriteAllText(path, JsonConvert.SerializeObject(snap, Formatting.Indented));

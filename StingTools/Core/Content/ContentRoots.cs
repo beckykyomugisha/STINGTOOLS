@@ -31,10 +31,20 @@ namespace StingTools.Core.Content
                     ? Path.GetDirectoryName(doc.PathName) : null;
                 if (!string.IsNullOrEmpty(docDir))
                 {
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Content"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Symbols"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Seeds"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families"));
+                    // Consolidated <root>/_data/_BIM_COORD/… (post ISO 19650 consolidation)…
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Content"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Seeds"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families"));
+                    // …then the legacy <projDir>/_BIM_COORD/… siblings, so families placed
+                    // before consolidation still resolve (dedup drops any overlap). Mirrors the
+                    // consolidated-first / legacy-sibling fallback the registries get from
+                    // ProjectFolderEngine.ResolveProjectOverridePath — resolved through
+                    // GetLegacyMetaDir so the layout stays owned by ProjectFolderEngine.
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Content"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Symbols"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Seeds"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families"));
                 }
             }
             catch { /* unsaved doc */ }

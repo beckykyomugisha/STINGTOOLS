@@ -480,7 +480,7 @@ namespace StingTools.Docs
                 string projDir = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName);
                 if (!string.IsNullOrEmpty(projDir))
                 {
-                    string p = Path.Combine(projDir, "STING_BIM_MANAGER", name);
+                    string p = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), name);
                     if (File.Exists(p)) return p;
                 }
             }

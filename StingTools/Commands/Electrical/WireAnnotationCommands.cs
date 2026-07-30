@@ -216,7 +216,7 @@ namespace StingTools.Commands.Electrical
 
             string coordDir = string.IsNullOrEmpty(projDir)
                 ? Path.Combine(Path.GetTempPath(), "STING")
-                : Path.Combine(projDir, "_BIM_COORD");
+                : StingPaths.Meta(doc, "_BIM_COORD");
 
             return Path.Combine(coordDir, FileName);
         }
