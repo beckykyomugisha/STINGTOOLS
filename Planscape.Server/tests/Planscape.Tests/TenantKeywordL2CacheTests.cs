@@ -26,8 +26,26 @@ namespace Planscape.Tests;
 /// </summary>
 public class TenantKeywordL2CacheTests
 {
+    /// <summary>
+    /// Pins the write-through, and the fact that L1 is process-wide.
+    ///
+    /// This was ResolveAsync_HitsL2OnSecondCall, asserting that a fresh resolver
+    /// instance "simulates a process boundary" so L1 starts cold and L2 serves.
+    /// That premise is false by construction: DbTenantKeywordResolver's L1 is a
+    /// **static** StripedBoundedLruCache (see the class doc, "L1: static
+    /// striped-LRU"), shared by every instance in the process. The second
+    /// resolver therefore hits L1 and never consults L2, so HitCount stayed 0 —
+    /// the test was asserting against the design rather than a defect in it.
+    ///
+    /// KNOWN GAP: nothing here proves L2 *serves* data on a genuine L1 miss.
+    /// Doing so needs either an L1 invalidation hook (which the resolver
+    /// deliberately does not have — it invalidates by content hash, so editing
+    /// the JSON yields a new key) or a second process. ResolveAsync_L2BlipFallsBackToDb
+    /// covers the L2 read being attempted and its failure being survivable;
+    /// the happy-path read remains unproven by this suite.
+    /// </summary>
     [Fact]
-    public async Task ResolveAsync_HitsL2OnSecondCall()
+    public async Task ResolveAsync_WritesThroughToL2_AndL1ServesSubsequentInstances()
     {
         await using var db = NewInMemoryDb();
         var tenantId = await SeedTenant(db, """{ "working": ["PARKED"] }""");
@@ -42,12 +60,14 @@ public class TenantKeywordL2CacheTests
         Assert.Equal(0, l2.HitCount);   // no GetString returned data on first call
         Assert.Equal(1, l2.SetCount);   // wrote through
 
-        // Second call from a fresh resolver instance — simulates a
-        // process boundary. L1 will start cold; L2 should serve.
+        // Second call from a fresh resolver instance. L1 is static, so this is
+        // an L1 hit: the same values come back without another L2 read and
+        // without a second write-through.
         var freshResolver = new DbTenantKeywordResolver(db, l2);
         var second = await freshResolver.ResolveAsync(tenantId);
         Assert.Contains("PARKED", second["working"]);
-        Assert.True(l2.HitCount >= 1, "Expected the second resolver to hit L2");
+        Assert.Equal(0, l2.HitCount);
+        Assert.Equal(1, l2.SetCount);
     }
 
     [Fact]
