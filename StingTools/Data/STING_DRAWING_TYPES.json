@@ -4652,57 +4652,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -4801,57 +4793,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -6326,43 +6310,37 @@
             "ruleType": "AutoTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "AutoTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "All"
+            "skipIfTagged": true
           }
         ]
       },
@@ -6837,57 +6815,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -6983,57 +6953,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
@@ -7156,57 +7118,49 @@
             "ruleType": "Auto3DTag",
             "category": "OST_MechanicalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_ElectricalEquipment",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_PlumbingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_LightingFixtures",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Furniture",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Doors",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Windows",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           },
           {
             "ruleType": "Auto3DTag",
             "category": "OST_Rooms",
             "enabled": true,
-            "skipIfTagged": true,
-            "densityMode": "Heroes"
+            "skipIfTagged": true
           }
         ],
         "autoTag": true,
