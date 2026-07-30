@@ -786,7 +786,26 @@ else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
         Planscape.Infrastructure.Services.GltfBoundsThumbnailGenerator>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        // Several endpoints return EF entities directly rather than DTOs. Once
+        // the parent is tracked in the same context, EF fixes up the inverse
+        // navigation, so Issue.Project.Issues points back at the Issue and the
+        // serializer walks the loop until it throws
+        //   "A possible object cycle was detected ... $.Project.Issues.Project..."
+        // The action has already succeeded at that point, so the failure lands
+        // mid-response: a 500 with a truncated body, or a torn stream on the
+        // client. Six integration tests were failing this way.
+        //
+        // IgnoreCycles writes null at the point the loop closes instead of
+        // throwing, which turns a 500 into a well-formed payload. It is a
+        // backstop, not the fix — the real fix is projecting to DTOs at each of
+        // those endpoints, and until that lands this keeps the failure mode
+        // from being an outage.
+        o.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // MODEL-VIEWER — raise the multipart form parser cap to 200 MB so the

@@ -408,21 +408,44 @@ public sealed class DeliverableStateMachine
         // 1. Rejecting — strongest "negative outcome" signal first.
         foreach (var kw in RejectKeywords) if (s.Contains(kw)) return "rejecting";
 
-        // 2. Accepting — strongest "positive outcome" signal.
+        // 2. "Awaiting an outcome" phrases, BEFORE the outcome buckets.
+        //
+        // "ISSUED_FOR_APPROVAL" describes something sent out and waiting, not
+        // something approved. But AcceptKeywords contains "APPROV", which is a
+        // substring of it, so the accept scan below claimed the state first and
+        // returned "accepting" — asserting the deliverable had been signed off
+        // when it was still in someone's review queue. Same for
+        // "ISSUED_FOR_CONSTRUCTION" and friends.
+        //
+        // SubmitKeywords already lists these phrases; they were simply
+        // unreachable behind step 3. Hoisting the "FOR_"-style phrases (and
+        // only those — bare "SUBMIT"/"REVIEW" stay at step 3) fixes the
+        // precedence without weakening "APPROVED" → accepting.
+        foreach (var kw in AwaitingPhrases) if (s.Contains(kw)) return "submitting";
+
+        // 3. Accepting — strongest "positive outcome" signal.
         foreach (var kw in AcceptKeywords) if (s.Contains(kw)) return "accepting";
 
         // 3. Submitting — "in review" / "for review" precedes acceptance.
         foreach (var kw in SubmitKeywords) if (s.Contains(kw)) return "submitting";
 
-        // 4. Terminal — archival / closure verbs.
+        // 4. Blocked-but-live, BEFORE terminal.
+        //
+        // "BLOCKED" contains "LOCKED", which is a terminal keyword, so
+        // "BLOCKED_BY_RFI" — a deliverable someone is actively chasing — was
+        // classified "terminal" and dropped out of live reporting. Substring
+        // scanning has no word boundaries, so the only fix is precedence.
+        foreach (var kw in BlockedPhrases) if (s.Contains(kw)) return "working";
+
+        // 5. Terminal — archival / closure verbs.
         foreach (var kw in TerminalKeywords) if (s.Contains(kw)) return "terminal";
 
-        // 5. Working — broad "in progress" signal. Last among the
+        // 6. Working — broad "in progress" signal. Last among the
         // "actively-doing-something" buckets so it doesn't shadow more
         // specific outcomes.
         foreach (var kw in WorkingKeywords) if (s.Contains(kw)) return "working";
 
-        // 6. Initial — broadest "queued / not started" signal. Last
+        // 7. Initial — broadest "queued / not started" signal. Last
         // overall because words like "OPEN" can appear in compound names
         // (e.g. RE-OPENED) where another bucket is more accurate.
         foreach (var kw in InitialKeywords) if (s.Contains(kw)) return "initial";
@@ -446,8 +469,25 @@ public sealed class DeliverableStateMachine
         { "REJECT", "DECLIN", "RETURN", "REWORK", "FAIL", "VOID" };
     private static readonly string[] AcceptKeywords =
         { "ACCEPT", "APPROV", "PUBLISH", "SIGNED_OFF", "SIGNOFF", "PASSED" };
+    /// <summary>
+    /// "Sent out and waiting" phrases. Scanned before the accept/reject buckets
+    /// because each one contains an outcome word as a substring
+    /// ("...FOR_APPROVAL" contains "APPROV") and would otherwise be mistaken for
+    /// the outcome itself. Keep this list to phrases only — a bare verb here
+    /// would shadow the genuine outcome states.
+    /// </summary>
+    private static readonly string[] AwaitingPhrases =
+        { "ISSUED_FOR", "FOR_APPROVAL", "FOR_INFORMATION", "FOR_COMMENT", "FOR_REVIEW",
+          "AWAITING", "PENDING_APPROVAL", "PENDING_REVIEW" };
     private static readonly string[] SubmitKeywords =
         { "SUBMIT", "REVIEW", "ISSUED_FOR", "FOR_INFORMATION", "FOR_APPROVAL", "FOR_COMMENT", "ESCALAT" };
+    /// <summary>
+    /// Still-live states whose text collides with a terminal keyword.
+    /// "BLOCKED" contains "LOCKED"; scanned first so a blocked-but-active
+    /// deliverable is not reported as closed.
+    /// </summary>
+    private static readonly string[] BlockedPhrases =
+        { "BLOCKED", "UNBLOCKED" };
     private static readonly string[] TerminalKeywords =
         { "ARCHIV", "CLOSED", "CANCELL", "WAIVE", "SUPERSED", "COMPLETE", "FINAL", "DONE",
           "LOCKED", "FROZEN", "ABANDON", "WITHDRAW", "HANDED_OVER", "HANDOVER" };
