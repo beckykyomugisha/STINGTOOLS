@@ -83,6 +83,7 @@ public class BimManagerOrAdminHandlerTests
         // Per-test isolated in-memory DB.
         var services = new ServiceCollection();
         services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        services.AddAuthorizationTestDoubles();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())

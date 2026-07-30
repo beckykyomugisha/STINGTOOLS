@@ -805,6 +805,14 @@ public class AuthController : ControllerBase
 
     /// <summary>Activate a licence key to unlock a tier (Professional / Premium / Enterprise).</summary>
     /// <response code="200">Activation result with tier, MIM flag, and server URL.</response>
+    // DEP-5 — was the ONLY AuthController endpoint without a rate limit, which
+    // left the licence-key space brute-forceable at line speed. It returns
+    // entitlement facts rather than a JWT, so the blast radius is disclosure
+    // plus activation-count burn (a guessed key can be burned to its
+    // MaxActivations by an attacker) rather than session theft — but neither is
+    // acceptable to leave open. Uses the "auth" policy: partitioned by IP,
+    // 5 attempts per 5 minutes, same as login and password reset.
+    [EnableRateLimiting("auth")]
     [HttpPost("license/activate")]
     [ProducesResponseType(typeof(LicenseActivationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<LicenseActivationResponse>> ActivateLicense([FromBody] LicenseActivationRequest req)

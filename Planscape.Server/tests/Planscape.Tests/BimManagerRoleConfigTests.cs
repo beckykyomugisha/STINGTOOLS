@@ -125,6 +125,7 @@ public class BimManagerRoleConfigTests
 
         var services = new ServiceCollection();
         services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        services.AddAuthorizationTestDoubles();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
