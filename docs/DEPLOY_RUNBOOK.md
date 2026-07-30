@@ -209,7 +209,14 @@ Render once the CNAME verifies.)
 
 ```bash
 # API healthy + schema materialised (EnsureCreated path — see §1)
-curl -fsS https://api.planscape.build/health         # → 200
+#
+# /health/live, not /health. The full diagnostic at /health is gated in
+# Production on a private-network caller AND an X-Health-Token header (S11), so
+# from your laptop it answers 403 — which looks exactly like a failed deploy and
+# is not one. /health/live is the anonymous liveness probe, and is what
+# render.yaml points healthCheckPath at for the same reason.
+curl -fsS https://api.planscape.build/health/live     # → {"status":"alive"}
+curl -fsS https://api.planscape.build/health/ready    # → {"status":"ready"} (DB reachable)
 
 # Owner login works (PlatformOwnerSeeder ran)
 curl -fsS -X POST https://api.planscape.build/api/auth/login \

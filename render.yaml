@@ -42,7 +42,20 @@ services:
     # below Pro this is a single box and every deploy drops all WebSockets.
     # Full tier capacity table: docs/DEPLOY_RUNBOOK.md § Cost / scaling notes.
     plan: starter
-    healthCheckPath: /health
+    # /health/live, NOT /health.
+    #
+    # /health is the full diagnostic (which database, which push provider, a
+    # Redis ping) and the S11 hardening gates it on
+    #   Development ? isPrivate : isPrivate && tokenOk
+    # In Production that means a private-network caller AND a matching
+    # X-Health-Token header. Render's health prober cannot send that header, so
+    # /health would answer 403, Render would mark the service unhealthy, and the
+    # deploy would never go live — on a healthy app.
+    #
+    # /health/live is AllowAnonymous by design and returns {status:"alive"}.
+    # It is the liveness contract; /health/ready adds a DB CanConnect check if
+    # you would rather gate on dependencies too.
+    healthCheckPath: /health/live
     autoDeploy: true
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
