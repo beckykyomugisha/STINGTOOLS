@@ -237,7 +237,7 @@
           "name": "CALORIFIER_DIRECT",
           "params": {
             "PLM_EQP_TYPE_TXT": "CALORIFIER_DIRECT",
-            "ASS_PRODCT_COD_TXT": "CAL-D",
+            "ASS_PRODCT_COD_TXT": "CALD",
             "PLM_EQP_CAPACITY_LITRES": "200",
             "PLM_EQP_HEAT_OUTPUT_KW": "9"
           }
@@ -258,7 +258,7 @@
           "name": "DHW_CYLINDER_VENTED",
           "params": {
             "PLM_EQP_TYPE_TXT": "DHW_CYLINDER_VENTED",
-            "ASS_PRODCT_COD_TXT": "CYL-V",
+            "ASS_PRODCT_COD_TXT": "CYLV",
             "PLM_EQP_CAPACITY_LITRES": "140",
             "PLM_EQP_HEAT_OUTPUT_KW": "3"
           }
@@ -286,7 +286,7 @@
           "name": "PUMP_TWIN_SET",
           "params": {
             "PLM_EQP_TYPE_TXT": "PUMP_TWIN_SET",
-            "ASS_PRODCT_COD_TXT": "PMP-T"
+            "ASS_PRODCT_COD_TXT": "PMPT"
           }
         },
         {

@@ -31,10 +31,20 @@ namespace StingTools.Core.Content
                     ? Path.GetDirectoryName(doc.PathName) : null;
                 if (!string.IsNullOrEmpty(docDir))
                 {
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Content"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Symbols"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families", "Seeds"));
-                    project.Add(Path.Combine(docDir, "_BIM_COORD", "Families"));
+                    // Consolidated <root>/_data/_BIM_COORD/… (post ISO 19650 consolidation)…
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Content"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Seeds"));
+                    project.Add(StingPaths.Meta(doc, "_BIM_COORD", "Families"));
+                    // …then the legacy <projDir>/_BIM_COORD/… siblings, so families placed
+                    // before consolidation still resolve (dedup drops any overlap). Mirrors the
+                    // consolidated-first / legacy-sibling fallback the registries get from
+                    // ProjectFolderEngine.ResolveProjectOverridePath — resolved through
+                    // GetLegacyMetaDir so the layout stays owned by ProjectFolderEngine.
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Content"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Symbols"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Seeds"));
+                    project.Add(ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families"));
                 }
             }
             catch { /* unsaved doc */ }
@@ -73,7 +83,8 @@ namespace StingTools.Core.Content
 
         /// <summary>Firm-wide content root: STING_CONTENT_LIB env →
         /// %APPDATA%/STING/sting_content.json:"content_root" → (legacy)
-        /// STING_SYMBOL_LIB / sting_symbols.json:"symbol_library_root". Null when unset.</summary>
+        /// STING_SYMBOL_LIB / sting_symbols.json:"symbol_library_root" →
+        /// %PROGRAMDATA%/STING/ContentLibrary (W-3 default). Null only on error.</summary>
         public static string ResolveSharedRoot()
         {
             try
@@ -99,6 +110,22 @@ namespace StingTools.Core.Content
                     var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(legacyCfg));
                     var lib = (string)root["symbol_library_root"];
                     if (!string.IsNullOrWhiteSpace(lib)) return lib.Trim();
+                }
+
+                // W-3 — machine-wide default, delegated to the symbol engine so the
+                // two shared-root resolvers cannot drift apart. Content lives one
+                // level above the symbols sub-folder that resolver returns.
+                //
+                // Returned whether or not it exists yet, matching how the project and
+                // baseline tiers are assembled above: Resolve() does not filter on
+                // existence and its consumers already tolerate a missing folder.
+                // Gating this on Directory.Exists would make the answer depend on
+                // whether a build had happened to run first.
+                var symbolsDefault = Symbols.MepSymbolEngine.DefaultSharedLibraryRoot;
+                if (!string.IsNullOrEmpty(symbolsDefault))
+                {
+                    var contentDefault = Path.GetDirectoryName(symbolsDefault);
+                    if (!string.IsNullOrEmpty(contentDefault)) return contentDefault;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ContentRoots.ResolveSharedRoot: {ex.Message}"); }

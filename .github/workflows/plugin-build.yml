@@ -1,0 +1,103 @@
+name: Plugin — Build Revit add-in (DLL bundle)
+
+# Produces a downloadable StingTools.dll bundle so the add-in can be deployed to
+# a tester's machine WITHOUT anyone owning a Windows build box. The plugin builds
+# against the Nice3point Revit 2025 reference assemblies from NuGet (compile-time
+# only — Revit loads its own API at runtime), so the runner needs no Revit install.
+#
+# Trigger it three ways:
+#   • manually  — Actions tab → this workflow → "Run workflow" (workflow_dispatch)
+#   • on merge  — any push to main touching StingTools/**
+#   • on PR     — any PR to main touching StingTools/** (or this workflow file),
+#                 so opening a plugin PR tells you whether it still compiles.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'StingTools/**'
+      - 'StingTools.addin'
+      - '.github/workflows/plugin-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'StingTools/**'
+      - 'StingTools.addin'
+      - '.github/workflows/plugin-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build StingTools.dll (Release)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore StingTools/StingTools.csproj
+
+      # UseRevitNuget=true forces the NuGet reference-assembly path (the runner has
+      # no Revit installed anyway). Warnings are non-fatal; a compile ERROR fails
+      # the job — which is exactly the "does it still build?" gate.
+      - name: Build (Release)
+        run: >
+          dotnet build StingTools/StingTools.csproj
+          -c Release --no-restore
+          -p:UseRevitNuget=true
+          --nologo -v minimal
+
+      - name: Stage deploy bundle
+        shell: pwsh
+        run: |
+          $stage = "CompiledPlugin"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          # AppendTargetFrameworkToOutputPath=false → output is bin\Release (flat).
+          Copy-Item StingTools/bin/Release/* $stage -Recurse -Force
+          Copy-Item StingTools.addin $stage -Force
+          $note = @"
+          STING Tools — Revit add-in (Release build)
+
+          WHAT'S HERE
+            StingTools.dll     the plugin
+            *.dll              its dependencies (Newtonsoft, ClosedXML, Lucene x3, ...)
+            data/              runtime data files (REQUIRED — keep alongside the DLL)
+            StingTools.addin   Revit manifest
+
+          INSTALL (tester machine — Revit 2025/2026/2027 must be installed)
+            1. Copy this whole folder to a stable path, e.g. C:\Dev\STINGTOOLS\CompiledPlugin\
+            2. Edit StingTools.addin — set <Assembly> to the FULL path of StingTools.dll
+               from step 1 (it ships pointing at C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll).
+            3. Copy StingTools.addin into ONE of these (match your Revit year):
+                 %AppData%\Autodesk\Revit\Addins\2025\
+               ONE location only — never both per-user and per-machine (Revit double-loads -> crash).
+            4. Remove any legacy pyRevit StingDocs / STINGTags / STINGTemp add-ins.
+            5. Restart Revit.
+
+          TROUBLESHOOTING
+            Log: StingTools.log is written next to StingTools.dll. Send it back if it crashes.
+
+          Built by GitHub Actions against Nice3point Revit 2025 reference assemblies
+          (compile-time only — Revit loads its own API at runtime).
+          "@
+          Set-Content -Path "$stage/INSTALL.txt" -Value $note -Encoding utf8
+          Write-Host "Bundle contents:"
+          Get-ChildItem $stage | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: StingTools-plugin-${{ github.sha }}
+          path: CompiledPlugin/**
+          retention-days: 30
+          if-no-files-found: error

@@ -13538,7 +13538,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "STING_SHEET_OF_TOTAL_TXT",
           "anchor": [
             704,
             22.0
@@ -14306,7 +14306,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "STING_SHEET_OF_TOTAL_TXT",
           "anchor": [
             704,
             22.0
@@ -15074,7 +15074,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "STING_SHEET_OF_TOTAL_TXT",
           "anchor": [
             704,
             22.0
@@ -15842,7 +15842,7 @@
           "size": 1.4
         },
         {
-          "param": "STING_SHEET_FULL_REF_TXT",
+          "param": "STING_SHEET_OF_TOTAL_TXT",
           "anchor": [
             704,
             22.0

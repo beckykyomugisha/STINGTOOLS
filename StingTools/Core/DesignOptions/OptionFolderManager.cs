@@ -1,8 +1,8 @@
 // StingTools — per-option CDE folder mint.
 //
-// Phase 175 — generates `_BIM_COORD/options/<set>/<option>/` under the
-// WIP container so per-option transmittals, schedule exports, and
-// briefcase backups have a stable home. Idempotent.
+// Phase 175 — generates `<WIP>/options/<set>/<option>/` under the WIP CDE
+// container so per-option transmittals, schedule exports, and briefcase
+// backups have a stable home. Idempotent.
 
 using System;
 using System.Collections.Generic;
@@ -16,8 +16,14 @@ namespace StingTools.Core.DesignOptions
     {
         public static string GetOptionsRoot(Document doc)
         {
-            string proj = OutputLocationHelper.GetOutputDirectory(doc);
-            return Path.Combine(proj, "_BIM_COORD", "options");
+            // Per-option deliverable folders live under the WIP CDE container.
+            // They previously landed under OutputLocationHelper's 20_MISC folder as
+            // "20_MISC/_BIM_COORD/options", nesting a THIRD _BIM_COORD tree one level
+            // deep inside an export bucket — a "folder repeated inside another folder"
+            // instance. Falls back to the routed export dir only if WIP can't resolve.
+            string wip = ProjectFolderEngine.GetFolderPath(doc, "WIP");
+            if (string.IsNullOrEmpty(wip)) wip = OutputLocationHelper.GetOutputDirectory(doc);
+            return Path.Combine(wip, "options");
         }
 
         public static string GetOptionFolder(Document doc, string setName, string optionName)

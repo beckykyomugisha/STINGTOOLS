@@ -93,6 +93,43 @@ namespace StingTools.Core.Symbols
         private static double Scale(double normCoord, double symbolSizeMm)
             => normCoord * MmToFt(symbolSizeMm);
 
+        /// <summary>
+        /// Millimetre size the symbol's normalised geometry is expanded to.
+        ///
+        /// <para>Annotation and detail templates plot in PAPER space — Revit holds
+        /// them at a constant plotted size at any view scale — so
+        /// <c>symbolSize</c> is exactly right there, and the "Symbol Scale"
+        /// parameter carried by 520 annotation symbols is inert by design. It is
+        /// left in place deliberately: it is harmless, and stripping it would make
+        /// existing project families diverge from newly built ones.</para>
+        ///
+        /// <para>Model templates live in MODEL space, where a paper-space size
+        /// yields a device a few millimetres across. Those use
+        /// <c>realSizeMm</c>. Falling back to <c>symbolSize</c> for a model family
+        /// is a defect, so it warns rather than failing silently.</para>
+        /// </summary>
+        private static double ResolveGeometrySizeMm(SymbolDefinition def, TemplateKind kind,
+            SymbolCreationResult result)
+        {
+            double paper = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+            if (!IsModelSpaceTemplate(kind)) return paper;
+
+            if (def.RealSizeMm > 0) return def.RealSizeMm;
+
+            result?.Warnings.Add(
+                $"{def.Id}: model-category symbol has no realSizeMm — falling back to the " +
+                $"paper-space symbolSize ({paper:F1}mm). The family will be built a few " +
+                "millimetres across and will be effectively invisible in model views.");
+            return paper;
+        }
+
+        /// <summary>
+        /// True when the template places geometry in model space, where sizes are
+        /// real-world rather than plotted.
+        /// </summary>
+        private static bool IsModelSpaceTemplate(TemplateKind kind)
+            => kind == TemplateKind.Model;
+
         // ─────────────────────────────────────────────────────────────────
         // Fix 5 — Geometry coordinate range validation
         // ─────────────────────────────────────────────────────────────────
@@ -169,6 +206,26 @@ namespace StingTools.Core.Symbols
             var app = hostDoc.Application;
             var templateFolder = ResolveTemplateFolder(app);
 
+            // ── Cache invalidation (W-1) ──────────────────────────────────
+            // Existence alone is not freshness. A .rfa on disk may have been
+            // built from an older catalogue, or by an older generator whose
+            // output differed even though every catalogue byte is identical.
+            // rebuildMode forces a rebuild regardless (Symbols_Rebuild -> Force all).
+            var cache = SymbolCacheManifest.Load(outputFolder);
+            bool hashStale = cache.IsCatalogueStale(jsonPath, out string staleReason);
+            bool catalogueStale = rebuildMode || hashStale;
+            if (catalogueStale)
+            {
+                string cause = rebuildMode ? "forced rebuild" : staleReason;
+                StingLog.Info($"SymbolLibraryCreator: rebuilding '{Path.GetFileName(jsonPath)}' — {cause}.");
+                result.Warnings.Add($"{Path.GetFileName(jsonPath)}: rebuilding cached families — {cause}.");
+            }
+
+            // Every id this run considered, and the subset that failed. Used to carry a
+            // per-symbol retry list in the sidecar (see RecordFailures).
+            var attemptedIds = new List<string>();
+            var failedIds = new List<string>();
+
             foreach (var def in lib.Symbols)
             {
                 if (string.IsNullOrWhiteSpace(def?.Id))
@@ -177,6 +234,8 @@ namespace StingTools.Core.Symbols
                     result.Errors.Add("Symbol with empty id skipped.");
                     continue;
                 }
+
+                attemptedIds.Add(def.Id);
 
                 // Apply project-level size config (global multiplier / category / per-symbol override).
                 if (sizeConfig != null)
@@ -190,7 +249,13 @@ namespace StingTools.Core.Symbols
                 }
 
                 var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
-                if (File.Exists(rfaPath))
+                // W-1 — a stale catalogue (or generator) means the .rfa on disk was
+                // built from something that no longer describes this symbol, so
+                // existence no longer licenses a skip. Fall through to BuildOne,
+                // which overwrites via SaveAsOptions.OverwriteExistingFile.
+                // IsSymbolStale additionally retries anything that failed last run,
+                // whose on-disk file may be a survivor of a failed regeneration.
+                if (File.Exists(rfaPath) && !catalogueStale && !cache.IsSymbolStale(def.Id))
                 {
                     // If the .rfa loads cleanly, count it as Existed and
                     // move on. If LoadFamily returns false (Revit's
@@ -217,6 +282,7 @@ namespace StingTools.Core.Symbols
                     {
                         result.Warnings.Add($"{def.Id}: stale .rfa delete failed — {ex.Message}; skipping rebuild.");
                         result.Failed++;
+                        failedIds.Add(def.Id);
                         continue;
                     }
                 }
@@ -239,15 +305,33 @@ namespace StingTools.Core.Symbols
                     else
                     {
                         result.Failed++;
+                        failedIds.Add(def.Id);
                     }
                 }
                 catch (Exception ex2)
                 {
                     result.Failed++;
+                    failedIds.Add(def.Id);
                     result.Errors.Add($"{def.Id}: {ex2.Message}");
                     StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex2);
                 }
             }
+
+            // ── Record the build (W-1) ────────────────────────────────────
+            // Stamp the catalogue hash and carry the failure set forward. Failures are
+            // tracked per symbol rather than blocking the whole catalogue: a symbol
+            // that fails leaves whatever was on disk before (BuildOne's SaveAs is its
+            // last step), so a stale family that failed to regenerate would otherwise
+            // be served silently. Recording the id forces a retry next run while every
+            // symbol that did build stays cached.
+            cache.RecordCatalogue(jsonPath);
+            cache.RecordFailures(attemptedIds, failedIds);
+            cache.Save(outputFolder);
+
+            if (failedIds.Count > 0)
+                result.Warnings.Add(
+                    $"{Path.GetFileName(jsonPath)}: {failedIds.Count} symbol(s) failed and are " +
+                    "flagged for retry on the next build.");
 
             return result;
         }
@@ -261,10 +345,13 @@ namespace StingTools.Core.Symbols
         private static void BuildVariant(Document hostDoc, Application app, SymbolDefinition baseDef,
             string emitId, StandardGeometryOverride overrideDef,
             string outputFolder, string templateFolder, bool loadIntoProject,
-            SymbolCreationResult result)
+            SymbolCreationResult result, bool catalogueStale = false)
         {
             var rfaPath = Path.Combine(outputFolder, emitId + ".rfa");
-            if (File.Exists(rfaPath))
+            // W-1 — same existence-is-not-freshness rule as the main build loop.
+            // This method currently has no call site; the guard is here so wiring
+            // it later cannot silently reintroduce an uninvalidatable cache.
+            if (File.Exists(rfaPath) && !catalogueStale)
             {
                 result.Existed++;
                 result.CreatedRfaPaths.Add(rfaPath);
@@ -577,7 +664,7 @@ namespace StingTools.Core.Symbols
             // ref-level plane already created by the .rft.
             SketchPlane sketch = ResolveSketchPlane(fdoc, kind, def.Id, result);
 
-            double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+            double s = ResolveGeometrySizeMm(def, kind, result);
 
             // Fix 4 — resolve the effective textHeightMm from the standard.
             double stdTextHeightMm = std?.AnnotationRules?.TextHeightMm ?? 2.5;
@@ -1512,7 +1599,13 @@ namespace StingTools.Core.Symbols
         {
             if (!fdoc.IsFamilyDocument) return;
             if (connectors == null) return;
-            double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+
+            // Must match DrawGeometry's size exactly. Connector offsets are
+            // normalised against the same box as the linework, so resolving them
+            // differently would leave connectors floating off the geometry.
+            // Connectors only exist on model templates, so this always takes the
+            // realSizeMm path in practice.
+            double s = ResolveGeometrySizeMm(def, ResolveTemplateKind(def), result);
 
             foreach (var c in connectors)
             {

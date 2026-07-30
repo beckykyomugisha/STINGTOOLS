@@ -169,10 +169,22 @@ namespace StingTools.Core
                 // source parameters change. Users enable it from Tag Studio.
                 StingTag7NarrativeUpdater.Register(application);
 
-                // Phase 106: reserve the Live Clash Updater id. Triggers are
-                // deferred to a follow-on phase so models that don't use clash
-                // detection pay zero cost at startup.
+                // Register the Live Clash Updater and attach its geometry /
+                // addition / deletion triggers. The comment here previously claimed
+                // triggers were deferred; they were always attached. Models that never
+                // use clash detection opt out via LIVE_CLASH_TRIGGERS_ENABLED=false
+                // in project_config.json.
                 LiveClashUpdater.Register(application);
+
+                // Register the SLD sync updater (IUpdater) — starts disabled. The
+                // SLD panel's "live sync" toggle writes sld_sync_enabled; without
+                // this registration that flag governed nothing.
+                StingTools.Core.SLD.SLDSyncUpdater.Register(application);
+
+                // Register the live standards validator (IUpdater) — starts disabled;
+                // enabled from the standards panel. Previously its Register had no
+                // caller despite the header claiming startup registration.
+                StingTools.Core.Validation.LiveStandardsUpdater.Register(application);
 
                 // Register real-time plumbing pipe auto-sizer (IUpdater) — starts disabled.
                 // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
@@ -190,6 +202,30 @@ namespace StingTools.Core
                 // ClashSession.LastDirtyAtUtc, which is only advanced inside
                 // RefreshElement/RemoveElement on the live path).
                 LiveClashWireup.Subscribe(application);
+
+                // Plugin update check — CheckAsync previously had zero callers, so the
+                // update notification described in CLAUDE.md never happened. Fired
+                // fire-and-forget so a slow or unreachable server never delays startup;
+                // the result is logged and surfaced by the status bar on next refresh.
+                try
+                {
+                    string updateUrl = StingOfflineConfig.IsOnline
+                        ? "https://api.planscape.build" : null;
+                    if (!string.IsNullOrEmpty(updateUrl))
+                    {
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var info = await PluginUpdateChecker.CheckAsync(updateUrl);
+                                if (info != null)
+                                    StingLog.Info($"Plugin update available: {info.Version} (channel {info.Channel}).");
+                            }
+                            catch (Exception uEx) { StingLog.Warn($"Plugin update check: {uEx.Message}"); }
+                        });
+                    }
+                }
+                catch (Exception upEx) { StingLog.Warn($"Plugin update check scheduling: {upEx.Message}"); }
 
                 // Eager-init the GeometrySyncHandler ExternalEvent so it is
                 // created on the Revit API thread at startup, not lazily inside
@@ -588,12 +624,17 @@ namespace StingTools.Core
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
 
-                // Enqueue a full geometry sync job so dirty element geometry accumulated
-                // since the last save is pushed to the federated-model endpoint.
-                // The IdlingScheduler defers it to the next quiet Revit moment so the
-                // STC callback returns immediately (never blocks the worksharing path).
-                try { StingIdlingScheduler.Enqueue(new FullGeometrySyncJob()); }
-                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync enqueue: {geoEx.Message}"); }
+                // Push dirty element geometry accumulated since the last save to the
+                // federated-model endpoint. Routed through GeometrySyncHandler — the
+                // real, working sync path also used by DocumentSaved. It raises an
+                // ExternalEvent, so the STC callback returns immediately and never
+                // blocks the worksharing path.
+                try
+                {
+                    if (!StingTools.Core.Clash.LiveClashUpdater.GeometrySyncQueue.IsEmpty)
+                        StingTools.Commands.IFC.GeometrySyncHandler.RaiseIfConnected();
+                }
+                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync trigger: {geoEx.Message}"); }
 
                 // UIApplication fallback chain:
                 //   1. StingCommandHandler.CurrentApp (set during any prior command)
@@ -649,9 +690,8 @@ namespace StingTools.Core
         private static void PreWarnSustainabilityReadiness(Autodesk.Revit.DB.Document doc)
         {
             if (doc == null) return;
-            string dir = null;
-            try { dir = System.IO.Path.GetDirectoryName(doc.PathName ?? ""); } catch { }
-            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+            var setup = Core.Sustainability.SustainProjectSetup.Load(
+                StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out _);
 
             bool locationSet = !string.IsNullOrWhiteSpace(setup.ClimateSiteId)
                             || !string.IsNullOrWhiteSpace(setup.ClimateZone);
@@ -685,6 +725,12 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+
+                // MUST run before anything can touch the project root: resolving a path
+                // creates <projDir>/<CODE> as a side effect, which would make the greenfield
+                // probe below always answer "no" and leave the CdeFirst layout unreachable.
+                try { ProjectFolderEngine.CaptureGreenfieldState(e.Document); }
+                catch (Exception gx) { StingLog.Warn($"CaptureGreenfieldState: {gx.Message}"); }
 
                 // WS I13 — pre-warn on open when the sustainability inputs are unset,
                 // so a mis-set project is flagged before the dashboard is opened.
@@ -865,7 +911,7 @@ namespace StingTools.Core
                             if (!string.IsNullOrEmpty(projectDir))
                             {
                                 // Preferred: _bim_manager/planscape_connection.json
-                                string bimDir = System.IO.Path.Combine(projectDir, "_bim_manager");
+                                string bimDir = ProjectFolderEngine.GetMetaPath(e.Document, "STING_BIM_MANAGER");
                                 cfgPath = System.IO.Path.Combine(bimDir, "planscape_connection.json");
                                 if (!System.IO.File.Exists(cfgPath)) cfgPath = null;
                             }
@@ -941,14 +987,17 @@ namespace StingTools.Core
                 }
                 catch (Exception drEx) { StingLog.Warn($"DocumentOpened deferred sidecar load: {drEx.Message}"); }
 
-                // AL-07: Notify user of auto-run workflow on open
+                // AL-07: Queue the configured auto-run workflow. Enqueued through the
+                // WorkflowScheduler pending-preset queue, which the block below drains
+                // onto the ExternalEvent — so the preset actually executes rather than
+                // only being logged as "run it manually".
                 try
                 {
                     string autoWorkflow = TagConfig.AutoRunWorkflowOnOpen;
                     if (!string.IsNullOrEmpty(autoWorkflow))
                     {
-                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN configured: '{autoWorkflow}'. " +
-                            "Use 'Workflow Preset' command to execute manually.");
+                        WorkflowScheduler.EnqueuePreset(autoWorkflow);
+                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN queued preset '{autoWorkflow}'.");
                     }
                 }
                 catch (Exception arwEx)
@@ -974,6 +1023,17 @@ namespace StingTools.Core
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
                 try
                 {
+                    // WF-01: load the project's trigger definitions first. LoadFromConfig
+                    // previously had no caller, so _triggers was always empty and every
+                    // trigger check below iterated nothing.
+                    try
+                    {
+                        string cfg = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(e.Document.PathName) ?? "", "project_config.json");
+                        WorkflowScheduler.LoadFromConfig(cfg);
+                    }
+                    catch (Exception tEx) { StingLog.Warn($"WorkflowScheduler.LoadFromConfig: {tEx.Message}"); }
+
                     WorkflowScheduler.CheckDocumentOpenTriggers(e.Document);
                     while (WorkflowScheduler.HasPendingPresets)
                     {
@@ -1021,6 +1081,14 @@ namespace StingTools.Core
 
                 // Template engine v1.1 (S11/S15): extract default templates,
                 // workflows, and manifest on first open per project.
+                //
+                // KNOWN RESIDUAL (see ROADMAP IM-1): this runs before any consolidation,
+                // so on a project whose customised templates still sit in a legacy folder,
+                // extraction puts stock templates in the destination first. A later
+                // Folders_Consolidate then hits the collision guard, renames the user's
+                // customised copies aside, and the registry keeps loading the stock ones.
+                // Nothing is lost on disk, but the customisation stops taking effect.
+                // Not fixed here to keep this PR to its agreed scope.
                 try
                 {
                     Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(e.Document);
@@ -1097,18 +1165,51 @@ namespace StingTools.Core
                             string root = setup.ResolveRootPath(e.Document.PathName);
                             StingLog.Info($"DocumentOpened: project setup ready — root={root}, mode={setup.Mode}");
 
-                            // Idempotent silent migration. Only reports if it
-                            // actually moved something — no UI prompt, never
-                            // blocks the open path.
+                            // DETECT ONLY — never move a user's files on document open.
+                            //
+                            // This used to call MigrateFromLegacy() unprompted on every
+                            // open, relocating project data the user had not asked to
+                            // relocate, deleting the drained source folders, and leaving
+                            // no record of what went where. Consolidation is now opt-in
+                            // and at-most-once: the user runs Folders_Consolidate, which
+                            // previews the move, asks, and writes a breadcrumb.
                             try
                             {
-                                var rep = ProjectFolderEngine.MigrateFromLegacy(e.Document);
-                                if (rep != null && (rep.FilesMoved > 0 || rep.FoldersRemoved > 0))
+                                if (!ProjectFolderEngine.HasConsolidated(e.Document))
                                 {
-                                    StingLog.Info($"DocumentOpened auto-migration: {rep.FilesMoved} files moved, {rep.FoldersRemoved} legacy folders removed.");
+                                    var scan = ProjectFolderEngine.ScanLegacy(e.Document);
+                                    int pending = scan?.Items?.Sum(i => i.FileCount) ?? 0;
+                                    if (pending > 0)
+                                    {
+                                        StingLog.Info(
+                                            $"DocumentOpened: {pending} file(s) in legacy STING folders. " +
+                                            "Run the Folders_Consolidate command to review and consolidate them. " +
+                                            "Nothing has been moved.");
+                                    }
                                 }
                             }
-                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened auto-migration: {mEx.Message}"); }
+                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened legacy scan: {mEx.Message}"); }
+
+                            // BIM-CDE-FOLDER-01: materialise the CDE folders so exports
+                            // never race a missing directory. Idempotent — existing
+                            // folders are skipped and the call returns 0.
+                            if (TagConfig.AutoCreateCdeFolders)
+                            {
+                                try
+                                {
+                                    int createdFolders = ProjectFolderEngine.CreateFolderStructure(e.Document);
+                                    if (createdFolders > 0)
+                                        StingLog.Info($"DocumentOpened: created {createdFolders} CDE folders (AUTO_CREATE_CDE_FOLDERS).");
+                                }
+                                catch (Exception fcEx) { StingLog.Warn($"DocumentOpened CDE folder creation: {fcEx.Message}"); }
+                            }
+
+                            // Stamp the resolved root onto ProjectInformation (ES) so it
+                            // survives a later project-number rename. Best-effort, guarded,
+                            // and a no-op once stamped — follows the HVAC climate-stamp
+                            // pattern of writing to ProjectInformation from DocumentOpened.
+                            try { Core.Storage.StingProjectRootSchema.EnsureStamped(e.Document); }
+                            catch (Exception rsEx) { StingLog.Warn($"DocumentOpened root stamp: {rsEx.Message}"); }
                         }
                     }
                 }
@@ -1421,6 +1522,20 @@ namespace StingTools.Core
                 if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
+
+                // Save As moves the .rvt, so the STING project root resolves somewhere new.
+                // The per-document root / greenfield / folder-stats caches are keyed by the OLD
+                // path, and CoordStores memoises which canonical stores it has already merged —
+                // leaving both in place means every subsequent write (issues, register,
+                // transmittals, exports) lands in the ORIGINAL project's tree.
+                try
+                {
+                    ProjectFolderEngine.InvalidateSetupCache(paths.OldPath);
+                    ProjectFolderEngine.InvalidateSetupCache(paths.NewPath);
+                    CoordStores.ResetMergeState();
+                    StingLog.Info($"OnDocumentSavedAs: reset project-root and store caches ({paths.OldPath} → {paths.NewPath})");
+                }
+                catch (Exception pathEx) { StingLog.Warn($"OnDocumentSavedAs path cache reset: {pathEx.Message}"); }
 
                 // A-3 — Invalidate material caches keyed by old path so a
                 // Save As doesn't leave stale name + usage indexes behind.
