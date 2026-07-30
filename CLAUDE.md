@@ -965,7 +965,7 @@ Tags as dispatched by `StingCommandHandler` (exact-match, case-sensitive):
 
 ---
 
-Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is never computed or verified) — corporate pack edits are accepted as corporate. See finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
+Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is declared but never computed or verified) — corporate pack edits are accepted as corporate. **This asymmetry is deliberate as of Phase 225**, when drawing types were locked (see Project-scoped overrides below). The two carry different risk: a drawing type decides what gets produced, how it is cropped and how it is numbered, so an unnoticed edit changes the identity of an issued deliverable — whereas a view style pack decides appearance (VG overrides, filters, halftone), where an unnoticed edit is visible the moment a drawing is opened and corrupts nothing. Locking packs would also start reporting drift on every project that has ever hand-tuned a corporate pack, which is a behaviour change with no evidence behind it. `ViewStylePack.Checksum` should be wired or dropped rather than left declared-and-unused — logged in `docs/ROADMAP.md`.
 
 The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
 
@@ -1049,7 +1049,9 @@ Routing table grew to 43 rules at that phase (now 113 rules across 93 types — 
 
 ### Project-scoped overrides
 
-Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). `DrawingTypeRegistry.ComputeChecksums` implements SHA-256 drift detection (a stored `checksum` mismatch flips `origin` to `project`), but the shipped corporate file carries **no** `checksum` fields and computed hashes are never persisted, so edits to the shipped baseline are currently undetected — see finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
+Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). `DrawingTypeRegistry.ComputeChecksums` implements SHA-256 drift detection (a stored `checksum` mismatch logs a warning and flips `origin` to `project`), and since Phase 225 **all 93 corporate entries ship with a `checksum`**, so the lock is live — a hand-edit to the shipped baseline is detected and demoted rather than silently accepted (finding C-5, closed).
+
+The checksum is `SHA256(JsonConvert.SerializeObject(drawingType, Formatting.None))` with `Checksum` nulled first — a hash of the **C# object's serialisation, not the file's bytes**. It is therefore stamped by `tools/StampDrawingTypeChecksums`, a `net8.0` console project that `<Compile Include>`s `Core/Drawing/DrawingType.cs` and `Core/Drawing/AnnotationRulePack.cs` (both Revit-free) so the hash comes from the same source the plugin runs. **Re-run it after any change to `STING_DRAWING_TYPES.json` and after any field added to or removed from those two model files** — a model change alters the serialisation and therefore every hash, even with the data untouched. `-- --check` verifies without writing and is CI-gate ready.
 
 ### Pipeline order (final)
 
