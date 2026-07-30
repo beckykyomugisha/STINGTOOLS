@@ -213,8 +213,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         //   AuthController.GenerateJwt currently emits. After RS256
         //   migration, replace HmacSha256 below with RsaSha256.
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        // Keep the token's claim names EXACTLY as issued.
+        //
+        // JwtBearer defaults MapInboundClaims to true, which rewrites short JWT
+        // claim names to the long WS-* URIs before any application code sees the
+        // principal — "role" becomes
+        // http://schemas.microsoft.com/ws/2008/06/identity/claims/role, "sub"
+        // becomes ClaimTypes.NameIdentifier. 25 call sites across the API read
+        // User.FindFirst("role") directly, and every one of them silently got
+        // null and fell back to its least-privileged default:
+        //   • DocumentsController.GetUserRole() → UserRole.Viewer, so every
+        //     role-gated CDE transition (WIP→SHARED, SHARED→PUBLISHED) was
+        //     refused for everyone including Owners;
+        //   • ProjectVisibility.IsTenantAdmin() → false, so the admin
+        //     project-visibility bypass never fired (fixed separately);
+        //   • the photo, ACL, saved-view and distribution-group controllers all
+        //     compared against "" and quietly denied admin bypasses.
+        //
+        // Turning mapping off fixes all of them at the source rather than
+        // patching 25 call sites and waiting for the 26th. RoleClaimType is
+        // repointed at "role" so IsInRole and [Authorize(Roles = …)] keep
+        // working; NameClaimType at "email" for User.Identity.Name.
+        //
+        // Sites that read ClaimTypes.NameIdentifier do so as a fallback after
+        // "user_id" or "sub", both of which are present in our tokens
+        // (AuthController.GenerateJwt emits sub, user_id, email, tenant_id,
+        // role, iat), so none of them lose their identity source.
+        options.MapInboundClaims = false;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            RoleClaimType = "role",
+            NameClaimType = "email",
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,

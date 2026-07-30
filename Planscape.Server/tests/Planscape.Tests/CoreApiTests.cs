@@ -259,8 +259,14 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         // Get open actions
         var openResp = await client.GetAsync($"{_projBase}/meetings/actions/open");
         Assert.Equal(HttpStatusCode.OK, openResp.StatusCode);
+        // GetOpenActions returns the paged envelope { items, total, page, pageSize }.
+        // This used to call GetArrayLength() on the root, which was right when the
+        // endpoint returned a bare array and has thrown
+        // "requires an element of type 'Array', but the target element has type
+        // 'Object'" since pagination was added.
         var openActions = await openResp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(openActions.GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("items").GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("total").GetInt32() >= 1);
     }
 
     [Fact]
@@ -438,9 +444,20 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Search
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: SearchController uses EF.Functions.ILike, an
+    /// Npgsql-specific translation. On EF InMemory it throws "The 'ILike' method
+    /// is not supported because the query has switched to client-evaluation" and
+    /// the request 500s — a property of the test provider, not the code.
+    /// Set PLANSCAPE_TEST_PG to run it.
+    /// </summary>
+    [SkippableFact]
     public async Task Search_ValidQuery_ReturnsResults()
     {
+        Skip.If(string.IsNullOrWhiteSpace(
+                Environment.GetEnvironmentVariable("PLANSCAPE_TEST_PG")),
+            "PLANSCAPE_TEST_PG is not set — ILike search needs real PostgreSQL.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         // Create an issue to search for
