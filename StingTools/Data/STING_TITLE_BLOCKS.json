@@ -1068,7 +1068,7 @@
     },
     {
       "id": "STING_TB_A1_BIM_v2.0",
-      "extends": "A1_common_v2.0",
+      "extends": "A1_LAND_common_v2.0",
       "mode": "BIM",
       "description": "A1 landscape working sheet \u2014 full ISO 19650 BIM identity. Adds the 7-segment sheet ID strip, suitability chip + descriptive label, status band, revision-history register, federation status, LOIN/LOD, transmittal/CDE references, and the 4-eyes AUTHORISED BY signature row over the common base.",
       "saveAs": "Families/TitleBlocks/STING_TB_A1_BIM_v2.0.rfa",
@@ -1822,7 +1822,7 @@
     },
     {
       "id": "STING_TB_A1_NONBIM_v2.0",
-      "extends": "A1_common_v2.0",
+      "extends": "A1_LAND_common_v2.0",
       "mode": "NONBIM",
       "description": "A1 landscape working sheet \u2014 minimal non-BIM identity. Reuses the common identity-data + drawn/checked/approved block but skips the ISO-19650 sheet ID, suitability chip, and revision-history register. Sheet number is bound via PRJ_TB_SHEET_NR_TXT (the existing simple sheet identifier).",
       "saveAs": "Families/TitleBlocks/STING_TB_A1_NONBIM_v2.0.rfa",
@@ -4924,6 +4924,7 @@
       "id": "A1_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "drawable": { "x": 10, "y": 115, "w": 821, "h": 474, "marginMm": 25 },
       "description": "A1 landscape working sheet (841 \u00d7 594 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 821 \u00d7 469 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "category": "OST_TitleBlocks",

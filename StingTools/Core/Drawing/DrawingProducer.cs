@@ -75,6 +75,14 @@ namespace StingTools.Core.Drawing
         // assignment (was O(M²) across an M-sheet batch). Written back as each
         // number is assigned so later sheets in the same batch see it.
         [ThreadStatic] private static HashSet<string>               _sheetNumberCache;
+        // STACK-1: sheetId → the production context that claimed it during THIS
+        // batch. STING_SHEET_CONTEXT_TXT is what normally tells two per-level
+        // sheets apart; when it isn't bound, ReadSheetContext returns null for
+        // every sheet and the unstampable fallback below handed the SAME sheet to
+        // every level — so a 4-level run stacked all 4 plans on one sheet. The
+        // parameter may be unbindable, but within one run we always know which
+        // context we just used a sheet for, so claims are tracked here instead.
+        [ThreadStatic] private static Dictionary<long, string>      _sheetCtxClaims;
         [ThreadStatic] private static string                        _cacheDocKey;
         // P-12: view names, collected once per batch. NameExists ran a full
         // OfClass(View) collector and MakeUniqueViewName calls it up to 100
@@ -167,8 +175,28 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        // ── STACK-1 helpers — per-batch sheet↔context claims ────────────────
+
+        /// <summary>True when this batch already used <paramref name="sheetId"/>
+        /// for a context other than <paramref name="ctx"/>. Claims only exist for
+        /// the current run, so this never blocks legitimate reuse across runs.</summary>
+        private static bool ClaimedByOtherContext(ElementId sheetId, string ctx)
+        {
+            if (sheetId == null || _sheetCtxClaims == null) return false;
+            return _sheetCtxClaims.TryGetValue(sheetId.Value, out var owner)
+                && !string.Equals(owner, ctx ?? "", StringComparison.Ordinal);
+        }
+
+        private static void ClaimSheetForContext(ElementId sheetId, string ctx)
+        {
+            if (sheetId == null) return;
+            if (_sheetCtxClaims == null) _sheetCtxClaims = new Dictionary<long, string>();
+            _sheetCtxClaims[sheetId.Value] = ctx ?? "";
+        }
+
         public static void ResetBatchCaches()
         {
+            _sheetCtxClaims     = null;   // STACK-1
             _existingViewCache  = null;
             _existingViewNames  = null;
             _categoryByName     = null;
@@ -176,6 +204,12 @@ namespace StingTools.Core.Drawing
             _packageSheetCount  = null;
             _sheetNumberCache   = null;
             _cacheDocKey        = null;
+            // SLOT-5: the title-block slot map memo lives with the slot utils,
+            // not here, but it has the same lifetime as a production batch —
+            // drop it on the same boundary so an operator who nudged slot
+            // reference planes in the Family Editor sees them on the next run.
+            try { StingTools.Commands.Drawing.TitleBlockSlotUtils.ClearSlotMapCache(); }
+            catch (Exception ex) { StingLog.Warn($"ClearSlotMapCache: {ex.Message}"); }
         }
 
         // GAP-L: a cache slot only matches the doc it was primed against.
@@ -640,13 +674,20 @@ namespace StingTools.Core.Drawing
                 // match: that reproduces the old stacking behaviour, but the
                 // alternative is minting a fresh duplicate sheet on every
                 // run. Surfaced as a warning so the fix is actionable.
-                var unstampable = candidates.FirstOrDefault(s => DrawingTypeStamper.ReadSheetContext(s) == null);
+                // STACK-1: never hand back a sheet this batch already claimed for a
+                // DIFFERENT context — that is what stacked every level onto one
+                // sheet. Falling through mints a fresh sheet for this context and
+                // records the claim below.
+                var unstampable = candidates.FirstOrDefault(s =>
+                    DrawingTypeStamper.ReadSheetContext(s) == null
+                    && !ClaimedByOtherContext(s.Id, sheetCtx));
                 if (unstampable != null)
                 {
                     result.Warnings.Add(
                         $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
                         $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
                         "Run LoadSharedParams to bind it, then re-run production.");
+                    ClaimSheetForContext(unstampable.Id, sheetCtx);
                     result.SheetReused = true;
                     return unstampable.Id;
                 }
@@ -792,6 +833,7 @@ namespace StingTools.Core.Drawing
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
                     _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = sheet.Id;
+                ClaimSheetForContext(sheet.Id, sheetCtx);   // STACK-1
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
