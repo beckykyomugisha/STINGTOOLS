@@ -92,6 +92,12 @@ namespace StingTools.Core.Drawing
         public const string Coordination = "Coordination";
         public const string Legend       = "Legend";
         public const string ThreeD       = "3D";
+        /// <summary>Riser / single-line / distribution schematic. Not to scale —
+        /// the shipped types carry <c>"scale": "NA"</c>, which the tolerant
+        /// converter reads as 0 and the validator exempts from DT-095.</summary>
+        public const string Schematic    = "Schematic";
+        /// <summary>Client clarification / RFI sketch.</summary>
+        public const string Clarification = "Clarification";
     }
 
     // ─────────────────────────────────────────────────────────────────────

@@ -81,10 +81,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -259,10 +255,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -428,7 +420,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Architectural Section",
       "viewStylePackId": "corp-standard-section",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{mark}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "SECTION {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -443,10 +435,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -615,10 +603,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -809,10 +793,6 @@
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 5,
-        "tagSize": "3.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -997,10 +977,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -1125,10 +1101,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -1250,10 +1222,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLUE",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -1435,10 +1403,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 8,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -1611,10 +1575,6 @@
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 7,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
         "segmentMask": "10000101",
         "displayMode": 4,
         "patternMode": "DC",
@@ -1648,7 +1608,7 @@
           "viewType": "ISO",
           "normX": 0.55,
           "normY": 0.55,
-          "normW": 0.4,
+          "normW": 0.23,
           "normH": 0.4
         },
         {
@@ -1779,10 +1739,6 @@
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 7,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
         "segmentMask": "10000101",
         "displayMode": 4,
         "patternMode": "DC",
@@ -1816,7 +1772,7 @@
           "viewType": "ISO",
           "normX": 0.55,
           "normY": 0.55,
-          "normW": 0.4,
+          "normW": 0.23,
           "normH": 0.4
         },
         {
@@ -1897,8 +1853,8 @@
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
-        "volume": "01",
-        "type": "DR",
+        "volume": "02",
+        "type": "SP",
         "role": "M",
         "suitability": "S2",
         "revision": "P01"
@@ -1944,10 +1900,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "Level",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -2048,7 +2000,7 @@
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
       "sectionMarker": {
-        "family": "STING_SECTION_MARK",
+        "family": "STING_SECTION_HEAD",
         "markPrefix": "S",
         "bubbleStyle": "Filled",
         "farClipMm": 3000.0
@@ -2085,10 +2037,6 @@
       "tokenProfile": {
         "presentationMode": "BOQ",
         "paraDepth": 1,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "",
         "segmentMask": "10000101",
         "displayMode": 2,
         "patternMode": "DC",
@@ -2175,10 +2123,6 @@
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 10,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "PURPLE",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "HANDOVER",
@@ -2283,10 +2227,6 @@
       "tokenProfile": {
         "presentationMode": "Compact",
         "paraDepth": 1,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "GREY",
-        "colorScheme": "",
         "segmentMask": "00000001",
         "displayMode": 1,
         "patternMode": "DC",
@@ -2373,10 +2313,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Zone",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -2486,10 +2422,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -2601,10 +2533,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Status",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -2726,10 +2654,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -2847,10 +2771,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Zone",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -2984,10 +2904,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -3169,10 +3085,6 @@
       "tokenProfile": {
         "presentationMode": "BOQ",
         "paraDepth": 1,
-        "tagSize": "2",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "",
         "segmentMask": "10000101",
         "displayMode": 2,
         "patternMode": "DC",
@@ -3258,10 +3170,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "Material",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -3392,10 +3300,6 @@
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 5,
-        "tagSize": "3.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -3497,10 +3401,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLUE",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -3659,10 +3559,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 5,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLUE",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -3834,10 +3730,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -3974,10 +3866,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -4113,10 +4001,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -4258,10 +4142,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "GREEN",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -4384,10 +4264,6 @@
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 10,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "PURPLE",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "HANDOVER",
@@ -4503,10 +4379,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 8,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -4695,10 +4567,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 6,
         "patternMode": "DC",
@@ -4855,10 +4723,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 6,
         "patternMode": "DC",
@@ -5016,10 +4880,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 2,
         "patternMode": "DC",
@@ -5115,10 +4975,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 2,
         "patternMode": "DC",
@@ -5226,10 +5082,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 2,
         "patternMode": "DC",
@@ -5341,10 +5193,6 @@
       "tokenProfile": {
         "presentationMode": "Compact",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -5460,10 +5308,6 @@
       "tokenProfile": {
         "presentationMode": "Compact",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -5572,10 +5416,6 @@
       "tokenProfile": {
         "presentationMode": "Compact",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "BOLDITALIC",
-        "tagColor": "RED",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -5700,10 +5540,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 4,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -5801,10 +5637,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -5900,10 +5732,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "Status",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -5989,10 +5817,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Discipline",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -6083,10 +5907,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Status",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -6172,10 +5992,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 3,
-        "tagSize": "3.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Status",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -6268,10 +6084,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLACK",
-        "colorScheme": "Function",
         "segmentMask": "11111111",
         "displayMode": 4,
         "patternMode": "DC",
@@ -6369,10 +6181,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 2,
         "patternMode": "DC",
@@ -6517,10 +6325,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 3,
-        "tagSize": "3",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "11111111",
         "displayMode": 6,
         "patternMode": "DC",
@@ -6588,7 +6392,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-presentation-rich",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "M-PR-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP PRESENTATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -6644,10 +6448,6 @@
           "E": false,
           "F": false
         },
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "BLUE",
-        "colorScheme": "Discipline",
         "segmentMask": "10010101",
         "displayMode": 4
       },
@@ -6693,7 +6493,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-coordination",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "M-TE-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP TECHNICAL — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -6772,10 +6572,6 @@
           "E": true,
           "F": true
         },
-        "tagSize": "2",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5
       },
@@ -6821,7 +6617,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Fabrication Shop",
       "viewStylePackId": "corp-fabrication-shop",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "M-FB-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP FABRICATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -6897,10 +6693,6 @@
           "E": true,
           "F": true
         },
-        "tagSize": "2",
-        "tagStyle": "BOLD",
-        "tagColor": "RED",
-        "colorScheme": "System",
         "segmentMask": "10001011",
         "displayMode": 5
       },
@@ -6946,7 +6738,7 @@
       "viewTemplateName": "STING - Multi-Discipline 3D View",
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-burgund-green",
-      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNumberPattern": "PRES-{disc}-EX-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Exterior 3D",
       "crop": {
         "kind": "None",
@@ -6955,10 +6747,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 6,
         "patternMode": "DC",
@@ -7073,7 +6861,7 @@
       "description": "Multi-Discipline 3d on A1 at NA.",
       "isoNaming": {
         "volume": "01",
-        "type": "DR",
+        "type": "VS",
         "role": "Z",
         "suitability": "S2",
         "revision": "P01"
@@ -7095,7 +6883,7 @@
       "viewTemplateName": "STING - Multi-Discipline 3D View",
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "pres-interior-sage",
-      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNumberPattern": "PRES-{disc}-IC-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Interior Cut-Away",
       "crop": {
         "kind": "None",
@@ -7104,10 +6892,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 6,
         "patternMode": "DC",
@@ -7221,7 +7005,7 @@
       },
       "isoNaming": {
         "volume": "01",
-        "type": "DR",
+        "type": "VS",
         "role": "Z",
         "suitability": "S2",
         "revision": "P01"
@@ -7241,7 +7025,7 @@
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
       "detailLevel": "Coarse",
       "viewStylePackId": "pres-burgund-green",
-      "sheetNumberPattern": "PRES-{disc}-{seq:D3}",
+      "sheetNumberPattern": "PRES-{disc}-CP-{seq:D3}",
       "sheetNamePattern": "Presentation — {discipline} Composite",
       "crop": {
         "kind": "None",
@@ -7250,10 +7034,6 @@
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "tagSize": "2.5",
-        "tagStyle": "ITALIC",
-        "tagColor": "GREY",
-        "colorScheme": "Mono",
         "segmentMask": "00000101",
         "displayMode": 6,
         "patternMode": "DC",
@@ -7399,7 +7179,7 @@
       "viewTemplateName": "STING - Multi-Discipline 3D View",
       "isoNaming": {
         "volume": "01",
-        "type": "DR",
+        "type": "VS",
         "role": "Z",
         "suitability": "S2",
         "revision": "P01"
@@ -7450,10 +7230,6 @@
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 7,
-        "tagSize": "3",
-        "tagStyle": "BOLD",
-        "tagColor": "BLACK",
-        "colorScheme": "System",
         "segmentMask": "10000101",
         "displayMode": 4,
         "patternMode": "DC",
@@ -7526,8 +7302,8 @@
         "autoTag": true
       },
       "isoNaming": {
-        "volume": "01",
-        "type": "DR",
+        "volume": "02",
+        "type": "SP",
         "role": "E",
         "suitability": "S2",
         "revision": "P01"
@@ -7567,7 +7343,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING:corp-coordination:FloorPlan",
       "viewStylePackId": "corp-coordination",
-      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNumberPattern": "E-CO-{lvl}-{seq:D3}",
       "sheetNamePattern": "ELECTRICAL COORDINATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -7576,10 +7352,6 @@
       "tokenProfile": {
         "presentationMode": "Technical",
         "paraDepth": 4,
-        "tagSize": "2.5",
-        "tagStyle": "NOM",
-        "tagColor": "ORANGE",
-        "colorScheme": "System",
         "segmentMask": "11111111",
         "displayMode": 5,
         "patternMode": "DC",
@@ -7726,10 +7498,10 @@
       "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Schedule",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
-      "sheetNamePattern": "Room Data Sheet — {room}",
+      "sheetNamePattern": "Room Data Sheet — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -7746,7 +7518,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -7794,7 +7566,7 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "{disc}-EQP-{lvl}-{seq:D3}",
       "sheetNamePattern": "Clinical Equipment Plan — Level {lvl}",
@@ -7814,7 +7586,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -7862,7 +7634,7 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Mechanical Coordination",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "{disc}-COO-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP Coordination + Shielding — {lvl}",
@@ -7882,7 +7654,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -7931,7 +7703,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Medical Gas Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-LAY-{lvl}-{seq:D3}",
       "sheetNamePattern": "Medical Gas Layout — Level {lvl}",
@@ -7951,7 +7723,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8000,10 +7772,10 @@
       "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Medical Gas Schematic",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-mgs",
       "sheetNumberPattern": "MG-SCH-{seq:D3}",
-      "sheetNamePattern": "Medical Gas Schematic — {gas}",
+      "sheetNamePattern": "Medical Gas Schematic — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8020,7 +7792,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8068,7 +7840,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-pressure",
       "sheetNumberPattern": "H-PRS-{lvl}-{seq:D3}",
       "sheetNamePattern": "Pressure Regime Plan — Level {lvl}",
@@ -8088,7 +7860,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8136,10 +7908,10 @@
       "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Electrical Schematic",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-EES-{seq:D3}",
-      "sheetNamePattern": "Essential Power Single-Line — {area}",
+      "sheetNamePattern": "Essential Power Single-Line — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8156,7 +7928,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8204,7 +7976,7 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Electrical Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-ees",
       "sheetNumberPattern": "E-IPS-{lvl}-{seq:D3}",
       "sheetNamePattern": "IPS Plan — {lvl}",
@@ -8224,7 +7996,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8272,7 +8044,7 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-DEC-{lvl}-{seq:D3}",
       "sheetNamePattern": "Decon Flow Plan — {lvl}",
@@ -8292,7 +8064,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8340,7 +8112,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-MOR-{lvl}-{seq:D3}",
       "sheetNamePattern": "Mortuary Plan — {lvl}",
@@ -8360,7 +8132,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8408,7 +8180,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Architectural Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-fire",
       "sheetNumberPattern": "A-FIR-{lvl}-{seq:D3}",
       "sheetNamePattern": "Fire Compartment + PHE — Level {lvl}",
@@ -8428,7 +8200,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8476,7 +8248,7 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Radiation Protection Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-SHD-{lvl}-{seq:D3}",
       "sheetNamePattern": "Radiation Shielding — {lvl}",
@@ -8496,7 +8268,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8544,10 +8316,10 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Radiation Protection Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MRI Zoning — {area}",
+      "sheetNamePattern": "MRI Zoning — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8564,7 +8336,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8612,7 +8384,7 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-ligature",
       "sheetNumberPattern": "H-LIG-{lvl}-{seq:D3}",
       "sheetNamePattern": "Anti-Ligature Plan — {lvl}",
@@ -8632,7 +8404,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8680,10 +8452,10 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Elevation",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-BHD-{lvl}-{seq:D3}",
-      "sheetNamePattern": "Bedhead Elevations — {area}",
+      "sheetNamePattern": "Bedhead Elevations — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8700,7 +8472,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8735,7 +8507,7 @@
       "_description": "Bedhead trunking elevations with services schedule",
       "description": "Healthcare elevation on A3 at 1:50.",
       "sectionMarker": {
-        "family": "STING_ELEV_MARK",
+        "family": "STING_ELEV_MARKER",
         "markPrefix": "E",
         "bubbleStyle": "Filled",
         "farClipMm": 3000.0
@@ -8754,10 +8526,10 @@
       "scale": 50,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Reflected Ceiling Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "OR Ceiling RCP — {area}",
+      "sheetNamePattern": "OR Ceiling RCP — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8774,7 +8546,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8822,7 +8594,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-water",
       "sheetNumberPattern": "P-HWS-{lvl}-{seq:D3}",
       "sheetNamePattern": "Water Safety Plan — {lvl}",
@@ -8842,7 +8614,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8890,7 +8662,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Architectural Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "A-ACO-{lvl}-{seq:D3}",
       "sheetNamePattern": "Acoustic Strategy — Level {lvl}",
@@ -8910,7 +8682,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -8958,7 +8730,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Structural Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "S-IMG-{lvl}-{seq:D3}",
       "sheetNamePattern": "Equipment Loads — Level {lvl}",
@@ -8978,7 +8750,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -9026,7 +8798,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RTL-{lvl}-{seq:D3}",
       "sheetNamePattern": "RTLS Coverage — Level {lvl}",
@@ -9046,7 +8818,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -9094,7 +8866,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Plan",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-WST-{lvl}-{seq:D3}",
       "sheetNamePattern": "Waste Flow — Level {lvl}",
@@ -9114,7 +8886,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -9162,10 +8934,10 @@
       "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Radiation Protection Schematic",
-      "viewportTypeName": "STING Viewport",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-NM-{seq:D3}",
-      "sheetNamePattern": "Nuclear Medicine — {area}",
+      "sheetNamePattern": "Nuclear Medicine — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -9182,7 +8954,7 @@
         }
       ],
       "annotation": {
-        "autoDimension": false,
+        "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
@@ -9788,7 +9560,7 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Schematic",
-      "viewportTypeName": "Title w Line",
+      "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "PH-SCHEM-{seq:D2}",
       "sheetNamePattern": "Drainage Schematic Riser — {lvl}",
@@ -9817,7 +9589,7 @@
       },
       "annotation": {
         "autoTag": false,
-        "autoDimension": false,
+        "autoDim": false,
         "rules": [],
         "tagFamilies": {}
       },
@@ -10161,6 +9933,18 @@
       "drawingTypeId": "mep-plan-fabrication"
     },
     {
+      "discipline": "*",
+      "phase": "HANDOVER",
+      "docType": "*",
+      "drawingTypeId": "handover-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "ELEVATION",
+      "drawingTypeId": "pres-exterior-elev-A1"
+    },
+    {
       "discipline": "P",
       "phase": "*",
       "docType": "SPOOL",
@@ -10249,12 +10033,6 @@
       "phase": "*",
       "docType": "LEGEND",
       "drawingTypeId": "legend-A3"
-    },
-    {
-      "discipline": "*",
-      "phase": "HANDOVER",
-      "docType": "*",
-      "drawingTypeId": "handover-A1"
     },
     {
       "discipline": "A",
@@ -10381,12 +10159,6 @@
       "phase": "PRESENTATION",
       "docType": "PERSPECTIVE",
       "drawingTypeId": "pres-perspective-A1"
-    },
-    {
-      "discipline": "*",
-      "phase": "PRESENTATION",
-      "docType": "ELEVATION",
-      "drawingTypeId": "pres-exterior-elev-A1"
     },
     {
       "discipline": "*",
@@ -10549,12 +10321,6 @@
     {
       "discipline": "H",
       "phase": "*",
-      "docType": "RDS",
-      "drawingTypeId": "health-rds-A3"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
       "docType": "EQP_LAYOUT",
       "drawingTypeId": "health-eqp-pln-A1-1to50"
     },
@@ -10589,22 +10355,10 @@
       "drawingTypeId": "health-ess-power-riser-A1"
     },
     {
-      "discipline": "E",
-      "phase": "*",
-      "docType": "IPS",
-      "drawingTypeId": "health-ips-pln-A1-1to50"
-    },
-    {
       "discipline": "H",
       "phase": "*",
       "docType": "DECON_FLOW",
       "drawingTypeId": "health-decon-flow-A1-1to50"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
-      "docType": "MORTUARY",
-      "drawingTypeId": "health-mortuary-pln-A3-1to100"
     },
     {
       "discipline": "A",
@@ -10623,12 +10377,6 @@
       "phase": "*",
       "docType": "MRI_ZONING",
       "drawingTypeId": "health-mri-zoning-A1-1to50"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
-      "docType": "LIGATURE",
-      "drawingTypeId": "health-ligature-pln-A1-1to50"
     },
     {
       "discipline": "H",
@@ -10659,12 +10407,6 @@
       "phase": "*",
       "docType": "HEALTHCARE_LOADS",
       "drawingTypeId": "health-struct-loads-A1-1to100"
-    },
-    {
-      "discipline": "H",
-      "phase": "*",
-      "docType": "RTLS",
-      "drawingTypeId": "health-rtls-coverage-A1-1to100"
     },
     {
       "discipline": "H",
