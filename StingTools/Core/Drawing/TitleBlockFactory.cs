@@ -62,6 +62,16 @@ namespace StingTools.Core.Drawing
         /// <summary>The seed .rfa path the build augmented, when
         /// <see cref="BuiltFromSeed"/> is true; null otherwise.</summary>
         public string SeedSource { get; set; }
+        /// <summary>True when this family has no seed of its own but received
+        /// its full design (graphics + labels) via <see cref="PropagateFromMasterSeed"/>
+        /// from another family's seed (e.g. A0/A2/A3 working sheets and covers
+        /// mirroring the A1 master). Mutually exclusive with
+        /// <see cref="BuiltFromSeed"/> — exactly one of the two is true whenever
+        /// <see cref="LabelsPlaced"/> &gt; 0.</summary>
+        public bool   PropagatedFromMaster { get; set; }
+        /// <summary>The master seed .rfa path propagated from, when
+        /// <see cref="PropagatedFromMaster"/> is true; null otherwise.</summary>
+        public string MasterSeedSource { get; set; }
         /// <summary>Brief slot id + bbox lines, surfaced in the report so
         /// the operator can verify slot layout without opening the .rfa.</summary>
         public List<string> SlotSummary { get; set; } = new List<string>();
@@ -278,6 +288,11 @@ namespace StingTools.Core.Drawing
                 int propagated = 0;
                 if (fromMaster)
                     propagated = PropagateFromMasterSeed(app, famDoc, spec, masterSeedPath, masterSeedId, r);
+                if (fromMaster && propagated > 0)
+                {
+                    r.PropagatedFromMaster = true;
+                    r.MasterSeedSource     = masterSeedPath;
+                }
                 if (!fromSeed)
                 {
                     if (fromMaster && propagated <= 0)

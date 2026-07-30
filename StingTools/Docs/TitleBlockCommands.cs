@@ -992,6 +992,14 @@ namespace StingTools.Docs
     //  total to PRJ_TB_TOTAL_NO_SHEETS_TXT (on Project Information). The same
     //  logic runs automatically inside TitleBlockPopulate; this standalone
     //  command lets users refresh the count without running a full populate.
+    //
+    //  Also stamps STING_SHEET_OF_TOTAL_TXT on each counted sheet's placed
+    //  title block with the compact "NN / MM" pagination string (this sheet's
+    //  ordinal position in SheetNumber order, over the total) — the short
+    //  cell used where the full 7-segment STING_SHEET_FULL_REF_TXT ISO 19650
+    //  sheet ID has no room (e.g. the fabrication assembly title blocks' BOM
+    //  strip). Locked title blocks (PRJ_TB_LOCK_BOOL) are skipped, matching
+    //  TitleBlockPopulate's lock gate.
     // ═══════════════════════════════════════════════════════════════════════
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -1005,15 +1013,16 @@ namespace StingTools.Docs
             { TaskDialog.Show("STING Title Block", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            int total = 0;
-            foreach (ViewSheet s in new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
-            {
-                if (s.IsPlaceholder) continue;
-                if (s.get_Parameter(BuiltInParameter.SHEET_SCHEDULED)?.AsInteger() != 0)
-                    total++;
-            }
+            var counted = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder
+                    && s.get_Parameter(BuiltInParameter.SHEET_SCHEDULED)?.AsInteger() != 0)
+                .OrderBy(s => s.SheetNumber, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            int total = counted.Count;
+            int width = Math.Max(2, total.ToString(CultureInfo.InvariantCulture).Length);
 
+            int paginationWritten = 0, lockedSkipped = 0, noTbSkipped = 0;
             using (var tx = new Transaction(doc, "STING Sheet Count Auto-Update"))
             {
                 tx.Start();
@@ -1021,13 +1030,31 @@ namespace StingTools.Docs
                     "PRJ_TB_TOTAL_NO_SHEETS_TXT",
                     total.ToString(CultureInfo.InvariantCulture),
                     overwrite: true);
+
+                for (int i = 0; i < counted.Count; i++)
+                {
+                    var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, counted[i]);
+                    if (tb == null) { noTbSkipped++; continue; }
+                    if (ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0) != 0)
+                    { lockedSkipped++; continue; }
+
+                    string seq = (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
+                    string tot = total.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
+                    if (ParameterHelpers.SetString(tb, "STING_SHEET_OF_TOTAL_TXT",
+                        $"{seq} / {tot}", overwrite: true))
+                        paginationWritten++;
+                }
+
                 tx.Commit();
             }
 
-            StingLog.Info($"TB SheetCount: {total} sheets on sheet list");
+            StingLog.Info($"TB SheetCount: {total} sheets on sheet list, "
+                + $"{paginationWritten} pagination cell(s) written, {lockedSkipped} locked, {noTbSkipped} no TB");
             TaskDialog.Show("STING Sheet Count",
-                $"Sheets appearing in sheet list: {total}\n\n" +
-                "Written to PRJ_TB_TOTAL_NO_SHEETS_TXT on Project Information.");
+                $"Sheets appearing in sheet list: {total}\n" +
+                $"Pagination cells written (STING_SHEET_OF_TOTAL_TXT): {paginationWritten}\n" +
+                $"Skipped — locked: {lockedSkipped}, no title block: {noTbSkipped}\n\n" +
+                "Total written to PRJ_TB_TOTAL_NO_SHEETS_TXT on Project Information.");
             return Result.Succeeded;
         }
     }
