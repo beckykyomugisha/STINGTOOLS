@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Authorization;
 
 namespace Planscape.Tests;
@@ -39,7 +41,41 @@ internal static class AuthorizationTestDoubles
     {
         services.AddSingleton<IPermissionRevocationStore, NullRevocationStore>();
         services.AddScoped<ITenantBimManagerRoleResolver, DbTenantBimManagerRoleResolver>();
+        services.AddSingleton<TestTenantContext>();
+        services.AddSingleton<ITenantContext>(sp => sp.GetRequiredService<TestTenantContext>());
+        // Both of these, or neither takes effect: PlanscapeDbContext's tenant-aware
+        // constructor asks for (DbContextOptions, IHttpContextAccessor, ITenantContext).
+        // Miss one and EF quietly selects the options-only constructor instead,
+        // leaving _tenantContext null and CurrentTenantId at Guid.Empty — the exact
+        // "fails closed, no rows" path the filter documents.
+        services.AddHttpContextAccessor();
         return services;
+    }
+
+    /// <summary>
+    /// Sets the ambient tenant these containers otherwise lack.
+    ///
+    /// PlanscapeDbContext applies a global filter of
+    /// <c>TenantId == CurrentTenantId</c>, sourced from <see cref="ITenantContext"/>.
+    /// In the real host that is populated per request from the JWT. A hand-built
+    /// ServiceCollection registers nothing, so CurrentTenantId is Guid.Empty and
+    /// the filter silently excludes every seeded row whose TenantId is a real
+    /// GUID — the user lookup returns nothing, the Project behind a ProjectMember
+    /// is filtered out of the join, and the handler denies for reasons that have
+    /// nothing to do with the rule under test.
+    ///
+    /// Call this after seeding, with the tenant the fixture used.
+    /// </summary>
+    public static void UseTenant(this IServiceProvider sp, Guid tenantId) =>
+        sp.GetRequiredService<TestTenantContext>().TenantId = tenantId;
+
+    /// <summary>Mutable ambient tenant for tests.</summary>
+    internal sealed class TestTenantContext : ITenantContext
+    {
+        public Guid TenantId { get; set; } = Guid.Empty;
+        public string TenantSlug => "test";
+        public LicenseTier Tier => LicenseTier.Premium;
+        public bool MimEnabled => true;
     }
 
     /// <summary>No token has ever been revoked.</summary>

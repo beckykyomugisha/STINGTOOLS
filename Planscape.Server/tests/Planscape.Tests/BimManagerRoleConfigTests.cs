@@ -124,7 +124,12 @@ public class BimManagerRoleConfigTests
         var projectId = Guid.NewGuid();
 
         var services = new ServiceCollection();
-        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        // Name the store ONCE, outside the options lambda. AddDbContext invokes
+        // that lambda every time it builds options — i.e. once per scope — so a
+        // Guid.NewGuid() inside it handed every scope its own empty database.
+        // Seed in one scope, read in the handler's scope, see nothing.
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddAuthorizationTestDoubles();
         var sp = services.BuildServiceProvider();
 
@@ -150,6 +155,8 @@ public class BimManagerRoleConfigTests
             {
                 db.ProjectMembers.Add(new ProjectMember
                 {
+                    // Required: the global tenant filter excludes rows whose TenantId is unset.
+                    TenantId = tenantId,
                     UserId = userId,
                     ProjectId = projectId,
                     Iso19650Role = projectMemberRole,
@@ -158,6 +165,10 @@ public class BimManagerRoleConfigTests
             }
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var configEntries = new Dictionary<string, string?>();
         for (int i = 0; i < configRoles.Length; i++)
