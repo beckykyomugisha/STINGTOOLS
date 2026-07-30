@@ -163,7 +163,7 @@ Corrections to the review found in this pass (bringing the running total to six)
 
 ### P2 — still open
 
-**Track B — CLOSED except the two data-territory items.**
+**Track B — CLOSED.**
 
 | Item | Status |
 |---|---|
@@ -171,104 +171,56 @@ Corrections to the review found in this pass (bringing the running total to six)
 | B1 `dimensionStrategy` | ✅ wired into `DimGrids` via `DimensionStrategy.ResolveType` |
 | B1 `condition` | ✅ wired (evaluator had zero call sites) |
 | B1 per-rule `tagFamily` | ✅ wired, warns when the named family is absent |
-| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ still no-ops — see below |
+| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ Phase 225 — separate PR (`fix/drawings-p2-rulefields`) |
 | B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
 | B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
+| B4 checksums | ⬜ Phase 225 — separate PR (`fix/drawings-p2-checksums`) |
 | B5 composer numbering | ✅ routed through `SheetSequenceStore` |
-| B4 checksums | ⬜ data-territory — data PR |
-| B6 unmintable `iso-status-*` filters | ⬜ data-territory — data PR |
+| B6 unmintable `iso-status-*` filters | ✅ Phase 225 — removed; filter library 298 → 290 |
 
-`densityMode` / `minSizeMm` / `orientation` / `tag7Depth` remain unwired. They are per-rule
-*refinements* to tagging behaviour rather than the on/off wiring the other fields needed
-(`densityMode` interacts with the existing `denseUntilScale` gate; `minSizeMm` needs a per-element
-size measure; `orientation` and `tag7Depth` need per-tag write paths). Each is a small feature in
-its own right and none of them silently corrupts output today — they simply do nothing — so they
-are better scoped against smoke-test evidence than guessed at.
+**Track C (catalogue data) — CLOSED in Phase 225.** C1–C6 all landed. Two review claims did
+not survive verification and are recorded here so they are not re-raised:
 
-**Previously listed as remaining (now done):**
+- **C2 indices were off by one.** The review named rules #82/#89/#91/#95/#101 as the shadowed
+  literals; those are the *regex* rules doing the shadowing. The unreachable ones were
+  #83/#90/#92/#96/#102. Also: the two encodings mostly use different docType spellings
+  (hyphens vs underscores), so only the five identically-spelled rules were ever shadowed —
+  not the whole literal block.
+- **C6 put `struct-pt-tendon` in the wrong file.** It is a filter id in
+  `STING_AEC_FILTERS.json`, not a drawing type. `OST_StructuralRebar` appears once, there.
 
-- **B1 (rest of the rule engine).** `GridDimensioner`'s axis bug and the drainage invert are
-  fixed, but `AnnotationConditionEvaluator` still has no call site and the rule-pack fields
-  `condition` / per-rule `tagFamily` / `densityMode` / `minSizeMm` / `orientation` / `tag7Depth`
-  / `dimensionStrategy` remain silent no-ops on 48 shipped types. Recommendation: wire, not
-  delete — deleting means stripping the fields from 48 catalogue entries, which is a Track C
-  data edit. Note that A2 rewrote `DimGrids` correctly, so wiring `dimensionStrategy` would give
-  two implementations of grid dimensioning; converge them in the same pass.
-- **B3 `${MAT_*}` tokens (T-4).** `MaterialTitleBlockTokens.Resolve` still has zero callers.
-  One call site in `TitleBlockParamApplier`'s `${…}` handler would wire it; its O(all-elements)
-  usage scan should be made lazy-once-per-doc at the same time.
-- **B4 checksum persistence (C-5).** Unchanged — no checksum fields ship, so the corporate-lock
-  drift branch is inert. Needs a build-time stamping script plus a decision on whether packs get
-  parity or are documented as deliberately unlocked.
-- **B5 composer numbering (P-11).** `ShopDrawingComposer._sequenceByBucket` is still in-memory
-  per session. Routing it through the (now hardened) `SheetSequenceStore` would retire the third
-  parallel numbering system.
-- **B6 unmintable filters (V-6).** The 8 `iso-status-*` filters bind only `OST_Sheets`, which
-  Revit view filters cannot target. Removal is a Track C data edit.
+**Found while verifying Track C — now fixed (Phase 225):**
 
-**Track C (catalogue data) — not started**, gated on smoke-test evidence. C1–C6 as originally
-scoped. Note C3's overlap is confirmed by measurement: pipe-spool ISO spans 0.55→0.95 and BOM
-0.78→0.98, overlapping 0.78→0.95.
+- Two routing rules could never fire: `(*, HANDOVER, *)` and `(*, PRESENTATION, ELEVATION)`
+  sat below the phase-wildcard production block. Moved up to join the other phase-scoped rules.
+- `duct-spool` carried the same copy-pasted `01/DR` isoNaming the review flagged on
+  `elec-spool`; both now type as `02/SP`.
+- `DrawingTypeRegistry.MakeFabSpool` carried the same overlapping ISO/BOM slot geometry as the
+  JSON, so fixing only the data would have left the built-in fallback broken.
 
-**P-7 slot convention** — the divergence is measured and recorded above; converging requires
-rewriting `SheetTemplateEngine`'s built-in numbers and migrating user-saved templates, so it
-wants smoke-test evidence first.
+**Found while verifying Track C — still open:**
 
+- **Viewport naming has two sources of truth.** The catalogue now says
+  `"STING - Standard Viewport"` on all 93 types, but
+  `SheetManagerEngineExt.DefaultViewportTypeRules` independently names `"STING Viewport"`,
+  `"STING Section Viewport"`, `"STING Elevation Viewport"` and `"STING 3D Viewport"` for the
+  `AutoAssignVPTypes` path. Those strings may match types in existing project templates, so
+  they were not renamed blind. Needs a decision on the canonical set, then one edit.
+- **`Schematic` and `Clarification` produce a floor plan.** Both are now canonical
+  `DrawingPurpose` constants, but `DrawingProducer.SynthesizeSingleRule` still falls through to
+  `"FloorPlan"` for them. Choosing the Revit view family for a schematic (Drafting? Section?)
+  is a design decision, not a rename.
+- **ISO 19650 suitability colouring has no mechanism.** The 8 `iso-status-*` filters were the
+  attempt and could never work — Revit view filters cannot target `OST_Sheets`. A title-block
+  parameter or a view-template route would work; a view filter never will.
 
-### P2 — still open
+**SURFACED AND NOT ACTED ON — needs a drainage engineer.** `DrainageInvertDimensioner` places
+the invert one wall thickness low. The geometry fix is understood, but the corrected value is an
+engineering number on a drainage deliverable and is not an autonomous call. Left unwired.
 
-**Track B — CLOSED except the two data-territory items.**
-
-| Item | Status |
-|---|---|
-| B1 grid-dimensioning convergence | ✅ `DimGrids` survives; `GridDimensioner` reduced to `IsDimensionable` |
-| B1 `dimensionStrategy` | ✅ wired into `DimGrids` via `DimensionStrategy.ResolveType` |
-| B1 `condition` | ✅ wired (evaluator had zero call sites) |
-| B1 per-rule `tagFamily` | ✅ wired, warns when the named family is absent |
-| B1 `densityMode` / `minSizeMm` / `orientation` / `tag7Depth` | ⬜ still no-ops — see below |
-| B2 MatchLine reachability | ✅ 5 buttons + 5 ResolveCommand cases |
-| B3 `${MAT_*}` tokens | ✅ wired; usage scan memoised per doc |
-| B5 composer numbering | ✅ routed through `SheetSequenceStore` |
-| B4 checksums | ⬜ data-territory — data PR |
-| B6 unmintable `iso-status-*` filters | ⬜ data-territory — data PR |
-
-`densityMode` / `minSizeMm` / `orientation` / `tag7Depth` remain unwired. They are per-rule
-*refinements* to tagging behaviour rather than the on/off wiring the other fields needed
-(`densityMode` interacts with the existing `denseUntilScale` gate; `minSizeMm` needs a per-element
-size measure; `orientation` and `tag7Depth` need per-tag write paths). Each is a small feature in
-its own right and none of them silently corrupts output today — they simply do nothing — so they
-are better scoped against smoke-test evidence than guessed at.
-
-**Previously listed as remaining (now done):**
-
-- **B1 (rest of the rule engine).** `GridDimensioner`'s axis bug and the drainage invert are
-  fixed, but `AnnotationConditionEvaluator` still has no call site and the rule-pack fields
-  `condition` / per-rule `tagFamily` / `densityMode` / `minSizeMm` / `orientation` / `tag7Depth`
-  / `dimensionStrategy` remain silent no-ops on 48 shipped types. Recommendation: wire, not
-  delete — deleting means stripping the fields from 48 catalogue entries, which is a Track C
-  data edit. Note that A2 rewrote `DimGrids` correctly, so wiring `dimensionStrategy` would give
-  two implementations of grid dimensioning; converge them in the same pass.
-- **B3 `${MAT_*}` tokens (T-4).** `MaterialTitleBlockTokens.Resolve` still has zero callers.
-  One call site in `TitleBlockParamApplier`'s `${…}` handler would wire it; its O(all-elements)
-  usage scan should be made lazy-once-per-doc at the same time.
-- **B4 checksum persistence (C-5).** Unchanged — no checksum fields ship, so the corporate-lock
-  drift branch is inert. Needs a build-time stamping script plus a decision on whether packs get
-  parity or are documented as deliberately unlocked.
-- **B5 composer numbering (P-11).** `ShopDrawingComposer._sequenceByBucket` is still in-memory
-  per session. Routing it through the (now hardened) `SheetSequenceStore` would retire the third
-  parallel numbering system.
-- **B6 unmintable filters (V-6).** The 8 `iso-status-*` filters bind only `OST_Sheets`, which
-  Revit view filters cannot target. Removal is a Track C data edit.
-
-**Track C (catalogue data) — not started**, gated on smoke-test evidence. C1–C6 as originally
-scoped. Note C3's overlap is confirmed by measurement: pipe-spool ISO spans 0.55→0.95 and BOM
-0.78→0.98, overlapping 0.78→0.95.
-
-**P-7 slot convention** — the divergence is measured and recorded above; converging requires
-rewriting `SheetTemplateEngine`'s built-in numbers and migrating user-saved templates, so it
-wants smoke-test evidence first.
-
-
+**P-7 slot convention** — Phase 225, separate PR (`fix/drawings-p7-slots`): re-author
+`SheetTemplateEngine`'s built-in slots bottom-left to match the JSON convention, with a
+conversion for user-saved templates.
 Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
 numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
 C-4/A-6/A-7 annotation and match-line idempotency; A-3 legend in-place refresh; P-5/E-2 section

@@ -959,9 +959,9 @@ Tags as dispatched by `StingCommandHandler` (exact-match, case-sensitive):
 
 `DrawingTypes_Inspect`, `DrawingTypes_Reload`, `Drawing_BrowserOrganize`, `DrawingTypes_SyncStyles`, `DrawingTypes_FromScopeBoxes`, `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceSections`, `DrawingTypes_ProduceInteriorElevations`, `DrawingTypes_ProduceExteriorElevations`, `DrawingTypes_ProduceFromScopeBoxes`, `DrawingTypes_ProduceAndExport`, `DrawingTypes_Doctor`, `DrawingTypes_HealTitleBlocks`, `DrawingTypes_Renumber`, `AecFilters_Create`, `AecFilters_Inspect`, `AecFilters_Reload`, `DrawingTypes_ConvertToManaged`, `DrawingTypes_DetachManaged`, `DrawingTypes_RegenerateTemplates`, `TitleBlock_Create`, `TitleBlock_CreateAll`, `TitleBlock_MigrateLegacy`, `DrawingTypes_MigrateCsv`, `DrawingTypes_MigrateParams`, `DrawingTypes_PresentationSetup`, plus the MatchLine suite (`MatchLine_Generate`, `MatchLine_Sync`, `MatchLine_Validate`, `MatchLine_ValidateBundle`, `MatchLine_Inspect` — handler cases exist; no dock-panel buttons yet, see review finding W-2).
 
-### AEC/FM Corporate Filter Library (Phase 166/184f — 298 filters)
+### AEC/FM Corporate Filter Library (Phase 166/184f — 290 filters)
 
-`Data/STING_AEC_FILTERS.json`: 298 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
+`Data/STING_AEC_FILTERS.json`: 290 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298; Phase 225 removed the 8 `iso-status-*` filters, which bound only `OST_Sheets` and could never be created, leaving 290. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
 
 ---
 
@@ -1022,7 +1022,7 @@ Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.Sub
 | `Core.Drawing.DrawingDispatcher` | `Resolve(doc, disc, phase, docType)` + `CandidatesForDiscipline` |
 | `Core.Drawing.DrawingTypeValidator` | Pre-flight: missing title block / view template / viewport type / section-marker / tag family + slot geometry sanity |
 
-### Built-in corporate catalogue (93 types / 118 routing rules)
+### Built-in corporate catalogue (93 types / 113 routing rules)
 
 Shipped in `Data/STING_DRAWING_TYPES.json`. Core 15 (phase 113 foundation): `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
 
@@ -1045,7 +1045,7 @@ Presentation + clarification pack adds 8 client-facing types (all print with `co
 | Client presentation | `pres-3d-axon-A1` (3D + key plan + caption), `pres-perspective-A1` (full-bleed perspective), `pres-exterior-elev-A1` (material callouts, mono halftone), `pres-render-board-A1` (4-up renders), `pres-context-site-A1` (aerial + legend + caption) |
 | Clarification       | `clar-markup-A1` (plan + query log + revision strip), `clar-rfi-A3` (single-issue A3 sketch + question + revision), `clar-design-intent-A1` (plan + 3D + narrative + materials strip) |
 
-Routing table grew to 43 rules at that phase (now 118 rules across 93 types — count them in `Data/STING_DRAWING_TYPES.json`) covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
+Routing table grew to 43 rules at that phase (now 113 rules across 93 types — count them in `Data/STING_DRAWING_TYPES.json`) covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
 
 ### Project-scoped overrides
 

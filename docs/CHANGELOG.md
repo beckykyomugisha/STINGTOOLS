@@ -69,6 +69,107 @@ drawing production actually run from the dock panel.
 | Crop visibility | Produced drawings carry no visible crop rectangle unless `cropBoxVisible` is declared |
 | Slot miss | A typo'd `purposeTag` / `slotRef` warns and names the slots the family offers |
 
+**Track C — catalogue data.** Every claim was checked against the code that consumes it
+before editing; two did not survive, and the corrections are recorded below rather than
+forced through.
+
+- **isoNaming (C1).** `pipe-spool` declares volume 02 / type SP; `elec-spool` and
+  `duct-spool` both carried a plan-style 01/DR block copied from their discipline's plan
+  type. The review named only `elec-spool`. Likewise `pres-3d-axon-A1` already types itself
+  VS while its three siblings were left DR. `isoNaming` feeds `DrawingTokenContext`'s
+  `{type}` token and the codes `ExportCenterEngine` stamps, so exported document types
+  change. `suitability` / `revision` deliberately untouched — those are document-control
+  status values, not naming defects.
+- **Sheet-number collisions (C1).** Twelve types rendered the same number for the same
+  sequence: the number is built from (pattern, vol, type, role) and `SheetSequenceStore`
+  counts per drawing-type id, so every type starts at 0001 and four groups produced
+  identical numbers — `mep-plan` + its three Phase 135 variants, `elec-power` + `elec-spool`
+  + `elec-coord`, three `pres-3d` types, and `arch-plan` + `arch-section`. Revit rejects a
+  duplicate sheet number, so `EnsureUniqueSheetNumber`'s `-A…-Z` suffix — a last-ditch
+  uniquifier for accidents — was carrying them as a numbering scheme. The MEP variants and
+  `elec-coord` take short bespoke patterns mirroring `mep-coord`'s existing
+  `M-CO-{lvl}-{seq:D3}`; the presentation types gain a two-letter kind code;
+  `arch-section` numbers by `{mark}`, which is what a section is identified by and already
+  what its own `sheetNamePattern` uses. **Collision groups 4 → 0.**
+- **Unreachable routing (C2).** Five healthcare literal rules — RDS, IPS, MORTUARY,
+  LIGATURE, RTLS — are spelled identically in both the regex and literal encodings, sit
+  after their regex twin, and target the same drawing type, so removing them is a runtime
+  no-op. **The review's indices were off by one throughout**: it named #82/#89/#91/#95/#101,
+  which are the *regex* rules doing the shadowing; the unreachable ones are
+  #83/#90/#92/#96/#102. The rest of the literal block is reachable because the two encodings
+  mostly spell docTypes differently (hyphens vs underscores). Routing 118 → 113.
+- **Two more unreachable rules, not in the review.** `(*, HANDOVER, *)` and
+  `(*, PRESENTATION, ELEVATION)` sat *below* the phase-wildcard production block, so a
+  handover-phase plan produced an architectural plan and a presentation-phase elevation
+  produced a production elevation — both rules existed precisely to override that. Moved up
+  to join the other phase-scoped rules (Demolition, the three MEP variants, the presentation
+  floor plan), which were already authored above the wildcards. Pure reorder; phase-wildcard
+  routes spot-checked unchanged. **Unreachable rules 2 → 0.**
+- **Spool slot overlap (C3).** ISO spanned x 0.55–0.95 and BOM x 0.78–0.98 on the same row,
+  so the isometric and the bill of materials were placed on top of each other on every pipe
+  and duct spool sheet. ISO now ends where BOM begins. The same six slots are hard-coded in
+  `DrawingTypeRegistry.MakeFabSpool` — fixing only the JSON would have left the built-in
+  fallback overlapping — so both moved together. `elec-spool` is untouched: its BOM is on
+  the lower row.
+- **Sheet-name tokens (C4).** `{room}`, `{gas}` and `{area}` are in neither
+  `DrawingTokenContext.Build` nor the validator's `_knownTokens`, so DT-098 warned and the
+  literal braces rendered into the sheet name. No producer has a room / gas / area value to
+  thread through, so all seven use `{mark}` — the per-instance discriminator sections,
+  elevations and details already use. **Unknown tokens 7 → 0.**
+- **Purposes and DT-095 (C4).** The catalogue authors 8 `Schematic` and 2 `Clarification`
+  types that `DrawingPurpose` never declared. DT-095 then warned on four of them: it
+  exempted only 3D / Perspective from the positive-scale rule, but a riser schematic is NTS
+  and a schedule is a table — all four author `"scale": "NA"`, which `TolerantScaleConverter`
+  reads as 0 by design. Both purposes are now constants and Schedule / Schematic join the
+  exemption. Not fixed: `DrawingProducer.SynthesizeSingleRule` still falls through to
+  `"FloorPlan"` for both, because choosing a Revit view family for a schematic is a design
+  decision, not a rename — logged in ROADMAP.
+- **`autoDimension` → `autoDim` (C4).** `AnnotationRulePack` binds `[JsonProperty("autoDim")]`;
+  no property is named `autoDimension`, so Newtonsoft dropped the key on all 23 healthcare
+  types and the field was decorative. All 23 carry `false`, which is also what the unbound
+  property defaulted to, so behaviour is unchanged — but flipping one to `true` will now do
+  something.
+- **Dead `tokenProfile` keys (C5).** `DrawingType.cs` states that `tagSize` / `tagStyle` /
+  `tagColor` / `colorScheme` "were removed so appearance isn't authored in two places… Any
+  legacy JSON keys are ignored on load." The catalogue never followed: all 57 `tokenProfile`
+  blocks still declared all four. 228 lines removed. Scoped to `tokenProfile` only —
+  `print.colorScheme` is live and 90 types keep theirs.
+- **Name convergence (C6).** `viewportTypeName` was `"STING - Standard Viewport"` on 70
+  types, `"STING Viewport"` on the 22 healthcare types and Revit's stock `"Title w Line"` on
+  one — all 93 now agree. `STING_SECTION_MARK` → `STING_SECTION_HEAD` and `STING_ELEV_MARK`
+  → `STING_ELEV_MARKER` (matched on the quoted string so `ELEV_MARK` does not rewrite the
+  tail of `ELEV_MARKER`). **The review put `struct-pt-tendon` in the wrong file** — it is a
+  filter id in `STING_AEC_FILTERS.json`, where `OST_StructuralRebar` (not a `BuiltInCategory`;
+  the Revit rebar category is `OST_Rebar`) was being dropped by
+  `AecFilterFactory.ResolveCategories`, so the post-tensioning filter overrode framing and
+  floors but never the tendons. The 23 healthcare `titleBlockFamily` display names are real
+  families and were left alone. Still open: `SheetManagerEngineExt.DefaultViewportTypeRules`
+  is a second source of truth naming `"STING Viewport"` etc. for the `AutoAssignVPTypes`
+  path — not renamed blind, logged in ROADMAP.
+- **Unmintable filters (B6).** All 8 `iso-status-*` filters bind exactly one category,
+  `OST_Sheets`, which is not in `ParameterFilterUtilities.GetAllFilterableCategories` — every
+  one dies on "All requested categories are non-filterable". Dead by design, referenced by
+  nothing. Filter library 298 → 290.
+
+**Needs a Revit smoke test** (human):
+
+| Area | Check |
+|---|---|
+| Spool ISO codes | Export a pipe, duct and electrical spool — the ISO document type reads `SP`, not `DR`, and volume `02` |
+| Presentation ISO codes | Export the three `pres-3d` types — document type reads `VS` |
+| Sheet numbers | Produce `mep-plan` + its presentation / technical / fabrication variants on one level: four distinct numbers, no `-A` suffix and no "already exists" warning |
+| Sheet numbers | Same for `elec-power` + `elec-coord`, the three `pres-3d` types, and `arch-plan` + `arch-section` |
+| Handover routing | Produce with phase `HANDOVER` on an architectural plan — lands `handover-A1`, not `arch-plan` |
+| Presentation routing | Produce an elevation with phase `PRESENTATION` — lands `pres-exterior-elev-A1`, not `arch-elev` |
+| Production routing | Regression check: phase `DE` still routes A/PLAN → `arch-plan`, A/ELEVATION → `arch-elev`, P/SPOOL → `pipe-spool` |
+| Spool sheets | Compose a pipe spool and a duct spool — the ISO viewport and the BOM schedule no longer overlap |
+| Healthcare sheet names | Produce a healthcare type — the name shows a mark or a blank, never a literal `{area}` / `{room}` / `{gas}` |
+| Validator | Run `DrawingTypes_Doctor` — no DT-095 on the four NA-scale Schedule/Schematic types, no DT-098 anywhere |
+| Viewport types | Produce a healthcare drawing — the viewport resolves `STING - Standard Viewport` (or warns once, consistently with every other type) |
+| Section / elevation markers | Produce a type using `STING_SECTION_HEAD` / `STING_ELEV_MARKER` — the marker family resolves |
+| Rebar filter | Apply the `struct-pt-tendon` filter — post-tensioned rebar is overridden, not just framing and floors |
+| Filters | Run `AecFilters_Create` — 290 filters, and no "non-filterable category" errors |
+
 #### Completed (cover title-block — ISO 19650 suitability in the revision schedule)
 
 The cover title-block family's revision history is a **native Revit Revision
