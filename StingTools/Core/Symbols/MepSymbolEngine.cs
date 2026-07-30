@@ -671,9 +671,49 @@ namespace StingTools.Core.Symbols
                     string lib = (string)root["symbol_library_root"];
                     if (!string.IsNullOrWhiteSpace(lib)) return lib.Trim();
                 }
+
+                // W-3 — machine-wide default. Without this the shared library was
+                // opt-in and undiscoverable, so every project regenerated the whole
+                // catalogue into its own _BIM_COORD. Explicit configuration above
+                // still wins; this only supplies a default when nothing is set.
+                //
+                // Probed for writability rather than assumed: ProgramData grants
+                // Users create-subdirectory by default, but locked-down or
+                // roaming-profile machines vary, and silently returning an
+                // unwritable root would push every build into the temp fallback.
+                return ProbeDefaultSharedRoot();
             }
             catch (Exception ex) { StingLog.Warn($"ResolveSharedLibraryRoot: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>Machine-wide default shared library root, or null when unusable.</summary>
+        public static string DefaultSharedLibraryRoot =>
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "STING", "ContentLibrary", "Symbols");
+
+        /// <summary>
+        /// Returns <see cref="DefaultSharedLibraryRoot"/> only if it can actually be
+        /// created and written to. Null otherwise, so callers fall back per-project.
+        /// </summary>
+        private static string ProbeDefaultSharedRoot()
+        {
+            string root = DefaultSharedLibraryRoot;
+            try
+            {
+                Directory.CreateDirectory(root);
+                string probe = Path.Combine(root, ".sting_write_probe");
+                File.WriteAllText(probe, "");
+                File.Delete(probe);
+                return root;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Info($"Default shared symbol root '{root}' not writable " +
+                              $"({ex.Message}); using per-project output.");
+                return null;
+            }
         }
 
         // ── Family loading ───────────────────────────────────────────────
