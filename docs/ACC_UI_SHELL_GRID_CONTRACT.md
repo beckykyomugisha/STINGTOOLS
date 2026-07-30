@@ -89,7 +89,7 @@ contrast passes, that a grid edit round-trips against a live API. All of that is
 | Slice | Status | Machine proof |
 |---|---|---|
 | U1 design tokens | DONE | `npm run typecheck` clean · `npm run build` ✓ Compiled successfully · `npm test` **32 passed** incl. 8 new token-contract tests |
-| U2 shell chrome | — | — |
+| U2 shell chrome | DONE | typecheck clean · build ✓ Compiled successfully · `npm test` **45 passed** incl. 13 new breadcrumb / nav-model / tenant-switch tests |
 | U3 primitives | — | — |
 | U4 route migration | — | — |
 | U5 polish + a11y | — | — |
@@ -112,3 +112,25 @@ Run `cd planscape-web && npm install && npm run dev`, point `NEXT_PUBLIC_API_BAS
 - [ ] **Contrast:** spot-check `fg-muted` on `surface-2` and any badge (`warning` on
       `warning-subtle`) against WCAG AA (4.5:1 body, 3:1 large). These were picked by eye from HSL
       values, never measured — this is the most likely thing to need a tweak.
+
+### U2 — shell chrome
+- [ ] **Rail:** left rail shows global nav; opening a project adds a "Project" group (Overview,
+      Issues, Clashes, Models, 3D viewer, Documents, Transmittals, Meetings, Site photos, Members).
+      The current section is highlighted, and `/projects` does NOT stay highlighted while inside a project.
+- [ ] **Collapse:** the ☰ button collapses the rail to icons; hovering an icon shows its label as a
+      tooltip; the choice survives a reload.
+- [ ] **Mobile:** under ~1024px the rail becomes a drawer — ☰ opens it, the scrim or a route change
+      closes it, and it never covers content after navigating.
+- [ ] **Project switcher:** the top bar shows the current project; opening it lists projects and
+      jumping to one navigates without a full reload.
+- [ ] **Tenant switcher:** with an account in ONE firm, no org control appears at all. With an
+      account in TWO firms it appears — switching reloads into `/projects` showing the OTHER firm's
+      projects, and the old firm's data is gone. **This is also the two-firm isolation spot-check.**
+- [ ] **Theme:** avatar menu → Light / Dark / System each apply immediately and survive a reload;
+      System follows an OS theme change live; there is **no white flash** on a hard refresh in dark
+      mode (that's the blocking head script).
+- [ ] **Breadcrumb:** on a deep route (`/projects/<id>/meetings/<id>`) the trail reads
+      Projects / #xxxxxxxx / Meetings / #xxxxxxxx, every crumb but the last navigates.
+- [ ] **Full-bleed:** content now fills the width — the old `max-w-5xl` cap is gone, so a wide table
+      uses the screen instead of scrolling inside a 64rem column.
+- [ ] **Skip link:** press Tab on page load — the first stop is "Skip to content" and it jumps past the rail.
