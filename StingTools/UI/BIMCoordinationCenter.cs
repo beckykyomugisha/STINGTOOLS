@@ -820,6 +820,15 @@ namespace StingTools.UI
             public string DueDate { get; set; }
             public bool IsOverdue { get; set; }
 
+            /// <summary>
+            /// Document sync — the local state of this deliverable on THIS
+            /// machine, resolved from the Planscape Companion's sync folder.
+            /// Set by BuildCoordData; empty when nothing is synced, which is the
+            /// normal case on a machine with no Companion.
+            /// </summary>
+            public string SyncBadge { get; set; } = "";
+            public string SyncTooltip { get; set; } = "";
+
             // ── v1.0 template-engine fields (S02) ──
             public string DocNumber { get; set; }
             public string Revision { get; set; }
@@ -1569,10 +1578,132 @@ namespace StingTools.UI
             return btn;
         }
 
+        /// <summary>
+        /// Document sync status + a "Sync now" button, talking to the Planscape
+        /// Companion over its named pipe.
+        ///
+        /// <para><b>Not running is information, not an error</b> (plan §1a/§1c).
+        /// A machine where nobody set sync up is the common case, and it renders
+        /// as a plain grey line explaining what is missing — not a red banner
+        /// implying something broke.</para>
+        ///
+        /// <para>Equally, <b>Offline is not an error</b>: a closed laptop or a
+        /// dropped VPN is expected and self-healing, so it reads grey. Only the
+        /// Error state gets the red treatment, because only Error needs a human.</para>
+        /// </summary>
+        private Border BuildDocumentSyncStrip()
+        {
+            var host = new Border
+            {
+                Background = Br(Color.FromRgb(0xF5, 0xF7, 0xFA)),
+                BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(10, 6, 10, 6),
+                Margin = new Thickness(0, 0, 0, 10),
+            };
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var dot = new Border
+            {
+                Width = 8, Height = 8, CornerRadius = new CornerRadius(4),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0),
+            };
+            var label = new TextBlock
+            {
+                FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap,
+            };
+            var syncBtn = new Button
+            {
+                Content = "Sync now", FontSize = 11, Cursor = Cursors.Hand,
+                Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(12, 0, 0, 0),
+                Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+            };
+
+            Action refresh = () =>
+            {
+                // Bounded by the pipe connect timeout, so the worst this can cost
+                // the UI thread is that timeout — not an indefinite block.
+                var st = BIMManager.CompanionSyncBridge.GetStatus();
+                if (!st.Running)
+                {
+                    dot.Background = Br(Color.FromRgb(0x9E, 0x9E, 0x9E));
+                    label.Text = "Document sync: the Planscape Companion is not running on this machine.";
+                    label.Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55));
+                    syncBtn.IsEnabled = false;
+                    return;
+                }
+                syncBtn.IsEnabled = true;
+                bool error = st.NeedsAttention;
+                dot.Background = Br(error
+                    ? Color.FromRgb(0xC6, 0x28, 0x28)
+                    : string.Equals(st.State, "Offline", StringComparison.OrdinalIgnoreCase)
+                        ? Color.FromRgb(0x9E, 0x9E, 0x9E)
+                        : Color.FromRgb(0x2E, 0x7D, 0x32));
+                label.Text = st.Summary
+                    + (st.LinkedProjects > 0 ? $"  ·  {st.LinkedProjects} linked project(s)" : "")
+                    + (error && !string.IsNullOrEmpty(st.LastError) ? $"  ·  {st.LastError}" : "");
+                label.Foreground = Br(error ? Color.FromRgb(0xC6, 0x28, 0x28) : Color.FromRgb(0x33, 0x33, 0x33));
+            };
+
+            syncBtn.Click += (s, e) =>
+            {
+                // Starts a sync; it does not wait for one. The Companion answers
+                // immediately and downloads in its own time.
+                bool started = BIMManager.CompanionSyncBridge.SyncNow();
+                label.Text = started
+                    ? "Sync requested — the Companion is working in the background."
+                    : "Could not reach the Planscape Companion. Is it running?";
+                Dispatcher.BeginInvoke(new Action(() => refresh()),
+                    System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            };
+
+            var refreshBtn = new Button
+            {
+                Content = "Refresh", FontSize = 11, Cursor = Cursors.Hand,
+                Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(6, 0, 0, 0),
+                Background = Brushes.Transparent, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+            };
+            refreshBtn.Click += (s, e) => refresh();
+
+            row.Children.Add(dot);
+            row.Children.Add(label);
+            row.Children.Add(syncBtn);
+            row.Children.Add(refreshBtn);
+            host.Child = row;
+            refresh();
+            return host;
+        }
+
         private void Nav_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string tabName)
                 NavigateTo(tabName);
+        }
+
+        /// <summary>
+        /// Public face of <see cref="NavigateTo"/>, for callers that opened the
+        /// BCC to land on a specific tab — currently the planscape:// link
+        /// handler (<c>planscape://issue/…</c> should arrive on ISSUES, not on
+        /// whatever tab was last used).
+        ///
+        /// Marshals to the window's own dispatcher: the link watcher runs on
+        /// Revit's Idling event, which is not the WPF UI thread.
+        /// An unknown tab name is a no-op, never a crash — the nav is built from
+        /// data and an optional tab (HVAC, HEALTHCARE) may not exist.
+        /// </summary>
+        internal void NavigateToTab(string tabName)
+        {
+            if (string.IsNullOrWhiteSpace(tabName)) return;
+            try
+            {
+                if (Dispatcher.CheckAccess()) NavigateTo(tabName);
+                else Dispatcher.Invoke(() => NavigateTo(tabName));
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"BCC NavigateToTab('{tabName}'): {ex.Message}");
+            }
         }
 
         private void NavigateTo(string tabName)
@@ -8658,6 +8789,13 @@ namespace StingTools.UI
             }
 
             // ── DELIVERABLES DATA GRID ──────────────────────────────────
+            // ── DOCUMENT SYNC STRIP ─────────────────────────────────────
+            // The user-facing payoff of the Companion pipe client: is sync
+            // running, when did it last succeed, and a way to kick it. Placed
+            // above the register because that is where a user asks "do I have
+            // these files".
+            root.Children.Add(BuildDocumentSyncStrip());
+
             root.Children.Add(MakeSectionHeader("DELIVERABLE REGISTER"));
 
             // ── ISO Discipline legend strip ─────────────────────────────
@@ -8787,6 +8925,39 @@ namespace StingTools.UI
                 dg.Columns.Add(new DataGridTextColumn { Header = "Status",     Binding = new Binding("Status"),     Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Suit.",      Binding = new Binding("Suitability"),Width = 35 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "CDE",        Binding = new Binding("CDE"),        Width = 60 });
+
+                // Document sync — local state of the file on THIS machine.
+                //
+                // The design asks for "the same visual pattern already used for
+                // the Live meeting badge". That badge lives in the WEB app, not
+                // here — BCC has no meetings badge to copy. Rather than invent a
+                // new look, this reuses BCC's OWN existing chip idiom: the
+                // rounded Border + small bold white text used by the discipline
+                // legend a few lines above. Same instinct the design had (no new
+                // UI language), applied to the language this window actually
+                // speaks. Flagged in the plan so the discrepancy is a decision,
+                // not a drift.
+                var syncChip = new FrameworkElementFactory(typeof(Border));
+                syncChip.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+                syncChip.SetValue(Border.PaddingProperty, new Thickness(5, 1, 5, 1));
+                syncChip.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+                syncChip.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
+                syncChip.SetBinding(Border.ToolTipProperty, new Binding("SyncTooltip"));
+                syncChip.SetBinding(Border.BackgroundProperty,
+                    new Binding("SyncBadge") { Converter = new SyncBadgeBrushConverter() });
+                syncChip.SetBinding(Border.VisibilityProperty,
+                    new Binding("SyncBadge") { Converter = new EmptyToCollapsedConverter() });
+                var syncText = new FrameworkElementFactory(typeof(TextBlock));
+                syncText.SetBinding(TextBlock.TextProperty, new Binding("SyncBadge"));
+                syncText.SetValue(TextBlock.FontSizeProperty, 9.0);
+                syncText.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+                syncText.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+                syncChip.AppendChild(syncText);
+                var syncTemplate = new DataTemplate { VisualTree = syncChip };
+                dg.Columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "Local", Width = 70, CellTemplate = syncTemplate, CanUserSort = false,
+                });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Owner",      Binding = new Binding("Owner"),      Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Due",        Binding = new Binding("DueDate"),    Width = 80 });
                 dg.ItemsSource = _data.Deliverables;
@@ -8837,6 +9008,26 @@ namespace StingTools.UI
                 var ctxCopyLink = new MenuItem { Header = "🔗 Copy permalink" };
                 ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyLink);
+                dgCtx.Items.Add(new Separator());
+
+                // Slice E — full version history, per document, on request only.
+                // The design is explicit that this is never a default: a drawing
+                // with forty revisions would otherwise multiply the sync folder
+                // by forty on every machine for nobody's benefit. A menu item is
+                // the deliberate click that opts in.
+                var ctxHistory = new MenuItem { Header = "⤓ Download full version history" };
+                ctxHistory.Click += (s, e) =>
+                {
+                    var r = CtxDelRow();
+                    if (r == null) return;
+                    // The register carries no server document GUID (see the
+                    // CompanionSyncBridge remarks), so this hands the row code to
+                    // the dispatcher, which resolves it against the live project
+                    // before asking the Companion. Reported through the same
+                    // action pipeline as every other row command.
+                    DispatchAction("DownloadDocumentHistory_" + r.Code);
+                };
+                dgCtx.Items.Add(ctxHistory);
                 dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
                 ctxCDE.Click += (s, e) => { DispatchAction("CDEStatus"); };
@@ -11536,6 +11727,52 @@ namespace StingTools.UI
         public IsCheckedSetConverter(System.Collections.Generic.HashSet<string> set) { _set = set; }
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
             => value is string s && _set.Contains(s);
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// Document sync — badge label to chip colour.
+    ///
+    /// Green for a working copy (yours to edit), grey for a read-only reference
+    /// copy. Deliberately NOT red or amber for either: neither state is a
+    /// problem, and this window already spends red on overdue deliverables and
+    /// failing warnings. A colour that means "attention" spent on a routine state
+    /// is a colour that stops meaning attention.
+    /// </summary>
+    public sealed class SyncBadgeBrushConverter : System.Windows.Data.IValueConverter
+    {
+        private static readonly System.Windows.Media.SolidColorBrush Working =
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2E, 0x7D, 0x32));
+        private static readonly System.Windows.Media.SolidColorBrush Reference =
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x78, 0x90, 0x9C));
+
+        static SyncBadgeBrushConverter()
+        {
+            // Frozen: these are shared across every row of the grid, and an
+            // unfrozen brush bound into hundreds of cells is pure overhead.
+            Working.Freeze();
+            Reference.Freeze();
+        }
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => string.Equals(value as string, "WORKING", StringComparison.Ordinal)
+                ? Working
+                : (object)Reference;
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>Empty string → Collapsed, so a row with no local copy shows nothing
+    /// rather than an empty chip.</summary>
+    public sealed class EmptyToCollapsedConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => string.IsNullOrEmpty(value as string)
+                ? System.Windows.Visibility.Collapsed
+                : System.Windows.Visibility.Visible;
+
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
             => System.Windows.Data.Binding.DoNothing;
     }

@@ -191,6 +191,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </MenuItem>
                   ))}
                   <MenuSeparator />
+                  {/* Firm-wide, deliberately NOT inside a project — inviting
+                      someone to the practice is not a project action. Owner /
+                      Admin only server-side; the page says so rather than
+                      hiding, since the token doesn't tell us the tenant role
+                      reliably enough to gate the menu on it. */}
+                  <MenuItem
+                    onClick={() => {
+                      close();
+                      router.push('/settings/team');
+                    }}
+                  >
+                    Team
+                  </MenuItem>
                   <MenuItem
                     onClick={() => {
                       close();

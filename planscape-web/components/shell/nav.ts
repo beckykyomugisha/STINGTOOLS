@@ -45,6 +45,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   search: 'Search',
   settings: 'Settings',
   tokens: 'Access tokens',
+  team: 'Team',
   handoff: 'Handoff',
   new: 'New',
   live: 'Live',

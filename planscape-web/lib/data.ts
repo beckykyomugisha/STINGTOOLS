@@ -23,6 +23,7 @@ import type {
   SitePhoto,
   AccessToken,
   MintedAccessToken,
+  TenantDashboard,
 } from './types';
 
 // ── Projects ──
@@ -41,6 +42,51 @@ export function createProject(body: {
   phase?: string;
 }): Promise<Project> {
   return api<Project>('/api/projects', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/**
+ * Update project settings. The body is deliberately narrower than
+ * `UpdateProjectRequest`: that record also accepts `status`, `tagSeparator`,
+ * `seqNumPad`, `tagPrefix`, `tagSuffix` and `configJson`, none of which the
+ * grid edits.
+ *
+ * `documentSyncAutoEnabled` is in the list because it genuinely is a project
+ * setting this route accepts — the per-project "Auto-sync this project" toggle
+ * from the document-sync design.
+ *
+ * `status` in particular stays out on purpose — writing it here would be a
+ * second, unconfirmed route to `Archived`, bypassing the confirm-code gate that
+ * `archiveProject` exists to honour. Note it is NOT accepting `code`: the server
+ * has no write for it, and it is the archive confirmation token.
+ *
+ * Null-valued fields are "leave unchanged" server-side, so a partial body is safe.
+ */
+export function updateProject(
+  id: string,
+  body: { name?: string; description?: string; phase?: string; documentSyncAutoEnabled?: boolean },
+): Promise<Project> {
+  return api<Project>(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+/**
+ * Archive a project — a SOFT delete. `Status` flips to `Archived`; every row is
+ * kept and the project stays visible under the archived filter. There is no hard
+ * delete on this route by design; a true purge is separate admin tooling.
+ *
+ * The server double-gates it (`ProjectsController.ArchiveProject`):
+ *  - **403** unless the caller is the project author (`CreatedById`) or a tenant
+ *    admin. That is correct behaviour, not a bug — surface it as "you don't have
+ *    permission", not as a generic failure.
+ *  - **400** unless `confirmCode` equals the project's own `Code`
+ *    (case-insensitive), with `{ message, expectedField, expectedValue }`.
+ *
+ * The client asks for the code too — see `ArchiveProjectDialog`. The 400 is the
+ * server's backstop, not the UI's confirmation step.
+ */
+export function archiveProject(id: string, confirmCode: string): Promise<void> {
+  return api<void>(`/api/projects/${id}?confirmCode=${encodeURIComponent(confirmCode)}`, {
+    method: 'DELETE',
+  });
 }
 
 // ── Issues ──
@@ -388,6 +434,44 @@ export function updateMemberRole(
 
 export function removeMember(projectId: string, memberId: string): Promise<void> {
   return api(`/api/projects/${projectId}/members/${memberId}`, { method: 'DELETE' });
+}
+
+// ── Tenant (firm-wide) administration ──
+// Every route here lives on TenantAdminController, which is
+// [Authorize(Roles = "Owner,Admin")] as a whole. A 403 from any of them means
+// "you are not an Owner or Admin", not "something went wrong" — render it that
+// way. There is no tenant id in the path: the tenant is resolved from the token
+// and the global query filter, so an admin cannot even type the wrong one.
+
+/** Plan, live usage vs limits, and the firm's user list — one payload. */
+export function getTenantDashboard(): Promise<TenantDashboard> {
+  return api<TenantDashboard>('/api/tenant/dashboard');
+}
+
+/**
+ * Invite someone to the FIRM, not to a single project — the counterpart to
+ * `inviteMember`, which adds a seat on one project. This is the path that was
+ * server-only until now: `POST /api/tenant/invite` had no client code anywhere.
+ *
+ * `role` is `"Author"` or anything else, which the server maps to
+ * `"Coordinator"` — those are the two axes the plan meters separately.
+ *
+ * Failures worth handling by hand rather than as a generic toast:
+ *  - **402** `{ error: 'quota_exceeded', axis, current, max, reason }` — the
+ *    plan's Author/Coordinator cap is full. `ApiError.body` carries the detail.
+ *  - **409** the email already belongs to a user.
+ *  - **403** the caller is not an Owner/Admin.
+ *
+ * The invited row is planted inactive with a stub password; the server's real
+ * invite-email flow is still a TODO on its side, so treat "invited" as "seat
+ * reserved", not "they got a link".
+ */
+export function inviteTenantMember(body: {
+  email: string;
+  displayName: string;
+  role: string;
+}): Promise<{ id: string; email: string; displayName: string; role: string }> {
+  return api('/api/tenant/invite', { method: 'POST', body: JSON.stringify(body) });
 }
 
 // ── Cross-project search ──

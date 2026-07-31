@@ -327,8 +327,12 @@ namespace StingTools.Commands.Delivery
         /// (&lt;root&gt;/_data/_BIM_COORD/), falling back to the legacy sibling-of-RVT
         /// location for projects not yet migrated. This is the same path
         /// <see cref="Planscape.Docs.Templates.DeliverableLifecycle"/> persists to.
+        /// Internal (not private): WarningsManager.BuildCoordData reads the same file to
+        /// populate the BCC Deliverables tab — reusing this resolver rather than growing a
+        /// fourth copy of the path logic is exactly what DocumentIdentity.cs's own header
+        /// comment warns against.
         /// </summary>
-        private static string ResolveDeliverablesPath(Document doc)
+        internal static string ResolveDeliverablesPath(Document doc)
         {
             try
             {

@@ -40,9 +40,15 @@ public class ProjectsController : ControllerBase
                 p.CompliancePercent, p.RagStatus, p.TotalElements, p.TaggedElements,
                 p.LastSyncAt, p.CreatedAt,
                 p.Latitude, p.Longitude, p.City, p.Country,
-                p.CoverImageUrl, p.IsPinned,
+                p.CoverImageUrl, p.IsPinned, p.DocumentSyncAutoEnabled,
                 MemberCount = _db.ProjectMembers
-                    .Count(m => m.ProjectId == p.Id && m.IsActive)
+                    .Count(m => m.ProjectId == p.Id && m.IsActive),
+                // The projects grid shows an open-issue count per row. Without
+                // it here the web app would have to call {id}/dashboard once per
+                // project — an N+1 for a single integer. Same predicate the
+                // dashboard's OpenIssues uses, so the two agree.
+                OpenIssueCount = _db.Issues
+                    .Count(i => i.ProjectId == p.Id && i.Status != "CLOSED")
             })
             .OrderByDescending(p => p.IsPinned)
             .ThenByDescending(p => p.LastSyncAt)
@@ -88,7 +94,8 @@ public class ProjectsController : ControllerBase
         return Ok(new
         {
             project.Id, project.Name, project.Code, project.Description, project.Phase,
-            project.Status, project.TagSeparator, project.SeqNumPad,
+            project.Status, project.DocumentSyncAutoEnabled,
+            project.TagSeparator, project.SeqNumPad,
             project.TagPrefix, project.TagSuffix, project.ConfigJson,
             project.CompliancePercent, project.ContainerCompliancePercent,
             project.RagStatus, project.TotalElements, project.TaggedElements,
@@ -204,6 +211,8 @@ public class ProjectsController : ControllerBase
         if (req.TagPrefix != null) project.TagPrefix = req.TagPrefix;
         if (req.TagSuffix != null) project.TagSuffix = req.TagSuffix;
         if (req.ConfigJson != null) project.ConfigJson = req.ConfigJson;
+        if (req.DocumentSyncAutoEnabled.HasValue)
+            project.DocumentSyncAutoEnabled = req.DocumentSyncAutoEnabled.Value;
 
         await _db.SaveChangesAsync();
         return Ok(project);
@@ -342,4 +351,7 @@ public record CreateProjectRequest(string Name, string? Code, string? Descriptio
 public record UpdateProjectRequest(
     string? Name, string? Description, string? Phase, ProjectStatus? Status,
     string? TagSeparator, int? SeqNumPad, string? TagPrefix, string? TagSuffix,
-    string? ConfigJson);
+    string? ConfigJson,
+    // Document sync — "Auto-sync this project". Nullable so an existing caller
+    // that omits it leaves the flag alone, same as every other field here.
+    bool? DocumentSyncAutoEnabled = null);

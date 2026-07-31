@@ -1,14 +1,37 @@
+/**
+ * Mirrors both project payloads, which are NOT the same shape:
+ *  - `GET /api/projects` (list) omits `description`, `configJson` and the tag
+ *    format fields;
+ *  - `GET /api/projects/{id}` (detail) returns the full entity.
+ * Everything the list can leave out is optional here, so a grid column that
+ * silently renders `undefined` is a compile-time question rather than a
+ * runtime blank.
+ */
 export interface Project {
   id: string;
   code: string;
   name: string;
-  description: string;
+  /** Detail payload only — the list projection does not include it. */
+  description?: string;
   createdAt: string;
   phase?: string;
-  status?: string;
+  status?: string; // Active | Archived | Completed
   compliancePercent?: number;
   ragStatus?: string;
   openIssueCount?: number;
+  memberCount?: number;
+  totalElements?: number;
+  taggedElements?: number;
+  lastSyncAt?: string | null;
+  isPinned?: boolean;
+  /**
+   * Document sync — "Auto-sync this project". On by default. Off means a linked
+   * Planscape Companion stops syncing automatically but still syncs on an
+   * explicit "Sync now"; it does not unlink anything.
+   */
+  documentSyncAutoEnabled?: boolean;
+  city?: string | null;
+  country?: string | null;
 }
 
 export type IssuePriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
@@ -232,6 +255,60 @@ export interface ProjectMember {
 export interface Iso19650Role {
   code: string;
   label: string;
+}
+
+// ── Tenant (firm-wide) administration ──
+// Mirrors TenantAdminController, which is [Authorize(Roles = "Owner,Admin")] in
+// its entirety — every call here 403s for anyone else, and that is correct.
+
+/** A user account in the firm — distinct from ProjectMember, which is a seat on one project. */
+export interface TenantUser {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  role?: string; // Owner | Admin | Coordinator | Contributor | Viewer
+  iso19650Role?: string | null;
+  lastLoginAt?: string | null;
+  /** false until an invitee sets a password — an invite plants an inactive row. */
+  isActive?: boolean;
+}
+
+export interface TenantQuotaAxis {
+  current: number;
+  max: number;
+}
+
+export interface TenantDashboard {
+  tenant: {
+    id: string;
+    name: string;
+    slug?: string;
+    contactEmail?: string | null;
+    plan?: string;
+    currency?: string;
+    billingCycle?: string;
+    trialExpiresAt?: string | null;
+    isActive?: boolean;
+    createdAt?: string;
+  };
+  usage: {
+    authors: TenantQuotaAxis;
+    coordinators: TenantQuotaAxis;
+    projects: TenantQuotaAxis;
+    storage: { currentMb: number; maxMb: number };
+    memberSeats?: number;
+  };
+  users: TenantUser[];
+}
+
+/** Shape of the 402 body from a quota refusal. */
+export interface QuotaExceeded {
+  error: 'quota_exceeded';
+  axis?: string;
+  current?: number;
+  max?: number;
+  reason?: string;
+  upgrade_url?: string;
 }
 
 // ── Cross-project search ──

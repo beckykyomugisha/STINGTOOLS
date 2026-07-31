@@ -62,6 +62,19 @@ describe('api()', () => {
     await expect(api('/api/x')).rejects.toBeInstanceOf(ApiError);
   });
 
+  it('keeps the parsed error body on the ApiError', async () => {
+    // The 402 quota refusal carries its useful sentence in `reason`; `message`
+    // resolves to the machine string "quota_exceeded", which is not something to
+    // show a person. Callers need the body to do better.
+    const f = mockFetch(402, { error: 'quota_exceeded', axis: 'Authors', reason: 'Authors cap reached (5 of 5).' });
+    vi.stubGlobal('fetch', f);
+    await expect(api('/api/tenant/invite')).rejects.toMatchObject({
+      status: 402,
+      message: 'quota_exceeded',
+      body: { reason: 'Authors cap reached (5 of 5).' },
+    });
+  });
+
   it('clears the token and throws on 401', async () => {
     setToken('tok');
     const f = mockFetch(401, {}, false);

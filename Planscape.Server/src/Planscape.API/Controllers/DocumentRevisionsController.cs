@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Authorization;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -29,10 +31,14 @@ public class DocumentRevisionsController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly ITenantContext _tenant;
     private readonly IAuditService _audit;
+    // Optional — a null just means no Companion is told and the change is picked
+    // up by the next reconnect delta instead.
+    private readonly IHubContext<DocumentSyncHub>? _syncHub;
 
-    public DocumentRevisionsController(PlanscapeDbContext db, ITenantContext tenant, IAuditService audit)
+    public DocumentRevisionsController(PlanscapeDbContext db, ITenantContext tenant, IAuditService audit,
+        IHubContext<DocumentSyncHub>? syncHub = null)
     {
-        _db = db; _tenant = tenant; _audit = audit;
+        _db = db; _tenant = tenant; _audit = audit; _syncHub = syncHub;
     }
 
     /// <summary>List revisions for a document, newest first.</summary>
@@ -89,14 +95,31 @@ public class DocumentRevisionsController : ControllerBase
 
         // Bump the document's revision label if the caller asked for a new one.
         if (!string.IsNullOrWhiteSpace(req.Revision) && req.Revision != doc.Revision)
-        {
             doc.Revision = req.Revision!;
-            doc.UpdatedAt = DateTime.UtcNow;
-        }
+
+        // UpdatedAt moves for EVERY minted revision, not only a relabelled one.
+        //
+        // Document sync's delta query keys on UpdatedAt. Previously a manual
+        // revision that reused the existing label left UpdatedAt untouched, so a
+        // Companion would receive the push below, call changed-since, get an empty
+        // result and do nothing — the push and the delta disagreeing about whether
+        // anything happened. That silent inconsistency is worse than the timestamp
+        // being slightly more eager: minting a revision IS a change to the record.
+        doc.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
         await _audit.LogAsync("CREATE", "DocumentRevision", rev.Id.ToString(),
             System.Text.Json.JsonSerializer.Serialize(new { rev.Revision, rev.Source }));
+
+        // After the commit, for the same reason as the CDE transition path: a
+        // Companion answers a push by re-reading, and a push sent first races it.
+        if (_syncHub != null)
+        {
+            var autoSync = await _db.Projects.Where(p => p.Id == projectId)
+                .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync(ct);
+            await DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
+                DocumentSyncHub.Payload(projectId, documentId, "revision", doc.CdeStatus, autoSync));
+        }
 
         return CreatedAtAction(nameof(List), new { projectId, documentId },
             new { rev.Id, rev.Revision, rev.CdeStateAtRevision, rev.CreatedAt });

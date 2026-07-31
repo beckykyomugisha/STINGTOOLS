@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DataGrid, type Column, type DataGridProps } from './DataGrid';
+import { MenuItem } from '@/components/shell/Menu';
 import { ToastProvider } from './toast';
 
 /**
@@ -196,5 +197,63 @@ describe('DataGrid — inline edit (the contract)', () => {
     await user.type(screen.getByRole('textbox'), 'xyz');
     await user.keyboard('{Escape}');
     expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe('DataGrid — right-click row menu (U6)', () => {
+  const menu = (onOpen = vi.fn()) => ({
+    rowMenu: (r: Row, close: () => void) => (
+      <MenuItem
+        onClick={() => {
+          close();
+          onOpen(r.id);
+        }}
+      >
+        Open
+      </MenuItem>
+    ),
+  });
+
+  it('does not attach a context menu when no rowMenu is given', async () => {
+    const user = userEvent.setup();
+    grid(plain);
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Beta duct clash') });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('opens at the right-clicked row and runs that row’s action', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    grid(plain, menu(onOpen));
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Gamma pipe route') });
+    const m = screen.getByRole('menu');
+    await user.click(within(m).getByRole('menuitem', { name: 'Open' }));
+    // The row that was right-clicked, not the first row.
+    expect(onOpen).toHaveBeenCalledWith('3');
+  });
+
+  it('closes after the action runs', async () => {
+    const user = userEvent.setup();
+    grid(plain, menu());
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Beta duct clash') });
+    await user.click(screen.getByRole('menuitem', { name: 'Open' }));
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+  });
+
+  it('Escape closes it', async () => {
+    const user = userEvent.setup();
+    grid(plain, menu());
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Beta duct clash') });
+    expect(screen.getByRole('menu')).toBeDefined();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+  });
+
+  it('right-clicking a row does NOT also fire the row navigation', async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    grid(plain, { ...menu(), onRowClick });
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Beta duct clash') });
+    expect(onRowClick).not.toHaveBeenCalled();
   });
 });

@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import {
   Badge,
   Button,
   DataGrid,
+  MenuItem,
   PageHeader,
   Select,
   toneForStatus,
@@ -101,6 +103,9 @@ export default function ClashesPage() {
       edit: { save: (c, v) => updateClash(projectId, c.id, { resolutionNote: v } as Partial<ClashRecord>) },
     },
     { key: 'discipline', header: 'Discipline', className: 'w-28' },
+    // `kind` is hard-vs-clearance — two clashes with identical severity mean
+    // different things, and the detector has always returned it.
+    { key: 'kind', header: 'Kind', className: 'w-28' },
     {
       key: 'overlapVolumeMm3',
       header: 'Overlap',
@@ -112,6 +117,32 @@ export default function ClashesPage() {
         ) : (
           <span className="text-fg-subtle">—</span>
         ),
+    },
+    {
+      key: 'issueId',
+      header: 'Issue',
+      className: 'w-24',
+      // Promotion to an issue already worked; nothing showed which clashes had
+      // been promoted, so the same clash got raised twice.
+      render: (c) =>
+        c.issueId ? (
+          <Link
+            href={`/projects/${projectId}/issues/${c.issueId}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-accent hover:underline"
+          >
+            View
+          </Link>
+        ) : (
+          <span className="text-fg-subtle">—</span>
+        ),
+    },
+    {
+      key: 'detectedAt',
+      header: 'Detected',
+      className: 'w-28',
+      render: (c) =>
+        c.detectedAt ? new Date(c.detectedAt).toLocaleDateString() : <span className="text-fg-subtle">—</span>,
     },
   ];
 
@@ -134,6 +165,27 @@ export default function ClashesPage() {
         error={error}
         selectable
         onRowClick={(c) => router.push(`/projects/${projectId}/clashes/${c.id}`)}
+        rowMenu={(c, close) => (
+          <>
+            <MenuItem
+              onClick={() => {
+                close();
+                router.push(`/projects/${projectId}/clashes/${c.id}`);
+              }}
+            >
+              Open clash
+            </MenuItem>
+            <MenuItem
+              disabled={!c.issueId}
+              onClick={() => {
+                close();
+                if (c.issueId) router.push(`/projects/${projectId}/issues/${c.issueId}`);
+              }}
+            >
+              Open linked issue
+            </MenuItem>
+          </>
+        )}
         emptyTitle="No clashes"
         emptyDescription="Run detection to populate this list."
         toolbar={() => (

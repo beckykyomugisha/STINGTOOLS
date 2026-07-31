@@ -13,6 +13,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Tags;
+using StingTools.Commands.Delivery;
 
 namespace StingTools.Core
 {
@@ -3282,12 +3283,33 @@ namespace StingTools.Core
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            var uiApp = ParameterHelpers.GetApp(commandData);
+            if (ShowFor(uiApp, null, out string error)) return Result.Succeeded;
+            message = error;
+            return Result.Failed;
+        }
+
+        /// <summary>
+        /// Open — or focus, if it is already up — the BIM Coordination Center.
+        ///
+        /// Split out of <see cref="Execute"/> so callers that have a
+        /// <see cref="UIApplication"/> but no <see cref="ExternalCommandData"/>
+        /// can use it. The planscape:// link watcher is one: it runs on the
+        /// Idling event, which hands out a UIApplication and nothing else, and
+        /// ExternalCommandData cannot be constructed.
+        /// </summary>
+        /// <param name="tabName">
+        /// Optional BCC nav tab to land on (e.g. "ISSUES"). Null keeps whatever
+        /// tab the user last had open, which is the right default for the ribbon
+        /// button — only a deep link knows better.
+        /// </param>
+        internal static bool ShowFor(UIApplication uiApp, string tabName, out string error)
+        {
+            error = "";
             try
             {
-                var uiApp = ParameterHelpers.GetApp(commandData);
-                var uidoc = uiApp?.ActiveUIDocument;
-                Document doc = uidoc?.Document;
-                if (doc == null) { message = "No document open."; return Result.Failed; }
+                Document doc = uiApp?.ActiveUIDocument?.Document;
+                if (doc == null) { error = "No document open."; return false; }
 
                 // Phase 76: Singleton — if BCC is already open, just activate it
                 if (UI.BIMCoordinationCenter.CurrentInstance != null)
@@ -3296,8 +3318,10 @@ namespace StingTools.Core
                     {
                         UI.BIMCoordinationCenter.CurrentInstance.Activate();
                         UI.BIMCoordinationCenter.CurrentInstance.Focus();
+                        if (!string.IsNullOrEmpty(tabName))
+                            UI.BIMCoordinationCenter.CurrentInstance.NavigateToTab(tabName);
                     });
-                    return Result.Succeeded;
+                    return true;
                 }
 
                 // Create ExternalEvent for modeless dispatch (once per Revit session)
@@ -3315,16 +3339,18 @@ namespace StingTools.Core
                 };
 
                 var coordData = BuildCoordData(doc);
-                if (coordData == null) { message = "Could not build coordination data."; return Result.Failed; }
+                if (coordData == null) { error = "Could not build coordination data."; return false; }
 
                 UI.BIMCoordinationCenter.Show(coordData);
-                return Result.Succeeded;
+                if (!string.IsNullOrEmpty(tabName))
+                    UI.BIMCoordinationCenter.CurrentInstance?.NavigateToTab(tabName);
+                return true;
             }
             catch (Exception ex)
             {
                 StingLog.Error("BIMCoordinationCenter failed", ex);
-                message = ex.Message;
-                return Result.Failed;
+                error = ex.Message;
+                return false;
             }
         }
 
@@ -4362,6 +4388,71 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: My Queue load failed: {ex.Message}"); }
+
+                // Deliverables tab — deliverables.json already exists (DeliverableLifecycle.Persist
+                // writes it, ReconcileAsync/JoinLifecycle already read it) but nothing populated
+                // coordData.Deliverables, so the tab was permanently empty regardless of project
+                // state. Same resolver DeliveryCommands uses for the MIDP drift report, so this
+                // can never disagree with that reader about where the file lives.
+                //
+                // The file's schema is intentionally loose (DeliverableLifecycle.Persist writes
+                // whatever properties the calling command happened to set — see its own comment),
+                // so every field is read via DocumentIdentity.FirstNonBlank's candidate-list
+                // pattern, the same tolerant-read rule ReconcileAsync/JoinLifecycle already rely
+                // on, rather than a strict shape that would silently show blanks the moment a
+                // caller used a different alias.
+                try
+                {
+                    string path = MidpDriftReportCommand.ResolveDeliverablesPath(doc);
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    {
+                        var arr = JArray.Parse(File.ReadAllText(path));
+                        var now = DateTime.Now;
+                        foreach (var o in arr.OfType<JObject>())
+                        {
+                            string code = Core.DocumentIdentity.FirstNonBlank(o, Core.DocumentIdentity.DeliverableKeys);
+                            if (string.IsNullOrEmpty(code)) continue; // unkeyed row — Persist itself refuses these, but tolerate hand-edited files
+
+                            // No lowercase "status" fallback here on purpose: JoinLifecycle's own
+                            // comment shows "status" has historically been overloaded to mean
+                            // SUITABILITY in some legacy rows (o["Suitability"] ?? o["suitability"]
+                            // ?? o["status"]) — adding it here would misread a suitability code as
+                            // a workflow state on exactly the files most likely to need the fallback.
+                            string status = Core.DocumentIdentity.FirstNonBlank(o, "Status", "WorkflowStatus") ?? "Pending";
+                            string dueRaw = Core.DocumentIdentity.FirstNonBlank(o, "DueDate", "PlannedDate", "Due", "duedate", "planneddate");
+                            bool overdue = status != "Approved"
+                                && DateTime.TryParse(dueRaw, out var due) && due.Date < now.Date;
+
+                            coordData.Deliverables.Add(new UI.BIMCoordinationCenter.DeliverableRow
+                            {
+                                Code = code,
+                                Name = Core.DocumentIdentity.FirstNonBlank(o, "Title", "Name", "Description", "title", "description") ?? code,
+                                Discipline = Core.DocumentIdentity.FirstNonBlank(o, "Discipline", "DISC", "discipline") ?? "",
+                                Type = Core.DocumentIdentity.FirstNonBlank(o, "Type", "Kind", "DocType", "type") ?? "",
+                                DataDrop = Core.DocumentIdentity.FirstNonBlank(o, "DataDrop", "Milestone", "Stage", "milestone") ?? "",
+                                Status = status,
+                                Suitability = Core.DocumentIdentity.FirstNonBlank(o, "Suitability", "ActualSuitability", "RequiredSuitability", "suitability") ?? "",
+                                CDE = Core.DocumentIdentity.FirstNonBlank(o, "CDE", "CdeStatus", "cde") ?? "",
+                                Owner = Core.DocumentIdentity.FirstNonBlank(o, "Owner", "Originator", "OrgCode", "originator") ?? "",
+                                DueDate = dueRaw ?? "",
+                                IsOverdue = overdue,
+                                // SyncBadge/SyncTooltip stay at their "" default — that is the
+                                // documented normal case on a machine with no Companion running.
+                                // Populating them from the Companion's local sync-folder state is
+                                // a separate follow-up, not part of getting the list itself to
+                                // stop being permanently empty.
+                            });
+                        }
+
+                        coordData.DeliverablesPending = coordData.Deliverables.Count(d => d.Status == "Pending");
+                        coordData.DeliverablesSubmitted = coordData.Deliverables.Count(d => d.Status == "Submitted");
+                        coordData.DeliverablesApproved = coordData.Deliverables.Count(d => d.Status == "Approved");
+                        coordData.DeliverablesOverdue = coordData.Deliverables.Count(d => d.IsOverdue);
+                    }
+                    // No file ⇒ project has never imported an MIDP. Deliverables stays empty —
+                    // that is correct, not a fallback to hide.
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: deliverables load failed: {ex.Message}"); }
 
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
@@ -5792,6 +5883,53 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"ViewDocument dispatch: {ex.Message}"); }
                 return;
             }
+            // Slice E — "Download full version history" from the register context
+            // menu. Opt-in per document; nothing automatic ever reaches here.
+            if (action.StartsWith("DownloadDocumentHistory_", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string code = action.Substring("DownloadDocumentHistory_".Length);
+                    var client = BIMManager.PlanscapeServerClient.Instance;
+
+                    // Two things must be true and both fail loudly rather than
+                    // silently doing nothing: a linked cloud project (the history
+                    // lives server-side) and a running Companion (it owns every
+                    // download — BCC never fetches files itself).
+                    if (client == null || !client.IsConnected || client.CurrentProjectId == Guid.Empty)
+                    {
+                        TaskDialog.Show("Document history",
+                            "Connect to Planscape Server and link this model to a cloud project first "
+                            + "— version history lives on the server.");
+                        return;
+                    }
+
+                    var status = BIMManager.CompanionSyncBridge.GetStatus();
+                    if (!status.Running)
+                    {
+                        TaskDialog.Show("Document history",
+                            "The Planscape Companion is not running on this machine."
+                            + Environment.NewLine + Environment.NewLine
+                            + "It performs the download, so start it and try again.");
+                        return;
+                    }
+
+                    // The register row carries an ISO code, not a server document
+                    // GUID. Resolving one to the other needs a document id on the
+                    // register, which it does not have yet — say so plainly rather
+                    // than guessing at a match and downloading the wrong file.
+                    string nl = Environment.NewLine;
+                    TaskDialog.Show("Document history",
+                        $"Requesting full version history for '{code}'." + nl + nl
+                        + "Note: the deliverable register does not yet carry the server document id, "
+                        + "so this cannot be resolved automatically. Use the Companion directly:" + nl + nl
+                        + $"    Planscape.Companion.exe --history {client.CurrentProjectId} <documentId>" + nl + nl
+                        + "The document id is shown in the web app's Documents list.");
+                }
+                catch (Exception ex) { StingLog.Warn($"DownloadDocumentHistory dispatch: {ex.Message}"); }
+                return;
+            }
+
             // Targeted revision deletion from the BCC register context menu:
             // "DeleteRevision_<elementId>" → RevisionDeleteCommand via ExtraParam.
             if (action.StartsWith("DeleteRevision_", StringComparison.OrdinalIgnoreCase))

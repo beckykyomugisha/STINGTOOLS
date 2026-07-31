@@ -1489,6 +1489,9 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
 app.MapHub<Planscape.Infrastructure.SignalR.PlatformEventHub>("/hubs/events");
 app.MapHub<Planscape.Infrastructure.SignalR.MeetingHub>("/hubs/meeting");
 app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
+// Document sync — push half of the Planscape Companion's local-disk sync.
+// See docs/superpowers/specs/2026-07-31-document-sync-design.md.
+app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-sync");
 
 // ── Database schema + seed ──
 {
@@ -1883,6 +1886,9 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"Country\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"CoverImageUrl\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"IsPinned\" boolean NOT NULL DEFAULT false",
+        // Document sync — per-project auto/manual toggle (design §Flexibility).
+        // Default true so existing projects keep the on-by-default behaviour.
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"DocumentSyncAutoEnabled\" boolean NOT NULL DEFAULT true",
         // N2 — LiveKit Egress meeting recordings (table not covered by the discovered
         // EF migration set; idempotent CREATE so the running dev/container DB gets it).
         "CREATE TABLE IF NOT EXISTS \"MeetingRecordings\" (" +

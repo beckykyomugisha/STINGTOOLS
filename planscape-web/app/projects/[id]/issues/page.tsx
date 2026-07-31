@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
-import { Badge, Button, DataGrid, PageHeader, Select, toneForStatus, type Column } from '@/components/ui';
+import { Badge, Button, DataGrid, MenuItem, PageHeader, Select, toneForStatus, type Column } from '@/components/ui';
 import { listIssues, updateIssue } from '@/lib/data';
 import type { BimIssue, IssuePriority, IssueStatus } from '@/lib/types';
 
@@ -66,14 +66,35 @@ export default function IssuesPage() {
       key: 'assignee',
       header: 'Assignee',
       className: 'w-44',
+      // The API returns assigneeEmail alongside the name and nothing showed it,
+      // so two people called "D. Mayanja" were indistinguishable. It rides in
+      // this cell rather than a column of its own — it identifies the assignee,
+      // it isn't a separate fact to sort by.
+      render: (i) =>
+        i.assignee ? (
+          <span className="flex flex-col leading-tight">
+            <span>{i.assignee}</span>
+            {i.assigneeEmail && <span className="text-2xs text-fg-subtle">{i.assigneeEmail}</span>}
+          </span>
+        ) : (
+          <span className="text-fg-subtle">Unassigned</span>
+        ),
       edit: { save: (i, v) => updateIssue(projectId, i.id, { assignee: v }) },
     },
+    { key: 'type', header: 'Type', className: 'w-28' },
     { key: 'discipline', header: 'Discipline', className: 'w-28' },
     {
       key: 'dueDate',
       header: 'Due',
       className: 'w-28',
       render: (i) => (i.dueDate ? new Date(i.dueDate).toLocaleDateString() : <span className="text-fg-subtle">—</span>),
+    },
+    {
+      key: 'createdAt',
+      header: 'Raised',
+      className: 'w-28',
+      render: (i) =>
+        i.createdAt ? new Date(i.createdAt).toLocaleDateString() : <span className="text-fg-subtle">—</span>,
     },
   ];
 
@@ -96,6 +117,16 @@ export default function IssuesPage() {
         error={error}
         selectable
         onRowClick={(i) => router.push(`/projects/${projectId}/issues/${i.id}`)}
+        rowMenu={(i, close) => (
+          <MenuItem
+            onClick={() => {
+              close();
+              router.push(`/projects/${projectId}/issues/${i.id}`);
+            }}
+          >
+            Open issue
+          </MenuItem>
+        )}
         emptyTitle="No issues"
         emptyDescription="Raise one from the model viewer or with New issue."
         toolbar={() => (
