@@ -932,8 +932,17 @@ public class DocumentsController : ControllerBase
         // calling changed-since, and a push sent before the commit would race the
         // read and return the pre-transition row.
         if (_syncHub != null)
+        {
             await DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
                 DocumentSyncHub.Payload(projectId, doc.Id, "cde_transition", doc.CdeStatus));
+            _logger.LogInformation("DocumentSync push sent for {DocumentId} on {ProjectId}", doc.Id, projectId);
+        }
+        else
+        {
+            // Not fatal - the Companion catches up on its next reconnect delta -
+            // but it means the push path is silently dead, which is worth knowing.
+            _logger.LogWarning("DocumentSync hub context unavailable; no push sent for {DocumentId}", doc.Id);
+        }
 
         return Ok(doc);
     }

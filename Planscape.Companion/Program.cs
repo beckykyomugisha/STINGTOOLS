@@ -173,6 +173,11 @@ internal static class Program
         foreach (var p in settings.Projects)
             Console.WriteLine($"   • {p.ProjectCode} ({p.ProjectId}) auto={p.AutoSync} last={p.LastSyncUtc?.ToString("O") ?? "never"} → {settings.FolderFor(p)}");
 
+        // The offline half is still worth exercising with no server configured:
+        // it proves the settings round-trip and the superseded purge on real files.
+        foreach (var p in settings.Projects)
+            SyncEngine.PurgeExpiredSuperseded(settings.FolderFor(p));
+
         if (string.IsNullOrWhiteSpace(settings.ServerUrl) || string.IsNullOrWhiteSpace(settings.AccessToken))
         {
             Console.WriteLine();

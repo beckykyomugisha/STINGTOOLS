@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.SignalR.Client;
-using Newtonsoft.Json.Linq;
 
 namespace Planscape.Companion;
 
@@ -64,10 +63,15 @@ internal sealed class SyncHubClient : IAsyncDisposable
             .WithAutomaticReconnect(new BoundedBackoff())
             .Build();
 
-        _connection.On<JObject>("DocumentChanged", async payload =>
+        // A CONCRETE type, not a JObject. SignalR's default hub protocol is
+        // System.Text.Json, which cannot materialise a Newtonsoft JObject - the
+        // handler silently never fires, the connection stays up and healthy, and
+        // the only symptom is that pushes do nothing. This was found exactly that
+        // way: the server logged the push, the client logged nothing at all.
+        _connection.On<DocumentChangedPayload>("DocumentChanged", async payload =>
         {
-            var projectId = payload["projectId"]?.Value<string>();
-            var kind = payload["kind"]?.Value<string>() ?? "change";
+            var projectId = payload?.ProjectId;
+            var kind = payload?.Kind ?? "change";
             if (string.IsNullOrEmpty(projectId)) return;
             CompanionLog.Info($"push: {kind} on project {projectId}");
             try { await _onDocumentChanged(projectId); }
@@ -159,4 +163,18 @@ internal sealed class SyncHubClient : IAsyncDisposable
                 ? Ladder[ctx.PreviousRetryCount]
                 : TimeSpan.FromSeconds(60);
     }
+}
+
+/// <summary>
+/// Wire shape of <c>DocumentChanged</c> - mirrors <c>DocumentSyncHub.Payload</c>.
+/// Property names bind case-insensitively under SignalR's JSON protocol, so the
+/// server's camelCase maps onto these directly.
+/// </summary>
+internal sealed class DocumentChangedPayload
+{
+    public string? ProjectId { get; set; }
+    public string? DocumentId { get; set; }
+    public string? Kind { get; set; }
+    public string? CdeStatus { get; set; }
+    public DateTime? ChangedAtUtc { get; set; }
 }

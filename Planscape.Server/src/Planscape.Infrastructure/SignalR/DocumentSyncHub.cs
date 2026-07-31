@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.SignalR;
@@ -39,8 +40,13 @@ public class DocumentSyncHub : Hub
 {
     private const string AuthKey = "docsync_projects";
     private readonly PlanscapeDbContext _db;
+    private readonly ILogger<DocumentSyncHub>? _logger;
 
-    public DocumentSyncHub(PlanscapeDbContext db) => _db = db;
+    public DocumentSyncHub(PlanscapeDbContext db, ILogger<DocumentSyncHub>? logger = null)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     internal static string Group(Guid projectId) => $"docsync:{projectId}";
 
@@ -70,11 +76,26 @@ public class DocumentSyncHub : Hub
     /// </summary>
     public async Task JoinProject(string projectId)
     {
-        if (!Guid.TryParse(projectId, out var pid)) return;
-        if (!await HubTenantGuard.OwnsProjectAsync(Context.User, _db, pid)) return;
+        if (!Guid.TryParse(projectId, out var pid))
+        {
+            _logger?.LogWarning("DocumentSync join refused - unparseable project id {ProjectId}", projectId);
+            return;
+        }
+        if (!await HubTenantGuard.OwnsProjectAsync(Context.User, _db, pid))
+        {
+            // Logged because the refusal is SILENT to the client by design: the
+            // caller sees a successful InvokeAsync and then simply never receives
+            // an event. Without this line the only symptom is "sync does nothing",
+            // with nothing anywhere saying why.
+            _logger?.LogWarning(
+                "DocumentSync join refused - connection tenant {Tenant} does not own project {ProjectId}",
+                HubTenantGuard.TenantIdOf(Context.User), pid);
+            return;
+        }
 
         Authorized.Add(pid);
         await Groups.AddToGroupAsync(Context.ConnectionId, Group(pid));
+        _logger?.LogInformation("DocumentSync joined {Group} (connection {Conn})", Group(pid), Context.ConnectionId);
     }
 
     /// <summary>

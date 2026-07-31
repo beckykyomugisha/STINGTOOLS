@@ -179,13 +179,11 @@ internal sealed class CompanionService : IDisposable
         try
         {
             SetState(SyncState.Syncing);
-            // Slice C wires the download-and-place engine in here. Until then a
-            // triggered sync proves the whole path around it — trigger, gate,
-            // status transitions — and downloads nothing.
-            await Task.Yield();
-            var outcome = "sync engine lands in Slice C";
+            var engine = new SyncEngine(_api, _settings);
+            var outcome = await engine.SyncProjectAsync(project, trigger, ct);
 
             _settings.Save();  // persist the advanced high-water mark
+            Status.FilesLastSync = outcome.Downloaded;
             Status.LastSuccessUtc = DateTime.UtcNow;
             Status.ConsecutiveFailures = 0;
             SetState(SyncState.Idle);
