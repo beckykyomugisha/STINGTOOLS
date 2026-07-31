@@ -198,3 +198,20 @@ describe('archiveProject', () => {
     expect(calls()[0].url).toContain('confirmCode=A%26B%2F1');
   });
 });
+
+describe('tenant admin', () => {
+  it('inviteTenantMember POSTs to the tenant route, not a project route', async () => {
+    await data.inviteTenantMember({ email: 'a@b.com', displayName: 'A B', role: 'Author' });
+    const c = calls()[0];
+    expect(c.init.method).toBe('POST');
+    expect(c.url).toContain('/api/tenant/invite');
+    expect(c.url).not.toContain('/projects/');
+    expect(bodyOf(c.init)).toEqual({ email: 'a@b.com', displayName: 'A B', role: 'Author' });
+  });
+
+  it('getTenantDashboard has no tenant id in the path — the token resolves it', async () => {
+    lastBody = { tenant: { id: 't' }, usage: {}, users: [] };
+    await data.getTenantDashboard();
+    expect(calls()[0].url).toMatch(/\/api\/tenant\/dashboard$/);
+  });
+});

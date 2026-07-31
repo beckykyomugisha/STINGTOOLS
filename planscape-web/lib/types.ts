@@ -251,6 +251,60 @@ export interface Iso19650Role {
   label: string;
 }
 
+// ── Tenant (firm-wide) administration ──
+// Mirrors TenantAdminController, which is [Authorize(Roles = "Owner,Admin")] in
+// its entirety — every call here 403s for anyone else, and that is correct.
+
+/** A user account in the firm — distinct from ProjectMember, which is a seat on one project. */
+export interface TenantUser {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  role?: string; // Owner | Admin | Coordinator | Contributor | Viewer
+  iso19650Role?: string | null;
+  lastLoginAt?: string | null;
+  /** false until an invitee sets a password — an invite plants an inactive row. */
+  isActive?: boolean;
+}
+
+export interface TenantQuotaAxis {
+  current: number;
+  max: number;
+}
+
+export interface TenantDashboard {
+  tenant: {
+    id: string;
+    name: string;
+    slug?: string;
+    contactEmail?: string | null;
+    plan?: string;
+    currency?: string;
+    billingCycle?: string;
+    trialExpiresAt?: string | null;
+    isActive?: boolean;
+    createdAt?: string;
+  };
+  usage: {
+    authors: TenantQuotaAxis;
+    coordinators: TenantQuotaAxis;
+    projects: TenantQuotaAxis;
+    storage: { currentMb: number; maxMb: number };
+    memberSeats?: number;
+  };
+  users: TenantUser[];
+}
+
+/** Shape of the 402 body from a quota refusal. */
+export interface QuotaExceeded {
+  error: 'quota_exceeded';
+  axis?: string;
+  current?: number;
+  max?: number;
+  reason?: string;
+  upgrade_url?: string;
+}
+
 // ── Cross-project search ──
 export interface SearchResult {
   type: 'tag' | 'issue' | 'document' | 'meeting';
