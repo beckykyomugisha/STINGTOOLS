@@ -248,9 +248,63 @@ internal sealed class CompanionService : IDisposable
     {
         if (!IsConfigured) return false;
         _api = new PlanscapeApiClient(_settings.ServerUrl!, _settings.AccessToken!);
+
+        // Zero linked projects is a SETUP state, not a connectivity one.
+        //
+        // Without this branch the per-project loop below never runs, nothing ever
+        // moves State off its Offline default, and a correctly configured
+        // Companion greets its first user with "offline, will retry" while the
+        // server and token are perfectly fine. The default itself is right —
+        // Offline is the quiet, non-alarming bucket for "not proven yet" (see
+        // SyncStatus) — but leaving it unproven here is what made it a lie.
+        //
+        // So prove it directly: a token exchange is the cheapest authenticated
+        // round-trip available and separates the three outcomes that genuinely
+        // differ — reachable and authorised (Idle), unreachable (Offline),
+        // rejected (Error). The tray path never needed this because establishing
+        // the hub connection already flips the state; --diagnose has no hub.
+        if (_settings.Projects.Count == 0)
+            return await ReportConnectionOnlyAsync(ct);
+
         var result = await SyncAllAsync(SyncTrigger.Manual, ct);
         Console.WriteLine(result);
         return Status.State != SyncState.Error;
+    }
+
+    /// <summary>
+    /// Prove the server and credentials with no project to sync, and say what is
+    /// actually missing. Deliberately does NOT set <c>LastSuccessUtc</c>: nothing
+    /// synced, and claiming a successful sync would be a second, quieter lie than
+    /// the one this method exists to fix.
+    /// </summary>
+    private async Task<bool> ReportConnectionOnlyAsync(CancellationToken ct)
+    {
+        try
+        {
+            await _api!.GetAccessTokenAsync(ct);
+            SetState(SyncState.Idle);
+            Console.WriteLine("Connected — server and access token are good.");
+            Console.WriteLine("No projects are linked on this machine yet, so there is nothing to sync.");
+            Console.WriteLine("Link one with:  Planscape.Companion.exe --link <projectId> <projectCode>");
+            CompanionLog.Info("connection verified; no projects linked on this machine");
+            return true;
+        }
+        catch (CompanionAuthException ex)
+        {
+            // Rejected credentials will never fix themselves — this is the state
+            // that should shout, and the one Offline must not be confused with.
+            SetState(SyncState.Error, ex.Message);
+            Console.WriteLine($"The server rejected the access token: {ex.Message}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Genuinely unreachable. Here "offline, will retry" is the truth.
+            SetState(SyncState.Offline);
+            Console.WriteLine($"Could not reach {_settings.ServerUrl}: {ex.Message}");
+            CompanionLog.Warn($"connection check failed: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>
