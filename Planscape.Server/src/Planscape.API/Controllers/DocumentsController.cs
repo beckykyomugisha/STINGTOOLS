@@ -80,6 +80,10 @@ public class DocumentsController : ControllerBase
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IPushNotificationService _push;
     private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
+    // Document sync push. Optional so every existing construction site (and the
+    // test factory) keeps working without knowing about it; a null just means no
+    // Companion gets told, which degrades to the reconnect-delta path.
+    private readonly IHubContext<DocumentSyncHub>? _syncHub;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
@@ -94,7 +98,8 @@ public class DocumentsController : ControllerBase
         IAuditService audit,
         IHubContext<NotificationHub> hub,
         IPushNotificationService push,
-        Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
+        Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null,
+        IHubContext<DocumentSyncHub>? syncHub = null)
     {
         _db = db;
         _storage = storage!;
@@ -105,6 +110,7 @@ public class DocumentsController : ControllerBase
         _hub = hub;
         _push = push;
         _webhooks = webhooks;
+        _syncHub = syncHub;
     }
 
     /// <summary>
@@ -921,7 +927,102 @@ public class DocumentsController : ControllerBase
             transitionedAt = doc.UpdatedAt
         });
 
+        // Document sync — tell every Companion on this project that something
+        // moved. Deliberately after SaveChangesAsync: a Companion answers this by
+        // calling changed-since, and a push sent before the commit would race the
+        // read and return the pre-transition row.
+        if (_syncHub != null)
+            await DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
+                DocumentSyncHub.Payload(projectId, doc.Id, "cde_transition", doc.CdeStatus));
+
         return Ok(doc);
+    }
+
+    /// <summary>
+    /// Delta feed for the Planscape Companion's local-disk sync — the reconnect
+    /// fallback and the initial-link path from
+    /// <c>docs/superpowers/specs/2026-07-31-document-sync-design.md</c>.
+    ///
+    /// <para><paramref name="since"/> omitted means "everything currently
+    /// visible", which is the initial-sync case. Supplied, it means "what changed
+    /// after this instant" — a delta, never a full re-scan.</para>
+    ///
+    /// <para>Three properties this endpoint must keep, because sync is a
+    /// long-lived background copy of whatever it returns:</para>
+    /// <list type="number">
+    /// <item><b>Never wider than the documents list.</b> The same
+    /// <see cref="ProjectMemberAcl"/> narrowing runs here. A caller whose
+    /// <c>AllowedCdeStates</c> excludes PUBLISHED must not receive published
+    /// documents on disk when they cannot see them in the UI.</item>
+    /// <item><b>Latest revision only.</b> Metadata for the current state of each
+    /// document, not its history — full history is a deliberate per-document
+    /// action, never something that silently grows on every machine.</item>
+    /// <item><b>Ordered by change time, and it returns the server's clock.</b> The
+    /// caller stores <c>serverTimeUtc</c> as its next <c>since</c> rather than its
+    /// own clock, so a machine whose clock runs fast cannot skip documents by
+    /// asking for changes since an instant that has not happened yet.</item>
+    /// </list>
+    /// </summary>
+    [HttpGet("changed-since")]
+    public async Task<ActionResult> ChangedSince(Guid projectId, [FromQuery] DateTime? since = null,
+        [FromQuery] int limit = 500)
+    {
+        var tenantId = GetTenantId();
+        // Captured BEFORE the query so a document written while this request is in
+        // flight is caught by the NEXT call rather than falling in the gap between
+        // the query and the timestamp the caller stores.
+        var serverTimeUtc = DateTime.UtcNow;
+
+        limit = Math.Clamp(limit, 1, 2000);
+
+        var query = _db.Documents
+            .Where(d => d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+
+        if (since.HasValue)
+        {
+            // Model-bound DateTimes arrive as Unspecified/Local depending on the
+            // format; normalising to UTC keeps the comparison honest against
+            // UpdatedAt/UploadedAt, which are always UTC.
+            var sinceUtc = since.Value.Kind == DateTimeKind.Utc
+                ? since.Value
+                : since.Value.ToUniversalTime();
+            query = query.Where(d => (d.UpdatedAt ?? d.UploadedAt) > sinceUtc);
+        }
+
+        var acl = await ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        query = ProjectMemberAcl.ApplyTo(query, acl);
+
+        var docs = await query
+            .OrderBy(d => d.UpdatedAt ?? d.UploadedAt)
+            .Take(limit)
+            .Select(d => new
+            {
+                d.Id,
+                d.FileName,
+                d.DocumentType,
+                d.CdeStatus,
+                d.SuitabilityCode,
+                d.Revision,
+                d.Discipline,
+                d.FileSizeBytes,
+                d.ContentHash,
+                d.ScanStatus,
+                changedAt = d.UpdatedAt ?? d.UploadedAt,
+            })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            items = docs,
+            count = docs.Count,
+            // True when the page was filled exactly — the caller should immediately
+            // re-query with since = the last item's changedAt rather than assume it
+            // has caught up. Without this a project with more than `limit` changes
+            // since the last sync would silently lose the tail.
+            hasMore = docs.Count == limit,
+            serverTimeUtc,
+            since,
+        });
     }
 
     [HttpGet("{docId}/history")]

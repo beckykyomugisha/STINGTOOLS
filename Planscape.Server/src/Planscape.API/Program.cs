@@ -1489,6 +1489,9 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
 app.MapHub<Planscape.Infrastructure.SignalR.PlatformEventHub>("/hubs/events");
 app.MapHub<Planscape.Infrastructure.SignalR.MeetingHub>("/hubs/meeting");
 app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
+// Document sync — push half of the Planscape Companion's local-disk sync.
+// See docs/superpowers/specs/2026-07-31-document-sync-design.md.
+app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-sync");
 
 // ── Database schema + seed ──
 {
