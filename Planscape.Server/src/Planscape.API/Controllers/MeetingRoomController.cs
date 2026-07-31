@@ -357,7 +357,10 @@ public class MeetingRoomController : ControllerBase
 
         // Screen-share is gated to the host (presenter). Everyone may publish cam+mic.
         var isPresenter = session.HostUserId == uid;
-        var room = sessionId.ToString();
+        // G2 — tenant-scoped room name. session.TenantId is the authoritative tenant
+        // (the row was already fetched under the tenant query filter), so this cannot
+        // disagree with the caller's claim. Must match every other room-name site.
+        var room = LiveKitRoom.Name(session.TenantId, sessionId);
         var name = req?.DisplayName
                    ?? (await _db.MeetingViewerParticipants
                             .Where(p => p.SessionId == sessionId && p.UserId == uid)
@@ -399,8 +402,12 @@ public class MeetingRoomController : ControllerBase
         var audioOnly = req?.AudioOnly ?? false;
         // Ensure the LiveKit room exists so RoomComposite egress can attach (records the
         // shared room; participants' camera/mic appear as they join).
-        await egress.EnsureRoomAsync(sessionId.ToString(), ct);
-        var result = await egress.StartAsync(sessionId.ToString(), audioOnly, ct);
+        // G2 — the same tenant-scoped room the participants' tokens join, or the egress
+        // would attach to an empty room of its own and record nothing.
+        var egressRoom = LiveKitRoom.Name(session.TenantId, sessionId);
+        await egress.EnsureRoomAsync(egressRoom, ct);
+        // G1 — tenant + session also key the object-store path (a separate namespace).
+        var result = await egress.StartAsync(egressRoom, session.TenantId, sessionId, audioOnly, ct);
         if (result is null) return StatusCode(502, new { error = "egress start failed" });
 
         var rec = new MeetingRecording

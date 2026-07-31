@@ -1380,15 +1380,25 @@ THREE.ColorManagement.enabled = false;
   // on its bounding box. Backs ModelViewerHandle.selectAndZoom — used to jump
   // an issue's linked element into view when the issue opens.
   function selectAndZoomByGuid(guid) {
-    if (!guid) return;
+    if (!guid) return false;
     var found = null;
     scene.traverse(function (obj) {
       if (!found && obj.isMesh && obj.userData && obj.userData.elementGuid === guid) found = obj;
     });
-    if (!found) return;
+    // S3 — report the outcome instead of returning silently. A guid that matches
+    // no loaded mesh (a clash row identity rather than a federated IfcGuid, or an
+    // element in a model this viewer hasn't loaded) used to make the camera simply
+    // not move, which reads as "the button is broken". Callers listen for this and
+    // say so. Same-window CustomEvent — meeting-sync.js shares this document.
+    try {
+      window.dispatchEvent(new CustomEvent('sting:selectAndZoomResult',
+        { detail: { guid: guid, found: !!found } }));
+    } catch (e) {}
+    if (!found) { try { console.warn('[viewer] selectAndZoom: no loaded mesh with elementGuid', guid); } catch (e) {} return false; }
     highlight(found);
     var box = new THREE.Box3().setFromObject(found);
     if (!box.isEmpty()) fitCamera(box);
+    return true;
   }
 
   function addMeasurePoint(hit) {

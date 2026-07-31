@@ -26,6 +26,10 @@
 # deploy you must set two sync:false vars that depend on those URLs — see the
 # NEXT_PUBLIC_API_BASE and Cors__Origins__0 notes below.
 #
+# CONFIRMED LIVE (curled 2026-07-31 — Render did not need a collision suffix):
+#   API: https://planscape-api-free.onrender.com  (/health/live -> {"status":"alive"})
+#   Web: https://planscape-web-free.onrender.com
+#
 # Service names carry a `-free` suffix so this can coexist with the paid
 # blueprint in the same workspace without a name collision.
 
@@ -77,6 +81,23 @@ services:
       - key: PLANSCAPE_OWNER_EMAIL
         value: davis@planscape.build
       - key: PLANSCAPE_OWNER_PASSWORD
+        sync: false
+      # ── LiveKit — meeting video/WebRTC (LiveKit Cloud free "Build" tier) ──
+      # $0/mo, no card, 5,000 participant-minutes/mo, 60 recorded min/mo (see
+      # docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md §1b). Self-hosting on Render
+      # is NOT possible — Render has no UDP (§1c) — so this is the only option
+      # for this service. Only these 3 unblock A/V; recording needs 5 more
+      # (LiveKit:ServerUrl + Storage__S3__* egress keys — add later).
+      #   1. Sign up free at https://cloud.livekit.io (no card) → create a project.
+      #   2. Project Settings → Keys → copy API Key, API Secret, and the WSS URL
+      #      (looks like wss://<project>.livekit.cloud).
+      #   3. Paste into this service's Render dashboard Environment tab (do NOT
+      #      commit real values — these are sync:false placeholders on purpose).
+      - key: LiveKit__Url
+        sync: false             # wss://<your-project>.livekit.cloud
+      - key: LiveKit__ApiKey
+        sync: false
+      - key: LiveKit__ApiSecret
         sync: false
       # ── Storage → Cloudflare R2 (no free disk for MinIO) ──
       # Create a bucket (e.g. planscape-app) and an R2 API token, then set:

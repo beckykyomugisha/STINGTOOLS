@@ -20,7 +20,12 @@
 #   - planscape-db         postgres PostgreSQL 16 (managed)
 #
 # EXTERNAL (not Render-provisionable — set in the env group, see runbook):
-#   - LiveKit Cloud (or self-host) for meeting video (LiveKit__*)
+#   - LiveKit Cloud for meeting video (LiveKit__*). Self-hosting the media
+#     server is NOT viable on Render itself (no UDP support, confirmed against
+#     Render's own open feature request + community threads — see
+#     docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md §1c); a VPS is the only
+#     self-host path, and isn't needed while LiveKit Cloud's free/paid tiers
+#     cover both firms.
 #   - Firebase project for push (Firebase__*)
 #   - Resend (or SMTP) for transactional email (Email__* / Resend__*)
 #   - Autodesk APS app for server-side ACC (Acc__*)

@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "meet-discover";
+  var STING_MEETING_BUILD = "s2-latejoin";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -86,6 +86,15 @@
   window.addEventListener("sting:screenShareStopped", function () { if (state.isPresenter && state.surface === "screen") setSurface("model"); });
   // M2 — a markup op (add stroke / clear / grant) arrived from a participant.
   window.addEventListener("sting:docMarkupChanged", function (e) { onRemoteMarkup(e.detail || {}); });
+  // S2 — late-join replay. meeting-sync.js owns the hub round-trip; livekit-av.js
+  // owns the markup canvas, so it answers with a snapshot and applies one.
+  // The request uses a synchronous CustomEvent whose detail is filled in place —
+  // that keeps the two files decoupled and works before A/V is joined (window
+  // .STING_LIVEKIT only exists after a Join, but markup does not need it).
+  window.addEventListener("sting:markupSnapshotRequest", function (e) {
+    if (e && e.detail) e.detail.snapshot = markupSnapshot();
+  });
+  window.addEventListener("sting:docMarkupReplay", function (e) { applyMarkupSnapshot(e.detail); });
   // M3 — host moderation: self-mute on "mute all", leave on "removed".
   window.addEventListener("sting:selfMute", function () {
     if (state.room && state.micOn) { state.micOn = false; state.room.localParticipant.setMicrophoneEnabled(false).catch(noop); paintBtn("lkMic", false, "🎤", "🔇"); }
@@ -711,6 +720,32 @@
   function clearMarkup() {
     MARKUP.strokes = []; MARKUP.cur = null; renderMarkup();
     try { window.STING_MEETING && window.STING_MEETING.broadcastDocMarkup({ op: "clear" }); } catch (e) {}
+  }
+
+  // ── S2 — late-join markup replay ──────────────────────────────────────────
+  // What a tab that joined mid-session missed: the strokes already on the canvas,
+  // whether the host has granted markup to everyone, and (if the room is on the
+  // document surface) WHICH document — otherwise it sits on the model while
+  // everyone else annotates a drawing.
+  function markupSnapshot() {
+    var pane = document.getElementById("lkDoc");
+    var snap = { strokes: MARKUP.strokes.slice(), granted: !!MARKUP.granted };
+    if (state.surface === "document") {
+      snap.surface = "document";
+      snap.documentId = (pane && pane._docId) || null;
+    }
+    return snap;
+  }
+  function applyMarkupSnapshot(s) {
+    if (!s) return;
+    // Surface first, so the canvas the strokes land on exists and is sized.
+    if (s.surface === "document" && state.surface !== "document") applySurface("document", s.documentId);
+    if (typeof s.granted === "boolean" && s.granted !== MARKUP.granted) { MARKUP.granted = s.granted; refreshMarkupUI(); }
+    if (!Array.isArray(s.strokes)) return;
+    // Replace rather than append: the replay IS the current canvas, and a late
+    // joiner appending to strokes it already received live would double-draw.
+    MARKUP.strokes = s.strokes.slice(); MARKUP.cur = null; renderMarkup();
+    if (s.strokes.length) toast("Caught up — " + s.strokes.length + " markup stroke" + (s.strokes.length === 1 ? "" : "s"));
   }
   function setDrawMode(on) {
     MARKUP.draw = !!on && markupAllowed();

@@ -199,9 +199,15 @@ export async function uploadModel(
 // ── Meetings ──
 const mBase = (projectId: string) => `/api/projects/${projectId}/meetings`;
 
-export function listMeetings(projectId: string, status?: string): Promise<Meeting[]> {
+export async function listMeetings(projectId: string, status?: string): Promise<Meeting[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-  return api<Meeting[]>(`${mBase(projectId)}${qs}`);
+  // MeetingsController.GetMeetings returns { items, total, page, pageSize }, not a flat
+  // array — same envelope as listIssues. This was silently mismatched: the type annotation
+  // said Meeting[], api<T>() just casts the JSON to it, and nothing checks at runtime. The
+  // crash only shows up once real data flows through .slice()/.filter() downstream, which
+  // is why it took a live browser load (not tsc, not a build, not a vitest run) to surface.
+  const raw = await api<Meeting[] | { items: Meeting[] }>(`${mBase(projectId)}${qs}`);
+  return Array.isArray(raw) ? raw : (raw.items ?? []);
 }
 
 export function getMeeting(projectId: string, meetingId: string): Promise<Meeting> {
