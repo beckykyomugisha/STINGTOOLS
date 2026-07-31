@@ -33,6 +33,13 @@ internal sealed class ChangedSincePage
     public List<RemoteDocument> Items { get; set; } = new();
     public bool HasMore { get; set; }
     public DateTime ServerTimeUtc { get; set; }
+
+    /// <summary>
+    /// The project's server-side "Auto-sync this project" flag, echoed on every
+    /// delta. Defaults true when an older server omits it — the design says the
+    /// toggle is on by default, so an absent field must mean on, never off.
+    /// </summary>
+    public bool AutoSyncEnabled { get; set; } = true;
 }
 
 /// <summary>
@@ -129,6 +136,7 @@ internal sealed class PlanscapeApiClient : IDisposable
             Items = json["items"]?.ToObject<List<RemoteDocument>>() ?? new List<RemoteDocument>(),
             HasMore = json["hasMore"]?.Value<bool>() ?? false,
             ServerTimeUtc = json["serverTimeUtc"]?.Value<DateTime>() ?? DateTime.UtcNow,
+            AutoSyncEnabled = json["autoSyncEnabled"]?.Value<bool>() ?? true,
         };
     }
 

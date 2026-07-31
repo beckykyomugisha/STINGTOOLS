@@ -67,9 +67,31 @@ internal sealed class SyncEngine
         int downloaded = 0, skipped = 0, superseded = 0, failed = 0;
         DateTime? newHighWater = null;
 
+        var firstPage = true;
         while (true)
         {
             var page = await _api.ChangedSinceAsync(project.ProjectId, since, ct);
+
+            if (firstPage)
+            {
+                firstPage = false;
+                // Refresh the cached per-project toggle from the server, which is
+                // authoritative. Doing it here rather than only on a push means a
+                // Companion that was offline while someone turned auto-sync OFF
+                // honours it on the very first reconnect, instead of doing one
+                // more unwanted sync and only then noticing.
+                if (project.AutoSync != page.AutoSyncEnabled)
+                {
+                    project.AutoSync = page.AutoSyncEnabled;
+                    CompanionLog.Info(
+                        $"{project.ProjectCode}: auto-sync is now {(page.AutoSyncEnabled ? "on" : "off")} (from the server)");
+                }
+                if (!page.AutoSyncEnabled && trigger is SyncTrigger.Push or SyncTrigger.Reconnect)
+                {
+                    CompanionLog.Info($"{project.ProjectCode}: auto-sync off — stopping this {trigger} pass");
+                    return new SyncOutcome(0, 0, 0, 0);
+                }
+            }
 
             foreach (var doc in page.Items)
             {

@@ -79,10 +79,11 @@ internal sealed class CompanionSettings
 
     // ── Location ──────────────────────────────────────────────────────────────
 
-    public static string SettingsDir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StingTools");
+    // Delegated to CompanionPaths so BCC, which needs the same answers to badge a
+    // document row, cannot end up with a second copy of these rules.
+    public static string SettingsDir => CompanionPaths.SettingsDir;
 
-    public static string SettingsPath => Path.Combine(SettingsDir, "planscape_sync.json");
+    public static string SettingsPath => CompanionPaths.SettingsPath;
 
     /// <summary>
     /// The default sync root: <c>%USERPROFILE%\Planscape</c>.
@@ -91,8 +92,7 @@ internal sealed class CompanionSettings
     /// Explorer and from Revit's own file-open dialog; a path nobody can navigate
     /// to by habit is a path they will copy files out of.
     /// </summary>
-    public static string DefaultRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Planscape");
+    public static string DefaultRoot => CompanionPaths.DefaultRoot;
 
     /// <summary>Resolved sync folder for a project: override → global root → default.</summary>
     public string FolderFor(LinkedProject project)
@@ -107,14 +107,7 @@ internal sealed class CompanionSettings
     /// Windows refuses plus the traversal characters, so a project coded
     /// <c>..\..\Windows</c> cannot write outside the sync root.
     /// </summary>
-    public static string SanitiseFolderName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "project";
-        var cleaned = new string(name
-            .Where(c => !Path.GetInvalidFileNameChars().Contains(c) && c != '.' || char.IsLetterOrDigit(c))
-            .ToArray()).Trim();
-        return string.IsNullOrWhiteSpace(cleaned) ? "project" : cleaned;
-    }
+    public static string SanitiseFolderName(string name) => CompanionPaths.SanitiseFolderName(name);
 
     // ── Load / save ───────────────────────────────────────────────────────────
 

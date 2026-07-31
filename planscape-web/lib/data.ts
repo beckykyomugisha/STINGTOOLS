@@ -50,6 +50,10 @@ export function createProject(body: {
  * `seqNumPad`, `tagPrefix`, `tagSuffix` and `configJson`, none of which the
  * grid edits.
  *
+ * `documentSyncAutoEnabled` is in the list because it genuinely is a project
+ * setting this route accepts — the per-project "Auto-sync this project" toggle
+ * from the document-sync design.
+ *
  * `status` in particular stays out on purpose — writing it here would be a
  * second, unconfirmed route to `Archived`, bypassing the confirm-code gate that
  * `archiveProject` exists to honour. Note it is NOT accepting `code`: the server
@@ -59,7 +63,7 @@ export function createProject(body: {
  */
 export function updateProject(
   id: string,
-  body: { name?: string; description?: string; phase?: string },
+  body: { name?: string; description?: string; phase?: string; documentSyncAutoEnabled?: boolean },
 ): Promise<Project> {
   return api<Project>(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }

@@ -42,6 +42,7 @@ internal static class Program
                 "--install-autostart" => InstallAutostart(),
                 "--uninstall-autostart" => UninstallAutostart(),
                 "--status" => PrintStatus(),
+                "--ping" => Ping().GetAwaiter().GetResult(),
                 "--diagnose" => Diagnose().GetAwaiter().GetResult(),
                 "--set-server" => SetServer(args),
                 "--set-token" => SetToken(args),
@@ -69,7 +70,8 @@ internal static class Program
 
               (no arguments)          run in the system tray
               --diagnose              connect + sync once, print the result, exit
-              --status                print the last recorded status
+              --status                print the last recorded status (from disk)
+              --ping                  ask a RUNNING Companion over the pipe
               --set-server <url>      e.g. http://localhost:5000
               --set-token <pat>       a personal access token from the web app
               --link <projectId> <code>   sync a project into <root>\<code>\
@@ -94,6 +96,35 @@ internal static class Program
     {
         var changed = AutoStart.Uninstall(out var detail);
         Console.WriteLine(changed ? "Autostart removed." : $"No change: {detail}");
+        return 0;
+    }
+
+    /// <summary>
+    /// Talk to a running Companion over the pipe, using the SAME
+    /// <see cref="CompanionIpcClient"/> that StingTools/BCC uses — the file is
+    /// compiled into both. That makes this the headless proof of the plugin-side
+    /// client, and the first thing to run when BCC says sync is not available.
+    /// </summary>
+    private static async Task<int> Ping()
+    {
+        var running = await CompanionIpcClient.IsRunningAsync();
+        Console.WriteLine(@"pipe            : \\.\pipe\" + CompanionIpc.PipeName);
+        Console.WriteLine($"running         : {running}");
+        if (!running)
+        {
+            Console.WriteLine();
+            Console.WriteLine("No Companion answered. That is a normal answer, not an error —");
+            Console.WriteLine("start it with no arguments, or check it is not running as another user.");
+            return 1;
+        }
+
+        var st = await CompanionIpcClient.GetStatusAsync();
+        Console.WriteLine($"state           : {st.State}");
+        Console.WriteLine($"summary         : {st.Summary}");
+        Console.WriteLine($"needs attention : {st.NeedsAttention}");
+        Console.WriteLine($"linked projects : {st.LinkedProjects}");
+        Console.WriteLine($"last success    : {st.LastSuccessUtc?.ToString("O") ?? "never"}");
+        Console.WriteLine($"last error      : {st.LastError ?? "none"}");
         return 0;
     }
 

@@ -86,7 +86,8 @@ internal sealed class CompanionService : IDisposable
                 _hub = new SyncHubClient(
                     _settings.ServerUrl!,
                     _api.GetAccessTokenAsync,
-                    onDocumentChanged: projectId => SyncOneAsync(projectId, SyncTrigger.Push, ct),
+                    onDocumentChanged: (projectId, autoSync) =>
+                        SyncOneAsync(projectId, SyncTrigger.Push, ct, serverAutoSync: autoSync),
                     onConnected: () => SyncAllAsync(SyncTrigger.Reconnect, ct),
                     onConnectionStateChanged: connected =>
                     {
@@ -157,10 +158,26 @@ internal sealed class CompanionService : IDisposable
         return results.Count == 0 ? "nothing to sync" : string.Join("; ", results);
     }
 
-    private async Task<string> SyncOneAsync(string projectId, SyncTrigger trigger, CancellationToken ct)
+    /// <param name="serverAutoSync">
+    /// The project's flag as the SERVER just reported it, when the caller has it
+    /// (a push carries it). Overrides the cached copy, because the cache can be
+    /// one sync behind and the push is by definition current.
+    /// </param>
+    private async Task<string> SyncOneAsync(string projectId, SyncTrigger trigger, CancellationToken ct,
+        bool? serverAutoSync = null)
     {
         var project = _settings.Find(projectId);
         if (project == null) return $"project {projectId} is not linked on this machine";
+
+        if (serverAutoSync.HasValue && project.AutoSync != serverAutoSync.Value)
+        {
+            // Keep the cache honest even when we are about to skip: the tray and
+            // BCC read it, and showing "auto-sync on" while silently not syncing
+            // would be worse than either behaviour on its own.
+            project.AutoSync = serverAutoSync.Value;
+            _settings.Save();
+        }
+
         if (!project.AutoSync && trigger is SyncTrigger.Push or SyncTrigger.Reconnect)
             return $"{project.ProjectCode}: auto-sync is off";
         return await SyncProjectAsync(project, trigger, ct);

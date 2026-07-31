@@ -137,13 +137,21 @@ public class DocumentSyncHub : Hub
     /// <c>revision</c>; the Companion treats both identically today and the field
     /// exists so a log line can say which happened.
     /// </summary>
-    public static object Payload(Guid projectId, Guid documentId, string kind, string? cdeStatus = null)
+    /// <param name="autoSyncEnabled">
+    /// The project's "Auto-sync this project" flag, sent WITH the notification
+    /// rather than looked up separately. A Companion has to decide whether it is
+    /// allowed to act the moment it hears about a change, and making it call the
+    /// API to find out would mean querying in order to learn whether it may query.
+    /// </param>
+    public static object Payload(Guid projectId, Guid documentId, string kind,
+        string? cdeStatus = null, bool autoSyncEnabled = true)
         => new
         {
             projectId,
             documentId,
             kind,
             cdeStatus,
+            autoSyncEnabled,
             changedAtUtc = DateTime.UtcNow,
         };
 }

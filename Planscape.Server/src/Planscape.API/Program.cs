@@ -1886,6 +1886,9 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"Country\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"CoverImageUrl\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"IsPinned\" boolean NOT NULL DEFAULT false",
+        // Document sync — per-project auto/manual toggle (design §Flexibility).
+        // Default true so existing projects keep the on-by-default behaviour.
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"DocumentSyncAutoEnabled\" boolean NOT NULL DEFAULT true",
         // N2 — LiveKit Egress meeting recordings (table not covered by the discovered
         // EF migration set; idempotent CREATE so the running dev/container DB gets it).
         "CREATE TABLE IF NOT EXISTS \"MeetingRecordings\" (" +

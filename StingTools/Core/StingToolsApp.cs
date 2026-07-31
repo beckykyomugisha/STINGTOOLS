@@ -97,6 +97,11 @@ namespace StingTools.Core
                 RegisterPlanscapeProtocol();
                 StingIdlingScheduler.Enqueue(new PlanscapeLinkWatcher());
 
+                // Document sync — start the Planscape Companion if it shipped
+                // with this plugin and isn't already up. This is the piece that
+                // makes sync zero-touch for a user who only ever opens Revit.
+                LaunchCompanionIfInstalled();
+
                 // Register the dockable panel — the single unified UI.
                 // Create the shared "STING Tools" ribbon tab FIRST and in its
                 // own try/catch so a failure inside any single panel
@@ -421,6 +426,81 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"planscape:// registration: {ex.Message}");
+            }
+        }
+
+        /// <summary>File name of the document-sync tray app, shipped beside this DLL.</summary>
+        internal const string CompanionExeName = "Planscape.Companion.exe";
+
+        /// <summary>
+        /// Start the Planscape Companion if it is installed beside this plugin and
+        /// is not already running. Document sync has to work while Revit is
+        /// closed, so the Companion runs on its own; this is only the convenience
+        /// that gets it going for a user whose first act of the day is opening
+        /// Revit.
+        ///
+        /// <para><b>"Installed" means present in the plugin's own output
+        /// directory</b> — the same place <c>StingLink.exe</c> lives, put there by
+        /// the <c>CopyPlanscapeCompanion</c> MSBuild target. If it is absent that
+        /// is a packaging problem, and it is logged as one rather than worked
+        /// around by hunting for a copy somewhere else on disk: launching an
+        /// unknown build from a stale dev path is worse than not launching.</para>
+        ///
+        /// <para>Fire-and-forget on a background thread. The "is it running"
+        /// probe is a pipe connect with a short timeout, and Revit's startup path
+        /// must not wait on it — startup is already the most contended moment in
+        /// the session.</para>
+        /// </summary>
+        private static void LaunchCompanionIfInstalled()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(AssemblyPath);
+                if (string.IsNullOrEmpty(dir)) return;
+                string exe = Path.Combine(dir, CompanionExeName);
+
+                if (!File.Exists(exe))
+                {
+                    StingLog.Info(
+                        $"Planscape Companion not installed ({exe}); document sync will not run. "
+                        + "This is a packaging issue if sync is expected — the build copies it next to the plugin.");
+                    return;
+                }
+
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Ask the Companion itself rather than scanning the process
+                        // list: a process by that name might be another user's
+                        // session, and what actually matters is whether THIS user's
+                        // pipe answers.
+                        if (await Planscape.Companion.CompanionIpcClient.IsRunningAsync())
+                        {
+                            StingLog.Info("Planscape Companion already running.");
+                            return;
+                        }
+
+                        var psi = new System.Diagnostics.ProcessStartInfo(exe)
+                        {
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            WorkingDirectory = dir,
+                        };
+                        using var started = System.Diagnostics.Process.Start(psi);
+                        StingLog.Info($"Planscape Companion started (pid {started?.Id}).");
+                    }
+                    catch (Exception ex)
+                    {
+                        // Never fatal. Sync not running is a degraded state, not a
+                        // reason to fail Revit startup.
+                        StingLog.Warn($"Planscape Companion launch: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Planscape Companion launch: {ex.Message}");
             }
         }
 

@@ -933,8 +933,10 @@ public class DocumentsController : ControllerBase
         // read and return the pre-transition row.
         if (_syncHub != null)
         {
+            var autoSync = await _db.Projects.Where(p => p.Id == projectId)
+                .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync();
             await DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
-                DocumentSyncHub.Payload(projectId, doc.Id, "cde_transition", doc.CdeStatus));
+                DocumentSyncHub.Payload(projectId, doc.Id, "cde_transition", doc.CdeStatus, autoSync));
             _logger.LogInformation("DocumentSync push sent for {DocumentId} on {ProjectId}", doc.Id, projectId);
         }
         else
@@ -1020,10 +1022,17 @@ public class DocumentsController : ControllerBase
             })
             .ToListAsync();
 
+        // The project's auto-sync flag rides along on every delta so a Companion
+        // that reconnects after an offline stretch learns the current setting in
+        // the same call it uses to catch up, rather than needing a second one.
+        var autoSyncEnabled = await _db.Projects.Where(p => p.Id == projectId)
+            .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync();
+
         return Ok(new
         {
             items = docs,
             count = docs.Count,
+            autoSyncEnabled,
             // True when the page was filled exactly — the caller should immediately
             // re-query with since = the last item's changedAt rather than assume it
             // has caught up. Without this a project with more than `limit` changes

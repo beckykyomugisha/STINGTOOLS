@@ -24,7 +24,7 @@ internal sealed class SyncHubClient : IAsyncDisposable
 {
     private readonly string _baseUrl;
     private readonly Func<CancellationToken, Task<string>> _tokenFactory;
-    private readonly Func<string, Task> _onDocumentChanged;
+    private readonly Func<string, bool, Task> _onDocumentChanged;
     private readonly Func<Task> _onConnected;
     private readonly Action<bool> _onConnectionStateChanged;
     private HubConnection? _connection;
@@ -32,7 +32,7 @@ internal sealed class SyncHubClient : IAsyncDisposable
     public SyncHubClient(
         string baseUrl,
         Func<CancellationToken, Task<string>> tokenFactory,
-        Func<string, Task> onDocumentChanged,
+        Func<string, bool, Task> onDocumentChanged,
         Func<Task> onConnected,
         Action<bool> onConnectionStateChanged)
     {
@@ -73,8 +73,9 @@ internal sealed class SyncHubClient : IAsyncDisposable
             var projectId = payload?.ProjectId;
             var kind = payload?.Kind ?? "change";
             if (string.IsNullOrEmpty(projectId)) return;
-            CompanionLog.Info($"push: {kind} on project {projectId}");
-            try { await _onDocumentChanged(projectId); }
+            var autoSync = payload?.AutoSyncEnabled ?? true;
+            CompanionLog.Info($"push: {kind} on project {projectId} (auto-sync {(autoSync ? "on" : "off")})");
+            try { await _onDocumentChanged(projectId, autoSync); }
             catch (Exception ex) { CompanionLog.Error("push-triggered sync failed", ex); }
         });
 
@@ -176,5 +177,17 @@ internal sealed class DocumentChangedPayload
     public string? DocumentId { get; set; }
     public string? Kind { get; set; }
     public string? CdeStatus { get; set; }
+
+    /// <summary>
+    /// The project's "Auto-sync this project" flag as the server sees it, sent
+    /// with the notification so the Companion can decide whether it may act
+    /// without first calling the API to ask.
+    ///
+    /// Nullable, and a null is treated as TRUE by the caller: an older server
+    /// that does not send the field must not be read as "auto-sync off", which
+    /// would silently stop syncing for everyone on that deployment.
+    /// </summary>
+    public bool? AutoSyncEnabled { get; set; }
+
     public DateTime? ChangedAtUtc { get; set; }
 }

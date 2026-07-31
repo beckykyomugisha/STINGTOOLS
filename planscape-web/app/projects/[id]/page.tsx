@@ -6,8 +6,18 @@ import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { ArchiveProjectDialog } from '@/components/ArchiveProjectDialog';
 import { RagBadge } from '@/components/RagBadge';
-import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, Skeleton, toneForStatus } from '@/components/ui';
-import { getProject, listClashes, listIssues } from '@/lib/data';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorNote,
+  PageHeader,
+  Skeleton,
+  toneForStatus,
+  useToast,
+} from '@/components/ui';
+import { getProject, listClashes, listIssues, updateProject } from '@/lib/data';
 import { useProjectRealtime } from '@/lib/realtime';
 import type { BimIssue, ClashRecord, Project } from '@/lib/types';
 
@@ -122,6 +132,15 @@ export default function ProjectPage() {
         <Stat label="Compliance" value={project?.compliancePercent} suffix="%" />
       </div>
 
+      {project && (
+        <div className="mb-4">
+          <AutoSyncToggle
+            project={project}
+            onChanged={(v) => setProject((p) => (p ? { ...p, documentSyncAutoEnabled: v } : p))}
+          />
+        </div>
+      )}
+
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-fg">Needs attention</h2>
@@ -154,6 +173,75 @@ export default function ProjectPage() {
         )}
       </Card>
     </AppShell>
+  );
+}
+
+/**
+ * The per-project "Auto-sync this project" toggle from the document-sync design.
+ *
+ * It lives on the overview rather than behind a project-settings page because no
+ * such page exists, and inventing one to hold a single checkbox would be a worse
+ * answer than putting the checkbox where the project already is.
+ *
+ * Optimistic, with rollback — the same contract the grids use. The copy spells
+ * out what OFF actually does, because "auto-sync off" reads like "sync off" and
+ * it very deliberately is not: linked machines keep the project and keep syncing
+ * on an explicit Sync now.
+ */
+function AutoSyncToggle({
+  project,
+  onChanged,
+}: {
+  project: Project;
+  onChanged: (value: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  // The server defaults it to true; an older payload without the field must read
+  // as on, never off.
+  const enabled = project.documentSyncAutoEnabled !== false;
+
+  async function toggle() {
+    const next = !enabled;
+    setBusy(true);
+    onChanged(next);
+    try {
+      await updateProject(project.id, { documentSyncAutoEnabled: next });
+      toast(next ? 'Auto-sync enabled for this project.' : 'Auto-sync paused for this project.', 'success');
+    } catch (e) {
+      onChanged(enabled); // roll back — never leave a switch showing a state the server rejected
+      toast(e instanceof Error ? e.message : 'Could not change auto-sync', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-fg">Document sync</h2>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            {enabled
+              ? 'Published and shared documents reach linked machines automatically.'
+              : 'Paused. Linked machines keep this project and still sync when someone chooses “Sync now”.'}
+          </p>
+        </div>
+        <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={enabled}
+            disabled={busy}
+            onChange={() => void toggle()}
+            className="h-4 w-4 accent-accent"
+            aria-label="Auto-sync this project"
+          />
+          <span className={enabled ? 'text-fg' : 'text-fg-muted'}>
+            {busy ? 'Saving…' : enabled ? 'Auto-sync on' : 'Auto-sync off'}
+          </span>
+        </label>
+      </div>
+    </Card>
   );
 }
 

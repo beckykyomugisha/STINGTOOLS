@@ -114,8 +114,12 @@ public class DocumentRevisionsController : ControllerBase
         // After the commit, for the same reason as the CDE transition path: a
         // Companion answers a push by re-reading, and a push sent first races it.
         if (_syncHub != null)
+        {
+            var autoSync = await _db.Projects.Where(p => p.Id == projectId)
+                .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync(ct);
             await DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
-                DocumentSyncHub.Payload(projectId, documentId, "revision", doc.CdeStatus));
+                DocumentSyncHub.Payload(projectId, documentId, "revision", doc.CdeStatus, autoSync));
+        }
 
         return CreatedAtAction(nameof(List), new { projectId, documentId },
             new { rev.Id, rev.Revision, rev.CdeStateAtRevision, rev.CreatedAt });

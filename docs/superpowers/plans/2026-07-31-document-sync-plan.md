@@ -181,8 +181,8 @@ Updated as each slice lands. Anything not marked DONE was not built.
 | A — server foundation | **DONE** | `dotnet build` 0 errors · `dotnet test` **515 / 0 failed / 9 skipped** (baseline 493/0/9 — **22 new**, no regressions) |
 | B — Companion skeleton | **DONE** | builds 0 warnings / 0 errors · **run**: tray started, named pipe answered three real requests from a separate process, "not running" detected in 567 ms |
 | C — sync engine | **DONE, and proven end-to-end against a live server** | see §4a |
-| D — BCC integration | NOT STARTED (next session) | — |
-| E — tray polish | NOT STARTED (next session) | — |
+| D — BCC integration | **DONE** | plugin + Companion build **0 warnings / 0 errors**; `dotnet test` **515 / 0 / 9** (unchanged from Slice A — no regressions); the per-project toggle proven end-to-end against a live server — see §4c |
+| E — tray polish | IN PROGRESS | — |
 
 ### 4a. What was actually run
 
@@ -220,6 +220,28 @@ recorded here because they are the class of bug this feature is most exposed to:
 created under `%APPDATA%\StingTools\` were removed (they did not exist before), and
 **no autostart registry entry was created** — confirmed absent afterwards.
 
+### 4c. Slice D — what was actually run
+
+The API was again run from this branch's source on `:5099` against the docker
+PostgreSQL, with a real PAT and a real document.
+
+| Behaviour | Observed |
+|---|---|
+| Schema column | `ALTER TABLE "Projects" ADD COLUMN IF NOT EXISTS "DocumentSyncAutoEnabled"` applied by the existing idempotent patcher — `[schema-patch] done — 21 ok, 0 failed`, and `\d "Projects"` shows `DocumentSyncAutoEnabled | boolean | not null | true` |
+| Default | a project that predates the column reads `documentSyncAutoEnabled = True` on the list payload |
+| **Toggle OFF** | `PUT /api/projects/{id} {"documentSyncAutoEnabled":false}` → a subsequent CDE transition pushed `(auto-sync off)` and the Companion logged the push and **stopped**. The file on disk stayed at the previous revision. |
+| **Manual overrides the toggle** | with auto-sync still OFF, `sync-now` over the pipe returned `{"ok":true,"started":true}` and downloaded the new revision, superseding the old copy — exactly what the design says manual should do |
+| **Toggle ON** | the next transition pushed `(auto-sync on)` and synced by itself |
+| Companion ships with the plugin | `Planscape.Companion.{exe,dll,runtimeconfig.json,deps.json}` + the SignalR client closure land in `StingTools/bin/Debug`, and the copied exe **runs from there** (`--status` succeeded), proving the dependency set is complete |
+| Shared pipe client | `--ping` (which calls the same `CompanionIpcClient` compiled into StingTools) reports `running: False` with the Companion stopped and full live status with it running |
+
+**One cross-project build constraint worth knowing:** `CompanionIpcContract.cs` is
+compiled into two projects with different settings — the Companion enables
+`ImplicitUsings` and nullable reference types, StingTools disables both. The file
+therefore declares every `using` explicitly and opens with `#nullable enable`.
+Without that it builds on one side and fails (or warns) on the other, which is
+how it was found.
+
 ### 4b. Known gap found while building, not a regression
 
 `ProjectMemberAcl.ResolveAsync` currently **hard-codes its three allow-list columns
@@ -230,6 +252,29 @@ cannot be *wider* than the list — and the test asserts exactly that subset
 invariant rather than a filtering behaviour that does not currently exist. When
 those columns are read for real, both endpoints narrow together. Flagged so nobody
 reads "respects `AllowedCdeStates`" as "filters today".
+
+### 4d. Second inert-plumbing finding (Slice D), same shape as §4b
+
+`CoordData.Deliverables` — the list behind BCC's DELIVERABLE REGISTER — **is never
+populated**. It is declared, read by the KPI cards and the grid, and appended to by
+the inline "add row" button, but nothing in `BuildCoordData` loads
+`_BIM_COORD/deliverables.json` into it. The register therefore renders empty in the
+normal flow, and the new **Local** sync badge column, though correct, has nothing to
+badge until rows exist.
+
+Not fixed here, deliberately: wiring the register to the deliverables file is a
+feature in its own right with its own schema-mapping decisions, and bundling it into
+a badge change would be exactly the drive-by this pass was told to avoid. It is
+recorded next to §4b because the two are the same kind of thing — correct code
+sitting on top of plumbing that was never connected.
+
+**A related design mismatch, decided rather than drifted:** the spec asks the badge
+to reuse "the same visual pattern already used for the Live meeting badge". That
+badge does not exist in BCC — it is in the *web* app's project overview. Rather than
+invent a new look for a WPF window, the badge reuses BCC's own existing chip idiom
+(the rounded `Border` + small bold white text of the discipline legend directly
+above the register). Same instinct the spec had — no new UI language — applied to
+the language this window actually speaks.
 
 ---
 
@@ -281,3 +326,40 @@ connection has ever been pointed at another firm's project on a live hub.
     attribute by hand is *not* fought over — it is a hint, not a lock.
 13. Break the target folder (deny write) and force a sync: the tray must enter the **Error** state
     with a tooltip naming the folder, and recover on its own once the permission is restored.
+
+### BCC / StingTools (Slice D) — none of this is verifiable without Revit
+
+There is no Revit session in this environment, so **nothing below has been seen**.
+The pipe client underneath it all IS proven headlessly (`--ping`, §4c); what is
+unverified is the Revit-side wiring and how any of it looks.
+
+14. **The Companion starts itself.** With `Planscape.Companion.exe` beside
+    `StingTools.dll` and no Companion running, launch Revit. `StingTools.log` must
+    say `Planscape Companion started (pid …)`. Launch Revit again with it already
+    running — the log must say `already running` and **no second process** appears
+    in Task Manager.
+15. **Missing Companion is reported, not worked around.** Delete
+    `Planscape.Companion.exe` from the plugin folder and start Revit: the log must
+    say `not installed (…); document sync will not run`, Revit must start normally,
+    and nothing should be launched from any other directory.
+16. **The sync strip.** Open BCC → DELIVERABLES. The strip above the register
+    shows a grey dot and "the Planscape Companion is not running" when it is
+    stopped; a green dot and the last-sync time when it is running and idle.
+    **Confirm the not-running case does not read as an error** — no red, no
+    warning icon (plan §1c).
+17. **Sync now.** With the Companion running, click *Sync now* → the strip says a
+    sync was requested and `companion.log` shows a `Manual` pass. With it stopped,
+    the button is disabled rather than silently doing nothing.
+18. **Offline is not red.** Stop the API, leave the Companion running, click
+    *Refresh* → the dot must be **grey**, not red. Then break something real (a
+    revoked token) → the dot must be **red** and the strip must name the error.
+19. **The Local badge.** See the caveat in §4d first — the register is empty in the
+    normal flow, so this most likely shows nothing at all. If rows are present
+    (added by hand in the editable register), a document synced as WIP shows a
+    green `WORKING` chip and a SHARED/PUBLISHED one a grey `REF` chip, with the
+    tooltip explaining the read-only hint. A row with no local copy shows an empty
+    cell, not an empty chip.
+20. **The auto-sync toggle in the web app.** `/projects/{id}` shows the "Document
+    sync" card; unticking it says *Auto-sync paused*, and the copy makes clear that
+    linked machines keep the project. Reload and confirm it stuck. This is
+    server-verified in §4c but has never been **seen** rendering.

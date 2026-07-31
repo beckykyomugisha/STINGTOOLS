@@ -5,46 +5,9 @@ using Newtonsoft.Json.Linq;
 
 namespace Planscape.Companion;
 
-/// <summary>
-/// The local surface BCC talks to. Named pipe, one JSON line per request, one
-/// per response.
-///
-/// <para><b>Why a pipe and not the file-drop StingLink.exe uses.</b> That
-/// precedent was reasoned about a specific asymmetry: StingLink is short-lived
-/// and its receiver (Revit) had no listener, so a pipe's only job would have been
-/// handing work to an <c>IIdlingJob</c> that already existed. Neither half holds
-/// here — the Companion is long-lived and can host an accept loop, and BCC is
-/// asking a question rather than dropping a job.</para>
-///
-/// <para>The deciding factor is the failure mode. With a file drop, "the
-/// Companion isn't running" and "the Companion is busy" look identical at the
-/// moment the user clicks Sync now; distinguishing them means writing, polling
-/// and then guessing how stale is too stale. A pipe connect that fails in 200 ms
-/// answers it exactly.</para>
-///
-/// <para><b>Why not loopback HTTP.</b> <c>HttpListener</c> on a fixed port needs a
-/// URL ACL, which is machine-wide state and an elevation prompt. Kestrel avoids
-/// that but drags ASP.NET Core hosting into a tray app to serve two verbs, and an
-/// open TCP port is reachable by any local process — including a browser tab — so
-/// it would need its own bearer token. A pipe is ACL'd to the creating user by
-/// Windows, with no port and no firewall prompt.</para>
-/// </summary>
-internal static class CompanionIpc
-{
-    /// <summary>
-    /// Fixed name — no user suffix. Windows scopes a default-ACL pipe to the
-    /// creating user already, and a predictable name is what lets BCC connect
-    /// without a discovery file to keep in sync.
-    /// </summary>
-    public const string PipeName = "planscape-companion";
-
-    /// <summary>
-    /// How long a client waits before calling it "not running". Deliberately
-    /// short: this runs on a UI click, and the answer is almost always instant or
-    /// never.
-    /// </summary>
-    public const int ConnectTimeoutMs = 500;
-}
+// The wire contract (pipe name, timeouts, command names) and the CLIENT live in
+// CompanionIpcContract.cs, which is compiled into StingTools too so the two sides
+// cannot drift. This file is the SERVER, which only the Companion ever runs.
 
 /// <summary>
 /// Serves <see cref="CompanionIpc"/>. One connection at a time, handled and
@@ -136,7 +99,7 @@ internal sealed class CompanionIpcServer : IAsyncDisposable
         var cmd = req["cmd"]?.Value<string>()?.ToLowerInvariant();
         switch (cmd)
         {
-            case "ping":
+            case CompanionIpc.CmdPing:
                 // Deliberately cheap and side-effect free: this is how BCC asks
                 // "are you there" without provoking any work.
                 return JsonConvert.SerializeObject(new
@@ -146,7 +109,7 @@ internal sealed class CompanionIpcServer : IAsyncDisposable
                     version = typeof(CompanionIpcServer).Assembly.GetName().Version?.ToString(),
                 });
 
-            case "status":
+            case CompanionIpc.CmdStatus:
             {
                 var s = _status();
                 return JsonConvert.SerializeObject(new
@@ -163,7 +126,7 @@ internal sealed class CompanionIpcServer : IAsyncDisposable
                 });
             }
 
-            case "sync-now":
+            case CompanionIpc.CmdSyncNow:
             {
                 var projectId = req["projectId"]?.Value<string>();
                 // Fire-and-forget with the result reported through status. A sync
@@ -194,36 +157,5 @@ internal sealed class CompanionIpcServer : IAsyncDisposable
             catch (Exception) { /* shutting down anyway */ }
         }
         _cts.Dispose();
-    }
-}
-
-/// <summary>
-/// Client side. Lives here rather than in StingTools so the request and response
-/// shapes cannot drift apart — when BCC integration lands (Slice D) it links this
-/// file in, the same way StingLink.exe shares PlanscapeProtocol.cs.
-/// </summary>
-internal static class CompanionIpcClient
-{
-    /// <summary>
-    /// Send one command. Returns null when the Companion is not running, which is
-    /// a normal answer and not an error — a user may simply not have started it.
-    /// </summary>
-    public static async Task<JObject?> SendAsync(object request, CancellationToken ct = default)
-    {
-        try
-        {
-            using var pipe = new NamedPipeClientStream(".", CompanionIpc.PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-            await pipe.ConnectAsync(CompanionIpc.ConnectTimeoutMs, ct);
-
-            var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
-            var reader = new StreamReader(pipe, Encoding.UTF8, leaveOpen: true);
-
-            await writer.WriteLineAsync(JsonConvert.SerializeObject(request));
-            var line = await reader.ReadLineAsync(ct);
-            return string.IsNullOrWhiteSpace(line) ? null : JObject.Parse(line);
-        }
-        catch (TimeoutException) { return null; }   // not running
-        catch (IOException) { return null; }        // died mid-request
-        catch (OperationCanceledException) { return null; }
     }
 }

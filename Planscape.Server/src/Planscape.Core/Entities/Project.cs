@@ -62,6 +62,20 @@ public class Project : ITenantScoped
     public string? CoverImageUrl { get; set; }
     public bool IsPinned { get; set; } = false;
 
+    /// <summary>
+    /// Document sync — "Auto-sync this project" (design §Flexibility). On by
+    /// default, one toggle per PROJECT rather than per document (too fine-grained
+    /// to manage day to day) and not per member (the design calls it a project
+    /// setting, so one coordinator turning it off turns it off for the project's
+    /// machines, not just their own).
+    ///
+    /// Off does NOT unlink anything: a Planscape Companion still knows the
+    /// project and still syncs on an explicit "Sync now". The flag gates only
+    /// whether the automatic triggers — the SignalR push and the reconnect delta —
+    /// are allowed to fire on their own.
+    /// </summary>
+    public bool DocumentSyncAutoEnabled { get; set; } = true;
+
     // Compliance metrics (cached)
     public double CompliancePercent { get; set; }
     public double ContainerCompliancePercent { get; set; }

@@ -156,6 +156,59 @@
           SkipUnchangedFiles="true" Condition="Exists('%(StingLinkPayload.FullPath)')" />
   </Target>
 
+  <!--
+    Planscape.Companion — the document-sync tray app. Same arrangement as
+    StingLink.exe above and for the same reasons: StingToolsApp.OnStartup looks
+    for it NEXT TO this DLL (LaunchCompanionIfInstalled), and the deploy step is
+    "copy bin\Release over the live plugin folder", so anything outside the
+    output directory never reaches a user.
+
+    Framework-dependent .NET 8 exes need all four files — the apphost, the
+    managed dll, runtimeconfig.json and deps.json. Shipping the .exe alone
+    produces a process that refuses to start with no useful message.
+
+    ReferenceOutputAssembly=false: nothing in the plugin links against the
+    Companion's assembly. The one type they share (CompanionIpcContract.cs) is
+    compiled into both by the <Compile Include> below, so an assembly reference
+    would be circular as well as unnecessary.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Planscape.Companion\Planscape.Companion.csproj"
+                      ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CopyPlanscapeCompanion" AfterTargets="Build">
+    <ItemGroup>
+      <CompanionPayload Include="$(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.exe;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.runtimeconfig.json;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.deps.json" />
+      <!-- The Companion's own NuGet closure (SignalR client + its transitive
+           deps). Unlike StingLink, which has none, this one will not start
+           without them. Globbed rather than listed because the SignalR client's
+           transitive set is not something to hand-maintain in an MSBuild item. -->
+      <CompanionPayload Include="$(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Microsoft.AspNetCore.*.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Microsoft.Extensions.*.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\System.IO.Pipelines.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\System.Threading.Channels.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CompanionPayload)" DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" Condition="Exists('%(CompanionPayload.FullPath)')" />
+  </Target>
+
+  <!--
+    The Companion↔BCC pipe contract, compiled into BOTH assemblies so the request
+    and response shapes cannot drift apart. Exactly the trick StingLink.exe uses
+    with Core\PlanscapeProtocol.cs, in the opposite direction.
+
+    A build error pointing at this file almost always means Revit/WPF crept into
+    it — it has to stay loadable by a tray app that references neither.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Planscape.Companion\CompanionIpcContract.cs"
+             Link="BIMManager\Shared\CompanionIpcContract.cs" />
+  </ItemGroup>
+
   <!-- Phase 95: BcfEngine physically lives here but is compiled into
        Planscape.Shared.dll (via <Compile Include="..\..\..\StingTools\..."/>
        in Planscape.Shared.csproj). Exclude it from the StingTools assembly to

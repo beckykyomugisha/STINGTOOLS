@@ -24,6 +24,12 @@ export interface Project {
   taggedElements?: number;
   lastSyncAt?: string | null;
   isPinned?: boolean;
+  /**
+   * Document sync — "Auto-sync this project". On by default. Off means a linked
+   * Planscape Companion stops syncing automatically but still syncs on an
+   * explicit "Sync now"; it does not unlink anything.
+   */
+  documentSyncAutoEnabled?: boolean;
   city?: string | null;
   country?: string | null;
 }
