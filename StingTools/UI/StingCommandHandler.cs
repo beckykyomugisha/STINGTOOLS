@@ -3626,6 +3626,7 @@ namespace StingTools.UI
                     case "Risk_Raise":                  RunCommand<Commands.Delivery.RiskRaiseCommand>(app); break;
                     case "Risk_Report":                 RunCommand<Commands.Delivery.RiskReportCommand>(app); break;
                     case "Midp_DriftReport":            RunCommand<Commands.Delivery.MidpDriftReportCommand>(app); break;
+                    case "Midp_Import":                 RunCommand<Commands.Delivery.MidpImportCommand>(app); break;
 
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;

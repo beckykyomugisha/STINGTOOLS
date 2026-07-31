@@ -9,6 +9,7 @@
 //    Risk_Raise        — raise a risk (anchored to the current selection/zone)
 //    Risk_Report        — register roll-up (RAG, top risks) + CSV
 //    Midp_DriftReport   — MIDP CSV → drift detection vs the live lifecycle + CSV
+//    Midp_Import        — MIDP CSV → bulk-import into deliverables.json (MidpImportCommand.cs)
 //
 //  Risks persist to <BIM manager>/risks.json (additive, safe-defaulted); each
 //  raise also appends to the tamper-evident audit log.
@@ -287,7 +288,17 @@ namespace StingTools.Commands.Delivery
             }
         }
 
-        private static List<DeliverablePlanItem> ParseMidpCsv(string path, out int skipped)
+        /// <summary>
+        /// Parse a MIDP/TIDP CSV into plan rows, tolerating the column-name
+        /// variants real spreadsheets arrive with.
+        ///
+        /// Internal, not private: <see cref="MidpImportCommand"/> bulk-writes the
+        /// same rows into deliverables.json and must agree with this reader about
+        /// which column is which. A second copy of the header matching is exactly
+        /// how the two would drift — the same reasoning that made
+        /// <see cref="ResolveDeliverablesPath"/> internal.
+        /// </summary>
+        internal static List<DeliverablePlanItem> ParseMidpCsv(string path, out int skipped)
         {
             skipped = 0;
             var rows = new List<DeliverablePlanItem>();
