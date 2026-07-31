@@ -28,6 +28,20 @@ the controllers, not guessed:
 | **Documents** | `PUT …/documents/{docId}/state` | `newState`, `suitabilityCode`, `revision` — a **state transition**, not a free edit | read-only |
 | **Members** | `PUT …/members/{memberId}` | `projectRole`, `iso19650Role` | read-only |
 | **Transmittals** | `PUT …/transmittals/{txId}/{send\|acknowledge\|respond}` | **no inline cells** — these are *actions*, not field edits; they render as row buttons | read-only |
+| **Projects** | `PUT /api/projects/{id}` (`UpdateProjectRequest`) | `name`, `phase` | read-only |
+| **Team** (firm users) | *(none — `TenantAdminController` has no per-user update)* | **nothing** | read-only |
+
+**Two rows above need their reasoning stated, because "what the endpoint accepts"
+is a floor, not a ceiling:**
+
+- **Projects — `status` is accepted by the PUT and is still read-only.** Making it
+  an editable cell would create a second route to `Archived` that skips the
+  `?confirmCode=` gate `ArchiveProject` exists to enforce. The contract's rule is
+  "never *wider* than the endpoint", not "always exactly as wide". Archiving is a
+  row action with a type-the-code modal.
+- **Projects — `code` is read-only** because no endpoint writes it *and* because
+  it is the token the archive route demands as proof of intent. A renameable
+  confirmation token is not a confirmation.
 
 Two consequences worth stating rather than discovering later:
 - **Documents and transmittals are not really "editable grids"** — their write surface is a state
@@ -58,6 +72,10 @@ three-way merge before anyone has hit a conflict is speculative.
 - **Selection** — checkbox column; bulk actions apply the same single-field write per row, sequentially, and report `n succeeded, m failed`.
 - **Empty / loading / error** — `EmptyState` and `Skeleton` primitives, never a bare blank panel.
 - **Row click** — opens the existing detail route. Inline edit never navigates.
+- **Right-click (U6)** — `rowMenu` on the grid opens the shell's `Menu` at the
+  pointer. **It may only contain actions the row already offers** as a button or
+  a link. A right-click menu is a shortcut; an action reachable *only* by
+  right-clicking is undiscoverable, and on a touch device it does not exist at all.
 
 ### 1d. Open questions for the user (defaults chosen, easy to change)
 
@@ -93,6 +111,10 @@ contrast passes, that a grid edit round-trips against a live API. All of that is
 | U3 primitives | DONE | typecheck clean · build ✓ · `npm test` **59 passed** incl. 14 DataGrid tests that assert the contract itself — optimistic apply, **rollback + server message on failure**, no-op on unchanged value, Escape abandons, edit never navigates |
 | U4 route migration | DONE | typecheck clean · build ✓ · `npm test` **62 passed** incl. 3 new route invariants: no hard-coded palette utility survives anywhere, every rail link has a real `page.tsx`, every page is inside the AppShell |
 | U5 polish + a11y | DONE | typecheck clean · build ✓ · `npm test` **69 passed** incl. 7 new Menu keyboard/ARIA tests (arrow keys, Home/End, Escape restores focus, disabled items skipped) |
+| U6.1 archive endpoint wired | DONE | typecheck clean · build ✓ · `npm test` **71 passed** incl. 2 new (`archiveProject` sends `?confirmCode=`, URL-encodes reserved characters) |
+| U6.2 projects grid | DONE | typecheck clean · build ✓ · `npm test` **71** · `dotnet build Planscape.API` **0 errors** (one read-only `OpenIssueCount` added to the list projection) |
+| U6.3 tenant-wide invite | DONE | typecheck clean · build ✓ · `npm test` **74 passed** incl. 3 new (tenant route not a project route; `ApiError.body` survives so a 402 can be read) |
+| U6.4 right-click menu + richer columns | DONE | typecheck clean · build ✓ · `npm test` **79 passed** incl. 5 new context-menu tests (opens on the row that was clicked, acts on *that* row, closes after acting, Escape closes, right-click does not fire row navigation) |
 
 ---
 
@@ -195,6 +217,94 @@ Run `cd planscape-web && npm install && npm run dev`, point `NEXT_PUBLIC_API_BAS
 - [ ] **Focus visible on every control**, including inside modals and inside grid cells, in dark
       mode as well as light.
 
+### U6 — archive · projects grid · tenant invite · right-click
+
+**Still no browser in this environment** (checked: no playwright/puppeteer/cypress
+in `node_modules/.bin`, no browser MCP). Everything below is unverified visually.
+
+#### U6.1 — archive a project
+- [ ] **The confirm gate holds:** project overview → Archive. The red button is
+      **disabled** until you type the project's code exactly. Typing a wrong code
+      keeps it disabled — you should never be able to reach the server's 400.
+- [ ] **Case and whitespace:** ` abc-01 ` (lower-case, padded) enables the button
+      for a project coded `ABC-01`, and archiving succeeds. The client compare is
+      trimmed + case-insensitive to match the server's `OrdinalIgnoreCase`; if the
+      client is stricter than the server, this is where you find out.
+- [ ] **403 reads as permission, not failure:** sign in as someone who is neither
+      the project author nor a tenant Owner/Admin, archive a project they can see.
+      The dialog should say *"You do not have permission… Only the person who
+      created it, or a tenant Owner/Admin, can."* — inside the modal, not a toast
+      that vanishes.
+- [ ] **It is a SOFT delete:** after archiving, the project still exists — its
+      issues, documents and models are intact and it is reachable by URL. If
+      anything is *gone*, stop: the route is documented as archive-only.
+- [ ] **Idempotent:** archiving an already-archived project returns 204 and does
+      not error.
+
+#### U6.2 — projects grid
+- [ ] **It is a grid now,** not card tiles, with columns: Project, Code,
+      Compliance, Open issues, Phase, Status, Members, Last sync.
+- [ ] **Open-issue count is real** — cross-check one project's number against its
+      Issues tab with the status filter on "All" minus CLOSED. This is a new
+      server-side projection (`OpenIssueCount`); a wrong number here means the
+      predicate disagrees with `{id}/dashboard`.
+- [ ] **Name and Phase edit inline and survive a reload.** Code, Status,
+      Compliance, Open issues, Members and Last sync do **not** become editors
+      when clicked — Status especially, and that is deliberate (see §1a).
+- [ ] **Row click opens the project; clicking the open-issue count opens Issues**
+      and does *not* also navigate to the project overview.
+- [ ] **Archive from the row action** works and the row disappears/greys after the
+      list reloads.
+
+#### U6.3 — tenant-wide invite
+- [ ] **Reachable outside a project:** avatar menu → Team, from anywhere.
+- [ ] **As Owner/Admin:** the page lists everyone in the firm with quota tiles
+      (Authors / Coordinators / Projects / Storage). The tiles' numbers should
+      match `GET /api/tenant/dashboard` in the network tab.
+- [ ] **As a non-admin:** the page shows *"You need the Owner or Admin role…"* —
+      an explanation, not an error banner and not an empty grid.
+- [ ] **Invite succeeds:** invite a new email as Coordinator → the person appears
+      in the grid marked **Invited** (amber), not **Active**. They are inactive
+      until they set a password; the server's invite *email* is still a TODO on
+      its side, so nobody actually receives a link yet — confirm the copy does not
+      promise one.
+- [ ] **409 duplicate:** invite an email that already has an account → *"Someone
+      already has an account with that email."*
+- [ ] **402 quota (the one most likely to be wrong):** fill the plan's Author cap,
+      then invite another Author. Expect *"Your plan's seat limit is full.
+      Authors cap reached (N of N). Upgrade your plan…"* — the server's own reason
+      sentence. If you instead see the literal string **"quota_exceeded"**, the
+      `ApiError.body` plumbing is not reaching the handler.
+- [ ] **Unlimited plans:** on a plan with `int.MaxValue` limits, a quota tile shows
+      `∞`, never `2147483647`.
+
+#### U6.4 — right-click menu + richer columns
+- [ ] **Right-click a row** in Projects / Issues / Clashes / Members → a menu
+      appears **at the pointer**, the browser's own context menu does not.
+- [ ] **It acts on the row you clicked**, not the first or the last row. Right-click
+      the third row and pick Open — verify you land on the third row's record.
+- [ ] **Viewport clamping** (untestable in jsdom — `getBoundingClientRect` returns
+      zeroes there, so this is *only* verifiable by hand): right-click a row near
+      the **bottom-right corner** of the window. The menu must flip/clamp fully
+      into view, not hang off the edge.
+- [ ] **Keyboard:** with the menu open, ↑/↓ move between items, Home/End jump,
+      Escape closes and focus returns to where it was.
+- [ ] **Scroll interaction:** open a row menu on a long grid, then scroll. The
+      panel is `position: fixed`, so it will **stay put while the rows move** —
+      decide whether that is acceptable or whether it should close on scroll. It
+      is currently *not* wired to close on scroll.
+- [ ] **Disabled items:** on a clash with no linked issue, "Open linked issue" is
+      greyed and unclickable; arrow keys skip it.
+- [ ] **No new actions:** every menu item also exists as a visible button or link
+      on the same screen (§1c). If you find one that doesn't, that is a bug.
+- [ ] **New read-only columns show real data:** Issues → Type, Raised, and the
+      assignee's email under their name. Clashes → Kind, Issue (a "View" link only
+      on promoted clashes), Detected. Members → Invited by. Any column that is
+      empty for *every* row means the API isn't returning it and the column should
+      go, not stay as decoration.
+- [ ] **Touch devices have no right-click.** Confirm on a tablet that nothing is
+      unreachable — everything in a row menu must still be a visible control.
+
 ---
 
 ## 5. What is NOT done
@@ -211,3 +321,25 @@ Written down so nobody assumes it was covered:
 - **No bulk-edit UI.** The DataGrid supports selection and the contract describes bulk semantics,
   but no grid currently exposes a bulk action.
 - **No server-side sort/filter.** Client-side only, per the contract's default.
+
+### 6. Left deliberately unwired (U6)
+
+Named here so the next session doesn't assume they were missed:
+
+- **`DELETE /api/tenant/users/{userId}`** exists and works (it refuses to remove
+  the tenant Owner). The Team page does **not** call it. Removing someone from the
+  firm is a bigger action than removing them from a project — it wants the same
+  type-to-confirm treatment archive got, plus a decision about what happens to
+  their project memberships, and neither was in scope.
+- **Per-user role changes on the Team page.** `TenantAdminController` has no
+  update route at all, so every column there is read-only. Adding one would mean
+  widening the API, which the contract forbids doing to suit a grid.
+- **Documents and Transmittals have no `rowMenu`.** Their row actions are state
+  transitions with their own confirmations; folding those into a right-click menu
+  needs a decision about whether a transition should be one click away, and that
+  is a product call, not a UI chore.
+- **The row menu does not close on scroll.** It is `position: fixed`, so scrolling
+  leaves it hovering over different rows. Flagged in §4 for a human to judge.
+- **Item 6 from the session brief — syncing cloud documents down to a watched
+  local folder — was explicitly out of scope** for this pass and has no
+  scaffolding here.

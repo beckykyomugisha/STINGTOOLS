@@ -6,7 +6,16 @@ import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { ArchiveProjectDialog } from '@/components/ArchiveProjectDialog';
 import { RagBadge } from '@/components/RagBadge';
-import { Badge, Button, DataGrid, PageHeader, toneForStatus, type Column } from '@/components/ui';
+import {
+  Badge,
+  Button,
+  DataGrid,
+  MenuItem,
+  MenuSeparator,
+  PageHeader,
+  toneForStatus,
+  type Column,
+} from '@/components/ui';
 import { listProjects, updateProject } from '@/lib/data';
 import type { Project } from '@/lib/types';
 
@@ -141,6 +150,36 @@ export default function ProjectsPage() {
         loading={!projects && !error}
         error={error}
         onRowClick={(p) => router.push(`/projects/${p.id}`)}
+        rowMenu={(p, close) => (
+          <>
+            <MenuItem
+              onClick={() => {
+                close();
+                router.push(`/projects/${p.id}`);
+              }}
+            >
+              Open project
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                close();
+                router.push(`/projects/${p.id}/issues`);
+              }}
+            >
+              Open issues
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem
+              disabled={p.status === 'Archived'}
+              onClick={() => {
+                close();
+                setArchiving(p);
+              }}
+            >
+              Archive…
+            </MenuItem>
+          </>
+        )}
         emptyTitle="No projects yet"
         emptyDescription="Create one to start syncing models, issues and documents."
       />

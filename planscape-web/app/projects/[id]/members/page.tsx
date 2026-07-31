@@ -8,6 +8,7 @@ import {
   Button,
   DataGrid,
   Input,
+  MenuItem,
   Modal,
   PageHeader,
   Select,
@@ -127,6 +128,9 @@ export default function MembersPage() {
       render: (m) =>
         m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : <span className="text-fg-subtle">—</span>,
     },
+    // Already in the payload, never shown — and it is the field that answers
+    // "who let this person in", which is the question an audit actually asks.
+    { key: 'invitedBy', header: 'Invited by', className: 'w-40' },
     {
       key: 'actions',
       header: '',
@@ -157,6 +161,16 @@ export default function MembersPage() {
         rowId={(m) => m.id}
         loading={!members && !error}
         error={error}
+        rowMenu={(m, close) => (
+          <MenuItem
+            onClick={() => {
+              close();
+              void onRemove(m);
+            }}
+          >
+            Remove from project
+          </MenuItem>
+        )}
         emptyTitle="No members yet"
         emptyDescription="Invite someone to give them access to this project."
       />

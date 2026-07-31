@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { ContextMenuPanel } from '@/components/shell/Menu';
 import { EmptyState, ErrorNote, Input, Select, SkeletonRows } from './primitives';
 import { useToast } from './toast';
 
@@ -57,6 +58,14 @@ export interface DataGridProps<T> {
   filterable?: boolean;
   /** Optimistically-applied local patches so the parent needn't refetch. */
   onRowPatched?: (id: string, key: string, value: string) => void;
+  /**
+   * U6 — right-click row actions. Return `MenuItem`s; call `close` from each.
+   *
+   * These must be the actions the row ALREADY offers as buttons or links, not a
+   * separate set only discoverable by right-clicking. A right-click menu is a
+   * shortcut, and an action that exists nowhere else is not a shortcut.
+   */
+  rowMenu?: (row: T, close: () => void) => ReactNode;
 }
 
 type SortState = { key: string; dir: 'asc' | 'desc' } | null;
@@ -74,6 +83,7 @@ export function DataGrid<T>({
   selectable = false,
   filterable = true,
   onRowPatched,
+  rowMenu,
 }: DataGridProps<T>) {
   const { toast } = useToast();
   const [sort, setSort] = useState<SortState>(null);
@@ -83,6 +93,8 @@ export function DataGrid<T>({
   /** Cell overrides applied optimistically, keyed `${rowId}:${colKey}`. */
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
+  /** Which row was right-clicked, and where. Null = no context menu open. */
+  const [menuAt, setMenuAt] = useState<{ row: T; x: number; y: number } | null>(null);
 
   const valueOf = useCallback(
     (row: T, col: Column<T>): string => {
@@ -267,6 +279,14 @@ export function DataGrid<T>({
                       onRowClick && 'cursor-pointer',
                     )}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    onContextMenu={
+                      rowMenu
+                        ? (e) => {
+                            e.preventDefault();
+                            setMenuAt({ row, x: e.clientX, y: e.clientY });
+                          }
+                        : undefined
+                    }
                   >
                     {selectable && (
                       <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
@@ -349,6 +369,12 @@ export function DataGrid<T>({
           </table>
         )}
       </div>
+
+      {rowMenu && menuAt && (
+        <ContextMenuPanel x={menuAt.x} y={menuAt.y} onClose={() => setMenuAt(null)}>
+          {rowMenu(menuAt.row, () => setMenuAt(null))}
+        </ContextMenuPanel>
+      )}
     </div>
   );
 }
