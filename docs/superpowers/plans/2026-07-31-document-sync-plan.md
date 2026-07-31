@@ -178,18 +178,74 @@ Updated as each slice lands. Anything not marked DONE was not built.
 
 | Slice | Status | Proof |
 |---|---|---|
-| A — server foundation | NOT STARTED | — |
-| B — Companion skeleton | NOT STARTED | — |
-| C — sync engine | NOT STARTED | — |
+| A — server foundation | **DONE** | `dotnet build` 0 errors · `dotnet test` **515 / 0 failed / 9 skipped** (baseline 493/0/9 — **22 new**, no regressions) |
+| B — Companion skeleton | **DONE** | builds 0 warnings / 0 errors · **run**: tray started, named pipe answered three real requests from a separate process, "not running" detected in 567 ms |
+| C — sync engine | **DONE, and proven end-to-end against a live server** | see §4a |
 | D — BCC integration | NOT STARTED (next session) | — |
 | E — tray polish | NOT STARTED (next session) | — |
+
+### 4a. What was actually run
+
+The API was run **from this branch's source** on `:5099` against the docker
+PostgreSQL (the running `docker-api-1` container is an older image — it 404s on
+`changed-since`, which is how the version gap was spotted). A real personal access
+token, a real uploaded document, a real Companion process.
+
+| Behaviour | Observed |
+|---|---|
+| Initial sync | `1 downloaded`; SHA-256 on disk **matches the server's `contentHash` exactly** |
+| Idempotent re-run | `0 downloaded`, delta mark advanced, nothing re-fetched |
+| Read-only hint | WIP copy writable; after WIP→SHARED the copy is `ReadOnly`; the superseded copy is **not** (so it can still be moved) |
+| It is a hint, not a lock | cleared the attribute by hand and appended to the file — nothing fought back |
+| Supersede | old copy → `A-101-Floor-Plan (superseded 2026-07-31).pdf` with the **P01 bytes intact**, new bytes live |
+| Same-day collision | resolved as `(superseded 2026-07-31 #2).pdf`, `#3` |
+| **SignalR push** | with only the tray running, a transition on another connection produced `push: cde_transition` → `sync (Push)` → supersede + download. **Nobody touched the Companion.** |
+| Purge | 9-day-old *superseded* file deleted; a recent superseded file **and** a 9-day-old *non-superseded* user file both untouched |
+| Foreign project | reports "not visible to this account" rather than failing opaquely |
+| IPC | `ping` returned the matching pid; `status` returned live state; unknown command refused |
+
+**Two silent-failure bugs were found by running it, not by building it** — both
+recorded here because they are the class of bug this feature is most exposed to:
+
+1. The Companion registered `On<JObject>`. SignalR's default protocol is
+   System.Text.Json, which cannot materialise a Newtonsoft `JObject`, so **the
+   handler never fired** — connection healthy, server logging a successful push,
+   client doing nothing at all. Fixed with a concrete payload type.
+2. `DocumentSyncHub` refused joins silently *and* logged nothing server-side, so a
+   tenant mismatch would have been undiagnosable. It now logs both the refusal
+   (with the connection's tenant) and the grant, and the controller logs when the
+   hub context is missing.
+
+**Test artefacts were cleaned up:** the settings, status and log files this session
+created under `%APPDATA%\StingTools\` were removed (they did not exist before), and
+**no autostart registry entry was created** — confirmed absent afterwards.
+
+### 4b. Known gap found while building, not a regression
+
+`ProjectMemberAcl.ResolveAsync` currently **hard-codes its three allow-list columns
+to `null`** (a deliberate migration-safety choice — see its own comment), so no
+CDE/discipline/suitability narrowing happens for anyone today, on the documents
+list or on `changed-since`. `changed-since` routes through the same helper, so it
+cannot be *wider* than the list — and the test asserts exactly that subset
+invariant rather than a filtering behaviour that does not currently exist. When
+those columns are read for real, both endpoints narrow together. Flagged so nobody
+reads "respects `AllowedCdeStates`" as "filters today".
 
 ---
 
 ## 5. PENDING-HUMAN-VERIFY
 
-No second machine and no live multi-user session exist in this environment, so the following are
-written down rather than claimed. Everything here is genuinely untested.
+**Updated after the live run.** Items 1, 3 and 5–8 below were exercised in §4a and are marked
+accordingly. What remains genuinely untested is everything needing a **second machine, a second
+user, or a real network interruption** — none of which exist in this environment.
+
+- ✅ **Exercised in §4a:** the push path, the delta with and without `since`, the initial-link
+  sync, supersede, purge, the read-only hint, and the IPC surface.
+- ❌ **Still open:** everything in items 2, 4, 6, 8, 9–13 below.
+
+The single most important one still open is **item 2** (cross-tenant isolation over the wire).
+It is unit-tested with a fake hub context, and the server now logs a refusal, but no second firm's
+connection has ever been pointed at another firm's project on a live hub.
 
 ### Server (Slice A)
 1. With the docker stack up (`cd Planscape.Server/docker && docker compose up -d`), sign in and
