@@ -57,8 +57,12 @@ internal sealed class CompanionService : IDisposable
         // IPC first, and unconditionally. An unconfigured Companion is exactly
         // the one BCC most needs to be able to interrogate — "it's running but it
         // has no token" is a far more useful answer than silence.
-        _ipc = new CompanionIpcServer(() => Status, SyncNowAsync);
+        _ipc = new CompanionIpcServer(() => Status, SyncNowAsync, DownloadHistoryAsync);
         _ipc.Start();
+        // Count before the first sync as well: the files are already on disk from
+        // previous sessions, and a tray that reads 0 until the first sync of the
+        // day would be wrong for as long as the user is offline.
+        RefreshCheckedOut();
 
         if (!IsConfigured)
         {
@@ -202,6 +206,7 @@ internal sealed class CompanionService : IDisposable
             _settings.Save();  // persist the advanced high-water mark
             Status.FilesLastSync = outcome.Downloaded;
             Status.LastSuccessUtc = DateTime.UtcNow;
+            RefreshCheckedOut();
             Status.ConsecutiveFailures = 0;
             SetState(SyncState.Idle);
             return $"{project.ProjectCode}: {outcome}";
@@ -246,6 +251,68 @@ internal sealed class CompanionService : IDisposable
         var result = await SyncAllAsync(SyncTrigger.Manual, ct);
         Console.WriteLine(result);
         return Status.State != SyncState.Error;
+    }
+
+    /// <summary>
+    /// Slice E — full revision history for ONE document, on explicit request.
+    /// Never called by any automatic trigger.
+    /// </summary>
+    public async Task<string> DownloadHistoryAsync(string projectId, string documentId)
+    {
+        var project = _settings.Find(projectId);
+        if (project == null) return $"project {projectId} is not linked on this machine";
+        if (!Guid.TryParse(documentId, out var docGuid)) return $"'{documentId}' is not a document id";
+        if (_api == null)
+        {
+            // History is a deliberate user action, so it is worth connecting for
+            // even when the background loop has not managed to yet.
+            if (!IsConfigured) return "not configured — set a server and access token";
+            _api = new PlanscapeApiClient(_settings.ServerUrl!, _settings.AccessToken!);
+        }
+
+        await _syncGate.WaitAsync(_cts.Token);
+        try
+        {
+            SetState(SyncState.Syncing);
+            var engine = new SyncEngine(_api, _settings);
+            var result = await engine.DownloadHistoryAsync(project, docGuid, _cts.Token);
+            SetState(SyncState.Idle);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            SetState(SyncState.Error, ex.Message);
+            return $"history download failed: {ex.Message}";
+        }
+        finally
+        {
+            _syncGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Recount the WIP working copies on disk across every linked project.
+    /// Cheap (a directory enumeration per project) and always truthful, because
+    /// it reads the same filesystem the user is looking at.
+    /// </summary>
+    private void RefreshCheckedOut()
+    {
+        try
+        {
+            var all = new List<string>();
+            foreach (var project in _settings.Projects.ToList())
+                foreach (var name in SyncEngine.WorkingCopiesIn(_settings.FolderFor(project)))
+                    all.Add($"{project.ProjectCode}/{name}");
+
+            Status.CheckedOutCount = all.Count;
+            // Capped: the tray shows a short list, and a status file carrying
+            // thousands of names would be written on every state change.
+            Status.CheckedOut = all.Take(50).ToList();
+        }
+        catch (Exception ex)
+        {
+            CompanionLog.Warn($"checked-out refresh: {ex.Message}");
+        }
     }
 
     // ── Status ────────────────────────────────────────────────────────────────

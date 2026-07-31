@@ -9009,6 +9009,26 @@ namespace StingTools.UI
                 ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyLink);
                 dgCtx.Items.Add(new Separator());
+
+                // Slice E — full version history, per document, on request only.
+                // The design is explicit that this is never a default: a drawing
+                // with forty revisions would otherwise multiply the sync folder
+                // by forty on every machine for nobody's benefit. A menu item is
+                // the deliberate click that opts in.
+                var ctxHistory = new MenuItem { Header = "⤓ Download full version history" };
+                ctxHistory.Click += (s, e) =>
+                {
+                    var r = CtxDelRow();
+                    if (r == null) return;
+                    // The register carries no server document GUID (see the
+                    // CompanionSyncBridge remarks), so this hands the row code to
+                    // the dispatcher, which resolves it against the live project
+                    // before asking the Companion. Reported through the same
+                    // action pipeline as every other row command.
+                    DispatchAction("DownloadDocumentHistory_" + r.Code);
+                };
+                dgCtx.Items.Add(ctxHistory);
+                dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
                 ctxCDE.Click += (s, e) => { DispatchAction("CDEStatus"); };
                 dgCtx.Items.Add(ctxCDE);

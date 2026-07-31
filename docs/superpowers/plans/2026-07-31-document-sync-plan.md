@@ -182,7 +182,7 @@ Updated as each slice lands. Anything not marked DONE was not built.
 | B — Companion skeleton | **DONE** | builds 0 warnings / 0 errors · **run**: tray started, named pipe answered three real requests from a separate process, "not running" detected in 567 ms |
 | C — sync engine | **DONE, and proven end-to-end against a live server** | see §4a |
 | D — BCC integration | **DONE** | plugin + Companion build **0 warnings / 0 errors**; `dotnet test` **515 / 0 / 9** (unchanged from Slice A — no regressions); the per-project toggle proven end-to-end against a live server — see §4c |
-| E — tray polish | IN PROGRESS | — |
+| E — tray polish | **DONE** | Companion builds 0/0; full version history, the checked-out count and its discrimination all proven against a live server — see §4e. The tray GLYPHS are the one part nobody has looked at. |
 
 ### 4a. What was actually run
 
@@ -276,6 +276,27 @@ invent a new look for a WPF window, the badge reuses BCC's own existing chip idi
 above the register). Same instinct the spec had — no new UI language — applied to
 the language this window actually speaks.
 
+### 4e. Slice E — what was actually run
+
+Same harness as §4c: the API from this branch's source on `:5099` against the
+docker PostgreSQL, a real document with five stored versions.
+
+| Behaviour | Observed |
+|---|---|
+| **Full version history** | `--history <projectId> <documentId>` wrote all five versions into `_history\A-101-Floor-Plan\` as `… v001.pdf … v005.pdf`, each holding its own distinct revision text (P01, P02, P05, P10, P11) |
+| History is idempotent | a second run reported `0 downloaded, 5 already present` — content-addressed, like the main path |
+| History is read-only | all five carry `ReadOnly, Archive`; the live copy does not |
+| History is opt-in | nothing automatic ever calls it — it exists only behind `--history`, the IPC `sync-history` command, and the BCC menu item |
+| **Checked-out count** | `1 checked out` with one writable WIP copy present, correctly **excluding** two superseded copies and five read-only history files in the same tree |
+| Count discriminates | transitioning WIP→SHARED made the local copy read-only and the count dropped to **0**, with the tooltip losing the suffix |
+| Over the wire | `status` returns `checkedOutCount: 1` and `checkedOut: ["RIVERSIDETOW-2/A-101-Floor-Plan.pdf"]` — the exact shape BCC reads |
+
+**Naming caveat, recorded because the tray says "checked out":** this schema has
+no per-user checkout owner on `DocumentRecord`, so the count is really "WIP
+documents visible to this account and synced here". With the ACL narrowing
+currently inert (§4b) that set is wider than "checked out to me" would be. The
+code says so at `SyncEngine.WorkingCopiesIn`.
+
 ---
 
 ## 5. PENDING-HUMAN-VERIFY
@@ -363,3 +384,32 @@ unverified is the Revit-side wiring and how any of it looks.
     sync" card; unticking it says *Auto-sync paused*, and the copy makes clear that
     linked machines keep the project. Reload and confirm it stuck. This is
     server-verified in §4c but has never been **seen** rendering.
+
+### Companion tray (Slice E) — the glyphs have never been looked at
+
+The behaviour behind them is proven (§4e); what nobody has seen is the tray.
+
+21. **Four distinct glyphs.** Force each state and look at the icon at real size:
+    Idle = filled green disc · Syncing = blue arc with a gap · Offline = hollow
+    grey ring · Error = red disc with a white bar. **They must differ in SHAPE,
+    not only colour** — check by squinting, and ideally with a colour-blindness
+    simulator. If two states are only distinguishable by hue, the drawing needs
+    changing.
+22. **Offline still reads as calm.** Stop the API with the Companion running: the
+    icon becomes a hollow grey ring, the tooltip says "offline, will retry", and
+    **no notification of any kind appears** (plan §1c).
+23. **Error reads as urgent and names the cause.** Revoke the access token and
+    force a sync: red disc-with-bar, and the tooltip carries the server's own
+    message rather than a generic failure.
+24. **Checked-out list.** Right-click the tray with at least one WIP working copy
+    synced: the first item reads "N checked out" and expands to
+    `PROJECTCODE/filename` entries. Clicking one opens Explorer with that file
+    selected. With none synced it reads "No working copies" and is disabled.
+25. **Tooltip truncation.** With several projects linked, confirm the tooltip is
+    not silently cut off — Windows truncates `NotifyIcon.Text` past 63 characters
+    and gives no warning that it did.
+26. **History from BCC.** Right-click a deliverable row → "Download full version
+    history". Today this reports that the register carries no server document id
+    and tells the user the exact `--history` command instead. Confirm that message
+    is accurate and useful; when the register gains a document id (§4d), this is
+    the call site to finish.

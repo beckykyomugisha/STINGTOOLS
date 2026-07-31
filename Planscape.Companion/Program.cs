@@ -47,6 +47,7 @@ internal static class Program
                 "--set-server" => SetServer(args),
                 "--set-token" => SetToken(args),
                 "--link" => LinkProject(args),
+                "--history" => History(args).GetAwaiter().GetResult(),
                 "--help" or "-h" or "/?" => Help(),
                 "" => RunTray(),
                 _ => Help($"unknown option '{args[0]}'"),
@@ -75,6 +76,9 @@ internal static class Program
               --set-server <url>      e.g. http://localhost:5000
               --set-token <pat>       a personal access token from the web app
               --link <projectId> <code>   sync a project into <root>\<code>\
+              --history <projectId> <documentId>
+                                      download EVERY stored version of one
+                                      document (opt-in, never automatic)
               --install-autostart     start at login (current user only)
               --uninstall-autostart   stop starting at login
 
@@ -125,6 +129,37 @@ internal static class Program
         Console.WriteLine($"linked projects : {st.LinkedProjects}");
         Console.WriteLine($"last success    : {st.LastSuccessUtc?.ToString("O") ?? "never"}");
         Console.WriteLine($"last error      : {st.LastError ?? "none"}");
+        return 0;
+    }
+
+    /// <summary>
+    /// Slice E — full version history for one document, on demand.
+    ///
+    /// A CLI entry point as well as the BCC one because this is precisely the
+    /// action a coordinator asks for over the phone ("can you get me every
+    /// revision of that drawing"), and because it makes the feature testable
+    /// without Revit.
+    /// </summary>
+    private static async Task<int> History(string[] args)
+    {
+        if (args.Length < 3) return Help("--history needs a project id and a document id");
+        CompanionLog.EchoToConsole();
+
+        // Prefer a RUNNING Companion: it holds the connection and serialises
+        // against any sync already in flight. Fall back to doing it in-process so
+        // the command still works on a machine where the tray is not up.
+        if (await CompanionIpcClient.IsRunningAsync())
+        {
+            var ok = await CompanionIpcClient.DownloadHistoryAsync(args[1], args[2]);
+            Console.WriteLine(ok
+                ? "Requested — the running Companion is downloading it. See the log."
+                : "The Companion refused the request; see the log.");
+            return ok ? 0 : 1;
+        }
+
+        var settings = CompanionSettings.Load();
+        using var service = new CompanionService(settings);
+        Console.WriteLine(await service.DownloadHistoryAsync(args[1], args[2]));
         return 0;
     }
 

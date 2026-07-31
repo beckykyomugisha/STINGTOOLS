@@ -18,16 +18,24 @@ internal sealed class CompanionIpcServer : IAsyncDisposable
 {
     private readonly Func<SyncStatus> _status;
     private readonly Func<string?, Task<string>> _syncNow;
+    private readonly Func<string, string, Task<string>>? _syncHistory;
     private readonly CancellationTokenSource _cts = new();
     private Task? _loop;
 
     /// <param name="status">Reads the live status — called per request, never cached.</param>
     /// <param name="syncNow">Triggers a sync; null projectId means every linked project.
     /// Returns a human-readable outcome for the caller to show.</param>
-    public CompanionIpcServer(Func<SyncStatus> status, Func<string?, Task<string>> syncNow)
+    /// <param name="syncHistory">Slice E — pulls the full version history of ONE
+    /// document. Optional so a host that does not offer it refuses the command
+    /// rather than accepting and doing nothing.</param>
+    public CompanionIpcServer(
+        Func<SyncStatus> status,
+        Func<string?, Task<string>> syncNow,
+        Func<string, string, Task<string>>? syncHistory = null)
     {
         _status = status;
         _syncNow = syncNow;
+        _syncHistory = syncHistory;
     }
 
     public void Start()
@@ -123,6 +131,8 @@ internal sealed class CompanionIpcServer : IAsyncDisposable
                     consecutiveFailures = s.ConsecutiveFailures,
                     linkedProjects = s.LinkedProjects,
                     filesLastSync = s.FilesLastSync,
+                    checkedOutCount = s.CheckedOutCount,
+                    checkedOut = s.CheckedOut,
                 });
             }
 
@@ -137,6 +147,25 @@ internal sealed class CompanionIpcServer : IAsyncDisposable
                 {
                     try { CompanionLog.Info(await _syncNow(projectId)); }
                     catch (Exception ex) { CompanionLog.Error("sync-now failed", ex); }
+                });
+                return JsonConvert.SerializeObject(new { ok = true, started = true });
+            }
+
+            case CompanionIpc.CmdHistory:
+            {
+                var projectId = req["projectId"]?.Value<string>();
+                var documentId = req["documentId"]?.Value<string>();
+                if (_syncHistory == null)
+                    return JsonConvert.SerializeObject(new { ok = false, error = "history download is not available" });
+                if (string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(documentId))
+                    return JsonConvert.SerializeObject(new { ok = false, error = "projectId and documentId are required" });
+
+                // Fire-and-forget like sync-now, for the same reason: a document
+                // with twenty versions is a long download and the caller is a UI.
+                _ = Task.Run(async () =>
+                {
+                    try { CompanionLog.Info(await _syncHistory(projectId!, documentId!)); }
+                    catch (Exception ex) { CompanionLog.Error("sync-history failed", ex); }
                 });
                 return JsonConvert.SerializeObject(new { ok = true, started = true });
             }

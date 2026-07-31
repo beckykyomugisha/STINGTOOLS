@@ -40,6 +40,20 @@ internal sealed class SyncStatus
     public int LinkedProjects { get; set; }
     public int FilesLastSync { get; set; }
 
+    /// <summary>
+    /// Slice E — WIP working copies on this machine, across every linked project.
+    /// Recomputed from disk after each sync pass (see SyncEngine.WorkingCopiesIn),
+    /// so it cannot drift from what is actually there.
+    /// </summary>
+    public int CheckedOutCount { get; set; }
+
+    /// <summary>
+    /// The file names behind <see cref="CheckedOutCount"/>, for the tray's
+    /// click-to-expand list. Capped when stored — the tray shows a short list,
+    /// not a file manager.
+    /// </summary>
+    public List<string> CheckedOut { get; set; } = new();
+
     /// <summary>Set when the app starts, so a stale status file is recognisable.</summary>
     public DateTime StartedUtc { get; set; } = DateTime.UtcNow;
 
@@ -94,16 +108,28 @@ internal sealed class SyncStatus
 
     /// <summary>One line for the tray tooltip. Kept under the 63-character limit
     /// Windows silently truncates NotifyIcon.Text at.</summary>
-    public string Summary() => State switch
+    public string Summary()
     {
-        SyncState.Syncing => "Planscape — syncing…",
-        SyncState.Idle => LastSuccessUtc.HasValue
-            ? $"Planscape — synced {LastSuccessUtc.Value.ToLocalTime():HH:mm}"
-            : "Planscape — connected",
-        SyncState.Offline => "Planscape — offline, will retry",
-        SyncState.Error => $"Planscape — {Truncate(LastError ?? "sync failed", 40)}",
-        _ => "Planscape",
-    };
+        // The checked-out count is the at-a-glance number the design asks the
+        // tray to carry, so it rides on every non-error state. It is deliberately
+        // dropped from the Error text: when something needs fixing, the failure
+        // is the message, and a count competing with it costs the one line
+        // Windows gives a tooltip.
+        var checkedOut = CheckedOutCount > 0 ? $" · {CheckedOutCount} checked out" : "";
+        return State switch
+        {
+            SyncState.Syncing => "Planscape — syncing…" + checkedOut,
+            SyncState.Idle => (LastSuccessUtc.HasValue
+                ? $"Planscape — synced {LastSuccessUtc.Value.ToLocalTime():HH:mm}"
+                : "Planscape — connected") + checkedOut,
+            // Offline says "will retry" on purpose: it is expected and
+            // self-healing, and the wording is what stops a user treating a
+            // closed laptop as a fault (plan §1c).
+            SyncState.Offline => "Planscape — offline, will retry" + checkedOut,
+            SyncState.Error => $"Planscape — {Truncate(LastError ?? "sync failed", 40)}",
+            _ => "Planscape",
+        };
+    }
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
 }

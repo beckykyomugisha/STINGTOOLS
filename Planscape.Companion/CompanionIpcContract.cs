@@ -61,6 +61,7 @@ internal static class CompanionIpc
     public const string CmdPing = "ping";
     public const string CmdStatus = "status";
     public const string CmdSyncNow = "sync-now";
+    public const string CmdHistory = "sync-history";
 }
 
 /// <summary>
@@ -174,6 +175,13 @@ internal sealed class CompanionStatus
     public int LinkedProjects { get; set; }
     public int FilesLastSync { get; set; }
 
+    /// <summary>WIP working copies on this machine (Slice E). Drives the tray count
+    /// and BCC's read of it.</summary>
+    public int CheckedOutCount { get; set; }
+
+    /// <summary>The file names behind <see cref="CheckedOutCount"/>, capped by the server side.</summary>
+    public List<string> CheckedOut { get; set; } = new();
+
     /// <summary>Not running — the one state BCC must render as information, not failure.</summary>
     public static CompanionStatus NotRunning() => new()
     {
@@ -242,6 +250,8 @@ internal static class CompanionIpcClient
             ConsecutiveFailures = reply["consecutiveFailures"]?.Value<int>() ?? 0,
             LinkedProjects = reply["linkedProjects"]?.Value<int>() ?? 0,
             FilesLastSync = reply["filesLastSync"]?.Value<int>() ?? 0,
+            CheckedOutCount = reply["checkedOutCount"]?.Value<int>() ?? 0,
+            CheckedOut = reply["checkedOut"]?.ToObject<List<string>>() ?? new List<string>(),
         };
     }
 
@@ -257,6 +267,19 @@ internal static class CompanionIpcClient
     public static async Task<bool> SyncNowAsync(string? projectId = null, CancellationToken ct = default)
     {
         var reply = await SendAsync(new { cmd = CompanionIpc.CmdSyncNow, projectId }, ct);
+        return reply?["ok"]?.Value<bool>() == true;
+    }
+
+    /// <summary>
+    /// Slice E — pull the FULL version history of one document, deliberately.
+    /// Never a default: history is opt-in per document so it cannot silently grow
+    /// on every machine. Returns false only when the Companion is not running.
+    /// </summary>
+    public static async Task<bool> DownloadHistoryAsync(
+        string projectId, string documentId, CancellationToken ct = default)
+    {
+        var reply = await SendAsync(
+            new { cmd = CompanionIpc.CmdHistory, projectId, documentId }, ct);
         return reply?["ok"]?.Value<bool>() == true;
     }
 }

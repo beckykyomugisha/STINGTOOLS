@@ -140,6 +140,65 @@ internal sealed class PlanscapeApiClient : IDisposable
         };
     }
 
+    /// <summary>One historical upload of a document.</summary>
+    public sealed class RemoteVersion
+    {
+        public int VersionNumber { get; set; }
+        public long FileSizeBytes { get; set; }
+        public string? ContentHash { get; set; }
+        public string? UploadedBy { get; set; }
+        public DateTime? UploadedAt { get; set; }
+        public string? ChangeDescription { get; set; }
+    }
+
+    /// <summary>
+    /// Every stored upload of a document, newest first.
+    ///
+    /// Note this reads DocumentVERSIONS, not DocumentRevisions. The two are
+    /// different things in this schema: a revision is a metadata snapshot minted
+    /// at a CDE transition (and several can share one file), whereas a version is
+    /// a distinct set of bytes that was actually uploaded. "Download full
+    /// history" means the files, so versions is the right list — and it is also
+    /// the only one of the two with a per-item download route.
+    /// </summary>
+    public async Task<List<RemoteVersion>> ListVersionsAsync(
+        string projectId, Guid documentId, CancellationToken ct = default)
+    {
+        var url = $"{_baseUrl}/api/projects/{projectId}/documents/{documentId}/versions";
+        using var req = await AuthorisedAsync(HttpMethod.Get, url, ct);
+        using var res = await _http.SendAsync(req, ct);
+        if (res.StatusCode == HttpStatusCode.Unauthorized) { _jwt = null; throw new CompanionAuthException("session expired; will re-authenticate"); }
+        res.EnsureSuccessStatusCode();
+        return JArray.Parse(await res.Content.ReadAsStringAsync(ct)).ToObject<List<RemoteVersion>>()
+               ?? new List<RemoteVersion>();
+    }
+
+    /// <summary>Download one historical version's bytes.</summary>
+    public async Task DownloadVersionAsync(
+        string projectId, Guid documentId, int versionNumber, string destination, CancellationToken ct = default)
+    {
+        var url = $"{_baseUrl}/api/projects/{projectId}/documents/{documentId}/versions/{versionNumber}/download";
+        using var req = await AuthorisedAsync(HttpMethod.Get, url, ct);
+        using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        res.EnsureSuccessStatusCode();
+
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        await using var src = await res.Content.ReadAsStreamAsync(ct);
+        await using var dst = File.Create(destination);
+        await src.CopyToAsync(dst, ct);
+    }
+
+    /// <summary>Metadata for one document (used to name a history folder).</summary>
+    public async Task<RemoteDocument?> GetDocumentAsync(
+        string projectId, Guid documentId, CancellationToken ct = default)
+    {
+        // The delta feed is the only listing endpoint the Companion is wired to,
+        // and asking for "everything visible" then filtering avoids adding a
+        // dependency on a second response shape for one field.
+        var page = await ChangedSinceAsync(projectId, null, ct);
+        return page.Items.FirstOrDefault(d => d.Id == documentId);
+    }
+
     /// <summary>
     /// Stream a document's bytes to <paramref name="destination"/>.
     ///

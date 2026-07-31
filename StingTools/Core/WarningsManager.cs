@@ -5817,6 +5817,53 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"ViewDocument dispatch: {ex.Message}"); }
                 return;
             }
+            // Slice E — "Download full version history" from the register context
+            // menu. Opt-in per document; nothing automatic ever reaches here.
+            if (action.StartsWith("DownloadDocumentHistory_", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string code = action.Substring("DownloadDocumentHistory_".Length);
+                    var client = BIMManager.PlanscapeServerClient.Instance;
+
+                    // Two things must be true and both fail loudly rather than
+                    // silently doing nothing: a linked cloud project (the history
+                    // lives server-side) and a running Companion (it owns every
+                    // download — BCC never fetches files itself).
+                    if (client == null || !client.IsConnected || client.CurrentProjectId == Guid.Empty)
+                    {
+                        TaskDialog.Show("Document history",
+                            "Connect to Planscape Server and link this model to a cloud project first "
+                            + "— version history lives on the server.");
+                        return;
+                    }
+
+                    var status = BIMManager.CompanionSyncBridge.GetStatus();
+                    if (!status.Running)
+                    {
+                        TaskDialog.Show("Document history",
+                            "The Planscape Companion is not running on this machine."
+                            + Environment.NewLine + Environment.NewLine
+                            + "It performs the download, so start it and try again.");
+                        return;
+                    }
+
+                    // The register row carries an ISO code, not a server document
+                    // GUID. Resolving one to the other needs a document id on the
+                    // register, which it does not have yet — say so plainly rather
+                    // than guessing at a match and downloading the wrong file.
+                    string nl = Environment.NewLine;
+                    TaskDialog.Show("Document history",
+                        $"Requesting full version history for '{code}'." + nl + nl
+                        + "Note: the deliverable register does not yet carry the server document id, "
+                        + "so this cannot be resolved automatically. Use the Companion directly:" + nl + nl
+                        + $"    Planscape.Companion.exe --history {client.CurrentProjectId} <documentId>" + nl + nl
+                        + "The document id is shown in the web app's Documents list.");
+                }
+                catch (Exception ex) { StingLog.Warn($"DownloadDocumentHistory dispatch: {ex.Message}"); }
+                return;
+            }
+
             // Targeted revision deletion from the BCC register context menu:
             // "DeleteRevision_<elementId>" → RevisionDeleteCommand via ExtraParam.
             if (action.StartsWith("DeleteRevision_", StringComparison.OrdinalIgnoreCase))

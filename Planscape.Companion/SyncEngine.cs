@@ -141,6 +141,69 @@ internal sealed class SyncEngine
         return outcome;
     }
 
+    /// <summary>
+    /// Slice E — pull EVERY stored version of one document into a
+    /// <c>_history\{document}\</c> subfolder.
+    ///
+    /// <para><b>Never automatic.</b> The design is explicit that full history is
+    /// an action a user takes deliberately per document, never a default that
+    /// silently grows on every machine — a drawing with forty revisions would
+    /// otherwise multiply a project folder by forty for nobody's benefit.</para>
+    ///
+    /// <para>History files are written read-only and are NOT superseded-renamed
+    /// or purged: they are already history, so there is nothing to protect them
+    /// from, and a user who asked for them should not find them expiring after a
+    /// week like a superseded copy does.</para>
+    /// </summary>
+    public async Task<string> DownloadHistoryAsync(
+        LinkedProject project, Guid documentId, CancellationToken ct = default)
+    {
+        var doc = await _api.GetDocumentAsync(project.ProjectId, documentId, ct);
+        if (doc == null)
+            return $"document {documentId} is not visible in {project.ProjectCode}";
+
+        var versions = await _api.ListVersionsAsync(project.ProjectId, documentId, ct);
+        if (versions.Count == 0)
+            return $"'{doc.FileName}' has no stored version history";
+
+        var stem = Path.GetFileNameWithoutExtension(SafeFileName(doc.FileName));
+        var ext = Path.GetExtension(SafeFileName(doc.FileName));
+        var folder = Path.Combine(_settings.FolderFor(project), "_history", SafeFileName(stem));
+        Directory.CreateDirectory(folder);
+
+        int written = 0, skipped = 0;
+        foreach (var v in versions.OrderBy(v => v.VersionNumber))
+        {
+            ct.ThrowIfCancellationRequested();
+            var target = Path.Combine(folder, $"{stem} v{v.VersionNumber:D3}{ext}");
+
+            // Content-addressed skip, same as the main path: asking for history
+            // twice must not re-download what is already correct on disk.
+            if (File.Exists(target) && !string.IsNullOrEmpty(v.ContentHash)
+                && string.Equals(Sha256Of(target), v.ContentHash, StringComparison.OrdinalIgnoreCase))
+            {
+                skipped++;
+                continue;
+            }
+
+            try
+            {
+                ClearReadOnly(target);
+                await _api.DownloadVersionAsync(project.ProjectId, documentId, v.VersionNumber, target, ct);
+                // Read-only because a historical file is by definition not the one
+                // to edit. A hint, like everywhere else — not a lock.
+                ApplyReadOnlyHint(target, cdeStatus: "ARCHIVE");
+                written++;
+            }
+            catch (Exception ex)
+            {
+                CompanionLog.Warn($"history v{v.VersionNumber} of '{doc.FileName}': {ex.Message}");
+            }
+        }
+
+        return $"'{doc.FileName}': {written} version(s) downloaded, {skipped} already present → {folder}";
+    }
+
     private enum PlaceResult { Downloaded, DownloadedOverSuperseded, Unchanged }
 
     private async Task<PlaceResult> PlaceAsync(
@@ -229,6 +292,50 @@ internal sealed class SyncEngine
             CompanionLog.Warn($"could not rename the superseded copy of '{Path.GetFileName(target)}': {ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Slice E — the WIP working copies sitting on this machine for one project.
+    ///
+    /// <para>Derived from the file system rather than tracked in state: a working
+    /// copy is exactly a synced file that is NOT read-only, because that is the
+    /// distinction the sync engine writes (WIP stays writable, everything else
+    /// gets the read-only hint). Reading it back off disk means the count cannot
+    /// drift from reality, and it survives a Companion restart with no
+    /// bookkeeping.</para>
+    ///
+    /// <para><b>Naming caveat, stated because the tray says "checked out":</b> this
+    /// schema has no per-user checkout owner on a document, so this is really
+    /// "WIP documents visible to this account and synced here". With the ACL
+    /// narrowing currently inert (plan §4b) that is a wider set than "checked out
+    /// to me" would be. See the plan.</para>
+    /// </summary>
+    public static List<string> WorkingCopiesIn(string folder)
+    {
+        var found = new List<string>();
+        try
+        {
+            if (!Directory.Exists(folder)) return found;
+            foreach (var file in Directory.EnumerateFiles(folder))
+            {
+                var name = Path.GetFileName(file);
+                // History and superseded copies are never working copies, whatever
+                // their attributes say.
+                if (name.Contains(SupersededMarker, StringComparison.Ordinal)) continue;
+                if (name.EndsWith(".part", StringComparison.OrdinalIgnoreCase)) continue;
+                try
+                {
+                    if ((File.GetAttributes(file) & FileAttributes.ReadOnly) == 0) found.Add(name);
+                }
+                catch (Exception) { /* vanished mid-scan */ }
+            }
+        }
+        catch (Exception ex)
+        {
+            CompanionLog.Warn($"working-copy scan failed in {folder}: {ex.Message}");
+        }
+        found.Sort(StringComparer.OrdinalIgnoreCase);
+        return found;
     }
 
     /// <summary>
