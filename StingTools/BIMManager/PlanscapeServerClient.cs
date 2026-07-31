@@ -111,6 +111,19 @@ public sealed partial class PlanscapeServerClient : IDisposable
         }
         if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = DefaultAppFallbackUrl;
 
+        // An explicit override always wins — needed when the API and web app
+        // are independently-named hosts that fit neither of FormatWebAppUrl's
+        // two conventions (e.g. split Render free-tier services). See
+        // ResolveWebAppUrlOverride in the Settings partial.
+        var overrideUrl = ResolveWebAppUrlOverride();
+        if (!string.IsNullOrWhiteSpace(overrideUrl))
+        {
+            string url = overrideUrl!.TrimEnd('/') + "/";
+            if (!string.IsNullOrWhiteSpace(hash))
+                url += hash!.StartsWith("#") ? hash : "#" + hash;
+            return url;
+        }
+
         // FormatWebAppUrl maps a cloud api.<domain> host to the sibling
         // app.<domain> SPA root, and keeps the same-origin <base>/app/
         // convention for localhost / self-hosted stacks. See Settings partial.
