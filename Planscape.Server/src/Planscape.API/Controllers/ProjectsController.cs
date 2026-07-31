@@ -42,7 +42,13 @@ public class ProjectsController : ControllerBase
                 p.Latitude, p.Longitude, p.City, p.Country,
                 p.CoverImageUrl, p.IsPinned,
                 MemberCount = _db.ProjectMembers
-                    .Count(m => m.ProjectId == p.Id && m.IsActive)
+                    .Count(m => m.ProjectId == p.Id && m.IsActive),
+                // The projects grid shows an open-issue count per row. Without
+                // it here the web app would have to call {id}/dashboard once per
+                // project — an N+1 for a single integer. Same predicate the
+                // dashboard's OpenIssues uses, so the two agree.
+                OpenIssueCount = _db.Issues
+                    .Count(i => i.ProjectId == p.Id && i.Status != "CLOSED")
             })
             .OrderByDescending(p => p.IsPinned)
             .ThenByDescending(p => p.LastSyncAt)

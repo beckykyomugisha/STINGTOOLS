@@ -44,6 +44,26 @@ export function createProject(body: {
 }
 
 /**
+ * Update project settings. The body is deliberately narrower than
+ * `UpdateProjectRequest`: that record also accepts `status`, `tagSeparator`,
+ * `seqNumPad`, `tagPrefix`, `tagSuffix` and `configJson`, none of which the
+ * grid edits.
+ *
+ * `status` in particular stays out on purpose — writing it here would be a
+ * second, unconfirmed route to `Archived`, bypassing the confirm-code gate that
+ * `archiveProject` exists to honour. Note it is NOT accepting `code`: the server
+ * has no write for it, and it is the archive confirmation token.
+ *
+ * Null-valued fields are "leave unchanged" server-side, so a partial body is safe.
+ */
+export function updateProject(
+  id: string,
+  body: { name?: string; description?: string; phase?: string },
+): Promise<Project> {
+  return api<Project>(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+/**
  * Archive a project — a SOFT delete. `Status` flips to `Archived`; every row is
  * kept and the project stays visible under the archived filter. There is no hard
  * delete on this route by design; a true purge is separate admin tooling.

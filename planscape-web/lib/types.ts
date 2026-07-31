@@ -1,14 +1,31 @@
+/**
+ * Mirrors both project payloads, which are NOT the same shape:
+ *  - `GET /api/projects` (list) omits `description`, `configJson` and the tag
+ *    format fields;
+ *  - `GET /api/projects/{id}` (detail) returns the full entity.
+ * Everything the list can leave out is optional here, so a grid column that
+ * silently renders `undefined` is a compile-time question rather than a
+ * runtime blank.
+ */
 export interface Project {
   id: string;
   code: string;
   name: string;
-  description: string;
+  /** Detail payload only — the list projection does not include it. */
+  description?: string;
   createdAt: string;
   phase?: string;
-  status?: string;
+  status?: string; // Active | Archived | Completed
   compliancePercent?: number;
   ragStatus?: string;
   openIssueCount?: number;
+  memberCount?: number;
+  totalElements?: number;
+  taggedElements?: number;
+  lastSyncAt?: string | null;
+  isPinned?: boolean;
+  city?: string | null;
+  country?: string | null;
 }
 
 export type IssuePriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
