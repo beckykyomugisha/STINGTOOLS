@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { LoadingBlock } from '@/components/ui';
 import { listMeetings } from '@/lib/data';
 import type { Meeting } from '@/lib/types';
 
@@ -96,7 +97,7 @@ export default function MeetingsPage() {
       </div>
 
       {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
-      {!meetings && !error && <p className="text-fg-subtle">Loading…</p>}
+      {!meetings && !error && <LoadingBlock />}
       {meetings && meetings.length === 0 && <p className="text-fg-muted">No meetings yet.</p>}
 
       {upcoming.length > 0 && (

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
+import { LoadingBlock } from '@/components/ui';
 import { RagBadge } from '@/components/RagBadge';
 import { listProjects } from '@/lib/data';
 import type { Project } from '@/lib/types';
@@ -30,7 +31,7 @@ export default function ProjectsPage() {
       </div>
 
       {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
-      {!projects && !error && <p className="text-fg-subtle">Loading…</p>}
+      {!projects && !error && <LoadingBlock />}
       {projects && projects.length === 0 && <p className="text-fg-muted">No projects yet.</p>}
 
       <div className="grid gap-3 sm:grid-cols-2">

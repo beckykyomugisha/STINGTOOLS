@@ -120,6 +120,26 @@ export function SkeletonRows({ rows = 5, cols = 4 }: { rows?: number; cols?: num
   );
 }
 
+/**
+ * U5 — the standard "this page is fetching" block.
+ *
+ * Replaces a bare `<p>Loading…</p>`, which announced nothing (a plain paragraph
+ * appearing mid-page is not reported by a screen reader) and gave a sighted user
+ * no sense of the shape about to arrive. `role="status"` + `aria-live="polite"`
+ * announces it once without interrupting, and the visually-hidden text is what
+ * gets read — the skeleton bars themselves are `aria-hidden`.
+ */
+export function LoadingBlock({ rows = 3, label = 'Loading' }: { rows?: number; label?: string }) {
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-2">
+      <span className="sr-only">{label}</span>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} className={cn('h-8 w-full', i === rows - 1 && 'w-2/3')} />
+      ))}
+    </div>
+  );
+}
+
 /** Sticky action bar above a grid: filters left, actions right. */
 export function Toolbar({ children, className }: { children: ReactNode; className?: string }) {
   return (

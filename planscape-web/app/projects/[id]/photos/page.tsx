@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { LoadingBlock } from '@/components/ui';
 import { listSitePhotos, photoFileUrl, approvePhoto, rejectPhoto } from '@/lib/data';
 import type { SitePhoto } from '@/lib/types';
 
@@ -81,7 +82,7 @@ export default function PhotosPage() {
 
       {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
       {notice && <p className="mb-3 rounded bg-success-subtle px-3 py-2 text-sm text-success">{notice}</p>}
-      {!photos && !error && <p className="text-fg-subtle">Loading…</p>}
+      {!photos && !error && <LoadingBlock />}
       {photos && photos.length === 0 && (
         <p className="text-fg-muted">No photos. Capture happens on the mobile app; review them here.</p>
       )}

@@ -92,7 +92,7 @@ contrast passes, that a grid edit round-trips against a live API. All of that is
 | U2 shell chrome | DONE | typecheck clean · build ✓ Compiled successfully · `npm test` **45 passed** incl. 13 new breadcrumb / nav-model / tenant-switch tests |
 | U3 primitives | DONE | typecheck clean · build ✓ · `npm test` **59 passed** incl. 14 DataGrid tests that assert the contract itself — optimistic apply, **rollback + server message on failure**, no-op on unchanged value, Escape abandons, edit never navigates |
 | U4 route migration | DONE | typecheck clean · build ✓ · `npm test` **62 passed** incl. 3 new route invariants: no hard-coded palette utility survives anywhere, every rail link has a real `page.tsx`, every page is inside the AppShell |
-| U5 polish + a11y | — | — |
+| U5 polish + a11y | DONE | typecheck clean · build ✓ · `npm test` **69 passed** incl. 7 new Menu keyboard/ARIA tests (arrow keys, Home/End, Escape restores focus, disabled items skipped) |
 
 ---
 
@@ -177,3 +177,37 @@ Run `cd planscape-web && npm install && npm run dev`, point `NEXT_PUBLIC_API_BAS
       utilities are gone, not that each result *looks* right.
 - [ ] **Wide tables:** a grid with many columns scrolls inside its own container, and the page
       itself does not scroll horizontally.
+
+### U5 — polish + accessibility
+- [ ] **Keyboard-only pass:** unplug the mouse. Tab from page load → Skip to content → rail → top
+      bar. Open the avatar menu with Enter, move with ↑/↓, Home/End jump to the ends, Escape closes
+      and focus lands back on the avatar.
+- [ ] **Reduced motion:** enable "Reduce motion" in the OS. Skeleton shimmer stops, the drawer stops
+      sliding, toasts stop fading. Nothing should become invisible or stuck — reduced motion means
+      instant, not absent.
+- [ ] **Screen reader (NVDA/VoiceOver):** loading a grid announces "Loading rows", and settling
+      announces the row count. A failed inline edit announces the error toast.
+- [ ] **Zoom to 200%:** the rail collapses/drawers rather than crushing the content column; no
+      horizontal page scroll.
+- [ ] **Contrast audit with a real tool** (axe / Lighthouse) on: a grid, a form, the rail, and a
+      badge of each tone, in BOTH themes. The token ramp was chosen from HSL values by eye and has
+      never been measured — assume something needs a nudge.
+- [ ] **Focus visible on every control**, including inside modals and inside grid cells, in dark
+      mode as well as light.
+
+---
+
+## 5. What is NOT done
+
+Written down so nobody assumes it was covered:
+
+- **No visual verification of any kind.** No browser, no screenshots, no Lighthouse. Every slice's
+  proof is typecheck + build + vitest. The whole of §4 is genuinely open.
+- **No responsive design work below ~640px** beyond the rail becoming a drawer. Grids will scroll
+  horizontally on a phone; that is the intended v1 behaviour, not a tested one.
+- **The viewer, live-meeting and photo routes kept their existing layouts** — they were
+  token-migrated so dark mode works, not redesigned. They are canvas/media surfaces where the grid
+  and card primitives don't apply.
+- **No bulk-edit UI.** The DataGrid supports selection and the contract describes bulk semantics,
+  but no grid currently exposes a bulk action.
+- **No server-side sort/filter.** Client-side only, per the contract's default.

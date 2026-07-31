@@ -6,6 +6,7 @@ export {
   EmptyState,
   ErrorNote,
   Input,
+  LoadingBlock,
   PageHeader,
   Select,
   Skeleton,

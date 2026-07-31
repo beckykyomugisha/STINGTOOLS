@@ -30,4 +30,19 @@
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
+
+  /* U5 — honour prefers-reduced-motion. The shimmer on every skeleton is the
+   * worst offender: it is an infinite animation, and for a vestibular-disorder
+   * user a page full of them is genuinely unpleasant. Transitions collapse to
+   * near-zero rather than 0 so state changes still fire transitionend. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

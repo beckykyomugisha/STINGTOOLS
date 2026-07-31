@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { LoadingBlock } from '@/components/ui';
 import { getIssue, updateIssue, listComments, addComment } from '@/lib/data';
 import type { BimIssue, IssueComment, IssueStatus } from '@/lib/types';
 
@@ -84,7 +85,7 @@ export default function IssueDetailPage() {
       </Link>
 
       {error && <p className="my-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
-      {!issue && !error && <p className="mt-3 text-fg-subtle">Loading…</p>}
+      {!issue && !error && <LoadingBlock />}
 
       {issue && (
         <>

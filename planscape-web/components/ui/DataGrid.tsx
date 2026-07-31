@@ -187,7 +187,16 @@ export function DataGrid<T>({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-b-md border border-border bg-surface">
+      {/* U5 — aria-busy tells assistive tech the region is refreshing, and the
+          live region announces the row count once it settles, so a keyboard user
+          filtering the grid hears the result instead of guessing. */}
+      <div
+        aria-busy={!!loading}
+        className="overflow-x-auto rounded-b-md border border-border bg-surface"
+      >
+        <span className="sr-only" role="status" aria-live="polite">
+          {loading ? 'Loading rows' : sorted ? `${sorted.length} rows` : ''}
+        </span>
         {error && (
           <div className="p-2">
             <ErrorNote>{error}</ErrorNote>

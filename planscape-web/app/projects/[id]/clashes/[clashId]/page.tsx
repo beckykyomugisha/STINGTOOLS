@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { LoadingBlock } from '@/components/ui';
 import { getClash, updateClash, promoteClashToIssue } from '@/lib/data';
 import type { ClashRecord, ClashStatus } from '@/lib/types';
 
@@ -67,7 +68,7 @@ export default function ClashDetailPage() {
 
       {error && <p className="my-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
       {notice && <p className="my-3 rounded bg-success-subtle px-3 py-2 text-sm text-success">{notice}</p>}
-      {!clash && !error && <p className="mt-3 text-fg-subtle">Loading…</p>}
+      {!clash && !error && <LoadingBlock />}
 
       {clash && (
         <>

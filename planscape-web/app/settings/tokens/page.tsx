@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { LoadingBlock } from '@/components/ui';
 import { listAccessTokens, createAccessToken, revokeAccessToken } from '@/lib/data';
 import type { AccessToken, MintedAccessToken } from '@/lib/types';
 
@@ -205,7 +206,7 @@ export default function TokensPage() {
         </p>
       </form>
 
-      {!tokens && !error && <p className="text-fg-subtle">Loading…</p>}
+      {!tokens && !error && <LoadingBlock />}
       {tokens && tokens.length === 0 && (
         <p className="text-fg-muted">No active tokens.</p>
       )}

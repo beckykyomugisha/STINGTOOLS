@@ -32,11 +32,29 @@ export function Menu({
     function onPointerDown(e: MouseEvent) {
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
     }
+    function items(): HTMLElement[] {
+      return Array.from(wrapRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? []);
+    }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setOpen(false);
         triggerRef.current?.focus(); // don't strand focus at the top of the page
+        return;
       }
+      // U5 — arrow keys move through the menu, matching the WAI-ARIA menu
+      // pattern. Without this an open menu is only reachable by Tab, which
+      // walks straight past it into the page behind.
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+      const list = items();
+      if (!list.length) return;
+      e.preventDefault();
+      const at = list.indexOf(document.activeElement as HTMLElement);
+      const next =
+        e.key === 'Home' ? 0
+        : e.key === 'End' ? list.length - 1
+        : e.key === 'ArrowDown' ? (at + 1) % list.length
+        : (at - 1 + list.length) % list.length;
+      list[next]?.focus();
     }
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
