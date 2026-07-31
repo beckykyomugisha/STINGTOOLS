@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    StingLink.exe — the standalone target Windows launches for planscape:// URLs.
+
+    It exists because a protocol handler must be an .exe and StingTools is a DLL
+    hosted inside Revit.exe. Everything it does is in Program.cs: drop the URL
+    into the inbox, bring Revit forward, exit. It is deliberately tiny — it runs
+    on a user's double-click and must never be the thing that hangs.
+
+    WinExe, not Exe: Exe would flash a console window on every click.
+    No WPF / WinForms: the one message box it can show is a user32 P/Invoke, so
+    the whole program stays a few files with no UI framework to load.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>StingLink</AssemblyName>
+    <RootNamespace>StingTools.LinkHandler</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Version>1.0.0</Version>
+    <Company>Planscape</Company>
+    <Product>Planscape link handler</Product>
+    <!-- Invariant globalization keeps the runtime dependency set minimal; this
+         program formats no dates for humans and compares no culture-sensitive
+         strings. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Compiled IN rather than referenced: referencing StingTools.dll would drag
+      the entire Revit API surface into a 3-file console-less utility. This is
+      the same pattern tools/StampDrawingTypeChecksums uses, and it is why
+      PlanscapeProtocol.cs may not touch Revit, WPF or anything else.
+
+      If a build error points here, the cause is almost certainly a Revit or WPF
+      type newly introduced into PlanscapeProtocol.cs. Move it out rather than
+      adding a reference.
+    -->
+    <Compile Include="..\StingTools\Core\PlanscapeProtocol.cs" Link="Shared\PlanscapeProtocol.cs" />
+  </ItemGroup>
+
+</Project>

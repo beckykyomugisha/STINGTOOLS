@@ -86,6 +86,17 @@ namespace StingTools.Core
                 // via StingIdlingScheduler.Enqueue(job).
                 StingIdlingScheduler.Register(application);
 
+                // planscape:// deep links. Two halves, both cheap:
+                //   1. Point HKCU\Software\Classes\planscape at StingLink.exe
+                //      beside this DLL, so Windows knows what the scheme means.
+                //      HKCU only — no elevation, no machine-wide state.
+                //   2. Queue the inbox watcher so a link clicked while Revit is
+                //      running opens the Coordination Center.
+                // Both are non-fatal: a plugin folder without StingLink.exe just
+                // means links stay inert, exactly as they were before.
+                RegisterPlanscapeProtocol();
+                StingIdlingScheduler.Enqueue(new PlanscapeLinkWatcher());
+
                 // Register the dockable panel — the single unified UI.
                 // Create the shared "STING Tools" ribbon tab FIRST and in its
                 // own try/catch so a failure inside any single panel
@@ -377,6 +388,39 @@ namespace StingTools.Core
                     "Failed to initialise STING Tools:\n" + ex.Message);
                 StingLog.Error("Startup failed", ex);
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Point the <c>planscape://</c> scheme at the StingLink.exe helper
+        /// shipped beside this DLL.
+        ///
+        /// Re-checked on every startup rather than once: the plugin folder moves
+        /// between deployments, and a protocol registered against a path that no
+        /// longer exists fails in a way Windows reports as a broken app rather
+        /// than a missing one. <see cref="PlanscapeProtocol.EnsureRegistered"/>
+        /// is a no-op when the command is already correct, so the common case
+        /// costs one registry read.
+        ///
+        /// HKEY_CURRENT_USER only — writing a machine-wide handler unattended
+        /// from a plugin's startup is not something to do without being asked.
+        /// </summary>
+        private static void RegisterPlanscapeProtocol()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(AssemblyPath);
+                if (string.IsNullOrEmpty(dir)) return;
+                string helper = Path.Combine(dir, PlanscapeProtocol.HelperExeName);
+
+                if (PlanscapeProtocol.EnsureRegistered(helper, out string detail))
+                    StingLog.Info($"planscape:// protocol registered → {detail}");
+                else
+                    StingLog.Info($"planscape:// protocol not registered: {detail}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"planscape:// registration: {ex.Message}");
             }
         }
 

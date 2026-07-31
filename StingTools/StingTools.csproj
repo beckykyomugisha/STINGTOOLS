@@ -125,7 +125,36 @@
     <!-- Phase 110: Standards & compliance calc library. Pure C#, no
          Revit dependency; StingTools commands wrap the APIs. -->
     <ProjectReference Include="..\StingTools.Standards\StingTools.Standards.csproj" />
+    <!-- StingLink.exe — the registered planscape:// handler. ReferenceOutputAssembly=false
+         because nothing here calls into it: this reference exists ONLY to make the
+         helper build alongside the plugin. It shares Core\PlanscapeProtocol.cs by
+         <Compile Include>, so an actual assembly reference would be circular. -->
+    <ProjectReference Include="..\StingTools.LinkHandler\StingTools.LinkHandler.csproj"
+                      ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
+
+  <!--
+    Ship StingLink.exe beside StingTools.dll.
+
+    It has to sit next to the plugin because that is where StingToolsApp looks
+    for it when registering the protocol (RegisterPlanscapeProtocol), and because
+    the deploy step is "copy bin\Release over CompiledPlugin" — anything not in
+    the output directory does not reach a user's machine.
+
+    All four files are needed: a framework-dependent .NET 8 exe is an apphost
+    (.exe) plus the managed .dll plus .runtimeconfig.json plus .deps.json. Ship
+    the .exe alone and it fails to start. The .pdb is deliberately not copied.
+  -->
+  <Target Name="CopyStingLinkHelper" AfterTargets="Build">
+    <ItemGroup>
+      <StingLinkPayload Include="$(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.exe;
+                                 $(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.dll;
+                                 $(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.runtimeconfig.json;
+                                 $(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.deps.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(StingLinkPayload)" DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" Condition="Exists('%(StingLinkPayload.FullPath)')" />
+  </Target>
 
   <!-- Phase 95: BcfEngine physically lives here but is compiled into
        Planscape.Shared.dll (via <Compile Include="..\..\..\StingTools\..."/>

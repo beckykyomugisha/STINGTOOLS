@@ -3282,12 +3282,33 @@ namespace StingTools.Core
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            var uiApp = ParameterHelpers.GetApp(commandData);
+            if (ShowFor(uiApp, null, out string error)) return Result.Succeeded;
+            message = error;
+            return Result.Failed;
+        }
+
+        /// <summary>
+        /// Open — or focus, if it is already up — the BIM Coordination Center.
+        ///
+        /// Split out of <see cref="Execute"/> so callers that have a
+        /// <see cref="UIApplication"/> but no <see cref="ExternalCommandData"/>
+        /// can use it. The planscape:// link watcher is one: it runs on the
+        /// Idling event, which hands out a UIApplication and nothing else, and
+        /// ExternalCommandData cannot be constructed.
+        /// </summary>
+        /// <param name="tabName">
+        /// Optional BCC nav tab to land on (e.g. "ISSUES"). Null keeps whatever
+        /// tab the user last had open, which is the right default for the ribbon
+        /// button — only a deep link knows better.
+        /// </param>
+        internal static bool ShowFor(UIApplication uiApp, string tabName, out string error)
+        {
+            error = "";
             try
             {
-                var uiApp = ParameterHelpers.GetApp(commandData);
-                var uidoc = uiApp?.ActiveUIDocument;
-                Document doc = uidoc?.Document;
-                if (doc == null) { message = "No document open."; return Result.Failed; }
+                Document doc = uiApp?.ActiveUIDocument?.Document;
+                if (doc == null) { error = "No document open."; return false; }
 
                 // Phase 76: Singleton — if BCC is already open, just activate it
                 if (UI.BIMCoordinationCenter.CurrentInstance != null)
@@ -3296,8 +3317,10 @@ namespace StingTools.Core
                     {
                         UI.BIMCoordinationCenter.CurrentInstance.Activate();
                         UI.BIMCoordinationCenter.CurrentInstance.Focus();
+                        if (!string.IsNullOrEmpty(tabName))
+                            UI.BIMCoordinationCenter.CurrentInstance.NavigateToTab(tabName);
                     });
-                    return Result.Succeeded;
+                    return true;
                 }
 
                 // Create ExternalEvent for modeless dispatch (once per Revit session)
@@ -3315,16 +3338,18 @@ namespace StingTools.Core
                 };
 
                 var coordData = BuildCoordData(doc);
-                if (coordData == null) { message = "Could not build coordination data."; return Result.Failed; }
+                if (coordData == null) { error = "Could not build coordination data."; return false; }
 
                 UI.BIMCoordinationCenter.Show(coordData);
-                return Result.Succeeded;
+                if (!string.IsNullOrEmpty(tabName))
+                    UI.BIMCoordinationCenter.CurrentInstance?.NavigateToTab(tabName);
+                return true;
             }
             catch (Exception ex)
             {
                 StingLog.Error("BIMCoordinationCenter failed", ex);
-                message = ex.Message;
-                return Result.Failed;
+                error = ex.Message;
+                return false;
             }
         }
 

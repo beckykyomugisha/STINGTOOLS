@@ -1575,6 +1575,31 @@ namespace StingTools.UI
                 NavigateTo(tabName);
         }
 
+        /// <summary>
+        /// Public face of <see cref="NavigateTo"/>, for callers that opened the
+        /// BCC to land on a specific tab — currently the planscape:// link
+        /// handler (<c>planscape://issue/…</c> should arrive on ISSUES, not on
+        /// whatever tab was last used).
+        ///
+        /// Marshals to the window's own dispatcher: the link watcher runs on
+        /// Revit's Idling event, which is not the WPF UI thread.
+        /// An unknown tab name is a no-op, never a crash — the nav is built from
+        /// data and an optional tab (HVAC, HEALTHCARE) may not exist.
+        /// </summary>
+        internal void NavigateToTab(string tabName)
+        {
+            if (string.IsNullOrWhiteSpace(tabName)) return;
+            try
+            {
+                if (Dispatcher.CheckAccess()) NavigateTo(tabName);
+                else Dispatcher.Invoke(() => NavigateTo(tabName));
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"BCC NavigateToTab('{tabName}'): {ex.Message}");
+            }
+        }
+
         private void NavigateTo(string tabName)
         {
             // Phase 75: Remember tab for cross-reopen persistence
