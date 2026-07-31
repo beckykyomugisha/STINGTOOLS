@@ -13,6 +13,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Tags;
+using StingTools.Commands.Delivery;
 
 namespace StingTools.Core
 {
@@ -4387,6 +4388,71 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: My Queue load failed: {ex.Message}"); }
+
+                // Deliverables tab — deliverables.json already exists (DeliverableLifecycle.Persist
+                // writes it, ReconcileAsync/JoinLifecycle already read it) but nothing populated
+                // coordData.Deliverables, so the tab was permanently empty regardless of project
+                // state. Same resolver DeliveryCommands uses for the MIDP drift report, so this
+                // can never disagree with that reader about where the file lives.
+                //
+                // The file's schema is intentionally loose (DeliverableLifecycle.Persist writes
+                // whatever properties the calling command happened to set — see its own comment),
+                // so every field is read via DocumentIdentity.FirstNonBlank's candidate-list
+                // pattern, the same tolerant-read rule ReconcileAsync/JoinLifecycle already rely
+                // on, rather than a strict shape that would silently show blanks the moment a
+                // caller used a different alias.
+                try
+                {
+                    string path = MidpDriftReportCommand.ResolveDeliverablesPath(doc);
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    {
+                        var arr = JArray.Parse(File.ReadAllText(path));
+                        var now = DateTime.Now;
+                        foreach (var o in arr.OfType<JObject>())
+                        {
+                            string code = Core.DocumentIdentity.FirstNonBlank(o, Core.DocumentIdentity.DeliverableKeys);
+                            if (string.IsNullOrEmpty(code)) continue; // unkeyed row — Persist itself refuses these, but tolerate hand-edited files
+
+                            // No lowercase "status" fallback here on purpose: JoinLifecycle's own
+                            // comment shows "status" has historically been overloaded to mean
+                            // SUITABILITY in some legacy rows (o["Suitability"] ?? o["suitability"]
+                            // ?? o["status"]) — adding it here would misread a suitability code as
+                            // a workflow state on exactly the files most likely to need the fallback.
+                            string status = Core.DocumentIdentity.FirstNonBlank(o, "Status", "WorkflowStatus") ?? "Pending";
+                            string dueRaw = Core.DocumentIdentity.FirstNonBlank(o, "DueDate", "PlannedDate", "Due", "duedate", "planneddate");
+                            bool overdue = status != "Approved"
+                                && DateTime.TryParse(dueRaw, out var due) && due.Date < now.Date;
+
+                            coordData.Deliverables.Add(new UI.BIMCoordinationCenter.DeliverableRow
+                            {
+                                Code = code,
+                                Name = Core.DocumentIdentity.FirstNonBlank(o, "Title", "Name", "Description", "title", "description") ?? code,
+                                Discipline = Core.DocumentIdentity.FirstNonBlank(o, "Discipline", "DISC", "discipline") ?? "",
+                                Type = Core.DocumentIdentity.FirstNonBlank(o, "Type", "Kind", "DocType", "type") ?? "",
+                                DataDrop = Core.DocumentIdentity.FirstNonBlank(o, "DataDrop", "Milestone", "Stage", "milestone") ?? "",
+                                Status = status,
+                                Suitability = Core.DocumentIdentity.FirstNonBlank(o, "Suitability", "ActualSuitability", "RequiredSuitability", "suitability") ?? "",
+                                CDE = Core.DocumentIdentity.FirstNonBlank(o, "CDE", "CdeStatus", "cde") ?? "",
+                                Owner = Core.DocumentIdentity.FirstNonBlank(o, "Owner", "Originator", "OrgCode", "originator") ?? "",
+                                DueDate = dueRaw ?? "",
+                                IsOverdue = overdue,
+                                // SyncBadge/SyncTooltip stay at their "" default — that is the
+                                // documented normal case on a machine with no Companion running.
+                                // Populating them from the Companion's local sync-folder state is
+                                // a separate follow-up, not part of getting the list itself to
+                                // stop being permanently empty.
+                            });
+                        }
+
+                        coordData.DeliverablesPending = coordData.Deliverables.Count(d => d.Status == "Pending");
+                        coordData.DeliverablesSubmitted = coordData.Deliverables.Count(d => d.Status == "Submitted");
+                        coordData.DeliverablesApproved = coordData.Deliverables.Count(d => d.Status == "Approved");
+                        coordData.DeliverablesOverdue = coordData.Deliverables.Count(d => d.IsOverdue);
+                    }
+                    // No file ⇒ project has never imported an MIDP. Deliverables stays empty —
+                    // that is correct, not a fallback to hide.
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: deliverables load failed: {ex.Message}"); }
 
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
