@@ -91,7 +91,7 @@ contrast passes, that a grid edit round-trips against a live API. All of that is
 | U1 design tokens | DONE | `npm run typecheck` clean · `npm run build` ✓ Compiled successfully · `npm test` **32 passed** incl. 8 new token-contract tests |
 | U2 shell chrome | DONE | typecheck clean · build ✓ Compiled successfully · `npm test` **45 passed** incl. 13 new breadcrumb / nav-model / tenant-switch tests |
 | U3 primitives | DONE | typecheck clean · build ✓ · `npm test` **59 passed** incl. 14 DataGrid tests that assert the contract itself — optimistic apply, **rollback + server message on failure**, no-op on unchanged value, Escape abandons, edit never navigates |
-| U4 route migration | — | — |
+| U4 route migration | DONE | typecheck clean · build ✓ · `npm test` **62 passed** incl. 3 new route invariants: no hard-coded palette utility survives anywhere, every rail link has a real `page.tsx`, every page is inside the AppShell |
 | U5 polish + a11y | — | — |
 
 ---
@@ -153,3 +153,27 @@ Run `cd planscape-web && npm install && npm run dev`, point `NEXT_PUBLIC_API_BAS
       editable cell or a checkbox does not navigate.
 - [ ] **Toast stacking:** trigger three failures — they stack bottom-right, each dismissible, and
       don't cover the grid toolbar.
+
+### U4 — route migration
+- [ ] **Issues route exists:** the rail's Issues link opens a grid (it 404'd before this slice —
+      the project overview was doubling as the issues list).
+- [ ] **Project overview is a summary:** stat tiles (open issues / high+critical / new clashes /
+      compliance) plus a "Needs attention" list; the tiles navigate; it is no longer a second copy
+      of the issues list.
+- [ ] **Issues grid:** status, priority and assignee edit inline and persist after a reload.
+      Title/description are NOT editable here (they're on the detail page) — confirm that reads as
+      deliberate rather than broken.
+- [ ] **Clashes grid:** status, assigned-to and resolution note edit inline; severity and overlap
+      volume are read-only (detector output, no write endpoint).
+- [ ] **Members grid:** project role edits inline; ISO 19650 role is only editable when the server
+      returns the role vocabulary — with an older API that column should be plain text, not an
+      empty dropdown.
+- [ ] **Documents:** no inline status cell; the row offers exactly one legal transition
+      (WIP→Share, SHARED→Publish, PUBLISHED→Archive) plus Download. Upload is a modal.
+- [ ] **Transmittals:** same shape — one action button per row (Send/Acknowledge/Respond), Respond
+      opens a modal for notes instead of `window.prompt`.
+- [ ] **Dark mode across every route:** switch to Dark and walk all 23 routes. Nothing should stay
+      white — this is what the palette→token migration was for, and the test only proves the
+      utilities are gone, not that each result *looks* right.
+- [ ] **Wide tables:** a grid with many columns scrolls inside its own container, and the page
+      itself does not scroll horizontally.

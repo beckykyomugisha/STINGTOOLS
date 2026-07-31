@@ -23,33 +23,33 @@ export default function ProjectsPage() {
         <h1 className="text-xl font-semibold">Projects</h1>
         <Link
           href="/projects/new"
-          className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded bg-accent px-3 py-2 text-sm font-medium text-fg-on-accent hover:bg-accent-hover"
         >
           New project
         </Link>
       </div>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {!projects && !error && <p className="text-slate-400">Loading…</p>}
-      {projects && projects.length === 0 && <p className="text-slate-500">No projects yet.</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {!projects && !error && <p className="text-fg-subtle">Loading…</p>}
+      {projects && projects.length === 0 && <p className="text-fg-muted">No projects yet.</p>}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {projects?.map((p) => (
           <Link
             key={p.id}
             href={`/projects/${p.id}`}
-            className="rounded-lg bg-white p-4 ring-1 ring-slate-200 transition hover:ring-blue-300"
+            className="rounded-lg bg-surface p-4 ring-1 ring-border transition hover:ring-accent"
           >
             <div className="flex items-center justify-between gap-3">
               <span className="font-medium">{p.name}</span>
               <div className="flex shrink-0 items-center gap-2">
                 <RagBadge rag={p.ragStatus} percent={p.compliancePercent} />
-                <span className="text-xs text-slate-400">{p.code}</span>
+                <span className="text-xs text-fg-subtle">{p.code}</span>
               </div>
             </div>
-            {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
+            {p.description && <p className="mt-1 line-clamp-2 text-sm text-fg-muted">{p.description}</p>}
             {typeof p.openIssueCount === 'number' && (
-              <p className="mt-1 text-xs text-slate-400">{p.openIssueCount} open issue(s)</p>
+              <p className="mt-1 text-xs text-fg-subtle">{p.openIssueCount} open issue(s)</p>
             )}
           </Link>
         ))}

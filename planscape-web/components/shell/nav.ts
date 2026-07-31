@@ -29,9 +29,11 @@ export const PROJECT_NAV: NavItem[] = [
   { segment: 'members', label: 'Members', icon: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z' },
 ];
 
-/** Global nav — always available, project or not. */
+/** Global nav — always available, project or not.
+ *  No Dashboard entry: `/dashboard` is a redirect stub that bounces straight to
+ *  `/projects`, and a nav item that instantly navigates to another nav item is
+ *  noise. The route stays for old bookmarks. */
 export const GLOBAL_NAV: NavItem[] = [
-  { segment: '/dashboard', label: 'Dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z' },
   { segment: '/projects', label: 'Projects', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
   { segment: '/search', label: 'Search', icon: 'M11 19a8 8 0 100-16 8 8 0 000 16z M21 21l-4.35-4.35' },
 ];

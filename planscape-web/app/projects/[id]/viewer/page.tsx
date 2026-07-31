@@ -113,16 +113,16 @@ export default function ViewerPage() {
   return (
     <AppShell>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/projects/${projectId}`} className="text-sm text-slate-400 hover:underline">
+        <Link href={`/projects/${projectId}`} className="text-sm text-fg-subtle hover:underline">
           ← Project
         </Link>
 
         {/* Federation discipline toggles */}
         {scene && disciplines.length > 0 && (
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Disciplines</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Disciplines</span>
             {disciplines.map((d) => (
-              <label key={d} className="flex items-center gap-1.5 text-sm text-slate-700">
+              <label key={d} className="flex items-center gap-1.5 text-sm text-fg-muted">
                 <input
                   type="checkbox"
                   checked={!hidden.has(d)}
@@ -140,7 +140,7 @@ export default function ViewerPage() {
           <select
             value={activeId}
             onChange={(e) => setActiveId(e.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-border-strong px-2 py-1 text-sm"
           >
             {models.map((m) => (
               <option key={m.id} value={m.id}>
@@ -152,19 +152,19 @@ export default function ViewerPage() {
         )}
       </div>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
       {loaded && !scene && models.length === 0 && !error && (
-        <p className="text-slate-500">No models published to this project yet.</p>
+        <p className="text-fg-muted">No models published to this project yet.</p>
       )}
 
       {scene && (
-        <p className="mb-2 text-xs text-slate-400">
+        <p className="mb-2 text-xs text-fg-subtle">
           Federated model — {scene.chunks.length} chunk{scene.chunks.length === 1 ? '' : 's'} across{' '}
           {disciplines.length} discipline{disciplines.length === 1 ? '' : 's'}.
         </p>
       )}
 
-      <div className="overflow-hidden rounded-lg ring-1 ring-slate-200" style={{ height: '70vh' }}>
+      <div className="overflow-hidden rounded-lg ring-1 ring-border" style={{ height: '70vh' }}>
         <iframe
           ref={iframeRef}
           src={VIEWER_URL}
@@ -175,7 +175,7 @@ export default function ViewerPage() {
         />
       </div>
 
-      {guid && <p className="mt-2 text-xs text-slate-400">Deep-linked to element {guid}.</p>}
+      {guid && <p className="mt-2 text-xs text-fg-subtle">Deep-linked to element {guid}.</p>}
     </AppShell>
   );
 }

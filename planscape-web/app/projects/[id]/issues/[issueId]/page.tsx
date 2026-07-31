@@ -79,37 +79,37 @@ export default function IssueDetailPage() {
 
   return (
     <AppShell>
-      <Link href={`/projects/${projectId}`} className="text-sm text-slate-400 hover:underline">
+      <Link href={`/projects/${projectId}`} className="text-sm text-fg-subtle hover:underline">
         ← Back to issues
       </Link>
 
-      {error && <p className="my-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {!issue && !error && <p className="mt-3 text-slate-400">Loading…</p>}
+      {error && <p className="my-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {!issue && !error && <p className="mt-3 text-fg-subtle">Loading…</p>}
 
       {issue && (
         <>
           <h1 className="mt-1 text-xl font-semibold">{issue.title}</h1>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="mt-1 text-xs text-fg-subtle">
             {issue.type} · {issue.priority}
             {issue.discipline ? ` · ${issue.discipline}` : ''}
             {issue.assignee ? ` · ${issue.assignee}` : ''}
           </div>
 
           {issue.description && (
-            <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm ring-1 ring-slate-200">
+            <p className="mt-4 whitespace-pre-wrap rounded-lg bg-surface p-4 text-sm ring-1 ring-border">
               {issue.description}
             </p>
           )}
 
           <div className="mt-4">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Status</span>
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-fg-subtle">Status</span>
             <div className="flex flex-wrap gap-2">
               {STATUSES.map((s) => (
                 <button
                   key={s}
                   onClick={() => changeStatus(s)}
                   className={`rounded-full px-3 py-1 text-xs ${
-                    issue.status === s ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'
+                    issue.status === s ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-muted ring-1 ring-border'
                   }`}
                 >
                   {s.replace('_', ' ')}
@@ -118,41 +118,41 @@ export default function IssueDetailPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg bg-white p-3 ring-1 ring-slate-200">
+          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg bg-surface p-3 ring-1 ring-border">
             <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Assignee</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Assignee</span>
               <input
                 value={assignee}
                 onChange={(e) => setAssignee(e.target.value)}
                 placeholder="name or email"
-                className="mt-1 block w-56 rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="mt-1 block w-56 rounded border border-border-strong px-2 py-1.5 text-sm"
               />
             </label>
             <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Due date</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Due date</span>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="mt-1 block rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="mt-1 block rounded border border-border-strong px-2 py-1.5 text-sm"
               />
             </label>
             <button
               onClick={saveAssignment}
               disabled={savingAssign}
-              className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+              className="rounded border border-border-strong px-3 py-2 text-sm hover:bg-surface-2 disabled:opacity-50"
             >
               {savingAssign ? 'Saving…' : 'Save'}
             </button>
           </div>
 
           <section className="mt-8">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Comments</h2>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-subtle">Comments</h2>
             <ul className="space-y-2">
-              {comments.length === 0 && <li className="text-sm text-slate-400">No comments yet.</li>}
+              {comments.length === 0 && <li className="text-sm text-fg-subtle">No comments yet.</li>}
               {comments.map((c) => (
-                <li key={c.id} className="rounded-lg bg-white p-3 text-sm ring-1 ring-slate-200">
-                  <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+                <li key={c.id} className="rounded-lg bg-surface p-3 text-sm ring-1 ring-border">
+                  <div className="mb-1 flex items-center justify-between text-xs text-fg-subtle">
                     <span>{c.authorName ?? 'User'}</span>
                     <span>{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
                   </div>
@@ -166,12 +166,12 @@ export default function IssueDetailPage() {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Add a comment…"
-                className="flex-1 rounded border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                className="flex-1 rounded border border-border-strong px-3 py-2 outline-none focus:border-accent"
               />
               <button
                 type="submit"
                 disabled={!newComment.trim()}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                className="rounded bg-accent px-4 py-2 text-sm font-medium text-fg-on-accent hover:bg-accent-hover disabled:opacity-60"
               >
                 Post
               </button>
