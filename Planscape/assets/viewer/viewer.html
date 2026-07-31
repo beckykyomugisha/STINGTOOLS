@@ -1921,6 +1921,35 @@ THREE.ColorManagement.enabled = false;
      Native WebView (mobile owns its own RealtimeClient). -->
 <script defer src="./signalr-shim.js"></script>
 
+<!-- Cross-origin auth bootstrap. When this viewer is embedded as an iframe
+     from a different origin (planscape-web's /projects/{id}/viewer route),
+     this origin's localStorage has never heard of that session — it starts
+     empty on every load. coordination-viewer.js, meeting-sync.js and
+     livekit-av.js each independently read planscape_token / planscape_tenant
+     / planscape_user from localStorage, so all three need it populated
+     before they run, not just whichever happens to read the URL itself.
+     Mirrors the existing ?api= convention already used for "share-links from
+     another origin" (see the apiBase resolution in coordination-viewer.js).
+     The token is stripped from the address bar immediately after reading —
+     same reasoning as the planscape.build handoff page: a JWT sitting in
+     iframe history is exposure with no upside once it's been consumed. -->
+<script>
+(function () {
+  try {
+    var p = new URLSearchParams(location.search);
+    var token = p.get('token'), tenant = p.get('tenant'), user = p.get('user');
+    if (token) localStorage.setItem('planscape_token', token);
+    if (tenant) localStorage.setItem('planscape_tenant', tenant);
+    if (user) localStorage.setItem('planscape_user', user);
+    if (token || tenant || user) {
+      p.delete('token'); p.delete('tenant'); p.delete('user');
+      var qs = p.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+    }
+  } catch (e) { console.warn('[viewer] auth bootstrap failed:', e); }
+})();
+</script>
+
 <!-- Coordination layer — panels, API, clash + issue management. -->
 <script defer src="./coordination-viewer.js"></script>
 

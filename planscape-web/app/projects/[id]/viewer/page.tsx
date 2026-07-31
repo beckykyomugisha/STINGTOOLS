@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { listModels, modelFileUrl, getSceneManifest, chunkFileUrl } from '@/lib/data';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, getToken } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import type { ProjectModel, SceneManifest } from '@/lib/types';
 
 // useSearchParams needs the page rendered dynamically (no static prerender).
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 // The existing 3D viewer (Planscape/assets/viewer → API wwwroot). Override with
 // NEXT_PUBLIC_VIEWER_URL if it's hosted elsewhere.
-const VIEWER_URL = process.env.NEXT_PUBLIC_VIEWER_URL || `${API_BASE}/viewer.html`;
+const VIEWER_BASE_URL = process.env.NEXT_PUBLIC_VIEWER_URL || `${API_BASE}/viewer.html`;
 
 export default function ViewerPage() {
   const params = useParams<{ id: string }>();
@@ -25,6 +26,28 @@ export default function ViewerPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The 3D viewer + meetings (camera, screen share, markup, chat) all live in
+  // a legacy static bundle served by the API (wwwroot/viewer.html), embedded
+  // here as a cross-origin iframe. That origin's localStorage starts empty on
+  // every load — it has never heard of this browser's planscape-web session —
+  // so coordination-viewer.js / meeting-sync.js / livekit-av.js (which each
+  // independently read 'planscape_token' etc. from localStorage) always saw
+  // nothing and bounced to their own login. Pass the current session through
+  // as URL params; viewer.html's own bootstrap script (added alongside this
+  // change) writes them into its origin's localStorage before those scripts
+  // run, then strips them from the address bar.
+  const { user: authUser } = useAuth();
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) { setViewerSrc(VIEWER_BASE_URL); return; }
+    const u = new URL(VIEWER_BASE_URL);
+    u.searchParams.set('token', token);
+    if (authUser?.tenantId) u.searchParams.set('tenant', authUser.tenantId);
+    if (authUser?.email) u.searchParams.set('user', authUser.email);
+    setViewerSrc(u.toString());
+  }, [authUser]);
 
   // Federation (preferred): multi-discipline scene chunks.
   const [scene, setScene] = useState<SceneManifest | null>(null);
@@ -165,14 +188,16 @@ export default function ViewerPage() {
       )}
 
       <div className="overflow-hidden rounded-lg ring-1 ring-border" style={{ height: '70vh' }}>
-        <iframe
-          ref={iframeRef}
-          src={VIEWER_URL}
-          title="3D model"
-          className="h-full w-full border-0"
-          onLoad={() => setReady(true)}
-          allow="fullscreen"
-        />
+        {viewerSrc && (
+          <iframe
+            ref={iframeRef}
+            src={viewerSrc}
+            title="3D model"
+            className="h-full w-full border-0"
+            onLoad={() => setReady(true)}
+            allow="fullscreen; camera; microphone; display-capture"
+          />
+        )}
       </div>
 
       {guid && <p className="mt-2 text-xs text-fg-subtle">Deep-linked to element {guid}.</p>}
