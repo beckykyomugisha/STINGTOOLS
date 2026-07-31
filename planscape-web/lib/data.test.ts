@@ -182,3 +182,19 @@ describe('members + search + transmittals + photos', () => {
     expect(calls()[2].url).toContain('/photos/ph/reject');
   });
 });
+
+describe('archiveProject', () => {
+  it('DELETEs with the confirm code on the query string', async () => {
+    await data.archiveProject('p1', 'ABC-123');
+    const c = calls()[0];
+    expect(c.init.method).toBe('DELETE');
+    expect(c.url).toContain('/api/projects/p1?confirmCode=ABC-123');
+  });
+
+  it('URL-encodes a code containing reserved characters', async () => {
+    // A code is user-supplied at project creation; "A&B/1" must not truncate
+    // the query string or invent a second parameter.
+    await data.archiveProject('p1', 'A&B/1');
+    expect(calls()[0].url).toContain('confirmCode=A%26B%2F1');
+  });
+});

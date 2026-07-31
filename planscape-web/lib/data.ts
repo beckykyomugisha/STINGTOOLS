@@ -43,6 +43,27 @@ export function createProject(body: {
   return api<Project>('/api/projects', { method: 'POST', body: JSON.stringify(body) });
 }
 
+/**
+ * Archive a project — a SOFT delete. `Status` flips to `Archived`; every row is
+ * kept and the project stays visible under the archived filter. There is no hard
+ * delete on this route by design; a true purge is separate admin tooling.
+ *
+ * The server double-gates it (`ProjectsController.ArchiveProject`):
+ *  - **403** unless the caller is the project author (`CreatedById`) or a tenant
+ *    admin. That is correct behaviour, not a bug — surface it as "you don't have
+ *    permission", not as a generic failure.
+ *  - **400** unless `confirmCode` equals the project's own `Code`
+ *    (case-insensitive), with `{ message, expectedField, expectedValue }`.
+ *
+ * The client asks for the code too — see `ArchiveProjectDialog`. The 400 is the
+ * server's backstop, not the UI's confirmation step.
+ */
+export function archiveProject(id: string, confirmCode: string): Promise<void> {
+  return api<void>(`/api/projects/${id}?confirmCode=${encodeURIComponent(confirmCode)}`, {
+    method: 'DELETE',
+  });
+}
+
 // ── Issues ──
 export async function listIssues(projectId: string, status?: string): Promise<BimIssue[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { ArchiveProjectDialog } from '@/components/ArchiveProjectDialog';
 import { RagBadge } from '@/components/RagBadge';
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, Skeleton, toneForStatus } from '@/components/ui';
 import { getProject, listClashes, listIssues } from '@/lib/data';
@@ -21,7 +22,9 @@ import type { BimIssue, ClashRecord, Project } from '@/lib/types';
  */
 export default function ProjectPage() {
   const { id: projectId } = useParams<{ id: string }>();
+  const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [issues, setIssues] = useState<BimIssue[] | null>(null);
   const [clashes, setClashes] = useState<ClashRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,9 +80,29 @@ export default function ProjectPage() {
             <Button asChild variant="primary">
               <Link href={`/projects/${projectId}/issues/new`}>New issue</Link>
             </Button>
+            {/* Shown to everyone: the server decides who may actually archive
+                (author or tenant admin) and the dialog reports its 403 plainly.
+                Hiding it client-side would need a permission the API doesn't
+                currently tell us on this payload. */}
+            {project?.status !== 'Archived' && (
+              <Button variant="ghost" onClick={() => setArchiveOpen(true)}>
+                Archive
+              </Button>
+            )}
           </>
         }
       />
+
+      {project && (
+        <ArchiveProjectDialog
+          open={archiveOpen}
+          onOpenChange={setArchiveOpen}
+          projectId={projectId}
+          projectCode={project.code}
+          projectName={project.name}
+          onArchived={() => router.push('/projects')}
+        />
+      )}
 
       {error && (
         <div className="mb-4">
