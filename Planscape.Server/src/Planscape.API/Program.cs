@@ -658,6 +658,13 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.AccSyncService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ProjectPurgeJob>();
+// ClashesController takes IClashDetectionJob in its constructor. It was never
+// registered, so the container could not build the controller AT ALL and every
+// endpoint on it returned 500 — the Clashes page was dead in production, and
+// the browser reported it as a CORS failure because a 500 loses its CORS
+// headers. Registered here beside the other job services.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
+    Planscape.Infrastructure.Services.ClashDetectionJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
 // Phase 178 — Site photo workflow: redaction worker + daily digest job.
 // The pipeline is split out (PhotoPipeline/IPhotoRedactionPipeline) so
