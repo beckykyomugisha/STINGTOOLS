@@ -2,14 +2,15 @@
   "name": "planscape-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Planscape online BIM coordination — browser app (auth → projects → issues → clashes → 3D viewer → real-time).",
+  "description": "Planscape online BIM coordination \u2014 browser app (auth \u2192 projects \u2192 issues \u2192 clashes \u2192 3D viewer \u2192 real-time).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@microsoft/signalr": "8.0.7",
@@ -30,6 +31,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
