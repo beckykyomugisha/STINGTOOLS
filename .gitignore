@@ -116,3 +116,7 @@ Planscape.Server/load/tier-capacity-result.json
 
 # dotnet test --logger trx output
 TestResults/
+
+# Playwright
+planscape-web/test-results/
+planscape-web/playwright-report/
