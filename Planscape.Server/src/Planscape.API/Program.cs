@@ -665,6 +665,13 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.ProjectPurgeJob>();
 // headers. Registered here beside the other job services.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
     Planscape.Infrastructure.Services.ClashDetectionJob>();
+// ...and ClashDetectionJob in turn takes IClashAutomationService, which was
+// still unregistered — so the container failed one level DEEPER and every
+// endpoint kept returning the same 500 ("Unable to resolve service for type
+// IClashAutomationService while attempting to activate ClashDetectionJob").
+// Scoped, not Singleton: it holds a scoped PlanscapeDbContext.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashAutomationService,
+    Planscape.Infrastructure.Services.ClashAutomationService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
 // Phase 178 — Site photo workflow: redaction worker + daily digest job.
 // The pipeline is split out (PhotoPipeline/IPhotoRedactionPipeline) so
