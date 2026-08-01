@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { cn } from '@/lib/cn';
 import { listModels, modelFileUrl, getSceneManifest, chunkFileUrl } from '@/lib/data';
 import { API_BASE, getToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -24,8 +25,55 @@ export default function ViewerPage() {
   const wantModel = search.get('model') || undefined;
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Native fullscreen where allowed, CSS "fill the window" where not.
+  //
+  // requestFullscreen() can be refused outright — a permissions-policy embed,
+  // an unusual browser, or a call the browser doesn't consider user-initiated —
+  // and it rejects asynchronously, so a naive implementation leaves the button
+  // looking dead with nothing in the console. The fallback matters more than
+  // usual here because the reason to go big is to stop the viewer's toolbar
+  // being clipped (which hides Meet), and that is worth solving even when the
+  // real fullscreen API is unavailable.
+  const toggleFullscreen = useCallback(() => {
+    const el = shellRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+      return;
+    }
+    if (isFullscreen) {
+      setIsFullscreen(false);   // leaving the CSS fallback
+      return;
+    }
+    const req = el.requestFullscreen?.();
+    if (req) req.then(() => setIsFullscreen(true)).catch(() => setIsFullscreen(true));
+    else setIsFullscreen(true);
+  }, [isFullscreen]);
+
+  // Keep the button honest when the user exits via Esc or the browser's own UI.
+  useEffect(() => {
+    const onChange = () => {
+      if (document.fullscreenElement) setIsFullscreen(true);
+      else if (document.fullscreenEnabled) setIsFullscreen(false);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  // Esc must also leave the CSS fallback, which the browser knows nothing about.
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.fullscreenElement) setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isFullscreen]);
 
   // The 3D viewer + meetings (camera, screen share, markup, chat) all live in
   // a legacy static bundle served by the API (wwwroot/viewer.html), embedded
@@ -195,7 +243,31 @@ export default function ViewerPage() {
         </p>
       )}
 
-      <div className="overflow-hidden rounded-lg ring-1 ring-border" style={{ height: '70vh' }}>
+      {/* The viewer carries its own dense toolbar (Measure / Section / View /
+          Clashes / Issues / Markup / Meet). At 70vh inside the app shell the
+          right-hand end of that toolbar is clipped, which silently hides
+          Meet — the entry point to the camera — so "no live meeting camera"
+          was really "the button is off-screen". Fullscreen gives the toolbar
+          the width it needs, and is worth having on a 3D viewer regardless. */}
+      <div
+        ref={shellRef}
+        className={cn(
+          'relative overflow-hidden ring-1 ring-border',
+          isFullscreen
+            ? 'fixed inset-0 z-50 h-screen w-screen rounded-none bg-surface'
+            : 'rounded-lg',
+        )}
+        style={isFullscreen ? undefined : { height: '70vh' }}
+      >
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit full screen (Esc)' : 'Full screen'}
+          aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
+          className="absolute right-2 top-2 z-10 rounded border border-border-strong bg-surface/90 px-2 py-1 text-xs text-fg shadow-sm backdrop-blur transition hover:bg-surface-3"
+        >
+          {isFullscreen ? '⤡ Exit full screen' : '⤢ Full screen'}
+        </button>
         {viewerSrc && (
           <iframe
             ref={iframeRef}
@@ -203,6 +275,8 @@ export default function ViewerPage() {
             title="3D model"
             className="h-full w-full border-0"
             onLoad={() => setReady(true)}
+            // camera/microphone/display-capture are what let the embedded
+            // meeting actually publish media from this cross-origin frame.
             allow="fullscreen; camera; microphone; display-capture"
           />
         )}
