@@ -1309,6 +1309,8 @@ namespace StingTools.UI
                      "Roll the risk register up — RAG counts on the residual (post-mitigation) score, open-red exposure and the top risks. CSV out.", true),
                     ("MIDP Drift", "Midp_DriftReport",
                      "Load a MIDP/TIDP CSV (Code, Title, Discipline, Milestone, PlannedDate, RequiredSuitability), join it to the live deliverables lifecycle and classify each as on-track / at-risk / overdue / suitability-short. CSV out.", false),
+                    ("Import MIDP", "Midp_Import",
+                     "Bulk-import a MIDP/TIDP CSV into the deliverables register so the Coordination Center's DELIVERABLES tab is populated for a new project. Add-only: codes already in the register are left untouched, so re-running never overwrites lifecycle state.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Measurement Standard",

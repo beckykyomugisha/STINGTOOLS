@@ -413,3 +413,49 @@ The behaviour behind them is proven (§4e); what nobody has seen is the tray.
     and tells the user the exact `--history` command instead. Confirm that message
     is accurate and useful; when the register gains a document id (§4d), this is
     the call site to finish.
+
+### MIDP bulk import (`Midp_Import`) — the end-to-end Deliverables-tab proof
+
+Commit `c4d3f3e3f` made BCC *read* `deliverables.json`; `Midp_Import` is the first
+command that bulk-*writes* one. Together they are what finally proves the
+Deliverables tab, but only a real Revit session can run them.
+
+**What IS already machine-verified** (a Revit-free harness against the real,
+unmodified `DocumentIdentity.cs`, the same technique `c4d3f3e3f` used):
+the imported row's serialised shape satisfies every candidate list
+`BuildCoordData`'s reader checks — Code, Name, Discipline, DataDrop, Status,
+Suitability, CDE, DueDate — so a freshly-imported row renders on the FIRST read;
+`IsOverdue` computes true for the deliberately-past seed row and false for a
+future one; and `Type`/`Owner` are correctly absent rather than invented. The
+harness also pinned the `DeliverableKey` trap (below). **What it cannot prove is
+where the file lands and whether the tab shows it.**
+
+27. **Import the seed file.** Open a real project, BIM tab → Cost/Delivery panel →
+    **Import MIDP**, and pick `docs/seed_test_midp.csv` (3 rows; `E-301`'s
+    2026-07-20 date is deliberately in the past).
+    Expect: **Imported 3 · Already present 0 · Skipped 0 · Failed 0.**
+    *If it reports `Failed 3`, read `StingTools.log` — `Persist` refusing rows as
+    unkeyed is the one failure mode this command was most exposed to.*
+28. **The file landed where the reader looks.** Confirm
+    `<project root>\_data\_BIM_COORD\deliverables.json` now exists and holds three
+    objects, each with **both** `DocNumber` and `Code`, plus `Status: "Pending"`
+    and `CDE: "WIP"`. The write path (`DeliverableLifecycle.DeliverablesPath`) and
+    the read path (`MidpDriftReportCommand.ResolveDeliverablesPath`) were traced to
+    the same location by inspection — this step is what confirms it on a real
+    project, which is the single most likely thing to be wrong.
+29. **The tab finally populates.** Open the BIM Coordination Center →
+    **DELIVERABLES**. Expect three rows; KPI cards reading **TOTAL 3 · PENDING 3 ·
+    OVERDUE 1**; the `E-301` row highlighted red (the register's existing
+    overdue row style); and the DATA DROP breakdown showing DD1 = 1, DD2 = 2.
+30. **Re-import is safe.** Run **Import MIDP** on the same file again.
+    Expect **Imported 0 · Already present 3**, and — the point of the check —
+    confirm any lifecycle state you set in between (issue one deliverable first,
+    so its Status/CDE/RevisionHistory change) is **still intact afterwards**.
+    Import is add-only precisely so a second run cannot wipe that; `Persist`
+    replaces a matched row wholesale, so a naive implementation would have.
+31. **Bad rows are counted, not silently dropped.** Add a row with an unparseable
+    date to a copy of the CSV and import it: it must appear in **Skipped**, with
+    the other rows still importing.
+32. **The drift report now has something to join to.** Run **MIDP Drift** against
+    the same CSV afterwards — with the register populated it should report the
+    rows as planned-and-not-issued rather than finding nothing to join.
