@@ -2745,24 +2745,73 @@
       });
       const fallback = ['B1','GF','L01','L02','L03','L04','RF'];
       const levels = arr.length ? arr : fallback;
-      strip.appendChild(el('button', { class: 'nav-arrow' }, '◀'));
+
+      // ◀ / ▶ used to be inert decoration — appended with no handler at all,
+      // so the only visible controls by the strip did nothing and there was no
+      // obvious way back to the whole building. They now step through levels,
+      // and stepping off either end returns to "All".
+      const prev = el('button', { class: 'nav-arrow', title: 'Previous level' }, '◀');
+      prev.addEventListener('click', () => stepLevel(-1));
+      strip.appendChild(prev);
+
+      // Explicit reset. Clicking the active pill again already cleared the
+      // filter, but nothing on screen said so — this makes "show the whole
+      // model" a visible control instead of a hidden toggle.
+      const allPill = el('button', { class: 'level-pill level-all', title: 'Show every level' }, 'All');
+      allPill.addEventListener('click', () => { clearLevelSelection(); applyLevelFilter(); paintLevelStrip(); });
+      strip.appendChild(allPill);
+
       levels.forEach(lvl => {
         const pill = el('button', { class: 'level-pill', 'data-lvl': lvl }, lvl);
         pill.addEventListener('click', (e) => {
           if (e.shiftKey) pill.classList.toggle('active');
           else {
             const isActive = pill.classList.contains('active');
-            $$('.level-pill').forEach(p => p.classList.remove('active'));
+            clearLevelSelection();
             if (!isActive) pill.classList.add('active');
           }
           applyLevelFilter();
+          paintLevelStrip();
         });
         strip.appendChild(pill);
       });
-      strip.appendChild(el('button', { class: 'nav-arrow' }, '▶'));
+
+      const next = el('button', { class: 'nav-arrow', title: 'Next level' }, '▶');
+      next.addEventListener('click', () => stepLevel(1));
+      strip.appendChild(next);
+      paintLevelStrip();
 
       // Compute Y bands from model bounds — fall back to even slices.
       computeLevelBands(levels);
+    }
+
+    // Level-strip helpers. Only the real level pills carry data-lvl; the "All"
+    // pill deliberately does not, so every selector here is scoped to
+    // [data-lvl] — an "active" All pill would otherwise put an undefined level
+    // into applyLevelFilter's set, which matches no band and would hide the
+    // whole model instead of showing it. applyLevelFilter uses the same scope.
+    function levelPills() { return $$('#levelStrip .level-pill[data-lvl]'); }
+    function clearLevelSelection() { levelPills().forEach(p => p.classList.remove('active')); }
+    function paintLevelStrip() {
+      const anyActive = levelPills().some(p => p.classList.contains('active'));
+      const all = $('#levelStrip .level-all');
+      if (all) all.classList.toggle('active', !anyActive);   // "All" lit when unfiltered
+    }
+    function stepLevel(dir) {
+      const pills = levelPills();
+      if (!pills.length) return;
+      const cur = pills.findIndex(p => p.classList.contains('active'));
+      // From "All", ▶ enters at the lowest level and ◀ at the highest.
+      const idx = (cur === -1) ? (dir > 0 ? 0 : pills.length - 1) : cur + dir;
+      clearLevelSelection();
+      if (idx >= 0 && idx < pills.length) {
+        pills[idx].classList.add('active');
+        try { pills[idx].scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) {}
+      }
+      // Stepping off either end leaves nothing active — i.e. back to the whole
+      // model, so the arrows alone can always get you out of a level filter.
+      applyLevelFilter();
+      paintLevelStrip();
     }
 
     function computeLevelBands(levels) {
@@ -2819,7 +2868,7 @@
     function invalidateCentroidCache() { centroidYCache.clear(); }
 
     function applyLevelFilter() {
-      const active = $$('.level-pill.active').map(p => p.dataset.lvl);
+      const active = $$('.level-pill.active[data-lvl]').map(p => p.dataset.lvl);   // [data-lvl] excludes the "All" pill
       if (!active.length) {
         V.renderer.clippingPlanes = [];
         if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.visible = true; });
@@ -2857,7 +2906,7 @@
         camPos: cam.position.toArray(),
         camTarget: V.controls.target.toArray(),
         disciplines: Array.from(state.activeDisciplines),
-        levels: $$('.level-pill.active').map(p => p.dataset.lvl),
+        levels: $$('.level-pill.active[data-lvl]').map(p => p.dataset.lvl),
         viz: serializeViz(),   // C5 — full visualize state (scheme + modes + custom colours)
       };
     }
