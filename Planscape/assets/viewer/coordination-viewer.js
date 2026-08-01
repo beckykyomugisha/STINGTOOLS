@@ -7324,7 +7324,19 @@
         </div>`;
       wrap.appendChild(cta);
       $('#ctaBackToProjects', cta).addEventListener('click', () => {
-        location.href = (apiBase || '') + '/projects';
+        // apiBase is the JSON API's own origin (this viewer is served FROM
+        // it) — it has no /projects page, so navigating there 404s/blocks
+        // instead of showing anything useful. When this viewer is embedded
+        // in an iframe (the normal case, from planscape-web), the referrer
+        // is the web app that hosts a real /projects page — go there, and
+        // navigate the top-level tab, not just this iframe. Bare/standalone
+        // opens (no referrer) fall back to the API root as the least-bad option.
+        let target = (apiBase || '') + '/';
+        try {
+          if (document.referrer) target = new URL('/projects', document.referrer).toString();
+        } catch (_) {}
+        if (window.top && window.top !== window.self) window.top.location.href = target;
+        else location.href = target;
       });
       // Hide the boot loader behind it so it doesn't double-spin.
       const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
