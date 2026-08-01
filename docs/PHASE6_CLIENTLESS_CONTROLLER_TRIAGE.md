@@ -169,12 +169,61 @@ present and the migrations' are not:
 | `PlatformEvents`, `MeetingSessions`, `ClashRecords`, … (patcher-created) | `Tenants`, `Users`, `Projects` — the core of the app |
 | `__EFMigrationsHistory` → exactly 2 rows: `MeetingMedia`, `SustainabilitySnapshots` | |
 
+**4. Independent replication, on a separate scratch stack.** The three measurements above were
+re-run from scratch in a second session against a *different* database and a *different* API process
+— a throwaway `postgres:16` on port 5433 and the API on `:5099`, with the shared compose stack left
+untouched — to check they were not artefacts of one environment. They reproduce exactly: 2 of the
+migration files carry `[Migration(`; `PlatformSchemaPatcher` creates the six at the same six line
+numbers; all six exist afterwards.
+
+The replication also produced a cleaner form of the decisive test. Rather than boot the Production
+path and read the wreckage, boot the **Development** path against a virgin database and inspect what
+a *successful* boot leaves behind:
+
+```
+createdb planscape3            -> 0 tables, `ef database update` never run against it
+boot API (Development)         -> starts clean, /health 200, 0 unhandled exceptions
+tables in public               -> 134, including all six disputed tables
+"__EFMigrationsHistory"        -> ERROR: relation "__EFMigrationsHistory" does not exist
+```
+
+A working, fully-populated 134-table schema with **no migrations-history table at all** is the
+tidiest available statement of the finding: on the path every live environment actually takes, the
+migration mechanism is not merely incomplete, it never runs. Nothing that is true of the migration
+folder can therefore predict what a booted database contains.
+
+*(One incidental defect found while doing this, recorded but not fixed and not a Phase 6A item:
+running `ef database update` **first** and then booting Development is a hard startup crash —
+`CreateTables()` is not conditioned per-table, so it aborts on `42P07: relation
+"SustainabilitySnapshots" already exists`. The two supported paths are each fine alone; mixing them
+bricks the boot.)*
+
 **So the Backed column was inverted.** Every table B1 marked ❌ exists; every table it marked ✅ does
 not. And the corollary settles the prod question without touching prod: a database built only from
 this repo's migrations **cannot run the app at all** — it has no `Tenants` and the boot refuses. Any
 environment that is up therefore reached that state through the `EnsureCreated`/patcher path, and
 that path creates all six tables. No manual DDL needs to be hypothesised, and no production query
 could have told us anything this doesn't.
+
+### The review's own by-construction argument — right answer, broken premise
+
+The review proposed settling prod without prod access like this: *no migration creates those six
+tables, and every environment is built by `ef database update` over that same folder, so no
+environment can have them absent manual DDL.* The conclusion it was aimed at — **don't query prod** —
+is correct, and prod was not queried. But the argument as stated does not survive measurement, and it
+matters which way it fails:
+
+| Premise | Verdict |
+|---|---|
+| No migration in the repo creates the six tables | **True** — the `CreateTable` sweep reproduces. |
+| Every environment is built by `ef database update` over that folder | **False.** No environment is. That path applies 2 of 80 and yields a database with no `Tenants`, which the app refuses to boot. |
+| ∴ no environment can have them absent manual DDL | **Inverted.** Every booted environment *does* have them, and no manual DDL is involved — `PlatformSchemaPatcher` creates them on every start. |
+
+The first premise is the one that made the six look damning, and it is true but inert: in this
+codebase, migration presence carries no information about schema presence in either direction. The
+five tables B1 called "✅ backed by a migration" are precisely the five a migration-built database
+*lacks*. So the safe-looking inference — read the migration folder, conclude what prod contains — is
+not merely unreliable here, it is anti-correlated.
 
 **The real gap is not six missing migrations — it is that 78 of 80 migration files are invisible to
 EF.** That is an existing, documented, accepted architectural decision (ADR 0001), not a Phase 6A
@@ -286,6 +335,21 @@ auto-provisioning a twin and storing its reading. The write path is live, not a 
 2. *Whether the six tables really are absent* — **they are present**, and B1-R shows why they are
    present on any booted database, without needing to look at a deployed one.
 3. *Whether anything 500s for a reason not visible statically* — nothing 500s.
+
+**Re-measured independently.** The five disputed reads were re-run in a second session against the
+scratch stack of B1-R §4 — a different database, a different API process, a fresh login — rather than
+carried over from the first run:
+
+```
+work-orders          200   relation-missing=0
+global-id-registry   200   relation-missing=0
+twins                200   relation-missing=0
+twins/alerts         200   relation-missing=0
+twins/rules          200   relation-missing=0
+```
+
+Same result on a database that has never seen a migration. The 200s are a property of the code and
+the boot path, not of one seeded environment.
 
 **Residual limits, stated rather than papered over.** The pass exercises each controller's primary
 action, not all 46 actions; destructive ones (`DataRights erase`, alert `ack`/`resolve`) were
