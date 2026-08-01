@@ -1879,9 +1879,18 @@ namespace StingTools.UI
                         int idx = labels.IndexOf(pick);
                         if (idx >= 0)
                         {
-                            recipients = System.Threading.Tasks.Task
-                                .Run(() => client.ResolveDistributionGroupRecipientsAsync(pid, groups[idx].Name))
+                            // Resolve by id, not by name — we already have the id,
+                            // and two groups can legitimately share a display label
+                            // once the member count is stripped back off.
+                            var grpMembers = System.Threading.Tasks.Task
+                                .Run(() => client.ListDistributionGroupMembersAsync(pid, groups[idx].Id))
                                 .GetAwaiter().GetResult();
+                            recipients = grpMembers
+                                .Select(m => m.Display ?? m.Email ?? m.ExternalEmail ?? "")
+                                .Where(n => !string.IsNullOrWhiteSpace(n))
+                                .Select(n => n.Trim())
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
                             if (recipients.Count == 0)
                                 MessageBox.Show($"\"{groups[idx].Name}\" has no members yet.",
                                     "Distribution group");
