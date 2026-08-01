@@ -143,7 +143,7 @@ describe('DataGrid — inline edit (the contract)', () => {
     const save = vi.fn<(row: Row, value: string) => Promise<unknown>>(async () => ({}));
     grid(editable(save));
 
-    await user.click(screen.getAllByTitle('Click to edit')[0]);
+    await user.dblClick(screen.getAllByTitle('Double-click to edit (or press F2)')[0]);
     await user.selectOptions(screen.getByRole('combobox'), 'Closed');
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
@@ -158,23 +158,23 @@ describe('DataGrid — inline edit (the contract)', () => {
     });
     grid(editable(save));
 
-    const cell = screen.getAllByTitle('Click to edit')[0];
+    const cell = screen.getAllByTitle('Double-click to edit (or press F2)')[0];
     expect(cell.textContent).toBe('Open');
 
-    await user.click(cell);
+    await user.dblClick(cell);
     await user.selectOptions(screen.getByRole('combobox'), 'Closed');
 
     // The toast carries the server's own message…
     await waitFor(() => expect(screen.getByText(/someone else changed this/i)).toBeDefined());
     // …and the cell is back to what the server still holds.
-    await waitFor(() => expect(screen.getAllByTitle('Click to edit')[0].textContent).toBe('Open'));
+    await waitFor(() => expect(screen.getAllByTitle('Double-click to edit (or press F2)')[0].textContent).toBe('Open'));
   });
 
   it('does not call the endpoint when the value is unchanged', async () => {
     const user = userEvent.setup();
     const save = vi.fn(async () => ({}));
     grid(editable(save));
-    await user.click(screen.getAllByTitle('Click to edit')[0]);
+    await user.dblClick(screen.getAllByTitle('Double-click to edit (or press F2)')[0]);
     await user.selectOptions(screen.getByRole('combobox'), 'Open'); // same value
     expect(save).not.toHaveBeenCalled();
   });
@@ -183,8 +183,28 @@ describe('DataGrid — inline edit (the contract)', () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
     grid(editable(async () => ({})), { onRowClick });
-    await user.click(screen.getAllByTitle('Click to edit')[0]);
+    await user.dblClick(screen.getAllByTitle('Double-click to edit (or press F2)')[0]);
+    // A double click fires click,click,dblclick — so this also guards the
+    // deferral: if the queued single-click navigation were not cancelled,
+    // opening the editor would ALSO have navigated away from the grid.
+    await new Promise((r) => setTimeout(r, 350));
     expect(onRowClick).not.toHaveBeenCalled();
+  });
+
+  it('SINGLE click on an editable cell opens the record instead of editing it', async () => {
+    // The regression this guards: single click used to enter edit mode, so
+    // clicking a project's name — the most natural way to open it — silently
+    // armed a rename instead.
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    const save = vi.fn(async () => ({}));
+    grid(editable(save), { onRowClick });
+
+    await user.click(screen.getAllByTitle('Double-click to edit (or press F2)')[0]);
+
+    await waitFor(() => expect(onRowClick).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('combobox')).toBeNull();   // no editor opened
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('Escape abandons a text edit instead of committing it', async () => {
@@ -193,7 +213,7 @@ describe('DataGrid — inline edit (the contract)', () => {
     // filterable:false so the only textbox on screen is the cell editor —
     // otherwise this matches the toolbar's filter box too.
     grid([{ key: 'title', header: 'Title', edit: { save } }], { filterable: false });
-    await user.click(screen.getAllByTitle('Click to edit')[0]);
+    await user.dblClick(screen.getAllByTitle('Double-click to edit (or press F2)')[0]);
     await user.type(screen.getByRole('textbox'), 'xyz');
     await user.keyboard('{Escape}');
     expect(save).not.toHaveBeenCalled();
