@@ -630,7 +630,14 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
             userId = TestData.AdminUserId,
             projectRole = "Viewer"
         });
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        // member@test.org has no ProjectMember row on TestData.ProjectId (see
+        // PlanscapeWebApplicationFactory seed comment) and isn't its author, so
+        // ProjectAccessAttribute's visibility gate rejects the request before
+        // the role check ever runs. Per that attribute's documented policy,
+        // a non-visible project returns 404, not 403 — 403 would leak the
+        // project's existence to a caller who can't see it (same assertion as
+        // ProjectVisibilityTests.DeepLink_NonMember_GetsNotFound_NotForbidden).
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
