@@ -657,6 +657,7 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 // #3 — server-side ACC issue sync (push Planscape issues → ACC + token-unification seam).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.AccSyncService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ProjectPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
 // Phase 178 — Site photo workflow: redaction worker + daily digest job.
 // The pipeline is split out (PhotoPipeline/IPhotoRedactionPipeline) so
@@ -1679,6 +1680,13 @@ recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
 recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
     "custom-fields-purge", "default", j => j.ExecuteAsync(CancellationToken.None),
     "15 3 * * *");
+// Staged hard delete — nightly 03:45 UTC, permanently destroys projects whose
+// 30-day PurgeAfter has elapsed. Offset from the custom-fields purge so the two
+// destructive jobs never contend. This is the ONLY thing that hard-deletes a
+// project; the API endpoint only schedules.
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ProjectPurgeJob>(
+    "project-purge", "default", j => j.ExecuteAsync(CancellationToken.None),
+    "45 3 * * *");
 // P7 + P8 — every 10 minutes, produce glTF + thumbnail derivatives for
 // freshly-uploaded IFC/RVT models so the mobile viewer can render them.
 // Phase 178b — IFC → glTF conversion is the single biggest CPU
@@ -1889,6 +1897,10 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // Document sync — per-project auto/manual toggle (design §Flexibility).
         // Default true so existing projects keep the on-by-default behaviour.
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"DocumentSyncAutoEnabled\" boolean NOT NULL DEFAULT true",
+        // Staged hard delete — null means "not scheduled", which is why both are nullable
+        // with no default: an existing project must never look like it is pending purge.
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"PurgeAfter\" timestamp with time zone NULL",
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"PurgeRequestedById\" uuid NULL",
         // N2 — LiveKit Egress meeting recordings (table not covered by the discovered
         // EF migration set; idempotent CREATE so the running dev/container DB gets it).
         "CREATE TABLE IF NOT EXISTS \"MeetingRecordings\" (" +
