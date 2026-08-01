@@ -4440,6 +4440,18 @@
         if (s.b) $('#bottomPanel')?.classList.add('collapsed');
         if (s.l || s.r || s.b || s.lw || s.rw) onResize();
       } catch (e) {}
+      // Phones start with BOTH panels closed so the 3D view owns the screen.
+      // This deliberately overrides the persisted desktop state: those widths
+      // are restored from localStorage, and a saved "both panels open" would
+      // otherwise reproduce the zero-width-canvas bug on a phone. The header
+      // toggles still open them (as overlays — see the max-width:700px block
+      // in coordination-viewer.css), so nothing is lost, just out of the way.
+      try {
+        if (window.matchMedia && window.matchMedia('(max-width: 700px)').matches) {
+          shell.classList.add('left-collapsed', 'right-collapsed');
+          onResize();
+        }
+      } catch (e) {}
       // V2 — each rail handle: DRAG to resize the panel's width live (clamped), CLICK (no
       // drag) to collapse/expand. Width persists; the canvas + camera resize live via the
       // ortho-aware sizeRenderer so 3D framing stays correct as the viewport reclaims space.
