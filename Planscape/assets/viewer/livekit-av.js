@@ -190,7 +190,7 @@
       .then(function () { setStatus("live"); setLobby("live"); renderTiles(); emitAvState(); refreshRecordingState(); return enableDevices(); })
       .catch(function (e) {
         console.warn("[livekit] connect failed", e);
-        setStatus("offline"); setLobby("error");
+        setStatus("offline"); setLobby("error", joinFailReason(e));
         state.joined = false; showLobbyControls();
       });
 
@@ -1023,11 +1023,30 @@
     left: "Left — Join to rejoin",
     offline: "Reconnecting…",
     unavailable: "A/V unavailable",
-    error: "Couldn't join — retry",
+    error: "Couldn't join",
   };
-  function setLobby(s) {
+  // Turn a LiveKit connect error into something a coordinator can act on.
+  // The SDK says e.g. "could not establish signal connection: invalid token";
+  // the useful half is the bit after the colon.
+  function joinFailReason(e) {
+    // Deliberately NOT String(e): an Error with no message stringifies to the
+    // useless literal "Error", which would read "Couldn't join — Error".
+    var m = (e && (e.message || e.reason)) || (typeof e === "string" ? e : "");
+    m = m.replace(/^.*could not establish signal connection:\s*/i, "");
+    m = (m.split("\n")[0] || "").trim();
+    if (!m) return "";
+    return m.length > 48 ? m.slice(0, 45) + "…" : m;
+  }
+  function setLobby(s, detail) {
     var txt = document.getElementById("lkPillTxt");
-    if (txt) txt.textContent = LOBBY_TEXT[s] || "In a meeting";
+    // Every failure used to collapse into "Couldn't join — retry", with the
+    // real cause only in console.warn — so diagnosing it meant opening
+    // DevTools to read one word ("invalid token"). Show the cause instead.
+    if (txt) {
+      var base = LOBBY_TEXT[s] || "In a meeting";
+      txt.textContent = (s === "error") ? base + " — " + (detail || "retry") : base;
+      if (s === "error" && detail) txt.title = detail;
+    }
     var dot = document.getElementById("lkDot");
     if (dot) dot.style.background =
       s === "live" ? "#37c272" :
