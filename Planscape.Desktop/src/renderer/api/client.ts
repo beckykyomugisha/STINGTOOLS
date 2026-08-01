@@ -87,3 +87,55 @@ export async function apiFetch<T = unknown>(
 
   return response.json() as Promise<T>
 }
+
+export interface BlobResponse {
+  blob: Blob
+  /** Filename from Content-Disposition, or null when the server didn't send one. */
+  filename: string | null
+}
+
+/**
+ * Same auth + 401-refresh behaviour as apiFetch, but returns the raw body.
+ * Needed for endpoints that stream a file rather than JSON (the GDPR/POPIA
+ * subject-access export is a ZIP).
+ */
+export async function apiFetchBlob(
+  path: string,
+  options: RequestInit = {}
+): Promise<BlobResponse> {
+  const serverUrl = await getStoredValue<string>('serverUrl') ?? DEFAULT_SERVER
+  const accessToken = await getStoredValue<string>('accessToken')
+
+  const headers: Record<string, string> = {
+    'X-Client-Type': 'desktop',
+    ...(options.headers as Record<string, string> ?? {})
+  }
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+
+  let response = await fetch(`${serverUrl}${path}`, { ...options, headers })
+
+  if (response.status === 401) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      headers['Authorization'] = `Bearer ${newToken}`
+      response = await fetch(`${serverUrl}${path}`, { ...options, headers })
+    }
+  }
+
+  if (!response.ok) {
+    let message = response.statusText
+    try {
+      const body = await response.json()
+      message = body.message ?? body.title ?? message
+    } catch { /* body may not be JSON on a streamed endpoint */ }
+    const err: ApiError = { status: response.status, message }
+    throw err
+  }
+
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const match = /filename=([^;]+)/i.exec(disposition)
+  return {
+    blob: await response.blob(),
+    filename: match ? match[1].trim().replace(/^"|"$/g, '') : null
+  }
+}
