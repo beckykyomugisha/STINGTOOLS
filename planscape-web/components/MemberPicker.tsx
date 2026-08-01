@@ -45,6 +45,14 @@ export interface MemberPickerProps {
   value: string | null | string[];
   onChange: (value: string | null | string[]) => void;
   multiple?: boolean;
+  /**
+   * Fires with the resolved member objects behind `value` whenever the
+   * selection or the roster changes. For callers whose stored field is still a
+   * string (transmittal recipient) rather than an FK — they need the canonical
+   * name/email, and this saves them fetching a second copy of the roster,
+   * which is the drift this component exists to prevent.
+   */
+  onResolve?: (selected: ProjectMember[]) => void;
   /** Shown as the empty option in single mode. */
   placeholder?: string;
   /** Hide the invite row where the caller cannot grant project access. */
@@ -64,6 +72,7 @@ export function MemberPicker({
   value,
   onChange,
   multiple = false,
+  onResolve,
   placeholder = 'Unassigned',
   allowInvite = true,
   disabled = false,
@@ -106,6 +115,19 @@ export function MemberPicker({
     : typeof value === 'string' && value
       ? [value]
       : [];
+
+  // Kept as an effect rather than folded into `toggle` so it also fires once
+  // the roster finishes loading — a caller preselecting an id it was handed
+  // still gets the resolved member without a second render pass of its own.
+  const selectedKey = selectedIds.join(',');
+  useEffect(() => {
+    if (!onResolve || members === null) return;
+    onResolve(members.filter((m) => selectedIds.includes(m.userId)));
+    // `selectedKey` stands in for `selectedIds`, which is a fresh array each
+    // render; `onResolve` is intentionally excluded so an inline arrow in the
+    // caller does not re-fire this on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members, selectedKey]);
 
   function toggle(userId: string) {
     if (!multiple) {
