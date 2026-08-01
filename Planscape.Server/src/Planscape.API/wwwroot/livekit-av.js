@@ -105,8 +105,13 @@
   window.addEventListener("sting:meetLayout", function (e) {
     var mode = (e.detail && e.detail.mode) || "pip";
     var bar = document.getElementById("lkBar"); if (!bar) return;
-    if (mode === "sidebar") { bar.style.left = "auto"; bar.style.right = "12px"; bar.style.transform = "none"; }
-    else { bar.style.left = "50%"; bar.style.right = "auto"; bar.style.transform = "translateX(-50%)"; }
+    // Every mode now docks right. Bottom-centre put the Join button straight
+    // on top of the nav-controls cluster (Orbit / Pan / Walk / Fit …) and the
+    // level strip, so the two fought for the same pixels and the button was
+    // unclickable in places. Right is the only bottom edge with nothing
+    // competing for it once we clear the minimap.
+    bar.style.left = "auto"; bar.style.right = "12px"; bar.style.transform = "none";
+    positionBarAboveTray(bar);
   });
   // N2 — the host started/stopped recording (MeetingHub RecordingChanged); show the
   // consent "● REC" indicator to EVERYONE.
@@ -948,6 +953,15 @@
         var r = bp.getBoundingClientRect();
         if (r.height > 0 && r.top < window.innerHeight) {
           offset = Math.round(window.innerHeight - r.top) + 16;
+        }
+      }
+      // The bar docks bottom-RIGHT, which is exactly where the minimap lives.
+      // Stack above it rather than on it.
+      var mm = document.getElementById("minimap");
+      if (mm) {
+        var m = mm.getBoundingClientRect();
+        if (m.height > 0 && m.right > window.innerWidth - 260) {
+          offset = Math.max(offset, Math.round(window.innerHeight - m.top) + 16);
         }
       }
     } catch (e) {}
