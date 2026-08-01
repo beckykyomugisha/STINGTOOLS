@@ -114,6 +114,15 @@
     // iframe) can pass ?embed=1 to suppress the auto-redirect on 401 and
     // handle re-auth themselves.
     const embedMode     = params.get('embed') === '1';
+    // Being inside ANY iframe counts as embedded, whether or not the host
+    // remembered to pass ?embed=1 — and planscape-web does not pass it. That
+    // omission meant a single 401 sent this document to /index.html, so the
+    // old "office dashboard" page appeared INSIDE the 3D viewer panel and the
+    // model was gone. A frame must never navigate itself out from under its
+    // host; it should report the problem and let the host re-auth.
+    let inIframe = false;
+    try { inIframe = window.top !== window.self; } catch (_) { inIframe = true; } // cross-origin throws
+    const embeddedNoRedirect = embedMode || inIframe;
 
     // ── State ───────────────────────────────────────────────────────────
     const state = {
@@ -221,11 +230,13 @@
           // so a future dashboard-side `?next=` handler can pick it up.
           // Embedders pass ?embed=1 to keep the viewer mounted and
           // re-auth themselves.
-          toast('Sign-in expired — redirecting to login…', 'error');
+          toast(embeddedNoRedirect
+            ? 'Sign-in expired — reload the page to continue.'
+            : 'Sign-in expired — redirecting to login…', 'error');
           if (typeof localStorage !== 'undefined') {
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
           }
-          if (!embedMode) {
+          if (!embeddedNoRedirect) {
             const next = location.pathname + location.search;
             try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
             setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
@@ -487,9 +498,15 @@
           if (res.status === 401) {
             if (!authChallenged) {
               authChallenged = true;
-              showBootError('Sign-in expired — redirecting to login…', false);
+              // Embedded: stay put and offer a reload. Navigating the frame to
+              // the old dashboard is what replaced the 3D view with a marketing
+              // page and lost the model.
+              showBootError(embeddedNoRedirect
+                ? 'Sign-in expired — reload the page to load this model.'
+                : 'Sign-in expired — redirecting to login…',
+                embeddedNoRedirect, () => location.reload());
               try { localStorage.removeItem('planscape_token'); } catch (_) {}
-              if (!embedMode) {
+              if (!embeddedNoRedirect) {
                 // Same target as the api() helper above: dashboard's login
                 // overlay at /index.html (the bare /login path is a SPA hash).
                 const next = location.pathname + location.search;
@@ -552,7 +569,11 @@
           if (hasGeometry || !bl || bl.style.display === 'none') return;   // loaded fine
           showBootError(hostLoadRequested
             ? 'The model is taking longer than expected to load.'
-            : 'No model was loaded for this view — it may not be published yet.',
+            // Don't blame publishing: the far more common cause is that this
+            // page never sent us a model (expired sign-in, or the host's load
+            // never fired). Telling a user to re-publish a model that is
+            // already published sends them down the wrong path entirely.
+            : 'This page didn\'t send a model to the viewer — try reloading.',
             true, () => location.reload());
         }, HOST_LOAD_WATCHDOG_MS);
       }

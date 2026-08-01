@@ -26,7 +26,15 @@ export default function ViewerPage() {
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
+  // A COUNTER, not a boolean. The iframe's onLoad fires on every load of that
+  // document — including when the viewer re-navigates itself (starting a
+  // meeting rewrites its own location). With a boolean, the second onLoad set
+  // `true` to `true`, React bailed out, the load effects below never re-ran,
+  // and the freshly-reloaded viewer was never told which model to show: it sat
+  // on an empty scene forever while the host, from its point of view, had
+  // already done its job. Incrementing re-runs the effects on every load, so
+  // the model is re-sent whenever the iframe document is new.
+  const [ready, setReady] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -274,7 +282,7 @@ export default function ViewerPage() {
             src={viewerSrc}
             title="3D model"
             className="h-full w-full border-0"
-            onLoad={() => setReady(true)}
+            onLoad={() => setReady((n) => n + 1)}
             // camera/microphone/display-capture are what let the embedded
             // meeting actually publish media from this cross-origin frame.
             allow="fullscreen; camera; microphone; display-capture"
