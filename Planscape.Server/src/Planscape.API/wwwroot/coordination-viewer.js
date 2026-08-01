@@ -4553,8 +4553,23 @@
       // Restore persisted collapse state + widths on load.
       try {
         const s = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
-        if (s.lw) document.documentElement.style.setProperty('--panel-left-width', s.lw);    // V2
-        if (s.rw) document.documentElement.style.setProperty('--panel-right-width', s.rw);
+        // Clamp restored widths to the SAME range the drag handle enforces
+        // (180-560), and additionally to a sane share of the CURRENT viewport.
+        // Dragging clamped but restoring did not, so a width saved on a wide
+        // monitor came back verbatim on a smaller one: the panel overflowed
+        // the viewport and took its own drag grip off-screen with it, leaving
+        // no way to get it back. Anything unparseable is dropped rather than
+        // applied blindly.
+        const clampPanelPx = (raw) => {
+          const n = parseFloat(String(raw));
+          if (!isFinite(n) || n <= 0) return null;
+          const viewportCap = Math.max(180, Math.floor(window.innerWidth * 0.4));
+          return Math.min(560, Math.max(180, Math.min(n, viewportCap))) + 'px';
+        };
+        const lw = s.lw ? clampPanelPx(s.lw) : null;
+        const rw = s.rw ? clampPanelPx(s.rw) : null;
+        if (lw) document.documentElement.style.setProperty('--panel-left-width', lw);    // V2
+        if (rw) document.documentElement.style.setProperty('--panel-right-width', rw);
         if (s.l) shell.classList.add('left-collapsed');
         if (s.r) shell.classList.add('right-collapsed');
         if (s.b) $('#bottomPanel')?.classList.add('collapsed');
