@@ -43,8 +43,15 @@ export default function IssueDetailPage() {
       // Send the FK, not a display name. The server validates it against
       // project membership and 400s otherwise, which is precisely why this
       // used to fail silently when someone typed a name by hand.
+      //
+      // Clearing is the awkward case: a null AssigneeUserId is "leave
+      // unchanged" server-side, not "unassign", so selecting Unassigned would
+      // do nothing at all. Sending an empty display name takes the server's
+      // name-only path and clears the visible assignee, which is as far as
+      // unassigning has ever gone here — UpdateIssue deliberately never clears
+      // AssigneeUserId. Truly releasing the FK needs a server change.
       const body: Partial<BimIssue> = {
-        assigneeUserId: assigneeUserId,
+        ...(assigneeUserId ? { assigneeUserId } : { assignee: '' }),
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       };
       const updated = await updateIssue(projectId, issueId, body);
