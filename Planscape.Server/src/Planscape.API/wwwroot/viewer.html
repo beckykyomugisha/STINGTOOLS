@@ -1468,7 +1468,13 @@ THREE.ColorManagement.enabled = false;
     // boot watchdog can distinguish "the host never asked" (nothing is
     // coming — say so) from "a load is genuinely in flight" (wait longer).
     if (cmd.type === 'load' || cmd.type === 'addModel') {
-      try { window.dispatchEvent(new CustomEvent('sting:modelLoadRequested')); } catch (_) {}
+      // Carries modelId so the coordination layer can preserve the model
+      // across a re-navigation (starting a meeting reloads this document).
+      try {
+        window.dispatchEvent(new CustomEvent('sting:modelLoadRequested', {
+          detail: { modelId: cmd.payload && cmd.payload.modelId }
+        }));
+      } catch (_) {}
     }
     switch (cmd.type) {
       case 'load':            loadModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;

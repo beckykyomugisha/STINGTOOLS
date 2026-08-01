@@ -65,6 +65,17 @@
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
+    // Which model the HOST actually put on screen. planscape-web never puts
+    // ?model= in the iframe url — it drives the model over postMessage — so
+    // `modelId` above is empty in the web app and this is the only record of
+    // what is loaded. Starting a meeting re-navigates this document (see
+    // meetingJoinUrl), and without this the model was silently dropped on the
+    // way and never came back. Set from the 'load' / 'addModel' host command.
+    let hostActiveModelId = '';
+    window.addEventListener('sting:modelLoadRequested', (e) => {
+      const id = e && e.detail && e.detail.modelId;
+      if (id) hostActiveModelId = String(id);
+    });
     // U10 — resolve the API base from (in order): explicit window override
     // for embedders, user-saved Settings popover value (LAN/staging/on-prem),
     // build-time injected EXPO_PUBLIC_API_BASE, the URL ?api= param for
@@ -810,7 +821,14 @@
       const u = new URL(location.href);
       u.searchParams.set('meeting', sessionId);
       if (projectId) u.searchParams.set('project', projectId);
-      if (modelId) u.searchParams.set('model', modelId);
+      // Carry the model through the re-navigation. `modelId` is the ?model=
+      // param, which is EMPTY in the web app (the host drives the model over
+      // postMessage), so falling back to the host-loaded id is what stops
+      // "start a meeting" from reloading into a permanently model-less
+      // viewer: the host does not re-post 'load' after this document
+      // reloads, so nothing else would ever bring the geometry back.
+      const carryModelId = modelId || hostActiveModelId;
+      if (carryModelId) u.searchParams.set('model', carryModelId);
       return u.toString();
     }
     function copyToClipboard(text) {
