@@ -9,14 +9,6 @@
 (function () {
   'use strict';
 
-  // Was `true` with the note "server endpoint may not exist yet". It does
-  // exist (GET /clashes, POST /clashes/run), so this flag meant the viewer
-  // NEVER asked the server and always rendered mockClashes() — fabricated
-  // pairings of real element GUIDs, indistinguishable from real findings.
-  // That is why the viewer showed 12 clashes while the server (and the web
-  // app, correctly) had none.
-  const USE_MOCK_CLASHES = false;
-
   // ── Boot guard — wait for STING_VIEWER to be ready ────────────────────
   // C3: bail with a visible error card after 30s so dependency failures
   // don't leave the user staring at an infinite spinner.
@@ -140,9 +132,13 @@
       elementMap: {},
       meshMeta: new Map(),     // mesh.uuid → meta (M0 resolver — verified at load)
       guidMeshes: new Map(),   // guid → mesh[] (multi-mesh elements)
-      members: [{ id: 'me', name: 'You', initials: 'YO' },
-                { id: 'sd', name: 'Sting Davis', initials: 'SD' },
-                { id: 'se', name: 'Sentongo E.', initials: 'SE' }],
+      // Only the signed-in user, who is known without asking the server. This
+      // used to seed two named colleagues, so a viewer that was offline or
+      // lacked roster permission still offered real people as assignees —
+      // on projects they may not even be on. loadProjectMembers() replaces
+      // this with the canonical roster; when it can't, the pickers say the
+      // roster is unavailable rather than inventing one.
+      members: [{ id: 'me', name: 'You', initials: 'YO' }],
       activeDisciplines: new Set(),   // empty = all visible
       selectedElementGuid: null,      // PRIMARY (last-clicked) — kept for
                                       // backward-compat with downstream
@@ -617,9 +613,9 @@
       }
 
       // Project members — populates assignee + watcher pickers with the
-      // real org/project roster instead of the hardcoded "Sting Davis /
-      // Sentongo E." demo seed. Falls back silently to the seed list when
-      // the endpoint is unavailable (offline, permission denied, etc.).
+      // canonical org/project roster. When the endpoint is unavailable
+      // (offline, permission denied) the pickers offer only the signed-in
+      // user — never an invented colleague.
       await loadProjectMembers();
 
       // Issues + clashes + site photos (Slice 4b)
@@ -641,7 +637,7 @@
       if (!projectId) return;
       const data = await api(`/api/projects/${projectId}/members`);
       const list = Array.isArray(data) ? data : (data?.items || data?.members || []);
-      if (!list.length) return;     // keep demo seed when API empty/unauth
+      if (!list.length) return;     // roster empty/unauth — keep "You" only
       const me = state.currentUser;
       const meId = me && (me.id || me.userId);
       const mapped = list.map(m => {
@@ -3856,10 +3852,9 @@
       // U4 — show inline loader while the request is in flight.
       const body = $('#clashesBody');
       if (body) body.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading clashes…</div>';
-      let data = null;
-      if (!USE_MOCK_CLASHES && projectId) {
-        data = await api(`/api/projects/${projectId}/clashes`);
-      }
+      // The USE_MOCK_CLASHES flag that used to gate this is gone along with the
+      // generator it selected — there is nothing left to switch between.
+      const data = projectId ? await api(`/api/projects/${projectId}/clashes`) : null;
       // No fabrication fallback. An empty or failed response means we show
       // nothing and say so — inventing clashes a coordinator might act on is
       // far worse than an empty list.
@@ -3867,44 +3862,6 @@
       placeClashPins();
       renderClashes();
       updateBadges();
-    }
-
-    function mockClashes() {
-      // Synthesise from element map so positions render somewhere visible.
-      const guids = Object.keys(state.elementMap || {});
-      if (!guids.length) {
-        return [
-          { id: 'CLH-1', type: 'HARD', elementA: { guid: 'a', name: 'AHU-001' }, elementB: { guid: 'b', name: 'Beam-044' }, overlap_mm: 145, status: 'NEW', discPair: 'MECH/STR' },
-          { id: 'CLH-2', type: 'HARD', elementA: { guid: 'c', name: 'Duct-022' }, elementB: { guid: 'd', name: 'Col-018' }, overlap_mm: 88, status: 'NEW', discPair: 'MECH/STR' },
-          { id: 'CLH-3', type: 'SOFT', elementA: { guid: 'e', name: 'Pipe-009' }, elementB: { guid: 'f', name: 'Duct-033' }, overlap_mm: 42, status: 'OPEN', discPair: 'PLMB/MECH', assignedTo: 'Sentongo E.' },
-          { id: 'CLH-4', type: 'HARD', elementA: { guid: 'g', name: 'AHU-003' }, elementB: { guid: 'h', name: 'Beam-081' }, overlap_mm: 201, status: 'RESOLVED', discPair: 'MECH/STR', assignedTo: 'Sting Davis' }
-        ];
-      }
-      const pick = () => guids[Math.floor(Math.random() * guids.length)];
-      const pickPair = () => {
-        // R6 — never clash an element with itself; retry up to a bounded
-        // number of times before giving up (real models have far more
-        // than 2 elements so this almost always succeeds first try).
-        let a = pick(), b = pick(), guard = 6;
-        while (a === b && guard-- > 0) b = pick();
-        return [a, b];
-      };
-      const out = [];
-      for (let i = 1; i <= 12; i++) {
-        const [a, b] = pickPair();
-        if (a === b) continue;
-        const ma = state.elementMap[a] || {}, mb = state.elementMap[b] || {};
-        out.push({
-          id: `CLH-${String(i).padStart(3, '0')}`,
-          type: i % 3 === 0 ? 'SOFT' : 'HARD',
-          elementA: { guid: a, name: ma.name || a.slice(0, 8) },
-          elementB: { guid: b, name: mb.name || b.slice(0, 8) },
-          overlap_mm: Math.round(20 + Math.random() * 200),
-          status: i % 6 === 0 ? 'RESOLVED' : (i % 4 === 0 ? 'OPEN' : 'NEW'),
-          discPair: `${(ma.discipline || 'MECH').slice(0, 4)}/${(mb.discipline || 'STR').slice(0, 4)}`
-        });
-      }
-      return out;
     }
 
     function placeClashPins() {
@@ -4092,7 +4049,12 @@
       if (sf !== 'any') rows = rows.filter(c => c.status === sf);
       if (tf !== 'any') rows = rows.filter(c => c.type === tf);
 
-      body.innerHTML = rows.length ? '' : '<div class="empty-state">No clashes match the filter</div>';
+      // "No clashes match the filter" was shown even with no filter set and
+      // nothing loaded, which reads as "results are hidden" when the truth is
+      // "detection has never run". Separate the two.
+      body.innerHTML = rows.length ? '' : (state.clashes.length
+        ? '<div class="empty-state">No clashes match the filter</div>'
+        : '<div class="empty-state">No clashes — run detection</div>');
       if (rows.length) {
         const table = el('table', { class: 'dtable' });
         table.innerHTML = `<thead><tr>
@@ -6438,26 +6400,25 @@
       const w = c.width = c.clientWidth;
       const h = c.height = c.clientHeight;
       ctx.fillStyle = '#1C1F26'; ctx.fillRect(0, 0, w, h);
-      // mock data
-      const sessions = 10;
-      const clashTrend  = Array.from({ length: sessions }, (_, i) => Math.max(0, 60 - i * 5 + Math.random() * 8));
-      const issueTrend  = Array.from({ length: sessions }, (_, i) => Math.max(0, 18 - i * 1.4 + Math.random() * 3));
-      drawSpark(ctx, clashTrend, w, h, '#EF4444', 0);
-      drawSpark(ctx, issueTrend, w, h, '#F59E0B', 1);
-      ctx.fillStyle = '#8892A4'; ctx.font = '11px Inter';
-      ctx.fillText('Clashes (red) · Issues (amber)  — last 10 sessions', 10, 16);
-    }
-    function drawSpark(ctx, data, w, h, colour) {
-      const max = Math.max(...data, 1);
-      ctx.beginPath();
-      data.forEach((v, i) => {
-        const x = 20 + (w - 40) * (i / (data.length - 1));
-        const y = h - 16 - (h - 40) * (v / max);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.stroke();
-    }
 
+      // This drew two Math.random() curves labelled "last 10 sessions" — a
+      // clash trend falling from ~60 to ~15 and an issue trend falling from
+      // ~18 to ~5. Reassuring, entirely invented, and redrawn differently on
+      // every visit to the tab. Nothing in the viewer records per-session
+      // history, and there is no clash/issue trend endpoint to read, so the
+      // honest state is "no data" until one exists.
+      //
+      // The one number we DO know is the live count, so show that rather than
+      // an empty box.
+      ctx.fillStyle = '#8892A4';
+      ctx.font = '12px Inter, system-ui, sans-serif';
+      ctx.fillText('No trend history recorded for this project yet.', 12, 26);
+      ctx.fillStyle = '#6B7480';
+      ctx.font = '11px Inter, system-ui, sans-serif';
+      ctx.fillText(
+        `Currently open — clashes: ${state.clashes.length} · issues: ${state.issues.length}`,
+        12, 48);
+    }
     // ── Viewport overlays (coords + minimap + level + nav + section) ───
     let lastClickPoint = null;
     function setupViewportOverlays() {
