@@ -239,10 +239,11 @@ Both to be fixed in whichever PR next touches those files, per the review.
 
 ## Runtime pass (measured)
 
-**Closed.** The earlier blocker was self-inflicted: Docker Desktop had never actually been launched,
-only probed. Starting `"C:\Program Files\Docker\Docker\Docker Desktop.exe"` brought the daemon up
-first try (`docker version` → server `29.4.3`, `docker-desktop` distro `Running`), no elevation or
-dialog required. The previous revision's "needs a human" diagnosis was wrong.
+**Closed.** The blocker did not reproduce. `Start-Process "C:\Program Files\Docker\Docker\Docker
+Desktop.exe"` brought the daemon up first try — `docker version` → server `29.4.3`, `docker-desktop`
+distro `Running` — with no elevation and no dialog. I cannot say why the previous revision's two
+attempts failed where this one succeeded, so I am not going to guess; what is now established is
+that the "needs a human to accept a blocking dialog" diagnosis was **not** the barrier.
 
 **Environment.** Local only — `docker-postgres-1` (`postgres:16-alpine`) and `docker-api-1`, plus a
 throwaway API container against a scratch database for the fresh-boot test. **No production database
