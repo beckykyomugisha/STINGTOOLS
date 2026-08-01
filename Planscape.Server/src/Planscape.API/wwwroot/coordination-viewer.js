@@ -9,7 +9,13 @@
 (function () {
   'use strict';
 
-  const USE_MOCK_CLASHES = true;   // server endpoint may not exist yet
+  // Was `true` with the note "server endpoint may not exist yet". It does
+  // exist (GET /clashes, POST /clashes/run), so this flag meant the viewer
+  // NEVER asked the server and always rendered mockClashes() — fabricated
+  // pairings of real element GUIDs, indistinguishable from real findings.
+  // That is why the viewer showed 12 clashes while the server (and the web
+  // app, correctly) had none.
+  const USE_MOCK_CLASHES = false;
 
   // ── Boot guard — wait for STING_VIEWER to be ready ────────────────────
   // C3: bail with a visible error card after 30s so dependency failures
@@ -3854,7 +3860,10 @@
       if (!USE_MOCK_CLASHES && projectId) {
         data = await api(`/api/projects/${projectId}/clashes`);
       }
-      state.clashes = (Array.isArray(data) ? data : (data?.items || null)) || mockClashes();
+      // No fabrication fallback. An empty or failed response means we show
+      // nothing and say so — inventing clashes a coordinator might act on is
+      // far worse than an empty list.
+      state.clashes = Array.isArray(data) ? data : (data?.items || []);
       placeClashPins();
       renderClashes();
       updateBadges();
@@ -6336,9 +6345,19 @@
           onResize();
         });
       }
-      $('#btnRunDetect').addEventListener('click', () => {
-        toast('Running clash detection… (mock)', 'warn');
-        setTimeout(() => { state.clashes = mockClashes(); placeClashPins(); renderClashes(); toast('Clash detection complete', 'success'); }, 1200);
+      $('#btnRunDetect').addEventListener('click', async () => {
+        // Previously this invented results client-side and reported success.
+        // Run the REAL detection job on the server, then reload the roster.
+        if (!projectId) return toast('No project — cannot run detection', 'warn');
+        toast('Running clash detection…');
+        try {
+          await api(`/api/projects/${projectId}/clashes/run`, { method: 'POST' });
+          await loadClashes();
+          toast(`Clash detection complete — ${state.clashes.length} found`, 'success');
+        } catch (err) {
+          console.warn('[coord] clash detection failed', err && err.message);
+          toast('Clash detection failed — see console', 'error');
+        }
       });
       $('#btnExportCsv').addEventListener('click', exportClashesCsv);
       $('#btnExportIssues').addEventListener('click', exportIssuesCsv);
