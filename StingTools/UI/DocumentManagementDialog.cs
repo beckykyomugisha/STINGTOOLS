@@ -1800,13 +1800,53 @@ namespace StingTools.UI
             {
                 AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                ToolTip = "One recipient per line. Use + buttons to pick from team registry."
+                ToolTip = "One recipient per line. + Member picks from the project roster; + Group from distribution groups."
             };
             stack.Children.Add(recipientBox);
 
             addRecipientBtn.Click += (s, e) =>
             {
-                string picked = ProjectTeamRegistry.PickMember("Add Recipient", "Select transmittal recipient:");
+                // Source the roster from the server, not project_team.json.
+                // ProjectTeamRegistry is a hand-edited local file that nobody
+                // reconciles against who is actually on the project, so a
+                // transmittal — a formal record of issuing documents — could be
+                // addressed to someone who left months ago, or to a name spelled
+                // three different ways across three transmittals.
+                var roster = StingTools.Core.ProjectRoster.Load(doc);
+                const string externalOpt = "[External recipient — not a project member]";
+
+                var picks = roster
+                    .Select(m => string.IsNullOrWhiteSpace(m.Email)
+                        ? m.Display
+                        : $"{m.Display} — {m.Email}")
+                    .ToList();
+                picks.Add(externalOpt);
+
+                string prompt = roster.Count > 0
+                    ? "Select transmittal recipient:"
+                    : "No project members found — the model may not be linked to a Planscape\n" +
+                      "project, or the server is unreachable.";
+
+                string picked = StingListPicker.Show("Add Recipient", prompt, picks);
+                if (string.IsNullOrEmpty(picked)) return;
+
+                if (picked == externalOpt)
+                {
+                    // Kept deliberately: issuing to a client contact or a
+                    // subcontractor outside the project is normal. It is labelled
+                    // so it reads as a choice rather than a gap in the list.
+                    picked = PromptForText("External Recipient",
+                        "Name or email of the external recipient:", "");
+                    if (string.IsNullOrWhiteSpace(picked)) return;
+                }
+                else
+                {
+                    // Store the name only — the "— email" suffix is display sugar.
+                    int dash = picked.IndexOf(" — ", StringComparison.Ordinal);
+                    if (dash > 0) picked = picked.Substring(0, dash);
+                }
+
+                picked = picked.Trim();
                 if (!string.IsNullOrEmpty(picked) && !recipientBox.Text.Contains(picked))
                     recipientBox.AppendText(picked + "\n");
             };
