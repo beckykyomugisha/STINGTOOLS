@@ -4853,74 +4853,15 @@ namespace StingTools.UI
                 // The deprecated team_members.json write path is no longer used.
                 savePlBtn.Click += async (s, e) =>
                 {
-                    var client = BIMManager.PlanscapeServerClient.Instance;
-                    if (client == null || !client.IsConnected)
+                    // Shared with the Member Directory tab's Save button \u2014 see
+                    // SaveRosterToServerAsync. Both write to the server; neither
+                    // writes team_members.json.
+                    bool reloaded = await SaveRosterToServerAsync().ConfigureAwait(true);
+                    if (reloaded)
                     {
-                        ShowStatus("Not connected to Planscape Server \u2014 connect below to manage access.");
-                        return;
-                    }
-
-                    Guid projectGuid = client.CurrentProjectId;
-                    if (projectGuid == Guid.Empty)
-                    {
-                        var link = BIMManager.PlanscapeProjectLink.Load(
-                            BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
-                        if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
-                    }
-                    if (projectGuid == Guid.Empty)
-                    {
-                        ShowStatus("No Planscape project linked \u2014 link this model on the PLATFORM tab to manage server access.");
-                        return;
-                    }
-
-                    // Map a grid Role -> (projectRole, iso19650Role), same convention as Invite Selected.
-                    (string projectRole, string isoRole) MapRole(string role)
-                    {
-                        role = (role ?? "").Trim();
-                        var platformRoles = new[] { "Admin", "Coordinator", "Viewer", "External" };
-                        if (platformRoles.Contains(role, StringComparer.OrdinalIgnoreCase)) return (role, null);
-                        var firstToken = role.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-                        if (firstToken.Length > 0 && firstToken.Length <= 4 && firstToken.All(char.IsLetter)) return (null, firstToken);
-                        return (null, null);
-                    }
-
-                    var toInvite = _data.TeamMembers
-                        .Where(m => !m.ServerUserId.HasValue && !string.IsNullOrWhiteSpace(m.Email))
-                        .ToList();
-
-                    int invited = 0, failed = 0;
-                    foreach (var tm in toInvite)
-                    {
-                        try
-                        {
-                            var (pr, iso) = MapRole(tm.Role);
-                            ShowStatus($"Inviting {tm.Email} to the project\u2026");
-                            var res = await client.InviteMemberAsync(projectGuid, tm.Email.Trim(), tm.Name, pr, iso).ConfigureAwait(true);
-                            if (res.Reachable && res.Ok) invited++;
-                            else { failed++; StingLog.Warn($"[access] invite failed for {tm.Email}: {res.Message}"); }
-                        }
-                        catch (Exception iex) { failed++; StingLog.Warn($"[access] invite error for {tm.Email}: {iex.Message}"); }
-                    }
-
-                    // Reload the canonical roster from the server so the grid reflects server truth.
-                    var fresh = await client.GetProjectMembersAsync(projectGuid).ConfigureAwait(true);
-                    if (fresh != null && fresh.Count > 0)
-                    {
-                        _data.TeamMembers = fresh.Select(m => new TeamMemberRow
-                        {
-                            Name = m.DisplayName ?? m.Email ?? "Member",
-                            Email = m.Email,
-                            Role = string.IsNullOrWhiteSpace(m.ProjectRole) ? m.Iso19650Role : m.ProjectRole,
-                            Active = true,
-                            ServerUserId = m.UserId,
-                            ServerMemberId = m.Id,
-                        }).ToList();
                         accessGrid.ItemsSource = null;
                         accessGrid.ItemsSource = _data.TeamMembers;
                     }
-                    ShowStatus(invited > 0
-                        ? $"Saved to server \u2014 invited {invited} new member(s){(failed > 0 ? $", {failed} failed" : "")}. Roster reloaded from server."
-                        : (failed > 0 ? $"{failed} invite(s) failed \u2014 see log." : "Roster is in sync with the server."));
                 };
                 accessToolbar.Children.Add(savePlBtn);
                 detailStack.Children.Add(accessToolbar);
@@ -11343,6 +11284,180 @@ namespace StingTools.UI
         //  STATIC SHOW METHOD
         // ════════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Map a grid Role cell onto the server's (projectRole, iso19650Role) pair.
+        ///
+        /// Two different grids feed this. The ACCESS grid carries platform roles
+        /// (Admin/Coordinator/Viewer/External); the MEMBER DIRECTORY grid carries
+        /// ISO 19650 role *display names* ("BIM Coordinator", "Structural Engineer").
+        /// The previous version took the first whitespace token when it was 4 chars
+        /// or shorter, which turned "BIM Coordinator" into the ISO role "BIM" (the
+        /// code for BIM *Manager*) and silently dropped every longer name — "Project
+        /// Manager", "Architect (Lead Designer)" and "Author" all resolved to
+        /// (null, null). Resolve against the canonical catalogue instead.
+        /// </summary>
+        internal static (string projectRole, string isoRole) MapRoleToServer(string role)
+        {
+            role = (role ?? "").Trim();
+            if (role.Length == 0) return (null, null);
+
+            var platformRoles = new[] { "Admin", "Coordinator", "Viewer", "External" };
+            if (platformRoles.Contains(role, StringComparer.OrdinalIgnoreCase)) return (role, null);
+
+            var catalogue = GetDefaultRoles();
+
+            // Exact code match ("BC", "PM", "SE") — the Permission Groups grid.
+            var byCode = catalogue.FirstOrDefault(r =>
+                string.Equals(r.Code, role, StringComparison.OrdinalIgnoreCase));
+            if (byCode != null) return (null, byCode.Code);
+
+            // Exact display-name match against the catalogue.
+            var byName = catalogue.FirstOrDefault(r =>
+                string.Equals(r.Name, role, StringComparison.OrdinalIgnoreCase));
+            if (byName != null) return (null, byName.Code);
+
+            // Member Directory offers a longer ISO 19650 role list whose wording
+            // differs from the catalogue's. Map the ones that genuinely
+            // correspond; anything unmapped falls through to the server default
+            // rather than being guessed at.
+            var aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Client / Employer"]                  = "CL",
+                ["Appointing Party Representative"]    = "CL",
+                ["Project Manager"]                    = "PM",
+                ["BIM Manager"]                        = "BIM",
+                ["BIM Coordinator"]                    = "BC",
+                ["BIM Technician"]                     = "BT",
+                ["Information Manager"]                = "BIM",
+                ["CDE Administrator"]                  = "BIM",
+                ["Architect (Lead Designer)"]          = "AR",
+                ["Structural Engineer"]                = "SE",
+                ["Building Services / MEP Engineer"]   = "ME",
+                ["Civil Engineer"]                     = "CV",
+                ["Landscape Architect"]                = "LA",
+                ["Interior Designer"]                  = "ID",
+                ["Fire Engineer"]                      = "FP",
+                ["Cost Manager / QS"]                  = "QS",
+                ["Principal Contractor"]               = "CT",
+                ["Subcontractor Manager"]              = "SC",
+                ["FM Manager"]                         = "FM",
+                ["Asset Manager"]                      = "FM",
+                ["Document Controller"]                = "BIM",
+            };
+            if (aliases.TryGetValue(role, out var code)) return (null, code);
+
+            return (null, null);
+        }
+
+        /// <summary>
+        /// The single server-canonical roster save. Invites every row that has an
+        /// email but no ServerUserId, then reloads the roster from the server so
+        /// the grids show server truth rather than local edits.
+        ///
+        /// Both Save buttons (ACCESS → "Save Access" and MEMBER DIRECTORY → "Save")
+        /// route here. There is deliberately no local-file write path: a member
+        /// saved only to team_members.json never reached the web app, the access
+        /// dropdowns, or anyone else on the project, and vanished on the next
+        /// server reload.
+        /// </summary>
+        /// <returns>true when <c>_data.TeamMembers</c> was replaced with the server roster.</returns>
+        private async System.Threading.Tasks.Task<bool> SaveRosterToServerAsync()
+        {
+            var client = BIMManager.PlanscapeServerClient.Instance;
+            if (client == null || !client.IsConnected)
+            {
+                ShowStatus("Not connected to Planscape Server — connect on the ACCESS tab to manage members.");
+                return false;
+            }
+
+            Guid projectGuid = client.CurrentProjectId;
+            if (projectGuid == Guid.Empty)
+            {
+                var link = BIMManager.PlanscapeProjectLink.Load(
+                    BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
+            }
+            if (projectGuid == Guid.Empty)
+            {
+                ShowStatus("No Planscape project linked — link this model on the PLATFORM tab to manage members.");
+                return false;
+            }
+
+            var rows = _data.TeamMembers ?? new List<TeamMemberRow>();
+
+            // A row with no email cannot be invited — there is nothing to
+            // identify the person by. Say so rather than dropping it silently,
+            // which is exactly what the old local-file path did.
+            var noEmail = rows.Count(m => !m.ServerUserId.HasValue && string.IsNullOrWhiteSpace(m.Email));
+
+            var toInvite = rows
+                .Where(m => !m.ServerUserId.HasValue && !string.IsNullOrWhiteSpace(m.Email))
+                .ToList();
+
+            int invited = 0, failed = 0;
+            foreach (var tm in toInvite)
+            {
+                try
+                {
+                    var (pr, iso) = MapRoleToServer(tm.Role);
+                    ShowStatus($"Inviting {tm.Email} to the project…");
+                    var res = await client.InviteMemberAsync(projectGuid, tm.Email.Trim(), tm.Name, pr, iso).ConfigureAwait(true);
+                    if (res.Reachable && res.Ok) invited++;
+                    else { failed++; StingLog.Warn($"[access] invite failed for {tm.Email}: {res.Message}"); }
+                }
+                catch (Exception iex) { failed++; StingLog.Warn($"[access] invite error for {tm.Email}: {iex.Message}"); }
+            }
+
+            // Reload the canonical roster so the grids reflect server truth.
+            bool reloaded = false;
+            var fresh = await client.GetProjectMembersAsync(projectGuid).ConfigureAwait(true);
+            if (fresh != null && fresh.Count > 0)
+            {
+                _data.TeamMembers = fresh.Select(m => new TeamMemberRow
+                {
+                    Name = m.DisplayName ?? m.Email ?? "Member",
+                    Email = m.Email,
+                    Role = string.IsNullOrWhiteSpace(m.ProjectRole) ? m.Iso19650Role : m.ProjectRole,
+                    Active = true,
+                    ServerUserId = m.UserId,
+                    ServerMemberId = m.Id,
+                }).ToList();
+                reloaded = true;
+            }
+
+            var msg = invited > 0
+                ? $"Saved to server — invited {invited} new member(s){(failed > 0 ? $", {failed} failed" : "")}. Roster reloaded from server."
+                : (failed > 0 ? $"{failed} invite(s) failed — see log." : "Roster is in sync with the server.");
+            if (noEmail > 0)
+                msg += $" {noEmail} row(s) skipped — an email address is required to invite someone.";
+            ShowStatus(msg);
+            return reloaded;
+        }
+
+        /// <summary>
+        /// Member Directory → Save. Pushes the roster to the server, then rebuilds
+        /// the tab so the grid shows what the server actually holds (including the
+        /// ServerUserId the invite minted). Exceptions are surfaced in the status
+        /// bar — a fire-and-forget task that threw silently would look like a save.
+        /// </summary>
+        private async System.Threading.Tasks.Task SaveProjectMembersAsync()
+        {
+            try
+            {
+                bool reloaded = await SaveRosterToServerAsync().ConfigureAwait(true);
+                if (reloaded)
+                {
+                    if (_tabCache.ContainsKey(TabProjectMembers)) _tabCache.Remove(TabProjectMembers);
+                    NavigateTo(TabProjectMembers);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("[members] save failed", ex);
+                ShowStatus($"Save failed: {ex.Message}");
+            }
+        }
+
         /// <summary>Phase 77 Item 10: Handle project members actions dispatched from StingCommandHandler.</summary>
         public void HandleProjectMembersAction(string action)
         {
@@ -11355,14 +11470,12 @@ namespace StingTools.UI
                     {
                         case "SaveProjectMembers":
                         {
-                            if (doc != null)
-                            {
-                                string path = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "team_members.json");
-                                var arr = Newtonsoft.Json.Linq.JArray.FromObject(_data.TeamMembers);
-                                System.IO.File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                                ShowStatus($"Saved {_data.TeamMembers.Count} team members.");
-                            }
-                            else ShowStatus("No active document — cannot save team members.");
+                            // Was: a write to team_members.json that never reached the
+                            // server. The grid reloads from the server, so a member added
+                            // here vanished on refresh and never appeared in the web app
+                            // or the access dropdowns. Now the same server-canonical path
+                            // as "Save Access".
+                            _ = SaveProjectMembersAsync();
                             break;
                         }
                         case "AddTeamMember":
