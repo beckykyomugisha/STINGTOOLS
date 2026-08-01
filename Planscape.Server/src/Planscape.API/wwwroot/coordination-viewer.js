@@ -620,6 +620,15 @@
       await loadIssues();
       await loadClashes();
       await loadSitePhotos();
+
+      // The Model overview reads state.clashes / state.issues, but it is
+      // rendered BEFORE these resolve — so it kept reporting "0 Clashes"
+      // while the tray right below it said "Showing 12 of 12". Nothing ever
+      // re-rendered it, so the panel was a snapshot of an empty state.
+      // Refresh once the real counts are in (never over a selected element —
+      // that would wipe the card the user is reading).
+      const selN = (state.selectedElementGuids && state.selectedElementGuids.size) || 0;
+      if (!selN && !state.selectedElementGuid) { try { renderProperties(null); } catch (_) {} }
     }
 
     async function loadProjectMembers() {
