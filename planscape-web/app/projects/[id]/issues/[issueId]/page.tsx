@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { LoadingBlock } from '@/components/ui';
+import { MemberPicker } from '@/components/MemberPicker';
 import { getIssue, updateIssue, listComments, addComment } from '@/lib/data';
 import type { BimIssue, IssueComment, IssueStatus } from '@/lib/types';
 
@@ -19,7 +20,7 @@ export default function IssueDetailPage() {
   const [comments, setComments] = useState<IssueComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [assignee, setAssignee] = useState('');
+  const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState('');
   const [savingAssign, setSavingAssign] = useState(false);
 
@@ -27,7 +28,7 @@ export default function IssueDetailPage() {
     getIssue(projectId, issueId)
       .then((i) => {
         setIssue(i);
-        setAssignee(i.assignee ?? '');
+        setAssigneeUserId(i.assigneeUserId ?? null);
         setDueDate(i.dueDate ? i.dueDate.slice(0, 10) : '');
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load issue'));
@@ -39,14 +40,20 @@ export default function IssueDetailPage() {
     setSavingAssign(true);
     setError(null);
     try {
+      // Send the FK, not a display name. The server validates it against
+      // project membership and 400s otherwise, which is precisely why this
+      // used to fail silently when someone typed a name by hand.
       const body: Partial<BimIssue> = {
-        assignee: assignee.trim(),
+        assigneeUserId: assigneeUserId,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       };
       const updated = await updateIssue(projectId, issueId, body);
       setIssue(updated);
-    } catch {
-      setError('Failed to save assignment');
+      setAssigneeUserId(updated.assigneeUserId ?? null);
+    } catch (e) {
+      // Surface the server's reason — "not an active member of this project"
+      // is actionable; "Failed to save assignment" is not.
+      setError(e instanceof Error ? e.message : 'Failed to save assignment');
     } finally {
       setSavingAssign(false);
     }
@@ -120,15 +127,16 @@ export default function IssueDetailPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg bg-surface p-3 ring-1 ring-border">
-            <label className="block">
+            <div className="block">
               <span className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Assignee</span>
-              <input
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                placeholder="name or email"
-                className="mt-1 block w-56 rounded border border-border-strong px-2 py-1.5 text-sm"
-              />
-            </label>
+              <div className="mt-1 w-64">
+                <MemberPicker
+                  projectId={projectId}
+                  value={assigneeUserId}
+                  onChange={(v) => setAssigneeUserId(v as string | null)}
+                />
+              </div>
+            </div>
             <label className="block">
               <span className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Due date</span>
               <input
