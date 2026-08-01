@@ -237,8 +237,8 @@ public class MeetingRoomController : ControllerBase
             catch (Exception ex) { Console.WriteLine($"[recording] stop-on-end failed for session {sessionId}: {ex.Message}"); }
             liveRec.Status = "STOPPING";
             liveRec.EndedAt = DateTime.UtcNow;
-            await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
-                new { recording = false, recordingId = liveRec.Id }, ct);
+            await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
+                new { recording = false, recordingId = liveRec.Id }, ct), eventName: "RecordingChanged");
         }
 
         // N5 — when this session backs a formal Meeting, flow the live viewer roster
@@ -323,8 +323,8 @@ public class MeetingRoomController : ControllerBase
         session.ActiveDocumentId = surface == "document" ? req?.DocumentId : null;
         await _db.SaveChangesAsync(ct);
 
-        await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("SurfaceChanged",
-            new { surface = session.ActiveSurface, documentId = session.ActiveDocumentId }, ct);
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"meeting:{sessionId}").SendAsync("SurfaceChanged",
+            new { surface = session.ActiveSurface, documentId = session.ActiveDocumentId }, ct), eventName: "SurfaceChanged");
         return Ok(ToDto(session));
     }
 
@@ -425,8 +425,8 @@ public class MeetingRoomController : ControllerBase
         };
         _db.MeetingRecordings.Add(rec);
         await _db.SaveChangesAsync(ct);
-        await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
-            new { recording = true, recordingId = rec.Id, kind = rec.Kind }, ct);
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
+            new { recording = true, recordingId = rec.Id, kind = rec.Kind }, ct), eventName: "RecordingChanged");
         return Ok(ToRecDto(rec));
     }
 
@@ -450,8 +450,8 @@ public class MeetingRoomController : ControllerBase
         rec.Status = "STOPPING";
         rec.EndedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
-        await _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
-            new { recording = false, recordingId = rec.Id }, ct);
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"meeting:{sessionId}").SendAsync("RecordingChanged",
+            new { recording = false, recordingId = rec.Id }, ct), eventName: "RecordingChanged");
         return Ok(ToRecDto(rec));
     }
 

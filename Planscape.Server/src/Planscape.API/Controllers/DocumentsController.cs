@@ -907,7 +907,7 @@ public class DocumentsController : ControllerBase
             $"{{\"oldState\":\"{oldState}\",\"newState\":\"{newState}\",\"source\":\"{source}\"}}");
 
         // Gap 1 — SignalR broadcast now shared (was missing from mobile path).
-        await _hub.Clients.Groups(
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Groups(
                 $"project-{projectId}-cde-{oldState}",
                 $"project-{projectId}-cde-{doc.CdeStatus}")
             .SendAsync("DocumentUpdated", new
@@ -917,7 +917,7 @@ public class DocumentsController : ControllerBase
                 oldState, suitability = doc.SuitabilityCode,
                 revision = doc.Revision, updatedAt = doc.UpdatedAt,
                 kind = "cde_transition", source
-            });
+            }), _logger, "DocumentUpdated");
 
         // Gap 1 — webhook dispatch now shared (was missing from mobile path).
         _webhooks?.FireAndForget(tenantId, projectId, WebhookEventType.DocumentTransitioned, new
@@ -935,8 +935,16 @@ public class DocumentsController : ControllerBase
         {
             var autoSync = await _db.Projects.Where(p => p.Id == projectId)
                 .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync();
-            await DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
-                DocumentSyncHub.Payload(projectId, doc.Id, "cde_transition", doc.CdeStatus, autoSync));
+            // Same best-effort contract as the broadcast above: the comment in the
+            // else-branch already says a missed push is non-fatal (the Companion
+            // catches up via changed-since on reconnect) — but an unguarded call
+            // let a Redis-backplane outage throw straight out of a transition that
+            // had ALREADY been committed, turning a degraded notification into a
+            // 500 and a client that believes the transition failed.
+            await HubBroadcastExtensions.SafeAsync(
+                () => DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
+                    DocumentSyncHub.Payload(projectId, doc.Id, "cde_transition", doc.CdeStatus, autoSync)),
+                _logger, "DocumentSync.DocumentChanged");
             _logger.LogInformation("DocumentSync push sent for {DocumentId} on {ProjectId}", doc.Id, projectId);
         }
         else
@@ -1176,14 +1184,14 @@ public class DocumentsController : ControllerBase
         }
 
         // Gap 5 — broadcast ApprovalDecided so the web UI can prompt "Publish now?" on APPROVED.
-        await _hub.Clients.Group($"project-{projectId}").SendAsync("ApprovalDecided", new
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"project-{projectId}").SendAsync("ApprovalDecided", new
         {
             projectId, documentId = docId, approvalId,
             transition = approval.Transition, decision = req.Decision,
             decidedBy = approval.DecidedBy, decidedAt = approval.DecidedAt,
             comments = approval.Comments,
             kind = "approval_decided"
-        });
+        }), _logger, "ApprovalDecided");
 
         return Ok(approval);
     }
@@ -1349,14 +1357,14 @@ public class DocumentsController : ControllerBase
             }));
 
         // Phase 177 — broadcast only to members whose ACL covers the new state.
-        await _hub.Clients.Group($"project-{projectId}-cde-{doc.CdeStatus}")
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"project-{projectId}-cde-{doc.CdeStatus}")
             .SendAsync("DocumentUpdated", new
         {
             projectId, documentId = doc.Id,
             fileName = doc.FileName, cdeStatus = doc.CdeStatus,
             revision = doc.Revision, suitability = doc.SuitabilityCode,
             kind = "plugin_sync"
-        });
+        }), _logger, "DocumentUpdated");
 
         return Ok(new { doc.Id, doc.FileName, doc.CdeStatus, doc.SuitabilityCode, doc.Revision, isCreate });
     }
