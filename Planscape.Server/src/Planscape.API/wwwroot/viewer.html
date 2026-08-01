@@ -1030,7 +1030,14 @@ THREE.ColorManagement.enabled = false;
       (err) => {
         console.error('[viewer] load fail', err);
         const el = document.getElementById('bootLoader');
-        if (el) { const m = el.querySelector('.msg'); if (m) m.textContent = 'Failed to load model'; }
+        if (el) {
+          const m = el.querySelector('.msg'); if (m) m.textContent = 'Failed to load model';
+          // The spinner used to keep spinning under that text, so a hard
+          // failure still read as "in progress". Stop it and let the
+          // coordination layer offer a Retry.
+          const sp = el.querySelector('.spinner'); if (sp) sp.style.display = 'none';
+        }
+        try { window.dispatchEvent(new CustomEvent('sting:modelLoadFailed')); } catch (_) {}
         // BLK-5 — unblock meeting co-presence even on a failed model load so
         // the session connects (degraded) rather than waiting on modelReady.
         markModelReady();
@@ -1457,6 +1464,12 @@ THREE.ColorManagement.enabled = false;
 
   function handleCommand(cmd) {
     if (!cmd || !cmd.type) return;
+    // Tell the coordination layer the HOST has asked for geometry, so its
+    // boot watchdog can distinguish "the host never asked" (nothing is
+    // coming — say so) from "a load is genuinely in flight" (wait longer).
+    if (cmd.type === 'load' || cmd.type === 'addModel') {
+      try { window.dispatchEvent(new CustomEvent('sting:modelLoadRequested')); } catch (_) {}
+    }
     switch (cmd.type) {
       case 'load':            loadModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;
       case 'addModel':        addModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;

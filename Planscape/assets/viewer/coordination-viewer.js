@@ -374,6 +374,11 @@
       // with a Retry affordance. The boot overlay lives in viewer.html; this
       // script runs in the same document so it drives #bootLoader directly.
 
+      // How long to wait for the HOST to drive a model onto the screen before
+      // giving up and showing an actionable error. Generous: a large GLB on a
+      // cold free-tier backend can legitimately take a while.
+      const HOST_LOAD_WATCHDOG_MS = 45000;
+
       function bootLoaderEl() { return document.getElementById('bootLoader'); }
       function setBootProgress(pct, label) {
         const elp = document.getElementById('loadingProgress');
@@ -393,7 +398,11 @@
         setBootMessage('Loading model');
         setBootProgress(0, null);
       }
-      function showBootError(msg, canRetry) {
+      // The Retry action is pluggable: the URL-param path retries the GLB
+      // fetch, but the host-driven path (no ?model= — the web app posts a
+      // 'load' command instead) has nothing to re-fetch, so it reloads.
+      let bootRetryAction = () => { resetBootLoader(); loadModelGlb(); };
+      function showBootError(msg, canRetry, onRetry) {
         const bl = bootLoaderEl();
         toast(msg, 'error');                       // keep the toast too
         if (!bl) return;
@@ -401,6 +410,7 @@
         const sp = bl.querySelector('.spinner'); if (sp) sp.style.display = 'none';
         setBootMessage(msg);
         setBootProgress(null, '');
+        if (onRetry) bootRetryAction = onRetry;
         let retry = bl.querySelector('#bootRetryBtn');
         if (canRetry) {
           if (!retry) {
@@ -408,7 +418,7 @@
             retry.id = 'bootRetryBtn';
             retry.textContent = 'Retry';
             retry.style.cssText = 'margin-top:14px;padding:7px 20px;cursor:pointer;border-radius:6px;border:1px solid #2a6fd0;background:#1d6fd0;color:#fff;font:inherit;';
-            retry.addEventListener('click', () => { resetBootLoader(); loadModelGlb(); });
+            retry.addEventListener('click', () => bootRetryAction());
             bl.appendChild(retry);
           }
           retry.style.display = '';
@@ -508,9 +518,32 @@
       if (projectId && modelId) {
         await loadModelGlb();
       } else {
-        // No model to load on this view — unblock meeting co-presence (BLK-5)
-        // so a model-less coordination session still connects.
+        // No model in OUR url — but that is the NORMAL case for the web app:
+        // planscape-web builds the iframe src with only project/token/tenant/
+        // user and drives the model over postMessage ('load' / 'addModel').
+        // So we must not treat this as "nothing to load" and walk away: the
+        // boot overlay is dismissed only by a SUCCESSFUL load (viewer.html),
+        // which meant any hiccup in the host's load path — manifest throw,
+        // empty model list, ready-handshake never firing, failed fetch — left
+        // a permanent "Loading model 0%" spinner with no error and no Retry.
+        // Watchdog: if no geometry is on screen and the host never even asked
+        // us to load anything, surface it instead of spinning forever.
         try { window.STING_VIEWER && window.STING_VIEWER.markModelReady && window.STING_VIEWER.markModelReady(); } catch (_) {}
+        let hostLoadRequested = false;
+        window.addEventListener('sting:modelLoadRequested', () => { hostLoadRequested = true; });
+        window.addEventListener('sting:modelLoadFailed', () => {
+          showBootError('Failed to load the model file.', true, () => location.reload());
+        });
+        setTimeout(() => {
+          const V = window.STING_VIEWER;
+          const hasGeometry = !!(V && V.modelRoot && V.modelBounds && !V.modelBounds.isEmpty());
+          const bl = bootLoaderEl();
+          if (hasGeometry || !bl || bl.style.display === 'none') return;   // loaded fine
+          showBootError(hostLoadRequested
+            ? 'The model is taking longer than expected to load.'
+            : 'No model was loaded for this view — it may not be published yet.',
+            true, () => location.reload());
+        }, HOST_LOAD_WATCHDOG_MS);
       }
 
       // Project members — populates assignee + watcher pickers with the
