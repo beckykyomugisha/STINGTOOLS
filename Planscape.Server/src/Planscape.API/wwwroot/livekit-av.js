@@ -938,11 +938,43 @@
   // M1 — one persistent bar with three rows: an "in a meeting" pill (always),
   // the participant tile strip (live only), and a control row that swaps between
   // a LOBBY group (Join A/V button) and a LIVE group (mic/cam/screen/surface/leave).
+  // Keep the A/V bar clear of the clash/issues tray, whatever height the user
+  // has dragged it to. Collapsed tray -> sit near the bottom edge as normal.
+  function positionBarAboveTray(bar) {
+    var offset = 16;
+    try {
+      var bp = document.getElementById("bottomPanel");
+      if (bp && !bp.classList.contains("collapsed")) {
+        var r = bp.getBoundingClientRect();
+        if (r.height > 0 && r.top < window.innerHeight) {
+          offset = Math.round(window.innerHeight - r.top) + 16;
+        }
+      }
+    } catch (e) {}
+    // Never push it more than half-way up the viewport, however tall the tray.
+    bar.style.bottom = Math.min(offset, Math.round(window.innerHeight / 2)) + "px";
+  }
+
   function buildShell() {
     if (document.getElementById("lkBar")) return;
+    // The bar used to be position:absolute, bottom:12px, centred, z-index:14.
+    // That put it underneath the clash/issues tray and on top of the centred
+    // nav-controls cluster: windowed you saw a half-cut "Join A/V", and in
+    // full screen with the tray open it vanished completely. Anchor it to the
+    // viewport (fixed, so full screen behaves), keep it clear of the centred
+    // nav cluster, and float it ABOVE the bottom panel — the same thing the
+    // rest of the bottom-anchored UI does with --bottom-panel-height.
     var bar = el("div", { id: "lkBar", style:
-      "position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:14;" +
-      "display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none" });
+      "position:fixed;right:16px;bottom:16px;z-index:1200;" +
+      "display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none" });
+    positionBarAboveTray(bar);
+    window.addEventListener("resize", function () { positionBarAboveTray(bar); });
+    try {
+      var bpEl = document.getElementById("bottomPanel");
+      if (bpEl && window.ResizeObserver) {
+        new ResizeObserver(function () { positionBarAboveTray(bar); }).observe(bpEl);
+      }
+    } catch (e) {}
 
     // Row 1 — the "in a meeting" pill (status indicator, always visible).
     var pill = el("div", { id: "lkPill", style:
