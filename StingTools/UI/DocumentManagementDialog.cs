@@ -1852,10 +1852,62 @@ namespace StingTools.UI
             };
             addGroupBtn.Click += (s, e) =>
             {
-                var recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group", doc);
+                // Server-backed distribution groups are the source of truth.
+                // There were three competing stores — project_team.json,
+                // _BIM_COORD/distribution_groups.json, and the server — and this
+                // button read the first of them, so a group curated on the server
+                // (or in the web app) was invisible here.
+                var recipients = new List<string>();
+                Guid pid = StingTools.Core.ProjectRoster.ResolveProjectId(doc);
+                var client = BIMManager.PlanscapeServerClient.Instance;
+
+                if (client.IsConnected && pid != Guid.Empty)
+                {
+                    var groups = System.Threading.Tasks.Task
+                        .Run(() => client.ListDistributionGroupsAsync(pid))
+                        .GetAwaiter().GetResult();
+
+                    if (groups.Count > 0)
+                    {
+                        var labels = groups
+                            .Select(g => $"{g.Name} ({g.MemberCount} member{(g.MemberCount == 1 ? "" : "s")})")
+                            .ToList();
+                        string pick = StingListPicker.Show("Add Distribution Group",
+                            "Select a distribution group:", labels);
+                        if (string.IsNullOrEmpty(pick)) return;
+
+                        int idx = labels.IndexOf(pick);
+                        if (idx >= 0)
+                        {
+                            recipients = System.Threading.Tasks.Task
+                                .Run(() => client.ResolveDistributionGroupRecipientsAsync(pid, groups[idx].Name))
+                                .GetAwaiter().GetResult();
+                            if (recipients.Count == 0)
+                                MessageBox.Show($"\"{groups[idx].Name}\" has no members yet.",
+                                    "Distribution group");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "No distribution groups on the server for this project yet.\n\n" +
+                            "Create them in the Site Photos → Admin tab, or in the web app.",
+                            "Distribution groups");
+                        return;
+                    }
+                }
+                else
+                {
+                    // DEPRECATED read-only fallback — the local registry, used only
+                    // when the server is unreachable or the model is unlinked, so a
+                    // disconnected user is not blocked mid-transmittal.
+                    StingLog.Info("Transmittal +Group: server unreachable/unlinked — using local group registry.");
+                    recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group (offline)", doc);
+                }
+
                 foreach (string name in recipients)
-                    if (!recipientBox.Text.Contains(name))
-                        recipientBox.AppendText(name + "\n");
+                    if (!string.IsNullOrWhiteSpace(name) && !recipientBox.Text.Contains(name))
+                        recipientBox.AppendText(name.Trim() + "\n");
             };
 
             // Suitability code

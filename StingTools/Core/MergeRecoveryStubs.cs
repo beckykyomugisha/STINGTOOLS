@@ -334,19 +334,9 @@ namespace StingTools.BIMManager
         // (callers do `n > 0` on the result).
         public Task<int> BulkReclassifyPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, string newClass) => Task.FromResult(0);
         public Task<int> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object? payload = null, string? levelCode = null, string? zoneCode = null) => Task.FromResult(0);
-        public Task<List<DistributionGroupDto>?> ListDistributionGroupsAsync(Guid projectId) => Task.FromResult<List<DistributionGroupDto>?>(new List<DistributionGroupDto>());
-        public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string>? recipients = null, string? kind = null) => Task.FromResult(false);
-    }
-
-    /// <summary>Stub — distribution group DTO mirroring the server contract.</summary>
-    public sealed class DistributionGroupDto
-    {
-        public Guid   Id   { get; set; }
-        public string Name { get; set; } = "";
-        public string Kind { get; set; }
-        public int    MemberCount { get; set; }
-        public bool   IncludeInDailyDigest { get; set; }
-        public bool   ForceRedacted { get; set; }
+        // Distribution groups are no longer stubs — the real implementations
+        // (and DistributionGroupDto) live in
+        // BIMManager/PlanscapeServerClient.DistributionGroups.cs.
     }
 }
 

@@ -183,9 +183,70 @@ namespace StingTools.Core
             return members;
         }
 
+        /// <summary>
+        /// The roster for an explicitly-known server project, for callers that
+        /// hold a project id but no Document (the site-photos admin tab). Server
+        /// only — there is no per-model JSON to fall back to without a Document.
+        /// </summary>
+        internal static List<RosterMember> LoadForProject(Guid projectId)
+        {
+            var members = new List<RosterMember>();
+            if (projectId == Guid.Empty) return members;
+            try
+            {
+                var client = BIMManager.PlanscapeServerClient.Instance;
+                if (!client.IsConnected) return members;
+
+                var dtos = System.Threading.Tasks.Task
+                    .Run(() => client.GetProjectMembersAsync(projectId))
+                    .GetAwaiter().GetResult();
+                if (dtos != null)
+                {
+                    members = dtos.Select(m => new RosterMember
+                    {
+                        Name = m.DisplayName ?? m.Email ?? "Member",
+                        Email = m.Email ?? "",
+                        Role = string.IsNullOrWhiteSpace(m.ProjectRole) ? m.Iso19650Role : m.ProjectRole,
+                        ServerUserId = m.UserId,
+                        ServerMemberId = m.Id,
+                    })
+                    .Where(m => !string.IsNullOrWhiteSpace(m.Name))
+                    .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ProjectRoster.LoadForProject({projectId}): {ex.Message}");
+            }
+            return members;
+        }
+
         /// <summary>Display names only, for a plain combo box.</summary>
         internal static List<string> Names(Document doc) =>
             Load(doc).Select(m => m.Display).ToList();
+
+        /// <summary>
+        /// Resolve the linked Planscape project for this model — live
+        /// CurrentProjectId first, then the per-model link file. Guid.Empty when
+        /// the model is not linked to a server project.
+        /// </summary>
+        internal static Guid ResolveProjectId(Document doc)
+        {
+            try
+            {
+                var client = BIMManager.PlanscapeServerClient.Instance;
+                Guid pid = client.CurrentProjectId;
+                if (pid != Guid.Empty) return pid;
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return Guid.Empty;
+
+                var link = BIMManager.PlanscapeProjectLink.Load(
+                    BIMManager.PlanscapeProjectLink.ConfigPathFor(doc));
+                if (link.IsLinked) { client.CurrentProjectId = link.ProjectId; return link.ProjectId; }
+            }
+            catch (Exception ex) { StingLog.Warn($"ProjectRoster.ResolveProjectId: {ex.Message}"); }
+            return Guid.Empty;
+        }
 
         /// <summary>Find a member by the display name a combo box hands back.</summary>
         internal static RosterMember Find(Document doc, string name)
