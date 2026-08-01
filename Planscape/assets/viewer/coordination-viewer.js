@@ -363,16 +363,48 @@
       }
       renderModels();
 
-      // Element map
-      if (projectId && modelId) {
-        const map = await api(`/api/projects/${projectId}/models/${modelId}/element-map`);
-        if (map) {
-          state.elementMap = map;
-          if (V && V.scene) {
-            // forward to original viewer command so it can populate userData links
-            handleHostCommand({ type: 'elementMap', payload: { map } });
-          }
+      // Element map. This used to be gated on `modelId` — the ?model= param —
+      // which planscape-web NEVER sets, because it drives the model over
+      // postMessage instead. So in the web app the map was simply never
+      // fetched: state.elementMap stayed empty and the Model overview read
+      // "0 Elements / 0% Tagged / 0% Compliance" next to a model that had
+      // just rendered 562 meshes. The model tree, discipline chips, level
+      // bands and the properties panel all read the same map, so they were
+      // starved too. Fetch for whichever model we know about, from either
+      // source, and re-fetch when the host later tells us what it loaded.
+      await loadElementMap(modelId || hostActiveModelId);
+      window.addEventListener('sting:modelLoadRequested', (e) => {
+        const id = e && e.detail && e.detail.modelId;
+        if (id && id !== state.elementMapModelId) loadElementMap(String(id));
+      });
+
+      async function loadElementMap(mid) {
+        if (!projectId || !mid || mid === state.elementMapModelId) return;
+        let map = null;
+        try {
+          map = await api(`/api/projects/${projectId}/models/${mid}/element-map`);
+        } catch (err) {
+          // A model published as pure geometry has no map — that is a normal
+          // state, not a failure. Leave the KPIs at zero and say nothing.
+          console.warn('[coord] element-map unavailable', err && err.message);
+          return;
         }
+        if (!map || !Object.keys(map).length) return;
+        state.elementMap = map;
+        state.elementMapModelId = mid;
+        if (V && V.scene) {
+          // forward to original viewer command so it can populate userData links
+          handleHostCommand({ type: 'elementMap', payload: { map } });
+        }
+        // The map can now land AFTER these were first built (the host tells us
+        // the model id asynchronously), so refresh everything that reads it.
+        try { buildModelTree(); } catch (_) {}
+        try { buildDisciplineChips(); } catch (_) {}
+        try { buildLevelStrip(); } catch (_) {}
+        // Only refresh the overview when nothing is selected — otherwise this
+        // would wipe the element card the user is reading.
+        const selCount = (state.selectedElementGuids && state.selectedElementGuids.size) || 0;
+        if (!selCount && !state.selectedElementGuid) { try { renderProperties(null); } catch (_) {} }
       }
       buildModelTree();
       buildDisciplineChips();
@@ -7535,8 +7567,15 @@
       async function ping() {
         try {
           const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
-          setOnline(res.ok);
-          alive = res.ok;
+          // ANY http response means the API answered us, which is all this
+          // pill claims. /health is deliberately locked down in production
+          // (private-range client IP + X-Health-Token, Program.cs), so a
+          // browser ALWAYS gets 403 — `res.ok` left the pill stuck on
+          // "Offline" against a perfectly healthy server, and spammed a 403
+          // into the console every 15 seconds. Only a network-level failure
+          // (the catch below) actually means offline.
+          setOnline(true);
+          alive = true;
         } catch (_) {
           setOnline(false);
           alive = false;
