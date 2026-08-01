@@ -117,8 +117,14 @@ public class DocumentRevisionsController : ControllerBase
         {
             var autoSync = await _db.Projects.Where(p => p.Id == projectId)
                 .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync(ct);
-            await DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
-                DocumentSyncHub.Payload(projectId, documentId, "revision", doc.CdeStatus, autoSync));
+            // Best-effort, same contract as the CDE-transition push: the revision
+            // row is already committed, and a Companion that misses this catches
+            // up via changed-since. Guarded so a Redis-backplane outage can't 500
+            // a revision that actually succeeded.
+            await HubBroadcastExtensions.SafeAsync(
+                () => DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
+                    DocumentSyncHub.Payload(projectId, documentId, "revision", doc.CdeStatus, autoSync)),
+                eventName: "DocumentSync.DocumentChanged");
         }
 
         return CreatedAtAction(nameof(List), new { projectId, documentId },

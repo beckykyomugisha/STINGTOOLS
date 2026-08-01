@@ -89,6 +89,18 @@ export function archiveProject(id: string, confirmCode: string): Promise<void> {
   });
 }
 
+/**
+ * Toggle a project's pinned flag. The server has had `PATCH /{id}/pin` since
+ * Phase 169 (pinned projects sort first) but nothing in the web app called it,
+ * so the flag could only ever be set from another client.
+ *
+ * Server-side toggle, not a set: it flips whatever is stored rather than taking
+ * a value, so callers can't push a stale local guess back.
+ */
+export function toggleProjectPin(id: string): Promise<void> {
+  return api<void>(`/api/projects/${id}/pin`, { method: 'PATCH' });
+}
+
 // ── Issues ──
 export async function listIssues(projectId: string, status?: string): Promise<BimIssue[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';

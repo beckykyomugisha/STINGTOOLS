@@ -76,6 +76,26 @@ public class Project : ITenantScoped
     /// </summary>
     public bool DocumentSyncAutoEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Hard delete, staged. When set, the project is scheduled for PERMANENT
+    /// destruction at this instant and is hidden from every normal read path
+    /// immediately (see ProjectVisibility.WhereVisibleTo) — but nothing is
+    /// actually destroyed until ProjectPurgeJob runs after this time.
+    ///
+    /// The delay is the safety property: archive is reversible by design, hard
+    /// delete is not, so the only protection against a misclick or a
+    /// compromised account is a window in which the decision can still be
+    /// undone. Cancelling is just setting this back to null, which is why
+    /// nothing may destroy data before the job runs.
+    ///
+    /// Follows the archive-then-purge pattern already used for custom fields
+    /// (CustomFieldsPurgeJob, 30-day grace).
+    /// </summary>
+    public DateTime? PurgeAfter { get; set; }
+
+    /// <summary>AppUser.Id of whoever scheduled the purge — kept for the audit trail.</summary>
+    public Guid? PurgeRequestedById { get; set; }
+
     // Compliance metrics (cached)
     public double CompliancePercent { get; set; }
     public double ContainerCompliancePercent { get; set; }

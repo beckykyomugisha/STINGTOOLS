@@ -40,14 +40,22 @@ export default function ViewerPage() {
   const { user: authUser } = useAuth();
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   useEffect(() => {
-    const token = getToken();
-    if (!token) { setViewerSrc(VIEWER_BASE_URL); return; }
     const u = new URL(VIEWER_BASE_URL);
-    u.searchParams.set('token', token);
-    if (authUser?.tenantId) u.searchParams.set('tenant', authUser.tenantId);
-    if (authUser?.email) u.searchParams.set('user', authUser.email);
+    // Without ?project=, coordination-viewer.js's own bootstrap() sees no
+    // projectId in ITS url, shows the "Pick a project to get started" CTA,
+    // and returns early — skipping its project-name/members/issues load
+    // entirely. It doesn't know about the postMessage 'load' this page
+    // sends once the iframe is ready, so the CTA never gets dismissed even
+    // though the base viewer.html goes on to render the model behind it.
+    u.searchParams.set('project', projectId);
+    const token = getToken();
+    if (token) {
+      u.searchParams.set('token', token);
+      if (authUser?.tenantId) u.searchParams.set('tenant', authUser.tenantId);
+      if (authUser?.email) u.searchParams.set('user', authUser.email);
+    }
     setViewerSrc(u.toString());
-  }, [authUser]);
+  }, [authUser, projectId]);
 
   // Federation (preferred): multi-discipline scene chunks.
   const [scene, setScene] = useState<SceneManifest | null>(null);

@@ -16,7 +16,7 @@ import {
   toneForStatus,
   type Column,
 } from '@/components/ui';
-import { listProjects, updateProject } from '@/lib/data';
+import { listProjects, updateProject, toggleProjectPin } from '@/lib/data';
 import type { Project } from '@/lib/types';
 
 /**
@@ -34,6 +34,11 @@ import type { Project } from '@/lib/types';
  *    the row action.
  *  - RAG / compliance %, open issues, members, elements — server-computed, no
  *    write endpoint. Read-only.
+ *
+ * Columns beyond the core set are hidden by default and opt-in via the grid's
+ * "Columns" picker (choice persisted per browser). Everything shown here already
+ * comes back from GET /api/projects — no extra request, and no N+1: the fields
+ * were being fetched and thrown away.
  */
 const PHASES = ['', 'Concept', 'Design', 'Technical', 'Construction', 'Handover', 'Operation'];
 
@@ -51,7 +56,49 @@ export default function ProjectsPage() {
 
   useEffect(load, [load]);
 
+  // Optimistic pin: the star flips immediately and reverts if the server says
+  // no. A full reload would re-sort the grid under the cursor (pinned rows sort
+  // first), which reads as the row jumping away from the click.
+  const pin = useCallback(async (p: Project) => {
+    setProjects((cur) => cur?.map((x) => (x.id === p.id ? { ...x, isPinned: !x.isPinned } : x)) ?? cur);
+    try {
+      await toggleProjectPin(p.id);
+    } catch {
+      setProjects((cur) => cur?.map((x) => (x.id === p.id ? { ...x, isPinned: p.isPinned } : x)) ?? cur);
+    }
+  }, []);
+
   const columns: Column<Project>[] = [
+    {
+      key: 'rowNo',
+      header: '#',
+      className: 'w-10 text-fg-subtle tabular-nums',
+      sortable: false,
+      // Position in the CURRENT view, so it renumbers with sort/filter rather
+      // than pretending to be a stable project number. The project's real
+      // identifier is Code.
+      render: (p) => <span>{(projects ?? []).indexOf(p) + 1}</span>,
+    },
+    {
+      key: 'pin',
+      header: '',
+      className: 'w-8',
+      sortable: false,
+      render: (p) => (
+        <button
+          type="button"
+          title={p.isPinned ? 'Unpin' : 'Pin to top'}
+          aria-label={p.isPinned ? `Unpin ${p.name}` : `Pin ${p.name}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            void pin(p);
+          }}
+          className={p.isPinned ? 'text-warning' : 'text-fg-subtle hover:text-fg'}
+        >
+          {p.isPinned ? '★' : '☆'}
+        </button>
+      ),
+    },
     {
       key: 'name',
       header: 'Project',
@@ -111,6 +158,33 @@ export default function ProjectsPage() {
         p.lastSyncAt ? new Date(p.lastSyncAt).toLocaleDateString() : <span className="text-fg-subtle">Never</span>,
     },
     {
+      key: 'elements',
+      header: 'Elements',
+      className: 'w-32 tabular-nums',
+      value: (p) => p.totalElements ?? 0,
+      render: (p) =>
+        p.totalElements
+          ? <span>{p.taggedElements ?? 0} / {p.totalElements}</span>
+          : <span className="text-fg-subtle">—</span>,
+    },
+    {
+      key: 'location',
+      header: 'Location',
+      className: 'w-40',
+      value: (p) => [p.city, p.country].filter(Boolean).join(', '),
+      render: (p) => {
+        const where = [p.city, p.country].filter(Boolean).join(', ');
+        return where ? <span>{where}</span> : <span className="text-fg-subtle">—</span>;
+      },
+    },
+    {
+      key: 'createdAt',
+      header: 'Created',
+      className: 'w-28',
+      render: (p) =>
+        p.createdAt ? new Date(p.createdAt).toLocaleDateString() : <span className="text-fg-subtle">—</span>,
+    },
+    {
       key: 'actions',
       header: '',
       className: 'w-24',
@@ -135,7 +209,7 @@ export default function ProjectsPage() {
     <AppShell>
       <PageHeader
         title="Projects"
-        description="Name and phase are editable inline."
+        description="Click a row to open it. Double-click a name or phase to edit it inline."
         actions={
           <Button asChild variant="primary">
             <Link href="/projects/new">New project</Link>
@@ -149,6 +223,10 @@ export default function ProjectsPage() {
         rowId={(p) => p.id}
         loading={!projects && !error}
         error={error}
+        storageKey="projects"
+        // Off by default so the default view stays the one people already know;
+        // the picker is how you opt in, and the choice sticks per browser.
+        defaultHiddenColumns={['elements', 'location', 'createdAt']}
         onRowClick={(p) => router.push(`/projects/${p.id}`)}
         rowMenu={(p, close) => (
           <>

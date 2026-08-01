@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { ContextMenuPanel } from '@/components/shell/Menu';
 import { EmptyState, ErrorNote, Input, Select, SkeletonRows } from './primitives';
@@ -66,7 +66,23 @@ export interface DataGridProps<T> {
    * shortcut, and an action that exists nowhere else is not a shortcut.
    */
   rowMenu?: (row: T, close: () => void) => ReactNode;
+  /**
+   * Enables the "Columns" picker and remembers the choice under this key.
+   * Omit and every column is always shown (and no picker renders) — a grid
+   * with four columns doesn't need one.
+   */
+  storageKey?: string;
+  /** Columns hidden until the user opts in, by `key`. */
+  defaultHiddenColumns?: readonly string[];
 }
+
+/**
+ * How long an editable cell waits before treating a click as "open the record"
+ * rather than the first half of a double-click. Roughly the OS double-click
+ * threshold — long enough to catch the second click, short enough not to feel
+ * like lag.
+ */
+const DOUBLE_CLICK_MS = 220;
 
 type SortState = { key: string; dir: 'asc' | 'desc' } | null;
 
@@ -84,17 +100,69 @@ export function DataGrid<T>({
   filterable = true,
   onRowPatched,
   rowMenu,
+  storageKey,
+  defaultHiddenColumns,
 }: DataGridProps<T>) {
   const { toast } = useToast();
   const [sort, setSort] = useState<SortState>(null);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => new Set(defaultHiddenColumns ?? []));
+  const [colsMenuOpen, setColsMenuOpen] = useState(false);
   const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
   /** Cell overrides applied optimistically, keyed `${rowId}:${colKey}`. */
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
   /** Which row was right-clicked, and where. Null = no context menu open. */
   const [menuAt, setMenuAt] = useState<{ row: T; x: number; y: number } | null>(null);
+  /** Pending single-click navigation from an editable cell; cancelled by a double-click. */
+  const clickTimer = useRef<number | null>(null);
+  // A queued navigation must not fire after the grid has gone.
+  useEffect(() => () => {
+    if (clickTimer.current) window.clearTimeout(clickTimer.current);
+  }, []);
+
+  // Restore the saved column choice on mount. Read in an effect rather than in
+  // the useState initialiser: the initialiser also runs during SSR, where
+  // localStorage doesn't exist, and returning a different value on the server
+  // than on the client is a hydration mismatch.
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') return;
+    try {
+      const saved = window.localStorage.getItem(`grid-cols:${storageKey}`);
+      if (saved) setHiddenCols(new Set(JSON.parse(saved) as string[]));
+    } catch {
+      /* corrupt or unavailable storage — fall back to the defaults already set */
+    }
+  }, [storageKey]);
+
+  const toggleColumn = useCallback(
+    (key: string) => {
+      setHiddenCols((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        if (storageKey && typeof window !== 'undefined') {
+          try {
+            window.localStorage.setItem(`grid-cols:${storageKey}`, JSON.stringify([...next]));
+          } catch {
+            /* storage full or blocked — the choice still applies for this session */
+          }
+        }
+        return next;
+      });
+    },
+    [storageKey],
+  );
+
+  // Everything below renders from `columns`; hiding is a filter over it so no
+  // other logic (sort, filter, edit) needs to know about visibility at all.
+  // The action column is never hideable — losing it would strand the row's
+  // only affordance for its actions.
+  const visibleColumns = useMemo(
+    () => columns.filter((c) => !hiddenCols.has(c.key) || c.key === 'actions'),
+    [columns, hiddenCols],
+  );
 
   const valueOf = useCallback(
     (row: T, col: Column<T>): string => {
@@ -181,7 +249,7 @@ export function DataGrid<T>({
 
   return (
     <div className="flex flex-col">
-      {(toolbar || filterable) && (
+      {(toolbar || filterable || storageKey) && (
         <div className="flex flex-wrap items-center gap-2 rounded-t-md border border-b-0 border-border bg-surface-2 px-2 py-1.5">
           {filterable && (
             <Input
@@ -191,6 +259,43 @@ export function DataGrid<T>({
               aria-label="Filter rows"
               className="h-7 w-40"
             />
+          )}
+          {storageKey && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setColsMenuOpen((o) => !o)}
+                aria-expanded={colsMenuOpen}
+                aria-haspopup="true"
+                className="h-7 rounded border border-border-strong px-2 text-xs text-fg-muted transition hover:bg-surface-3"
+              >
+                Columns{hiddenCols.size > 0 ? ` (${hiddenCols.size} hidden)` : ''}
+              </button>
+              {colsMenuOpen && (
+                <>
+                  {/* Click-away layer. Without it the menu can only be closed by
+                      hitting the trigger again, which reads as a stuck popup. */}
+                  <div className="fixed inset-0 z-10" onClick={() => setColsMenuOpen(false)} aria-hidden="true" />
+                  <div className="absolute left-0 z-20 mt-1 min-w-[12rem] rounded-md border border-border bg-surface p-1 shadow-lg">
+                    {columns
+                      .filter((c) => c.key !== 'actions' && c.header)
+                      .map((c) => (
+                        <label
+                          key={c.key}
+                          className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs text-fg hover:bg-surface-3"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!hiddenCols.has(c.key)}
+                            onChange={() => toggleColumn(c.key)}
+                          />
+                          {c.header}
+                        </label>
+                      ))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
           {selected.size > 0 && (
             <span className="text-xs text-fg-muted">{selected.size} selected</span>
@@ -242,7 +347,7 @@ export function DataGrid<T>({
                     />
                   </th>
                 )}
-                {columns.map((col) => {
+                {visibleColumns.map((col) => {
                   const active = sort?.key === col.key;
                   return (
                     <th key={col.key} className={cn('px-2 py-1.5 font-medium text-fg-muted', col.className)}>
@@ -305,7 +410,7 @@ export function DataGrid<T>({
                         />
                       </td>
                     )}
-                    {columns.map((col) => {
+                    {visibleColumns.map((col) => {
                       const cellKey = `${id}:${col.key}`;
                       const saving = savingCells.has(cellKey);
                       const isEditing = editing === cellKey;
@@ -314,8 +419,46 @@ export function DataGrid<T>({
                         <td
                           key={col.key}
                           className={cn('px-2 py-1.5 align-top text-fg', col.className, saving && 'opacity-60')}
-                          // Editing must never also trigger the row's navigation.
-                          onClick={col.edit ? (e) => e.stopPropagation() : undefined}
+                          // Single click navigates (like every other cell), double
+                          // click edits. It used to be single-click-to-edit, which
+                          // made the most clickable thing on the row — the name —
+                          // silently dangerous: a user aiming to open a project
+                          // instead dropped its title into an editable box, where
+                          // one stray keystroke plus a blur renamed it.
+                          //
+                          // A browser fires click,click,dblclick for a double
+                          // click, so an editable cell cannot both navigate
+                          // instantly AND edit on the second click — the
+                          // navigation would already have happened. Hence the
+                          // short deferral, applied ONLY to editable cells:
+                          // everything else still bubbles and navigates with no
+                          // delay at all.
+                          onClick={
+                            col.edit
+                              ? (e) => {
+                                  e.stopPropagation();
+                                  if (isEditing) return;   // clicks inside the editor do nothing
+                                  if (clickTimer.current) window.clearTimeout(clickTimer.current);
+                                  clickTimer.current = window.setTimeout(() => {
+                                    clickTimer.current = null;
+                                    onRowClick?.(row);
+                                  }, DOUBLE_CLICK_MS);
+                                }
+                              : undefined
+                          }
+                          onDoubleClick={
+                            col.edit && !isEditing
+                              ? (e) => {
+                                  e.stopPropagation();
+                                  // Cancel the navigation the first click queued.
+                                  if (clickTimer.current) {
+                                    window.clearTimeout(clickTimer.current);
+                                    clickTimer.current = null;
+                                  }
+                                  setEditing(cellKey);
+                                }
+                              : undefined
+                          }
                         >
                           {col.edit && isEditing ? (
                             col.edit.options ? (
@@ -346,10 +489,22 @@ export function DataGrid<T>({
                               />
                             )
                           ) : col.edit ? (
+                            // Still a button, purely so the cell stays reachable
+                            // and actionable by keyboard: with the mouse path now
+                            // on double-click, F2 / Enter is the keyboard
+                            // equivalent (F2 is the spreadsheet convention). It
+                            // has NO onClick — a plain click falls through to the
+                            // row and navigates, which is the whole point.
                             <button
                               type="button"
-                              onClick={() => setEditing(cellKey)}
-                              title="Click to edit"
+                              onKeyDown={(e) => {
+                                if (e.key === 'F2' || e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditing(cellKey);
+                                }
+                              }}
+                              title="Double-click to edit (or press F2)"
                               className="-mx-1 w-full rounded px-1 text-left transition hover:bg-surface-3"
                             >
                               {col.render ? col.render(row) : current || <span className="text-fg-subtle">—</span>}
