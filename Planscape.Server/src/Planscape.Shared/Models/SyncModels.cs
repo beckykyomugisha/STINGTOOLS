@@ -26,12 +26,56 @@ public class PluginSyncPayload
 
     // Workflow runs (new since last sync)
     public List<WorkflowRunSync>? WorkflowRuns { get; set; }
+
+    /// <summary>
+    /// Return a copy of this payload carrying a different element list, with
+    /// every other field preserved.
+    /// <para>
+    /// This exists so there is exactly ONE place that enumerates
+    /// <see cref="PluginSyncPayload"/>'s fields. The offline-queue discipline
+    /// filter used to rebuild the payload with a hand-maintained object
+    /// initialiser; any field added to this class after that code was written
+    /// would have been silently dropped on every filtered drain. Callers that
+    /// need to re-shape the element list must use this method rather than
+    /// hand-copying, and new fields only have to be added here.
+    /// </para>
+    /// </summary>
+    public PluginSyncPayload WithElements(List<TagElementSync>? elements) => new()
+    {
+        ProjectId = ProjectId,
+        PluginVersion = PluginVersion,
+        RevitVersion = RevitVersion,
+        UserName = UserName,
+        Timestamp = Timestamp,
+        SeqCounters = SeqCounters,
+        Compliance = Compliance,
+        Issues = Issues,
+        WorkflowRuns = WorkflowRuns,
+        TagElements = elements,
+    };
 }
 
 public class TagElementSync
 {
     public long RevitElementId { get; set; }
     public string UniqueId { get; set; } = "";
+
+    /// <summary>
+    /// True IFC GlobalId (22-char) read from the element's
+    /// <c>IFC_GLOBAL_ID_TXT</c> shared parameter — NOT Revit's 45-char
+    /// <see cref="UniqueId"/>. This is the cross-host key the server writes into
+    /// <c>ExternalElementMapping</c> so a Revit element resolves to the matching
+    /// Bonsai/ArchiCAD row.
+    /// <para>
+    /// Added because the plugin's internal payload and the server DTO both
+    /// carried this field but the shared wire model did not, so the cross-host
+    /// key was built on every element and then dropped before it ever left the
+    /// machine. Null until the element has been stabilised + IFC-exported; the
+    /// server skips the mapping rather than keying on the wrong id.
+    /// </para>
+    /// </summary>
+    public string? IfcGlobalId { get; set; }
+
     public string Disc { get; set; } = "";
     public string Loc { get; set; } = "";
     public string Zone { get; set; } = "";
@@ -61,6 +105,43 @@ public class TagElementSync
     /// always accept").
     /// </summary>
     public DateTime? LastModifiedUtc { get; set; }
+
+    // ─── Phase 165 tier payload ───
+    // TAG7A-TAG7F mirror the per-section parameters written by WriteTag7All;
+    // T4-T10 are the formatted summaries built by BuildTag7Sections; ParaDepth
+    // is the highest enabled PARA_STATE_N (cumulative); PatternMode is the
+    // active T4-T10 payload selector (HANDOVER / DC / CUSTOM).
+    //
+    // These were built per element by the plugin and then discarded by the
+    // wire-model conversion, so the whole tier payload never reached the server.
+    public string? Tag7A { get; set; }
+    public string? Tag7B { get; set; }
+    public string? Tag7C { get; set; }
+    public string? Tag7D { get; set; }
+    public string? Tag7E { get; set; }
+    public string? Tag7F { get; set; }
+    public string? T4Commissioning { get; set; }
+    public string? T5Cost { get; set; }
+    public string? T6Carbon { get; set; }
+    public string? T7Fabrication { get; set; }
+    public string? T8ClashTriage { get; set; }
+    public string? T9AsBuilt { get; set; }
+    public string? T10Compliance { get; set; }
+    public int ParaDepth { get; set; }
+    public string? PatternMode { get; set; }
+
+    /// <summary>
+    /// True when this row represents an element that was DELETED from the model
+    /// rather than added or modified. Sent so the server can retire the row
+    /// instead of leaving an orphan behind.
+    /// <para>
+    /// Forward-compatible by design: the server currently has no delete channel
+    /// on <c>/api/tagsync/sync</c> and ignores unknown JSON fields, so today this
+    /// is transmitted and dropped. A parallel workstream is adding the server
+    /// side; until it lands, deleted elements keep their server rows.
+    /// </para>
+    /// </summary>
+    public bool IsDeleted { get; set; }
 }
 
 public class ComplianceSync

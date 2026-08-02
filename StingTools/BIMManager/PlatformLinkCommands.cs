@@ -2142,120 +2142,24 @@ namespace StingTools.BIMManager
         {
             var client = PlanscapeServerClient.Instance;
 
-            var elements = new List<TagElementPayload>();
+            var tagSync = new List<Planscape.Shared.Models.TagElementSync>();
             using (var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 foreach (Element el in collector)
                 {
-                    string tag1 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG1) ?? "";
-                    if (string.IsNullOrEmpty(tag1)) continue;
-
-                    string disc = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.DISC) ?? "";
-                    string loc  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LOC)  ?? "";
-                    string zone = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.ZONE) ?? "";
-                    string lvl  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LVL)  ?? "";
-                    string sys  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SYS)  ?? "";
-                    string func = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.FUNC) ?? "";
-                    string prod = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.PROD) ?? "";
-                    string seq  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SEQ)  ?? "";
-                    string tag7 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7) ?? "";
-                    string status = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.STATUS) ?? "";
-                    string rev   = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.REV)    ?? "";
-                    string cat   = ParameterHelpers.GetCategoryName(el);
-                    string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
-
-                    bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
-                    bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
-
-                    // ─── Phase 165 — T4-T10 payload ───
-                    // Read TAG7A-TAG7F directly (already written by WriteTag7All),
-                    // build T4-T10 summaries fresh from element parameters,
-                    // resolve active depth and pattern mode for the server.
-                    string tag7a = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7A) ?? "";
-                    string tag7b = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7B) ?? "";
-                    string tag7c = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7C) ?? "";
-                    string tag7d = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7D) ?? "";
-                    string tag7e = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7E) ?? "";
-                    string tag7f = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7F) ?? "";
-
-                    StingTools.Core.TagConfig.Tag7Result tier = null;
-                    try
-                    {
-                        var tokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
-                        tier = StingTools.Core.TagConfig.BuildTag7Sections(doc, el, cat, tokens);
-                    }
-                    catch { /* tier hydration is best-effort */ }
-
-                    Element typeEl = null;
-                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                    int paraDepth   = StingTools.Core.TagConfig.ReadActiveParagraphDepth(typeEl, el);
-                    string pattern  = StingTools.Core.TagConfig.ResolveActivePatternMode(typeEl, el);
-
-                    // Drift 4 — the cross-host key is the TRUE IFC GlobalId
-                    // (IFC_GLOBAL_ID_TXT, written by StabilizeIfcGuidsCommand from
-                    // Revit's IfcGloballyUniqueId), NOT Element.UniqueId. Empty
-                    // until the element is stabilised + IFC-exported; sent null so
-                    // the server skips the mapping rather than keying on the wrong id.
-                    string ifcGid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
-
-                    elements.Add(new TagElementPayload
-                    {
-                        RevitElementId  = el.Id.Value,
-                        UniqueId        = el.UniqueId,
-                        IfcGlobalId     = string.IsNullOrWhiteSpace(ifcGid) ? null : ifcGid,
-                        Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
-                        Sys = sys, Func = func, Prod = prod, Seq = seq,
-                        Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
-                        CategoryName    = cat, FamilyName = fam,
-                        Status          = string.IsNullOrEmpty(status) ? null : status,
-                        Rev             = string.IsNullOrEmpty(rev) ? null : rev,
-                        IsComplete      = isComplete, IsFullyResolved = isFullyResolved,
-                        // INT-03 (Phase 91): per-element wall-clock timestamp from
-                        // ASS_TAG_MODIFIED_DT audit trail, with DateTime.UtcNow
-                        // fallback. Enables server-side delta detection.
-                        LastModifiedUtc = ResolveElementLastModifiedUtc(el),
-                        // Phase 165 — T4-T10 + sections + depth + pattern mode
-                        Tag7A = string.IsNullOrEmpty(tag7a) ? null : tag7a,
-                        Tag7B = string.IsNullOrEmpty(tag7b) ? null : tag7b,
-                        Tag7C = string.IsNullOrEmpty(tag7c) ? null : tag7c,
-                        Tag7D = string.IsNullOrEmpty(tag7d) ? null : tag7d,
-                        Tag7E = string.IsNullOrEmpty(tag7e) ? null : tag7e,
-                        Tag7F = string.IsNullOrEmpty(tag7f) ? null : tag7f,
-                        T4Commissioning  = string.IsNullOrEmpty(tier?.SectionT4)  ? null : tier.SectionT4,
-                        T5Cost           = string.IsNullOrEmpty(tier?.SectionT5)  ? null : tier.SectionT5,
-                        T6Carbon         = string.IsNullOrEmpty(tier?.SectionT6)  ? null : tier.SectionT6,
-                        T7Fabrication    = string.IsNullOrEmpty(tier?.SectionT7)  ? null : tier.SectionT7,
-                        T8ClashTriage    = string.IsNullOrEmpty(tier?.SectionT8)  ? null : tier.SectionT8,
-                        T9AsBuilt        = string.IsNullOrEmpty(tier?.SectionT9)  ? null : tier.SectionT9,
-                        T10Compliance    = string.IsNullOrEmpty(tier?.SectionT10) ? null : tier.SectionT10,
-                        ParaDepth        = paraDepth,
-                        PatternMode      = pattern,
-                    });
+                    // Sync is no longer gated on tagging — an element is eligible
+                    // because it exists. Tier hydration stays conditional on the
+                    // element actually carrying a tag, because BuildTag7Sections
+                    // is the expensive part of the mapping and produces nothing
+                    // but empty sections for an untagged element.
+                    tagSync.Add(StingTools.Core.Sync.TagElementSyncMapper.MapElement(
+                        doc, el,
+                        hydrateTiers: StingTools.Core.Sync.TagElementSyncMapper.ShouldHydrateTiers(el)));
                 }
             }
 
             string revitVer = app?.Application?.VersionNumber ?? "";
             string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
-
-            // Convert to the shared TagElementSync shape consumed by the scheduler.
-            var tagSync = new List<Planscape.Shared.Models.TagElementSync>(elements.Count);
-            foreach (var p in elements)
-            {
-                tagSync.Add(new Planscape.Shared.Models.TagElementSync
-                {
-                    Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
-                    Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
-                    FamilyName   = p.FamilyName ?? "",
-                    Status       = p.Status,
-                    Rev          = p.Rev,
-                    IsComplete       = p.IsComplete,
-                    IsFullyResolved  = p.IsFullyResolved,
-                    // INT-03 (Phase 91): forward per-element timestamp into
-                    // the Shared DTO so SyncClient → /api/tagsync/sync
-                    // carries meaningful LastModifiedUtc on every element.
-                    LastModifiedUtc  = p.LastModifiedUtc
-                });
-            }
 
             return new Planscape.Shared.Models.PluginSyncPayload
             {
@@ -2284,47 +2188,9 @@ namespace StingTools.BIMManager
             }
         }
 
-        /// <summary>
-        /// Phase 91/INT-03 — resolve the wall-clock "last modified" time for a
-        /// tagged element for the Planscape sync payload.
-        /// Called from <see cref="BuildPluginSyncPayload"/>.
-        /// Phase 100 fix: was previously only defined inside
-        /// <c>PluginSyncTickBridge</c> (different class scope) so the call
-        /// from <c>BuildPluginSyncPayload</c> produced CS0103. Duplicated here
-        /// as a private static member of <c>PlatformSyncCommand</c> since the
-        /// bridge never actually calls this method itself (it delegates to
-        /// <c>BuildPluginSyncPayload</c> which owns the payload assembly).
-        ///
-        /// Priority chain:
-        ///   1. <c>ASS_TAG_MODIFIED_DT</c> — STING audit-trail stamp written
-        ///      by <c>TagPipelineHelper.RunFullPipeline</c> (Phase 77 #748).
-        ///   2. <c>DateTime.UtcNow</c> — fallback so the server always sees a
-        ///      non-null timestamp and can still last-write-wins-reconcile.
-        /// </summary>
-        private static DateTime ResolveElementLastModifiedUtc(Element el)
-        {
-            if (el == null) return DateTime.UtcNow;
-
-            try
-            {
-                string stamp = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_DT");
-                if (!string.IsNullOrWhiteSpace(stamp)
-                    && DateTime.TryParse(stamp,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.AssumeUniversal
-                            | System.Globalization.DateTimeStyles.AdjustToUniversal,
-                        out var parsed))
-                {
-                    return parsed;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ResolveElementLastModifiedUtc: ASS_TAG_MODIFIED_DT parse failed on {el.Id.Value}: {ex.Message}");
-            }
-
-            return DateTime.UtcNow;
-        }
+        // Phase 91/INT-03 — ResolveElementLastModifiedUtc moved to
+        // StingTools.Core.Sync.TagElementSyncMapper.ResolveLastModifiedUtc, which is
+        // now the single owner of the element -> wire-model projection.
     }
 
     #endregion

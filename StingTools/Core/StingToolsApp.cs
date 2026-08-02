@@ -1746,9 +1746,25 @@ namespace StingTools.Core
                 try
                 {
                     var client = PlanscapeServerClient.Instance;
+
+                    // The linked Planscape project id, NOT Guid.Empty. The server
+                    // does not resolve the project from auth/tenant scope — it
+                    // matches on request.ProjectId and returns 404 when it can't
+                    // find one. A 404 is a 4xx, which the offline queue classifies
+                    // as a fatal request error and DELETES the payload, so every
+                    // save-triggered sync used to be silently discarded.
+                    string bimDirSync = BIMManagerEngine.GetBIMManagerDir(doc);
+                    Guid syncProjectId = BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(
+                        Path.Combine(bimDirSync, "planscape_connection.json"));
+                    if (syncProjectId == Guid.Empty)
+                    {
+                        StingLog.Info($"DocumentSaved: {doc.Title} — no Planscape project linked, sync skipped");
+                        return;
+                    }
+
                     var payload = new Planscape.Shared.Models.PluginSyncPayload
                     {
-                        ProjectId     = Guid.Empty, // server resolves via auth/tenant scope
+                        ProjectId     = syncProjectId,
                         UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
                         RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
                                           .GetName().Version?.ToString() ?? "",
@@ -1821,9 +1837,16 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// C3 — Collect lightweight tag element records for the sync payload.
-        /// Includes only elements with ASS_TAG_1_TXT populated (tagged elements)
-        /// and caps at <paramref name="max"/> to keep the save path fast.
+        /// C3 — Collect element records for the sync payload.
+        /// <para>
+        /// No longer gated on ASS_TAG_1_TXT: an element is eligible for sync
+        /// because it exists, not because someone has tagged it. Compliance %
+        /// stays truthful because it is computed from tag completeness, not from
+        /// row count.
+        /// </para>
+        /// Caps at <paramref name="max"/> to keep the save path fast, and defers
+        /// the whole projection to <see cref="Core.Sync.TagElementSyncMapper"/>
+        /// so this path cannot drift from the Sync Now path again.
         /// </summary>
         private static List<Planscape.Shared.Models.TagElementSync> CollectTagElements(
             Autodesk.Revit.DB.Document doc, int max = 5000)
@@ -1838,28 +1861,9 @@ namespace StingTools.Core
             foreach (var el in collector)
             {
                 if (results.Count >= max) break;
-
-                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag1)) continue;
-
-                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
-
-                results.Add(new Planscape.Shared.Models.TagElementSync
-                {
-                    RevitElementId = el.Id.Value,
-                    UniqueId       = el.UniqueId,
-                    Disc           = FromReg(ParamRegistry.DISC),
-                    Loc            = FromReg(ParamRegistry.LOC),
-                    Zone           = FromReg(ParamRegistry.ZONE),
-                    Lvl            = FromReg(ParamRegistry.LVL),
-                    Sys            = FromReg(ParamRegistry.SYS),
-                    Func           = FromReg(ParamRegistry.FUNC),
-                    Prod           = FromReg(ParamRegistry.PROD),
-                    Seq            = FromReg(ParamRegistry.SEQ),
-                    Tag1           = tag1,
-                    CategoryName   = el.Category?.Name ?? "",
-                    FamilyName     = ParameterHelpers.GetFamilyName(el) ?? "",
-                });
+                results.Add(Core.Sync.TagElementSyncMapper.MapElement(
+                    doc, el,
+                    hydrateTiers: Core.Sync.TagElementSyncMapper.ShouldHydrateTiers(el)));
             }
             return results;
         }
