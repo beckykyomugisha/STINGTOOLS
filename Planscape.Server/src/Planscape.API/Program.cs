@@ -1584,6 +1584,27 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
         // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
         await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
 
+        // Postgres RLS policies (#545). OFF unless Database:RlsEnabled is set —
+        // the same key that gates RlsConnectionInterceptor above, so the
+        // session variable and the policies that read it turn on together
+        // rather than one without the other. The key is set nowhere in this
+        // repository, so this branch does not execute by default.
+        //
+        // The policies live here rather than in the (never-run) migration
+        // 20260506200000_EnablePostgresRowLevelSecurity because production does
+        // not run migrations — see docs/adr/0001-schema-management.md. The
+        // migration is left untouched as history.
+        //
+        // These policies FAIL CLOSED: a connection that has not set
+        // app.current_tenant sees no rows. Read RlsPolicyPatcher's remarks
+        // before enabling — BypassTenantFilter paths (Hangfire, admin scans)
+        // never set the GUC and will find nothing until they are given a role
+        // carrying BYPASSRLS.
+        if (rlsEnabled)
+        {
+            await Planscape.API.RlsPolicyPatcher.ApplyAsync(patchConn);
+        }
+
         // Pre-merge Gate 2 — schema-drift self-check. The patcher path (above)
         // is the OFFICIAL schema-management mechanism for this codebase (see
         // docs/adr/0001-schema-management.md). Its one failure mode is drift:
