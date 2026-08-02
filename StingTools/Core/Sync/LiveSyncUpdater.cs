@@ -5,7 +5,7 @@
 //  1. Execute() NEVER throws. An exception out of an IUpdater takes Revit down
 //     with it, so the whole body is wrapped (as LiveClashUpdater.cs:54-82 does).
 //  2. Execute() never starts a transaction and never touches the network. It
-//     only records element ids in SyncDirtyTracker.
+//     only records element ids in Planscape.PluginSync.SyncDirtyTracker.
 //  3. Triggers are NOT attached at registration. Revit evaluates an updater's
 //     trigger filter on every element change even while the updater is
 //     disabled, so an always-on trigger taxes every user who never touches
@@ -64,7 +64,7 @@ namespace StingTools.Core.Sync
                 // Deleted: negative sentinel, per the LiveClashUpdater convention.
                 foreach (var id in data.GetDeletedElementIds())  ids.Add(-id.Value);
 
-                if (ids.Count > 0) SyncDirtyTracker.Mark(key, ids);
+                if (ids.Count > 0) Planscape.PluginSync.SyncDirtyTracker.Mark(key, ids);
             }
             catch (Exception ex)
             {
@@ -152,7 +152,7 @@ namespace StingTools.Core.Sync
                     _debounceTimer?.Dispose();
                     _debounceTimer = null;
                     _triggersActive = false;
-                    SyncDirtyTracker.Clear();
+                    Planscape.PluginSync.SyncDirtyTracker.Clear();
                     StingLog.Info("LiveSyncUpdater: stopped (triggers removed)");
                 }
             }
@@ -184,7 +184,7 @@ namespace StingTools.Core.Sync
         {
             try
             {
-                if (!SyncDirtyTracker.AnyDue()) return;
+                if (!Planscape.PluginSync.SyncDirtyTracker.AnyDue()) return;
                 _pushEvent?.Raise();
             }
             catch (Exception ex)
@@ -211,7 +211,7 @@ namespace StingTools.Core.Sync
                 if (doc == null || doc.IsFamilyDocument) return;
 
                 string key = LiveSyncUpdater.DocKey(doc);
-                if (!SyncDirtyTracker.IsDue(key)) return;
+                if (!Planscape.PluginSync.SyncDirtyTracker.IsDue(key)) return;
 
                 var client = BIMManager.PlanscapeServerClient.Instance;
                 if (client == null || !client.IsConnected) return;
@@ -224,7 +224,7 @@ namespace StingTools.Core.Sync
                 var queue = Planscape.PluginSync.OfflineQueue.Shared;
                 if (queue == null) return;
 
-                var ids = SyncDirtyTracker.Drain(key);
+                var ids = Planscape.PluginSync.SyncDirtyTracker.Drain(key);
                 if (ids.Count == 0) return;
 
                 var rows = new List<Planscape.Shared.Models.TagElementSync>(ids.Count);
