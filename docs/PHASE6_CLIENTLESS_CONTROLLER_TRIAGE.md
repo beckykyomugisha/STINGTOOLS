@@ -519,7 +519,16 @@ on the same grounds but its *scope* is undecided pending C1.
 
 ## Other findings
 
-**C1 — ApprovalChains vs the flat path: UNDECIDED, and "duplication" was too strong.**
+**C1 — ApprovalChains vs the flat path: DECIDED (owner, 2026-08-02). "Duplication" was too strong.**
+
+> **Decision — the UI offers FLAT approval only.** It is live, mobile drives it, and it is the
+> simpler record. `ApprovalChainsController` **stays as-is on the server** and continues to satisfy
+> the same `DocumentsController.cs:1554` gate, but gets **no client surface** until a project
+> demonstrably needs multi-step or parallel approval. Nothing is deleted, nothing is duplicated,
+> no UI is built for it. The OR at `:1556` stays — it is what makes this safe to defer.
+>
+> Recorded here so it is not relitigated. Reopen only on a concrete project requirement for
+> multi-step or parallel approval.
 
 Downgraded from "verified". The client half reproduces: `Planscape/src/api/endpoints.ts` drives
 `DocumentsController`'s flat approval (`POST …/approvals` at `:1005`, `PUT …/approval/{id}` at
@@ -549,8 +558,26 @@ migration-created, `DocumentApprovals` is the one table in B1's list that **neit
 the patcher creates — model-only. Both nonetheless exist on any booted non-dev instance (the drift
 assert would have refused the boot otherwise), so neither path is at risk and neither is favoured.
 
-**To close it** someone has to pick the canonical mechanism and say whether the OR stays. That is the
-one open item this triage cannot settle by measurement.
+**Closed by decision, not by measurement** — which was always the only way it could close. The
+measurement work above stands: it established that the gate is an OR, that nothing writes two
+records, and therefore that deferring the chain UI costs nothing.
+
+**C2 — `bypassesAcl` for a non-member is deliberate. Do not re-flag it.**
+
+`ProjectMembersController.GetMyAccess` returns `bypassesAcl = bypass || member == null` (`:105`), so a
+caller with **no** ProjectMember row is reported as bypassing the ACL. That reads like a fail-open
+bug on first sight. It is not, on two counts:
+
+- it sits behind `CanAccessProjectAsync` (`:88`), which returns `NotFound()` for anyone who cannot
+  reach the project at all, so "no member row" here already means an authorised non-member
+  (project author / tenant manager), not an arbitrary caller;
+- it mirrors `ProjectMemberAcl.ResolveAsync`, which documents the identical rule — *"No member row =
+  inherit (project author / tenant manager fallthrough)"*.
+
+Two implementations, one deliberate semantic. The per-member allow-lists (`AllowedCdeStates`,
+`AllowedDisciplines`, `AllowedSuitabilities`) are **restrictions** layered on top of access, so
+having no row means no restrictions — not no authentication. **Left unchanged**, and noted here so
+the next audit does not spend a cycle re-discovering it.
 
 **M1 — Mfa docstring is stale.** `:13` says "Production implementation would use a TOTP library (e.g.
 Otp.NET)". It already does: `using OtpNet;` (`:5`), `IDataProtector` (`:23`),
@@ -667,7 +694,7 @@ rests on `Program.cs` source and boot order (B1-R §2, M3), never on this pass.
 
 | Item | Why it is open | What would close it |
 |---|---|---|
-| **C1 — canonical approval mechanism** | A product decision; both paths work and the gate accepts either. | Someone picks one, and says whether the OR stays. |
+| ~~C1 — canonical approval mechanism~~ | **CLOSED — DECIDED 2026-08-02.** Flat approval is the only client surface; `ApprovalChainsController` stays server-side with no UI until a project needs multi-step. The OR at `:1556` stays. See C1 under *Other findings*. | Nothing. Closed. |
 | ~~Migration hygiene (B1, restated)~~ | **CLOSED — VOID.** Not a defect. Production runs `EnsureCreated` + patchers by design (`render.yaml:51-52`); the migration set is not the schema mechanism and its incompleteness is intended. ADR 0001 documents it. | Nothing. Closed. |
 | ~~`20260501000000` is a latent trap~~ | **CLOSED — cannot fire.** It was only a trap on the `Migrate()` path, and no deployed service takes that path. | Nothing. Closed. |
 | **RLS is unreachable, not merely unapplied** | Tracked separately as **#545**, not here. Because production never calls `Migrate()`, adding the missing `[Migration]` attribute would deploy and change nothing — the obvious fix is a no-op. | Sign-off on one of the three options in #545. Not started; no code written. |
