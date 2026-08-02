@@ -2398,12 +2398,27 @@ namespace StingTools.BIMManager
 
                     // Same payload-build path as SyncToPlanscapeServer (acceptance criterion 3)
                     var payload = PlatformSyncCommand.BuildPluginSyncPayload(doc, app, projectId);
-                    int count = payload?.TagElements?.Count ?? 0;
+                    int swept = payload?.TagElements?.Count ?? 0;
+
+                    // Reconciliation pass, not a full re-send. The live delta
+                    // channel handles ordinary edits; this tick exists to catch
+                    // what delta misses — undo edge cases, link reloads, and
+                    // anything changed while the user was logged out or the
+                    // plugin unloaded. Send only rows whose content hash moved
+                    // since the last sweep (plus deletions noticed by absence),
+                    // so a steady-state model costs one near-empty request
+                    // instead of re-posting every element every five minutes.
+                    string docKey = StingTools.Core.Sync.LiveSyncUpdater.DocKey(doc);
+                    var changed = StingTools.Core.Sync.SyncReconciler.FilterChanged(
+                        docKey, payload?.TagElements);
+                    int count = changed?.Count ?? 0;
                     if (count == 0)
                     {
-                        StingLog.Info($"PluginSyncTickBridge tick: 0 elements in {doc.Title}, nothing to enqueue");
+                        StingLog.Info($"PluginSyncTickBridge tick: {swept:N0} element(s) swept in {doc.Title}, " +
+                                      $"none changed since last sweep — nothing to enqueue");
                         return;
                     }
+                    payload = payload.WithElements(changed);
 
                     var queue = Planscape.PluginSync.OfflineQueue.Shared;
                     if (queue == null)
@@ -2414,8 +2429,8 @@ namespace StingTools.BIMManager
 
                     var chunks = PlatformSyncCommand.ChunkForTransport(payload);
                     foreach (var chunk in chunks) queue.Enqueue(chunk);
-                    StingLog.Info($"PluginSyncTickBridge tick: enqueued {count:N0} elements for {doc.Title} " +
-                                  $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
+                    StingLog.Info($"PluginSyncTickBridge tick: {swept:N0} swept, {count:N0} changed — enqueued for " +
+                                  $"{doc.Title} in {chunks.Count} payload(s) (queue depth: {queue.Count})");
 
                     // Phase 177-B — reconcile any deliverables.json rows
                     // whose ServerSyncedAt is missing or stale. Fire-and-
