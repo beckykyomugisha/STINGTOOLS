@@ -2,7 +2,36 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Planscape Server — the API rate limit was per-IP, not per-user; found by measuring)
+#### Completed (N4 — unbreak the server CI gate: the suite is green, the harness couldn't read it)
+
+The `planscape-server` gate was **permanently red on `main`** even though the
+integration suite itself is **fully green** — 540 tests, `Test Run Successful.`,
+zero failures (the crash and the ~73 failures were fixed by the injected
+`IRecurringJobManager` conversion and the fixture-rot work that landed
+separately). The gate was red for one reason only: `check-new-failures.sh`
+couldn't parse the run it was handed.
+
+- **Summary detection.** It gated on a `^(Passed!|Failed!)` line that
+  `dotnet test` on a **solution** never emits — the VSTest logger prints
+  `Total tests: 540` + `Test Run Successful.` instead. So *every* completed run,
+  green or not, was declared "did not complete" and failed the gate. Now it
+  accepts the VSTest summary shapes.
+- **Failure extraction.** It matched only `Name [FAIL]` (xunit console) with a
+  space before `[FAIL]`, so a theory's `(args…)` ended the match and the VSTest
+  `Failed Name [12 ms]` form matched nothing at all — on the CI logger it would
+  have found **zero** failures even in a red run (a false pass). Now it matches
+  both loggers and both plain and theory cases, stripping the argument list.
+- **Gate timeout.** The `CI Gate` aggregator capped its wait at 30 min with a
+  stale "real builds ~3 min" note; the real-Postgres suite now runs ~45 min, so
+  the gate timed out on a job that was going to pass. Bumped to 70 min.
+
+Verified against `main`'s actual failing CI log: the fixed script detects the
+summary, extracts **0** failures, and exits **0**. The 66 stale
+`known-failing-tests.txt` entries (all now passing) surface as "FIXED" notices —
+harmless, and the intended signal to prune them; left in place here so this PR
+stays a pure harness fix that can only turn the gate green, never red.
+
+
 
 Follow-on from the connection-budget work. The tier capacity table was modelled,
 not measured, so this builds the harness to measure it — and the first real run
