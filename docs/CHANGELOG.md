@@ -2,6 +2,40 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (N6 — DEP-7: restore the HTTP-level handoff provisioning-failure test)
+
+Phase 212 had to drop the end-to-end test for the handoff guarantee — *a
+starter-project provisioning failure must still issue a session, never deny
+login for a provisioning reason* — and settle for a SQLite mechanism test that
+calls `EnsureStarterProjectAsync` directly. The blocker was never the failure
+injection; it was that a **second** `WebApplicationFactory` could not be stood
+up. The static `RecurringJob.AddOrUpdate` registrations read the process-global
+`Hangfire.JobStorage.Current` *during host build*, disposed per factory, so an
+extra host raced a dead storage and died with `ObjectDisposedException`.
+
+That foundation is now fixed on `main` — recurring jobs register through the
+injected `IRecurringJobManager` (each host's own storage), so nothing reads the
+global during build and a second factory is safe. This restores the dropped
+test:
+
+- **`HandoffProvisioningFailureHttpTests`** exchanges a ticket through
+  `POST /api/auth/handoff/exchange` against a factory whose DbContext refuses to
+  insert a `Project` — a `SaveChangesInterceptor` throwing the exact
+  `DbUpdateException` the real `(TenantId, Code)` unique-index race produces. It
+  asserts the response is still **200** with an access token, and that the
+  recovery path **detached** the failed `Project` / `ProjectMember` (both empty
+  under `IgnoreQueryFilters`) rather than letting them poison the refresh-token
+  save. This exercises the REAL `EnsureStarterProjectAsync` catch block, not a
+  re-implementation of it.
+- **In-memory + interceptor, not SQLite**, because a `WebApplicationFactory`
+  cannot boot against SQLite (Program.cs's schema block issues Postgres-only
+  `information_schema` queries with no guard) — the interceptor is the only
+  injection that survives a full HTTP boot.
+- **Pinned to a non-parallel collection** with its own in-memory factory, the
+  "serialized collection hosting the extra factory" remedy from the DEP-7 plan.
+
+Closes ROADMAP **DEP-7**.
+
 #### Completed (N4 — unbreak the server CI gate: the suite is green, the harness couldn't read it)
 
 The `planscape-server` gate was **permanently red on `main`** even though the
