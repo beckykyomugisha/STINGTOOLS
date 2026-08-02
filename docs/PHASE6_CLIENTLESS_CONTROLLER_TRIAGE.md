@@ -1,14 +1,23 @@
-# Phase 6A — clientless controller triage (amended four times)
+# Phase 6A — clientless controller triage (consolidated)
 
 **Originally measured 2026-08-01; amended 2026-08-02 after review; runtime pass added 2026-08-02;
 corrected 2026-08-02 (fourth pass) after a second review; corrected again 2026-08-02 (fifth pass)
-after `render.yaml` was read.** Triage only — no feature code.
+after `render.yaml` was read; consolidated 2026-08-02.** Triage only — no feature code.
+
+> **This is the single triage document.** It supersedes **PR #541** (closed — its history is already
+> reparented into this branch). The B1 retraction, the `DocumentApprovals` closure, the C1 decision,
+> the `bypassesAcl` note (C2) and the two docstring fixes all land here.
+>
+> **PR #544 is deliberately *not* folded in.** The brief listed it as a third conflicting triage PR;
+> it is not one. `#544` is `feat(data-rights)` and touches `Planscape.Desktop` renderer files,
+> `DataRightsController.cs` and a test — **no shared file with this document**, so there is nothing to
+> conflict and no reason to close it. Verified against the PR file list, not assumed.
 
 > ## Fifth pass — the correction that voids B1 outright and reinstates the runtime pass
 >
 > Every earlier revision of this document assumed **production runs `db.Database.Migrate()`**. It
-> does not. `render.yaml` sets, on **both** services — `planscape-api` (`:51-52`) and the worker
-> (`:104-105`):
+> does not. `render.yaml` sets, on **both** services — `planscape-api` (`:74-75`) and the worker
+> (`:144-145`):
 >
 > ```yaml
 > - key: PLANSCAPE_USE_ENSURE_CREATED
@@ -70,8 +79,8 @@ after `render.yaml` was read.** Triage only — no feature code.
 | Review finding | My position after re-verifying |
 |---|---|
 | S1 MaterialSync — confirmed, worse than reported (write too, path leak) | **Verified and fixed.** Removed from this triage — it is PR #542. |
-| B1 — five unmigrated tables, not two | ~~Verified, and it is six.~~ ~~Half right — they exist at runtime anyway.~~ ~~Restated as migration hygiene.~~ **VOID.** Production runs `EnsureCreated` + patchers by design (`render.yaml:51-52`), so the migration set is not the schema mechanism and its incompleteness is not a defect. Void as missing-tables, as hygiene, and as the `DocumentApprovals` question. See the fifth-pass banner. |
-| C1 ApprovalChains duplication | **Undecided, and downgraded from "verified".** The two mechanisms are an **OR**, not competing records — `DocumentsController.cs:1554`. See C1. |
+| B1 — five unmigrated tables, not two | ~~Verified, and it is six.~~ ~~Half right — they exist at runtime anyway.~~ ~~Restated as migration hygiene.~~ **VOID.** Production runs `EnsureCreated` + patchers by design (`render.yaml:74-75`), so the migration set is not the schema mechanism and its incompleteness is not a defect. Void as missing-tables, as hygiene, and as the `DocumentApprovals` question. See the fifth-pass banner. |
+| C1 ApprovalChains duplication | ~~Verified.~~ ~~Undecided, and downgraded from "verified".~~ **DECIDED (owner, 2026-08-02).** The two mechanisms are an **OR**, not competing records — `DocumentsController.cs:1554`. Flat approval is canonical for the UI; `ApprovalChainsController` stays server-side, keeps satisfying the same `:1554` gate, and gets no client surface until a project demonstrably needs multi-step. See [C1](#other-findings). |
 | Docstring lies (Mfa, DeviceTwins) | **Verified, and now FIXED in this PR.** `MfaController` said a "production implementation would use a TOTP library (e.g. Otp.NET) and IDataProtectionProvider" — it already uses both (`using OtpNet;`, `new Totp(secretBytes).VerifyTotp(…)`, injected `IDataProtector`). `DeviceTwinsController` said it "powers the mobile Live tab (RAG list)" — there is no Live tab in `Planscape/app/(tabs)/`, the two `live.tsx` files are a LiveKit meeting screen and a healthcare pressure view, and a repo-wide grep for `device-twins`/`DeviceTwins` across `Planscape/` and `planscape-web/` returns zero hits. Both docstrings rewritten with the measurement inline. |
 | DataRights — I was WRONG, re-rate Tier 1 | **Verified; I was wrong.** See DR1. |
 | Capabilities endpoint approved, sequenced after Phase 1 | Taken on trust — it is a decision, not a measurement. |
@@ -129,7 +138,7 @@ runs in 30 days; reversible until then."** → **Tier 1.**
 > retired, and because the underlying measurements (the `CreateTable` sweep, the patcher call-site
 > reading, the service→table mapping) are all still correct. But the conclusion it reaches —
 > "restated as a migration-hygiene finding" — **no longer holds.** There is no hygiene defect:
-> production runs `EnsureCreated` + idempotent patchers *by design* (`render.yaml:51-52`), the
+> production runs `EnsureCreated` + idempotent patchers *by design* (`render.yaml:74-75`), the
 > migration set is not the schema mechanism, and its incompleteness is the documented, intended state.
 > Read this section as history, not as an open finding. Nothing in it requires action.
 
@@ -368,7 +377,7 @@ finding, and it is out of scope here. Flagging it, not fixing it.
 >
 > It was originally run to answer "does the **Production** schema path die, and where?" — on the
 > assumption that production calls `db.Database.Migrate()`. **Production does not call `Migrate()`
-> at all.** `render.yaml:51-52` sets `PLANSCAPE_USE_ENSURE_CREATED=true`, so production takes the
+> at all.** `render.yaml:74-75` sets `PLANSCAPE_USE_ENSURE_CREATED=true`, so production takes the
 > `EnsureCreated` + patcher branch (`Program.cs:1538-1559`). The configuration used below —
 > `PLANSCAPE_USE_ENSURE_CREATED` **unset** — is therefore not the production path. It is a path no
 > deployed service takes.
@@ -473,30 +482,46 @@ none of which a migrations-only database has. The migration is unrunnable from i
 
 ## Amended triage table
 
-Legend — **Schema from**: which of the three mechanisms creates the controller's tables (B1). The
-previous revision labelled this column "Backed / ✅ patcher" for every row, which was wrong for rows
-2–6: those are migration-created, not patcher-created. Corrected and individually verified below.
-**DI**: every injected service resolves (static check of `Program.cs`). **Dev runtime**: status code
-from the pass below — measured on the `EnsureCreated` path, so it evidences *reachability*, not
-schema provenance.
+Five axes per the review — **contract**, **runtime status**, **backing**, **downstream**, **tier** —
+with auth and tenant scoping retained because they are what moved several rows.
 
-| # | Controller | Ln / actions | Auth gate | Tenant scoping | Schema from | DI | Dev runtime | Verdict |
-|---|---|---|---|---|---|---|---|---|
-| 1 | **DataRights** | 114 / 3 | `[Authorize(Roles="Owner,Admin")]` | `ITenantContext` | model | ✅ | 200 | **Tier 1** — DR1 |
-| 2 | **CdeContainers** | 287 / 6 | `[Authorize]` + role gate `:255` | `TenantId` + `ProjectMembers` | migration | ✅ | 200 | **Tier 1** |
-| 3 | **ApprovalChains** | 317 / 4 | `[Authorize]` + `[ProjectAccess]` | `[ProjectAccess]` + `TenantId` | migration | ✅ | 200 | Tier 2 — **undecided, C1** |
-| 4 | **AssetDataSheets** | 276 / 7 | `[Authorize]` + `[ProjectAccess]` | `RequireProjectMemberAsync` | migration | ✅ | 200 | Tier 2 |
-| 5 | **OfflineManifest** | 227 / 4 | `[Authorize]` | `TenantId` | migration | ✅ | 400¹ | Tier 2 — mobile-only by nature |
-| 6 | **Mfa** | 256 / 7 | `[Authorize]` (+`TenantAdmin` on one) | via `Users` | migration | ✅ | 200 | Tier 2 — works; fix M1 |
-| 7 | **WorkOrders** | 98 / 3 | `[Authorize]` | global filter (`ITenantScoped`) | **patcher** `:162` | ✅ | 200 | ~~Tier 3 blocked~~ → **Tier 2**² |
-| 8 | **GlobalIdRegistry** | 275 / 6 | `[Authorize]` | `TenantId` | **patcher** `:260` | ✅ | 200 | ~~Tier 3 blocked~~ → **Tier 2**² |
-| 9 | **DeviceTwins** | 108 / 5 | `[Authorize]` | `TenantId` | **patcher** `:91`, `:115` | ✅ | 200 | ~~Tier 3 blocked~~ → **Tier 2**²; fix M2 |
-| 10 | **CaseStudy** | 150 / 1 | `[Authorize]` | `TenantId` | model (read-only) | ✅ | 200 | Tier 3 — sales tool |
-| 11 | **TwinAlerts** | 53 / 3 | `[Authorize]` | `TenantId` | **patcher** `:143` | ✅ | 200 | ~~Tier 3 blocked~~ → **Tier 2**² |
-| 12 | **TwinRules** | 129 / 4 | `[Authorize]` | `TenantId` + `Projects` | **patcher** `:126` | ✅ | 200 | ~~Tier 3 blocked~~ → **Tier 2**² |
-| 13 | **TwinProvisioning** | 75 / 2 | `[Authorize]` | via service | **patcher** `:91` | ✅ | 200 | ~~Tier 3 blocked~~ → **Tier 2**² |
-| 14 | **TelemetryIngest** | 98 / 1 | `[Authorize]` | via services | **patcher** (all) | ✅ | 200 | ~~Tier 3 blocked~~ → **Tier 2**² |
-| — | ~~MaterialSync~~ | — | — | — | — | — | — | **Removed — shipped as PR #542** |
+Legend — **Contract**: route template + line count / action count. **Schema from** (*backing*): which
+of the three mechanisms declares the controller's tables (B1). The previous revision labelled this
+column "Backed / ✅ patcher" for every row, which was wrong for rows 2–6: those are migration-created,
+not patcher-created. Corrected and individually verified below. **DI**: every injected service
+resolves (static check of `Program.cs`). **Dev runtime**: status code from the pass below.
+**Downstream**: client files referencing the route (see ³).
+
+**Measurement basis, so unmeasured cells stay visibly unmeasured:**
+
+| Column | Basis | Measured? |
+|---|---|---|
+| Contract · Auth gate · Tenant scoping · Schema from · DI | static read of source | **measured** |
+| Dev runtime | HTTP status from the pass below | **measured** |
+| Downstream | literal route-fragment grep across all six client trees; method validated against controls | **measured** (³) |
+| **Prod runtime** | — | **UNMEASURED for all 14.** No production database or instance was queried in any pass. |
+
+> Since production and the local stack converge on the same `creator.CreateTables()` call (fifth-pass
+> banner), the Dev-runtime column is broadly representative of production *reachability* — but it is
+> still a different database, and it is not a production measurement. The row above stays.
+
+| # | Controller | Contract (route — ln / actions) | Auth gate | Tenant scoping | Schema from | DI | Dev runtime | Downstream | Tier |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | **DataRights** | `api/data-rights` — 114 / 3 | `[Authorize(Roles="Owner,Admin")]` | `ITenantContext` | model | ✅ | 200 | **0** | **Tier 1** — DR1 |
+| 2 | **CdeContainers** | `…/cde-containers` — 287 / 6 | `[Authorize]` + role gate `:255` | `TenantId` + `ProjectMembers` | migration | ✅ | 200 | **0** | **Tier 1** |
+| 3 | **ApprovalChains** | `…/documents/{id}/approval-chain` — 317 / 4 | `[Authorize]` + `[ProjectAccess]` | `[ProjectAccess]` + `TenantId` | migration | ✅ | 200 | **0** | Tier 2 — **decided (C1): server-side only, no client planned** |
+| 4 | **AssetDataSheets** | `…/asset-sheets` — 276 / 7 | `[Authorize]` + `[ProjectAccess]` | `RequireProjectMemberAsync` | migration | ✅ | 200 | **0** | Tier 2 |
+| 5 | **OfflineManifest** | `…/offline-manifest` — 227 / 4 | `[Authorize]` | `TenantId` | migration | ✅ | 400¹ | **0** | Tier 2 — mobile-only by nature |
+| 6 | **Mfa** | `api/mfa` — 256 / 7 | `[Authorize]` (+`TenantAdmin` on one) | via `Users` | migration | ✅ | 200 | **0** | Tier 2 — works; M1 fixed here |
+| 7 | **WorkOrders** | `…/work-orders` — 98 / 3 | `[Authorize]` | global filter (`ITenantScoped`) | **patcher** `:162` | ✅ | 200 | **0** | ~~Tier 3 blocked~~ → **Tier 2**² |
+| 8 | **GlobalIdRegistry** | `…/global-id-registry` — 275 / 6 | `[Authorize]` | `TenantId` | **patcher** `:260` | ✅ | 200 | **0** | ~~Tier 3 blocked~~ → **Tier 2**² |
+| 9 | **DeviceTwins** | `…/twins` — 108 / 5 | `[Authorize]` | `TenantId` | **patcher** `:91`, `:115` | ✅ | 200 | **0** | ~~Tier 3 blocked~~ → **Tier 2**²; M2 fixed here |
+| 10 | **CaseStudy** | `api/case-study` — 150 / 1 | `[Authorize]` | `TenantId` | model (read-only) | ✅ | 200 | **0** | Tier 3 — sales tool |
+| 11 | **TwinAlerts** | `…/twins/alerts` — 53 / 3 | `[Authorize]` | `TenantId` | **patcher** `:143` | ✅ | 200 | **0** | ~~Tier 3 blocked~~ → **Tier 2**² |
+| 12 | **TwinRules** | `…/twins/rules` — 129 / 4 | `[Authorize]` | `TenantId` + `Projects` | **patcher** `:126` | ✅ | 200 | **0** | ~~Tier 3 blocked~~ → **Tier 2**² |
+| 13 | **TwinProvisioning** | `…/twins/provision` — 75 / 2 | `[Authorize]` | via service | **patcher** `:91` | ✅ | 200 | **0** | ~~Tier 3 blocked~~ → **Tier 2**² |
+| 14 | **TelemetryIngest** | `…/telemetry` — 98 / 1 | `[Authorize]` | via services | **patcher** (all) | ✅ | 200 | **0** | ~~Tier 3 blocked~~ → **Tier 2**² |
+| — | ~~MaterialSync~~ | — | — | — | — | — | — | — | **Removed — shipped as PR #542** |
 
 ¹ `400` is ordinary model validation, not a schema failure: `{"errors":{"deviceId":["The deviceId
 field is required."]}}`. The pass sent no query string. Route shape, not breakage.
@@ -507,13 +532,37 @@ field is required."]}}`. The pass sent no query string. Route shape, not breakag
 and tenant scoping are as tabulated, and no client exists in any of the six checked. The dev-path
 200s corroborate reachability; they are not what moves the row.
 
+³ **Downstream — how the zeros were obtained, and why they are trustworthy.** Each controller's
+literal `[Route(...)]` fragment was grepped across every client tree — `Planscape/src`,
+`Planscape/app`, `Planscape.Desktop/src`, `StingTools`, `stingtools-core`, `StingBridge` (`.ts`,
+`.tsx`, `.js`, `.jsx`, `.py`, `.cs`). All fourteen returned **0 files**.
+
+An all-zero sweep is also exactly what a *broken* grep returns, so the method was validated against
+routes that must have clients **before** the zeros were trusted:
+
+| Control route | Files |
+|---|---|
+| `api/projects` | **58** |
+| `api/auth/login` | **13** |
+| `api/issues` | 0 — clients compose paths without the `api/` prefix |
+
+The method works. The `api/issues` control also showed that an `api/`-prefixed needle can miss a real
+client, so the two controllers where that applied (`api/mfa`, `…/telemetry`) were re-run with
+prefix-free fragments (`/mfa`, `mfa/`, `totp`, `/telemetry`) — still 0.
+
+**Scope limit, stated:** this establishes that no client references these routes *as literal strings
+on this branch*. A client assembling a path from runtime fragments would evade it. Strong evidence,
+not proof, and branch-local — PR #544 adds a `data-rights` client that does not exist here.
+
 **DI is clean across all fourteen.** The known-prior failure mode (a controller 500ing on every call
 from a missing registration, misreported by the browser as CORS) does not apply to any of them.
 
 **Seven rows moved off Tier 3.** They were rated blocked on a schema premise that does not hold. They
 are now ordinary Tier 2: the backend works, there is no client. That is a *product* gap, not a
-*platform* one, and it is a materially different piece of work. Row 3 is the exception — it is Tier 2
-on the same grounds but its *scope* is undecided pending C1.
+*platform* one, and it is a materially different piece of work. Row 3 is the exception only in that
+its scope was settled separately: C1 is now **decided** — `ApprovalChains` stays server-side and
+gets no client surface, so it is Tier 2 with no client work planned rather than Tier 2 awaiting a
+decision.
 
 ---
 
@@ -548,10 +597,11 @@ Either one alone satisfies the transition; the docstring says so deliberately (`
 may use the legacy single-approver path or the new multi-step chain **interchangeably**"). They are
 alternative satisfiers of one gate, not competing records, and nothing here writes two.
 
-**What remains, and it is a real decision:** two mechanisms for one concept, one with a client and one
-without. Which the UI drives is a product call, not a correctness bug — and the interchangeable gate
-means shipping a chain UI would not corrupt anything, it would just leave two supported routes to the
-same state.
+**What was left to decide** was two mechanisms for one concept, one with a client and one without.
+Which the UI drives is a product call, not a correctness bug — the interchangeable gate means
+shipping a chain UI would not corrupt anything, it would just leave two supported routes to the same
+state. **That call has now been made** (box above): flat only, chains retained server-side. No
+correctness question remains open on this row.
 
 **What M3 contributes.** Schema provenance does not break the tie: `ApprovalChains` is
 migration-created, `DocumentApprovals` is the one table in B1's list that **neither** a migration nor
@@ -586,7 +636,9 @@ Otp.NET)". It already does: `using OtpNet;` (`:5`), `IDataProtector` (`:23`),
 **M2 — DeviceTwins docstring is false.** `:11-12` claims it "Powers the mobile Live tab (RAG list)".
 There is no Live tab in `Planscape/app/`; the only case-insensitive match is `de`**live**`rables`.
 
-Both to be fixed in whichever PR next touches those files, per the review.
+**Both are FIXED in this PR** (`MfaController.cs`, `DeviceTwinsController.cs`) — docstrings only, no
+behaviour change. Each replacement records the measurement inline and, for `DeviceTwins`, an explicit
+"do not delete on *no caller* grounds" note pointing back at this document.
 
 ---
 
@@ -594,8 +646,8 @@ Both to be fixed in whichever PR next touches those files, per the review.
 
 > **Reinstated in the fifth pass.** The previous revision demoted this pass on the grounds that
 > `docker-api-1` runs `ASPNETCORE_ENVIRONMENT=Development` and therefore takes a schema branch that
-> production would not. **That reasoning was wrong and is retracted.** `render.yaml:51-52` sets
-> `PLANSCAPE_USE_ENSURE_CREATED=true` on the production API (and `:104-105` on the worker), so
+> production would not. **That reasoning was wrong and is retracted.** `render.yaml:74-75` sets
+> `PLANSCAPE_USE_ENSURE_CREATED=true` on the production API (and `:144-145` on the worker), so
 > production evaluates `useEnsureCreated` to **true** as well and lands on the *same*
 > `creator.CreateTables()` call at `Program.cs:1559`. Development reaches it via `IsDevelopment()`;
 > production reaches it via the env var. Same branch, same mechanism, same resulting schema.
@@ -695,7 +747,7 @@ rests on `Program.cs` source and boot order (B1-R §2, M3), never on this pass.
 | Item | Why it is open | What would close it |
 |---|---|---|
 | ~~C1 — canonical approval mechanism~~ | **CLOSED — DECIDED 2026-08-02.** Flat approval is the only client surface; `ApprovalChainsController` stays server-side with no UI until a project needs multi-step. The OR at `:1556` stays. See C1 under *Other findings*. | Nothing. Closed. |
-| ~~Migration hygiene (B1, restated)~~ | **CLOSED — VOID.** Not a defect. Production runs `EnsureCreated` + patchers by design (`render.yaml:51-52`); the migration set is not the schema mechanism and its incompleteness is intended. ADR 0001 documents it. | Nothing. Closed. |
+| ~~Migration hygiene (B1, restated)~~ | **CLOSED — VOID.** Not a defect. Production runs `EnsureCreated` + patchers by design (`render.yaml:74-75`); the migration set is not the schema mechanism and its incompleteness is intended. ADR 0001 documents it. | Nothing. Closed. |
 | ~~`20260501000000` is a latent trap~~ | **CLOSED — cannot fire.** It was only a trap on the `Migrate()` path, and no deployed service takes that path. | Nothing. Closed. |
 | **RLS is unreachable, not merely unapplied** | Tracked separately as **#545**, not here. Because production never calls `Migrate()`, adding the missing `[Migration]` attribute would deploy and change nothing — the obvious fix is a no-op. | Sign-off on one of the three options in #545. Not started; no code written. |
 | **Populated + cross-tenant behaviour** | Dev pass used empty tables and a single-tenant login. | A two-tenant fixture with seeded rows. |
