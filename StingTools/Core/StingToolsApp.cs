@@ -1764,59 +1764,63 @@ namespace StingTools.Core
                     string bimDirSync = BIMManagerEngine.GetBIMManagerDir(doc);
                     Guid syncProjectId = BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(
                         Path.Combine(bimDirSync, "planscape_connection.json"));
+                    // NOTE: skip the enqueue, do NOT return — returning here would
+                    // also skip the geometry-delta trigger further down, which is a
+                    // separate and working channel.
                     if (syncProjectId == Guid.Empty)
                     {
-                        StingLog.Info($"DocumentSaved: {doc.Title} — no Planscape project linked, sync skipped");
-                        return;
-                    }
-
-                    var payload = new Planscape.Shared.Models.PluginSyncPayload
-                    {
-                        ProjectId     = syncProjectId,
-                        UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
-                        RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
-                                          .GetName().Version?.ToString() ?? "",
-                        PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
-                        Timestamp     = DateTime.UtcNow,
-                        TagElements   = tagElements,
-                        Compliance    = new Planscape.Shared.Models.ComplianceSync
-                        {
-                            TotalElements     = totalElements,
-                            TaggedComplete    = taggedCount,
-                            StaleCount        = staleCount,
-                            PlaceholderCount  = placeholderCount,
-                            WarningCount      = warningCount,
-                            TagPercent        = tagPct,
-                            StrictPercent     = strictPct,
-                            ContainerPercent  = containerPct,
-                            RagStatus         = ragStatus
-                        }
-                    };
-
-                    var queue = OfflineQueue.Shared;
-                    if (queue != null)
-                    {
-                        var chunks = BIMManager.PlatformSyncCommand.ChunkForTransport(payload);
-                        foreach (var chunk in chunks) queue.Enqueue(chunk);
-                        StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
-                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} elements enqueued " +
-                            $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
-
-                        // C3 — drain immediately instead of waiting for the 5-min timer.
-                        // Fire-and-forget; the scheduler handles retry on failure.
-                        if (SyncScheduler.Instance != null)
-                        {
-                            _ = Task.Run(async () =>
-                            {
-                                try { await SyncScheduler.Instance.SyncNowAsync(); }
-                                catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
-                            });
-                        }
+                        StingLog.Info($"DocumentSaved: {doc.Title} — no Planscape project linked, element sync skipped");
                     }
                     else
                     {
-                        StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
-                    }
+                        var payload = new Planscape.Shared.Models.PluginSyncPayload
+                        {
+                            ProjectId     = syncProjectId,
+                            UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
+                            RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
+                                              .GetName().Version?.ToString() ?? "",
+                            PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
+                            Timestamp     = DateTime.UtcNow,
+                            TagElements   = tagElements,
+                            Compliance    = new Planscape.Shared.Models.ComplianceSync
+                            {
+                                TotalElements     = totalElements,
+                                TaggedComplete    = taggedCount,
+                                StaleCount        = staleCount,
+                                PlaceholderCount  = placeholderCount,
+                                WarningCount      = warningCount,
+                                TagPercent        = tagPct,
+                                StrictPercent     = strictPct,
+                                ContainerPercent  = containerPct,
+                                RagStatus         = ragStatus
+                            }
+                        };
+
+                        var queue = OfflineQueue.Shared;
+                        if (queue != null)
+                        {
+                            var chunks = BIMManager.PlatformSyncCommand.ChunkForTransport(payload);
+                            foreach (var chunk in chunks) queue.Enqueue(chunk);
+                            StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
+                                $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} elements enqueued " +
+                                $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
+
+                            // C3 — drain immediately instead of waiting for the 5-min timer.
+                            // Fire-and-forget; the scheduler handles retry on failure.
+                            if (SyncScheduler.Instance != null)
+                            {
+                                _ = Task.Run(async () =>
+                                {
+                                    try { await SyncScheduler.Instance.SyncNowAsync(); }
+                                    catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
+                                });
+                            }
+                        }
+                        else
+                        {
+                            StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
+                        }
+                    } // end: project linked
                 }
                 catch (Exception qEx)
                 {

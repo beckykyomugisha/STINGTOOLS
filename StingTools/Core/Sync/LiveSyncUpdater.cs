@@ -219,10 +219,25 @@ namespace StingTools.Core.Sync
                 string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(doc);
                 Guid projectId = BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(
                     System.IO.Path.Combine(bimDir, "planscape_connection.json"));
-                if (projectId == Guid.Empty) return;
-
                 var queue = Planscape.PluginSync.OfflineQueue.Shared;
-                if (queue == null) return;
+
+                // Undeliverable: no linked project, or the scheduler isn't
+                // running. Discard the dirty set rather than leaving it pending
+                // — it stays "due" forever otherwise, and the debounce timer
+                // would raise this external event once a second for the rest of
+                // the session. Nothing is lost that matters: the 5-minute
+                // reconciliation sweep re-derives state from the model by
+                // content hash, so whatever we drop here is picked up as soon
+                // as delivery becomes possible.
+                if (projectId == Guid.Empty || queue == null)
+                {
+                    int discarded = Planscape.PluginSync.SyncDirtyTracker.Drain(key).Count;
+                    if (discarded > 0)
+                        StingLog.Info($"LiveSyncPush: {discarded} dirty element(s) discarded for {doc.Title} — " +
+                                      (projectId == Guid.Empty ? "no Planscape project linked" : "sync scheduler not running") +
+                                      "; the 5-minute reconciliation sweep will re-derive them");
+                    return;
+                }
 
                 var ids = Planscape.PluginSync.SyncDirtyTracker.Drain(key);
                 if (ids.Count == 0) return;
