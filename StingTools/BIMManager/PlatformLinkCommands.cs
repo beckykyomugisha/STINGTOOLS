@@ -2317,6 +2317,13 @@ namespace StingTools.BIMManager
         {
             lock (_lock)
             {
+                // Attach the live-sync triggers on every connect. Deliberately
+                // ABOVE the _wired guard: that guard is one-shot, so after a
+                // disconnect → reconnect it returns early, and triggers removed
+                // by StopLive would never come back. StartLive is idempotent.
+                try { StingTools.Core.Sync.LiveSyncUpdater.StartLive(); }
+                catch (Exception ex) { StingLog.Warn($"LiveSyncUpdater.StartLive: {ex.Message}"); }
+
                 if (_wired) return;
                 try
                 {

@@ -192,6 +192,14 @@ namespace StingTools.Core
                 // in project_config.json.
                 LiveClashUpdater.Register(application);
 
+                // Register the Planscape live element-sync updater (IUpdater) —
+                // registered with NO triggers. Triggers are attached only on a
+                // successful Planscape connect and removed on disconnect, so users
+                // who never touch Planscape pay nothing for it (Revit evaluates an
+                // updater's trigger filter on every element change even while the
+                // updater is disabled).
+                StingTools.Core.Sync.LiveSyncUpdater.Register(application);
+
                 // Register the SLD sync updater (IUpdater) — starts disabled. The
                 // SLD panel's "live sync" toggle writes sld_sync_enabled; without
                 // this registration that flag governed nothing.
@@ -1902,6 +1910,7 @@ namespace StingTools.Core
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             try { Core.Sustainability.SustainStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
+            try { Core.Sync.LiveSyncUpdater.Unregister(); } catch { }
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
 
