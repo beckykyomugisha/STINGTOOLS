@@ -1,39 +1,67 @@
-# Phase 6A — clientless controller triage (amended three times)
+# Phase 6A — clientless controller triage (amended four times)
 
 **Originally measured 2026-08-01; amended 2026-08-02 after review; runtime pass added 2026-08-02;
-corrected 2026-08-02 (fourth pass) after a second review.** Triage only — no feature code.
+corrected 2026-08-02 (fourth pass) after a second review; corrected again 2026-08-02 (fifth pass)
+after `render.yaml` was read.** Triage only — no feature code.
 
-> **Correction — two things in the previous revision were wrong.**
+> ## Fifth pass — the correction that voids B1 outright and reinstates the runtime pass
 >
-> **1. The runtime pass is not evidence for B1, and no longer reads as if it were.** It ran against
-> `docker-api-1`, which is `ASPNETCORE_ENVIRONMENT=Development` (verified on the container). That
-> takes `Program.cs:1522` → `useEnsureCreated` → `creator.CreateTables()` (`:1559`), which
-> materialises **every table in `OnModelCreating`** whether or not a migration creates it. "Zero
-> `relation … does not exist` across fourteen controllers" was therefore **true by construction** and
-> says nothing about production. The §4 replication booted Development too, so it controls for
-> environment artefacts but inherits the same limitation. What the pass does establish: the
-> controllers serve traffic, their DI resolves, and their write paths persist. What it cannot
-> establish: anything about a schema built any other way.
+> Every earlier revision of this document assumed **production runs `db.Database.Migrate()`**. It
+> does not. `render.yaml` sets, on **both** services — `planscape-api` (`:51-52`) and the worker
+> (`:104-105`):
 >
-> **2. B1 was wrong — but not because "the tables exist at runtime".** Six of the seven are created by
-> `PlatformSchemaPatcher.ApplyAsync` (`Program.cs:1585`) with raw `CREATE TABLE IF NOT EXISTS`. That
-> call sits **outside** the `if (useEnsureCreated) … else Migrate()` split, so it runs in **both**
-> branches — which is a static fact about the code, valid for production, and it is the actual reason
-> those six exist there. A `CreateTable` grep cannot see them because they are patcher-created, not
-> migration-created. B1 is restated below as a **migration-hygiene** finding — model, migrations and
-> patcher are three sources of truth for one schema — not as missing tables. The five twin
-> controllers are re-assessed on their own merits rather than as B1-blocked.
+> ```yaml
+> - key: PLANSCAPE_USE_ENSURE_CREATED
+>   value: "true"
+> ```
 >
-> **3. The seventh table — measured.** `DocumentApprovals` is in neither the migrations nor the
-> patcher, and `20260501000000` runs an unguarded `UPDATE "DocumentApprovals"` that the patcher (which
-> runs *after* `Migrate()`) could not rescue. On a fresh empty Postgres with
-> `ASPNETCORE_ENVIRONMENT=Production` and `PLANSCAPE_USE_ENSURE_CREATED` unset, `dotnet ef database
-> update` **completes** — exit 0, 2 migrations applied, 2 tables. It never reaches that migration:
-> the file carries no `[Migration]` attribute, so EF cannot see it (2 of 78 are visible). The hazard
-> is **latent, not live** — and the fix for the hygiene finding is what arms it. Full measurement,
-> including the counterfactual, in [M3](#m3--what-dotnet-ef-database-update-actually-does).
+> with a comment stating that the incomplete migration set is that way **by design**, that
+> `EnsureCreated` + idempotent patchers is the official mechanism, and that "without this flag a
+> FRESH database takes the `Migrate()` branch and comes up nearly empty."
 >
-> **No production database was queried.**
+> `Program.cs:1522-1564` is a three-way branch:
+>
+> ```csharp
+> var useEnsureCreated = app.Environment.IsDevelopment()
+>     || string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_USE_ENSURE_CREATED"),
+>                      "true", StringComparison.OrdinalIgnoreCase);
+>
+> if (!db.Database.IsRelational()) { /* tests */ }
+> else if (useEnsureCreated)       { /* probe Tenants; creator.CreateTables() */ }   // ← production
+> else                             { db.Database.Migrate(); }                        // ← dead in prod
+> ```
+>
+> `useEnsureCreated` is **true in production**. The `Migrate()` branch is unreachable there.
+>
+> **Three consequences, each of which supersedes an earlier conclusion in this document:**
+>
+> **1. The runtime pass is reinstated as broadly representative of production.** The fourth pass
+> demoted it on the grounds that `docker-api-1` runs Development and therefore takes a branch
+> production would not. That reasoning was wrong: production takes **the same branch**, for a
+> different reason (the env var rather than `IsDevelopment()`), converging on the identical
+> `creator.CreateTables()` call at `:1559`. A local stack and production build their schema by the
+> same mechanism. The pass is still not a *proof* about production — it is a different database with
+> empty tables and one tenant — but "it says nothing about prod" was too strong and is **retracted**.
+>
+> **2. B1 is VOID — in all three of its forms.** Not "restated", not "downgraded": void.
+> - as **"five/six unmigrated tables"** — void, they are created by `EnsureCreated` and the patcher;
+> - as **"migration hygiene"** — void, because there is no hygiene defect to report. The migration
+>   set is *deliberately* not the mechanism. ADR 0001 documents this and `render.yaml` enforces it.
+>   The 78 inert migrations are **vestigial, not broken**;
+> - as **the `DocumentApprovals` question** — void, see the appendix. Production never runs the
+>   migration that would have touched it.
+>
+> **3. The M3 measurement is correct but is expected behaviour, not a defect.** "2 of 78 migrations
+> visible; `dotnet ef database update` yields 2 tables and no `Tenants`" is exactly what
+> `render.yaml`'s own comment predicts for the `Migrate()` path, which is why the flag exists. It is
+> preserved as [Appendix A](#appendix-a--the-migration-measurement-expected-behaviour-not-a-defect),
+> re-labelled.
+>
+> **What survives all of this.** One finding, and it is not in this document: Postgres Row-Level
+> Security is not merely unapplied but **unreachable by the mechanism production runs** — filed as
+> **#545**. That is the only item from this workstream still open on the schema axis.
+>
+> **No production database was queried, at any point, in any pass.**
 
 ---
 
@@ -42,9 +70,9 @@ corrected 2026-08-02 (fourth pass) after a second review.** Triage only — no f
 | Review finding | My position after re-verifying |
 |---|---|
 | S1 MaterialSync — confirmed, worse than reported (write too, path leak) | **Verified and fixed.** Removed from this triage — it is PR #542. |
-| B1 — five unmigrated tables, not two | ~~Verified, and it is six.~~ ~~Half right — they exist at runtime anyway.~~ **Restated.** The sweep is accurate but measures the wrong thing: six of the seven are created by the *patcher*, which a `CreateTable` grep cannot see. Now a migration-hygiene finding, not a missing-table one. See [B1](#b1--restated-a-migration-hygiene-finding-not-missing-tables). |
+| B1 — five unmigrated tables, not two | ~~Verified, and it is six.~~ ~~Half right — they exist at runtime anyway.~~ ~~Restated as migration hygiene.~~ **VOID.** Production runs `EnsureCreated` + patchers by design (`render.yaml:51-52`), so the migration set is not the schema mechanism and its incompleteness is not a defect. Void as missing-tables, as hygiene, and as the `DocumentApprovals` question. See the fifth-pass banner. |
 | C1 ApprovalChains duplication | **Undecided, and downgraded from "verified".** The two mechanisms are an **OR**, not competing records — `DocumentsController.cs:1554`. See C1. |
-| Docstring lies (Mfa, DeviceTwins) | **Verified.** Unchanged from the first pass. |
+| Docstring lies (Mfa, DeviceTwins) | **Verified, and now FIXED in this PR.** `MfaController` said a "production implementation would use a TOTP library (e.g. Otp.NET) and IDataProtectionProvider" — it already uses both (`using OtpNet;`, `new Totp(secretBytes).VerifyTotp(…)`, injected `IDataProtector`). `DeviceTwinsController` said it "powers the mobile Live tab (RAG list)" — there is no Live tab in `Planscape/app/(tabs)/`, the two `live.tsx` files are a LiveKit meeting screen and a healthcare pressure view, and a repo-wide grep for `device-twins`/`DeviceTwins` across `Planscape/` and `planscape-web/` returns zero hits. Both docstrings rewritten with the measurement inline. |
 | DataRights — I was WRONG, re-rate Tier 1 | **Verified; I was wrong.** See DR1. |
 | Capabilities endpoint approved, sequenced after Phase 1 | Taken on trust — it is a decision, not a measurement. |
 
@@ -63,7 +91,7 @@ wrong evidence. It credited the *runtime pass* with overturning B1, when the run
 `PlatformSchemaPatcher` and noticing where `Program.cs` calls it** — a static fact that holds in
 Production, which the third pass did record (§2 of B1-R) but buried under a runtime result that was
 true by construction. Booting the thing was still the right instinct; the error was in what the boot
-was allowed to prove. One measurement in this pass is genuinely new: [M3](#m3--what-dotnet-ef-database-update-actually-does).
+was allowed to prove. One measurement in this pass is genuinely new: [Appendix A](#appendix-a--the-migration-measurement-expected-behaviour-not-a-defect).
 
 ---
 
@@ -95,7 +123,15 @@ runs in 30 days; reversible until then."** → **Tier 1.**
 
 ---
 
-## B1 — restated: a migration-hygiene finding, not missing tables
+## B1 — VOID (retained as the audit trail of how it was retired)
+
+> **Superseded by the fifth pass.** Everything below is left in place because it is *how* B1 was
+> retired, and because the underlying measurements (the `CreateTable` sweep, the patcher call-site
+> reading, the service→table mapping) are all still correct. But the conclusion it reaches —
+> "restated as a migration-hygiene finding" — **no longer holds.** There is no hygiene defect:
+> production runs `EnsureCreated` + idempotent patchers *by design* (`render.yaml:51-52`), the
+> migration set is not the schema mechanism, and its incompleteness is the documented, intended state.
+> Read this section as history, not as an open finding. Nothing in it requires action.
 
 The `CreateTable` sweep reproduces and is accurate. The question it answers is not the one B1 asked.
 **Three** mechanisms in this codebase can put a table in a database, and the sweep consulted one:
@@ -143,7 +179,7 @@ the three sources can disagree silently; `SchemaDriftChecker` (`Program.cs:1610`
 catching that, at boot, per environment.
 
 **The one table where they do disagree is `DocumentApprovals`** — in the model, in no migration, in
-no patcher. That is the residue of B1 worth acting on, and it is measured in [M3](#m3--what-dotnet-ef-database-update-actually-does).
+no patcher. That is the residue of B1 worth acting on, and it is measured in [Appendix A](#appendix-a--the-migration-measurement-expected-behaviour-not-a-defect).
 
 ### The twin cluster — service→table mapping, which stands
 
@@ -204,7 +240,7 @@ files carrying [Migration(              :  2     (MeetingMedia, SustainabilitySn
 ```
 
 So `Migrate()` / `ef database update` applies **2 of 78** — confirmed directly in
-[M3](#m3--what-dotnet-ef-database-update-actually-does) by `dotnet ef migrations list`, which
+[Appendix A](#appendix-a--the-migration-measurement-expected-behaviour-not-a-defect) by `dotnet ef migrations list`, which
 enumerates exactly those two. This is not new breakage —
 [`docs/adr/0001-schema-management.md`](adr/0001-schema-management.md) (Accepted, 2026-06-04) records
 it and **adopts `EnsureCreated` + idempotent patchers as the official, supported mechanism**. It
@@ -231,10 +267,12 @@ One ordering caveat, since it matters for M3: the patcher runs at `:1585`, **aft
 all three. That last point is worth more than any single-table argument: on a booted non-dev
 instance, *every* table in the EF model exists, or the process would have exited at `:1610`.
 
-**3. Fresh-database boot on the Production path.** This one genuinely exercises the non-dev branch,
-and it stands — though it is corroboration for §2, not the "decisive test" the previous revision
-billed it as. Empty DB (0 tables), API
-booted with `ASPNETCORE_ENVIRONMENT=Production` so it takes the `Migrate()` branch:
+**3. Fresh-database boot on the `Migrate()` path.** *(Fifth pass: re-labelled. This was headed
+"on the Production path", which is wrong — production sets `PLANSCAPE_USE_ENSURE_CREATED=true` and
+never takes this branch. It exercises the `Migrate()` branch, which no deployed service reaches. The
+measurement stands; it demonstrates why the flag exists rather than a production failure mode.)*
+Empty DB (0 tables), API booted with `ASPNETCORE_ENVIRONMENT=Production` **and the env var unset**,
+so it takes the `Migrate()` branch:
 
 ```
 Unhandled exception. System.InvalidOperationException: Schema drift detected:
@@ -323,15 +361,43 @@ finding, and it is out of scope here. Flagging it, not fixing it.
 
 ---
 
-## M3 — what `dotnet ef database update` actually does
+## Appendix A — the migration measurement: expected behaviour, not a defect
 
-**The question.** `20260501000000_AddTenantIdToAllScopedEntities` runs an **unguarded**
+> **Read this framing first.** The measurement below is **correct and reproducible**, and it is
+> retained for that reason. What changed in the fifth pass is what it *means*.
+>
+> It was originally run to answer "does the **Production** schema path die, and where?" — on the
+> assumption that production calls `db.Database.Migrate()`. **Production does not call `Migrate()`
+> at all.** `render.yaml:51-52` sets `PLANSCAPE_USE_ENSURE_CREATED=true`, so production takes the
+> `EnsureCreated` + patcher branch (`Program.cs:1538-1559`). The configuration used below —
+> `PLANSCAPE_USE_ENSURE_CREATED` **unset** — is therefore not the production path. It is a path no
+> deployed service takes.
+>
+> So the headline result — **"2 of 78 migrations visible; `dotnet ef database update` yields 2 tables
+> and no `Tenants`"** — is not a finding. It is precisely what `render.yaml`'s own comment predicts:
+>
+> > *"…the EF migration set is incomplete BY DESIGN … without this flag a FRESH database takes the
+> > `Migrate()` branch and comes up nearly empty."*
+>
+> The measurement **confirms the documented rationale for the flag**. Re-labelled accordingly:
+> **expected behaviour, explained by `render.yaml`.** No action follows from it, and the 78 inert
+> migrations are vestigial rather than broken.
+>
+> Two smaller conclusions below also fall away: the `20260501000000` "latent trap" cannot fire on any
+> deployed service, because no deployed service runs migrations at all; and the `DocumentApprovals`
+> question is answered by `EnsureCreated` materialising the whole model, not by migration order.
+>
+> The one thing in this area that *is* live is filed separately as **#545** — RLS is unreachable by
+> the `EnsureCreated` mechanism, so the obvious-looking fix (add the missing `[Migration]` attribute)
+> would deploy and change nothing.
+
+**The original question.** `20260501000000_AddTenantIdToAllScopedEntities` runs an **unguarded**
 `UPDATE "DocumentApprovals"` (table listed at `:37`, SQL emitted at `:62-65`) — and
 `DocumentApprovals` is created by no migration and no patcher. The patcher runs at `Program.cs:1585`,
 *after* `Migrate()` at `:1564`, so it cannot rescue a migration that throws first. Does the
-Production schema path therefore die, and if so where?
+`Migrate()` schema path therefore die, and if so where?
 
-**Configuration — the prod path, and only the prod path.** Fresh `postgres:16-alpine`, empty
+**Configuration — the `Migrate()` path, which no deployed service takes.** Fresh `postgres:16-alpine`, empty
 (`0` tables in `public`), `ASPNETCORE_ENVIRONMENT=Production`, `PLANSCAPE_USE_ENSURE_CREATED` unset,
 running `dotnet ef database update` **alone — not the app**.
 
@@ -497,19 +563,24 @@ Both to be fixed in whichever PR next touches those files, per the review.
 
 ---
 
-## Runtime pass (measured on the Development path — reachability only)
+## Runtime pass (measured on a stack equivalent to production)
 
-> **What this pass can and cannot support.** It ran against `docker-api-1`, whose environment is
-> `ASPNETCORE_ENVIRONMENT=Development`. That takes `Program.cs:1522` → `creator.CreateTables()`
-> (`:1559`), which materialises **every table in the EF model**. So "no controller returned
-> `relation … does not exist`" was **true by construction** — no possible outcome of this pass could
-> have shown a missing table, whatever the migrations or the patcher do. The §4 replication booted
-> Development too.
+> **Reinstated in the fifth pass.** The previous revision demoted this pass on the grounds that
+> `docker-api-1` runs `ASPNETCORE_ENVIRONMENT=Development` and therefore takes a schema branch that
+> production would not. **That reasoning was wrong and is retracted.** `render.yaml:51-52` sets
+> `PLANSCAPE_USE_ENSURE_CREATED=true` on the production API (and `:104-105` on the worker), so
+> production evaluates `useEnsureCreated` to **true** as well and lands on the *same*
+> `creator.CreateTables()` call at `Program.cs:1559`. Development reaches it via `IsDevelopment()`;
+> production reaches it via the env var. Same branch, same mechanism, same resulting schema.
 >
 > **Valid conclusions:** the fourteen controllers are routable, their DI graph resolves at runtime,
-> their handlers do not throw, and their write paths persist rows.
-> **Invalid conclusions, previously drawn here:** anything about production's schema, and anything
-> about *which* mechanism creates a table. Those come from B1-R §2 and [M3](#m3--what-dotnet-ef-database-update-actually-does).
+> their handlers do not throw, their write paths persist rows — and, because the schema is built the
+> same way in both places, these hold for production too, modulo data.
+>
+> **Still not established, and these are real limits:** the pass ran against **empty tables** and a
+> **single-tenant** login. It says nothing about behaviour at volume, nothing about cross-tenant
+> isolation, and nothing about rows that already exist in production. "Broadly representative" is a
+> statement about the *schema*, not about the data or the tenancy.
 
 **Closed.** The blocker did not reproduce. `Start-Process "C:\Program Files\Docker\Docker\Docker
 Desktop.exe"` brought the daemon up first try — `docker version` → server `29.4.3`, `docker-desktop`
@@ -597,6 +668,7 @@ rests on `Program.cs` source and boot order (B1-R §2, M3), never on this pass.
 | Item | Why it is open | What would close it |
 |---|---|---|
 | **C1 — canonical approval mechanism** | A product decision; both paths work and the gate accepts either. | Someone picks one, and says whether the OR stays. |
-| **Migration hygiene (B1, restated)** | Model / migrations / patcher are three sources of truth for one schema; only a boot-time assert reconciles them. ADR 0001 accepted this. | Out of scope here — flagged, not fixed. |
-| **`20260501000000` is a latent trap** | Invisible to EF today, so it cannot fire; making the migration set discoverable arms it, and it dies on its first statement (M3). | A warning comment in the file, and reconciling the ~26 tables it assumes exist. One line of that is trivial; the rest is the hygiene item above. |
+| ~~Migration hygiene (B1, restated)~~ | **CLOSED — VOID.** Not a defect. Production runs `EnsureCreated` + patchers by design (`render.yaml:51-52`); the migration set is not the schema mechanism and its incompleteness is intended. ADR 0001 documents it. | Nothing. Closed. |
+| ~~`20260501000000` is a latent trap~~ | **CLOSED — cannot fire.** It was only a trap on the `Migrate()` path, and no deployed service takes that path. | Nothing. Closed. |
+| **RLS is unreachable, not merely unapplied** | Tracked separately as **#545**, not here. Because production never calls `Migrate()`, adding the missing `[Migration]` attribute would deploy and change nothing — the obvious fix is a no-op. | Sign-off on one of the three options in #545. Not started; no code written. |
 | **Populated + cross-tenant behaviour** | Dev pass used empty tables and a single-tenant login. | A two-tenant fixture with seeded rows. |
