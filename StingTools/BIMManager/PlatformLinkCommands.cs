@@ -2000,9 +2000,27 @@ namespace StingTools.BIMManager
             // or unsynced local copy. We block only on user choice — once
             // accepted, the sync proceeds with whatever payload the local
             // model carries.
+            //
+            // Interactive paths only. This method is also called from the
+            // automatic DocumentSynchronizedWithCentral handler, where these
+            // modal confirms popped up on their own with nobody having asked for
+            // a sync — and defaulted to Cancel, so an unattended STC either
+            // blocked on a dialog or quietly cancelled itself. On automatic
+            // paths we log the same facts and proceed. `promptStabilise` already
+            // marks "this is the user pressing the button" (it gates the IFC
+            // GUID prompt directly above), so it is the interactive flag.
+            bool interactive = promptStabilise;
             try
             {
-                if (!doc.IsWorkshared)
+                if (!interactive)
+                {
+                    bool wsModified = false;
+                    try { wsModified = doc.IsWorkshared && doc.IsModified; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    StingLog.Info($"Planscape sync (automatic): workshared={doc.IsWorkshared} " +
+                                  $"unsyncedLocalChanges={wsModified} — proceeding without confirmation");
+                }
+                else if (!doc.IsWorkshared)
                 {
                     StingLog.Info("Planscape sync: document is not workshared — local model is the source of truth");
                     var nonShared = new TaskDialog("Planscape Sync — Confirm")
@@ -2046,14 +2064,18 @@ namespace StingTools.BIMManager
             }
 
             // Phase 91 — shared payload-build path (also used by PluginSyncTickBridge
-            // on the scheduler's 5-min tick). Reads ASS_* parameters and maps them
-            // onto Planscape.Shared.Models.TagElementSync.
+            // on the scheduler's 5-min tick). Maps every model element onto
+            // Planscape.Shared.Models.TagElementSync.
             var payload = BuildPluginSyncPayload(doc, app, projectId);
             var tagSync = payload.TagElements ?? new List<Planscape.Shared.Models.TagElementSync>();
 
             if (tagSync.Count == 0)
             {
-                TaskDialog.Show("Planscape", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
+                // Sync is no longer gated on tagging, so an empty result now means
+                // the document genuinely has no elements — not that nobody has run
+                // the tagger yet. The old message told the user to go and tag
+                // something, which stopped being true when the gate was removed.
+                TaskDialog.Show("Planscape", "No elements found to sync.\n\nThis document contains no model elements.");
                 return;
             }
 
@@ -2070,11 +2092,26 @@ namespace StingTools.BIMManager
             Planscape.Shared.Models.SyncResult sResult;
             try
             {
-                // Task.Run escapes the WPF DispatcherSynchronizationContext
-                // so SyncNow's continuations don't deadlock against the
-                // dispatcher we're blocking on with GetResult().
-                sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(payload))
-                    .GetAwaiter().GetResult();
+                // Enqueue the sweep as transport-sized chunks, then drain with a
+                // null payload (SyncNowAsync(null) skips the enqueue and just
+                // drains whatever is queued).
+                var chunks = ChunkForTransport(payload);
+                var queue = Planscape.PluginSync.OfflineQueue.Shared;
+                if (queue != null && chunks.Count > 1)
+                {
+                    foreach (var chunk in chunks) queue.Enqueue(chunk);
+                    StingLog.Info($"Planscape sync: {tagSync.Count:N0} elements enqueued as {chunks.Count} chunks");
+                    sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(null))
+                        .GetAwaiter().GetResult();
+                }
+                else
+                {
+                    // Task.Run escapes the WPF DispatcherSynchronizationContext
+                    // so SyncNow's continuations don't deadlock against the
+                    // dispatcher we're blocking on with GetResult().
+                    sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(payload))
+                        .GetAwaiter().GetResult();
+                }
             }
             catch (Exception ex)
             {
@@ -2170,6 +2207,60 @@ namespace StingTools.BIMManager
                 Timestamp     = DateTime.UtcNow,
                 TagElements   = tagSync
             };
+        }
+
+        /// <summary>
+        /// Largest element count we will put into a single queued payload.
+        /// <para>
+        /// The server rejects any request carrying more than 50,000 elements
+        /// (TagSyncController returns 400). That cap is already satisfied at the
+        /// transport layer — <c>SyncClient.SyncAsync</c> slices
+        /// <c>TagElements</c> into POSTs of <c>BatchSize</c> = 500, so no single
+        /// request has ever been able to exceed it. This lower payload-level cap
+        /// exists for a different reason: now that sync is no longer gated on
+        /// tagging, a full sweep of a large model is every element in it, and a
+        /// single queue file holding all of them is a large blob to serialise,
+        /// write, re-read and hold in memory on each drain. Chunking keeps the
+        /// queue files bounded, and keeps us well under the server cap even if
+        /// the transport batching is ever changed.
+        /// </para>
+        /// </summary>
+        internal const int MaxElementsPerPayload = 10_000;
+
+        /// <summary>
+        /// Split a payload into transport-sized chunks. The first chunk keeps the
+        /// non-element data (compliance, SEQ counters, issues, workflow runs);
+        /// subsequent chunks carry elements only, so a multi-chunk sweep doesn't
+        /// re-post the same compliance snapshot once per chunk.
+        /// Returns the payload unchanged when it is already small enough.
+        /// </summary>
+        internal static List<Planscape.Shared.Models.PluginSyncPayload> ChunkForTransport(
+            Planscape.Shared.Models.PluginSyncPayload payload)
+        {
+            var result = new List<Planscape.Shared.Models.PluginSyncPayload>();
+            if (payload == null) return result;
+
+            var elements = payload.TagElements;
+            if (elements == null || elements.Count <= MaxElementsPerPayload)
+            {
+                result.Add(payload);
+                return result;
+            }
+
+            for (int i = 0; i < elements.Count; i += MaxElementsPerPayload)
+            {
+                var slice = elements.GetRange(i, Math.Min(MaxElementsPerPayload, elements.Count - i));
+                var chunk = payload.WithElements(slice);
+                if (i > 0)
+                {
+                    chunk.Compliance   = null;
+                    chunk.SeqCounters  = null;
+                    chunk.Issues       = null;
+                    chunk.WorkflowRuns = null;
+                }
+                result.Add(chunk);
+            }
+            return result;
         }
 
         internal static Guid LoadPlanscapeProjectId(string cfgPath)
@@ -2303,7 +2394,7 @@ namespace StingTools.BIMManager
                     int count = payload?.TagElements?.Count ?? 0;
                     if (count == 0)
                     {
-                        StingLog.Info($"PluginSyncTickBridge tick: 0 tagged elements in {doc.Title}, nothing to enqueue");
+                        StingLog.Info($"PluginSyncTickBridge tick: 0 elements in {doc.Title}, nothing to enqueue");
                         return;
                     }
 
@@ -2314,8 +2405,10 @@ namespace StingTools.BIMManager
                         return;
                     }
 
-                    queue.Enqueue(payload);
-                    StingLog.Info($"PluginSyncTickBridge tick: enqueued payload with {count:N0} tagged elements for {doc.Title} (queue depth: {queue.Count})");
+                    var chunks = PlatformSyncCommand.ChunkForTransport(payload);
+                    foreach (var chunk in chunks) queue.Enqueue(chunk);
+                    StingLog.Info($"PluginSyncTickBridge tick: enqueued {count:N0} elements for {doc.Title} " +
+                                  $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
 
                     // Phase 177-B — reconcile any deliverables.json rows
                     // whose ServerSyncedAt is missing or stale. Fire-and-

@@ -1788,10 +1788,11 @@ namespace StingTools.Core
                     var queue = OfflineQueue.Shared;
                     if (queue != null)
                     {
-                        queue.Enqueue(payload);
+                        var chunks = BIMManager.PlatformSyncCommand.ChunkForTransport(payload);
+                        foreach (var chunk in chunks) queue.Enqueue(chunk);
                         StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
-                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} tag elements enqueued " +
-                            $"(queue depth: {queue.Count})");
+                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} elements enqueued " +
+                            $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
 
                         // C3 — drain immediately instead of waiting for the 5-min timer.
                         // Fire-and-forget; the scheduler handles retry on failure.
