@@ -479,3 +479,41 @@ gracefully — IFC uploads are rejected with a "convert to GLB first" message an
 heavy jobs simply don't run — and add them when you need IFC conversion / photo
 redaction. Redis is also optional (the app fails open) but recommended once you
 run more than one API instance (SignalR backplane).
+
+---
+
+## Pointing the plugin at a local server (development)
+
+The Revit plugin resolves its API base URL in `PlanscapeServerClient.Settings.cs`,
+`ResolveDefaultServerUrl()`, in this order — first hit wins:
+
+| # | Source | Scope |
+|---|---|---|
+| 1 | `STING_PLANSCAPE_URL` environment variable | Whatever the process inherits |
+| 2 | `%APPDATA%\StingTools\planscape_server.json` → `"serverUrl"` | Persists across restarts, per user |
+| 3 | `BakedDefaultServerUrl` | Compiled into the assembly |
+
+The resolved value is cached in `_cachedDefaultUrl` **for the lifetime of the process**,
+so switching targets always requires restarting Revit. There is no in-session toggle.
+
+### Use the launcher, not the settings file
+
+```powershell
+.\tools\Start-RevitLocal.ps1                      # newest Revit -> http://localhost:5000
+.\tools\Start-RevitLocal.ps1 -Revit 2025          # a specific version
+.\tools\Start-RevitLocal.ps1 -SkipHealthCheck     # launch with the API deliberately down
+.\tools\Start-RevitLocal.ps1 -Prod                # no override; use the saved pointer
+```
+
+It sets level 1 **for the launched process only**, prints the saved level-2 pointer
+alongside the override so the active target is unambiguous, and health-checks the URL
+first so a dead stack fails immediately with the `docker start docker-api-1` command
+rather than as a confusing in-app error.
+
+**Do not use `setx`, a user-level environment variable, or hand-edit
+`planscape_server.json` to switch to local.** All three persist, and a forgotten local
+override points a real session at a dev database with no visible sign. Closing Revit
+clears the launcher's override; nothing has to be remembered or undone.
+
+`-SkipHealthCheck` is what the site-photo "could not load" verification needs: it starts
+Revit pointed at an API that is deliberately down, so the failure states can be observed.
