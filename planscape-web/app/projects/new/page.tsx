@@ -37,46 +37,46 @@ export default function NewProjectPage() {
   return (
     <AppShell>
       <div className="mb-4">
-        <Link href="/projects" className="text-sm text-slate-400 hover:underline">
+        <Link href="/projects" className="text-sm text-fg-subtle hover:underline">
           ← Projects
         </Link>
         <h1 className="text-xl font-semibold">New project</h1>
       </div>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
 
-      <form onSubmit={submit} className="max-w-lg space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+      <form onSubmit={submit} className="max-w-lg space-y-3 rounded-lg border border-border bg-surface p-4">
         <label className="block">
-          <span className="text-sm text-slate-600">Name</span>
+          <span className="text-sm text-fg-muted">Name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block">
-          <span className="text-sm text-slate-600">Code (optional — auto-derived if blank)</span>
+          <span className="text-sm text-fg-muted">Code (optional — auto-derived if blank)</span>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="e.g. KLA-OFFICE"
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block">
-          <span className="text-sm text-slate-600">Description (optional)</span>
+          <span className="text-sm text-fg-muted">Description (optional)</span>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
         <button
           type="submit"
           disabled={busy || !name.trim()}
-          className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-accent px-3 py-2 text-sm font-medium text-fg-on-accent hover:bg-accent-hover disabled:opacity-50"
         >
           {busy ? 'Creating…' : 'Create project'}
         </button>

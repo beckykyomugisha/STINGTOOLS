@@ -70,6 +70,19 @@ namespace StingTools.Core.Drawing
         [ThreadStatic] private static Dictionary<string, ElementId> _existingViewCache;
         [ThreadStatic] private static Dictionary<string, ElementId> _existingSheetCache;
         [ThreadStatic] private static Dictionary<string, int>       _packageSheetCount;
+        // GAP-L: the set of sheet numbers in use, primed once per batch so
+        // EnsureUniqueSheetNumber doesn't re-collect every ViewSheet on each
+        // assignment (was O(M²) across an M-sheet batch). Written back as each
+        // number is assigned so later sheets in the same batch see it.
+        [ThreadStatic] private static HashSet<string>               _sheetNumberCache;
+        // STACK-1: sheetId → the production context that claimed it during THIS
+        // batch. STING_SHEET_CONTEXT_TXT is what normally tells two per-level
+        // sheets apart; when it isn't bound, ReadSheetContext returns null for
+        // every sheet and the unstampable fallback below handed the SAME sheet to
+        // every level — so a 4-level run stacked all 4 plans on one sheet. The
+        // parameter may be unbindable, but within one run we always know which
+        // context we just used a sheet for, so claims are tracked here instead.
+        [ThreadStatic] private static Dictionary<long, string>      _sheetCtxClaims;
         [ThreadStatic] private static string                        _cacheDocKey;
         // P-12: view names, collected once per batch. NameExists ran a full
         // OfClass(View) collector and MakeUniqueViewName calls it up to 100
@@ -136,6 +149,7 @@ namespace StingTools.Core.Drawing
 
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
                 var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
+                var nums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
                 {
                     var dtId = StingTools.Core.ParameterHelpers.GetString(sheet, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID) ?? string.Empty;
@@ -147,9 +161,13 @@ namespace StingTools.Core.Drawing
                     if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, shtCtx)] = sheet.Id;
                     if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
                     else pkg[pkgId] = 1;
+                    // Same pass feeds the sheet-number cache — no extra collector.
+                    try { if (!string.IsNullOrEmpty(sheet.SheetNumber)) nums.Add(sheet.SheetNumber); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 _existingSheetCache = s;
                 _packageSheetCount  = pkg;
+                _sheetNumberCache   = nums;
             }
             catch (Exception ex)
             {
@@ -157,14 +175,41 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        // ── STACK-1 helpers — per-batch sheet↔context claims ────────────────
+
+        /// <summary>True when this batch already used <paramref name="sheetId"/>
+        /// for a context other than <paramref name="ctx"/>. Claims only exist for
+        /// the current run, so this never blocks legitimate reuse across runs.</summary>
+        private static bool ClaimedByOtherContext(ElementId sheetId, string ctx)
+        {
+            if (sheetId == null || _sheetCtxClaims == null) return false;
+            return _sheetCtxClaims.TryGetValue(sheetId.Value, out var owner)
+                && !string.Equals(owner, ctx ?? "", StringComparison.Ordinal);
+        }
+
+        private static void ClaimSheetForContext(ElementId sheetId, string ctx)
+        {
+            if (sheetId == null) return;
+            if (_sheetCtxClaims == null) _sheetCtxClaims = new Dictionary<long, string>();
+            _sheetCtxClaims[sheetId.Value] = ctx ?? "";
+        }
+
         public static void ResetBatchCaches()
         {
+            _sheetCtxClaims     = null;   // STACK-1
             _existingViewCache  = null;
             _existingViewNames  = null;
             _categoryByName     = null;
             _existingSheetCache = null;
             _packageSheetCount  = null;
+            _sheetNumberCache   = null;
             _cacheDocKey        = null;
+            // SLOT-5: the title-block slot map memo lives with the slot utils,
+            // not here, but it has the same lifetime as a production batch —
+            // drop it on the same boundary so an operator who nudged slot
+            // reference planes in the Family Editor sees them on the next run.
+            try { StingTools.Commands.Drawing.TitleBlockSlotUtils.ClearSlotMapCache(); }
+            catch (Exception ex) { StingLog.Warn($"ClearSlotMapCache: {ex.Message}"); }
         }
 
         // GAP-L: a cache slot only matches the doc it was primed against.
@@ -629,13 +674,20 @@ namespace StingTools.Core.Drawing
                 // match: that reproduces the old stacking behaviour, but the
                 // alternative is minting a fresh duplicate sheet on every
                 // run. Surfaced as a warning so the fix is actionable.
-                var unstampable = candidates.FirstOrDefault(s => DrawingTypeStamper.ReadSheetContext(s) == null);
+                // STACK-1: never hand back a sheet this batch already claimed for a
+                // DIFFERENT context — that is what stacked every level onto one
+                // sheet. Falling through mints a fresh sheet for this context and
+                // records the claim below.
+                var unstampable = candidates.FirstOrDefault(s =>
+                    DrawingTypeStamper.ReadSheetContext(s) == null
+                    && !ClaimedByOtherContext(s.Id, sheetCtx));
                 if (unstampable != null)
                 {
                     result.Warnings.Add(
                         $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
                         $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
                         "Run LoadSharedParams to bind it, then re-run production.");
+                    ClaimSheetForContext(unstampable.Id, sheetCtx);
                     result.SheetReused = true;
                     return unstampable.Id;
                 }
@@ -730,7 +782,7 @@ namespace StingTools.Core.Drawing
             // The sequence has to be resolved BEFORE the number is built —
             // the pattern's {seq} / {seq:Dn} needs it. It used to be consumed
             // further down, after numbering, and only stamped into
-            // STING_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
+            // PRJ_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
             // ctx.Tag — a level name in every batch command — and every sheet
             // in a package numbered 0001.
             int seq = ResolveSheetSequence(doc, dt, effectivePackage);
@@ -781,6 +833,7 @@ namespace StingTools.Core.Drawing
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
                     _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = sheet.Id;
+                ClaimSheetForContext(sheet.Id, sheetCtx);   // STACK-1
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -1137,34 +1190,66 @@ namespace StingTools.Core.Drawing
         private static string EnsureUniqueSheetNumber(Document doc, string baseNumber, ElementId excludeId, ProduceResult result)
         {
             if (string.IsNullOrEmpty(baseNumber)) return baseNumber;
-            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
-                {
-                    if (el is ViewSheet vs && vs.Id != excludeId && !string.IsNullOrEmpty(vs.SheetNumber))
-                        existing.Add(vs.SheetNumber);
-                }
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"EnsureUniqueSheetNumber: {ex.Message}");
-                return baseNumber;
-            }
-            if (!existing.Contains(baseNumber)) return baseNumber;
 
-            for (char c = 'A'; c <= 'Z'; c++)
+            // GAP-L: reuse the per-batch sheet-number set when it is primed for
+            // this doc, so an M-sheet batch no longer re-collects every ViewSheet
+            // on each assignment (was O(M²)). The number chosen below is written
+            // back into the cache so a later sheet in the same batch sees it —
+            // matching the old per-call scan, which saw sheets numbered earlier
+            // in the same run. The just-created sheet (excludeId) carries only a
+            // default number that was never added to the cache, so excluding it
+            // is implicit. Falls back to a fresh scan when no batch cache is live.
+            bool useCache = _sheetNumberCache != null && CacheMatchesDoc(doc);
+            HashSet<string> existing;
+            if (useCache)
             {
-                var candidate = baseNumber + "-" + c;
-                if (!existing.Contains(candidate))
+                existing = _sheetNumberCache;
+            }
+            else
+            {
+                existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
                 {
-                    result?.Warnings.Add($"Sheet number '{baseNumber}' already exists; used '{candidate}'.");
-                    return candidate;
+                    foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+                    {
+                        if (el is ViewSheet vs && vs.Id != excludeId && !string.IsNullOrEmpty(vs.SheetNumber))
+                            existing.Add(vs.SheetNumber);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"EnsureUniqueSheetNumber: {ex.Message}");
+                    return baseNumber;
                 }
             }
-            var fallback = baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
-            result?.Warnings.Add($"Sheet number '{baseNumber}' and all -A..-Z variants exist; used '{fallback}'.");
-            return fallback;
+
+            string chosen;
+            if (!existing.Contains(baseNumber))
+            {
+                chosen = baseNumber;
+            }
+            else
+            {
+                chosen = null;
+                for (char c = 'A'; c <= 'Z'; c++)
+                {
+                    var candidate = baseNumber + "-" + c;
+                    if (!existing.Contains(candidate))
+                    {
+                        result?.Warnings.Add($"Sheet number '{baseNumber}' already exists; used '{candidate}'.");
+                        chosen = candidate;
+                        break;
+                    }
+                }
+                if (chosen == null)
+                {
+                    chosen = baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
+                    result?.Warnings.Add($"Sheet number '{baseNumber}' and all -A..-Z variants exist; used '{chosen}'.");
+                }
+            }
+
+            if (useCache) _sheetNumberCache.Add(chosen);
+            return chosen;
         }
 
         private static readonly System.Text.RegularExpressions.Regex _seqWidthRegex

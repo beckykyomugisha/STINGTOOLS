@@ -8,12 +8,14 @@ on:
       - 'StingTools.Standards/**'
       - 'Planscape.Server/src/Planscape.Shared/**'
       - 'Planscape.Server/src/Planscape.PluginSync/**'
+      - 'tools/**'
       - '.github/workflows/stingtools-plugin.yml'
   pull_request:
     branches: [main]
     paths:
       - 'StingTools/**'
       - 'StingTools.Standards/**'
+      - 'tools/**'
       - '.github/workflows/stingtools-plugin.yml'
 
 env:
@@ -41,6 +43,16 @@ jobs:
           done
           [ $FAIL -eq 0 ] && echo "✓ All JSON files valid"
           exit $FAIL
+
+      # Path discipline: project paths must resolve through StingPaths /
+      # ProjectFolderEngine / CoordStores, not be assembled by hand.
+      #
+      # The gate existed but was wired into NO workflow, so it had never run in
+      # CI — which is part of how its baseline came to claim ZERO while ~9 legacy
+      # sibling sites and 139 hand-rolled _BIM_COORD sites were live in the tree.
+      - name: Check path discipline
+        shell: pwsh
+        run: ./tools/check_path_discipline.ps1
 
       - name: Check for duplicate parameter GUIDs
         run: |

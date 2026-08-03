@@ -72,9 +72,64 @@ builder.Host.UseSerilog((ctx, sp, lc) =>
 // row read at the database. Default OFF: the EF query filter is the
 // only barrier until the operator flips the flag (rollout-safe).
 var rlsEnabled = builder.Configuration.GetValue<bool>("Database:RlsEnabled");
+
+// ── Connection budget ──
+// Npgsql defaults to 100 connections per pool PER PROCESS. Render Postgres
+// allows ~97 client connections on every basic tier (100 minus 10 reserved)
+// and only reaches 200 at pro-8gb, so api(100) + worker(100) + Hangfire's
+// own storage pool blows the ceiling at ~30-40 concurrent requests — well
+// before CPU or RAM become the limit. Cap every pool and keep the total
+// across processes under the server's max_connections.
+//
+// Default budget, sized for a 97-connection server:
+//   api    : EF 20 + Hangfire 10 = 30
+//   worker : EF 15 + Hangfire 15 = 30
+//   spare  : 37 for psql, migrations, backups, Render's own probes
+// Raise Database:MaxPoolSize / Database:HangfireMaxPoolSize together with
+// the database plan — see docs/DEPLOY_RUNBOOK.md.
+var isWorkerRole = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api")
+    .Equals("worker", StringComparison.OrdinalIgnoreCase);
+var efMaxPool = builder.Configuration.GetValue("Database:MaxPoolSize", isWorkerRole ? 15 : 20);
+var hangfireMaxPool = builder.Configuration.GetValue("Database:HangfireMaxPoolSize", isWorkerRole ? 15 : 10);
+var roleTag = isWorkerRole ? "worker" : "api";
+
+// The direct (5432) connection. Always required: Hangfire and pg_dump can
+// never go through a transaction pooler.
+var dbConnDirect = Planscape.Infrastructure.Data.PgConnectionStrings.WithPool(
+    builder.Configuration.GetConnectionString("Default"),
+    efMaxPool,
+    $"planscape-{roleTag}-ef");
+
+// The optional PgBouncer (6432) connection, from ConnectionStrings:Pooled.
+//
+// SAFETY GATE — PgBouncer runs in TRANSACTION pooling mode, which hands a
+// server connection to a different client after each transaction. The RLS
+// interceptor sets `SET app.current_tenant` at SESSION scope, so under a
+// transaction pooler that value would leak to whichever tenant got the
+// connection next: a cross-tenant data disclosure, not just a bug.
+// Therefore: pooler ONLY while RLS is off. If Database:RlsEnabled is
+// flipped on, we fall back to the direct connection automatically.
+// To use both, RlsConnectionInterceptor must first move to `SET LOCAL`
+// inside an explicit transaction.
+var pooledRaw = builder.Configuration.GetConnectionString("Pooled");
+var usePooler = !string.IsNullOrWhiteSpace(pooledRaw) && !rlsEnabled;
+
+var dbConnForEf = usePooler
+    ? Planscape.Infrastructure.Data.PgConnectionStrings.WithPool(
+        pooledRaw, efMaxPool, $"planscape-{roleTag}-ef-pooled")
+    : dbConnDirect;
+
+if (!string.IsNullOrWhiteSpace(pooledRaw) && rlsEnabled)
+{
+    Console.Error.WriteLine(
+        "[STARTUP WARN] ConnectionStrings:Pooled is set but Database:RlsEnabled=true. " +
+        "Ignoring the pooler and using the direct connection: session-scoped " +
+        "SET app.current_tenant is unsafe under PgBouncer transaction pooling.");
+}
+
 builder.Services.AddDbContext<PlanscapeDbContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default"));
+    options.UseNpgsql(dbConnForEf);
     if (rlsEnabled)
     {
         options.AddInterceptors(new Planscape.Infrastructure.Data.RlsConnectionInterceptor());
@@ -158,8 +213,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         //   AuthController.GenerateJwt currently emits. After RS256
         //   migration, replace HmacSha256 below with RsaSha256.
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        // Keep the token's claim names EXACTLY as issued.
+        //
+        // JwtBearer defaults MapInboundClaims to true, which rewrites short JWT
+        // claim names to the long WS-* URIs before any application code sees the
+        // principal — "role" becomes
+        // http://schemas.microsoft.com/ws/2008/06/identity/claims/role, "sub"
+        // becomes ClaimTypes.NameIdentifier. 25 call sites across the API read
+        // User.FindFirst("role") directly, and every one of them silently got
+        // null and fell back to its least-privileged default:
+        //   • DocumentsController.GetUserRole() → UserRole.Viewer, so every
+        //     role-gated CDE transition (WIP→SHARED, SHARED→PUBLISHED) was
+        //     refused for everyone including Owners;
+        //   • ProjectVisibility.IsTenantAdmin() → false, so the admin
+        //     project-visibility bypass never fired (fixed separately);
+        //   • the photo, ACL, saved-view and distribution-group controllers all
+        //     compared against "" and quietly denied admin bypasses.
+        //
+        // Turning mapping off fixes all of them at the source rather than
+        // patching 25 call sites and waiting for the 26th. RoleClaimType is
+        // repointed at "role" so IsInRole and [Authorize(Roles = …)] keep
+        // working; NameClaimType at "email" for User.Identity.Name.
+        //
+        // Sites that read ClaimTypes.NameIdentifier do so as a fallback after
+        // "user_id" or "sub", both of which are present in our tokens
+        // (AuthController.GenerateJwt emits sub, user_id, email, tenant_id,
+        // role, iat), so none of them lose their identity source.
+        options.MapInboundClaims = false;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            RoleClaimType = "role",
+            NameClaimType = "email",
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
@@ -448,7 +533,15 @@ else
 builder.Services.AddSingleton<Planscape.Core.Interfaces.INotificationService, Planscape.Infrastructure.Services.NotificationService>();
 
 // ── Redis ──
-var redisConn = builder.Configuration["Redis:Connection"] ?? "localhost:6379";
+// Render (and most managed-Redis providers) inject connection strings as a
+// redis:// URL, which StackExchange.Redis's own parser does not understand —
+// see RedisConnectionStrings for the full failure mode this avoids.
+var redisConn = RedisConnectionStrings.Normalise(builder.Configuration["Redis:Connection"]);
+// NOTE: the AddStackExchangeRedisCache call that used to sit here (fed the raw
+// connection string) is deliberately NOT duplicated — the distributed cache is
+// registered further down against the SHARED multiplexer via
+// ConnectionMultiplexerFactory. See the comment there for why a raw-string
+// registration is actively harmful during a Redis outage.
 // Phase 175 — single shared multiplexer reused by the SignalR
 // backplane, the cache, the permission-revocation store, AND the
 // Redis-backed rate limiter below. Avoid creating a second connection
@@ -534,24 +627,30 @@ builder.Services.AddSingleton<Planscape.Infrastructure.SignalR.IProjectMembershi
 // (Postgres DDL doesn't honour Hangfire's advisory-lock serialisation).
 // The api process is the schema steward; the worker waits for it to
 // finish by retrying its first connect.
-var planscapeRoleEarly = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api").ToLowerInvariant();
+// Role comes from isWorkerRole, resolved once in the connection budget above.
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
+    // ALWAYS the direct (5432) connection, never the PgBouncer pooler:
+    // Hangfire relies on advisory locks and LISTEN/NOTIFY, both of which
+    // are session-scoped and break under transaction pooling. Its pool is
+    // budgeted separately from EF's — see the connection budget above.
     .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(
-        builder.Configuration.GetConnectionString("Default")),
+        Planscape.Infrastructure.Data.PgConnectionStrings.WithPool(
+            builder.Configuration.GetConnectionString("Default"),
+            hangfireMaxPool,
+            $"planscape-{roleTag}-hangfire")),
         new Hangfire.PostgreSql.PostgreSqlStorageOptions
         {
-            PrepareSchemaIfNecessary = planscapeRoleEarly != "worker",
+            PrepareSchemaIfNecessary = !isWorkerRole,
         }));
 // Phase 178 — Worker-vs-API split. When PLANSCAPE_ROLE = "worker" the
 // process additionally subscribes to the heavy photo-redaction queue
 // (face/plate detect + watermark composition) and gets bigger worker
 // counts. The default API role never picks photo-redaction jobs, so a
 // burst of approvals at digest time can't starve API request CPU.
-var planscapeRole = (Environment.GetEnvironmentVariable("PLANSCAPE_ROLE") ?? "api").ToLowerInvariant();
-var isWorker = planscapeRole == "worker";
+var isWorker = isWorkerRole;
 // Phase 178b — Heavy-job queue (T2-26). Workloads that spike CPU /
 // disk I/O are routed onto a dedicated "heavy" queue that the API
 // process does NOT subscribe to. This keeps API p50 latency stable
@@ -576,6 +675,21 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 // #3 — server-side ACC issue sync (push Planscape issues → ACC + token-unification seam).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.AccSyncService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ProjectPurgeJob>();
+// ClashesController takes IClashDetectionJob in its constructor. It was never
+// registered, so the container could not build the controller AT ALL and every
+// endpoint on it returned 500 — the Clashes page was dead in production, and
+// the browser reported it as a CORS failure because a 500 loses its CORS
+// headers. Registered here beside the other job services.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashDetectionJob,
+    Planscape.Infrastructure.Services.ClashDetectionJob>();
+// ...and ClashDetectionJob in turn takes IClashAutomationService, which was
+// still unregistered — so the container failed one level DEEPER and every
+// endpoint kept returning the same 500 ("Unable to resolve service for type
+// IClashAutomationService while attempting to activate ClashDetectionJob").
+// Scoped, not Singleton: it holds a scoped PlanscapeDbContext.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IClashAutomationService,
+    Planscape.Infrastructure.Services.ClashAutomationService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
 // Phase 178 — Site photo workflow: redaction worker + daily digest job.
 // The pipeline is split out (PhotoPipeline/IPhotoRedactionPipeline) so
@@ -738,7 +852,26 @@ else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
         Planscape.Infrastructure.Services.GltfBoundsThumbnailGenerator>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        // Several endpoints return EF entities directly rather than DTOs. Once
+        // the parent is tracked in the same context, EF fixes up the inverse
+        // navigation, so Issue.Project.Issues points back at the Issue and the
+        // serializer walks the loop until it throws
+        //   "A possible object cycle was detected ... $.Project.Issues.Project..."
+        // The action has already succeeded at that point, so the failure lands
+        // mid-response: a 500 with a truncated body, or a torn stream on the
+        // client. Six integration tests were failing this way.
+        //
+        // IgnoreCycles writes null at the point the loop closes instead of
+        // throwing, which turns a 500 into a well-formed payload. It is a
+        // backstop, not the fix — the real fix is projecting to DTOs at each of
+        // those endpoints, and until that lands this keeps the failure mode
+        // from being an outage.
+        o.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // MODEL-VIEWER — raise the multipart form parser cap to 200 MB so the
@@ -1154,7 +1287,9 @@ if (rateLimitingEnabled)
             "[rate-limit] RateLimiting:Enabled=false IGNORED — the environment is "
           + "Production and the auth limiter is not optional there.");
     }
-    app.UseRateLimiter();
+    // NOTE: the actual UseRateLimiter() call is deliberately DEFERRED until
+    // after UseAuthentication() — see "rate limiter mounts here" below. Placing
+    // it here silently degraded every per-user policy to per-IP.
 }
 else
 {
@@ -1194,6 +1329,29 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseAuthentication();
+
+// ── rate limiter mounts here, AFTER authentication ──────────────────────────
+// It used to run before UseAuthentication(). At that point context.User is the
+// anonymous principal, so the "api" policy's partition key lookup
+//     User.FindFirst("sub") ?? User.FindFirst("user_id")
+// always returned null and every request silently fell through to the
+// `ip:{RemoteIpAddress}` branch. The per-user budget therefore never existed:
+// one shared 100 req/min bucket per source IP, so an entire firm behind one
+// office NAT shared it. At ~10 req/min per active coordinator that starts
+// returning 429s at roughly 10 coordinators — far below any Render tier limit.
+//
+// Measured before the move: 400 distinct users, round-robin, 18,255 requests
+// offered over 2.7 min → 299 succeeded (112/min) and 98.36% got 429. A working
+// per-user partition would have allowed 40,000/min.
+// Reproduce with load/tier-capacity.js; see docs/DEPLOY_RUNBOOK.md.
+//
+// Policies that partition by IP on purpose ("auth", "tagsync") are unaffected —
+// they read RemoteIpAddress directly and never looked at claims.
+if (rateLimitingEnabled)
+{
+    app.UseRateLimiter();
+}
+
 // S9 — push correlation ID + tenant + user into Serilog LogContext.
 // Must run AFTER UseAuthentication so the JWT claims are populated.
 app.UseMiddleware<Planscape.API.Middleware.CorrelationIdMiddleware>();
@@ -1364,6 +1522,9 @@ app.MapHub<Planscape.Infrastructure.SignalR.FederatedModelHub>("/hubs/model");
 app.MapHub<Planscape.Infrastructure.SignalR.PlatformEventHub>("/hubs/events");
 app.MapHub<Planscape.Infrastructure.SignalR.MeetingHub>("/hubs/meeting");
 app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
+// Document sync — push half of the Planscape Companion's local-disk sync.
+// See docs/superpowers/specs/2026-07-31-document-sync-design.md.
+app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-sync");
 
 // ── Database schema + seed ──
 {
@@ -1489,19 +1650,33 @@ app.MapHub<Planscape.Infrastructure.SignalR.TwinHub>("/hubs/twin");
 }
 
 // ── Recurring background jobs ──
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ComplianceCheckJob>(
+//
+// Registered through the DI-resolved IRecurringJobManager, NOT the static
+// RecurringJob facade.
+//
+// DEP-7: the static reads Hangfire.JobStorage.Current — process-global state —
+// during host BUILD. Under WebApplicationFactory each test host pointed that
+// static at its own storage and disposed it on teardown, so the next host to
+// build threw ObjectDisposedException, reported against whichever test happened
+// to run next. That is why "no test can reliably stand up an extra factory",
+// and why the suite was intermittently red rather than reproducibly so.
+//
+// The manager comes from the container, so each host uses the storage it was
+// actually configured with and nothing reaches across hosts.
+var recurringJobs = app.Services.GetRequiredService<Hangfire.IRecurringJobManager>();
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ComplianceCheckJob>(
     "compliance-snapshot", "compliance", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Hourly);
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
     "sla-escalation", "default", j => j.ExecuteAsync(CancellationToken.None),
     "*/15 * * * *");
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
     "stale-warning-cleanup", "default", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Daily);
 // Backfills cross-host ExternalElementMapping rows dropped by a fire-and-forget
 // upsert (TagSync/ArchiCAD) from the committed TaggedElement rows. Hourly so a
 // dropped mapping recovers well within an issue-resolution session.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.MappingReconciliationJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.MappingReconciliationJob>(
     "cross-host-mapping-reconcile", "default", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Hourly);
 // Phase 175 audit P1-15 — every 30s, scan presigned-URL uploads.
@@ -1513,16 +1688,16 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.MappingReconciliation
 // queue. ClamAV streams every uploaded attachment through clamscan,
 // which can spike CPU + disk for several seconds per scan. Worker
 // container picks this up; API process never blocks on it.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ClamAvScannerJob>(
     "clamav-scan-pending", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Minutely);
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *");
 // #3 — scheduled ACC issue push. Sibling to PlatformSyncJob (which is
 // element-centric + pull-only); this sweeps every active ACC connection and
 // pushes open Planscape issues → ACC, idempotent via the ConfigJson dedup map.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.AccSyncService>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.AccSyncService>(
     "acc-issue-sync", "platform-sync", s => s.SyncAllActiveAsync(CancellationToken.None),
     "*/30 * * * *");
 // BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
@@ -1530,20 +1705,27 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.AccSyncService>(
 // 50 GB tenant database is many minutes of disk + CPU; running it on
 // the API process previously caused noticeable latency spikes during
 // the dump window.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
     "database-backup", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     "15 2 * * *");
 // FLEX-13 — nightly 03:15 UTC purge of custom fields past the 30-day grace period.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
     "custom-fields-purge", "default", j => j.ExecuteAsync(CancellationToken.None),
     "15 3 * * *");
+// Staged hard delete — nightly 03:45 UTC, permanently destroys projects whose
+// 30-day PurgeAfter has elapsed. Offset from the custom-fields purge so the two
+// destructive jobs never contend. This is the ONLY thing that hard-deletes a
+// project; the API endpoint only schedules.
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ProjectPurgeJob>(
+    "project-purge", "default", j => j.ExecuteAsync(CancellationToken.None),
+    "45 3 * * *");
 // P7 + P8 — every 10 minutes, produce glTF + thumbnail derivatives for
 // freshly-uploaded IFC/RVT models so the mobile viewer can render them.
 // Phase 178b — IFC → glTF conversion is the single biggest CPU
 // burner in the platform; one large model can consume 100% of one
 // core for 5+ minutes. Routed to "heavy" queue (worker-only) so
 // it can never starve API request CPU.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
     "model-derivatives", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     "*/10 * * * *");
 
@@ -1553,28 +1735,28 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
 // Project.DigestHour follow-up. Stays on the "default" queue (not
 // "photo-redaction") because rendering thumbnails is light.
 // Phase 179 — daily retention sweep at 03:30 UTC, ahead of digest at 17:00.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PhotoRetentionJob>(
     "photo-retention",
     j => j.ExecuteAsync(CancellationToken.None),
     "30 3 * * *", new RecurringJobOptions { QueueName = "default" });
 // Phase 180 — daily 07:00 UTC checklist-due nudge.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PhotoChecklistDueJob>(
     "photo-checklist-due",
     j => j.ExecuteAsync(CancellationToken.None),
     "0 7 * * *", new RecurringJobOptions { QueueName = "default" });
 // Phase 180 — daily 02:00 UTC smart-album materialiser.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.PhotoSmartAlbumMaterialiseJob>(
     "photo-smart-album",
     j => j.ExecuteAsync(CancellationToken.None),
     "0 2 * * *", new RecurringJobOptions { QueueName = "default" });
 
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DailyPhotoDigestJob>(
     "site-photo-digest", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 17 * * *");
 
 // S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
 // expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
     "trial-state", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 6 * * *");
 
@@ -1582,41 +1764,41 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>
 // cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
 // the trial state machine so today's freezes get a billing reminder
 // today rather than tomorrow).
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
     "dunning", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 7 * * *");
 
 // S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
 // + emails a payment link 24 h before the current period ends. Stripe
 // subscriptions self-renew; this only handles the FW corridor.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
     "fw-renewals", "default", j => j.ExecuteAsync(CancellationToken.None),
     "30 5 * * *");
 
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
     "outbox", "default", j => j.ExecuteAsync(CancellationToken.None),
     "* * * * *");
 
 // S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
 // and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
 // a clean slate.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
     "demo-reset", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 2 * * *");
 
 // GAP-18 — daily retention archive: auto-transition PUBLISHED docs past their
 // RetentionExpiresAt date to ARCHIVE. Runs at 03:30 UTC (06:30 EAT) so it
 // completes before office hours in East Africa.
-RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>(
+recurringJobs.AddOrUpdate<Planscape.API.BackgroundJobs.DocumentRetentionArchiveJob>(
     "document-retention-archive", "maintenance", j => j.ExecuteAsync(CancellationToken.None),
     "30 3 * * *");
 
 // S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
 // 5xx counts from Redis (populated by the request middleware in S7.2.1)
 // and pages the founder when burn rate exceeds the threshold.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
     "sla-burn", "default", j => j.ExecuteAsync(CancellationToken.None),
     "*/5 * * * *");
 
@@ -1624,7 +1806,7 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
 // PendingErasureAt has elapsed (set by /api/data-rights/erase) and
 // hard-deletes them. Runs at 04:00 UTC (07:00 EAT) — late enough that
 // any cancel-erase from yesterday has landed before today's sweep.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
     "data-erasure", "default", j => j.ExecuteAsync(CancellationToken.None),
     "0 4 * * *");
 
@@ -1632,13 +1814,13 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
 // 06:00 UTC (08:00 BST / 09:00 EAT) — early enough that FM teams see
 // alerts at the start of their working day, late enough that any
 // completed-overnight tasks have been recorded.
-RecurringJob.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
+recurringJobs.AddOrUpdate<Planscape.API.BackgroundJobs.MaintenanceTaskSchedulerJob>(
     "maintenance-task-scheduler", "default", j => j.ExecuteAsync(),
     "0 6 * * *");
 
 // Gap 3 — retry site-photo redactions that failed due to transient errors.
 // Runs every 4 hours; capped at 50 photos per run to avoid queue floods.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.RetryFailedRedactionJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.RetryFailedRedactionJob>(
     "retry-failed-redactions", "photo-redaction",
     j => j.RunAsync(CancellationToken.None),
     "0 */4 * * *");
@@ -1658,44 +1840,44 @@ using (var scope = app.Services.CreateScope())
 
 // S1.6 — daily trial state machine. Sends 7d/3d/1d reminders, freezes
 // expired tenants, prompts dunning. Runs at 06:00 UTC ≈ 09:00 EAT.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.TrialStateMachineJob>(
     "trial-state", "default", j => j.ExecuteAsync(CancellationToken.None), "0 6 * * *");
 
 // S2.6 — daily dunning job. Walks Overdue invoices on the 0/3/7-day
 // cadence, suspends at day 10. Runs at 07:00 UTC ≈ 10:00 EAT (after
 // the trial state machine so today's freezes get a billing reminder
 // today rather than tomorrow).
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DunningJob>(
     "dunning", "default", j => j.ExecuteAsync(CancellationToken.None), "0 7 * * *");
 
 // S2.6.1 — daily Flutterwave renewal job. Mints the next-period invoice
 // + emails a payment link 24 h before the current period ends. Stripe
 // subscriptions self-renew; this only handles the FW corridor.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.FlutterwaveRenewalJob>(
     "fw-renewals", "default", j => j.ExecuteAsync(CancellationToken.None), "30 5 * * *");
 
 // S3.2 — outbox dispatcher (every minute). Drains OutboxMessages with
 // at-least-once + exponential-backoff retry; dead-letters after 6 attempts.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.OutboxDispatcher>(
     "outbox", "default", j => j.ExecuteAsync(CancellationToken.None), "* * * * *");
 
 // S4.2 — daily demo sandbox reset. Wipes everything in the 'demo' tenant
 // and re-seeds. Runs at 02:00 UTC (05:00 EAT) so morning prospects find
 // a clean slate.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DemoSandboxJob>(
     "demo-reset", "default", j => j.ExecuteAsync(CancellationToken.None), "0 2 * * *");
 
 // S7.2 — SLA burn-rate alerts every 5 minutes. Reads rolling-window
 // 5xx counts from Redis (populated by the request middleware in S7.2.1)
 // and pages the founder when burn rate exceeds the threshold.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.SlaBurnRateJob>(
     "sla-burn", "default", j => j.ExecuteAsync(CancellationToken.None), "*/5 * * * *");
 
 // S7.4.1 — daily GDPR/POPIA erasure job. Walks tenants whose
 // PendingErasureAt has elapsed (set by /api/data-rights/erase) and
 // hard-deletes them. Runs at 04:00 UTC (07:00 EAT) — late enough that
 // any cancel-erase from yesterday has landed before today's sweep.
-RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DataErasureJob>(
     "data-erasure", "default", j => j.ExecuteAsync(CancellationToken.None), "0 4 * * *");
 
 // Seed the well-known 'planscape' platform tenant idempotently on startup
@@ -1744,6 +1926,13 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"Country\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"CoverImageUrl\" text",
         "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"IsPinned\" boolean NOT NULL DEFAULT false",
+        // Document sync — per-project auto/manual toggle (design §Flexibility).
+        // Default true so existing projects keep the on-by-default behaviour.
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"DocumentSyncAutoEnabled\" boolean NOT NULL DEFAULT true",
+        // Staged hard delete — null means "not scheduled", which is why both are nullable
+        // with no default: an existing project must never look like it is pending purge.
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"PurgeAfter\" timestamp with time zone NULL",
+        "ALTER TABLE \"Projects\" ADD COLUMN IF NOT EXISTS \"PurgeRequestedById\" uuid NULL",
         // N2 — LiveKit Egress meeting recordings (table not covered by the discovered
         // EF migration set; idempotent CREATE so the running dev/container DB gets it).
         "CREATE TABLE IF NOT EXISTS \"MeetingRecordings\" (" +

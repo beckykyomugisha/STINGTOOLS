@@ -959,13 +959,13 @@ Tags as dispatched by `StingCommandHandler` (exact-match, case-sensitive):
 
 `DrawingTypes_Inspect`, `DrawingTypes_Reload`, `Drawing_BrowserOrganize`, `DrawingTypes_SyncStyles`, `DrawingTypes_FromScopeBoxes`, `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceSections`, `DrawingTypes_ProduceInteriorElevations`, `DrawingTypes_ProduceExteriorElevations`, `DrawingTypes_ProduceFromScopeBoxes`, `DrawingTypes_ProduceAndExport`, `DrawingTypes_Doctor`, `DrawingTypes_HealTitleBlocks`, `DrawingTypes_Renumber`, `AecFilters_Create`, `AecFilters_Inspect`, `AecFilters_Reload`, `DrawingTypes_ConvertToManaged`, `DrawingTypes_DetachManaged`, `DrawingTypes_RegenerateTemplates`, `TitleBlock_Create`, `TitleBlock_CreateAll`, `TitleBlock_MigrateLegacy`, `DrawingTypes_MigrateCsv`, `DrawingTypes_MigrateParams`, `DrawingTypes_PresentationSetup`, plus the MatchLine suite (`MatchLine_Generate`, `MatchLine_Sync`, `MatchLine_Validate`, `MatchLine_ValidateBundle`, `MatchLine_Inspect` — handler cases exist; no dock-panel buttons yet, see review finding W-2).
 
-### AEC/FM Corporate Filter Library (Phase 166/184f — 298 filters)
+### AEC/FM Corporate Filter Library (Phase 166/184f — 290 filters)
 
-`Data/STING_AEC_FILTERS.json`: 298 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
+`Data/STING_AEC_FILTERS.json`: 290 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298; Phase 225 removed the 8 `iso-status-*` filters, which bound only `OST_Sheets` and could never be created, leaving 290. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
 
 ---
 
-Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is never computed or verified) — corporate pack edits are accepted as corporate. See finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
+Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is declared but never computed or verified) — corporate pack edits are accepted as corporate. **This asymmetry is deliberate as of Phase 225**, when drawing types were locked (see Project-scoped overrides below). The two carry different risk: a drawing type decides what gets produced, how it is cropped and how it is numbered, so an unnoticed edit changes the identity of an issued deliverable — whereas a view style pack decides appearance (VG overrides, filters, halftone), where an unnoticed edit is visible the moment a drawing is opened and corrupts nothing. Locking packs would also start reporting drift on every project that has ever hand-tuned a corporate pack, which is a behaviour change with no evidence behind it. `ViewStylePack.Checksum` should be wired or dropped rather than left declared-and-unused — logged in `docs/ROADMAP.md`.
 
 The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
 
@@ -1022,7 +1022,7 @@ Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.Sub
 | `Core.Drawing.DrawingDispatcher` | `Resolve(doc, disc, phase, docType)` + `CandidatesForDiscipline` |
 | `Core.Drawing.DrawingTypeValidator` | Pre-flight: missing title block / view template / viewport type / section-marker / tag family + slot geometry sanity |
 
-### Built-in corporate catalogue (93 types / 118 routing rules)
+### Built-in corporate catalogue (93 types / 113 routing rules)
 
 Shipped in `Data/STING_DRAWING_TYPES.json`. Core 15 (phase 113 foundation): `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
 
@@ -1045,11 +1045,13 @@ Presentation + clarification pack adds 8 client-facing types (all print with `co
 | Client presentation | `pres-3d-axon-A1` (3D + key plan + caption), `pres-perspective-A1` (full-bleed perspective), `pres-exterior-elev-A1` (material callouts, mono halftone), `pres-render-board-A1` (4-up renders), `pres-context-site-A1` (aerial + legend + caption) |
 | Clarification       | `clar-markup-A1` (plan + query log + revision strip), `clar-rfi-A3` (single-issue A3 sketch + question + revision), `clar-design-intent-A1` (plan + 3D + narrative + materials strip) |
 
-Routing table grew to 43 rules at that phase (now 118 rules across 93 types — count them in `Data/STING_DRAWING_TYPES.json`) covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
+Routing table grew to 43 rules at that phase (now 113 rules across 93 types — count them in `Data/STING_DRAWING_TYPES.json`) covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
 
 ### Project-scoped overrides
 
-Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). `DrawingTypeRegistry.ComputeChecksums` implements SHA-256 drift detection (a stored `checksum` mismatch flips `origin` to `project`), but the shipped corporate file carries **no** `checksum` fields and computed hashes are never persisted, so edits to the shipped baseline are currently undetected — see finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
+Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). `DrawingTypeRegistry.ComputeChecksums` implements SHA-256 drift detection (a stored `checksum` mismatch logs a warning and flips `origin` to `project`), and since Phase 225 **all 93 corporate entries ship with a `checksum`**, so the lock is live — a hand-edit to the shipped baseline is detected and demoted rather than silently accepted (finding C-5, closed).
+
+The checksum is `SHA256(JsonConvert.SerializeObject(drawingType, Formatting.None))` with `Checksum` nulled first — a hash of the **C# object's serialisation, not the file's bytes**. It is therefore stamped by `tools/StampDrawingTypeChecksums`, a `net8.0` console project that `<Compile Include>`s `Core/Drawing/DrawingType.cs` and `Core/Drawing/AnnotationRulePack.cs` (both Revit-free) so the hash comes from the same source the plugin runs. **Re-run it after any change to `STING_DRAWING_TYPES.json` and after any field added to or removed from those two model files** — a model change alters the serialisation and therefore every hash, even with the data untouched. `-- --check` verifies without writing and is CI-gate ready.
 
 ### Pipeline order (final)
 
@@ -2126,7 +2128,23 @@ databases:
     plan: starter               # £6/mo
 ```
 
-**Cost at launch**: API £6 + DB £6 = **£12/month**. Redis is optional — refresh-token tracking + JTI blacklist degrade gracefully without it.
+> **The YAML above is abridged and out of date.** It shows the retired 2-service
+> shape (api + db). The live blueprint at [`render.yaml`](render.yaml) provisions
+> **7 services** — api, worker, web, converter, redis, minio (+disk), db — and
+> the database plan names changed (`starter` → `basic-256mb`). Read the real file.
+
+**Cost at launch**: Render bills in USD. All-starter across the 7 services ≈
+**$54/month** (api $7 + worker $7 + web $7 + converter $7 + redis $10 + minio $7
++ 10 GB disk ~$2.50 + db $6). The **£12/month** previously quoted here was the
+2-service shape only. Redis is optional for a single instance (refresh-token
+tracking + JTI blacklist degrade gracefully) but required once you run more than
+one API instance — it is the SignalR backplane.
+
+**Capacity**: size on *active* coordinators (driving issues/markup/CRDT), not on
+logged-in users. Starter ≈ 10–15 active, Standard ≈ 30–50, Pro ≈ 80–120 and the
+first tier with autoscaling. Note that DB **connection ceiling does not scale
+with RAM** — every basic tier and `pro-4gb` allows 100 (~97 usable). Full table,
+connection budget and PgBouncer procedure: [`docs/DEPLOY_RUNBOOK.md`](docs/DEPLOY_RUNBOOK.md).
 
 **Deploy steps**:
 1. Render dashboard → Blueprints → New Blueprint Instance → connect `beckykyomugisha/stingtools`

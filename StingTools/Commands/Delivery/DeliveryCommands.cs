@@ -9,6 +9,7 @@
 //    Risk_Raise        — raise a risk (anchored to the current selection/zone)
 //    Risk_Report        — register roll-up (RAG, top risks) + CSV
 //    Midp_DriftReport   — MIDP CSV → drift detection vs the live lifecycle + CSV
+//    Midp_Import        — MIDP CSV → bulk-import into deliverables.json (MidpImportCommand.cs)
 //
 //  Risks persist to <BIM manager>/risks.json (additive, safe-defaulted); each
 //  raise also appends to the tamper-evident audit log.
@@ -287,7 +288,17 @@ namespace StingTools.Commands.Delivery
             }
         }
 
-        private static List<DeliverablePlanItem> ParseMidpCsv(string path, out int skipped)
+        /// <summary>
+        /// Parse a MIDP/TIDP CSV into plan rows, tolerating the column-name
+        /// variants real spreadsheets arrive with.
+        ///
+        /// Internal, not private: <see cref="MidpImportCommand"/> bulk-writes the
+        /// same rows into deliverables.json and must agree with this reader about
+        /// which column is which. A second copy of the header matching is exactly
+        /// how the two would drift — the same reasoning that made
+        /// <see cref="ResolveDeliverablesPath"/> internal.
+        /// </summary>
+        internal static List<DeliverablePlanItem> ParseMidpCsv(string path, out int skipped)
         {
             skipped = 0;
             var rows = new List<DeliverablePlanItem>();
@@ -322,34 +333,98 @@ namespace StingTools.Commands.Delivery
             return rows;
         }
 
-        // Join issued/actual-suitability from <project>/_BIM_COORD/deliverables.json
-        // (dynamic rows; best-effort by Code). Absent file ⇒ all planned-only.
+        /// <summary>
+        /// Resolve deliverables.json from the consolidated metadata root
+        /// (&lt;root&gt;/_data/_BIM_COORD/), falling back to the legacy sibling-of-RVT
+        /// location for projects not yet migrated. This is the same path
+        /// <see cref="Planscape.Docs.Templates.DeliverableLifecycle"/> persists to.
+        /// Internal (not private): WarningsManager.BuildCoordData reads the same file to
+        /// populate the BCC Deliverables tab — reusing this resolver rather than growing a
+        /// fourth copy of the path logic is exactly what DocumentIdentity.cs's own header
+        /// comment warns against.
+        /// </summary>
+        internal static string ResolveDeliverablesPath(Document doc)
+        {
+            try
+            {
+                string meta = ProjectFolderEngine.GetMetaPath(doc, "_BIM_COORD");
+                if (!string.IsNullOrEmpty(meta))
+                {
+                    string p = Path.Combine(meta, "deliverables.json");
+                    if (File.Exists(p)) return p;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"MIDP deliverables path: {ex.Message}"); }
+
+            try
+            {
+                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    string legacy = Path.Combine(dir, "_BIM_COORD", "deliverables.json");
+                    if (File.Exists(legacy)) return legacy;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"MIDP legacy deliverables path: {ex.Message}"); }
+
+            return null;
+        }
+
+        // Join issued/actual-suitability from the deliverables store written by
+        // DeliverableLifecycle.Persist. That store serialises DeliverableRow via
+        // JObject.FromObject, so keys are PascalCase (DocNumber / Suitability /
+        // Status); the lowercase spellings are kept as tolerant fallbacks for
+        // hand-authored or legacy files. Absent file ⇒ all planned-only.
         private static void JoinLifecycle(Document doc, List<DeliverablePlanItem> plan)
         {
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
-                if (string.IsNullOrEmpty(dir)) return;
-                string p = Path.Combine(dir, "_BIM_COORD", "deliverables.json");
-                if (!File.Exists(p)) return;
+                string p = ResolveDeliverablesPath(doc);
+                if (string.IsNullOrEmpty(p)) return;
                 var arr = JArray.Parse(File.ReadAllText(p));
                 var byCode = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
                 foreach (var o in arr.OfType<JObject>())
                 {
-                    string code = (string)(o["code"] ?? o["doc_number"] ?? o["number"] ?? o["Code"]);
+                    string code = (string)(o["DocNumber"] ?? o["Code"]
+                                        ?? o["doc_number"] ?? o["code"] ?? o["number"]);
                     if (!string.IsNullOrWhiteSpace(code)) byCode[code] = o;
                 }
                 foreach (var d in plan)
                 {
                     if (!byCode.TryGetValue(d.Code, out var o)) continue;
-                    string suit = (string)(o["suitability"] ?? o["status"] ?? o["Suitability"]) ?? "";
-                    string issuedDate = (string)(o["issued_date"] ?? o["issuedDate"] ?? o["last_issued"]) ?? "";
+                    string suit = (string)(o["Suitability"] ?? o["suitability"] ?? o["status"]) ?? "";
+                    string issuedDate = (string)(o["IssuedDate"] ?? o["issued_date"]
+                                              ?? o["issuedDate"] ?? o["last_issued"]) ?? "";
                     d.ActualSuitability = suit;
                     if (TryParseDate(issuedDate, out var idt)) { d.Issued = true; d.ActualDate = idt; }
+                    else if (TryParseDate(LatestRevisionTimestamp(o), out var rdt)) { d.Issued = true; d.ActualDate = rdt; }
                     else if (!string.IsNullOrWhiteSpace(suit)) { d.Issued = true; d.ActualDate = DateTime.Now; }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"MIDP lifecycle join: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Newest RevisionHistory timestamp on a deliverable row, used as the issued
+        /// date when the row carries no explicit one (DeliverableLifecycle records the
+        /// issue moment in RevisionHistory, not in a dedicated field).
+        /// </summary>
+        private static string LatestRevisionTimestamp(JObject row)
+        {
+            try
+            {
+                var hist = row["RevisionHistory"] as JArray ?? row["revision_history"] as JArray;
+                if (hist == null) return null;
+                string best = null;
+                DateTime bestDt = DateTime.MinValue;
+                foreach (var h in hist.OfType<JObject>())
+                {
+                    string ts = (string)(h["Timestamp"] ?? h["timestamp"]);
+                    if (TryParseDate(ts, out var dt) && dt > bestDt) { bestDt = dt; best = ts; }
+                }
+                return best;
+            }
+            catch (Exception ex) { StingLog.Warn($"MIDP revision timestamp: {ex.Message}"); return null; }
         }
 
         private static bool TryParseDate(string s, out DateTime dt)

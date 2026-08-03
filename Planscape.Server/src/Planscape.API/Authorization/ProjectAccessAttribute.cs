@@ -102,6 +102,12 @@ public class ProjectAccessAttribute : Attribute, IAsyncActionFilter
         bool ok;
         if (cache != null && userId != Guid.Empty)
         {
+            // Redis is a speedup, not a dependency — every other Redis
+            // touchpoint in this codebase (login lockout, JWT revocation
+            // check) fails open to "compute it the slow way" rather than
+            // 500ing the request. This filter runs on nearly every
+            // project-scoped endpoint, so an unguarded cache call turns a
+            // Redis blip into a site-wide outage instead of a latency blip.
             string? cached = null;
             try
             {

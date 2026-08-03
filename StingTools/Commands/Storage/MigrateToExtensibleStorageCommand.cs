@@ -95,7 +95,7 @@ namespace StingTools.Commands.Storage
                         {
                             string projDir = System.IO.Path.GetDirectoryName(doc.PathName ?? "");
                             string dtPath = string.IsNullOrEmpty(projDir) ? null
-                                : System.IO.Path.Combine(projDir, "_BIM_COORD", "drawing_types.json");
+                                : System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "drawing_types.json");
                             var existingDt = StingDrawingTypesSchema.Read(doc);
                             if (!string.IsNullOrEmpty(dtPath) && System.IO.File.Exists(dtPath) &&
                                 (existingDt == null || string.IsNullOrEmpty(existingDt.OverridesJson)))

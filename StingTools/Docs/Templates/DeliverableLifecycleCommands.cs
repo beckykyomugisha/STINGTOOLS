@@ -48,7 +48,36 @@ namespace Planscape.Docs.Templates
                 try
                 {
                     var ctx = TokenContext.FromDeliverable(lr.Updated, doc, engine.Registry.Manifest);
-                    rendered = engine.RenderById(lr.TemplateId, ctx);
+
+                    // Render the deliverable INTO the CDE tree — <state>/<discipline>/Documents —
+                    // so it is born inside its CDE container, then register it so the register's
+                    // file_reference equals the physical location.
+                    string disc = "Z", cdeState = "WIP", suit = "S0", docNumber = "";
+                    try
+                    {
+                        dynamic upd = lr.Updated;
+                        disc      = string.IsNullOrWhiteSpace((string)upd?.Discipline)  ? "Z"   : (string)upd.Discipline;
+                        // Normalised: an unrecognised value ("ARCHIVED", "Published") would route
+                        // the render to the MISC bucket, which the stale-render purge does not
+                        // scan — leaving a duplicate behind in the previous state forever.
+                        cdeState  = StingPaths.NormalizeCdeState((string)upd?.CDE);
+                        suit      = string.IsNullOrWhiteSpace((string)upd?.Suitability) ? "S0"  : (string)upd.Suitability;
+                        docNumber = DeliverableLifecycle.DeliverableKey(upd);
+                    }
+                    catch (Exception fx) { StingLog.Warn($"{title}: read deliverable fields: {fx.Message}"); }
+
+                    rendered = engine.RenderToCde(lr.TemplateId, ctx, cdeState, disc, "Documents");
+
+                    // Move-on-transition: drop any earlier render of this deliverable from the
+                    // other CDE states so it lives in exactly one state (no stale WIP copy).
+                    try { engine.PurgeStaleRenders(docNumber, lr.TemplateId, disc, rendered); }
+                    catch (Exception pex) { StingLog.Warn($"{title}: purge stale renders: {pex.Message}"); }
+
+                    try
+                    {
+                        StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, rendered, "DR", title, suit);
+                    }
+                    catch (Exception regEx) { StingLog.Warn($"{title}: register rendered deliverable: {regEx.Message}"); }
                 }
                 catch (Exception renderEx)
                 {
@@ -90,15 +119,15 @@ namespace Planscape.Docs.Templates
         /// Returns null if the user has nothing selected.</summary>
         public static dynamic ResolveSelection(Document doc)
         {
-            // BCC wires a static holder; callers stash the picked row there.
-            try
+            // Direct call — BCC lives in the same assembly, so the old string-based
+            // Type.GetType/GetField bridge bought nothing and silently resolved to
+            // null because the field it named did not exist.
+            try { return StingTools.UI.BIMCoordinationCenter.SelectedDeliverable; }
+            catch (Exception ex)
             {
-                var t = Type.GetType("StingTools.UI.BIMCoordinationCenter, StingTools");
-                var prop = t?.GetField("SelectedDeliverable",
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-                return prop?.GetValue(null);
+                StingLog.Warn($"ResolveSelection: {ex.Message}");
+                return null;
             }
-            catch { return null; }
         }
     }
 
@@ -213,10 +242,57 @@ namespace Planscape.Docs.Templates
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => LifecycleCommandHelper.Run(data, ref message, (doc, engine) =>
             {
-                dynamic d = LifecycleCommandHelper.ResolveSelection(doc);
-                if (d == null) return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "No deliverable selected." };
-                dynamic replacement = d; // UI will provide a distinct row; this placeholder keeps build stable.
-                return DeliverableLifecycle.Replace(d, replacement, doc, engine.Registry.Manifest, Environment.UserName, "Replaced via BCC");
+                // Replace needs TWO deliverables. The placeholder here used to pass the same row
+                // as both arguments, which stamped the document as superseding ITSELF and set
+                // its status to "Replaced" — corrupting the record it was meant to supersede.
+                var sel = StingTools.UI.BIMCoordinationCenter.SelectedDeliverables;
+                if (sel == null || sel.Count < 2)
+                    return new DeliverableLifecycle.LifecycleResult
+                    {
+                        Ok = false,
+                        Message = "Select TWO deliverables in the BIM Coordination Center: " +
+                                  "the one being replaced first, then its replacement."
+                    };
+
+                if (sel.Count > 2)
+                    return new DeliverableLifecycle.LifecycleResult
+                    {
+                        Ok = false,
+                        Message = $"{sel.Count} deliverables selected. Replace acts on exactly two."
+                    };
+
+                dynamic existing    = sel[0];
+                dynamic replacement = sel[1];
+
+                // CONFIRM the direction. DataGrid.SelectedItems is in click order for ctrl-click
+                // but in ROW order for shift-select and select-all, so "first one selected" is not
+                // something the control guarantees. Getting it backwards marks the NEW document as
+                // superseded, persists both rows, writes the audit entry and mirrors to the
+                // server — with nothing to undo it.
+                string a = DeliverableLifecycle.DeliverableKey(existing);
+                string b = DeliverableLifecycle.DeliverableKey(replacement);
+                var confirm = new TaskDialog("STING — Replace Deliverable")
+                {
+                    MainInstruction = "Confirm which document replaces which.",
+                    MainContent = $"'{a}' will be marked REPLACED and superseded by '{b}'.\n\n" +
+                                  "This cross-links both records and cannot be undone from here.",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel
+                };
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Yes — '{b}' replaces '{a}'");
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Swap — '{a}' replaces '{b}'");
+                var choice = confirm.Show();
+                if (choice == TaskDialogResult.CommandLink2)
+                {
+                    dynamic tmp = existing; existing = replacement; replacement = tmp;
+                }
+                else if (choice != TaskDialogResult.CommandLink1)
+                {
+                    return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "Cancelled." };
+                }
+
+                return DeliverableLifecycle.Replace(existing, replacement, doc, engine.Registry.Manifest,
+                                                    Environment.UserName, "Replaced via BCC");
             }, "Replace Deliverable");
     }
 }

@@ -69,14 +69,14 @@ namespace StingTools.Commands.Hvac
                     TaskDialog.Show("STING HVAC", "Save the project before generating the Cx checklist.");
                     return Result.Cancelled;
                 }
-                string cxDir = Path.Combine(projDir, "_BIM_COORD", "cx");
+                string cxDir = StingPaths.Meta(doc, "_BIM_COORD", "cx");
                 Directory.CreateDirectory(cxDir);
                 string ts = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 string csvPath = Path.Combine(cxDir, $"cx_checklist_{ts}.csv");
 
                 // Resolve task library: corporate baseline + project override.
                 // First call per Revit session caches the merged library.
-                var library = LoadTaskLibrary(projDir);
+                var library = LoadTaskLibrary(doc);
 
                 int rows = 0;
                 var byClass = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -207,9 +207,9 @@ namespace StingTools.Commands.Hvac
             System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, List<CxTask>>>
             _libCache = new(StringComparer.OrdinalIgnoreCase);
 
-        private static Dictionary<string, List<CxTask>> LoadTaskLibrary(string projDir)
+        private static Dictionary<string, List<CxTask>> LoadTaskLibrary(Document doc)
         {
-            return _libCache.GetOrAdd(projDir ?? "<no-proj>", _ =>
+            return _libCache.GetOrAdd(doc?.PathName ?? "<no-proj>", _ =>
             {
                 var lib = new Dictionary<string, List<CxTask>>(StringComparer.OrdinalIgnoreCase);
                 try
@@ -217,9 +217,9 @@ namespace StingTools.Commands.Hvac
                     string basePath = StingTools.Core.StingToolsApp.FindDataFile("STING_CX_TASKS.json");
                     if (!string.IsNullOrEmpty(basePath) && File.Exists(basePath))
                         ApplyTaskJson(File.ReadAllText(basePath), lib);
-                    if (!string.IsNullOrEmpty(projDir))
+                    if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                     {
-                        string projPath = Path.Combine(projDir, "_BIM_COORD", "cx", "cx_tasks_override.json");
+                        string projPath = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD", "cx"), "cx_tasks_override.json");
                         if (File.Exists(projPath))
                             ApplyTaskJson(File.ReadAllText(projPath), lib);
                     }

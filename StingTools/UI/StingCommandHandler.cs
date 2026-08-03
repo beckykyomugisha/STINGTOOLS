@@ -499,6 +499,7 @@ namespace StingTools.UI
                     case "Symbols_CreateLighting": RunCommand<Commands.Symbols.CreateLightingSymbolsCommand>(app); break;
                     case "Symbols_CreateFP":       RunCommand<Commands.Symbols.CreateFPSymbolsCommand>(app); break;
                     case "Symbols_Reload":         RunCommand<Commands.Symbols.ReloadSymbolLibraryCommand>(app); break;
+                    case "Symbols_Rebuild":        RunCommand<Commands.Symbols.SymbolRebuildCommand>(app); break;
                     case "Symbols_Inspect":        RunCommand<Commands.Symbols.InspectSymbolLibraryCommand>(app); break;
                     case "Symbols_ConfigSizes":    RunCommand<Commands.Symbols.ConfigureSymbolSizesCommand>(app); break;
 
@@ -2048,6 +2049,9 @@ namespace StingTools.UI
                     case "CDEStatus": RunCommand<BIMManager.CDEStatusCommand>(app); break;
                     case "ValidateDocNaming": RunCommand<BIMManager.ValidateDocNamingCommand>(app); break;
                     case "DocumentRegister": RunCommand<BIMManager.DocumentRegisterCommand>(app); break;
+                    case "DocRegister_Unified": RunCommand<Core.UnifiedRegisterExportCommand>(app); break;
+                    case "Register_Consolidate": RunCommand<Core.RegisterConsolidateCommand>(app); break;
+                    case "Folders_ConsolidateAll": RunCommand<Commands.Folders.FolderConsolidateCommand>(app); break;
                     case "AddDocument": RunCommand<BIMManager.AddDocumentCommand>(app); break;
                     case "CreateTransmittal": RunCommand<BIMManager.CreateTransmittalCommand>(app); break;
                     case "ReviewTracker": RunCommand<BIMManager.ReviewTrackerCommand>(app); break;
@@ -2555,10 +2559,9 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var rep = Core.ProjectFolderEngine.MigrateFromLegacy(fmDoc);
-                                Autodesk.Revit.UI.TaskDialog.Show("STING Migration",
-                                    $"Moved {rep.FilesMoved} files. Removed {rep.FoldersRemoved} legacy folders." +
-                                    (rep.Warnings.Count > 0 ? $"\n\nWarnings: {rep.Warnings.Count}" : ""));
+                                // Shared consent gate — preview, confirm, breadcrumb.
+                                // Previously migrated immediately on button press.
+                                StingTools.Commands.Folders.FolderConsolidateCommand.RunWithConsent(fmDoc);
                             }
                             catch (Exception ex2) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Migration failed: {ex2.Message}"); }
                         }
@@ -2677,19 +2680,17 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
-                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
-                                {
-                                    logPath = System.IO.Path.Combine(
-                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                        ".sting_coord_log.json");
-                                }
+                                // Canonical JSONL read — see Core.CoordLog.
+                                string logPath = StingTools.Core.CoordLog.ResolveReadPath(d);
                                 if (System.IO.File.Exists(logPath))
                                 {
-                                    string csvPath = logPath.Replace(".json", $"_{DateTime.Now:yyyyMMdd_HHmm}.csv");
-                                    var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BIMCoordinationCenter.CoordLogEntry>>(
-                                        System.IO.File.ReadAllText(logPath));
-                                    if (entries != null && entries.Count > 0)
+                                    string csvPath = System.IO.Path.ChangeExtension(logPath, null)
+                                        + $"_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+                                    var entries = StingTools.Core.CoordLog.Read(d)
+                                        .Select(o => o.ToObject<BIMCoordinationCenter.CoordLogEntry>())
+                                        .Where(e => e != null)
+                                        .ToList();
+                                    if (entries.Count > 0)
                                     {
                                         var sb = new System.Text.StringBuilder();
                                         sb.AppendLine("Timestamp,User,Category,Action,Detail,Impact");
@@ -2717,15 +2718,17 @@ namespace StingTools.UI
                             confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
                             if (confirm.Show() == TaskDialogResult.Yes)
                             {
-                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
-                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
+                                // Clear the canonical log — and any pre-unification
+                                // spelling, or "cleared" would leave old entries showing.
+                                int cleared = 0;
+                                foreach (string p in StingTools.Core.CoordLog.AllExistingPaths(d))
                                 {
-                                    logPath = System.IO.Path.Combine(
-                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                        ".sting_coord_log.json");
+                                    try { System.IO.File.Delete(p); cleared++; }
+                                    catch (Exception delEx) { StingTools.Core.StingLog.Warn($"Clear coord log {p}: {delEx.Message}"); }
                                 }
-                                if (System.IO.File.Exists(logPath)) System.IO.File.Delete(logPath);
-                                TaskDialog.Show("STING", "Coordination log cleared.");
+                                TaskDialog.Show("STING", cleared > 0
+                                    ? "Coordination log cleared."
+                                    : "No coordination log found.");
                             }
                         }
                         break;
@@ -3623,6 +3626,7 @@ namespace StingTools.UI
                     case "Risk_Raise":                  RunCommand<Commands.Delivery.RiskRaiseCommand>(app); break;
                     case "Risk_Report":                 RunCommand<Commands.Delivery.RiskReportCommand>(app); break;
                     case "Midp_DriftReport":            RunCommand<Commands.Delivery.MidpDriftReportCommand>(app); break;
+                    case "Midp_Import":                 RunCommand<Commands.Delivery.MidpImportCommand>(app); break;
 
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
@@ -4099,6 +4103,16 @@ namespace StingTools.UI
                     // statics are cleared so the pane reflects the just-finished run.
                     try { var r = BOQCostManagerPanel.PendingActionResolve; BOQCostManagerPanel.PendingActionResolve = null; r?.Invoke(); }
                     catch (Exception exR) { StingLog.Warn($"BOQ PendingActionResolve: {exR.Message}"); }
+
+                    // Same idea for the dock panel's own status line. Cmd_Click
+                    // sets "Running: <tag>…" when it raises the event, and nothing
+                    // ever cleared it — so a command that finished instantly (or
+                    // reported nothing) left the panel reading as permanently
+                    // in-flight. Resolve it here, at the one place every dispatch
+                    // converges. Only overwrites the label when it still shows
+                    // THIS tag, so a command that reported its own status wins.
+                    try { StingDockPanel.LastInstance?.ResolveRunningStatus(tag); }
+                    catch (Exception exS) { StingLog.Warn($"ResolveRunningStatus '{tag}': {exS.Message}"); }
 
                     // P0.1 — release the BOQ dispatch busy-guard so the Actions
                     // surface accepts the next click and the buttons un-grey. This
@@ -9193,7 +9207,7 @@ namespace StingTools.UI
         {
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
-            string outputDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath(), "_bim_manager");
+            string outputDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             System.IO.Directory.CreateDirectory(outputDir);
             string htmlPath = System.IO.Path.Combine(outputDir, $"Planscape_Dashboard_{DateTime.Now:yyyyMMdd}.html");
             string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Planscape — {doc.Title}</title>

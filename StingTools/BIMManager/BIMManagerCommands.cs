@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
@@ -54,19 +54,13 @@ namespace StingTools.BIMManager
     internal static class BIMManagerEngine
     {
         // ── ISO 19650 Suitability Codes ──
-        internal static readonly Dictionary<string, string> SuitabilityCodes = new Dictionary<string, string>
-        {
-            ["S0"] = "Work In Progress",
-            ["S1"] = "Fit for Coordination",
-            ["S2"] = "Fit for Information",
-            ["S3"] = "Fit for Review and Comment",
-            ["S4"] = "Fit for Stage Approval",
-            ["S5"] = "Fit for Manufacturing/Procurement",
-            ["S6"] = "Fit for PIM Authorization",
-            ["S7"] = "Fit for AIM Authorization",
-            ["CR"] = "As-Constructed Record Document",
-            ["AB"] = "Abandoned/Superseded"
-        };
+        // Single source of truth: StingTools.Core.Drawing.Iso19650Vocabulary.SuitabilityLabels.
+        // Previously this was a separate {S0-S7,CR,AB} dict that omitted the A/B
+        // authorization codes; the register now offers the full canonical set
+        // (S0-S7 + A1-A5 + B1-B6 + CR + AB + AR). The vocabulary superset preserves
+        // every code this table used to carry, so no existing register row is orphaned.
+        internal static Dictionary<string, string> SuitabilityCodes =>
+            StingTools.Core.Drawing.Iso19650Vocabulary.SuitabilityLabels;
 
         // ── CDE Container States (ISO 19650-1 §12) ──
         internal static readonly Dictionary<string, string> CDEStates = new Dictionary<string, string>
@@ -697,23 +691,45 @@ namespace StingTools.BIMManager
             return Path.GetDirectoryName(path) ?? "";
         }
 
+        /// <summary>
+        /// Path to a coordination store inside the consolidated metadata root.
+        /// Resolves through <see cref="ProjectFolderEngine.GetMetaPath"/> so the folder
+        /// lives under &lt;root&gt;/_data/ rather than as a sibling of the .rvt; the known
+        /// coordination stores additionally route through <see cref="CoordStores"/>, which
+        /// merges any legacy _bim_manager / STING_BIM_MANAGER copies on first access.
+        /// </summary>
         internal static string GetBIMManagerFilePath(Document doc, string fileName)
         {
-            string dir = GetProjectDataDir(doc);
-            string bimDir = Path.Combine(dir, "STING_BIM_MANAGER");
-            if (!Directory.Exists(bimDir))
-                Directory.CreateDirectory(bimDir);
-            return Path.Combine(bimDir, fileName);
+            switch ((fileName ?? "").ToLowerInvariant())
+            {
+                case "issues.json":             return CoordStores.Issues(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "meetings.json":           return CoordStores.Meetings(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "document_register.json":  return CoordStores.Register(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "documents.json":          return CoordStores.Register(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "transmittals.json":       return CoordStores.Transmittals(doc) ?? LegacyBimManagerPath(doc, fileName);
+                case "revisions.json":          return CoordStores.Revisions(doc) ?? LegacyBimManagerPath(doc, fileName);
+            }
+            return Path.Combine(GetBIMManagerDir(doc), fileName);
         }
 
         internal static string GetBIMManagerDir(Document doc)
         {
-            string dir = GetProjectDataDir(doc);
-            string bimDir = Path.Combine(dir, "STING_BIM_MANAGER");
-            if (!Directory.Exists(bimDir))
-                Directory.CreateDirectory(bimDir);
+            string bimDir = null;
+            try { bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"); }
+            catch (Exception ex) { StingLog.Warn($"GetBIMManagerDir: {ex.Message}"); }
+
+            if (string.IsNullOrEmpty(bimDir))
+            {
+                bimDir = Path.Combine(GetProjectDataDir(doc), "STING_BIM_MANAGER");
+                if (!Directory.Exists(bimDir))
+                    Directory.CreateDirectory(bimDir);
+            }
             return bimDir;
         }
+
+        /// <summary>Legacy sibling path, used only when no project root can be resolved.</summary>
+        private static string LegacyBimManagerPath(Document doc, string fileName)
+            => Path.Combine(GetBIMManagerDir(doc), fileName);
 
         internal static JObject LoadJsonFile(string path)
         {
@@ -770,7 +786,7 @@ namespace StingTools.BIMManager
                 // File.Move with overwrite=true is atomic on NTFS, preventing corruption
                 // if the process crashes mid-write.
                 string tmpPath = path + ".tmp";
-                File.WriteAllText(tmpPath, data.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tmpPath, data.ToString(Formatting.Indented));
                 File.Move(tmpPath, path, true);
 
                 // BIM-SIDECAR-VER-01: Stamp the companion `<path>.meta.json` so
@@ -795,7 +811,19 @@ namespace StingTools.BIMManager
         /// Auto-register an exported file in the BIM document register.
         /// Called after any STING export operation to maintain a complete document trail.
         /// </summary>
-        internal static void AutoRegisterExport(Document doc, string filePath, string docType, string description)
+        /// <remarks>
+        /// This is the ONE auto-registration path. A second facade
+        /// (DocAutoRegister.RegisterExport) previously wrote the same
+        /// document_register.json with an incompatible schema — doc_id /
+        /// "STING-{type}-{timestamp}" vs document_id / DOC-NNNN — so the register
+        /// held two shapes of row and the ISO-conformant id scheme was only used by
+        /// half the writers. DocAutoRegister now delegates here; the optional
+        /// suitability parameter carries the only field its schema had that this one
+        /// lacked, plus cde_status.
+        /// </remarks>
+        internal static void AutoRegisterExport(Document doc, string filePath, string docType,
+            string description, string suitability = "S0",
+            string revision = null, string cdeStatus = null, string docNumber = null)
         {
             try
             {
@@ -803,9 +831,39 @@ namespace StingTools.BIMManager
                 var register = LoadJsonArray(regPath);
 
                 string fileName = Path.GetFileName(filePath);
-                // Check for existing entry with same filename (avoid duplicates)
-                bool exists = register.Any(r => r["file_name"]?.ToString() == fileName);
-                if (exists) return;
+                string fileFormat = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.');
+                string suit = string.IsNullOrWhiteSpace(suitability) ? "S0" : suitability;
+                string rev  = string.IsNullOrWhiteSpace(revision)    ? "P01" : revision;
+                string cde  = string.IsNullOrWhiteSpace(cdeStatus)   ? "WIP" : cdeStatus;
+
+                // UPDATE IN PLACE rather than skipping. A deliverable re-rendered on the
+                // same day keeps its file name but moves CDE state (and its previous copy
+                // is purged), so an early return would leave the row pointing at a deleted
+                // file; on a later day it would instead append a duplicate row. Match on the
+                // deliverable number first (stable across renders), then the file name.
+                JObject existing = null;
+                if (!string.IsNullOrWhiteSpace(docNumber))
+                    existing = register.OfType<JObject>().FirstOrDefault(r =>
+                        string.Equals(r["doc_number"]?.ToString(), docNumber, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
+                    existing = register.OfType<JObject>().FirstOrDefault(r =>
+                        string.Equals(r["file_name"]?.ToString(), fileName, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    existing["file_name"]   = fileName;
+                    existing["file_path"]   = filePath;
+                    existing["file_format"] = fileFormat;
+                    existing["suitability"] = suit;
+                    existing["revision"]    = rev;
+                    existing["status"]      = cde;
+                    existing["cde_status"]  = cde;
+                    existing["date_modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    if (!string.IsNullOrWhiteSpace(docNumber)) existing["doc_number"] = docNumber;
+                    SaveJsonFile(regPath, register);
+                    StingLog.Info($"Auto-register updated: {existing["document_id"]} — {fileName}");
+                    return;
+                }
 
                 string nextId = NextIdFromArray(register, "DOC", "document_id");
                 var entry = new JObject
@@ -817,11 +875,16 @@ namespace StingTools.BIMManager
                     ["description"] = description,
                     ["originator"] = Environment.UserName,
                     ["date_created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                    ["suitability"] = "S0",
-                    ["revision"] = "P01",
-                    ["status"] = "WIP",
+                    ["suitability"] = suit,
+                    ["revision"] = rev,
+                    ["status"] = cde,
+                    ["cde_status"] = cde,
+                    ["file_format"] = fileFormat,
                     ["source"] = "STING Auto-Export"
                 };
+                // Deliverable-sourced rows carry the ISO 19650 number so the unified
+                // register can match them to their deliverables.json row.
+                if (!string.IsNullOrWhiteSpace(docNumber)) entry["doc_number"] = docNumber;
 
                 register.Add(entry);
                 SaveJsonFile(regPath, register);
@@ -853,7 +916,7 @@ namespace StingTools.BIMManager
                 int closed = 0;
                 foreach (var issue in issues)
                 {
-                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    if (!IssueSchema.IsOpen(issue as JObject)) continue;
                     string title = issue["title"]?.ToString() ?? "";
                     if (title.Contains("Untagged Elements") || title.Contains("Incomplete Tags"))
                     {
@@ -893,8 +956,18 @@ namespace StingTools.BIMManager
                     return 0;
                 }
 
-                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
-                var issues = LoadJsonArray(issuesPath);
+                // Phase 2b (IM-7): was load -> mint -> CreateIssue -> SaveJsonFile here, so a
+                // compliance NCR reached neither the audit chain nor the Planscape server.
+                // One batch now.
+                //
+                // Dedup also moves off "does any open NCR have this phrase in its title" —
+                // which broke the moment anyone edited a title — onto a stable source_hash.
+                using var batch = IssueStore.Begin(doc);
+                if (!batch.Ok)
+                {
+                    StingLog.Warn("AutoRaiseComplianceIssues: issue register unreadable — skipped.");
+                    return 0;
+                }
                 int raised = 0;
 
                 // M-10 FIX: Use percentage-based thresholds instead of hardcoded counts.
@@ -908,56 +981,43 @@ namespace StingTools.BIMManager
                 // Raise issue if >5% untagged (or absolute minimum of 5 elements to avoid noise on tiny models)
                 if (scanResult.Untagged > 5 && untaggedPct > 5.0)
                 {
-                    // Check if a similar open issue already exists
-                    bool alreadyRaised = issues.Any(i =>
-                        i["type"]?.ToString() == "NCR" &&
-                        i["status"]?.ToString() == "OPEN" &&
-                        (i["title"]?.ToString() ?? "").Contains("Untagged Elements"));
-
-                    if (!alreadyRaised)
+                    int before = batch.Created.Count;
+                    batch.Create(new IssueSpec
                     {
-                        string priority = scanResult.RAGStatus == "RED" ? "HIGH" : "MEDIUM";
-                        string nextId = GetNextIssueId(issues, "NCR");
-                        string title = $"Untagged Elements: {scanResult.Untagged} elements lack ISO 19650 tags";
-                        string desc = $"Compliance scan detected {scanResult.Untagged} untagged elements " +
-                            $"out of {scanResult.TotalElements} total ({scanResult.CompliancePercent:F1}% compliant).\n" +
-                            $"RAG status: {scanResult.RAGStatus}\n" +
-                            $"Top issues: {scanResult.TopIssues}";
-
-                        var issue = CreateIssue(nextId, "NCR", priority, title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "", doc);
-                        issues.Add(issue);
-                        raised++;
-                    }
+                        Type        = "NCR",
+                        Priority    = scanResult.RAGStatus == "RED" ? "HIGH" : "MEDIUM",
+                        Title       = $"Untagged Elements: {scanResult.Untagged} elements lack ISO 19650 tags",
+                        Description = $"Compliance scan detected {scanResult.Untagged} untagged elements " +
+                                      $"out of {scanResult.TotalElements} total ({scanResult.CompliancePercent:F1}% compliant).\n" +
+                                      $"RAG status: {scanResult.RAGStatus}\n" +
+                                      $"Top issues: {scanResult.TopIssues}",
+                        AssignedTo  = Environment.UserName,
+                        Source      = IssueSource.Compliance,
+                        SourceHash  = "compliance:untagged-elements",
+                    });
+                    if (batch.Created.Count > before) raised++;
                 }
 
                 // Raise issue for incomplete tags — >10% incomplete or absolute min 10 elements
                 if (scanResult.TaggedIncomplete > 10 && incompletePct > 10.0)
                 {
-                    bool alreadyRaised = issues.Any(i =>
-                        i["type"]?.ToString() == "NCR" &&
-                        i["status"]?.ToString() == "OPEN" &&
-                        (i["title"]?.ToString() ?? "").Contains("Incomplete Tags"));
-
-                    if (!alreadyRaised)
+                    int before = batch.Created.Count;
+                    batch.Create(new IssueSpec
                     {
-                        string nextId = GetNextIssueId(issues, "NCR");
-                        string title = $"Incomplete Tags: {scanResult.TaggedIncomplete} elements have partial tags";
-                        string desc = $"{scanResult.TaggedIncomplete} elements have incomplete ISO 19650 tags " +
-                            $"(missing segments). Run 'Validate Tags' for details.";
-
-                        var issue = CreateIssue(nextId, "NCR", "MEDIUM", title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "", doc);
-                        issues.Add(issue);
-                        raised++;
-                    }
+                        Type        = "NCR",
+                        Priority    = "MEDIUM",
+                        Title       = $"Incomplete Tags: {scanResult.TaggedIncomplete} elements have partial tags",
+                        Description = $"{scanResult.TaggedIncomplete} elements have incomplete ISO 19650 tags " +
+                                      "(missing segments). Run 'Validate Tags' for details.",
+                        AssignedTo  = Environment.UserName,
+                        Source      = IssueSource.Compliance,
+                        SourceHash  = "compliance:incomplete-tags",
+                    });
+                    if (batch.Created.Count > before) raised++;
                 }
 
-                if (raised > 0)
-                {
-                    SaveJsonFile(issuesPath, issues);
-                    StingLog.Info($"AutoRaiseComplianceIssues: raised {raised} new issues");
-                }
+                batch.Commit();
+                if (raised > 0) StingLog.Info($"AutoRaiseComplianceIssues: raised {raised} new issues");
 
                 return raised;
             }
@@ -2207,21 +2267,23 @@ namespace StingTools.BIMManager
         //  Issue / RFI Engine
         // ═══════════════════════════════════════════════════════════
 
-        internal static string GetNextIssueId(JArray issues, string type)
-        {
-            int max = 0;
-            string prefix = type + "-";
-            foreach (var issue in issues)
-            {
-                string id = issue["issue_id"]?.ToString() ?? "";
-                if (id.StartsWith(prefix))
-                {
-                    string numPart = id.Substring(prefix.Length);
-                    if (int.TryParse(numPart, out int n) && n > max) max = n;
-                }
-            }
-            return $"{type}-{(max + 1):D4}";
-        }
+        // GetNextIssueId was RETIRED in Phase 2b (ROADMAP IM-8).
+        //
+        // It reserved nothing between calls: each invocation rebuilt the minter from the
+        // array, so it was only ever correct because every caller happened to append to that
+        // array in the same iteration. A caller that batched its creations before saving —
+        // the obvious way to write one — would have got the same identifier every time.
+        // That is a defect waiting on the next contributor, not a working helper.
+        //
+        // Use IssueStore.Begin(doc), whose batch holds ONE IssueIdMinter for its lifetime:
+        //
+        //     using var batch = IssueStore.Begin(doc);
+        //     var issue = batch.Create(new IssueSpec { … });   // id minted + reserved
+        //     batch.Commit();                                   // atomic save + audit + push
+        //
+        // For an importer that has already shaped its record, batch.Adopt(row, source, hash)
+        // gives it the same minting, audit and push. batch.MintId(type) exposes the reserved
+        // minter directly when a builder needs the identifier up front.
 
         /// <summary>
         /// CRIT-005: Check if an existing open issue already references the same element IDs.
@@ -2234,7 +2296,7 @@ namespace StingTools.BIMManager
             var targetSet = new HashSet<string>(elementIds);
             foreach (var issue in issues)
             {
-                if (issue["status"]?.ToString() == "CLOSED") continue;
+                if (!IssueSchema.IsOpen(issue as JObject)) continue;
                 var existingIds = issue["element_ids"] as JArray;
                 if (existingIds == null || existingIds.Count == 0) continue;
                 var existingSet = new HashSet<string>(existingIds.Select(e => e.ToString()));
@@ -2245,42 +2307,43 @@ namespace StingTools.BIMManager
             return null;
         }
 
+        /// <summary>
+        /// Build one canonical issue record.
+        ///
+        /// Phase 2 (IM-4): the field list now lives in IssueSchema.Create, which is the same
+        /// builder the escalation engine and the server merge use — so a record can no longer
+        /// differ depending on which subsystem minted it. Behaviour is preserved: same field
+        /// names, same priority-driven SLA offsets, same single-timestamp guarantee.
+        ///
+        /// Callers that also want the audit entry and the server push should go through
+        /// <see cref="IssueStore.Begin"/> rather than calling this and saving themselves.
+        /// </summary>
         internal static JObject CreateIssue(string issueId, string issueType, string priority,
             string title, string description, string assignedTo, string discipline,
             ICollection<ElementId> elementIds, string viewName, Document doc = null)
         {
-            // FIX: Single timestamp for consistency across all date fields
             var now = DateTime.Now;
-            return new JObject
+            var spec = new IssueSpec
             {
-                ["issue_id"] = issueId,
-                ["type"] = issueType,
-                ["type_description"] = IssueTypes.TryGetValue(issueType, out string itDesc) ? itDesc : issueType,
-                ["priority"] = priority,
-                ["title"] = title,
-                ["description"] = description,
-                ["status"] = "OPEN",
-                ["assigned_to"] = assignedTo,
-                ["discipline"] = discipline,
-                ["raised_by"] = Environment.UserName,
-                ["created_by"] = Environment.UserName,
-                ["created_date"] = now.ToString("o"),
-                ["modified_by"] = Environment.UserName,
-                ["modified_date"] = now.ToString("o"),
-                ["date_raised"] = now.ToString("yyyy-MM-dd HH:mm"),
-                ["date_due"] = priority == "CRITICAL" ? now.AddDays(1).ToString("yyyy-MM-dd") :
-                               priority == "HIGH" ? now.AddDays(3).ToString("yyyy-MM-dd") :
-                               priority == "MEDIUM" ? now.AddDays(7).ToString("yyyy-MM-dd") :
-                               now.AddDays(14).ToString("yyyy-MM-dd"),
-                ["date_closed"] = "",
-                ["response"] = "",
-                ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
-                ["view_name"] = viewName ?? "",
-                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? now.ToString("yyyyMMdd"),
-                ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
-                ["linked_transmittals"] = new JArray(),  // CRIT-005: cross-links to related transmittals
-                ["comments"] = new JArray()
+                Type        = issueType,
+                Priority    = priority,
+                Title       = title,
+                Description = description,
+                AssignedTo  = assignedTo,
+                Discipline  = discipline,
+                ViewName    = viewName,
+                Source      = IssueSource.Manual,
+                ElementIds  = elementIds?.Select(id => id.Value).ToList() ?? new List<long>(),
+                Revision    = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null)
+                              ?? now.ToString("yyyyMMdd"),
             };
+
+            var row = IssueSchema.Create(spec, issueId, now, Environment.UserName);
+
+            // Preserve this factory's richer type-description table, which covers register
+            // types IssueSchema does not know about.
+            if (IssueTypes.TryGetValue(issueType ?? "", out string itDesc)) row["type_description"] = itDesc;
+            return row;
         }
 
         /// <summary>
@@ -2297,7 +2360,7 @@ namespace StingTools.BIMManager
                 int linked = 0;
                 foreach (var issue in issues)
                 {
-                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    if (!IssueSchema.IsOpen(issue as JObject)) continue;
                     var linkedTx = issue["linked_transmittals"] as JArray;
                     if (linkedTx == null) { linkedTx = new JArray(); issue["linked_transmittals"] = linkedTx; }
                     if (linkedTx.Any(t => t.ToString() == transmittalId)) continue;
@@ -3890,7 +3953,7 @@ namespace StingTools.BIMManager
                         ["allowed_zone"] = bep["allowed_codes"]?["allowed_zone"],
                         ["allowed_sys"] = bep["allowed_codes"]?["allowed_sys"]
                     };
-                    File.WriteAllText(Path.Combine(dataPath, "project_bep.json"),
+                    OutputLocationHelper.WriteAllTextAtomic(Path.Combine(dataPath, "project_bep.json"),
                         validationBep.ToString(Formatting.Indented));
                 }
                 catch (Exception ex2) { StingLog.Warn($"BEP validation file: {ex2.Message}"); }
@@ -4398,27 +4461,54 @@ namespace StingTools.BIMManager
             if (!string.IsNullOrEmpty(description) && !description.Contains($"Priority: {priority}"))
                 description += $" Priority: {priority}.";
 
-            // Create issue with wizard-collected data
-            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-            var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
-            string nextId = BIMManagerEngine.GetNextIssueId(issues, issueType);
+            // Create issue with wizard-collected data.
+            //
+            // Phase 2: routed through IssueStore so a manually-raised issue gets the same
+            // treatment as an auto-raised one — atomic id minting, an `issue.raised` entry in
+            // the tamper-evident audit chain, and a fire-and-forget push to the Planscape
+            // server when the project is connected. Previously this saved straight to disk,
+            // so a coordinator's own RFI was the ONE kind of issue that never reached the
+            // server or the audit log.
+            string revisionForIssue = null;
+            try { revisionForIssue = RevisionEngine.GetCurrentProjectRevision(doc); }
+            catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
 
-            var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
-                autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name, doc);
+            var extra = new JObject();
+            if (!string.IsNullOrEmpty(wizResult.Location)) extra["location"] = wizResult.Location;
 
-            // Set due date from wizard if provided
-            if (!string.IsNullOrEmpty(wizResult.DueDate))
-                issue["date_due"] = wizResult.DueDate;
+            JObject issue;
+            using (var batch = IssueStore.Begin(doc))
+            {
+                if (!batch.Ok)
+                {
+                    TaskDialog.Show("STING", "The issue register could not be read, so the issue was not " +
+                                             "saved — writing now would overwrite live rows.");
+                    return Result.Cancelled;
+                }
 
-            // Set location from wizard if provided
-            if (!string.IsNullOrEmpty(wizResult.Location))
-                issue["location"] = wizResult.Location;
+                issue = batch.Create(new IssueSpec
+                {
+                    Type        = issueType,
+                    Priority    = priority,
+                    Title       = autoTitle,
+                    Description = description,
+                    AssignedTo  = assignee,
+                    Discipline  = discipline,
+                    ViewName    = uidoc.ActiveView?.Name ?? "",
+                    Revision    = revisionForIssue ?? "",
+                    Source      = IssueSource.Manual,
+                    ElementIds  = selectedIds?.Select(id => id.Value).ToList() ?? new List<long>(),
+                    Extra       = extra.Count > 0 ? extra : null,
+                });
+                if (issue == null) { TaskDialog.Show("STING", "Issue could not be created."); return Result.Failed; }
 
-            // GAP-007 fix: Link issue to current project revision
-            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
+                if (BIMManagerEngine.IssueTypes.TryGetValue(issueType, out string itd)) issue["type_description"] = itd;
+                if (!string.IsNullOrEmpty(wizResult.DueDate)) issue["date_due"] = wizResult.DueDate;
 
-            issues.Add(issue);
-            BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                batch.Commit();
+            }
+            string nextId = IssueSchema.IdOf(issue);
+            string issuesPath = IssueStore.PathFor(doc);
 
             // NTF-01: Send notification to assigned party on issue creation
             try
@@ -4594,7 +4684,7 @@ namespace StingTools.BIMManager
                         sb.AppendLine("IssueID,Title,Status,Priority,Type,DateRaised,DateDue,Overdue,Elements");
                         foreach (var r in rows)
                             sb.AppendLine($"\"{r.IssueId}\",\"{r.Title}\",\"{r.Status}\",\"{r.Priority}\",\"{r.Type}\",\"{r.DateRaised}\",\"{r.DateDue}\",\"{r.Overdue}\",{r.ElementCount}");
-                        File.WriteAllText(csvPath, sb.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(csvPath, sb.ToString());
                         dlg.SetStatus($"Exported to: {csvPath}");
                     }
                     catch (Exception ex) { StingLog.Warn($"IssueExportCSV: {ex.Message}"); }
@@ -4620,7 +4710,7 @@ namespace StingTools.BIMManager
 
             string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
             var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
-            var openIssues = issues.Where(i => i["status"]?.ToString() == "OPEN").ToList();
+            var openIssues = issues.OfType<JObject>().Where(IssueSchema.IsOpen).ToList();
             if (!openIssues.Any())
             {
                 TaskDialog.Show("Bulk Close", "No open issues to close.");
@@ -4887,7 +4977,7 @@ namespace StingTools.BIMManager
             }
             try
             {
-                File.WriteAllText(csvPath, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(csvPath, sb.ToString());
                 TaskDialog.Show("STING Issue Tracker", $"Exported {issues.Count} issues to:\n{csvPath}");
             }
             catch (Exception ex) { TaskDialog.Show("STING", $"Export failed: {ex.Message}"); }
@@ -4955,42 +5045,14 @@ namespace StingTools.BIMManager
     /// </summary>
     internal static class DocAutoRegister
     {
+        /// <summary>
+        /// Retained entry point — delegates to BIMManagerEngine.AutoRegisterExport so
+        /// there is ONE register schema and ONE id scheme (DOC-NNNN). This used to
+        /// write its own doc_id / "STING-{type}-{timestamp}" rows into the same file.
+        /// </summary>
         internal static void RegisterExport(Document doc, string filePath, string docType,
             string title, string suitability = "S3")
-        {
-            try
-            {
-                string docsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
-                var docs = BIMManagerEngine.LoadJsonArray(docsPath);
-
-                string ext = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.');
-                string docId = $"STING-{docType}-{DateTime.Now:yyyyMMdd-HHmmss}";
-
-                var entry = new JObject
-                {
-                    ["doc_id"] = docId,
-                    ["title"] = title,
-                    ["doc_type"] = docType,
-                    ["direction"] = "OUT",
-                    ["suitability"] = suitability,
-                    ["cde_status"] = "WIP",
-                    ["revision"] = "P01",
-                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
-                    ["status_code"] = "IFI",
-                    ["file_path"] = filePath,
-                    ["file_format"] = ext,
-                    ["auto_registered"] = true
-                };
-
-                docs.Add(entry);
-                BIMManagerEngine.SaveJsonFile(docsPath, docs);
-                StingLog.Info($"DocAutoRegister: {docId} ({ext}) -> {filePath}");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"DocAutoRegister failed: {ex.Message}");
-            }
-        }
+            => BIMManagerEngine.AutoRegisterExport(doc, filePath, docType, title, suitability);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -5113,7 +5175,7 @@ namespace StingTools.BIMManager
                         sb.AppendLine("DocID,Title,Type,Direction,Suitability,CDEStatus,Revision,Date");
                         foreach (var r in rows)
                             sb.AppendLine($"\"{r.DocId}\",\"{r.Title}\",\"{r.Type}\",\"{r.Direction}\",\"{r.Suitability}\",\"{r.CDEStatus}\",\"{r.Revision}\",\"{r.Date}\"");
-                        File.WriteAllText(csvPath, sb.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(csvPath, sb.ToString());
                         dlg.SetStatus($"Exported to: {csvPath}");
                     }
                     catch (Exception ex) { StingLog.Warn($"DocRegisterExportCSV: {ex.Message}"); }
@@ -5424,7 +5486,7 @@ namespace StingTools.BIMManager
                         csv.AppendLine(string.Join(",", headers.Select(h =>
                             $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
 
-                    try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
+                    try { OutputLocationHelper.WriteAllTextAtomic(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                     catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
                 }
 
@@ -5762,7 +5824,7 @@ namespace StingTools.BIMManager
             // Save text version
             string txtPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
                 $"TX_{transmittal["transmittal_id"]}_{DateTime.Now:yyyyMMdd}.txt");
-            try { File.WriteAllText(txtPath, note.ToString()); }
+            try { OutputLocationHelper.WriteAllTextAtomic(txtPath, note.ToString()); }
             catch (Exception ex) { StingLog.Warn($"Transmittal text file write failed: {ex.Message}"); }
 
             TaskDialog.Show("STING Transmittal", note.ToString());
@@ -6382,7 +6444,7 @@ namespace StingTools.BIMManager
                 foreach (var row in ws.Value)
                     csv.AppendLine(string.Join(",", headers.Select(h =>
                         $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
-                try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
+                try { OutputLocationHelper.WriteAllTextAtomic(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                 catch (Exception ex) { StingLog.Warn($"COBie CSV write failed for {ws.Key}: {ex.Message}"); }
             }
 
@@ -6497,7 +6559,7 @@ namespace StingTools.BIMManager
                         $"BRIEFCASE_INDEX_{DateTime.Now:yyyyMMdd}.txt");
                     try
                     {
-                        File.WriteAllText(indexPath, report.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(indexPath, report.ToString());
                         TaskDialog.Show("STING Briefcase", $"Index exported to:\n{indexPath}");
                     }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Export failed: {ex.Message}"); }
@@ -6601,7 +6663,7 @@ namespace StingTools.BIMManager
                         $"PRINT_{Path.GetFileNameWithoutExtension(selectedItem.FilePath)}_{DateTime.Now:yyyyMMdd}.txt");
                     try
                     {
-                        File.WriteAllText(savePath, content);
+                        OutputLocationHelper.WriteAllTextAtomic(savePath, content);
                         TaskDialog.Show("STING Briefcase", $"Saved to:\n{savePath}");
                     }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Save failed: {ex.Message}"); }
@@ -6670,7 +6732,7 @@ namespace StingTools.BIMManager
                     note.AppendLine();
                     try
                     {
-                        File.WriteAllText(notePath, note.ToString());
+                        OutputLocationHelper.WriteAllTextAtomic(notePath, note.ToString());
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(notePath) { UseShellExecute = true })?.Dispose();
                         TaskDialog.Show("STING Briefcase", $"Note created and opened:\n{notePath}");
                     }
@@ -7046,18 +7108,13 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
-                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "coord_log.json");
-                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
-                {
-                    logPath = System.IO.Path.Combine(
-                        System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "", ".sting_coord_log.json");
-                }
-                if (!System.IO.File.Exists(logPath))
-                { TaskDialog.Show("STING", "No coordination log found."); return Result.Succeeded; }
-
-                var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<
-                    List<UI.BIMCoordinationCenter.CoordLogEntry>>(System.IO.File.ReadAllText(logPath));
-                if (entries == null || entries.Count == 0)
+                // Canonical JSONL read — see CoordLog. Previously opened "coord_log.json"
+                // and whole-file-deserialised, so a JSONL log exported as empty.
+                var entries = StingTools.Core.CoordLog.Read(doc)
+                    .Select(o => o.ToObject<UI.BIMCoordinationCenter.CoordLogEntry>())
+                    .Where(e => e != null)
+                    .ToList();
+                if (entries.Count == 0)
                 { TaskDialog.Show("STING", "Coordination log is empty."); return Result.Succeeded; }
 
                 string outDir = Core.OutputLocationHelper.GetOutputDirectory(doc);
@@ -7662,7 +7719,7 @@ namespace StingTools.BIMManager
                     .OrderBy(l => l.Elevation).ToList();
                 sb.AppendLine($"\"Levels\",\"{levels.Count}: {string.Join(", ", levels.Select(l => l.Name))}\"");
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportProjectInfo: {ex.Message}"); return 0; }
@@ -7701,7 +7758,7 @@ namespace StingTools.BIMManager
                         $"\"{Esc(ParameterHelpers.GetString(el, ParamRegistry.REV))}\""));
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 StingLog.Info($"TagRegister: exported {elems.Count} tagged elements");
                 return 1;
             }
@@ -7725,7 +7782,7 @@ namespace StingTools.BIMManager
                 string issues = scan.TopIssues;
                 if (!string.IsNullOrEmpty(issues) && issues != "No issues")
                     sb.AppendLine($"\"Top Issues\",\"{Esc(issues)}\"");
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportComplianceReport: {ex.Message}"); return 0; }
@@ -7765,7 +7822,7 @@ namespace StingTools.BIMManager
                     sb.AppendLine($"\"{param}\",{pop},{empty},{total},{pct:F1}");
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportParameterAudit: {ex.Message}"); return 0; }
@@ -7807,7 +7864,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"\"Rooms\",{rooms}");
                 sb.AppendLine($"\"Linked Models\",{links}");
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportModelStats: {ex.Message}"); return 0; }
@@ -7838,7 +7895,7 @@ namespace StingTools.BIMManager
                     sb.AppendLine($"\"{Esc(num)}\",\"{Esc(name)}\",\"{disc}\",{viewCount},\"{Esc(approved)}\",\"{Esc(issued)}\"");
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportSheetIndex: {ex.Message}"); return 0; }
@@ -7873,7 +7930,7 @@ namespace StingTools.BIMManager
                     sb.AppendLine($"\"{g.Key.Disc}\",\"{Esc(g.Key.Cat)}\",{count},{tagged},{untagged},{pct:F1}");
                 }
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportDisciplineBreakdown: {ex.Message}"); return 0; }
@@ -7891,7 +7948,7 @@ namespace StingTools.BIMManager
                 foreach (var item in midp.Items)
                     sb.AppendLine($"\"{Esc(item.Name)}\",\"{item.Type}\",\"{item.Discipline}\",\"{item.Status}\",\"{item.Suitability}\"");
 
-                File.WriteAllText(path, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
                 return 1;
             }
             catch (Exception ex) { StingLog.Warn($"ExportMidpRegister: {ex.Message}"); return 0; }
@@ -7946,7 +8003,7 @@ namespace StingTools.BIMManager
                     var fi = new FileInfo(f);
                     idx.AppendLine($"\"{fi.Name}\",\"{Path.GetFileName(fi.DirectoryName)}\",{fi.Length},\"{fi.LastWriteTime:yyyy-MM-dd HH:mm}\"");
                 }
-                File.WriteAllText(idxPath, idx.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(idxPath, idx.ToString());
                 return copied > 0 ? 1 : 0;
             }
             catch (Exception ex) { StingLog.Warn($"ExportHealthcareEvidence: {ex.Message}"); return 0; }
@@ -8089,7 +8146,7 @@ namespace StingTools.BIMManager
                     $"\"{BriefcaseEngine.Esc(ParameterHelpers.GetString(el, NoteDateParam))}\""));
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             TaskDialog.Show("Export Notes", $"Exported {elements.Count} notes to:\n{path}");
             return Result.Succeeded;
         }
@@ -8336,7 +8393,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"\"\",\"\",\"\",\"{trimmed.TrimStart('•', ' ').Replace("\"", "\"\"")}\"");
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             return path;
         }
 
@@ -8556,7 +8613,7 @@ namespace StingTools.BIMManager
                     $"{durationDays}"));
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             StingLog.Info($"4DTimeline: exported {elements.Count} elements to {path}");
 
             // Phase 76: XLSX mirror
@@ -8653,7 +8710,7 @@ namespace StingTools.BIMManager
                 });
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             StingLog.Info($"5DCostData: exported {costed}/{elements.Count} elements (canonical take-off) to {path}");
 
             // Phase 76: XLSX mirror — reuse the rows already costed above (no
@@ -8708,7 +8765,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine($"\"{Esc(catName)}\",\"{disc}\",{count},{totalLength:F2},{totalArea:F2},{totalVolume:F4}");
             }
 
-            File.WriteAllText(path, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(path, sb.ToString());
             StingLog.Info($"MeasuredQty: exported for {groups.Count()} categories to {path}");
             return path;
         }
@@ -8982,7 +9039,7 @@ namespace StingTools.BIMManager
             {
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc);
                 if (string.IsNullOrEmpty(outDir)) return (true, "no project output dir — clash budget skipped");
-                string clashesJson = Path.Combine(outDir, "clashes.json");
+                string clashesJson = StingTools.Core.Clash.ClashPersistence.CanonicalPath(doc);
                 if (!File.Exists(clashesJson))
                     return (true, "no clashes.json — clash budget skipped (run clash detection first)");
 
@@ -9333,7 +9390,7 @@ namespace StingTools.BIMManager
                 sb.AppendLine(new string('═', 50));
                 foreach (var issue in results)
                 {
-                    sb.AppendLine($"  {issue["id"]} [{issue["status"]}] {issue["priority"]} — {issue["title"]}");
+                    sb.AppendLine($"  {IssueSchema.IdOf(issue as JObject)} [{issue["status"]}] {issue["priority"]} — {issue["title"]}");
                 }
 
                 TaskDialog.Show("STING Issue Filter", sb.ToString());
@@ -9384,7 +9441,7 @@ namespace StingTools.BIMManager
                 foreach (var issue in timeline)
                 {
                     string date = issue["date_raised"]?.ToString() ?? "Unknown";
-                    string id = issue["id"]?.ToString() ?? "?";
+                    string id = IssueSchema.IdOf(issue as JObject) ?? "?";
                     string status = issue["status"]?.ToString() ?? "?";
                     string title = issue["title"]?.ToString() ?? "";
                     string due = issue["date_due"]?.ToString() ?? "";
@@ -9490,7 +9547,7 @@ namespace StingTools.BIMManager
                         return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
                     }))
                     {
-                        sb.AppendLine($"  {issue["id"]} — {issue["title"]} (due: {issue["date_due"]})");
+                        sb.AppendLine($"  {IssueSchema.IdOf(issue as JObject)} — {issue["title"]} (due: {issue["date_due"]})");
                     }
                 }
 
@@ -9558,7 +9615,7 @@ namespace StingTools.BIMManager
 
                 foreach (var issue in issues)
                 {
-                    string id = issue["id"]?.ToString() ?? "";
+                    string id = IssueSchema.IdOf(issue as JObject) ?? "";
                     if (!selectedIds.Contains(id)) continue;
 
                     switch (action)
@@ -9632,7 +9689,7 @@ namespace StingTools.BIMManager
                 {
                     var row = new List<string>
                     {
-                        QuoteCsv(issue["id"]?.ToString() ?? ""),
+                        QuoteCsv(IssueSchema.IdOf(issue as JObject) ?? ""),
                         QuoteCsv(issue["type"]?.ToString() ?? ""),
                         QuoteCsv(issue["priority"]?.ToString() ?? ""),
                         QuoteCsv(issue["status"]?.ToString() ?? ""),
@@ -9699,7 +9756,7 @@ namespace StingTools.BIMManager
         {
             string docPath = doc?.PathName;
             if (string.IsNullOrEmpty(docPath)) return null;
-            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return Path.Combine(dir, "doc_versions.json");
         }
@@ -9739,7 +9796,7 @@ namespace StingTools.BIMManager
 
                 // Atomic write
                 string tempPath = path + ".tmp";
-                File.WriteAllText(tempPath, data.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tempPath, data.ToString(Formatting.Indented));
                 if (File.Exists(path)) File.Delete(path);
                 File.Move(tempPath, path);
             }
@@ -9886,7 +9943,7 @@ namespace StingTools.BIMManager
                 ["elements"] = tagMap
             };
 
-            File.WriteAllText(exportPath, wrapper.ToString(Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(exportPath, wrapper.ToString(Formatting.Indented));
             TaskDialog.Show("STING Tag Export", $"Exported {exported} tagged elements to:\n{exportPath}");
             StingLog.Info($"Tag map exported: {exported} elements to {exportPath}");
             return Result.Succeeded;
@@ -10046,7 +10103,7 @@ namespace StingTools.BIMManager
             int openIssues = 0, closedThisWeek = 0;
             try
             {
-                string issuesPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager", "issues.json");
+                string issuesPath = CoordStores.Issues(doc);
                 if (File.Exists(issuesPath))
                 {
                     var issues = JArray.Parse(File.ReadAllText(issuesPath));
@@ -10140,7 +10197,7 @@ namespace StingTools.BIMManager
             // Save
             string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             string reportPath = Path.Combine(dir, $"STING_Weekly_Report_{DateTime.Now:yyyyMMdd}.html");
-            File.WriteAllText(reportPath, html.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(reportPath, html.ToString());
 
             TaskDialog.Show("STING Weekly Report", $"Report saved to:\n{reportPath}");
             StingLog.Info($"Weekly report generated: {reportPath}");
@@ -10292,7 +10349,7 @@ namespace StingTools.BIMManager
         {
             string docPath = doc?.PathName;
             if (string.IsNullOrEmpty(docPath)) return null;
-            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            string dir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return Path.Combine(dir, "approvals.json");
         }
@@ -10332,7 +10389,7 @@ namespace StingTools.BIMManager
 
                 approvals.Add(record);
                 string tmpPath1 = path + ".tmp";
-                File.WriteAllText(tmpPath1, approvals.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tmpPath1, approvals.ToString(Formatting.Indented));
                 File.Move(tmpPath1, path, overwrite: true);
                 StingLog.Info($"Approval requested: {approvalId} for {documentId} ({fromState}→{toState})");
                 return approvalId;
@@ -10375,7 +10432,7 @@ namespace StingTools.BIMManager
                         record["completion_date"] = DateTime.Now.ToString("o");
 
                     string tmpPath2 = path + ".tmp";
-                    File.WriteAllText(tmpPath2, approvals.ToString(Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(tmpPath2, approvals.ToString(Formatting.Indented));
                     File.Move(tmpPath2, path, overwrite: true);
                     StingLog.Info($"Approval {approvalId}: {approverUser} {(approved ? "APPROVED" : "REJECTED")}");
                     return true;
@@ -10683,7 +10740,7 @@ namespace StingTools.BIMManager
             if (result == TaskDialogResult.CommandLink1)
             {
                 // Create task
-                string tasksDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+                string tasksDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
                 if (!Directory.Exists(tasksDir)) Directory.CreateDirectory(tasksDir);
                 string tasksPath = Path.Combine(tasksDir, "tasks.json");
 
@@ -10711,15 +10768,14 @@ namespace StingTools.BIMManager
                 };
                 tasks.Add(task);
                 string tmpTaskPath = tasksPath + ".tmp";
-                File.WriteAllText(tmpTaskPath, tasks.ToString(Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(tmpTaskPath, tasks.ToString(Formatting.Indented));
                 File.Move(tmpTaskPath, tasksPath, overwrite: true);
                 TaskDialog.Show("STING", $"Task {taskId} created with {selectedIds.Length} elements.");
             }
             else if (result == TaskDialogResult.CommandLink2)
             {
                 // View tasks
-                string tasksPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager", "tasks.json");
+                string tasksPath = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), "tasks.json");
                 if (!File.Exists(tasksPath))
                 {
                     TaskDialog.Show("STING", "No tasks found.");

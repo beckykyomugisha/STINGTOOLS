@@ -16,11 +16,25 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Same version as the main plugin to avoid transitive mismatch. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The units under test — all have zero Autodesk.Revit.* dependencies,
          so they compile cleanly against net8.0 with no shims. -->
+    <!-- Coordination-log wire format. Revit-free by design so the JSONL contract is
+         testable outside Revit. -->
+    <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
+    <!-- IM Phase 3 warning-snapshot codec: pure JSON + payload shaping, no Revit,
+         so the server DTO contract can be asserted without a Revit host. -->
+    <Compile Include="..\StingTools\Core\WarningSnapshotFormat.cs" Link="Core\WarningSnapshotFormat.cs" />
+    <!-- Issue register: canonical schema + id minting + status vocabulary. Kept Revit-free
+         so the schema-fork migration and the duplicate-id regression are testable outside
+         Revit. The Revit-facing repository (Core/IssueStore.cs) is not linked here — it
+         needs a Document for path resolution. -->
+    <Compile Include="..\StingTools\Core\IssueSchema.cs" Link="Core\IssueSchema.cs" />
+    <Compile Include="..\StingTools\Core\IssueStatusNormalizer.cs" Link="Core\IssueStatusNormalizer.cs" />
     <Compile Include="..\StingTools\Core\SeqAssigner.cs" Link="Core\SeqAssigner.cs" />
     <Compile Include="..\StingTools\Core\SeqBlockReservation.cs" Link="Core\SeqBlockReservation.cs" />
     <Compile Include="..\StingTools\Core\Validation\ProgramAuditEngine.cs" Link="Core\Validation\ProgramAuditEngine.cs" />
@@ -31,6 +45,14 @@
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
+    <!-- IM-15: config-driven revision scheme. Kept Revit-free so the P→C default and the
+         per-appointment override are provable without a Revit host. -->
+    <Compile Include="..\StingTools\Docs\Templates\RevisionScheme.cs" Link="Docs\Templates\RevisionScheme.cs" />
+    <!-- IM-13: the shared document-identity rule and the register merge core. Both kept
+         Revit-free so the cross-store dedup regression (a trailing space forking one
+         document into two rows) is provable without a Revit host. -->
+    <Compile Include="..\StingTools\Core\DocumentIdentity.cs" Link="Core\DocumentIdentity.cs" />
+    <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />
   </ItemGroup>
 
 </Project>

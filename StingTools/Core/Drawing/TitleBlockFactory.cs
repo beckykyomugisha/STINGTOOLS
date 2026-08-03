@@ -62,6 +62,16 @@ namespace StingTools.Core.Drawing
         /// <summary>The seed .rfa path the build augmented, when
         /// <see cref="BuiltFromSeed"/> is true; null otherwise.</summary>
         public string SeedSource { get; set; }
+        /// <summary>True when this family has no seed of its own but received
+        /// its full design (graphics + labels) via <see cref="PropagateFromMasterSeed"/>
+        /// from another family's seed (e.g. A0/A2/A3 working sheets and covers
+        /// mirroring the A1 master). Mutually exclusive with
+        /// <see cref="BuiltFromSeed"/> — exactly one of the two is true whenever
+        /// <see cref="LabelsPlaced"/> &gt; 0.</summary>
+        public bool   PropagatedFromMaster { get; set; }
+        /// <summary>The master seed .rfa path propagated from, when
+        /// <see cref="PropagatedFromMaster"/> is true; null otherwise.</summary>
+        public string MasterSeedSource { get; set; }
         /// <summary>Brief slot id + bbox lines, surfaced in the report so
         /// the operator can verify slot layout without opening the .rfa.</summary>
         public List<string> SlotSummary { get; set; } = new List<string>();
@@ -278,6 +288,11 @@ namespace StingTools.Core.Drawing
                 int propagated = 0;
                 if (fromMaster)
                     propagated = PropagateFromMasterSeed(app, famDoc, spec, masterSeedPath, masterSeedId, r);
+                if (fromMaster && propagated > 0)
+                {
+                    r.PropagatedFromMaster = true;
+                    r.MasterSeedSource     = masterSeedPath;
+                }
                 if (!fromSeed)
                 {
                     if (fromMaster && propagated <= 0)
@@ -572,11 +587,29 @@ namespace StingTools.Core.Drawing
         /// layouts are not derivable from a working-sheet master).</summary>
         private static string ResolveMasterSeedId(string specId)
         {
+            // Cover families (landscape only) propagate from the single A1 cover
+            // master, so one authored A1 cover fans out to A0 / A3 via the same
+            // whole-sheet affine remap used for working sheets.
+            var cov = Regex.Match(specId ?? "",
+                @"^STING_TB_COVER_(A0|A1|A2|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
+            if (cov.Success)
+            {
+                const string coverMaster = "STING_TB_COVER_A1_v1.0";
+                return string.Equals(coverMaster, specId, StringComparison.OrdinalIgnoreCase)
+                    ? null : coverMaster;
+            }
+
             var m = Regex.Match(specId ?? "",
-                @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
+                @"^STING_TB_(A0|A1|A2|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
                 RegexOptions.IgnoreCase);
             if (!m.Success) return null;
-            string master = $"STING_TB_A1_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
+            // Keep the ORIENTATION when picking the master: a _PORT family
+            // propagates from the A1 _PORT seed, not the landscape A1 seed.
+            // Mapping every orientation to the landscape master squished the
+            // portrait/right-strip design (non-uniform paper ratio). Same
+            // orientation => uniform scale => the seed's layout is preserved.
+            string port = m.Groups[2].Success ? "_PORT" : "";
+            string master = $"STING_TB_A1{port}_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
             return string.Equals(master, specId, StringComparison.OrdinalIgnoreCase)
                 ? null : master;
         }
@@ -612,14 +645,31 @@ namespace StingTools.Core.Drawing
         private static bool TryGetIsoPaper(string specId, out double wMm, out double hMm)
         {
             wMm = hMm = 0;
+
+            // Cover families are landscape A0 / A1 / A3 (no portrait variant).
+            var cov = Regex.Match(specId ?? "",
+                @"^STING_TB_COVER_(A0|A1|A2|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
+            if (cov.Success)
+            {
+                switch (cov.Groups[1].Value.ToUpperInvariant())
+                {
+                    case "A0": wMm = 1189; hMm = 841; break;
+                    case "A1": wMm = 841;  hMm = 594; break;
+                    case "A2": wMm = 594;  hMm = 420; break;
+                    case "A3": wMm = 420;  hMm = 297; break;
+                }
+                return true;
+            }
+
             var m = Regex.Match(specId ?? "",
-                @"^STING_TB_(A0|A1|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
+                @"^STING_TB_(A0|A1|A2|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
                 RegexOptions.IgnoreCase);
             if (!m.Success) return false;
             switch (m.Groups[1].Value.ToUpperInvariant())
             {
                 case "A0": wMm = 1189; hMm = 841; break;
                 case "A1": wMm = 841;  hMm = 594; break;
+                case "A2": wMm = 594;  hMm = 420; break;
                 case "A3": wMm = 420;  hMm = 297; break;
                 default: return false;
             }
@@ -675,13 +725,21 @@ namespace StingTools.Core.Drawing
                     return 0;
                 }
 
-                // Everything visual: labels + captions (TextElement covers both),
-                // lines (CurveElement), filled regions.
+                // Everything visual: labels + captions (TextElement), lines
+                // (CurveElement), filled regions, AND nested families (logo / QR
+                // / symbols / detail components) and imports — so a rich seed
+                // propagates WHOLE, not just its linework. This was the gap that
+                // made propagated families look unrelated to their seed. Only
+                // pure scaffolding (reference planes, dimensions) is left behind.
                 var ids = new List<ElementId>();
-                foreach (Element e in new FilteredElementCollector(masterDoc, srcView.Id))
+                foreach (Element e in new FilteredElementCollector(masterDoc, srcView.Id)
+                             .WhereElementIsNotElementType())
                 {
-                    if (e is TextElement || e is CurveElement || e is FilledRegion)
+                    if (e is TextElement || e is CurveElement || e is FilledRegion
+                        || e is FamilyInstance || e is ImportInstance)
                         ids.Add(e.Id);
+                    else if (e.Location is LocationPoint && e.Category != null)
+                        ids.Add(e.Id);   // placed images / other point-located graphics
                 }
                 if (ids.Count == 0) return 0;
 
@@ -753,6 +811,21 @@ namespace StingTools.Core.Drawing
                                         var newFr = FilledRegion.Create(
                                             famDoc, fr.GetTypeId(), dstView.Id, newLoops);
                                         if (newFr != null) famDoc.Delete(fr.Id);
+                                    }
+                                    break;
+                                }
+                                default:
+                                {
+                                    // Nested families (logo / QR / symbols),
+                                    // detail components, imports and placed
+                                    // images keep their authored size — only
+                                    // their location remaps by the paper ratio,
+                                    // exactly like text (never scaled).
+                                    if (el?.Location is LocationPoint dlp && dlp.Point != null)
+                                    {
+                                        var dp = dlp.Point;
+                                        ElementTransformUtils.MoveElement(famDoc, id,
+                                            new XYZ(dp.X * (kx - 1), dp.Y * (ky - 1), 0));
                                     }
                                     break;
                                 }
@@ -862,7 +935,7 @@ namespace StingTools.Core.Drawing
             // Two-family architecture (Phase 170 revision): no BIM_MODE_BOOL
             // is minted by the factory itself. Each spec carries its own
             // declared parameter list (typically including a shared
-            // STING_SHEET_BIM_MODE_TXT with default "BIM" or "NONBIM" so
+            // PRJ_SHEET_BIM_MODE_TXT with default "BIM" or "NONBIM" so
             // each sheet records the variant in use). Specs that need
             // family-internal calculated parameters declare them via the
             // standard ParamSpec.Kind = "internal" + Formula path.
@@ -884,7 +957,7 @@ namespace StingTools.Core.Drawing
                     fp = AddSharedParameter(fm, defFile, p.Name, p.Group,
                         p.Instance, r);
                     // For shared params, write the spec-supplied default
-                    // value if any (e.g. STING_SHEET_BIM_MODE_TXT default
+                    // value if any (e.g. PRJ_SHEET_BIM_MODE_TXT default
                     // "BIM" / "NONBIM" — the marker every sheet inherits
                     // from the loaded title-block family).
                     if (fp != null && !string.IsNullOrEmpty(p.Default))

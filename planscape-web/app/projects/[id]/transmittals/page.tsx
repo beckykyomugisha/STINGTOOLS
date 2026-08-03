@@ -1,37 +1,53 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
-import { listTransmittals, createTransmittal, transmittalAction } from '@/lib/data';
+import {
+  Badge,
+  Button,
+  DataGrid,
+  Input,
+  Modal,
+  PageHeader,
+  toneForStatus,
+  useToast,
+  type Column,
+} from '@/components/ui';
+import { createTransmittal, listTransmittals, transmittalAction } from '@/lib/data';
 import type { Transmittal } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-const statusClass: Record<string, string> = {
-  DRAFT: 'bg-slate-100 text-slate-600',
-  SENT: 'bg-blue-100 text-blue-700',
-  ACKNOWLEDGED: 'bg-amber-100 text-amber-700',
-  RESPONDED: 'bg-green-100 text-green-700',
-};
-
-// Allowed next action per status (DRAFT→send, SENT→acknowledge, ACKNOWLEDGED→respond).
-const nextAction: Record<string, 'send' | 'acknowledge' | 'respond' | undefined> = {
+/**
+ * U4 — Transmittals.
+ *
+ * Per the grid contract this is deliberately NOT an editable grid: the write
+ * surface is `PUT …/transmittals/{id}/{send|acknowledge|respond}` — a state
+ * machine, not fields. An inline status cell would let a user pick a transition
+ * the server will reject, so status is read-only and the single legal next
+ * action renders as a row button.
+ */
+const NEXT_ACTION: Record<string, 'send' | 'acknowledge' | 'respond' | undefined> = {
   DRAFT: 'send',
   SENT: 'acknowledge',
   ACKNOWLEDGED: 'respond',
 };
-const actionLabel: Record<string, string> = { send: 'Send', acknowledge: 'Acknowledge', respond: 'Respond' };
+const ACTION_LABEL: Record<string, string> = { send: 'Send', acknowledge: 'Acknowledge', respond: 'Respond' };
 
 export default function TransmittalsPage() {
-  const params = useParams<{ id: string }>();
-  const projectId = params.id;
+  const { id: projectId } = useParams<{ id: string }>();
+  const { toast } = useToast();
   const [items, setItems] = useState<Transmittal[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
   const [recipient, setRecipient] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Respond carries optional notes, so it gets a modal instead of a window.prompt.
+  const [respondFor, setRespondFor] = useState<Transmittal | null>(null);
+  const [responseNotes, setResponseNotes] = useState('');
 
   const load = useCallback(() => {
     listTransmittals(projectId)
@@ -41,103 +57,148 @@ export default function TransmittalsPage() {
 
   useEffect(load, [load]);
 
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
+  async function onCreate() {
     if (!recipient.trim()) return;
     setBusy(true);
-    setError(null);
     try {
       await createTransmittal(projectId, { recipient: recipient.trim(), notes: notes.trim() || undefined });
+      toast(`Transmittal to ${recipient.trim()} created`, 'success');
       setRecipient('');
       setNotes('');
+      setNewOpen(false);
       load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create transmittal');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Failed to create transmittal', 'error');
     } finally {
       setBusy(false);
     }
   }
 
-  async function onAction(t: Transmittal) {
-    const action = nextAction[t.status];
-    if (!action) return;
-    const body = action === 'respond' ? { responseNotes: prompt('Response notes (optional)') || undefined } : undefined;
+  async function runAction(t: Transmittal, action: 'send' | 'acknowledge' | 'respond', body?: { responseNotes?: string }) {
     try {
       await transmittalAction(projectId, t.id, action, body);
+      toast(`${t.transmittalCode} — ${ACTION_LABEL[action].toLowerCase()}ed`, 'success');
       load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action failed');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : `${ACTION_LABEL[action]} failed`, 'error');
     }
   }
 
+  const columns: Column<Transmittal>[] = [
+    { key: 'transmittalCode', header: 'Code', className: 'w-40 font-mono text-xs' },
+    { key: 'recipient', header: 'Recipient', className: 'min-w-[12rem]' },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'w-36',
+      render: (t) => <Badge tone={toneForStatus(t.status)}>{t.status}</Badge>,
+    },
+    { key: 'notes', header: 'Notes', className: 'min-w-[12rem]' },
+    {
+      key: 'createdAt',
+      header: 'Created',
+      className: 'w-28',
+      render: (t) =>
+        t.createdAt ? new Date(t.createdAt).toLocaleDateString() : <span className="text-fg-subtle">—</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-32',
+      sortable: false,
+      render: (t) => {
+        const action = NEXT_ACTION[t.status];
+        if (!action) return <span className="text-fg-subtle">—</span>;
+        return (
+          <Button
+            size="sm"
+            onClick={() => {
+              if (action === 'respond') {
+                setResponseNotes('');
+                setRespondFor(t);
+              } else {
+                void runAction(t, action);
+              }
+            }}
+          >
+            {ACTION_LABEL[action]}
+          </Button>
+        );
+      },
+    },
+  ];
+
   return (
     <AppShell>
-      <div className="mb-4">
-        <Link href={`/projects/${projectId}`} className="text-sm text-slate-400 hover:underline">
-          ← Project
-        </Link>
-        <h1 className="text-xl font-semibold">Transmittals</h1>
-      </div>
+      <PageHeader
+        title="Transmittals"
+        description="Status advances through send → acknowledge → respond actions, not by editing."
+        actions={
+          <Button variant="primary" onClick={() => setNewOpen(true)}>
+            New transmittal
+          </Button>
+        }
+      />
+      <DataGrid<Transmittal>
+        rows={items}
+        columns={columns}
+        rowId={(t) => t.id}
+        loading={!items && !error}
+        error={error}
+        emptyTitle="No transmittals"
+        emptyDescription="Create one to formally issue documents to a recipient."
+      />
 
-      <form onSubmit={onCreate} className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
-        <label className="block">
-          <span className="text-sm text-slate-600">Recipient</span>
-          <input
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            placeholder="Name / organisation"
-            className="mt-1 block w-56 rounded border border-slate-300 px-2 py-1.5 text-sm"
-          />
+      <Modal
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        title="New transmittal"
+        footer={
+          <>
+            <Button onClick={() => setNewOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={() => void onCreate()} disabled={busy || !recipient.trim()}>
+              {busy ? 'Creating…' : 'Create'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-fg-muted">Recipient</span>
+            <Input value={recipient} onChange={(e) => setRecipient(e.target.value)} autoFocus />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-fg-muted">Notes (optional)</span>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!respondFor}
+        onOpenChange={(o) => !o && setRespondFor(null)}
+        title={`Respond to ${respondFor?.transmittalCode ?? ''}`}
+        footer={
+          <>
+            <Button onClick={() => setRespondFor(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                const t = respondFor;
+                setRespondFor(null);
+                if (t) void runAction(t, 'respond', { responseNotes: responseNotes.trim() || undefined });
+              }}
+            >
+              Respond
+            </Button>
+          </>
+        }
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-fg-muted">Response notes (optional)</span>
+          <Input value={responseNotes} onChange={(e) => setResponseNotes(e.target.value)} autoFocus />
         </label>
-        <label className="block flex-1">
-          <span className="text-sm text-slate-600">Notes (optional)</span>
-          <input
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={busy || !recipient.trim()}
-          className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {busy ? 'Creating…' : 'New transmittal'}
-        </button>
-      </form>
-
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {!items && !error && <p className="text-slate-400">Loading…</p>}
-      {items && items.length === 0 && <p className="text-slate-500">No transmittals.</p>}
-
-      {items && items.length > 0 && (
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
-          {items.map((t) => (
-            <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{t.transmittalCode}</span>
-                  <span className={`rounded px-1.5 py-0.5 text-[10px] ${statusClass[t.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {t.status}
-                  </span>
-                </div>
-                <div className="mt-0.5 truncate text-xs text-slate-400">
-                  To {t.recipient}
-                  {t.notes ? ` · ${t.notes}` : ''}
-                </div>
-              </div>
-              {nextAction[t.status] && (
-                <button
-                  onClick={() => onAction(t)}
-                  className="shrink-0 rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
-                >
-                  {actionLabel[nextAction[t.status]!]}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      </Modal>
     </AppShell>
   );
 }
