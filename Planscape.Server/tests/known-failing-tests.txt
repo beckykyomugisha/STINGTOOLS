@@ -48,10 +48,26 @@
 #     | grep -oE "^[[:space:]]*Failed[[:space:]]+Planscape\.Tests\.[A-Za-z0-9_.]+" \
 #     | sed -E 's/^[[:space:]]*Failed[[:space:]]+//' | sort -u
 #
-# CAVEAT, honestly stated: some tests are order/parallelism dependent (see
-# ROADMAP DEP-7 — Program.cs reads the process-wide Hangfire.JobStorage.Current
-# during host build). With an empty baseline such a flake now surfaces as a
-# failure instead of being absorbed silently. That is the intended trade: a
-# visible flake can be fixed, an absorbed one cannot.
+# CAVEAT, updated 2026-08-03: the order/parallelism dependence this used to warn
+# about was ROADMAP DEP-7 — Program.cs read the process-wide
+# Hangfire.JobStorage.Current during host build, so a host built after a
+# sibling's teardown died with ObjectDisposedException and took a RANDOM victim
+# test with it (12 / 16 / 3 failures across three runs of the same tree). That is
+# FIXED: recurring jobs now register through the injected IRecurringJobManager,
+# and #549 restored the HTTP test that the flake had forced out. Three
+# independent runs — main 097b75a94 (540 tests), #549 435cb8432 (541), #448
+# 8a737626a (542) — all report 0 failed.
+#
+# What remains is cosmetic and does NOT fail a test: an ObjectDisposedException
+# on Hangfire.InMemory.State.Dispatcher still shows up in the log at TEARDOWN,
+# from Hangfire deregistering a background server in
+# BackgroundServerProcess.ServerDelete once the run is over. It is logged WRN and
+# swallowed. Its volume varies run to run (1052 / 1346 / 2 across those three
+# runs) — noisy, but not a gate concern. Do not add it to this baseline; there is
+# no test to name.
+#
+# The empty baseline still means a genuine flake surfaces as a failure rather
+# than being absorbed silently. That remains the intended trade: a visible flake
+# can be fixed, an absorbed one cannot.
 #
 # Blank lines and lines starting with # are ignored.
