@@ -330,16 +330,9 @@ namespace StingTools.Tags
             // Adding Materials to coreCats would bind ALL 2300+ parameters to materials,
             // polluting every material's custom properties panel.
 
-            // Phase 39: Add Sheets category (needed for SHT_* params)
-            try
-            {
-                Category shtCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Sheets);
-                if (shtCat != null && shtCat.AllowsBoundParameters && !coreCats.Contains(shtCat))
-                    coreCats.Insert(shtCat);
-            }
-            catch (Exception ex) { StingLog.Warn($"Add Sheets category to core set: {ex.Message}"); }
-
-            // Phase 39: Add Sheets category (needed for SHT_* params)
+            // Phase 39: Add Sheets category (needed for SHT_* params). OST_Sheets is not
+            // in ParamRegistry's category_enum_map / universal_categories, so the core set
+            // would otherwise have no sheet coverage at all.
             try
             {
                 Category shtCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Sheets);
@@ -503,8 +496,15 @@ namespace StingTools.Tags
                                     && groupCatOverrides.ContainsKey(groupName)
                                     && !SharedParamGuids.ResolvedUniversalParams.Contains(extDef.Name);
 
+                                // An explicit, resolvable per-param spec row is MORE specific
+                                // than the blanket material set (21 BleCategories), so it wins.
+                                // Without this, 11 container params — MAT_TAG_1..6_TXT,
+                                // COMP_MAT_TAG_1/2_TXT, MAT_PERF_TAG_1..3_TXT — would take the
+                                // material path and land on 21 categories instead of the 4-6
+                                // their container_groups entry declares.
                                 if (matOnlyBinding != null
                                     && (!groupCatOverrides.ContainsKey(groupName) || matRescue)
+                                    && !perParamBindingMap.ContainsKey(extDef.Name)
                                     && IsMaterialRelevantParam(extDef.Name))
                                 {
                                     paramBinding = matOnlyBinding;
