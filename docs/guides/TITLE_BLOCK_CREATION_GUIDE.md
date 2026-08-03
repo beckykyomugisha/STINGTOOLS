@@ -994,12 +994,21 @@ The **project-level** title-block parameters bound to `ProjectInformation`. Edit
 | `PRJ_TB_LAST_SYNC_TXT` | Last sync timestamp (server) |
 | `PRJ_TB_LAST_SYNC_BY_TXT` | Last sync user (server) |
 | `PRJ_TB_LOCK_BOOL` | Per-project lock — when `1`, rev bumps require admin |
-| `PRJ_TB_SHOW_KEYPLAN_BOOL` | Project-wide override for key-plan visibility |
-| `PRJ_TB_SHOW_SCALEBAR_BOOL` | Project-wide override for scale-bar visibility |
-| `PRJ_TB_SHOW_NORTHARROW_BOOL` | Project-wide override for north-arrow visibility |
-| `PRJ_TB_SHOW_DISCBAND_BOOL` | Project-wide override for discipline-band visibility |
 | `PRJ_TB_SCALE_OVERRIDE_TXT` | If non-empty, overrides the scale shown in the strip |
 | `PRJ_TB_ISSUE_SUMMARY_TXT` | Multi-line summary printed on the start-up page |
+
+> **Visibility toggles live on the title block, not here.** Earlier revisions of
+> this section listed `PRJ_TB_SHOW_KEYPLAN_BOOL`, `PRJ_TB_SHOW_SCALEBAR_BOOL`,
+> `PRJ_TB_SHOW_NORTHARROW_BOOL` and `PRJ_TB_SHOW_DISCBAND_BOOL` as a
+> "project-wide override" tier. There is no such tier. Those four are the GROUP
+> 13 legacy params: nothing in the plugin reads or writes them, they are bound to
+> Generic Models and Project Information rather than Title Blocks, and
+> `TitleBlockPopulate` never touches them. Use the GROUP 26 toggles listed in §15
+> (`PRJ_TB_SHOW_KEY_PLAN_BOOL`, `PRJ_TB_SHOW_SCALE_BAR_BOOL`,
+> `PRJ_TB_SHOW_NORTH_ARROW_BOOL`, `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL`), which the
+> factory mints onto every title-block family and `TITLE_BLOCK.csv` seeds. The
+> legacy four still ship in `MR_PARAMETERS.txt` so models that already bound them
+> do not lose the binding — they are inert, not removed.
 
 ### 16.8 Deliverable / CDE
 
@@ -1042,7 +1051,7 @@ Drop the eight families into `Families/Annotations/` (or your project's annotati
 | Title block placed but viewports overlap reserved areas | `TB_RESERVED_REGIONS_JSON_TXT` is malformed JSON, so the engine ignored it | Validate the JSON in any online linter; commas / quotes are common culprits |
 | Validator reports "slot 3 exceeds drawable zone" | Slot rectangle (norm coords) extends past the drawable-zone boundary | Either widen the drawable zone or shrink the slot |
 | North arrow does not auto-rotate | Either `TB_NORTH_ARROW_AUTO_ROTATE_BOOL = 0` *or* the nested arrow family overrides its own rotation | Set the toggle, then open the nested family and unlock the rotation parameter |
-| Discipline colour band invisible | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` set to 0, *or* the project-wide override `PRJ_TB_SHOW_DISCBAND_BOOL` set to 0 | Set both to 1 |
+| Discipline colour band invisible | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` set to 0 — or absent from the title-block family, which is the case for any `.rfa` built before the parameter was added to the root spec | Set it to 1; if the parameter is not on the title block at all, rebuild the family with `TitleBlock_CreateAll`. Do not set `PRJ_TB_SHOW_DISCBAND_BOOL` — it is inert legacy (see §16.7) |
 | QR code stamps wrong URL | `TB_QR_PAYLOAD_TXT` was hand-edited and didn't match the deliverable id | Don't hand-edit; let `IssueDeliverable` rebuild it |
 | Authority submission fails on missing seal | The reserved seal rectangle is empty | Insert the seal image into the rectangle, save the project |
 | `corp-base` view template not applied | Project-scoped override missing or `STING_VIEW_STYLE_PACKS.json` invalid | Run **Drawing Types ▸ Inspect**; the diagnostic lists every routing rule and validation issue |

@@ -504,11 +504,17 @@ namespace StingTools.Core
         // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
         public const string PRJ_SHEET_SYSTEM       = "PRJ_SHEET_SYSTEM_TXT";
         public const string PRJ_SHEET_SYSTEM_GUID  = "972024c1-53c5-5b57-b9f7-98e89fa53572";
-        // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
-        // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
-        // constants below are kept on ViewSheet for backwards compat with sheets that
-        // were authored before STING TB v1; new title block families should bind to the
-        // GROUP 26 TB_ versions.
+        // Canonical home for these toggles is the GROUP 26 TBL_TITLEBLOCK FamilyInstance
+        // (added in Drawing Template Manager). All five constants below name GROUP 26
+        // params; the root title-block spec A1_common_v2.0 declares them, so
+        // TitleBlockFactory mints them as INSTANCE family params onto every family it
+        // builds, and TITLE_BLOCK.csv seeds them through TitleBlockPopulate.
+        //
+        // Their GROUP 13 near-namesakes (PRJ_TB_SHOW_KEYPLAN_BOOL, ...SCALEBAR...,
+        // ...NORTHARROW..., ...DISCBAND...) are NOT a project-wide override tier — no
+        // code reads or writes them, and they bind to Generic Models / Project
+        // Information rather than Title Blocks. They remain in MR_PARAMETERS.txt only so
+        // models that already bound them keep the binding.
         public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
         public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
@@ -518,9 +524,7 @@ namespace StingTools.Core
         // NB: this pair pointed at the GROUP 13 legacy param (PRJ_TB_SHOW_DISCBAND_BOOL
         // / 483f47d7) while its three siblings above already pointed at their GROUP 26
         // equivalents — the odd one out in a block whose stated contract is "the GROUP 26
-        // TB_ versions". Repointed to match. The GROUP 13 param still ships in
-        // MR_PARAMETERS.txt as the project-wide override; it is simply not what this
-        // constant means.
+        // TB_ versions". Repointed to match.
         public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL";
         public const string TB_SHOW_DISCBAND_GUID  = "fcd1f7f2-8b64-5cd7-9d27-982d604a231e";
         // Gates the revision-history zone (the native Revit revision schedule
