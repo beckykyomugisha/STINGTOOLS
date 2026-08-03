@@ -64,7 +64,7 @@ namespace StingTools.UI
                         state.ProjectId, state.SelectedIds.ToList(), code);
                     Autodesk.Revit.UI.TaskDialog.Show("Reclassify",
                         n > 0 ? $"Reclassified {n} photo(s) to {code}." :
-                        (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                        SitePhotosTabHelpers.Reason("Reclassifying the selected photos"));
                 };
                 bulkBar.Children.Add(b);
             }
@@ -92,7 +92,7 @@ namespace StingTools.UI
                     state.ProjectId, state.SelectedIds.ToList(), levelCode: lvl, zoneCode: zn);
                 Autodesk.Revit.UI.TaskDialog.Show("Re-anchor",
                     n > 0 ? $"Re-anchored {n} photo(s)." :
-                    (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                    SitePhotosTabHelpers.Reason("Re-anchoring the selected photos"));
             };
             reanchorBar.Children.Add(reanchorBtn);
             root.Children.Add(reanchorBar);
@@ -183,7 +183,7 @@ namespace StingTools.UI
                 if (grp == null)
                 {
                     Autodesk.Revit.UI.TaskDialog.Show("New group",
-                        PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                        SitePhotosTabHelpers.Reason("Creating the distribution group"));
                     return;
                 }
                 await LoadGroupsAsync();

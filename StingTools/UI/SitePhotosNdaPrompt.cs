@@ -108,8 +108,7 @@ namespace StingTools.UI
                 if (!rowOk)
                 {
                     Autodesk.Revit.UI.TaskDialog.Show("NDA",
-                        "Could not record acceptance — see log.\n\n" +
-                        (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                        SitePhotosTabHelpers.Reason("Recording the NDA acceptance"));
                     ok.IsEnabled = true; cancel.IsEnabled = true;
                     return;
                 }
