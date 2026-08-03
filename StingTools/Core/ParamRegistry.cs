@@ -515,8 +515,14 @@ namespace StingTools.Core
         public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
         public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTH_ARROW_BOOL";
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
-        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
-        public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        // NB: this pair pointed at the GROUP 13 legacy param (PRJ_TB_SHOW_DISCBAND_BOOL
+        // / 483f47d7) while its three siblings above already pointed at their GROUP 26
+        // equivalents — the odd one out in a block whose stated contract is "the GROUP 26
+        // TB_ versions". Repointed to match. The GROUP 13 param still ships in
+        // MR_PARAMETERS.txt as the project-wide override; it is simply not what this
+        // constant means.
+        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL";
+        public const string TB_SHOW_DISCBAND_GUID  = "fcd1f7f2-8b64-5cd7-9d27-982d604a231e";
         // Gates the revision-history zone (the native Revit revision schedule
         // created by TitleBlockFactory for slots with purposeTag "revision-history").
         public const string TB_SHOW_REV_TABLE      = "PRJ_TB_SHOW_REV_TABLE_BOOL";

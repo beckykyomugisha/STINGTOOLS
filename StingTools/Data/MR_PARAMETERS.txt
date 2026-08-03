@@ -2475,7 +2475,7 @@ PARAM	74c9d75f-840c-5263-9acf-8fecf80ec6aa	PRJ_TB_LOCK_BOOL	YESNO		13	1	When tru
 PARAM	8dd6b517-7173-5a8d-b951-a08807fed830	PRJ_TB_SHOW_KEYPLAN_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]	1	0
 PARAM	fa841ad5-15e1-5ec2-91bc-a69d70cf9c42	PRJ_TB_SHOW_SCALEBAR_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_SCALE_BAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]	1	0
 PARAM	58c6e51f-6f22-546b-ac02-086ab6f6fbbf	PRJ_TB_SHOW_NORTHARROW_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]	1	0
-PARAM	483f47d7-a6cd-5fa7-bfde-ff2ab6e43178	PRJ_TB_SHOW_DISCBAND_BOOL	YESNO		13	1	Show discipline colour band on title block [ISO 19650-1:2018]	1	0
+PARAM	483f47d7-a6cd-5fa7-bfde-ff2ab6e43178	PRJ_TB_SHOW_DISCBAND_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]	1	0
 PARAM	624563ac-3067-5990-ba13-a4d750e9ffc2	PRJ_TB_SCALE_OVERRIDE_TXT	TEXT		13	1	Override scale label shown on title block (e.g. "NTS", "1:100"). Empty = use view scale. [ISO 19650-1:2018]	1	0
 PARAM	a3408dee-9ced-5ccd-970c-0958bcc713a9	PRJ_TB_ISSUE_SUMMARY_TXT	TEXT		13	1	Short free-text summary of the issue purpose (e.g. "For Construction") [ISO 19650-1:2018]	1	0
 PARAM	d63919e8-7cf5-5202-bd59-1dc03554fee4	PRJ_TB_DELIVERABLE_DATADROP_TXT	TEXT		13	1	ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018]	0	0
