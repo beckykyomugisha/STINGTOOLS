@@ -262,6 +262,54 @@
           "kind": "shared",
           "instance": true,
           "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_SYNC_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LAST_SYNC_BY_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_LOCK_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
+        },
+        {
+          "name": "PRJ_TB_SHOW_KEY_PLAN_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "Graphics"
+        },
+        {
+          "name": "PRJ_TB_SHOW_SCALE_BAR_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "Graphics"
+        },
+        {
+          "name": "PRJ_TB_SHOW_NORTH_ARROW_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "Graphics"
+        },
+        {
+          "name": "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "Graphics"
+        },
+        {
+          "name": "PRJ_TB_SHOW_REV_TABLE_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "Graphics"
         }
       ],
       "lines": [
