@@ -382,7 +382,7 @@ namespace StingTools.Core
         public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
-        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
+        public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";
 
         // ── Annotation marker constants (Phase 179) ──────────────────────
         public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
@@ -509,17 +509,17 @@ namespace StingTools.Core
         // constants below are kept on ViewSheet for backwards compat with sheets that
         // were authored before STING TB v1; new title block families should bind to the
         // GROUP 26 TB_ versions.
-        public const string TB_SHOW_KEYPLAN        = "TB_SHOW_KEY_PLAN_BOOL";
+        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
-        public const string TB_SHOW_SCALEBAR       = "TB_SHOW_SCALEBAR_BOOL";
+        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
         public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
-        public const string TB_SHOW_NORTHARROW     = "TB_SHOW_NORTH_ARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTH_ARROW_BOOL";
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
         public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
         public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
         // Gates the revision-history zone (the native Revit revision schedule
         // created by TitleBlockFactory for slots with purposeTag "revision-history").
-        public const string TB_SHOW_REV_TABLE      = "TB_SHOW_REV_TABLE_BOOL";
+        public const string TB_SHOW_REV_TABLE      = "PRJ_TB_SHOW_REV_TABLE_BOOL";
         public const string TB_SHOW_REV_TABLE_GUID = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
@@ -541,7 +541,7 @@ namespace StingTools.Core
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
 
         /// <summary>All 20 title-block parameters added in STING Title Block System v1.0
-        /// (19 originals plus TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
+        /// (19 originals plus PRJ_TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
         /// schedule created by TitleBlockFactory).</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
