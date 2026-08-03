@@ -782,7 +782,7 @@ namespace StingTools.Core.Drawing
             // The sequence has to be resolved BEFORE the number is built —
             // the pattern's {seq} / {seq:Dn} needs it. It used to be consumed
             // further down, after numbering, and only stamped into
-            // STING_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
+            // PRJ_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
             // ctx.Tag — a level name in every batch command — and every sheet
             // in a package numbered 0001.
             int seq = ResolveSheetSequence(doc, dt, effectivePackage);

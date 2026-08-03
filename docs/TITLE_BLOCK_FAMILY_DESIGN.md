@@ -293,15 +293,15 @@ GROUP A — Project / Originator (ProjectInformation scope)
   PRJ_ORG_SECURITY_CLASS_TXT    "OFFICIAL"
 
 GROUP B — Sheet identity (sheet instance scope)
-  STING_SHEET_VOLUME_TXT        "ZZ"
-  STING_SHEET_LEVEL_TXT         "01"
-  STING_SHEET_TYPE_TXT          "DR"
-  STING_SHEET_ROLE_TXT          "A"  (A/S/M/E/P/FP/LV/G)
-  STING_SHEET_SEQ_TXT           "0001"
-  STING_SHEET_FULL_REF_TXT      (calculated — concat of above)
-  STING_SHEET_OF_TOTAL_TXT      "03 / 12"
+  PRJ_SHEET_VOLUME_TXT        "ZZ"
+  PRJ_SHEET_LEVEL_TXT         "01"
+  PRJ_SHEET_TYPE_TXT          "DR"
+  PRJ_SHEET_ROLE_TXT          "A"  (A/S/M/E/P/FP/LV/G)
+  PRJ_SHEET_SEQ_TXT           "0001"
+  PRJ_SHEET_FULL_REF_TXT      (calculated — concat of above)
+  PRJ_SHEET_OF_TOTAL_TXT      "03 / 12"
   STING_SUITABILITY_TXT         "S2"
-  STING_SUITABILITY_DESC_TXT    "Shared, Non-contractual"
+  PRJ_DWG_SUITABILITY_DESC_TXT    "Shared, Non-contractual"
   STING_STATUS_TXT              "Shared"
   STING_ISSUE_PURPOSE_TXT       "IFC — Issued for Construction"
   STING_REV_TXT                 "P02"
@@ -309,8 +309,8 @@ GROUP B — Sheet identity (sheet instance scope)
   STING_TRANSMITTAL_REF_TXT     "TR-0042"
   STING_CDE_PATH_TXT            "Shared / Architectural"
   STING_DELIVERABLE_ID_TXT      "MIDP-A-2026-104-0017"
-  STING_FEDERATION_STATUS_TXT   "Federated v.4"
-  STING_LOIN_LOD_TXT            "LOD 300"
+  PRJ_TB_FEDERATION_STATUS_TXT   "Federated v.4"
+  PRJ_DWG_LOIN_LOD_TXT            "LOD 300"
 
 GROUP C — Authoring (sheet instance scope, role-driven)
   STING_DRAWN_BY_TXT            (3-letter initials)
@@ -319,8 +319,8 @@ GROUP C — Authoring (sheet instance scope, role-driven)
   STING_CHECKED_DATE_TXT
   STING_APPROVED_BY_TXT
   STING_APPROVED_DATE_TXT
-  STING_AUTHORISED_BY_TXT
-  STING_AUTHORISED_DATE_TXT
+  PRJ_TB_AUTHORISED_BY_TXT
+  PRJ_TB_AUTHORISED_DATE_TXT
 
 GROUP D — Statutory / Safety
   STING_CDM_HAZARD_TXT          (free text)
@@ -485,7 +485,7 @@ a common base — there's no drift.
     { "id": "STING_TB_A1_BIM_v2.0", "extends": "A1_common_v2.0",
       "mode": "BIM",
       "saveAs": "Families/TitleBlocks/STING_TB_A1_BIM_v2.0.rfa",
-      "parameters":   [ /* STING_SHEET_BIM_MODE_TXT default "BIM" + 7-segment ID + suitability/status/rev */ ],
+      "parameters":   [ /* PRJ_SHEET_BIM_MODE_TXT default "BIM" + 7-segment ID + suitability/status/rev */ ],
       "lines":        [ /* status band rule, revision-history vertical separators */ ],
       "labels":       [ /* SHEET_FULL_REF cell, SUITABILITY chip, AUTHORISED BY, revision history headers */ ],
       "filledRegions":[ /* suitability chip background, top status band */ ]
@@ -494,7 +494,7 @@ a common base — there's no drift.
     { "id": "STING_TB_A1_NONBIM_v2.0", "extends": "A1_common_v2.0",
       "mode": "NONBIM",
       "saveAs": "Families/TitleBlocks/STING_TB_A1_NONBIM_v2.0.rfa",
-      "parameters":  [ /* STING_SHEET_BIM_MODE_TXT default "NONBIM" + STING_SHEET_NUMBER_TXT */ ],
+      "parameters":  [ /* PRJ_SHEET_BIM_MODE_TXT default "NONBIM" + STING_SHEET_NUMBER_TXT */ ],
       "labels":      [ /* simple sheet-number labels */ ]
     }
   ]
@@ -513,7 +513,7 @@ and skipped by both `TitleBlock_Create` and `TitleBlock_CreateAll`.
 Both concrete families carry a shared parameter:
 
 ```
-STING_SHEET_BIM_MODE_TXT  (Text, Instance, IdentityData)
+PRJ_SHEET_BIM_MODE_TXT  (Text, Instance, IdentityData)
                           default value "BIM"  on STING_TB_*_BIM_*
                           default value "NONBIM" on STING_TB_*_NONBIM_*
 ```
@@ -593,7 +593,7 @@ architecture:
 | Command tag | Behaviour |
 |---|---|
 | `TitleBlock_AutoPlaceViewports` | For each selected view, look up its purpose tag from `STING_VIEWPORT_PLACEMENT_RULES.json`. Find the slot on the active sheet's title-block family with the matching `purposeTag`. Place a `Viewport` at the slot's centre, apply the slot's `viewportType` + `scaleHint`. Reports per-view what slot it went to. |
-| `TitleBlock_ToggleBIMMode` | Reads `STING_SHEET_BIM_MODE_TXT` on the active sheet, swaps the title-block family between `*_BIM_*` and `*_NONBIM_*`, transfers existing viewports onto the new family (positions transfer 1:1 since slot ids are stable across modes). |
+| `TitleBlock_ToggleBIMMode` | Reads `PRJ_SHEET_BIM_MODE_TXT` on the active sheet, swaps the title-block family between `*_BIM_*` and `*_NONBIM_*`, transfers existing viewports onto the new family (positions transfer 1:1 since slot ids are stable across modes). |
 
 The routing rules table — `Data/STING_VIEWPORT_PLACEMENT_RULES.json` —
 maps `(ViewType, viewNamePattern)` to a `purposeTag`:
@@ -1065,7 +1065,7 @@ Per family, Revit Family Editor session:
    ```json
    {
      "PRJ_ORG_PROJECT_CODE_TXT":   "${PRJ_ORG_PROJECT_CODE}",
-     "STING_SHEET_FULL_REF_TXT":   "${PRJ_ORG_PROJECT_CODE}-${PRJ_ORG_ORIGINATOR_CODE}-{vol}-{lvl}-{type}-{disc}-{seq:D4}",
+     "PRJ_SHEET_FULL_REF_TXT":   "${PRJ_ORG_PROJECT_CODE}-${PRJ_ORG_ORIGINATOR_CODE}-{vol}-{lvl}-{type}-{disc}-{seq:D4}",
      "STING_REV_DATE_TXT":         "{today}",
      "STING_TRANSMITTAL_REF_TXT":  "${transmittal_ref}",
      "STING_CDM_HAZARD_TXT":       "${PRJ_ORG_CDM_HAZARD}"
@@ -1137,8 +1137,8 @@ A reviewer running the families in Revit should confirm:
    project that has `ProjectInformation.PRJ_ORG_*` populated; no
    cell should show its sample value.
 3. **Sheet ID concat.** Edit one of the seven segments
-   (`STING_SHEET_VOLUME_TXT` etc.) — the prominent
-   `STING_SHEET_FULL_REF_TXT` cell should recompute via the formula.
+   (`PRJ_SHEET_VOLUME_TXT` etc.) — the prominent
+   `PRJ_SHEET_FULL_REF_TXT` cell should recompute via the formula.
 4. **Suitability chip changes colour** when
    `STING_SUITABILITY_TXT` flips from S2 to S4 to S6.
 5. **Revision schedule populates** when a revision is added via
