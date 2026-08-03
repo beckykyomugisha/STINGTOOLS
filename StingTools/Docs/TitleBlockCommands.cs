@@ -993,10 +993,10 @@ namespace StingTools.Docs
     //  logic runs automatically inside TitleBlockPopulate; this standalone
     //  command lets users refresh the count without running a full populate.
     //
-    //  Also stamps STING_SHEET_OF_TOTAL_TXT on each counted sheet's placed
+    //  Also stamps PRJ_SHEET_OF_TOTAL_TXT on each counted sheet's placed
     //  title block with the compact "NN / MM" pagination string (this sheet's
     //  ordinal position in SheetNumber order, over the total) — the short
-    //  cell used where the full 7-segment STING_SHEET_FULL_REF_TXT ISO 19650
+    //  cell used where the full 7-segment PRJ_SHEET_FULL_REF_TXT ISO 19650
     //  sheet ID has no room (e.g. the fabrication assembly title blocks' BOM
     //  strip). Locked title blocks (PRJ_TB_LOCK_BOOL) are skipped, matching
     //  TitleBlockPopulate's lock gate.
@@ -1040,7 +1040,7 @@ namespace StingTools.Docs
 
                     string seq = (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
                     string tot = total.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
-                    if (ParameterHelpers.SetString(tb, "STING_SHEET_OF_TOTAL_TXT",
+                    if (ParameterHelpers.SetString(tb, "PRJ_SHEET_OF_TOTAL_TXT",
                         $"{seq} / {tot}", overwrite: true))
                         paginationWritten++;
                 }
@@ -1052,7 +1052,7 @@ namespace StingTools.Docs
                 + $"{paginationWritten} pagination cell(s) written, {lockedSkipped} locked, {noTbSkipped} no TB");
             TaskDialog.Show("STING Sheet Count",
                 $"Sheets appearing in sheet list: {total}\n" +
-                $"Pagination cells written (STING_SHEET_OF_TOTAL_TXT): {paginationWritten}\n" +
+                $"Pagination cells written (PRJ_SHEET_OF_TOTAL_TXT): {paginationWritten}\n" +
                 $"Skipped — locked: {lockedSkipped}, no title block: {noTbSkipped}\n\n" +
                 "Total written to PRJ_TB_TOTAL_NO_SHEETS_TXT on Project Information.");
             return Result.Succeeded;

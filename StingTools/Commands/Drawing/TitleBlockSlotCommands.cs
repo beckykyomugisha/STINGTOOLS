@@ -11,7 +11,7 @@
 //     at the slot's centre. Applies the slot's scaleHint + viewportType
 //     when set. Reports per-view what slot it landed in.
 //
-//   TitleBlock_ToggleBIMMode — read STING_SHEET_BIM_MODE_TXT on the
+//   TitleBlock_ToggleBIMMode — read PRJ_SHEET_BIM_MODE_TXT on the
 //     active sheet, swap the title-block family between *_BIM_* and
 //     *_NONBIM_* variants, transfer existing viewports onto the new
 //     family (positions transfer 1:1 since slot ids are stable across
@@ -270,7 +270,7 @@ namespace StingTools.Commands.Drawing
             }
             var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
             var currentName = sym?.Family?.Name ?? "";
-            var bimModeParam = titleBlock.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+            var bimModeParam = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
             var currentMode  = bimModeParam?.AsString();
             if (string.IsNullOrEmpty(currentMode)) currentMode = GuessModeFromName(currentName);
             string targetMode = string.Equals(currentMode, "BIM", StringComparison.OrdinalIgnoreCase)
@@ -322,7 +322,7 @@ namespace StingTools.Commands.Drawing
                 if (fi != null) fi.Symbol = targetSym;
 
                 // Update the BIM mode marker on the new instance.
-                var newBim = titleBlock.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+                var newBim = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
                 if (newBim != null && !newBim.IsReadOnly)
                 {
                     try { newBim.Set(targetMode); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

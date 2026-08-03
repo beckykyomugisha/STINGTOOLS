@@ -13,7 +13,7 @@
 // (or a blank field) into the real built family name, using:
 //   * paperSize     → A0 / A1 / A3  (A2 / A4 out of scope)
 //   * orientation   → Portrait inserts "_PORT"
-//   * BIM mode      → STING_SHEET_BIM_MODE_TXT on ProjectInformation,
+//   * BIM mode      → PRJ_SHEET_BIM_MODE_TXT on ProjectInformation,
 //                     default "BIM"
 // so an A1 landscape MEP plan resolves to STING_TB_A1_BIM_v2.0, an A3
 // portrait to STING_TB_A3_PORT_BIM_v2.0, a spool to STING_TB_ASSEMBLY_PIPE_v1.0.
@@ -97,7 +97,7 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// Resolve the BIM mode ("BIM" / "NONBIM") for a drawing type. Reads
-        /// STING_SHEET_BIM_MODE_TXT from ProjectInformation when bound;
+        /// PRJ_SHEET_BIM_MODE_TXT from ProjectInformation when bound;
         /// defaults to "BIM".
         /// </summary>
         public static string ResolveMode(Document doc, DrawingType dt)
@@ -105,7 +105,7 @@ namespace StingTools.Core.Drawing
             try
             {
                 var pi = doc?.ProjectInformation;
-                var p = pi?.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+                var p = pi?.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
                 var v = p?.StorageType == StorageType.String ? p.AsString() : null;
                 if (!string.IsNullOrWhiteSpace(v))
                     return v.IndexOf("NON", StringComparison.OrdinalIgnoreCase) >= 0 ? "NONBIM" : "BIM";
