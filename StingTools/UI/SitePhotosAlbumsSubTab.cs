@@ -79,12 +79,14 @@ namespace StingTools.UI
             async Task LoadListAsync()
             {
                 listPanel.Children.Clear();
-                if (!PlanscapeServerClient.Instance.IsConnected || state.ProjectId == Guid.Empty)
+                // Not-signed-in and no-project-linked are separate blockers with
+                // separate fixes; rendering one message for both sends a signed-in
+                // user to sign in again while the real blocker goes unnamed.
+                var blocked = SitePhotosTabHelpers.DescribeBlocker(state.ProjectId);
+                if (blocked != null)
                 {
-                    listPanel.Children.Add(new TextBlock {
-                        Text = "Sign in to Planscape (PLATFORM tab) to load albums.",
-                        FontStyle = FontStyles.Italic, Foreground = Brushes.Gray, Margin = new Thickness(6)
-                    });
+                    listPanel.Children.Add(SitePhotosTabHelpers.BuildBlockerNotice(
+                        blocked.Value.Headline, blocked.Value.WhatToDo));
                     return;
                 }
                 // null = the load FAILED. An empty list = the project genuinely has
@@ -189,7 +191,8 @@ namespace StingTools.UI
                 {
                     var ok = await PlanscapeServerClient.Instance
                         .LockPhotoAlbumAsync(state.ProjectId, selected!.Id, !selected.IsLocked);
-                    if (!ok) Autodesk.Revit.UI.TaskDialog.Show("Lock", PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                    if (!ok) Autodesk.Revit.UI.TaskDialog.Show("Lock",
+                        SitePhotosTabHelpers.Reason(selected.IsLocked ? "Unlocking the album" : "Locking the album"));
                     else { await LoadListAsync(); selected.IsLocked = !selected.IsLocked; await RenderRightAsync(); }
                 };
                 actions.Children.Add(lockBtn);
@@ -208,7 +211,8 @@ namespace StingTools.UI
                         state.ProjectId, albumId: selected!.Id, label: selected.Name + " (BCC)");
                     if (link == null)
                     {
-                        Autodesk.Revit.UI.TaskDialog.Show("Share link", PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                        Autodesk.Revit.UI.TaskDialog.Show("Share link",
+                            SitePhotosTabHelpers.Reason("Creating the share link"));
                         return;
                     }
                     var full = $"/api/share/{link.Token}";
@@ -238,7 +242,7 @@ namespace StingTools.UI
                     var path = await PlanscapeServerClient.Instance.ExportPhotosAsync(
                         state.ProjectId, dlg.FileName, albumId: selected.Id, format: format);
                     Autodesk.Revit.UI.TaskDialog.Show("Export",
-                        path != null ? $"Wrote {path}" : (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                        path != null ? $"Wrote {path}" : SitePhotosTabHelpers.Reason("Exporting the album"));
                 };
                 actions.Children.Add(exportBtn);
 
@@ -302,7 +306,18 @@ namespace StingTools.UI
 
             newBtn.Click += async (_, _) =>
             {
-                if (!PlanscapeServerClient.Instance.IsConnected) return;
+                // Was a bare `if (!IsConnected) return;` — a button that does
+                // nothing, says nothing, and logs nothing. It also let an unlinked
+                // model through to POST /api/projects/{Guid.Empty}/photo-albums,
+                // so the *reported* failure was a server 404 about a project id the
+                // user never chose. Refuse before the round trip, and say which.
+                var blocked = SitePhotosTabHelpers.DescribeBlocker(state.ProjectId);
+                if (blocked != null)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("New album",
+                        $"{blocked.Value.Headline}\n\n{blocked.Value.WhatToDo}");
+                    return;
+                }
                 var name = SitePhotosTabHelpers.PromptForString(owner,
                     "New album", "Album name (required):", "");
                 if (string.IsNullOrWhiteSpace(name)) return;
@@ -310,7 +325,8 @@ namespace StingTools.UI
                     state.ProjectId, name.Trim(), visibility: "Members");
                 if (album == null)
                 {
-                    Autodesk.Revit.UI.TaskDialog.Show("New album", PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                    Autodesk.Revit.UI.TaskDialog.Show("New album",
+                        SitePhotosTabHelpers.Reason("Creating the album"));
                     return;
                 }
                 await LoadListAsync();
@@ -372,6 +388,79 @@ namespace StingTools.UI
     /// PromptForString modal without re-implementing it.</summary>
     internal static class SitePhotosTabHelpers
     {
+        /// <summary>
+        /// Why a site-photo call cannot even be attempted — or <c>null</c> when it can.
+        ///
+        /// "Not signed in" and "no project linked" are DIFFERENT problems with
+        /// different fixes, and the panes used to collapse both into
+        /// "Sign in to Planscape (PLATFORM tab)". A signed-in user reading that
+        /// message has been told to do the one thing they have already done, and
+        /// the actual blocker — an unlinked model — goes unmentioned.
+        ///
+        /// Returns a (headline, whatToDo) pair so callers can render it inline
+        /// (list panes) or in a TaskDialog (mutation buttons) from one source.
+        /// </summary>
+        public static (string Headline, string WhatToDo)? DescribeBlocker(Guid projectId)
+        {
+            if (!PlanscapeServerClient.Instance.IsConnected)
+                return ("Not signed in to Planscape.",
+                        "Open the PLATFORM tab and connect, then return here.");
+
+            if (projectId == Guid.Empty)
+                return ("This model is not linked to a Planscape project.",
+                        "Open the PLATFORM tab → Planscape → \"Link project\" and pick the "
+                      + "server project this model belongs to. Signing in is not enough — "
+                      + "photos, albums and checklists all live under a project.");
+
+            return null;
+        }
+
+        /// <summary>
+        /// Render a blocked precondition. Deliberately NOT styled as a load failure
+        /// (<see cref="BuildLoadFailure"/>) — nothing failed; the request was never
+        /// made. It still names the blocker and the fix instead of a bare prompt.
+        /// </summary>
+        public static UIElement BuildBlockerNotice(string headline, string whatToDo)
+        {
+            var sp = new StackPanel { Margin = new Thickness(6) };
+            sp.Children.Add(new TextBlock
+            {
+                Text = headline,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.DimGray,
+                TextWrapping = TextWrapping.Wrap
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = whatToDo,
+                FontStyle = FontStyles.Italic,
+                Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+            return sp;
+        }
+
+        /// <summary>
+        /// The reason a mutation failed, guaranteed non-empty.
+        ///
+        /// Call sites used to write <c>LastError ?? "(no detail)"</c>. When that
+        /// fallback is reached the dialog says nothing at all — the exact failure
+        /// this suite exists to eliminate, and the one shape of it that survived
+        /// because it looked like it had already been handled. Every client method
+        /// sets <see cref="PlanscapeServerClient.LastError"/> on every failure path,
+        /// so an empty reason is a BUG, not a state — say so, and name the operation
+        /// so the report is actionable.
+        /// </summary>
+        public static string Reason(string operation)
+        {
+            var err = PlanscapeServerClient.Instance.LastError;
+            if (!string.IsNullOrWhiteSpace(err)) return err!;
+            return $"{operation} failed, but the client recorded no reason.\n\n"
+                 + "That is a bug in STING Tools, not a server error — please report it "
+                 + "with the timestamp so the failing path can be found in StingTools.log.";
+        }
+
         /// <summary>
         /// Render a load FAILURE — visibly different from an empty result.
         ///

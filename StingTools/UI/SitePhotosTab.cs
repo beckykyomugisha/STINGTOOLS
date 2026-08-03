@@ -996,7 +996,7 @@ namespace StingTools.UI
             if (dto == null)
             {
                 Autodesk.Revit.UI.TaskDialog.Show("Approve photo",
-                    $"Server rejected the approval.\n\n{PlanscapeServerClient.Instance.LastError ?? "(no detail)"}");
+                    SitePhotosTabHelpers.Reason("Approving the photo"));
                 return;
             }
             await ReloadAsync(owner, state, listPanel, footer);
@@ -1023,7 +1023,7 @@ namespace StingTools.UI
             if (dto == null)
             {
                 Autodesk.Revit.UI.TaskDialog.Show("Reject photo",
-                    $"Server rejected the call.\n\n{PlanscapeServerClient.Instance.LastError ?? "(no detail)"}");
+                    SitePhotosTabHelpers.Reason("Rejecting the photo"));
                 return;
             }
             await ReloadAsync(owner, state, listPanel, footer);
@@ -1044,7 +1044,7 @@ namespace StingTools.UI
             if (!ok)
             {
                 Autodesk.Revit.UI.TaskDialog.Show("Withdraw photo",
-                    $"Server rejected the withdrawal.\n\n{PlanscapeServerClient.Instance.LastError ?? "(no detail)"}");
+                    SitePhotosTabHelpers.Reason("Withdrawing the photo"));
                 return;
             }
             await ReloadAsync(owner, state, listPanel, footer);
@@ -1218,7 +1218,7 @@ namespace StingTools.UI
             if (preview == null)
             {
                 Autodesk.Revit.UI.TaskDialog.Show("Digest preview",
-                    $"Could not load digest preview.\n\n{PlanscapeServerClient.Instance.LastError ?? "(no detail)"}");
+                    SitePhotosTabHelpers.Reason("Loading the digest preview"));
                 return;
             }
 
