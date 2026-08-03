@@ -360,6 +360,11 @@ namespace StingTools.Docs
             }
 
             int written = 0, lockedSkipped = 0, noTbSkipped = 0, paramFails = 0;
+            // Per-parameter failure tally. A bare paramFails count cannot
+            // distinguish "one odd sheet" from "this parameter is absent from
+            // every title-block family in the project" — the second is what
+            // silently hid the missing PRJ_TB_SHOW_* / LOCK / LAST_SYNC params.
+            var failsByParam = new Dictionary<string, int>(StringComparer.Ordinal);
             int totalSheetListed = 0;
             var updatedSheets = new List<string>();
             var skippedSheets = new List<string>();
@@ -417,7 +422,12 @@ namespace StingTools.Docs
                             ok = ParameterHelpers.SetString(tb, paramName, val, overwrite: true);
 
                         if (ok) paramsWrittenThisSheet++;
-                        else paramFails++;
+                        else
+                        {
+                            paramFails++;
+                            failsByParam.TryGetValue(paramName, out int n);
+                            failsByParam[paramName] = n + 1;
+                        }
                     }
 
                     // Stamp audit fields on every successfully-populated sheet
@@ -460,6 +470,16 @@ namespace StingTools.Docs
                 .Text(updatedSheets.Count == 0 ? "(none)" : string.Join("\n", updatedSheets))
                 .AddSection("Skipped Sheets")
                 .Text(skippedSheets.Count == 0 ? "(none)" : string.Join("\n", skippedSheets))
+                .AddSection("Parameter Write Failures")
+                .Text(failsByParam.Count == 0
+                    ? "(none)"
+                    : string.Join("\n", failsByParam
+                        .OrderByDescending(kv => kv.Value)
+                        .Select(kv => $"  {kv.Key}: {kv.Value} sheet(s)"
+                            + (kv.Value == written
+                               ? "  — failed on every updated sheet; the parameter is "
+                                 + "probably absent from the title-block family"
+                               : ""))))
                 .Show();
 
             return Result.Succeeded;
