@@ -482,8 +482,29 @@ namespace StingTools.Tags
                                 InstanceBinding paramBinding;
                                 bool isUniversalGroup = UniversalGroups.Contains(groupName);
 
+                                // The `!groupCatOverrides.ContainsKey(groupName)` guard was
+                                // written for the group-binding era: it stopped this per-param
+                                // path from shadowing a group's own deliberate override. Under
+                                // specDriven that reasoning no longer holds — the group-binding
+                                // branches below are unreachable, so the guard left every
+                                // material param whose group HAS an override with no binding at
+                                // all: 54 in MAT_INFO, 12 in PROP_PHYSICAL, plus BLE_MATERIAL_TXT
+                                // in BLE_ELES. Harmless to relax, because MAT_INFO, PROP_PHYSICAL,
+                                // BLE_ELES and BLE_STRUCTURE all resolve their override from the
+                                // same BleCategories list that matOnlyBinding is built from — the
+                                // param lands on exactly the categories its group intended.
+                                // Relax ONLY for params the guard was starving: an override
+                                // group, spec-driven, and not declared <ALL>. A param the spec
+                                // marks universal keeps the core set — narrowing it to the
+                                // material categories would be a silent regression (it would
+                                // have caught 8: MAT_TAG_1_TXT, STING_MAT_EPD_*, etc.).
+                                // Groups WITHOUT an override keep their existing precedence.
+                                bool matRescue = specDriven
+                                    && groupCatOverrides.ContainsKey(groupName)
+                                    && !SharedParamGuids.ResolvedUniversalParams.Contains(extDef.Name);
+
                                 if (matOnlyBinding != null
-                                    && !groupCatOverrides.ContainsKey(groupName)
+                                    && (!groupCatOverrides.ContainsKey(groupName) || matRescue)
                                     && IsMaterialRelevantParam(extDef.Name))
                                 {
                                     paramBinding = matOnlyBinding;
@@ -933,6 +954,12 @@ namespace StingTools.Tags
             //  "MAT_" prefix above.)
             if (paramName.StartsWith("STING_MAT_", StringComparison.Ordinal)) return true;
             if (paramName == "STING_EMB_CARBON_NR") return true;
+
+            // BLE_MATERIAL_TXT misses the "BLE_MAT_" prefix test by one character
+            // (BLE_MAT|E|RIAL, no underscore), so it fell through to the spec path,
+            // where its Materials-only row resolves to zero categories and the param
+            // goes unbound. It is a material param; name it explicitly.
+            if (paramName == "BLE_MATERIAL_TXT") return true;
 
             return false;
         }
