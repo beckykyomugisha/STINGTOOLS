@@ -68,6 +68,23 @@ public record TagElementDto
     /// Nullable for backward compatibility with older plugin builds.
     /// </summary>
     public DateTime? LastModifiedUtc { get; init; }
+
+    /// <summary>
+    /// Tombstone flag — true when the authoring tool reports this element as
+    /// DELETED from the model. The server soft-deletes the matching row
+    /// (stamps <c>TaggedElement.DeletedAtUtc</c>) so it stops counting toward
+    /// element totals and compliance, instead of leaving an orphan row behind
+    /// forever.
+    ///
+    /// BACKWARD COMPATIBILITY: deliberately a non-nullable <c>bool</c> with a
+    /// <c>false</c> default and NOT marked required. Older plugin builds never
+    /// send <c>isDeleted</c>; the absent field binds to false and the element
+    /// takes exactly the pre-existing insert-or-update path.
+    ///
+    /// Sending false for an already-tombstoned element UNDELETES it (Revit
+    /// undo restoring a deleted element), which is an ordinary update.
+    /// </summary>
+    public bool IsDeleted { get; init; }
 }
 
 public record TagSyncResponse
@@ -75,6 +92,18 @@ public record TagSyncResponse
     public int Received { get; init; }
     public int Created { get; init; }
     public int Updated { get; init; }
+
+    /// <summary>
+    /// Elements tombstoned by this request — reported separately from
+    /// <see cref="Created"/>/<see cref="Updated"/> so a client can tell a
+    /// delete from an edit. Counts ACCEPTED delete instructions (mirroring how
+    /// <see cref="Updated"/> counts an accepted update even when no field
+    /// actually changed), so re-sending a delete for an already-tombstoned row
+    /// counts again and is harmless. Deletes REJECTED as stale are not counted
+    /// here — they appear in <see cref="Conflicts"/>. An undelete counts as
+    /// <see cref="Updated"/>.
+    /// </summary>
+    public int Deleted { get; init; }
     public double CompliancePercent { get; init; }
     public string RagStatus { get; init; } = "";
     public DateTime SyncedAt { get; init; } = DateTime.UtcNow;

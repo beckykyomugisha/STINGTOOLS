@@ -1955,6 +1955,19 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // (c) PenetrationSignoffs.ElementIfcGlobalId — K1 cross-host identity column.
         "ALTER TABLE \"PenetrationSignoffs\" ADD COLUMN IF NOT EXISTS \"ElementIfcGlobalId\" character varying(22) NULL",
         "CREATE INDEX IF NOT EXISTS \"IX_PenetrationSignoffs_ProjectId_ElementIfcGlobalId\" ON \"PenetrationSignoffs\" (\"ProjectId\", \"ElementIfcGlobalId\")",
+        // TagSync element tombstones — TaggedElements.DeletedAtUtc.
+        // Per docs/adr/0001-schema-management.md this idempotent patch, NOT a
+        // `dotnet ef migrations add`, is how a new column reaches pre-existing
+        // databases: EnsureCreated short-circuits once Tenants exists, and
+        // Database.Migrate() is a no-op against the un-attributed migration set.
+        // Fresh DBs get the column from CreateTables via the EF model.
+        //
+        // NULL means "live", and it is nullable with NO default precisely so
+        // that every pre-existing row reads as not-deleted — which is what
+        // makes older plugins (that never send isDeleted) behave exactly as
+        // they did before.
+        "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"DeletedAtUtc\" timestamp with time zone NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_DeletedAtUtc\" ON \"TaggedElements\" (\"ProjectId\", \"DeletedAtUtc\")",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)
