@@ -517,3 +517,71 @@ clears the launcher's override; nothing has to be remembered or undone.
 
 `-SkipHealthCheck` is what the site-photo "could not load" verification needs: it starts
 Revit pointed at an API that is deliberately down, so the failure states can be observed.
+
+---
+
+## Deploying the plugin, and proving what is deployed
+
+### Why this is not just `cp`
+
+One `StingTools.dll` is shared by **every installed Revit version and every concurrent
+session working in this repo**. All three of
+`%APPDATA%\Autodesk\Revit\Addins\{2025,2026,2027}\StingTools.addin` resolve to the same
+assembly, so a deploy replaces the plugin for everything at once.
+
+On **2026-08-03** that bit. PR #550 was deployed at 23:0x; at **23:22** a sibling session
+built `claude/fix-nonmodel-category-bindings` and copied it over the same directory at
+**23:26**. Nothing announced it. An entire evening of manual site-photo testing then ran
+against a binary that did not contain the code under test — the observed
+`"(no detail)"` dialog was a `MergeRecoveryStubs` stub that #550 deletes.
+
+The cost was not the clobber. It was that **nothing said a word.**
+
+### Deploy
+
+```powershell
+.\tools\Deploy-StingTools.ps1                 # build Release from the current branch, back up, deploy, stamp
+.\tools\Deploy-StingTools.ps1 -SkipBuild      # deploy existing bin\Release output, stamp it
+.\tools\Deploy-StingTools.ps1 -Configuration Debug
+```
+
+It resolves the target **from the `.addin` manifests every run** rather than hard-coding
+`CompiledPlugin` — that path has moved before, and a deploy that writes where Revit is not
+loading from looks like a success. It refuses while `Revit.exe` or
+`Planscape.Companion.exe` is running (the Companion holds a handle on the directory, so a
+copy can half succeed), backs up to `CompiledPlugin.bak-<sha>`, then writes
+**`sting-deploy-stamp.json`** beside the DLL:
+
+```json
+{
+  "branch": "claude/m-pass-deploy",
+  "commit": "1a2b3c4",
+  "builtAtUtc": "2026-08-04T…Z",
+  "assemblySha256": "…"
+}
+```
+
+### The check that would have caught it
+
+`Start-RevitLocal.ps1` now verifies that stamp **before anything else** — before the
+server health check, because which server the plugin talks to does not matter if the
+plugin is not the code under test. Every launch prints the branch, commit and deploy time.
+
+| State | Meaning | Behaviour |
+|---|---|---|
+| `Ok` | DLL hashes to what the stamp recorded | prints branch/commit, launches |
+| `NoStamp` | DLL present, no stamp — **something copied over the deploy without using the deploy script** | refuse, **exit 3** |
+| `Mismatch` | stamp present but the DLL differs — same cause, and it can name the branch now stale | refuse, **exit 3** |
+| `NoAssembly` | no `.addin`, or it points at a missing file | refuse, exit 3 |
+| `Unreadable` | stamp will not parse | refuse, exit 3 |
+
+```powershell
+.\tools\Start-RevitLocal.ps1 -ExpectBranch claude/m-pass-deploy   # assert the branch too
+.\tools\Start-RevitLocal.ps1 -Force                               # launch unverified, deliberately
+```
+
+`-Force` downgrades a refusal to a red warning. It is never the default: a silent wrong
+binary is the failure this exists to prevent, so the escape hatch has to be typed.
+
+It also warns when the manifests **disagree** on the assembly — that means different Revit
+versions load different plugins, which is its own quiet way to lose an evening.

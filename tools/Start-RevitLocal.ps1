@@ -50,8 +50,36 @@
     start with the API down - which is exactly what the site-photo "could not
     load" checks need.
 
+.PARAMETER ExpectBranch
+    Refuse to launch unless the deployed plugin was built from this branch.
+    Use it when a run must test one specific branch and a wrong binary would
+    waste the session - see the deploy check below.
+
 .PARAMETER Force
-    Skip the confirmation prompt when Revit is already running.
+    Skip the confirmation prompt when Revit is already running, AND downgrade a
+    failed deploy check from a refusal to a red warning. Both are "I know what I
+    am doing" escapes; neither is the default, on purpose.
+
+.NOTES
+    DEPLOY CHECK
+
+    One StingTools.dll is shared by every installed Revit version and by every
+    concurrent session working in this repo. On 2026-08-03 a sibling session
+    built claude/fix-nonmodel-category-bindings over a freshly deployed PR #550
+    four minutes later, nothing announced it, and an entire evening of manual
+    testing ran against the wrong binary.
+
+    So before launching, this script resolves the DLL that the .addin manifests
+    actually point at - read fresh every time, because that path has moved
+    before - and checks it against the sting-deploy-stamp.json that
+    Deploy-StingTools.ps1 writes beside it. A missing stamp or a hash mismatch
+    means something copied over the deploy without going through the deploy
+    script, and the run is refused (exit 3) rather than silently testing
+    whatever happens to be on disk.
+
+    The stamp is read for identity too: the branch, commit and build time are
+    printed on every launch, so "which code am I about to test" is answered
+    before Revit starts rather than guessed afterwards.
 
 .EXAMPLE
     .\tools\Start-RevitLocal.ps1
@@ -78,10 +106,77 @@ param(
     [Parameter(ParameterSetName = 'Local')]
     [switch] $SkipHealthCheck,
 
+    [string] $ExpectBranch,
+
     [switch] $Force
 )
 
 $ErrorActionPreference = 'Stop'
+
+. (Join-Path $PSScriptRoot 'StingDeploy.Common.ps1')
+
+# --- Verify the deployed plugin before anything else --------------------------
+# This runs first because every other check below is about the SERVER the plugin
+# talks to. None of it matters if the plugin itself is not the code under test.
+$check = Test-StingDeployStamp
+
+Write-Host ""
+if ($check.Status -eq 'Ok') {
+    $s = $check.Stamp
+    $dirty = ''
+    if ($s.dirtyWorktree) { $dirty = '  (built from a DIRTY worktree)' }
+    Write-Host "Plugin   : $($s.branch) @ $($s.commit)$dirty" -ForegroundColor Green
+    Write-Host "           deployed $($s.builtAtUtc) UTC by $($s.builtBy) [$($s.configuration)]"
+    Write-Host "           $($check.Resolved.Assembly)"
+    if ($s.commitSubject) { Write-Host "           $($s.commitSubject)" -ForegroundColor DarkGray }
+} else {
+    Write-Host "DEPLOY CHECK FAILED: $($check.Status)" -ForegroundColor Red
+    Write-Host $check.Message -ForegroundColor Red
+    if ($check.Resolved.Assembly) {
+        Write-Host "  Assembly : $($check.Resolved.Assembly)"
+    }
+    if ($check.Stamp) {
+        Write-Host "  Stamp says   : $($check.Stamp.branch) @ $($check.Stamp.commit), $($check.Stamp.builtAtUtc) UTC"
+        Write-Host "  Stamp  sha256: $($check.Stamp.assemblySha256)"
+        Write-Host "  Actual sha256: $($check.Actual)" -ForegroundColor Yellow
+    }
+    Write-Host ""
+    Write-Host "Something replaced the deployed plugin without going through" -ForegroundColor Yellow
+    Write-Host "Deploy-StingTools.ps1. That target is shared by every Revit version" -ForegroundColor Yellow
+    Write-Host "and every session in this repo, so another session's build can land" -ForegroundColor Yellow
+    Write-Host "on it silently - which is exactly what this check exists to catch." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Re-deploy the branch you mean to test:"
+    Write-Host "    .\tools\Deploy-StingTools.ps1"
+    Write-Host ""
+    Write-Host "Or pass -Force to launch anyway and accept that you do not know"
+    Write-Host "which code you are testing."
+    if (-not $Force) { exit 3 }
+    Write-Host ""
+    Write-Host "-Force given - launching an UNVERIFIED plugin." -ForegroundColor Red
+}
+
+# Branch assertion is separate from the integrity check: the stamp can be
+# perfectly valid and still be the wrong branch for this run.
+if ($ExpectBranch) {
+    $actualBranch = $null
+    if ($check.Stamp) { $actualBranch = $check.Stamp.branch }
+    if ($actualBranch -ne $ExpectBranch) {
+        Write-Host ""
+        Write-Host "BRANCH MISMATCH" -ForegroundColor Red
+        Write-Host "  Expected : $ExpectBranch"
+        Write-Host "  Deployed : $(if ($actualBranch) { $actualBranch } else { '(unknown - no valid stamp)' })" -ForegroundColor Yellow
+        if (-not $Force) { exit 3 }
+        Write-Host "-Force given - continuing against the wrong branch." -ForegroundColor Red
+    }
+}
+
+if ($check.Resolved.Conflicting) {
+    Write-Host ""
+    Write-Host "WARNING: the .addin manifests do not agree on one assembly." -ForegroundColor Yellow
+    Write-Host "Different Revit versions will load different plugins:" -ForegroundColor Yellow
+    foreach ($t in $check.Resolved.AllTargets) { Write-Host "    $t" }
+}
 
 # --- Locate Revit ----------------------------------------------------------
 $autodesk = 'C:\Program Files\Autodesk'
