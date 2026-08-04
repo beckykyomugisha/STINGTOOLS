@@ -1386,16 +1386,24 @@ namespace StingTools.UI
 
         /// <summary>Read the current Planscape project id from the document config —
         /// same source the Issues / Documents tabs use. Returns Guid.Empty if not linked.</summary>
-        private static Guid ResolveProjectId()
+        internal static Guid ResolveProjectId()
         {
             try
             {
+                // The in-memory value is set by PlanscapeProjectLink.Set the moment a
+                // link is made and by RestoreInto on document open, so it is correct
+                // before anything settles on disk. Reading the file first is what made
+                // #570 invisible: a link made in-session looked like no link at all.
+                var live = PlanscapeServerClient.Instance.CurrentProjectId;
+                if (live != Guid.Empty) return live;
+
                 var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
                 if (doc == null) return Guid.Empty;
-                string bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
-                if (string.IsNullOrEmpty(bimDir)) return Guid.Empty;
-                string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
-                return PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
+
+                // RestoreInto also migrates a legacy sibling link into the canonical
+                // bucket, so this covers models linked by an older build.
+                var info = PlanscapeProjectLink.RestoreInto(doc);
+                return info.ProjectId;
             }
             catch (Exception ex)
             {
