@@ -346,6 +346,7 @@ namespace StingTools.Core
             "CSI_Assign", "SpecLink_Reconcile",
             "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit", "DeviceCoord_Audit", "ComCheck_Export",
             "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
+            "Niagara_ExportPoints", "Niagara_Reconcile", "KUT_KpiDashboard",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
