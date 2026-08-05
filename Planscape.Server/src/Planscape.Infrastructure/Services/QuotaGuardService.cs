@@ -110,24 +110,30 @@ public class QuotaGuardService : IQuotaGuardService
         => _db.Users.CountAsync(u => u.TenantId == tid && !u.IsDeleted, ct);
 
     /// <summary>
-    /// Author seats are the users carrying ISO 19650 role <c>"A"</c> — which is
-    /// exactly what the invite paths persist for an Author
-    /// (<c>Iso19650Role = role == "Author" ? "A" : "C"</c> in both
-    /// TenantAdminController and OnboardingController), so the meter and the
-    /// write agree by construction.
+    /// Author seats are accounts that can author information, asked of the
+    /// shared capability layer (<see cref="ProjectRoles.CanAuthorInformation"/>)
+    /// rather than decided here. Billing and access therefore read the SAME
+    /// source and cannot drift — two sources for one question is exactly what
+    /// produced the eleven dead gates #540 repaired.
     ///
-    /// <para>Coordinators are deliberately derived as <c>total - authors</c>
-    /// rather than as <c>Iso19650Role != "A"</c>. In SQL a NULL role makes both
-    /// <c>= 'A'</c> and <c>&lt;&gt; 'A'</c> evaluate to NULL, so a legacy row
-    /// with no role would fall off BOTH axes and silently hand out a free seat.
-    /// Subtraction is total by construction.</para>
+    /// <para>This deliberately does NOT key on <c>Iso19650Role</c>. That is a
+    /// functional/discipline taxonomy and ISO 19650 assigns information-
+    /// management responsibility, not software seats. <c>"A"</c> is the
+    /// APPOINTING PARTY — the client — not "Author": keying on it counted the
+    /// client as the only author (so the axis read 0 for everyone else) while
+    /// <c>"BA"</c>, BIM Author, fell to the other axis entirely. It is the wrong
+    /// question, not a missing code.</para>
+    ///
+    /// <para>The non-authoring axis is derived as <c>total - authors</c> rather
+    /// than by a negated predicate: subtraction is total by construction, so no
+    /// row — including one carrying a role this build has never heard of — can
+    /// fall off both axes and silently hand out a free seat.</para>
     /// </summary>
     private Task<int> CountAuthorSeatsAsync(Guid tid, CancellationToken ct)
-        => _db.Users.CountAsync(u => u.TenantId == tid && !u.IsDeleted && u.Iso19650Role == AuthorIsoRole, ct);
-
-    /// <summary>ISO 19650 "Appointing Party" — the code the invite paths write
-    /// for an author seat.</summary>
-    private const string AuthorIsoRole = "A";
+        => _db.Users
+            .Where(u => u.TenantId == tid && !u.IsDeleted)
+            .Where(ProjectRoles.CanAuthorInformationPredicate)
+            .CountAsync(ct);
 
     private static QuotaResult Result(QuotaAxis axis, int current, int max)
     {

@@ -130,6 +130,60 @@ public static class ProjectRoles
           || m.Iso19650Role == IsoProjectManager
           || m.Iso19650Role == IsoAppointingParty;
 
+    // ── Capability: AuthorInformation ───────────────────────────────────────
+    //
+    // Can this account author information, or only read it? This is the seat
+    // boundary the billing meter uses, and it lives HERE — beside CanCurate and
+    // CanApproveSitePhotos — so that billing and access are the same source.
+    // Two sources for one question is what produced the eleven dead gates #540
+    // had to repair; a seat meter that derives its own answer would be the
+    // twelfth.
+    //
+    // WHY NOT Iso19650Role
+    // --------------------
+    // It is a functional/discipline taxonomy (A/M/E/S/H/P/C/I/K/Q/F/W/L/Z), and
+    // ISO 19650 assigns information-management responsibility — not software
+    // seats. "A" is the APPOINTING PARTY, i.e. the client, not "Author" and not
+    // "Architect": keying author seats on it counted the client as the sole
+    // author and read 0 for everyone else, while "BA" (BIM Author) fell to the
+    // other axis entirely. No amount of adding codes fixes that, because the
+    // taxonomy is not answering the seat question.
+    //
+    // WHY UserRole
+    // ------------
+    // UserRole is the tenant-level authority the product already enforces with,
+    // and it is what the invite paths write. It also survives the pending
+    // ProjectRole/Iso19650Role reconciliation without turning into a billing
+    // migration, because the capability is asked here rather than re-derived at
+    // each call site.
+
+    /// <summary>
+    /// True when the account can create or change information — every role above
+    /// read-only. <see cref="UserRole.Viewer"/> is the only consuming seat.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="UserRole.SecurityOfficer"/> is deliberately NOT an authoring
+    /// seat: it is a separation-of-duties role that can revoke sessions but, by
+    /// its own definition on the enum, "can't edit projects, members, or
+    /// BIM-Manager roles". Billing it as an author would charge for an audit
+    /// control.
+    /// </remarks>
+    public static bool CanAuthorInformation(UserRole role) => role switch
+    {
+        UserRole.Viewer          => false,
+        UserRole.SecurityOfficer => false,
+        _                        => true,
+    };
+
+    /// <summary>
+    /// EF-translatable form of <see cref="CanAuthorInformation(UserRole)"/> for
+    /// use inside a <c>.Where(...)</c> — a per-row method call would silently
+    /// client-evaluate the whole Users table. Keep the two in step; the tests
+    /// assert they agree for every declared <see cref="UserRole"/>.
+    /// </summary>
+    public static Expression<Func<AppUser, bool>> CanAuthorInformationPredicate =>
+        u => u.Role != UserRole.Viewer && u.Role != UserRole.SecurityOfficer;
+
     private static bool Eq(string? a, string b)
         => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 }
