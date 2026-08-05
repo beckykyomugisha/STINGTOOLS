@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // StingTools — Drawing Template Manager · Week 2
 //
 // ViewStylePackRegistry — mirrors DrawingTypeRegistry for style
@@ -116,7 +116,7 @@ namespace StingTools.Core.Drawing
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
             try
             {
-                var dir = Path.Combine(Path.GetDirectoryName(doc.PathName), "_BIM_COORD");
+                var dir = StingPaths.Meta(doc, "_BIM_COORD");
                 var path = Path.Combine(dir, "view_style_packs.json");
                 if (!File.Exists(path)) return null;
                 var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));

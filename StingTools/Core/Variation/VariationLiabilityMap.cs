@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  VariationLiabilityMap.cs — Config-driven contract-specific liability
 //  defaults (Phase 184p / caveat #3 closure).
 //
@@ -81,7 +81,7 @@ namespace StingTools.Core.Variation
                 {
                     string parent = Path.GetDirectoryName(bimDir);
                     if (!string.IsNullOrEmpty(parent))
-                        LoadFile(Path.Combine(parent, "_BIM_COORD", "variation_liability_map.json"), rules);
+                        LoadFile(StingPaths.MetaFile(doc, "_BIM_COORD", "variation_liability_map.json"), rules);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"VariationLiabilityMap project override: {ex.Message}"); }

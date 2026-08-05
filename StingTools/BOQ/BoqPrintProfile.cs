@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BoqPrintProfile.cs — P2.3 — named print / export column profiles.
 //
 //  A print profile is a named set of VISIBLE BOQ columns. It drives which
@@ -144,7 +144,7 @@ namespace StingTools.BOQ
                 if (string.IsNullOrEmpty(bimDir)) return null;
                 string parent = Path.GetDirectoryName(bimDir);
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "boq_print_profiles.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "boq_print_profiles.json");
             }
             catch (Exception ex)
             {

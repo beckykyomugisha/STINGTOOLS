@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // MepFixtureMap.cs — Phase: MEP-from-DWG V1.
 //
 // Block-name → Revit-fixture mapping for DWG→MEP conversion. The corporate
@@ -170,7 +170,7 @@ namespace StingTools.Core.Cad.Mep
             {
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(dir)) return null;
-                string path = Path.Combine(dir, "_BIM_COORD", ProjectFile);
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", ProjectFile);
                 if (!File.Exists(path)) return null;
                 var lib = JsonConvert.DeserializeObject<MepFixtureMapLibrary>(File.ReadAllText(path));
                 if (lib?.Fixtures != null)

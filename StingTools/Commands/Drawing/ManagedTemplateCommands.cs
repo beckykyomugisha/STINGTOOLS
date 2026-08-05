@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager · Phase 137
+﻿// StingTools — Drawing Template Manager · Phase 137
 //
 // Three migration commands for STING-Managed View Templates:
 //   ConvertPackToManagedCommand     reads a Revit template into the pack,
@@ -227,7 +227,7 @@ namespace StingTools.Commands.Drawing
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
-                var dir = Path.Combine(Path.GetDirectoryName(doc.PathName), "_BIM_COORD");
+                var dir = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, "view_style_packs.json");
 

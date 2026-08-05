@@ -490,7 +490,7 @@ namespace Planscape.Docs.Templates
         private static string DeliverablesPath(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "deliverables.json");
         }

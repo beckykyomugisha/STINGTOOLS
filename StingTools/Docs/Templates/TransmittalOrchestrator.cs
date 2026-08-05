@@ -1,4 +1,4 @@
-// TransmittalOrchestrator.cs — template engine v1.1 (S10).
+﻿// TransmittalOrchestrator.cs — template engine v1.1 (S10).
 //
 // Orchestrates transmittal creation end-to-end:
 //   1. Generate transmittal id (TX-NNNN)
@@ -145,7 +145,7 @@ namespace Planscape.Docs.Templates
         private static string TransmittalsPath(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "transmittals.json");
         }

@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  DeliveryCommands.cs — Revit hooks for the PM-8 delivery layer.
 //
 //  Surfaces the pure Core.Delivery engines (RiskRegister / MidpEngine) and the
@@ -361,7 +361,7 @@ namespace StingTools.Commands.Delivery
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string legacy = Path.Combine(dir, "_BIM_COORD", "deliverables.json");
+                    string legacy = StingPaths.MetaFile(doc, "_BIM_COORD", "deliverables.json");
                     if (File.Exists(legacy)) return legacy;
                 }
             }

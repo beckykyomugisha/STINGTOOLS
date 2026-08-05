@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -100,7 +100,7 @@ namespace StingTools.Commands.Validation
             {
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(dir)) return null;
-                string reportDir = Path.Combine(dir, "_BIM_COORD", "owner_standards_reports");
+                string reportDir = StingPaths.MetaFile(doc, "_BIM_COORD", "owner_standards_reports");
                 Directory.CreateDirectory(reportDir);
                 var payload = new
                 {

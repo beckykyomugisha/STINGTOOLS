@@ -24,10 +24,21 @@ namespace StingTools.Core.MedGas
 
     public static class MgasVerificationLog
     {
-        public static string Persist(string projectFolderRoot, MgasVerificationRecord rec)
+        /// <summary>
+        /// Persist a verification record. <paramref name="rvtPath"/> is the model's own
+        /// path — the record lands in the project's consolidated
+        /// <c>_data/_BIM_COORD/healthcare/mgas_verifications/</c>. An unsaved model falls
+        /// back to temp, as before.
+        /// </summary>
+        public static string Persist(string rvtPath, MgasVerificationRecord rec)
         {
-            if (string.IsNullOrEmpty(projectFolderRoot) || rec == null) return null;
-            var dir = Path.Combine(projectFolderRoot, "_BIM_COORD", "healthcare", "mgas_verifications");
+            if (rec == null) return null;
+            // path-discipline: legacy-fallback -- unsaved model has no project root; temp is
+            // not a project sibling, so this cannot fork a store.
+            string dir = string.IsNullOrEmpty(rvtPath)
+                ? Path.Combine(Path.GetTempPath(), "_BIM_COORD", "healthcare", "mgas_verifications")
+                : StingTools.Core.StingPaths.MetaFrom(rvtPath, "_BIM_COORD", "healthcare", "mgas_verifications");
+            if (string.IsNullOrEmpty(dir)) return null;
             Directory.CreateDirectory(dir);
             var stamp = rec.DateUtc.ToString("yyyyMMdd_HHmmss");
             var safeZone = SafeName(rec.Zone ?? "all");

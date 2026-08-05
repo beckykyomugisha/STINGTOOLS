@@ -546,6 +546,73 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Resolve the project root from a model PATH rather than a <see cref="Document"/>.
+        /// <para>
+        /// Some callers legitimately never see a Document — the dock-panel preset UIs hold
+        /// only <c>StingCommandHandler.CurrentDocPath</c>, and several registries are
+        /// invoked from a worker with just the .rvt path. They cannot use
+        /// <see cref="DetectProjectCode"/>, which reads ProjectInformation.
+        /// </para>
+        /// <para>
+        /// Resolution is by discovery, not by naming: scan the model's directory for a
+        /// sibling folder holding <c>_data/project_setup.json</c>. That file is written by
+        /// <see cref="InitializeSetup"/>, so any project that has ever run a STING export
+        /// has one. Returns null when no set-up root exists, which callers must treat as
+        /// "fall back to the legacy sibling" — inventing a root here would fork a second
+        /// tree under a guessed code.
+        /// </para>
+        /// </summary>
+        public static string GetRootPathForModelPath(string rvtPath)
+        {
+            if (string.IsNullOrEmpty(rvtPath)) return null;
+            try
+            {
+                string projDir = Path.GetDirectoryName(rvtPath);
+                if (string.IsNullOrEmpty(projDir) || !Directory.Exists(projDir)) return null;
+
+                // A root already cached for this exact model wins — it is authoritative
+                // and avoids a directory scan on every lookup.
+                if (_rootByDoc.TryGetValue(rvtPath, out string cached) && Directory.Exists(cached))
+                    return cached;
+
+                foreach (string sub in Directory.GetDirectories(projDir))
+                {
+                    if (File.Exists(Path.Combine(sub, "_data", "project_setup.json")))
+                        return sub;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetRootPathForModelPath: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Document-free counterpart to <see cref="GetMetaPath"/>: resolves
+        /// <c>&lt;root&gt;/_data/&lt;bucket&gt;/&lt;subParts…&gt;</c> from a model path, falling back to the
+        /// legacy <c>&lt;rvtDir&gt;/&lt;bucket&gt;/…</c> sibling when the project has no set-up root
+        /// yet. Creates the directory it returns.
+        /// </summary>
+        public static string GetMetaPathForModelPath(string rvtPath, string bucket, params string[] subParts)
+        {
+            if (string.IsNullOrEmpty(rvtPath) || string.IsNullOrEmpty(bucket)) return null;
+            try
+            {
+                string root = GetRootPathForModelPath(rvtPath);
+                string p = string.IsNullOrEmpty(root)
+                    // path-discipline: legacy-fallback -- no set-up root exists for this model yet
+                    ? Path.Combine(Path.GetDirectoryName(rvtPath) ?? "", bucket)
+                    : Path.Combine(root, "_data", bucket);
+
+                foreach (var part in subParts ?? Array.Empty<string>())
+                    if (!string.IsNullOrEmpty(part)) p = Path.Combine(p, part);
+
+                try { Directory.CreateDirectory(p); }
+                catch (Exception ex) { StingLog.Warn($"GetMetaPathForModelPath mkdir: {ex.Message}"); }
+                return p;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetMetaPathForModelPath({bucket}): {ex.Message}"); return null; }
+        }
+
+        /// <summary>
         /// Transient staging area for an outbound channel (e.g. "acc", "sharepoint"),
         /// under &lt;root&gt;/_data/staging/&lt;channel&gt;. Replaces the per-file
         /// "_acc_mirror_tmp" folders and the case-inconsistent "_DATA/sharepoint_queue".

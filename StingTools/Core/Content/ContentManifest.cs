@@ -1,4 +1,4 @@
-// StingTools — Content Library (Phase: Content Library foundation)
+﻿// StingTools — Content Library (Phase: Content Library foundation)
 //
 // ContentManifest is the single source of truth for STING-authored reusable
 // content: model-family seeds, 2D symbol catalogues, annotation tag families,
@@ -275,7 +275,7 @@ namespace StingTools.Core.Content
                 if (string.IsNullOrEmpty(projPath)) return null;
                 var dir = Path.GetDirectoryName(projPath);
                 if (string.IsNullOrEmpty(dir)) return null;
-                var path = Path.Combine(dir, "_BIM_COORD", "content_manifest.json");
+                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "content_manifest.json");
                 if (!File.Exists(path)) return null;
                 var m = JsonConvert.DeserializeObject<ContentManifest>(File.ReadAllText(path));
                 if (m != null)

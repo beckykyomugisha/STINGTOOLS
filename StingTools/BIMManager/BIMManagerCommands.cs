@@ -7963,7 +7963,7 @@ namespace StingTools.BIMManager
             {
                 string modelDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(modelDir)) return 0;
-                string hcDir = Path.Combine(modelDir, "_BIM_COORD", "healthcare");
+                string hcDir = StingPaths.MetaFile(doc, "_BIM_COORD", "healthcare");
                 if (!Directory.Exists(hcDir)) return 0;
 
                 int copied = 0;

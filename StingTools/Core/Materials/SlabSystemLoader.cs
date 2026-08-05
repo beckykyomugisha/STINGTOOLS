@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  SlabSystemLoader.cs — MAT-1 runtime loader for SlabSystemRegistry.
 //
 //  Loads STING_SLAB_SYSTEMS.json (corporate) layered with the project override
@@ -103,7 +103,7 @@ namespace StingTools.Core.Materials
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
                 string dir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "_BIM_COORD", "STING_SLAB_SYSTEMS.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "STING_SLAB_SYSTEMS.json");
             }
             catch (Exception ex) { StingLog.Warn($"SlabSystemLoader path: {ex.Message}"); return null; }
         }

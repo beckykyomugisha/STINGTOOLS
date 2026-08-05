@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -237,8 +237,21 @@ namespace StingTools.Core
         /// `ProjectFolderEngine.CreateFolderStructure(doc)` on every
         /// DocumentOpened event so the WIP / SHARED / PUBLISHED / ARCHIVE
         /// CDE folders exist before any export tries to write into them.
-        /// Idempotent — folders that already exist are skipped. Default true.</summary>
-        public static bool AutoCreateCdeFolders { get; internal set; } = true;
+        /// Idempotent — folders that already exist are skipped.
+        /// <para>
+        /// Default FALSE. It defaulted true so exports "never race a missing
+        /// directory", but every write path already creates its own directory
+        /// (GetFolderPath / GetMetaPath / GetDataPath / StingPaths.Cde all call
+        /// Directory.CreateDirectory), so the eager pass is redundant with the
+        /// lazy one. What it did cost was ~53 (CdeFirst) to ~60 (BIM) empty
+        /// directories materialised beside the model the moment it is opened —
+        /// 11_ISSUES/CVI, 12_CLASHES/Snapshots and the rest existing before the
+        /// project has a single issue. That is the most visible source of the
+        /// "STING creates a mess of folders" complaint, for no behaviour gained.
+        /// Set AUTO_CREATE_CDE_FOLDERS=true in project_config.json to pre-seed
+        /// the tree (e.g. so a coordinator can populate it by hand up front).
+        /// </para></summary>
+        public static bool AutoCreateCdeFolders { get; internal set; } = false;
 
         /// <summary>Phase 165 (NEW-02): When true, ClashScheduler starts on
         /// DocumentOpened with the cadence from default_clash_matrix.json
@@ -968,7 +981,7 @@ namespace StingTools.Core
                     else if (bool.TryParse(cflObj?.ToString(), out bool cbp)) CdeFirstLayout = cbp;
                 }
 
-                AutoCreateCdeFolders = true;
+                AutoCreateCdeFolders = false;
                 if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
                 {
                     if (accfObj is bool b) AutoCreateCdeFolders = b;
@@ -1958,7 +1971,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(path)) return null;
             string dir = System.IO.Path.GetDirectoryName(path);
             if (string.IsNullOrEmpty(dir)) return null;
-            string key = System.IO.Path.Combine(dir, "_BIM_COORD");
+            string key = StingPaths.Meta(doc, "_BIM_COORD");
             lock (_prodRulesLock)
             {
                 if (_projProdLoaded.Contains(key))

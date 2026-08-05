@@ -1,4 +1,4 @@
-// EmbeddedTemplates.cs — template engine v1.1 (S11 + S15).
+﻿// EmbeddedTemplates.cs — template engine v1.1 (S11 + S15).
 //
 // On first project open, streams every embedded .docx / .xlsx template into
 // _BIM_COORD/templates/, every embedded workflow JSON into _BIM_COORD/
@@ -74,7 +74,7 @@ namespace Planscape.Docs.Templates
 
         public static void ExtractTemplates(Document doc)
         {
-            string templatesDir = Path.Combine(ResolveProjectRoot(doc), "_BIM_COORD", "templates");
+            string templatesDir = StingPaths.MetaFile(doc, "_BIM_COORD", "templates");
             Directory.CreateDirectory(templatesDir);
 
             var asm = typeof(EmbeddedTemplates).Assembly;
@@ -94,7 +94,7 @@ namespace Planscape.Docs.Templates
 
         public static void ExtractDefaultWorkflows(Document doc)
         {
-            string workflowsDir = Path.Combine(ResolveProjectRoot(doc), "_BIM_COORD", "workflows");
+            string workflowsDir = StingPaths.MetaFile(doc, "_BIM_COORD", "workflows");
             Directory.CreateDirectory(workflowsDir);
 
             var asm = typeof(EmbeddedTemplates).Assembly;
@@ -118,7 +118,7 @@ namespace Planscape.Docs.Templates
         public static void ExtractDefaultManifest(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string templatesDir = Path.Combine(root, "_BIM_COORD", "templates");
+            string templatesDir = StingPaths.MetaFile(doc, "_BIM_COORD", "templates");
             Directory.CreateDirectory(templatesDir);
             string manifestPath = Path.Combine(templatesDir, "manifest.json");
             if (File.Exists(manifestPath)) return;

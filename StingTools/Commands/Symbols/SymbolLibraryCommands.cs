@@ -1,4 +1,4 @@
-// StingTools — MEP/FP/SLD Symbol Library commands (Phase 175)
+﻿// StingTools — MEP/FP/SLD Symbol Library commands (Phase 175)
 //
 // Six commands wrap the SymbolLibraryCreator engine:
 //
@@ -96,7 +96,7 @@ namespace StingTools.Commands.Symbols
             if (string.IsNullOrEmpty(baseDir))
                 baseDir = Path.Combine(Path.GetTempPath(), "STING_Symbols");
 
-            var outDir = Path.Combine(baseDir, "_BIM_COORD", "Families", "Symbols");
+            var outDir = StingPaths.MetaFile(doc, "_BIM_COORD", "Families", "Symbols");
             Directory.CreateDirectory(outDir);
             return outDir;
         }
@@ -159,7 +159,7 @@ namespace StingTools.Commands.Symbols
             }
             catch { }
             if (string.IsNullOrEmpty(baseDir)) return null;
-            return Path.Combine(baseDir, "_BIM_COORD", "symbol_size_config.json");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "symbol_size_config.json");
         }
 
         /// <param name="rebuildMode">

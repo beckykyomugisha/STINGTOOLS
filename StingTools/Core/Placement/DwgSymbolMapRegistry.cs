@@ -1,4 +1,4 @@
-// StingTools — DwgSymbolMapRegistry.
+﻿// StingTools — DwgSymbolMapRegistry.
 //
 // Maps a captured DWG MEP fixture block (blockName + layer + coarse
 // InferredCategory from CADToModelEngine) to a STING placement category +
@@ -106,7 +106,7 @@ namespace StingTools.Core.Placement
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return null;
                 string dir = Path.GetDirectoryName(doc.PathName);
-                return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, "_BIM_COORD", "dwg_symbol_map.json");
+                return string.IsNullOrEmpty(dir) ? null : StingPaths.MetaFile(doc, "_BIM_COORD", "dwg_symbol_map.json");
             }
             catch { return null; }
         }
@@ -278,7 +278,7 @@ namespace StingTools.Core.Placement
                 try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
                 catch { }
                 if (string.IsNullOrEmpty(baseDir)) return;
-                string ovr = Path.Combine(baseDir, "_BIM_COORD", "dwg_symbol_map.json");
+                string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "dwg_symbol_map.json");
                 if (!File.Exists(ovr)) return;
                 ParseInto(File.ReadAllText(ovr), data, prepend: true); // project rules win
             }
