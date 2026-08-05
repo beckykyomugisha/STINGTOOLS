@@ -21,7 +21,7 @@
                    ifcVersion="IFC4"
                    identifier="HC-001"
                    description="CLN_PRESSURE_REGIME_TXT must be one of the HTM 03-01 / ASHRAE 170 recognised regime codes when present."
-                   requirementSeverity="warning">
+                   requirementSeverity="optional">
       <applicability>
         <entity>
           <name>
@@ -34,7 +34,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IfcLabel">
+        <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
           <baseName><simpleValue>CLN_PRESSURE_REGIME_TXT</simpleValue></baseName>
           <value>
@@ -53,7 +53,7 @@
                    ifcVersion="IFC4"
                    identifier="HC-002"
                    description="MGS_GAS_TYPE_TXT must be a recognised medical gas code per HTM 02-01 / BS EN ISO 7396-1."
-                   requirementSeverity="warning">
+                   requirementSeverity="optional">
       <applicability>
         <entity>
           <name>
@@ -66,7 +66,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IfcLabel">
+        <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
           <baseName><simpleValue>MGS_GAS_TYPE_TXT</simpleValue></baseName>
           <value>
@@ -88,7 +88,7 @@
                    ifcVersion="IFC4"
                    identifier="HC-003"
                    description="RAD_AREA_CLASSIFICATION_TXT must be a recognised NCRP 147 / IPEM area class when present."
-                   requirementSeverity="recommendation">
+                   requirementSeverity="optional">
       <applicability>
         <entity>
           <name>
@@ -101,7 +101,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IfcLabel">
+        <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
           <baseName><simpleValue>RAD_AREA_CLASSIFICATION_TXT</simpleValue></baseName>
           <value>

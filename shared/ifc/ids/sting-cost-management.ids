@@ -21,7 +21,7 @@
                    ifcVersion="IFC4"
                    identifier="COST-001"
                    description="When CST_RATE_SOURCE_TXT is present it must be one of the recognised rate-source values."
-                   requirementSeverity="recommendation">
+                   requirementSeverity="optional">
       <applicability>
         <entity>
           <name>
@@ -34,7 +34,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IfcLabel">
+        <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingCostManagement</simpleValue></propertySet>
           <baseName><simpleValue>CST_RATE_SOURCE_TXT</simpleValue></baseName>
           <value>
@@ -54,7 +54,7 @@
                    ifcVersion="IFC4"
                    identifier="COST-002"
                    description="When CST_BOQ_UNIT_TXT is present it must be an NRM2-valid measurement unit."
-                   requirementSeverity="recommendation">
+                   requirementSeverity="optional">
       <applicability>
         <entity>
           <name>
@@ -67,7 +67,7 @@
         </property>
       </applicability>
       <requirements>
-        <property dataType="IfcLabel">
+        <property dataType="IFCLABEL">
           <propertySet><simpleValue>Pset_StingCostManagement</simpleValue></propertySet>
           <baseName><simpleValue>CST_BOQ_UNIT_TXT</simpleValue></baseName>
           <value>

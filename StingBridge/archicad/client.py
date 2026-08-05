@@ -281,7 +281,7 @@ def normalise_storey_to_level_code(storey_name: str) -> str:
         "Basement 2"   → "B2"
         "Roof Level"   → "RF"
         "Mezzanine"    → "MZ"
-        "Sub-Basement" → "B1"
+        "Sub-Basement" → "SB"
     """
     import re
 
@@ -307,7 +307,9 @@ def normalise_storey_to_level_code(storey_name: str) -> str:
     m = re.match(r"^(basement|b)[\s\-_]?(\d+)$", lower)
     if m:
         return f"B{m.group(2)}"
-    if re.match(r"^(basement|lower\s*ground|lg|b/b|b1?|sub[\s\-]?basement)$", lower):
+    if re.match(r"^sub[\s\-]?basement$", lower):
+        return "SB"
+    if re.match(r"^(basement|lower\s*ground|lg|b/b|b1?)$", lower):
         return "B1"
 
     # Numbered level — "Level 03", "Floor 2", "1st Floor", "2nd Floor", etc.

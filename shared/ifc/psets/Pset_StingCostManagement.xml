@@ -113,4 +113,10 @@
 
   </Properties>
 
+  <CorporateLock>
+    <Sha256>PENDING_FINALISATION</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
 </StingPropertySetTemplate>

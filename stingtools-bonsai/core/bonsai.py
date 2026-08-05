@@ -357,19 +357,20 @@ class BonsaiBridge:
     # STING tag-segment write with TokenLock + TagHistory
     # ------------------------------------------------------------------
 
-    _TOKEN_LOCK_PROP = "STING_TOKEN_LOCK_BOOL"
-    _TOKEN_LOCK_PSET = "Pset_StingTags"
-    _PREV_TAG_PROP   = "STING_PREVIOUS_TAG_TXT"
-    _MODIFIED_AT_PROP = "STING_TAG_MODIFIED_AT"
+    _TOKEN_LOCK_PROP  = "TokenLock"   # CSV list of locked segment names, e.g. "ASS_DISCIPLINE_COD_TXT,ASS_LOC_TXT"
+    _TOKEN_LOCK_PSET  = "Pset_StingTags"
+    _PREV_TAG_PROP    = "PreviousTag"
+    _MODIFIED_AT_PROP = "ModifiedAt"
 
     def write_tag_segment(
         self, element: Any, param_name: str, value: str
     ) -> bool:
         """Write one STING tag segment (param_name in Pset_StingTags) on element.
 
-        Raises StingTokenLockError when STING_TOKEN_LOCK_BOOL is true and the
-        existing value differs from value.  Records audit trail in
-        STING_PREVIOUS_TAG_TXT + STING_TAG_MODIFIED_AT before overwriting.
+        Raises StingTokenLockError when TokenLock (in Pset_StingTags) is a
+        CSV list that includes param_name and the existing value differs from
+        value.  Records audit trail in PreviousTag + ModifiedAt before
+        overwriting.
 
         Returns True on success.
         """
@@ -379,7 +380,12 @@ class BonsaiBridge:
         locked_val = self._read_pset_property(
             element, self._TOKEN_LOCK_PSET, self._TOKEN_LOCK_PROP
         )
-        is_locked = locked_val in ("True", "true", "1", "YES")
+        # TokenLock is an IFCLABEL CSV list of locked segment names, e.g.
+        # "ASS_DISCIPLINE_COD_TXT,ASS_LOC_TXT".  An element is locked for
+        # *this* segment when param_name appears in that list.
+        is_locked = bool(locked_val) and param_name in [
+            s.strip() for s in locked_val.split(",") if s.strip()
+        ]
 
         existing = self._read_pset_property(element, self._TOKEN_LOCK_PSET, param_name)
 
@@ -400,7 +406,7 @@ class BonsaiBridge:
                 element,
                 self._TOKEN_LOCK_PSET,
                 self._MODIFIED_AT_PROP,
-                datetime.datetime.utcnow().isoformat() + "Z",
+                datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
             )
 
         return self._write_pset_property(element, self._TOKEN_LOCK_PSET, param_name, value)

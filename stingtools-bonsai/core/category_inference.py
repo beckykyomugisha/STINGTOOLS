@@ -23,7 +23,7 @@ _MAP: dict[str, tuple[str, str]] = {
     "IFCFILTERCHAMBER":          ("M", "HVAC"),
     "IFCHUMIDIFIER":             ("M", "HVAC"),
     "IFCUNITARYEQUIPMENT":       ("M", "HVAC"),
-    "IFCMEDICALDEVICE":          ("M", "HVAC"),
+    "IFCMEDICALDEVICE":          ("H", "MG"),
     "IFCCOMPRESSOR":             ("M", "HVAC"),
     "IFCEVAPORATOR":             ("M", "HVAC"),
     "IFCCONDENSER":              ("M", "HVAC"),
@@ -141,6 +141,8 @@ def infer_disc_sys(ifc_type: str) -> tuple[str | None, str | None]:
     Returns:
         (disc_code, sys_code) or (None, None) if no mapping exists.
     """
+    if ifc_type is None:
+        return (None, None)
     key = ifc_type.upper()
     if not key.startswith("IFC"):
         key = "IFC" + key
