@@ -1,4 +1,4 @@
-"""STING N-panel — root + 4 sub-panels (SELECT / TAGS / VALIDATE / COORD)."""
+"""STING N-panel — root + 7 sub-panels (SELECT / TAGS / VALIDATE / COORD / EXPORT / SPATIAL / MEP CALCS)."""
 
 from __future__ import annotations
 
@@ -207,6 +207,110 @@ class StingCoordPanel(bpy.types.Panel):
 
 
 # ---------------------------------------------------------------------------
+# EXPORT sub-panel
+# ---------------------------------------------------------------------------
+
+class StingExportPanel(bpy.types.Panel):
+    bl_idname = "STING_PT_export"
+    bl_label = "EXPORT"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "STING"
+    bl_parent_id = "STING_PT_main"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        col = layout.column(align=True)
+        col.label(text="Data exports", icon="EXPORT")
+        col.operator("sting.export_tag_register",         icon="SPREADSHEET")
+        col.operator("sting.export_boq",                  icon="LINENUMBERS_ON")
+        col.separator()
+        col.label(text="Compliance", icon="CHECKMARK")
+        col.operator("sting.export_compliance_snapshot",  icon="RENDER_RESULT")
+        col.separator()
+        col.label(text="Audit", icon="TIME")
+        col.operator("sting.export_audit_log",            icon="FILE_TICK")
+
+
+# ---------------------------------------------------------------------------
+# SPATIAL sub-panel
+# ---------------------------------------------------------------------------
+
+class StingSpatialPanel(bpy.types.Panel):
+    bl_idname = "STING_PT_spatial"
+    bl_label = "SPATIAL"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "STING"
+    bl_parent_id = "STING_PT_main"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+
+        col = layout.column(align=True)
+        col.label(text="Auto-detect tokens", icon="OUTLINER")
+        col.operator("sting.auto_detect_location", icon="HOME")
+        col.operator("sting.auto_detect_zone",     icon="SNAP_FACE_CENTER")
+        col.operator("sting.auto_detect_function", icon="DRIVER_TRANSFORM")
+
+        layout.separator()
+        col = layout.column(align=True)
+        col.label(text="Pre-tag audit", icon="VIEWZOOM")
+        col.operator("sting.pre_tag_audit", icon="PLAY")
+
+        # Show last audit summary if cached
+        raw = context.scene.get("sting_pretag_audit")
+        if raw:
+            try:
+                import json
+                data = json.loads(raw)
+                pct = data.get("compliance_pct", 0)
+                total = data.get("total", 0)
+                untagged = data.get("untagged", 0)
+                box = layout.box()
+                icon = "CHECKMARK" if pct >= 80 else ("ERROR" if pct < 50 else "INFO")
+                box.label(text=f"{pct}% complete  ({total} total, {untagged} untagged)", icon=icon)
+            except Exception:
+                pass
+
+        layout.separator()
+        col = layout.column(align=True)
+        col.label(text="Repair", icon="TOOL_SETTINGS")
+        col.operator("sting.repair_duplicate_seq",  icon="SORTALPHA")
+        col.operator("sting.repair_missing_pset",   icon="ADD")
+        col.operator("sting.clear_stale_tags",      icon="TRASH")
+
+
+# ---------------------------------------------------------------------------
+# MEP CALCS sub-panel
+# ---------------------------------------------------------------------------
+
+class StingMEPPanel(bpy.types.Panel):
+    bl_idname = "STING_PT_mep"
+    bl_label = "MEP CALCS"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "STING"
+    bl_parent_id = "STING_PT_main"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+
+        col = layout.column(align=True)
+        col.label(text="Plumbing", icon="MOD_FLUID")
+        col.operator("sting.calc_pipe_flow",       icon="FORCE_WIND")
+        col.operator("sting.calc_drainage_units",  icon="TRACKING_BACKWARDS")
+
+        layout.separator()
+        col = layout.column(align=True)
+        col.label(text="Electrical", icon="LIGHT")
+        col.operator("sting.calc_conduit_fill",    icon="FULLSCREEN_ENTER")
+
+
+# ---------------------------------------------------------------------------
 # registration
 # ---------------------------------------------------------------------------
 
@@ -216,4 +320,7 @@ CLASSES = (
     StingTagsPanel,
     StingValidatePanel,
     StingCoordPanel,
+    StingExportPanel,
+    StingSpatialPanel,
+    StingMEPPanel,
 )
