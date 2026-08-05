@@ -800,6 +800,40 @@ namespace StingTools.Core.Symbols
             }
         }
 
+        /// <summary>
+        /// Creates one curve in a family document, picking the API the template actually
+        /// supports.
+        ///
+        /// <para>Annotation templates have NO sketch plane — ResolveSketchPlane returns
+        /// null for them deliberately, because SketchPlane.Create is forbidden there. The
+        /// draw path nevertheless passed that null straight into NewSymbolicCurve, whose
+        /// sketchPlane argument is mandatory, so every curve in every GenericAnnotation
+        /// family threw "Value cannot be null. Parameter name: sketchPlane", was caught,
+        /// warned and skipped. The families still saved — empty. Annotation curves belong
+        /// on the family's own view via NewDetailCurve, which needs no plane.</para>
+        /// </summary>
+        private static void CreateFamilyCurve(Document fdoc, View view, SketchPlane sketch,
+            Curve curve, bool isAnnotation, string id, SymbolCreationResult result)
+        {
+            if (isAnnotation)
+            {
+                if (view == null)
+                {
+                    result.Warnings.Add($"{id}: no view available for annotation curve — skipped.");
+                    return;
+                }
+                fdoc.FamilyCreate.NewDetailCurve(view, curve);
+                return;
+            }
+
+            if (sketch == null)
+            {
+                result.Warnings.Add($"{id}: no sketch plane available for model curve — skipped.");
+                return;
+            }
+            fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+        }
+
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             LineDefinition l, double symMm, SymbolCreationResult result, string id)
         {
@@ -820,12 +854,8 @@ namespace StingTools.Core.Symbols
                 Line line = Line.CreateBound(p1, p2);
                 if (fdoc.IsFamilyDocument)
                 {
-                    // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
-                    // model families use NewModelCurve.
-                    if (IsAnnotationFamily(fdoc, null))
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(line, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, line,
+                        IsAnnotationFamily(fdoc, null), id, result);
                 }
                 else
                 {
@@ -868,10 +898,7 @@ namespace StingTools.Core.Symbols
                 // warnings were swallowed by SymbolFailureSwallow.)
                 if (fdoc.IsFamilyDocument)
                 {
-                    if (isAnnotation)
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(line, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, line, isAnnotation, id, result);
                 }
                 else
                 {
@@ -917,12 +944,8 @@ namespace StingTools.Core.Symbols
 
                 if (fdoc.IsFamilyDocument)
                 {
-                    // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
-                    // model families use NewModelCurve.
-                    if (IsAnnotationFamily(fdoc, null))
-                        fdoc.FamilyCreate.NewSymbolicCurve(curve, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, curve,
+                        IsAnnotationFamily(fdoc, null), id, result);
                 }
                 else
                 {
