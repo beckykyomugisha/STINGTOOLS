@@ -268,6 +268,68 @@ class ArchiCadClient:
             yield guids[i : i + size]
 
 
+def normalise_storey_to_level_code(storey_name: str) -> str:
+    """Convert an IfcBuildingStorey Name string to a STING LVL code.
+
+    Handles the common naming conventions used by ArchiCAD, Revit, and
+    Bonsai/BlenderBIM exports. Returns a 2–4 char uppercase code suitable
+    for the ASS_LVL_COD_TXT STING parameter.
+
+    Examples:
+        "Ground Floor" → "GF"
+        "Level 03"     → "L03"
+        "Basement 2"   → "B2"
+        "Roof Level"   → "RF"
+        "Mezzanine"    → "MZ"
+        "Sub-Basement" → "SUBB"  (fallback)
+    """
+    import re
+
+    name = (storey_name or "").strip()
+    if not name:
+        return "L00"
+
+    lower = name.lower()
+
+    # Ground floor variants
+    if re.match(r"^(ground\s*(floor)?|gf|g/f|ground level|00)$", lower):
+        return "GF"
+
+    # Roof variants
+    if re.match(r"^(roof|roof\s*(level|terrace|floor)|top\s*floor|rf)$", lower):
+        return "RF"
+
+    # Mezzanine
+    if re.match(r"^(mezzanine|mez|mz)$", lower):
+        return "MZ"
+
+    # Basement — "Basement", "Basement 1", "B1", "Lower Ground", "LG"
+    m = re.match(r"^(basement|b)[\s\-_]?(\d+)$", lower)
+    if m:
+        return f"B{m.group(2)}"
+    if re.match(r"^(basement|lower\s*ground|lg|b/b|b1?|sub[\s\-]?basement)$", lower):
+        return "B1"
+
+    # Numbered level — "Level 03", "Floor 2", "1st Floor", "2nd Floor", etc.
+    m = re.match(r"^(?:level|floor|floor\s*no\.?|lvl)[\s\-_]?(\d+)$", lower)
+    if m:
+        return f"L{int(m.group(1)):02d}"
+
+    # Ordinal floor — "1st Floor", "2nd Floor", ...
+    m = re.match(r"^(\d+)(?:st|nd|rd|th)\s*floor$", lower)
+    if m:
+        return f"L{int(m.group(1)):02d}"
+
+    # Plain number — "01", "2", "03"
+    m = re.match(r"^(\d{1,2})$", lower)
+    if m:
+        return f"L{int(m.group(1)):02d}"
+
+    # Fallback — first 4 chars uppercased, stripped of spaces
+    fallback = re.sub(r"[^A-Za-z0-9]", "", name)[:4].upper()
+    return fallback or "L00"
+
+
 def _port_open(host: str, port: int, timeout: float) -> bool:
     try:
         with socket.create_connection((host, port), timeout=timeout):

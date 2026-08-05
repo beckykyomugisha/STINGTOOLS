@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — Healthcare Clinical parameter validation</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of format-side rules from shared/ifc/psets/Pset_StingHealthcareClinical.xml. Validates infection control, pressure regime, medical gas, anti-ligature, and radiation protection data written by the Healthcare Pack (H-1..H-30) commands.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-08-05</date>
+    <purpose>STING Healthcare Clinical substrate validation — cross-host IFC round-trip</purpose>
+    <milestone>Stage_4_TechnicalDesign</milestone>
+  </info>
+
+  <specifications>
+
+    <specification name="CLN_PRESSURE_REGIME_enumeration"
+                   ifcVersion="IFC4"
+                   identifier="HC-001"
+                   description="CLN_PRESSURE_REGIME_TXT must be one of the HTM 03-01 / ASHRAE 170 recognised regime codes when present."
+                   requirementSeverity="warning">
+      <applicability>
+        <entity>
+          <name>
+            <simpleValue>IFCSPACE</simpleValue>
+          </name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
+          <baseName><simpleValue>CLN_PRESSURE_REGIME_TXT</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IfcLabel">
+          <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
+          <baseName><simpleValue>CLN_PRESSURE_REGIME_TXT</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="Positive"/>
+              <xs:enumeration value="Negative"/>
+              <xs:enumeration value="Neutral"/>
+              <xs:enumeration value="Isolation"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="MGS_GAS_TYPE_enumeration"
+                   ifcVersion="IFC4"
+                   identifier="HC-002"
+                   description="MGS_GAS_TYPE_TXT must be a recognised medical gas code per HTM 02-01 / BS EN ISO 7396-1."
+                   requirementSeverity="warning">
+      <applicability>
+        <entity>
+          <name>
+            <simpleValue>IFCELEMENT</simpleValue>
+          </name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
+          <baseName><simpleValue>MGS_GAS_TYPE_TXT</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IfcLabel">
+          <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
+          <baseName><simpleValue>MGS_GAS_TYPE_TXT</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="O2"/>
+              <xs:enumeration value="N2O"/>
+              <xs:enumeration value="MedAir"/>
+              <xs:enumeration value="SurgAir"/>
+              <xs:enumeration value="Vac"/>
+              <xs:enumeration value="AGSS"/>
+              <xs:enumeration value="CO2"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="RAD_AREA_CLASSIFICATION_enumeration"
+                   ifcVersion="IFC4"
+                   identifier="HC-003"
+                   description="RAD_AREA_CLASSIFICATION_TXT must be a recognised NCRP 147 / IPEM area class when present."
+                   requirementSeverity="recommendation">
+      <applicability>
+        <entity>
+          <name>
+            <simpleValue>IFCSPACE</simpleValue>
+          </name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
+          <baseName><simpleValue>RAD_AREA_CLASSIFICATION_TXT</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IfcLabel">
+          <propertySet><simpleValue>Pset_StingHealthcareClinical</simpleValue></propertySet>
+          <baseName><simpleValue>RAD_AREA_CLASSIFICATION_TXT</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="ControlledArea"/>
+              <xs:enumeration value="SupervisedArea"/>
+              <xs:enumeration value="UncontrolledArea"/>
+              <xs:enumeration value="PublicArea"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+
+</ids>

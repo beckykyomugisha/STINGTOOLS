@@ -1,7 +1,54 @@
-StructuralAnalysisEngine general — deflection / punching / wind / vibration / SSI / progressive collapse are diffuse single-shot calcs. Each subcheck takes a different parameter set (member type × load case × code combination) so there's no clean one-pass model walker. Each needs its own phase. That's the genuinely-deferred remainder of the integration audit.
 # CHANGELOG — STINGTOOLS
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
+
+#### Completed (Phase 195 — 7 cross-host alignment fixes: IFC substrate, ArchiCAD zone semantics, level normalisation, Bonsai DISC inference, TokenLock, GlobalId scaffold)
+
+Seven focused gaps closed across the Revit ↔ ArchiCAD ↔ Bonsai/BlenderBIM multi-host surface (see `docs/MULTI_HOST_INTEGRATION_PROMPT.md` for the broader Phase A–E plan). Fix 6 (CI glob patterns) was already in place.
+
+**Fix 1 — IFC substrate: three new psets + three new IDS files + bSDD publication plan**
+
+- `shared/ifc/psets/Pset_StingHVACExecution.xml` — 21 `HVC_*` execution properties (peak loads, flow, velocity, DN, NC prediction, refrigerant sizing, insulation spec) applicable to `IfcDistributionFlowElement`, `IfcDuctSegment`, `IfcPipeSegment`, `IfcFlowSegment`.
+- `shared/ifc/psets/Pset_StingCostManagement.xml` — 14 `CST_*` cost/BOQ/carbon properties applicable to `IfcElement`.
+- `shared/ifc/psets/Pset_StingHealthcareClinical.xml` — 14 `CLN_*/MGS_*/LIG_*/RAD_*` healthcare clinical properties applicable to `IfcSpace`, `IfcZone`, `IfcElement`.
+- `shared/ifc/ids/sting-hvac-execution.ids` — IDS rules HVAC-001 (HVC_FLOW_LS present on sized duct) and HVAC-002 (HVC_LOAD_SOURCE_TXT enum).
+- `shared/ifc/ids/sting-cost-management.ids` — IDS rules COST-001/COST-002 (rate source + BOQ unit enumerations).
+- `shared/ifc/ids/sting-healthcare-clinical.ids` — IDS rules HC-001/HC-002/HC-003 (pressure regime, med gas type, radiation area classification enumerations).
+- `shared/ifc/bsdd/publication_plan.json` — three new entries (draft status) for the new psets, ready for bSDD submission.
+
+**Fix 2 — ArchiCAD zone semantic split in ARCHICAD_IFC_MAPPING.json**
+
+The existing mapping routed `Pset_ZoneCommon.ZoneCategoryCode` → `ASS_ZONE_TXT` which is semantically wrong: `ZoneCategoryCode` holds functional categories (`OFFICE`, `WARD`), not spatial zone designators (`Z01`, `Z02`). Corrected:
+
+- `Pset_ZoneCommon.Reference` → `ASS_ZONE_TXT` for `["IFCZONE"]` (spatial designator — the IFC GlobalId link key).
+- `AC_Pset_ZoneCategory.ZoneCategoryCode` → `ASS_FUNC_TXT` for `["IFCZONE", "IFCSPACE"]` (functional category).
+- `docs/archicad-zone-mapping-guide.md` created — explains the semantic difference, correct mapping, ArchiCAD translator settings, and IfcSpace vs IfcZone treatment.
+
+**Fix 3 — Level code normalisation in StingBridge**
+
+`StingBridge/archicad/client.py` — added `normalise_storey_to_level_code(storey_name)` module-level function. Converts ArchiCAD / Revit / Bonsai `IfcBuildingStorey` Name strings to STING `ASS_LVL_COD_TXT` format (`GF`, `L01`…`L99`, `B1`, `B2`, `RF`, `MZ`, fallback). All regex patterns are case-insensitive; normalisation is importable headlessly with no side effects.
+
+**Fix 4 — Bonsai discipline inference**
+
+- `stingtools-bonsai/core/category_inference.py` — 80+ IFC entity type → `(DISC, SYS)` mappings matching `TagConfig.SysMap` in the C# plugin. Three public functions: `infer_disc_sys()`, `infer_disc()`, `infer_sys()`. Pure lookup, no bpy/ifcopenshell dependency.
+- `stingtools-bonsai/core/bonsai.py` — `BonsaiBridge.auto_infer_discipline(element)` method calls `infer_disc_sys(element.is_a())` and returns `(disc, sys)` or `(None, None)`.
+- `stingtools-bonsai/tests/test_category_inference.py` — 15 test cases covering: uppercase/mixed-case/no-prefix inputs, discipline codes, system codes, unknown entities.
+
+**Fix 5 — TokenLock + TagHistory in BonsaiBridge + HostAdapter.compliance_matrix**
+
+- `stingtools-bonsai/core/exceptions.py` — `StingTokenLockError(param_name, locked_value, attempted_value)` with descriptive message pointing to `STING_TOKEN_LOCK_BOOL`.
+- `stingtools-bonsai/core/bonsai.py` — `_read_pset_property()` and `_write_pset_property()` helpers; `write_tag_segment(element, param_name, value)` raises `StingTokenLockError` when `STING_TOKEN_LOCK_BOOL` is true and the value differs; writes `STING_PREVIOUS_TAG_TXT` + `STING_TAG_MODIFIED_AT` audit trail before overwriting.
+- `stingtools-core/python/stingtools_core/hosts/adapter.py` — `HostAdapter.compliance_matrix` concrete property (default `{}`) so the Planscape hub can pull live compliance state from any host without knowing host-specific parameter APIs.
+- `stingtools-bonsai/tests/test_token_lock.py` — 7 test cases: raises on locked write, passes same value, writes audit trail on change, skips audit on first write.
+
+**Fix 7 — Cross-host GlobalId stability scaffold**
+
+- `tools/tests/fixtures/generate_globalid_fixture.py` — generates `globalid_corpus.json` by encoding `(host, host_element_id)` pairs via UUIDv5 → IFC base64. Namespace `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a` matches `StingTokenLineageSchema` / `ParamRegistry.ORG_AI_EXTRACT_ENABLED`.
+- `tools/tests/fixtures/globalid_corpus.json` — committed fixture (6 entries covering revit, bonsai, archicad hosts).
+- `tools/tests/test_globalid_stability.py` — parametrised regression tests asserting stable 22-char IFC GlobalId output, correct charset, correct length, and no cross-host collisions for the same host_element_id.
+
+**No changes to:** `StingTools/Data/MR_PARAMETERS.csv`, `MR_PARAMETERS.txt`, or any Revit C# source files.
+
 
 #### Completed (BOQ accuracy — review pass 2: each-unit carbon zeroing)
 

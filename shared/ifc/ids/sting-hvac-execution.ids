@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xs="http://www.w3.org/2001/XMLSchema"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+
+  <info>
+    <title>STING — HVAC Execution parameter validation</title>
+    <copyright>Planscape Limited, 2026</copyright>
+    <version>1.0.0</version>
+    <description>IDS encoding of format-side rules from shared/ifc/psets/Pset_StingHVACExecution.xml. Validates that HVAC sizing results written by HvacBlockLoadCommand, MepAutoSizeDuctCommand, and related engines are present and correctly typed on distribution flow elements.</description>
+    <author>info@stingtools.io</author>
+    <date>2026-08-05</date>
+    <purpose>STING HVAC Execution substrate validation — cross-host IFC round-trip</purpose>
+    <milestone>Stage_4_TechnicalDesign</milestone>
+  </info>
+
+  <specifications>
+
+    <specification name="HVC_FLOW_LS_present_on_sized_duct"
+                   ifcVersion="IFC4"
+                   identifier="HVAC-001"
+                   description="A sized duct segment must carry HVC_FLOW_LS in Pset_StingHVACExecution."
+                   instructions="Run MepAutoSizeDuctCommand before IFC export."
+                   requirementSeverity="recommendation">
+      <applicability>
+        <entity>
+          <name>
+            <simpleValue>IFCDUCTSEGMENT</simpleValue>
+          </name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingHVACExecution</simpleValue></propertySet>
+          <baseName><simpleValue>HVC_SIZING_STRATEGY_TXT</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IfcReal">
+          <propertySet><simpleValue>Pset_StingHVACExecution</simpleValue></propertySet>
+          <baseName><simpleValue>HVC_FLOW_LS</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+
+    <specification name="HVC_LOAD_SOURCE_TXT_enumeration"
+                   ifcVersion="IFC4"
+                   identifier="HVAC-002"
+                   description="When HVC_LOAD_SOURCE_TXT is present it must be one of the recognised values."
+                   requirementSeverity="recommendation">
+      <applicability>
+        <entity>
+          <name>
+            <simpleValue>IFCDISTRIBUTIONFLOWELEMENT</simpleValue>
+          </name>
+        </entity>
+        <property>
+          <propertySet><simpleValue>Pset_StingHVACExecution</simpleValue></propertySet>
+          <baseName><simpleValue>HVC_LOAD_SOURCE_TXT</simpleValue></baseName>
+        </property>
+      </applicability>
+      <requirements>
+        <property dataType="IfcLabel">
+          <propertySet><simpleValue>Pset_StingHVACExecution</simpleValue></propertySet>
+          <baseName><simpleValue>HVC_LOAD_SOURCE_TXT</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="BlockLoad"/>
+              <xs:enumeration value="Manual"/>
+              <xs:enumeration value="Imported"/>
+            </xs:restriction>
+          </value>
+        </property>
+      </requirements>
+    </specification>
+
+  </specifications>
+
+</ids>

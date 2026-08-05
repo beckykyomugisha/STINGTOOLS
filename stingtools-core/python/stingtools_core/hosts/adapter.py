@@ -90,3 +90,17 @@ class HostAdapter(abc.ABC):
     @abc.abstractmethod
     def georef_descriptor(self) -> GeorefDescriptor:
         """The model's coordinate evidence for the Federation Placement Resolver."""
+
+    @property
+    def compliance_matrix(self) -> dict[str, Any]:
+        """Per-element compliance state keyed on GlobalId.
+
+        Returns a mapping of ``{global_id: {"complete": bool, "missing": list[str]}}``
+        where ``missing`` is the list of mandatory STING token names that are
+        empty or absent for that element.
+
+        The default implementation returns an empty dict — hosts override this to
+        surface live compliance data to the Planscape hub without the hub needing
+        to understand host-specific parameter APIs.
+        """
+        return {}
