@@ -166,9 +166,15 @@ namespace StingTools.UI
                 var name = SitePhotosTabHelpers.PromptForString(owner,
                     "New distribution group", "Group name (required):", "");
                 if (string.IsNullOrWhiteSpace(name)) return;
-                var grp = await PlanscapeServerClient.Instance.CreateDistributionGroupAsync(
+                // CreateDistributionGroupAsync reports failure as `false`, not null.
+                // This was `grp == null` on a non-nullable bool — always false, so the
+                // error branch could never run: the create failed, the user was shown
+                // nothing, and the list simply refreshed. The compiler does diagnose
+                // that (CS0472), but CS0472 is in the project-wide NoWarn list, so the
+                // one signal that would have caught it was switched off.
+                bool created = await PlanscapeServerClient.Instance.CreateDistributionGroupAsync(
                     state.ProjectId, name.Trim(), kind: "Internal");
-                if (grp == null)
+                if (!created)
                 {
                     Autodesk.Revit.UI.TaskDialog.Show("New group",
                         PlanscapeServerClient.Instance.LastError ?? "(no detail)");

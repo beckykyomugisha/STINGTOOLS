@@ -21,9 +21,16 @@
     <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
     <!-- Silence merge-leftover noise warnings:
          CS0414/CS0649 — fields never assigned / assigned but never used (Revit IUpdater fields wired by reflection)
-         CS0472 — bool == null comparison from merged null-guarded code
-         CS8600/CS8602/CS8625 — nullable-flow analysis on stubs (Nullable is disabled project-wide anyway). -->
-    <NoWarn>$(NoWarn);CS0414;CS0649;CS0472;CS8600;CS8602;CS8625</NoWarn>
+         CS8600/CS8602/CS8625 — nullable-flow analysis on stubs (Nullable is disabled project-wide anyway).
+
+         CS0472 was here, described as "bool == null comparison from merged null-guarded
+         code". It was not noise: it had exactly one site in the whole plugin
+         (SitePhotosAdminSubTab.cs:171), and that site was a real bug — a failed
+         distribution-group create could never reach its error branch. Measured with the
+         suppression lifted: 1 warning before the fix, 0 after, across all ~1,440 sources.
+         Keeping it un-suppressed is therefore free, and it is the only thing that
+         mechanically prevents this bug class from coming back. Do not re-add it. -->
+    <NoWarn>$(NoWarn);CS0414;CS0649;CS8600;CS8602;CS8625</NoWarn>
   </PropertyGroup>
 
   <!-- Default RevitApiPath when not passed via command line (e.g. Visual Studio) -->
