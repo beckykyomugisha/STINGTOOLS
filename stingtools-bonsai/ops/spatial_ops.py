@@ -21,12 +21,17 @@ def _get_ifc():
         return None
 
 
-def _write_stag(ifc, element, props: dict) -> None:
-    try:
-        from ..core.bonsai import bonsai as _bridge
-        _bridge.add_pset(ifc, element, "Pset_StingTags", props)
-    except Exception as exc:
-        print(f"[STING] write_stag failed: {exc}")
+def _write_stag(element, props: dict) -> bool:
+    """Write props into Pset_StingTags on element. Returns True on success.
+
+    BonsaiBridge.add_pset takes (element, pset_name, properties) — it resolves
+    the active model itself. Passing the model as a fourth argument raised a
+    TypeError that a bare except swallowed, which is exactly what made every
+    spatial operator report success while writing nothing. The result is now
+    returned so callers can distinguish a real write from a silent no-op.
+    """
+    from ..core.bonsai import bonsai as _bridge
+    return _bridge.add_pset(element, "Pset_StingTags", props)
 
 
 # ---------------------------------------------------------------------------
@@ -84,13 +89,22 @@ class StingAutoDetectLocationOperator(bpy.types.Operator):
                 for el in (rel.RelatedElements or []):
                     element_to_bld[el.id()] = code
 
-        stamped = 0
+        stamped = failed = 0
         for el in ifc.by_type("IfcElement"):
             code = element_to_bld.get(el.id(), "BLD1")  # default BLD1
-            _write_stag(ifc, el, {"Location": code})
-            stamped += 1
+            if _write_stag(el, {"Location": code}):
+                stamped += 1
+            else:
+                failed += 1
 
-        self.report({"INFO"}, f"Location stamped on {stamped} element(s)")
+        if stamped == 0:
+            self.report({"WARNING"}, f"Location: wrote nothing — {failed} write(s) failed")
+            return {"CANCELLED"}
+        self.report(
+            {"WARNING"} if failed else {"INFO"},
+            f"Location stamped on {stamped} element(s)"
+            + (f"; {failed} write(s) failed" if failed else ""),
+        )
         return {"FINISHED"}
 
 
@@ -125,13 +139,22 @@ class StingAutoDetectZoneOperator(bpy.types.Operator):
         # so that logic lives in stingtools_core, not this adapter (Phase A6).
         element_to_zone, zone_count = _inf.zone_codes_for_model(ifc)
 
-        stamped = 0
+        stamped = failed = 0
         for el in ifc.by_type("IfcElement"):
             code = element_to_zone.get(el.id(), "ZZ")
-            _write_stag(ifc, el, {"Zone": code})
-            stamped += 1
+            if _write_stag(el, {"Zone": code}):
+                stamped += 1
+            else:
+                failed += 1
 
-        self.report({"INFO"}, f"Zone stamped on {stamped} element(s) ({zone_count} zone(s) found)")
+        if stamped == 0:
+            self.report({"WARNING"}, f"Zone: wrote nothing — {failed} write(s) failed")
+            return {"CANCELLED"}
+        self.report(
+            {"WARNING"} if failed else {"INFO"},
+            f"Zone stamped on {stamped} element(s) ({zone_count} zone(s) found)"
+            + (f"; {failed} write(s) failed" if failed else ""),
+        )
         return {"FINISHED"}
 
 
@@ -163,20 +186,26 @@ class StingAutoDetectFunctionOperator(bpy.types.Operator):
             self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
             return {"CANCELLED"}
 
-        stamped = unrecognised = 0
+        stamped = unrecognised = failed = 0
         for el in ifc.by_type("IfcElement"):
             ifc_class = el.is_a()
             func = _inf.function_for_class(ifc_class)
             if func == "GEN":
                 unrecognised += 1
-            _write_stag(ifc, el, {"Function": func})
-            stamped += 1
+            if _write_stag(el, {"Function": func}):
+                stamped += 1
+            else:
+                failed += 1
 
+        if stamped == 0:
+            self.report({"WARNING"}, f"Function: wrote nothing — {failed} write(s) failed")
+            return {"CANCELLED"}
         self.report(
-            {"INFO"},
+            {"WARNING"} if failed else {"INFO"},
             f"Function stamped on {stamped} element(s) "
             f"({unrecognised} mapped to GEN — add to stingtools_core "
-            f"FUNCTION_BY_IFC_CLASS to refine)",
+            f"FUNCTION_BY_IFC_CLASS to refine)"
+            + (f"; {failed} write(s) failed" if failed else ""),
         )
         return {"FINISHED"}
 
