@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 137
 //
 // ProductionPresetRegistry persists DrawingProductionPreset rows to
@@ -135,7 +135,7 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(projPath)) return null;
             var dir = Path.GetDirectoryName(projPath);
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", FileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
         }
     }
 }

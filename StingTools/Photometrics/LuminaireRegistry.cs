@@ -64,10 +64,16 @@ namespace StingTools.Photometrics
             lock (_lock) { _cache = null; _cachePath = null; }
         }
 
+        /// <summary>
+        /// Registry path for a project. <paramref name="projectFolder"/> is the folder
+        /// holding the .rvt (callers pass Path.GetDirectoryName(doc.PathName)), so a
+        /// synthetic model path inside it is enough to reach the consolidated resolver.
+        /// </summary>
         public static string ResolvePath(string projectFolder)
         {
             if (string.IsNullOrEmpty(projectFolder)) return null;
-            return Path.Combine(projectFolder, "_BIM_COORD", FileName);
+            string modelProbe = Path.Combine(projectFolder, "_.rvt");
+            return StingPaths.MetaFileFrom(modelProbe, "_BIM_COORD", FileName);
         }
 
         private static LuminaireRegistry LoadFromDisk(string path)

@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  ScheduleCpmCommands.cs — PM-4 Revit hooks over the pure scheduling engines.
 //
 //  Wires the pure Core.Schedule engines (ScheduleImporter / ScheduleCpmBridge /
@@ -42,7 +42,7 @@ namespace StingTools.Commands.Cost
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return new WorkingCalendarConfig();
-                string p = Path.Combine(parent, "_BIM_COORD", "working_calendar.json");
+                string p = StingPaths.MetaFile(doc, "_BIM_COORD", "working_calendar.json");
                 if (!File.Exists(p)) return new WorkingCalendarConfig();
                 var cfg = JsonConvert.DeserializeObject<WorkingCalendarConfig>(File.ReadAllText(p));
                 return cfg ?? new WorkingCalendarConfig();
@@ -374,7 +374,7 @@ namespace StingTools.Commands.Cost
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "cash_flow_scurve.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "cash_flow_scurve.json");
             }
             catch { return null; }
         }

@@ -1006,33 +1006,61 @@ namespace StingTools.BIMManager
         //  HIGH-05: CDE Folder Structure Generator
         // ═══════════════════════════════════════════════════════════════════
 
-        internal static string GenerateCDEFolders(string basePath, string projectCode)
+        /// <summary>
+        /// Scaffold a CDE tree at a user-chosen base path (typically a shared drive),
+        /// using the SHAPE the project itself uses.
+        /// <para>
+        /// This used to define its own fifth tree — 4 states x 7 disciplines x 7 doc types
+        /// = 196 directories, with discipline names ("A-Architecture") and doc types that
+        /// matched neither <see cref="ProjectSetup.BimFolderDefaults"/> nor
+        /// <see cref="ProjectSetup.CdeFirstFolderDefaults"/>. A team that ran it got a
+        /// share whose layout disagreed with the folders their exports actually land in.
+        /// It now builds from the document's own <see cref="ProjectSetup"/>, so there is
+        /// one tree definition in the product.
+        /// </para>
+        /// <para>
+        /// The _RECYCLE folder is no longer created: the recycle bin lives at
+        /// &lt;root&gt;/_data/recycle and <see cref="ProjectFolderEngine.DeleteFile"/> creates
+        /// it on first use, so this only ever made an empty folder nothing wrote to.
+        /// </para>
+        /// </summary>
+        internal static string GenerateCDEFolders(Document doc, string basePath, string projectCode)
         {
             if (string.IsNullOrEmpty(basePath)) return "Base path required.";
             if (string.IsNullOrEmpty(projectCode)) projectCode = "PROJ";
 
-            var cdeStates = StingTools.Core.StingPaths.CdeStates;
-            var disciplines = new[] { "A-Architecture", "S-Structure", "M-Mechanical", "E-Electrical", "P-Plumbing", "FP-Fire", "G-General" };
-            var docTypes = new[] { "MODELS", "DRAWINGS", "SCHEDULES", "SPECIFICATIONS", "REPORTS", "COBie", "BEP" };
+            // Mirror the project's own tree. Falls back to the BIM default shape for a
+            // document that has no setup yet (e.g. an unsaved model).
+            var setup = ProjectFolderEngine.LoadOrBootstrapSetup(doc)
+                        ?? ProjectSetup.CreateBIM(projectCode, "");
 
+            string root = Path.Combine(basePath, projectCode);
             int created = 0;
-            foreach (var state in cdeStates)
+
+            void Make(string path)
             {
-                foreach (var disc in disciplines)
-                {
-                    foreach (var docType in docTypes)
-                    {
-                        string dir = Path.Combine(basePath, projectCode, state, disc, docType);
-                        if (!Directory.Exists(dir)) { Directory.CreateDirectory(dir); created++; }
-                    }
-                }
+                if (Directory.Exists(path)) return;
+                try { Directory.CreateDirectory(path); created++; }
+                catch (Exception ex) { StingLog.Warn($"GenerateCDEFolders {path}: {ex.Message}"); }
             }
 
-            // Create _RECYCLE folder
-            string recyclePath = Path.Combine(basePath, projectCode, "_RECYCLE");
-            if (!Directory.Exists(recyclePath)) { Directory.CreateDirectory(recyclePath); created++; }
+            Make(root);
+            foreach (var f in setup.CustomFolders)
+            {
+                if (setup.HiddenFolders.Contains(f.Id, StringComparer.OrdinalIgnoreCase)) continue;
+                string folderPath = Path.Combine(root, f.DisplayName);
+                Make(folderPath);
 
-            return $"CDE folder structure created: {created} directories\nBase: {Path.Combine(basePath, projectCode)}";
+                if (f.HasDisciplineSubfolders && setup.Disciplines != null)
+                    foreach (string disc in setup.Disciplines) Make(Path.Combine(folderPath, disc));
+
+                if (f.SubFolders != null)
+                    foreach (string s in f.SubFolders) Make(Path.Combine(folderPath, s));
+            }
+
+            return $"CDE folder structure created: {created} directories\n" +
+                   $"Layout: {setup.Mode} (same shape as this project's own folders)\n" +
+                   $"Base: {root}";
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -1609,7 +1637,7 @@ namespace StingTools.BIMManager
 
             string basePath = Path.GetDirectoryName(dlg.FileName) ?? "";
             string projectCode = ctx.Doc.Title?.Split('.').FirstOrDefault() ?? "PROJ";
-            string result = GapFixEngine.GenerateCDEFolders(basePath, projectCode);
+            string result = GapFixEngine.GenerateCDEFolders(ctx.Doc, basePath, projectCode);
             TaskDialog.Show("STING CDE Folders", result);
             return Result.Succeeded;
         }

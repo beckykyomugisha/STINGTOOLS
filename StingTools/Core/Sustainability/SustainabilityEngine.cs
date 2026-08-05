@@ -1,4 +1,4 @@
-// StingTools — Sustainability orchestration engine (Phase 195, Revit-facing).
+﻿// StingTools — Sustainability orchestration engine (Phase 195, Revit-facing).
 //
 // Gathers the inputs (LoadZones from Spaces/Rooms, material lines via the BOQ
 // takeoff + CarbonFactorResolver TIER-1), runs the four pure-POCO estimators,
@@ -1267,7 +1267,7 @@ namespace StingTools.Core.Sustainability
             {
                 string dir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(dir)) return "0";
-                string path = System.IO.Path.Combine(dir, "_BIM_COORD", "boq_epd_map.json");
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", "boq_epd_map.json");
                 return System.IO.File.Exists(path)
                     ? System.IO.File.GetLastWriteTimeUtc(path).Ticks.ToString()
                     : "0";

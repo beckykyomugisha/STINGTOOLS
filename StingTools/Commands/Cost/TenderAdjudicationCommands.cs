@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  TenderAdjudicationCommands.cs — WP4a Tool 1: Tender Comparison & Adjudication.
 //
 //  Import N priced QS-Bill returns (each exported via "Export QS Bill", so they
@@ -65,7 +65,7 @@ namespace StingTools.Commands.Cost
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "tender_adjudication.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "tender_adjudication.json");
             }
             catch { return null; }
         }

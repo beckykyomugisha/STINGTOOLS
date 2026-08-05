@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,7 +33,7 @@ namespace StingTools.Commands.Classification
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string p = Path.Combine(dir, "_BIM_COORD", "csi_map.csv");
+                    string p = StingPaths.MetaFile(doc, "_BIM_COORD", "csi_map.csv");
                     if (File.Exists(p))
                     {
                         var r = CsiMasterFormat.ParseCsvLines(File.ReadAllLines(p));
