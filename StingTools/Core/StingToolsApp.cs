@@ -192,6 +192,14 @@ namespace StingTools.Core
                 // in project_config.json.
                 LiveClashUpdater.Register(application);
 
+                // Register the Planscape live element-sync updater (IUpdater) —
+                // registered with NO triggers. Triggers are attached only on a
+                // successful Planscape connect and removed on disconnect, so users
+                // who never touch Planscape pay nothing for it (Revit evaluates an
+                // updater's trigger filter on every element change even while the
+                // updater is disabled).
+                StingTools.Core.Sync.LiveSyncUpdater.Register(application);
+
                 // Register the SLD sync updater (IUpdater) — starts disabled. The
                 // SLD panel's "live sync" toggle writes sld_sync_enabled; without
                 // this registration that flag governed nothing.
@@ -1745,52 +1753,73 @@ namespace StingTools.Core
                 try
                 {
                     var client = PlanscapeServerClient.Instance;
-                    var payload = new Planscape.Shared.Models.PluginSyncPayload
-                    {
-                        ProjectId     = Guid.Empty, // server resolves via auth/tenant scope
-                        UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
-                        RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
-                                          .GetName().Version?.ToString() ?? "",
-                        PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
-                        Timestamp     = DateTime.UtcNow,
-                        TagElements   = tagElements,
-                        Compliance    = new Planscape.Shared.Models.ComplianceSync
-                        {
-                            TotalElements     = totalElements,
-                            TaggedComplete    = taggedCount,
-                            StaleCount        = staleCount,
-                            PlaceholderCount  = placeholderCount,
-                            WarningCount      = warningCount,
-                            TagPercent        = tagPct,
-                            StrictPercent     = strictPct,
-                            ContainerPercent  = containerPct,
-                            RagStatus         = ragStatus
-                        }
-                    };
 
-                    var queue = OfflineQueue.Shared;
-                    if (queue != null)
+                    // The linked Planscape project id, NOT Guid.Empty. The server
+                    // does not resolve the project from auth/tenant scope — it
+                    // matches on request.ProjectId and returns 404 when it can't
+                    // find one. A 404 is a 4xx, which the offline queue classifies
+                    // as a fatal request error and DELETES the payload, so every
+                    // save-triggered sync used to be silently discarded.
+                    string bimDirSync = BIMManagerEngine.GetBIMManagerDir(doc);
+                    Guid syncProjectId = BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(
+                        Path.Combine(bimDirSync, "planscape_connection.json"));
+                    // NOTE: skip the enqueue, do NOT return — returning here would
+                    // also skip the geometry-delta trigger further down, which is a
+                    // separate and working channel.
+                    if (syncProjectId == Guid.Empty)
                     {
-                        queue.Enqueue(payload);
-                        StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
-                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} tag elements enqueued " +
-                            $"(queue depth: {queue.Count})");
-
-                        // C3 — drain immediately instead of waiting for the 5-min timer.
-                        // Fire-and-forget; the scheduler handles retry on failure.
-                        if (SyncScheduler.Instance != null)
-                        {
-                            _ = Task.Run(async () =>
-                            {
-                                try { await SyncScheduler.Instance.SyncNowAsync(); }
-                                catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
-                            });
-                        }
+                        StingLog.Info($"DocumentSaved: {doc.Title} — no Planscape project linked, element sync skipped");
                     }
                     else
                     {
-                        StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
-                    }
+                        var payload = new Planscape.Shared.Models.PluginSyncPayload
+                        {
+                            ProjectId     = syncProjectId,
+                            UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
+                            RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
+                                              .GetName().Version?.ToString() ?? "",
+                            PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
+                            Timestamp     = DateTime.UtcNow,
+                            TagElements   = tagElements,
+                            Compliance    = new Planscape.Shared.Models.ComplianceSync
+                            {
+                                TotalElements     = totalElements,
+                                TaggedComplete    = taggedCount,
+                                StaleCount        = staleCount,
+                                PlaceholderCount  = placeholderCount,
+                                WarningCount      = warningCount,
+                                TagPercent        = tagPct,
+                                StrictPercent     = strictPct,
+                                ContainerPercent  = containerPct,
+                                RagStatus         = ragStatus
+                            }
+                        };
+
+                        var queue = OfflineQueue.Shared;
+                        if (queue != null)
+                        {
+                            var chunks = BIMManager.PlatformSyncCommand.ChunkForTransport(payload);
+                            foreach (var chunk in chunks) queue.Enqueue(chunk);
+                            StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
+                                $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} elements enqueued " +
+                                $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
+
+                            // C3 — drain immediately instead of waiting for the 5-min timer.
+                            // Fire-and-forget; the scheduler handles retry on failure.
+                            if (SyncScheduler.Instance != null)
+                            {
+                                _ = Task.Run(async () =>
+                                {
+                                    try { await SyncScheduler.Instance.SyncNowAsync(); }
+                                    catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
+                                });
+                            }
+                        }
+                        else
+                        {
+                            StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
+                        }
+                    } // end: project linked
                 }
                 catch (Exception qEx)
                 {
@@ -1820,9 +1849,16 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// C3 — Collect lightweight tag element records for the sync payload.
-        /// Includes only elements with ASS_TAG_1_TXT populated (tagged elements)
-        /// and caps at <paramref name="max"/> to keep the save path fast.
+        /// C3 — Collect element records for the sync payload.
+        /// <para>
+        /// No longer gated on ASS_TAG_1_TXT: an element is eligible for sync
+        /// because it exists, not because someone has tagged it. Compliance %
+        /// stays truthful because it is computed from tag completeness, not from
+        /// row count.
+        /// </para>
+        /// Caps at <paramref name="max"/> to keep the save path fast, and defers
+        /// the whole projection to <see cref="Core.Sync.TagElementSyncMapper"/>
+        /// so this path cannot drift from the Sync Now path again.
         /// </summary>
         private static List<Planscape.Shared.Models.TagElementSync> CollectTagElements(
             Autodesk.Revit.DB.Document doc, int max = 5000)
@@ -1837,28 +1873,9 @@ namespace StingTools.Core
             foreach (var el in collector)
             {
                 if (results.Count >= max) break;
-
-                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag1)) continue;
-
-                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
-
-                results.Add(new Planscape.Shared.Models.TagElementSync
-                {
-                    RevitElementId = el.Id.Value,
-                    UniqueId       = el.UniqueId,
-                    Disc           = FromReg(ParamRegistry.DISC),
-                    Loc            = FromReg(ParamRegistry.LOC),
-                    Zone           = FromReg(ParamRegistry.ZONE),
-                    Lvl            = FromReg(ParamRegistry.LVL),
-                    Sys            = FromReg(ParamRegistry.SYS),
-                    Func           = FromReg(ParamRegistry.FUNC),
-                    Prod           = FromReg(ParamRegistry.PROD),
-                    Seq            = FromReg(ParamRegistry.SEQ),
-                    Tag1           = tag1,
-                    CategoryName   = el.Category?.Name ?? "",
-                    FamilyName     = ParameterHelpers.GetFamilyName(el) ?? "",
-                });
+                results.Add(Core.Sync.TagElementSyncMapper.MapElement(
+                    doc, el,
+                    hydrateTiers: Core.Sync.TagElementSyncMapper.ShouldHydrateTiers(el)));
             }
             return results;
         }
@@ -1896,6 +1913,7 @@ namespace StingTools.Core
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             try { Core.Sustainability.SustainStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
+            try { Core.Sync.LiveSyncUpdater.Unregister(); } catch { }
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
 

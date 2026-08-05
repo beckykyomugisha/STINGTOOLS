@@ -66,6 +66,18 @@ public class OfflineQueue
         catch { /* best-effort */ }
     }
 
+    /// <summary>
+    /// Monotonic tie-breaker for queue file names. Wraps at 1,000,000 so the
+    /// D6 format stays fixed-width and lexicographic order keeps matching
+    /// enqueue order within a millisecond.
+    /// </summary>
+    private static int _sequence;
+    private static int NextSequence()
+    {
+        int next = System.Threading.Interlocked.Increment(ref _sequence);
+        return ((next % 1_000_000) + 1_000_000) % 1_000_000;
+    }
+
     public void Enqueue(PluginSyncPayload payload)
     {
         lock (_lock)
@@ -88,7 +100,13 @@ public class OfflineQueue
                 }
             }
 
-            string fileName = $"sync_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}.json";
+            // The name carries a per-process monotonic suffix as well as the
+            // millisecond timestamp. With the timestamp alone, two enqueues
+            // landing in the same millisecond produced the same path and the
+            // second File.WriteAllText silently OVERWROTE the first — losing a
+            // whole payload with no error and no log line. The suffix also keeps
+            // the lexicographic ordering that PeekAll relies on for FIFO drain.
+            string fileName = $"sync_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}_{NextSequence():D6}.json";
             string filePath = Path.Combine(_queueDir, fileName);
             File.WriteAllText(filePath, JsonConvert.SerializeObject(payload, Formatting.None));
         }
@@ -186,19 +204,12 @@ public class OfflineQueue
                     .Where(el => string.IsNullOrEmpty(el.Disc) || disciplineFilter.Contains(el.Disc))
                     .ToList();
                 if (filtered.Count == 0) continue;       // leave for a later, wider drain
-                toSend = new PluginSyncPayload
-                {
-                    ProjectId = payload.ProjectId,
-                    PluginVersion = payload.PluginVersion,
-                    RevitVersion = payload.RevitVersion,
-                    UserName = payload.UserName,
-                    Timestamp = payload.Timestamp,
-                    SeqCounters = payload.SeqCounters,
-                    Compliance = payload.Compliance,
-                    Issues = payload.Issues,
-                    WorkflowRuns = payload.WorkflowRuns,
-                    TagElements = filtered,
-                };
+
+                // WithElements rather than a hand-written object initialiser: the
+                // initialiser that used to live here was a third copy of
+                // PluginSyncPayload's field list, and would have silently dropped
+                // any field added to the payload after it was written.
+                toSend = payload.WithElements(filtered);
             }
 
             var result = await client.SyncAsync(toSend);

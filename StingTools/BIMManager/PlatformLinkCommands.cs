@@ -2000,9 +2000,27 @@ namespace StingTools.BIMManager
             // or unsynced local copy. We block only on user choice — once
             // accepted, the sync proceeds with whatever payload the local
             // model carries.
+            //
+            // Interactive paths only. This method is also called from the
+            // automatic DocumentSynchronizedWithCentral handler, where these
+            // modal confirms popped up on their own with nobody having asked for
+            // a sync — and defaulted to Cancel, so an unattended STC either
+            // blocked on a dialog or quietly cancelled itself. On automatic
+            // paths we log the same facts and proceed. `promptStabilise` already
+            // marks "this is the user pressing the button" (it gates the IFC
+            // GUID prompt directly above), so it is the interactive flag.
+            bool interactive = promptStabilise;
             try
             {
-                if (!doc.IsWorkshared)
+                if (!interactive)
+                {
+                    bool wsModified = false;
+                    try { wsModified = doc.IsWorkshared && doc.IsModified; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    StingLog.Info($"Planscape sync (automatic): workshared={doc.IsWorkshared} " +
+                                  $"unsyncedLocalChanges={wsModified} — proceeding without confirmation");
+                }
+                else if (!doc.IsWorkshared)
                 {
                     StingLog.Info("Planscape sync: document is not workshared — local model is the source of truth");
                     var nonShared = new TaskDialog("Planscape Sync — Confirm")
@@ -2046,14 +2064,18 @@ namespace StingTools.BIMManager
             }
 
             // Phase 91 — shared payload-build path (also used by PluginSyncTickBridge
-            // on the scheduler's 5-min tick). Reads ASS_* parameters and maps them
-            // onto Planscape.Shared.Models.TagElementSync.
+            // on the scheduler's 5-min tick). Maps every model element onto
+            // Planscape.Shared.Models.TagElementSync.
             var payload = BuildPluginSyncPayload(doc, app, projectId);
             var tagSync = payload.TagElements ?? new List<Planscape.Shared.Models.TagElementSync>();
 
             if (tagSync.Count == 0)
             {
-                TaskDialog.Show("Planscape", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
+                // Sync is no longer gated on tagging, so an empty result now means
+                // the document genuinely has no elements — not that nobody has run
+                // the tagger yet. The old message told the user to go and tag
+                // something, which stopped being true when the gate was removed.
+                TaskDialog.Show("Planscape", "No elements found to sync.\n\nThis document contains no model elements.");
                 return;
             }
 
@@ -2070,11 +2092,26 @@ namespace StingTools.BIMManager
             Planscape.Shared.Models.SyncResult sResult;
             try
             {
-                // Task.Run escapes the WPF DispatcherSynchronizationContext
-                // so SyncNow's continuations don't deadlock against the
-                // dispatcher we're blocking on with GetResult().
-                sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(payload))
-                    .GetAwaiter().GetResult();
+                // Enqueue the sweep as transport-sized chunks, then drain with a
+                // null payload (SyncNowAsync(null) skips the enqueue and just
+                // drains whatever is queued).
+                var chunks = ChunkForTransport(payload);
+                var queue = Planscape.PluginSync.OfflineQueue.Shared;
+                if (queue != null && chunks.Count > 1)
+                {
+                    foreach (var chunk in chunks) queue.Enqueue(chunk);
+                    StingLog.Info($"Planscape sync: {tagSync.Count:N0} elements enqueued as {chunks.Count} chunks");
+                    sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(null))
+                        .GetAwaiter().GetResult();
+                }
+                else
+                {
+                    // Task.Run escapes the WPF DispatcherSynchronizationContext
+                    // so SyncNow's continuations don't deadlock against the
+                    // dispatcher we're blocking on with GetResult().
+                    sResult = Task.Run(() => Planscape.PluginSync.SyncScheduler.SyncNow(payload))
+                        .GetAwaiter().GetResult();
+                }
             }
             catch (Exception ex)
             {
@@ -2142,120 +2179,24 @@ namespace StingTools.BIMManager
         {
             var client = PlanscapeServerClient.Instance;
 
-            var elements = new List<TagElementPayload>();
+            var tagSync = new List<Planscape.Shared.Models.TagElementSync>();
             using (var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 foreach (Element el in collector)
                 {
-                    string tag1 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG1) ?? "";
-                    if (string.IsNullOrEmpty(tag1)) continue;
-
-                    string disc = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.DISC) ?? "";
-                    string loc  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LOC)  ?? "";
-                    string zone = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.ZONE) ?? "";
-                    string lvl  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.LVL)  ?? "";
-                    string sys  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SYS)  ?? "";
-                    string func = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.FUNC) ?? "";
-                    string prod = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.PROD) ?? "";
-                    string seq  = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.SEQ)  ?? "";
-                    string tag7 = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7) ?? "";
-                    string status = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.STATUS) ?? "";
-                    string rev   = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.REV)    ?? "";
-                    string cat   = ParameterHelpers.GetCategoryName(el);
-                    string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
-
-                    bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
-                    bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
-
-                    // ─── Phase 165 — T4-T10 payload ───
-                    // Read TAG7A-TAG7F directly (already written by WriteTag7All),
-                    // build T4-T10 summaries fresh from element parameters,
-                    // resolve active depth and pattern mode for the server.
-                    string tag7a = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7A) ?? "";
-                    string tag7b = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7B) ?? "";
-                    string tag7c = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7C) ?? "";
-                    string tag7d = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7D) ?? "";
-                    string tag7e = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7E) ?? "";
-                    string tag7f = ParameterHelpers.GetString(el, StingTools.Core.ParamRegistry.TAG7F) ?? "";
-
-                    StingTools.Core.TagConfig.Tag7Result tier = null;
-                    try
-                    {
-                        var tokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
-                        tier = StingTools.Core.TagConfig.BuildTag7Sections(doc, el, cat, tokens);
-                    }
-                    catch { /* tier hydration is best-effort */ }
-
-                    Element typeEl = null;
-                    try { typeEl = doc.GetElement(el.GetTypeId()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                    int paraDepth   = StingTools.Core.TagConfig.ReadActiveParagraphDepth(typeEl, el);
-                    string pattern  = StingTools.Core.TagConfig.ResolveActivePatternMode(typeEl, el);
-
-                    // Drift 4 — the cross-host key is the TRUE IFC GlobalId
-                    // (IFC_GLOBAL_ID_TXT, written by StabilizeIfcGuidsCommand from
-                    // Revit's IfcGloballyUniqueId), NOT Element.UniqueId. Empty
-                    // until the element is stabilised + IFC-exported; sent null so
-                    // the server skips the mapping rather than keying on the wrong id.
-                    string ifcGid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
-
-                    elements.Add(new TagElementPayload
-                    {
-                        RevitElementId  = el.Id.Value,
-                        UniqueId        = el.UniqueId,
-                        IfcGlobalId     = string.IsNullOrWhiteSpace(ifcGid) ? null : ifcGid,
-                        Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
-                        Sys = sys, Func = func, Prod = prod, Seq = seq,
-                        Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
-                        CategoryName    = cat, FamilyName = fam,
-                        Status          = string.IsNullOrEmpty(status) ? null : status,
-                        Rev             = string.IsNullOrEmpty(rev) ? null : rev,
-                        IsComplete      = isComplete, IsFullyResolved = isFullyResolved,
-                        // INT-03 (Phase 91): per-element wall-clock timestamp from
-                        // ASS_TAG_MODIFIED_DT audit trail, with DateTime.UtcNow
-                        // fallback. Enables server-side delta detection.
-                        LastModifiedUtc = ResolveElementLastModifiedUtc(el),
-                        // Phase 165 — T4-T10 + sections + depth + pattern mode
-                        Tag7A = string.IsNullOrEmpty(tag7a) ? null : tag7a,
-                        Tag7B = string.IsNullOrEmpty(tag7b) ? null : tag7b,
-                        Tag7C = string.IsNullOrEmpty(tag7c) ? null : tag7c,
-                        Tag7D = string.IsNullOrEmpty(tag7d) ? null : tag7d,
-                        Tag7E = string.IsNullOrEmpty(tag7e) ? null : tag7e,
-                        Tag7F = string.IsNullOrEmpty(tag7f) ? null : tag7f,
-                        T4Commissioning  = string.IsNullOrEmpty(tier?.SectionT4)  ? null : tier.SectionT4,
-                        T5Cost           = string.IsNullOrEmpty(tier?.SectionT5)  ? null : tier.SectionT5,
-                        T6Carbon         = string.IsNullOrEmpty(tier?.SectionT6)  ? null : tier.SectionT6,
-                        T7Fabrication    = string.IsNullOrEmpty(tier?.SectionT7)  ? null : tier.SectionT7,
-                        T8ClashTriage    = string.IsNullOrEmpty(tier?.SectionT8)  ? null : tier.SectionT8,
-                        T9AsBuilt        = string.IsNullOrEmpty(tier?.SectionT9)  ? null : tier.SectionT9,
-                        T10Compliance    = string.IsNullOrEmpty(tier?.SectionT10) ? null : tier.SectionT10,
-                        ParaDepth        = paraDepth,
-                        PatternMode      = pattern,
-                    });
+                    // Sync is no longer gated on tagging — an element is eligible
+                    // because it exists. Tier hydration stays conditional on the
+                    // element actually carrying a tag, because BuildTag7Sections
+                    // is the expensive part of the mapping and produces nothing
+                    // but empty sections for an untagged element.
+                    tagSync.Add(StingTools.Core.Sync.TagElementSyncMapper.MapElement(
+                        doc, el,
+                        hydrateTiers: StingTools.Core.Sync.TagElementSyncMapper.ShouldHydrateTiers(el)));
                 }
             }
 
             string revitVer = app?.Application?.VersionNumber ?? "";
             string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
-
-            // Convert to the shared TagElementSync shape consumed by the scheduler.
-            var tagSync = new List<Planscape.Shared.Models.TagElementSync>(elements.Count);
-            foreach (var p in elements)
-            {
-                tagSync.Add(new Planscape.Shared.Models.TagElementSync
-                {
-                    Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
-                    Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
-                    FamilyName   = p.FamilyName ?? "",
-                    Status       = p.Status,
-                    Rev          = p.Rev,
-                    IsComplete       = p.IsComplete,
-                    IsFullyResolved  = p.IsFullyResolved,
-                    // INT-03 (Phase 91): forward per-element timestamp into
-                    // the Shared DTO so SyncClient → /api/tagsync/sync
-                    // carries meaningful LastModifiedUtc on every element.
-                    LastModifiedUtc  = p.LastModifiedUtc
-                });
-            }
 
             return new Planscape.Shared.Models.PluginSyncPayload
             {
@@ -2266,6 +2207,60 @@ namespace StingTools.BIMManager
                 Timestamp     = DateTime.UtcNow,
                 TagElements   = tagSync
             };
+        }
+
+        /// <summary>
+        /// Largest element count we will put into a single queued payload.
+        /// <para>
+        /// The server rejects any request carrying more than 50,000 elements
+        /// (TagSyncController returns 400). That cap is already satisfied at the
+        /// transport layer — <c>SyncClient.SyncAsync</c> slices
+        /// <c>TagElements</c> into POSTs of <c>BatchSize</c> = 500, so no single
+        /// request has ever been able to exceed it. This lower payload-level cap
+        /// exists for a different reason: now that sync is no longer gated on
+        /// tagging, a full sweep of a large model is every element in it, and a
+        /// single queue file holding all of them is a large blob to serialise,
+        /// write, re-read and hold in memory on each drain. Chunking keeps the
+        /// queue files bounded, and keeps us well under the server cap even if
+        /// the transport batching is ever changed.
+        /// </para>
+        /// </summary>
+        internal const int MaxElementsPerPayload = 10_000;
+
+        /// <summary>
+        /// Split a payload into transport-sized chunks. The first chunk keeps the
+        /// non-element data (compliance, SEQ counters, issues, workflow runs);
+        /// subsequent chunks carry elements only, so a multi-chunk sweep doesn't
+        /// re-post the same compliance snapshot once per chunk.
+        /// Returns the payload unchanged when it is already small enough.
+        /// </summary>
+        internal static List<Planscape.Shared.Models.PluginSyncPayload> ChunkForTransport(
+            Planscape.Shared.Models.PluginSyncPayload payload)
+        {
+            var result = new List<Planscape.Shared.Models.PluginSyncPayload>();
+            if (payload == null) return result;
+
+            var elements = payload.TagElements;
+            if (elements == null || elements.Count <= MaxElementsPerPayload)
+            {
+                result.Add(payload);
+                return result;
+            }
+
+            for (int i = 0; i < elements.Count; i += MaxElementsPerPayload)
+            {
+                var slice = elements.GetRange(i, Math.Min(MaxElementsPerPayload, elements.Count - i));
+                var chunk = payload.WithElements(slice);
+                if (i > 0)
+                {
+                    chunk.Compliance   = null;
+                    chunk.SeqCounters  = null;
+                    chunk.Issues       = null;
+                    chunk.WorkflowRuns = null;
+                }
+                result.Add(chunk);
+            }
+            return result;
         }
 
         internal static Guid LoadPlanscapeProjectId(string cfgPath)
@@ -2284,47 +2279,9 @@ namespace StingTools.BIMManager
             }
         }
 
-        /// <summary>
-        /// Phase 91/INT-03 — resolve the wall-clock "last modified" time for a
-        /// tagged element for the Planscape sync payload.
-        /// Called from <see cref="BuildPluginSyncPayload"/>.
-        /// Phase 100 fix: was previously only defined inside
-        /// <c>PluginSyncTickBridge</c> (different class scope) so the call
-        /// from <c>BuildPluginSyncPayload</c> produced CS0103. Duplicated here
-        /// as a private static member of <c>PlatformSyncCommand</c> since the
-        /// bridge never actually calls this method itself (it delegates to
-        /// <c>BuildPluginSyncPayload</c> which owns the payload assembly).
-        ///
-        /// Priority chain:
-        ///   1. <c>ASS_TAG_MODIFIED_DT</c> — STING audit-trail stamp written
-        ///      by <c>TagPipelineHelper.RunFullPipeline</c> (Phase 77 #748).
-        ///   2. <c>DateTime.UtcNow</c> — fallback so the server always sees a
-        ///      non-null timestamp and can still last-write-wins-reconcile.
-        /// </summary>
-        private static DateTime ResolveElementLastModifiedUtc(Element el)
-        {
-            if (el == null) return DateTime.UtcNow;
-
-            try
-            {
-                string stamp = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_DT");
-                if (!string.IsNullOrWhiteSpace(stamp)
-                    && DateTime.TryParse(stamp,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.AssumeUniversal
-                            | System.Globalization.DateTimeStyles.AdjustToUniversal,
-                        out var parsed))
-                {
-                    return parsed;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ResolveElementLastModifiedUtc: ASS_TAG_MODIFIED_DT parse failed on {el.Id.Value}: {ex.Message}");
-            }
-
-            return DateTime.UtcNow;
-        }
+        // Phase 91/INT-03 — ResolveElementLastModifiedUtc moved to
+        // StingTools.Core.Sync.TagElementSyncMapper.ResolveLastModifiedUtc, which is
+        // now the single owner of the element -> wire-model projection.
     }
 
     #endregion
@@ -2360,6 +2317,13 @@ namespace StingTools.BIMManager
         {
             lock (_lock)
             {
+                // Attach the live-sync triggers on every connect. Deliberately
+                // ABOVE the _wired guard: that guard is one-shot, so after a
+                // disconnect → reconnect it returns early, and triggers removed
+                // by StopLive would never come back. StartLive is idempotent.
+                try { StingTools.Core.Sync.LiveSyncUpdater.StartLive(); }
+                catch (Exception ex) { StingLog.Warn($"LiveSyncUpdater.StartLive: {ex.Message}"); }
+
                 if (_wired) return;
                 try
                 {
@@ -2434,12 +2398,27 @@ namespace StingTools.BIMManager
 
                     // Same payload-build path as SyncToPlanscapeServer (acceptance criterion 3)
                     var payload = PlatformSyncCommand.BuildPluginSyncPayload(doc, app, projectId);
-                    int count = payload?.TagElements?.Count ?? 0;
+                    int swept = payload?.TagElements?.Count ?? 0;
+
+                    // Reconciliation pass, not a full re-send. The live delta
+                    // channel handles ordinary edits; this tick exists to catch
+                    // what delta misses — undo edge cases, link reloads, and
+                    // anything changed while the user was logged out or the
+                    // plugin unloaded. Send only rows whose content hash moved
+                    // since the last sweep (plus deletions noticed by absence),
+                    // so a steady-state model costs one near-empty request
+                    // instead of re-posting every element every five minutes.
+                    string docKey = StingTools.Core.Sync.LiveSyncUpdater.DocKey(doc);
+                    var changed = StingTools.Core.Sync.SyncReconciler.FilterChanged(
+                        docKey, payload?.TagElements);
+                    int count = changed?.Count ?? 0;
                     if (count == 0)
                     {
-                        StingLog.Info($"PluginSyncTickBridge tick: 0 tagged elements in {doc.Title}, nothing to enqueue");
+                        StingLog.Info($"PluginSyncTickBridge tick: {swept:N0} element(s) swept in {doc.Title}, " +
+                                      $"none changed since last sweep — nothing to enqueue");
                         return;
                     }
+                    payload = payload.WithElements(changed);
 
                     var queue = Planscape.PluginSync.OfflineQueue.Shared;
                     if (queue == null)
@@ -2448,8 +2427,10 @@ namespace StingTools.BIMManager
                         return;
                     }
 
-                    queue.Enqueue(payload);
-                    StingLog.Info($"PluginSyncTickBridge tick: enqueued payload with {count:N0} tagged elements for {doc.Title} (queue depth: {queue.Count})");
+                    var chunks = PlatformSyncCommand.ChunkForTransport(payload);
+                    foreach (var chunk in chunks) queue.Enqueue(chunk);
+                    StingLog.Info($"PluginSyncTickBridge tick: {swept:N0} swept, {count:N0} changed — enqueued for " +
+                                  $"{doc.Title} in {chunks.Count} payload(s) (queue depth: {queue.Count})");
 
                     // Phase 177-B — reconcile any deliverables.json rows
                     // whose ServerSyncedAt is missing or stale. Fire-and-
