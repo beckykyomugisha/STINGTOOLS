@@ -79,7 +79,11 @@ _MAP: dict[str, tuple[str, str]] = {
     "IFCFIRESUPPRESSIONTERMINAL":    ("F", "FPS"),
     "IFCALARM":                      ("F", "FPS"),
     "IFCACTUATOR":                   ("F", "FPS"),
-    "IFCELECTRICFLOWSTORAGEDEVICE":  ("F", "FPS"),
+
+    # ── Electrical — energy storage (batteries, UPS, capacitor banks) ─────
+    # IfcElectricFlowStorageDevice is an electrical asset, not a fire-protection
+    # device. Aligned with stingtools-core inference.py (E) and TagConfig.cs.
+    "IFCELECTRICFLOWSTORAGEDEVICE":  ("E", "LV"),
 
     # ── Communications / BMS ──────────────────────────────────────────────
     "IFCCOMMUNICATIONSAPPLIANCE":    ("E", "COM"),

@@ -295,6 +295,11 @@ class BonsaiBridge:
         Routes through Bonsai's ``tool.Ifc.run`` when Bonsai is loaded (so Ctrl-Z
         works and Bonsai's property panel refreshes); falls back to direct
         ``ifcopenshell.api.run`` only in headless/standalone. Returns True on success.
+
+        Idempotent with respect to pset existence: if a pset with ``pset_name``
+        already exists on the element, this method calls ``pset.edit_pset`` directly
+        on the existing entity rather than calling ``pset.add_pset`` (which would
+        create a duplicate pset).
         """
         try:
             import ifcopenshell.api  # type: ignore  # noqa: F401 — ensures API present
@@ -304,8 +309,23 @@ class BonsaiBridge:
             model = self.active_ifc()
             if model is None:
                 return False
-            pset = self._run("pset.add_pset", model, product=element, name=pset_name)
-            self._run("pset.edit_pset", model, pset=pset, properties=properties)
+
+            # Find an existing pset with this name to avoid creating a duplicate.
+            existing_pset = None
+            try:
+                for rel in getattr(element, "IsDefinedBy", []):
+                    definition = getattr(rel, "RelatingPropertyDefinition", None)
+                    if definition is not None and getattr(definition, "Name", None) == pset_name:
+                        existing_pset = definition
+                        break
+            except Exception:  # noqa: BLE001 — defensive; fall through to add path
+                pass
+
+            if existing_pset is not None:
+                self._run("pset.edit_pset", model, pset=existing_pset, properties=properties)
+            else:
+                pset = self._run("pset.add_pset", model, product=element, name=pset_name)
+                self._run("pset.edit_pset", model, pset=pset, properties=properties)
             return True
         except Exception as e:
             logger.error("add_pset failed: %s", e, exc_info=True)
@@ -365,6 +385,11 @@ class BonsaiBridge:
 
         if is_locked and existing is not None and existing != value:
             raise StingTokenLockError(param_name, existing, value)
+
+        # No-op when the stored value already matches — avoids unnecessary IFC writes
+        # and duplicate audit-trail entries.
+        if existing is not None and existing == value:
+            return True
 
         # Record audit trail before writing new value
         if existing is not None and existing != value:

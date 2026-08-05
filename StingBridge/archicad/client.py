@@ -281,7 +281,7 @@ def normalise_storey_to_level_code(storey_name: str) -> str:
         "Basement 2"   → "B2"
         "Roof Level"   → "RF"
         "Mezzanine"    → "MZ"
-        "Sub-Basement" → "SUBB"  (fallback)
+        "Sub-Basement" → "B1"
     """
     import re
 
