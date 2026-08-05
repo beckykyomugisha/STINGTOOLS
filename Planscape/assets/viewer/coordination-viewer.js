@@ -155,7 +155,14 @@
                                       // selection-highlight overlay (≠ appearance).
       selectedClashId: null,
       selectedIssueId: null,
-      activeLevels: new Set(),
+      // Level filter selection — an ARRAY, and the single source of truth.
+      // It was a Set that nothing ever read or wrote; the real selection lived
+      // in the DOM as .level-pill.active. Now that the control is a <select>,
+      // state has to own it: a saved view can restore SEVERAL levels, which a
+      // single-select cannot represent, so the filter reads this array and the
+      // dropdown reports "Multiple (N)" when it can't show the selection.
+      activeLevels: [],               // empty = every level visible
+      levelOptions: [],               // level ids currently offered, in order
       levelBands: [],
       activeNav: 'orbit',
       activeTool: 'orbit',   // exclusive tool: orbit | pick | measure | markup | section
@@ -2814,40 +2821,30 @@
       const fallback = ['B1','GF','L01','L02','L03','L04','RF'];
       const levels = arr.length ? arr : fallback;
 
-      // ◀ / ▶ used to be inert decoration — appended with no handler at all,
-      // so the only visible controls by the strip did nothing and there was no
-      // obvious way back to the whole building. They now step through levels,
-      // and stepping off either end returns to "All".
-      const prev = el('button', { class: 'nav-arrow', title: 'Previous level' }, '◀');
-      prev.addEventListener('click', () => stepLevel(-1));
-      strip.appendChild(prev);
-
-      // Explicit reset. Clicking the active pill again already cleared the
-      // filter, but nothing on screen said so — this makes "show the whole
-      // model" a visible control instead of a hidden toggle.
-      const allPill = el('button', { class: 'level-pill level-all', title: 'Show every level' }, 'All');
-      allPill.addEventListener('click', () => { clearLevelSelection(); applyLevelFilter(); paintLevelStrip(); });
-      strip.appendChild(allPill);
-
-      levels.forEach(lvl => {
-        const pill = el('button', { class: 'level-pill', 'data-lvl': lvl }, lvl);
-        pill.addEventListener('click', (e) => {
-          if (e.shiftKey) pill.classList.toggle('active');
-          else {
-            const isActive = pill.classList.contains('active');
-            clearLevelSelection();
-            if (!isActive) pill.classList.add('active');
-          }
-          applyLevelFilter();
-          paintLevelStrip();
-        });
-        strip.appendChild(pill);
+      // A dropdown, not a scrolling pill rail with ◀ ▶ steppers.
+      //
+      // The pill list grew with the building: on a tower it overflowed into a
+      // horizontal scroller that ate most of the strip's 70% max-width, and
+      // reaching an upper level meant either scrolling the rail or clicking ▶
+      // once per storey. A <select> is a fixed width whatever the level count,
+      // needs one interaction to reach any level, and gets keyboard and
+      // touch behaviour from the platform for free. "All levels" is the first
+      // option, so the reset that used to be a separate pill is now just the
+      // top of the list.
+      state.levelOptions = levels.slice();
+      const sel = el('select', { class: 'level-select', title: 'Filter the model by level' });
+      sel.appendChild(el('option', { value: '' }, 'All levels'));
+      levels.forEach(lvl => sel.appendChild(el('option', { value: lvl }, lvl)));
+      sel.addEventListener('change', () => {
+        // '' is "All levels"; anything else is a single level. A multi-level
+        // selection can only arrive from a saved view, and picking anything
+        // here deliberately replaces it.
+        state.activeLevels = sel.value ? [sel.value] : [];
+        applyLevelFilter();
+        syncLevelSelect();
       });
-
-      const next = el('button', { class: 'nav-arrow', title: 'Next level' }, '▶');
-      next.addEventListener('click', () => stepLevel(1));
-      strip.appendChild(next);
-      paintLevelStrip();
+      strip.appendChild(sel);
+      syncLevelSelect();
 
       // Compute Y bands from model bounds — fall back to even slices.
       computeLevelBands(levels);
@@ -2858,28 +2855,26 @@
     // [data-lvl] — an "active" All pill would otherwise put an undefined level
     // into applyLevelFilter's set, which matches no band and would hide the
     // whole model instead of showing it. applyLevelFilter uses the same scope.
-    function levelPills() { return $$('#levelStrip .level-pill[data-lvl]'); }
-    function clearLevelSelection() { levelPills().forEach(p => p.classList.remove('active')); }
-    function paintLevelStrip() {
-      const anyActive = levelPills().some(p => p.classList.contains('active'));
-      const all = $('#levelStrip .level-all');
-      if (all) all.classList.toggle('active', !anyActive);   // "All" lit when unfiltered
-    }
-    function stepLevel(dir) {
-      const pills = levelPills();
-      if (!pills.length) return;
-      const cur = pills.findIndex(p => p.classList.contains('active'));
-      // From "All", ▶ enters at the lowest level and ◀ at the highest.
-      const idx = (cur === -1) ? (dir > 0 ? 0 : pills.length - 1) : cur + dir;
-      clearLevelSelection();
-      if (idx >= 0 && idx < pills.length) {
-        pills[idx].classList.add('active');
-        try { pills[idx].scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) {}
+    /// Reflect state.activeLevels into the dropdown.
+    ///
+    /// A saved view can restore more levels than a single-select can show. In
+    /// that case a synthetic "Multiple (N)" option is added and selected, so
+    /// the control never claims a single level while the model is filtered to
+    /// several. Choosing any real option from the list clears it.
+    function syncLevelSelect() {
+      const sel = $('#levelStrip .level-select');
+      if (!sel) return;
+      const active = state.activeLevels || [];
+      const multi = sel.querySelector('option[data-multi]');
+      if (active.length > 1) {
+        const opt = multi || el('option', { value: '__multi', 'data-multi': '1' }, '');
+        opt.textContent = `Multiple (${active.length})`;
+        if (!multi) sel.appendChild(opt);
+        sel.value = '__multi';
+      } else {
+        if (multi) multi.remove();
+        sel.value = active[0] || '';
       }
-      // Stepping off either end leaves nothing active — i.e. back to the whole
-      // model, so the arrows alone can always get you out of a level filter.
-      applyLevelFilter();
-      paintLevelStrip();
     }
 
     function computeLevelBands(levels) {
@@ -2936,7 +2931,7 @@
     function invalidateCentroidCache() { centroidYCache.clear(); }
 
     function applyLevelFilter() {
-      const active = $$('.level-pill.active[data-lvl]').map(p => p.dataset.lvl);   // [data-lvl] excludes the "All" pill
+      const active = state.activeLevels || [];   // empty = unfiltered
       if (!active.length) {
         V.renderer.clippingPlanes = [];
         if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.visible = true; });
@@ -2974,7 +2969,7 @@
         camPos: cam.position.toArray(),
         camTarget: V.controls.target.toArray(),
         disciplines: Array.from(state.activeDisciplines),
-        levels: $$('.level-pill.active[data-lvl]').map(p => p.dataset.lvl),
+        levels: (state.activeLevels || []).slice(),
         viz: serializeViz(),   // C5 — full visualize state (scheme + modes + custom colours)
       };
     }
@@ -2991,8 +2986,9 @@
         applyDisciplineFilter(s.disciplines);
       }
       if (Array.isArray(s.levels)) {
-        $$('.level-pill').forEach(p => p.classList.toggle('active', s.levels.includes(p.dataset.lvl)));
+        state.activeLevels = s.levels.slice();
         applyLevelFilter();
+        syncLevelSelect();
       }
       // C5 — restore the full visualize appearance, then mirror it to a live meeting.
       if (s.viz) { applyVizSnapshot(s.viz); broadcastAppearance(); }
@@ -7507,7 +7503,15 @@
           const sel = state.selectedElementGuid;
           openIssueModal(sel ? { guid: sel, meta: state.elementMap?.[sel] || {} } : {});
         } else if (k >= '1' && k <= '7') {
-          const pills = $$('.level-pill'); const p = pills[parseInt(k, 10) - 1]; if (p) p.click();
+          // Same mapping the pill rail had: the list began with "All", so 1
+          // clears the filter and 2-7 pick the first six levels.
+          const n = parseInt(k, 10) - 1;
+          const opts = state.levelOptions || [];
+          if (n === 0) state.activeLevels = [];
+          else if (opts[n - 1]) state.activeLevels = [opts[n - 1]];
+          else return;
+          applyLevelFilter();
+          syncLevelSelect();
         }
       });
     }
