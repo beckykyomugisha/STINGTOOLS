@@ -73,12 +73,61 @@ public class QuotaGuardService : IQuotaGuardService
         var current = axis switch
         {
             QuotaAxis.Projects     => await _db.Projects.CountAsync(p => p.TenantId == tid, ct),
-            QuotaAxis.Authors      => await _db.ProjectMembers.Where(m => m.TenantId == tid && m.ProjectRole == "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
-            QuotaAxis.Coordinators => await _db.ProjectMembers.Where(m => m.TenantId == tid && m.ProjectRole != "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
+            QuotaAxis.Authors      => await CountAuthorSeatsAsync(tid, ct),
+            QuotaAxis.Coordinators => await CountUserSeatsAsync(tid, ct) - await CountAuthorSeatsAsync(tid, ct),
             _                      => 0,
         };
         return (limits, current);
     }
+
+    /// <summary>
+    /// A seat is a PERSON in the tenant, so seats are counted over
+    /// <c>AppUser</c> — the row the seat-selling operations actually create.
+    ///
+    /// This used to count <c>ProjectMembers</c>, which meant the meter read a
+    /// table the metered operations never wrote: <c>POST /api/tenant/invite</c>
+    /// and <c>POST /api/onboarding/team</c> both gate on these axes and then
+    /// create an <c>AppUser</c> and nothing else — no <c>ProjectMember</c> — so
+    /// an accepted invite could never move the number it had just been checked
+    /// against. Meanwhile the only path that does create <c>ProjectMember</c>
+    /// rows (<c>ProjectMembersController</c>) never consults this guard.
+    /// Counting people also makes the pre-existing <c>.Distinct()</c> on UserId
+    /// unnecessary rather than merely approximate — a person on four projects
+    /// was always meant to be one seat.
+    ///
+    /// <para><c>!u.IsDeleted</c> is written out EXPLICITLY and must stay that
+    /// way. <c>AppUser</c> declares <c>HasQueryFilter(u =&gt; !u.IsDeleted)</c>
+    /// in its own entity block, but <c>ApplyGlobalQueryFilters</c> runs later in
+    /// <c>OnModelCreating</c> and — because EF Core 8 allows only ONE filter per
+    /// entity, a second call silently replacing the first — overwrites it with
+    /// the tenant predicate. <c>AppUser</c> does not implement
+    /// <c>ISoftDeletable</c> either, so nothing puts the tombstone predicate
+    /// back. That is documented in PlanscapeDbContext and is deliberately out of
+    /// scope to fix here; the consequence for billing is that relying on the
+    /// global filter would charge tenants for deleted users.</para>
+    /// </summary>
+    private Task<int> CountUserSeatsAsync(Guid tid, CancellationToken ct)
+        => _db.Users.CountAsync(u => u.TenantId == tid && !u.IsDeleted, ct);
+
+    /// <summary>
+    /// Author seats are the users carrying ISO 19650 role <c>"A"</c> — which is
+    /// exactly what the invite paths persist for an Author
+    /// (<c>Iso19650Role = role == "Author" ? "A" : "C"</c> in both
+    /// TenantAdminController and OnboardingController), so the meter and the
+    /// write agree by construction.
+    ///
+    /// <para>Coordinators are deliberately derived as <c>total - authors</c>
+    /// rather than as <c>Iso19650Role != "A"</c>. In SQL a NULL role makes both
+    /// <c>= 'A'</c> and <c>&lt;&gt; 'A'</c> evaluate to NULL, so a legacy row
+    /// with no role would fall off BOTH axes and silently hand out a free seat.
+    /// Subtraction is total by construction.</para>
+    /// </summary>
+    private Task<int> CountAuthorSeatsAsync(Guid tid, CancellationToken ct)
+        => _db.Users.CountAsync(u => u.TenantId == tid && !u.IsDeleted && u.Iso19650Role == AuthorIsoRole, ct);
+
+    /// <summary>ISO 19650 "Appointing Party" — the code the invite paths write
+    /// for an author seat.</summary>
+    private const string AuthorIsoRole = "A";
 
     private static QuotaResult Result(QuotaAxis axis, int current, int max)
     {

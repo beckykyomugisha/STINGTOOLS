@@ -47,12 +47,14 @@ public class TenantAdminController : ControllerBase
         var limits = BillingPlanLimits.For(tenant.Plan);
 
         var memberCount = await _db.ProjectMembers.CountAsync(ct);
-        var authorIds = await _db.ProjectMembers
-            .Where(m => m.ProjectRole == "Author")
-            .Select(m => m.UserId).Distinct().ToListAsync(ct);
-        var coordIds  = await _db.ProjectMembers
-            .Where(m => m.ProjectRole != "Author")
-            .Select(m => m.UserId).Distinct().ToListAsync(ct);
+
+        // Seat counts come from the quota guard rather than being recomputed
+        // here. This block used to inline its own copy of the author/coordinator
+        // split, so the number the customer was shown and the number the invite
+        // gate enforced were two independent implementations that could disagree
+        // — and did, once the guard's definition of a seat changed. One source.
+        var authorSeats = await _quota.CheckCanAddUserAsync("Author", ct);
+        var coordSeats  = await _quota.CheckCanAddUserAsync("Coordinator", ct);
         var projectCount = await _db.Projects.CountAsync(ct);
         var storageBytes = await _db.ProjectModels.AsNoTracking()
             .Where(m => m.DeletedAt == null)
@@ -81,8 +83,8 @@ public class TenantAdminController : ControllerBase
             },
             usage = new
             {
-                authors      = new { current = authorIds.Count,  max = limits.MaxAuthors },
-                coordinators = new { current = coordIds.Count,   max = limits.MaxCoordinators },
+                authors      = new { current = authorSeats.Current, max = authorSeats.Max },
+                coordinators = new { current = coordSeats.Current,  max = coordSeats.Max },
                 projects     = new { current = projectCount,     max = limits.MaxProjects },
                 storage      = new { currentMb = storageBytes / 1024 / 1024, maxMb = limits.StorageMb },
                 memberSeats  = memberCount,
