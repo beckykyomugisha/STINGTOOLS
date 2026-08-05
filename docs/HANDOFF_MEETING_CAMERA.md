@@ -1,11 +1,55 @@
-# Handoff — two open bugs in the web 3D viewer's live meeting
+# Handoff — the web 3D viewer's live meeting (CLOSED 2026-08-06)
 
-Written 2026-08-01. Paste this into a fresh session to continue.
+> **STATUS: both bugs RESOLVED — confirmed by the product owner on the live
+> deploy, 2026-08-06.** Nothing here is open. This file is kept for the seven
+> disproven theories below, which cost real time to eliminate and would
+> otherwise be re-tried by the next person. Read it before forming a theory
+> about meetings, camera, or the viewer's model load; do not read it as a
+> to-do list.
+>
+> If a NEW meeting/camera fault appears, start from a fresh reproduction — do
+> not assume it is one of these two returning.
 
-Read "Already ruled out" before forming a theory — three plausible explanations
-have been tested and DISPROVEN, and repeating them wastes a lot of time.
+## Resolution
 
-## The symptoms (reproducible for the product owner)
+Owner-run reproduction against `planscape-web-free` / `planscape-api-free`
+(project `2e4a5fb9-a65d-4062-bc8e-a5e53e8cb462`), browser console captured:
+
+- **Symptom 1 — model hangs at "Loading model 0%": not reproducing.** The model
+  renders: 624 elements, `elementCount: 562` with real bounds, and
+  `mesh→meta resolver: 562/562 meshes resolved (100%)`.
+- **Symptom 2 — "Couldn't join — retry", no camera: not reproducing.** The panel
+  reads **`1 online · 1 in call`** (was `0 in call`), LiveKit logs
+  `publishing track`, and the local camera tile renders.
+
+No single commit is identifiable as "the fix" — the symptoms were gone by the
+time the flow could be driven end to end. The changes in that area since the
+report are the `s2-latejoin` A/V bundle, the `ready`-COUNTER fix in the host
+page (a boolean bailed out of React's re-render, so the reloaded viewer was
+never re-sent its model), and carrying `modelId` across the meeting
+re-navigation in `meetingJoinUrl`. Between them they cover symptom 1's
+mechanism directly.
+
+**One real bug WAS found in that console and fixed** — unrelated to either
+symptom: the "join link copied" toast was lying. The iframe's `allow` attribute
+omitted `clipboard-write` (that attribute REPLACES the frame's default
+permissions policy), and `copyToClipboard` could not detect the refusal because
+`navigator.clipboard.writeText` rejects asynchronously — so the synchronous
+`try/catch` never saw it and the `execCommand` fallback never ran.
+
+Console noise that is NOT a fault, so nobody chases it again:
+- **A 403 every 15s on `/health`.** Deliberate: `/health` is restricted to
+  private-range client IPs + `X-Health-Token`, so a browser ALWAYS gets 403. An
+  anonymous `curl` with no JWT and no tenant header gets 403 too. The viewer
+  already treats any HTTP response as "reachable", which is why the pill
+  correctly reads `Live`. (The `Offline` pill in the original report was a
+  separate, earlier state and did not recur.)
+- **404 on `/scene`** — no federation chunks published; the single-model
+  fallback path is correct.
+- **`silence detected on local audio track`** — environmental (OS input
+  device), not code.
+
+## The original symptoms (for reference — both now resolved)
 
 1. **Starting a live meeting makes the 3D model reload and never finish** — it
    sits at "Loading model 0%" indefinitely. The model had rendered fine before.
@@ -40,6 +84,8 @@ which may or may not be related.
 - Invite email works (`emailSent: true`, via Resend).
 
 ## Already ruled out — do NOT repeat
+
+*(1–3 were eliminated in session 1; 4–7 in session 2, listed further down.)*
 
 1. **The viewer iframe does NOT remount when a meeting starts.** The theory was
    that the iframe `src` carries the auth token, so a refresh would swap the src
@@ -91,7 +137,14 @@ Killed this session — do NOT re-investigate:
    original framing ("the 403 is the direct cause of Couldn't join") is wrong on
    that specific point.
 
-**New lead — the most likely 403 source is a tenant-header mismatch.**
+**RETRACTED (2026-08-06) — the tenant-mismatch lead below is WRONG.** The 403s
+in the owner's console are all on `/health`, which returns 403 to an anonymous
+`curl` carrying no JWT and no `X-Tenant` at all. It is IP-restricted by design.
+`TenantResolutionMiddleware` was not involved. The paragraph is kept only so the
+theory is not re-derived from the same code reading — it is a plausible-looking
+inference that a one-line `curl` disproves.
+
+~~New lead — the most likely 403 source is a tenant-header mismatch.~~
 `TenantResolutionMiddleware` (line ~87) short-circuits with **403** whenever an
 authenticated request carries an `X-Tenant` header (or subdomain) that disagrees
 with the JWT's tenant. The viewer sends exactly that header:
@@ -108,28 +161,54 @@ which fits "the model never loads" better than it fits "join fails". Verify
 before believing it: compare `planscape_tenant` in the API origin's localStorage
 against the `tenant` claim in the JWT during a live repro.
 
-## The live lead
+## The live lead — CLOSED, and it was a false trail
 
-Playwright saw a **403** from inside the viewer iframe on the 3D viewer page.
-That is the most likely direct cause of `Couldn't join` — and therefore of the
-missing camera, since media is never published if the join never completes.
+Playwright saw a **403** from inside the viewer iframe and this section treated
+it as the direct cause of `Couldn't join`. Both halves turned out to be wrong,
+and the way they were wrong is the most transferable lesson in this file:
 
-**Untested hypothesis, check this first:** the iframe gets a SNAPSHOT of the JWT
-at page-load (the parent passes it as a URL param; `viewer.html`'s bootstrap
-writes it into that origin's localStorage). JWTs expire after 30 minutes. The
-parent app refreshes its token silently; the iframe's frozen copy never does. So
-a Join clicked >30 min after page load would 403.
+- The 403 was the 15-second `/health` poll — expected, by design, and already
+  handled by the code that issues it. It had nothing to do with the join.
+- It could not have been the join in any case: the `livekit-token` action has
+  **no 403 path at all** (404 / 400 / 401 / 501 only).
 
-Cheap test: hard-reload the viewer, click Join A/V within one minute. If it
-connects, that confirms it, and the fix is to refresh the iframe's token rather
-than freeze it at load.
+The JWT-snapshot hypothesis below was never confirmed and is now moot. It was
+also aimed at the wrong token: LiveKit participant tokens are minted with a
+**4-hour** TTL, so staleness on that side was never plausible.
 
-## Most useful next step
+~~Untested hypothesis:~~ the iframe gets a SNAPSHOT of the JWT at page-load (the
+parent passes it as a URL param; `viewer.html`'s bootstrap writes it into that
+origin's localStorage). JWTs expire after 30 minutes; the iframe's frozen copy
+never refreshes. *(Still structurally true of the code — the token IS captured
+once at module load and the frame is cross-origin so the parent cannot refresh
+it. It just was not causing either reported symptom. Worth remembering if a
+long-lived session ever does start 401ing on the viewer's own API calls.)*
 
-**Read the Render logs.** They cracked the previous bug in this area instantly,
-after two wrong theories. Render dashboard → `planscape-api-free` → **Logs**,
-filtered to the time of a Join click; find the exception behind the 403. The
-user has dashboard access, the agent does not — ask them to paste the trace.
+## If you are here about a NEW meeting fault
+
+The single highest-value first step, ahead of any code reading:
+
+1. **Get the browser console from a live reproduction.** The deployed bundle
+   already surfaces real causes — `setLobby('error', detail)` renders
+   `Couldn't join — <cause>`, and livekit-av.js reports through `console.warn`.
+   One screenshot of that console settled what three sessions of inference could
+   not.
+2. `planscape-web/e2e/meeting.spec.ts` now drives the flow properly
+   (`#btnMeet → #meetStart → wait for the frame to re-navigate → #lkJoin`) and
+   prints the pill text, every meeting/model request status, and console
+   warnings. Needs `TEST_JWT`, `TEST_PROJECT`, `TEST_BASE`.
+3. Render logs (dashboard → `planscape-api-free` → Logs) remain the best tool
+   for anything that looks server-side. The agent has no dashboard access — ask
+   for the trace.
+
+**Confirm the served bundle is the code you are reading**, which is not a given:
+
+```bash
+curl -s https://planscape-api-free.onrender.com/livekit-av.js | grep -o 'STING_MEETING_BUILD = "[^"]*"'
+```
+
+then `diff` it against `Planscape/assets/viewer/livekit-av.js` (normalise CRLF).
+On 2026-08-06 they were byte-identical at marker `s2-latejoin`.
 
 ## Where the code lives
 
