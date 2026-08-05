@@ -120,3 +120,6 @@ TestResults/
 # Playwright
 planscape-web/test-results/
 planscape-web/playwright-report/
+
+# wrangler local build cache (marketing-site / Pages Functions)
+.wrangler/
