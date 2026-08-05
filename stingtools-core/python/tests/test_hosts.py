@@ -61,6 +61,47 @@ def test_product_for_type_name():
     assert inference.product_for_type_name(None) == "XX"
 
 
+# ── function + spatial inference (moved out of the Bonsai spatial operators) ──
+
+def test_function_for_class_known_codes():
+    assert inference.function_for_class("IfcAirTerminal") == "SUP"
+    assert inference.function_for_class("IfcFilter") == "RET"
+    assert inference.function_for_class("IfcSanitaryTerminal") == "SAN"
+    assert inference.function_for_class("IfcOutlet") == "PWR"
+    assert inference.function_for_class("IfcLightFixture") == "LTG"
+    assert inference.function_for_class("IfcAlarm") == "FP"
+    assert inference.function_for_class("IfcBoiler") == "HTG"
+    assert inference.function_for_class("IfcChiller") == "CLG"
+
+
+def test_function_for_unknown_class_falls_back_to_gen():
+    # Unlike discipline, an unmapped class gets GEN, not the XX sentinel — an
+    # element always has *some* function.
+    assert inference.function_for_class("IfcFurniture") == "GEN"
+    assert inference.function_for_class("") == "GEN"
+    assert inference.FUNCTION_FALLBACK == "GEN"
+
+
+def test_spatial_index_helpers_tolerate_a_broken_model():
+    """Both return {} rather than raising when the model cannot be queried."""
+
+    class Exploding:
+        def by_type(self, _):
+            raise RuntimeError("no such entity")
+
+    assert inference.zone_codes_by_element(Exploding()) == {}
+    assert inference.building_codes_by_element(Exploding()) == {}
+
+
+def test_spatial_index_helpers_empty_when_no_zones_or_buildings():
+    class Empty:
+        def by_type(self, _):
+            return []
+
+    assert inference.zone_codes_by_element(Empty()) == {}
+    assert inference.building_codes_by_element(Empty()) == {}
+
+
 # ── SequenceAllocator (replaces the module-global counter) ────────────────────
 
 def test_sequence_allocator_monotonic_per_group():

@@ -54,9 +54,54 @@ _SYSTEM_KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
 )
 
 
+# IFC class → STING Function code. Sibling of DISCIPLINE_BY_IFC_CLASS: discipline
+# says *whose* element it is, function says *what it does*. Unmapped classes fall
+# back to GEN rather than XX — an element always has some function, we just may
+# not know a more specific one.
+FUNCTION_BY_IFC_CLASS: dict[str, str] = {
+    # Air-side supply / return
+    "IfcAirTerminal": "SUP", "IfcAirTerminalBox": "SUP", "IfcFan": "SUP",
+    "IfcDuctSegment": "SUP", "IfcDuctFitting": "SUP", "IfcDuctSilencer": "SUP",
+    "IfcUnitaryEquipment": "SUP", "IfcFilter": "RET",
+    # Public health
+    "IfcSanitaryTerminal": "SAN", "IfcSanitaryTerminalType": "SAN",
+    "IfcFlowTerminal": "SAN",
+    # Wet services
+    "IfcPipeSegment": "SUP", "IfcPipeFitting": "SUP", "IfcValve": "SUP",
+    "IfcPump": "SUP",
+    # Power
+    "IfcElectricDistributionBoard": "PWR", "IfcElectricMotor": "PWR",
+    "IfcOutlet": "PWR", "IfcCableCarrierSegment": "PWR", "IfcCableSegment": "PWR",
+    "IfcProtectiveDevice": "PWR", "IfcSwitchingDevice": "PWR",
+    # Lighting
+    "IfcLamp": "LTG", "IfcLightFixture": "LTG",
+    # Fire
+    "IfcFireSuppressionTerminal": "FP", "IfcAlarm": "FP", "IfcSensor": "FP",
+    # Thermal plant
+    "IfcBoiler": "HTG", "IfcHeatExchanger": "HTG",
+    "IfcChiller": "CLG", "IfcCoolingTower": "CLG",
+}
+
+#: Fallback when an element's class carries no known function.
+FUNCTION_FALLBACK = "GEN"
+
+
 def discipline_for_class(ifc_class: str) -> str:
     """Pure lookup: IFC class string → discipline code. ``XX`` when unknown."""
     return DISCIPLINE_BY_IFC_CLASS.get(ifc_class, SENTINEL)
+
+
+def function_for_class(ifc_class: str) -> str:
+    """Pure lookup: IFC class string → function code. ``GEN`` when unknown."""
+    return FUNCTION_BY_IFC_CLASS.get(ifc_class, FUNCTION_FALLBACK)
+
+
+def infer_function(element: Any) -> str:
+    """Function code for an ifcopenshell element via its ``is_a()`` class."""
+    try:
+        return function_for_class(element.is_a())
+    except Exception:  # pragma: no cover - defensive
+        return FUNCTION_FALLBACK
 
 
 def infer_discipline(element: Any) -> str:
@@ -153,6 +198,83 @@ def infer_product(element: Any) -> str:
         return SENTINEL
     except Exception:
         return SENTINEL
+
+
+#: Zone code assigned to an element belonging to no ``IfcZone``.
+ZONE_FALLBACK = "ZZ"
+
+#: Location code assigned when an element resolves to no ``IfcBuilding``.
+LOCATION_FALLBACK = "BLD1"
+
+#: Guard against a malformed decomposition cycle when walking up to IfcBuilding.
+_MAX_SPATIAL_DEPTH = 10
+
+
+def zone_codes_by_element(model: Any) -> dict[int, str]:
+    """Map element step-id → ``Z01``/``Z02``/… from ``IfcZone`` membership.
+
+    Zones are numbered in model order. Elements belonging to no zone are absent
+    from the result — callers apply :data:`ZONE_FALLBACK` themselves so they can
+    distinguish "no zone" from "zone 0".
+
+    Model-level rather than element-level because the code depends on the zone's
+    ordinal across the whole file, which a per-element call cannot know.
+    """
+    out: dict[int, str] = {}
+    try:
+        zone_code = {
+            zone.id(): f"Z{idx:02d}"
+            for idx, zone in enumerate(model.by_type("IfcZone"), start=1)
+        }
+        if not zone_code:
+            return out
+        for rel in model.by_type("IfcRelAssignsToGroup"):
+            group = getattr(rel, "RelatingGroup", None)
+            if group is None or not group.is_a("IfcZone"):
+                continue
+            code = zone_code.get(group.id())
+            if code is None:
+                continue
+            for obj in (rel.RelatedObjects or []):
+                if obj.is_a("IfcElement"):
+                    out[obj.id()] = code
+    except Exception:
+        return out
+    return out
+
+
+def building_codes_by_element(model: Any) -> dict[int, str]:
+    """Map element step-id → ``BLD1``/``BLD2``/… via spatial containment.
+
+    Walks ``IfcRelContainedInSpatialStructure`` then up the ``Decomposes`` chain
+    (space → storey → building). Elements that resolve to no building are absent;
+    callers apply :data:`LOCATION_FALLBACK`.
+    """
+    out: dict[int, str] = {}
+    try:
+        bld_code = {
+            bld.id(): f"BLD{idx}"
+            for idx, bld in enumerate(model.by_type("IfcBuilding"), start=1)
+        }
+        if not bld_code:
+            return out
+        for rel in model.by_type("IfcRelContainedInSpatialStructure"):
+            node = getattr(rel, "RelatingStructure", None)
+            code = None
+            for _ in range(_MAX_SPATIAL_DEPTH):
+                if node is None:
+                    break
+                if node.is_a("IfcBuilding"):
+                    code = bld_code.get(node.id())
+                    break
+                decomp = getattr(node, "Decomposes", None) or []
+                node = decomp[0].RelatingObject if decomp else None
+            if code:
+                for el in (rel.RelatedElements or []):
+                    out[el.id()] = code
+    except Exception:
+        return out
+    return out
 
 
 class SequenceAllocator:

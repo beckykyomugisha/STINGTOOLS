@@ -6,6 +6,12 @@ import json
 
 import bpy
 
+# All token-inference logic lives in stingtools_core.hosts.inference — this
+# module is a thin Blender adapter. The Phase A6 boundary lint
+# (tools/ci/check_adapter_boundary.py) fails the build if inference rules are
+# re-implemented here.
+from stingtools_core.hosts import inference as _inf
+
 
 def _get_ifc():
     try:
@@ -15,12 +21,16 @@ def _get_ifc():
         return None
 
 
-def _write_stag(ifc, element, props: dict) -> None:
-    try:
-        from ..core.bonsai import bonsai as _bridge
-        _bridge.add_pset(ifc, element, "Pset_StingTags", props)
-    except Exception as exc:
-        print(f"[STING] write_stag failed: {exc}")
+def _write_stag(element, props: dict) -> bool:
+    """Write props into Pset_StingTags on element. Returns True on success.
+
+    BonsaiBridge.add_pset takes (element, pset_name, properties) — it resolves
+    the active model itself. Passing the model as a fourth argument raises
+    TypeError, which is exactly the bug that made every spatial operator report
+    success while writing nothing.
+    """
+    from ..core.bonsai import bonsai as _bridge
+    return _bridge.add_pset(element, "Pset_StingTags", props)
 
 
 # ---------------------------------------------------------------------------
@@ -44,47 +54,22 @@ class StingAutoDetectLocationOperator(bpy.types.Operator):
             self.report({"ERROR"}, "No IFC file loaded")
             return {"CANCELLED"}
 
-        try:
-            import ifcopenshell.util.element as ifc_util
-        except ImportError as exc:
-            self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
-            return {"CANCELLED"}
+        element_to_bld = _inf.building_codes_by_element(ifc)
 
-        # Build building → code map (BLD1, BLD2, …)
-        buildings = ifc.by_type("IfcBuilding")
-        bld_code: dict[int, str] = {}
-        for idx, bld in enumerate(buildings, start=1):
-            bld_code[bld.id()] = f"BLD{idx}"
-
-        # Map element → building via IfcRelContainedInSpatialStructure
-        element_to_bld: dict[int, str] = {}
-        for rel in ifc.by_type("IfcRelContainedInSpatialStructure"):
-            spatial = rel.RelatingStructure
-            # Walk up to IfcBuilding
-            code = None
-            node = spatial
-            for _ in range(10):  # max 10 levels up
-                if node is None:
-                    break
-                if node.is_a("IfcBuilding") and node.id() in bld_code:
-                    code = bld_code[node.id()]
-                    break
-                # Traverse Decomposes
-                decomp = getattr(node, "Decomposes", None) or []
-                if not decomp:
-                    break
-                node = decomp[0].RelatingObject if decomp else None
-            if code:
-                for el in (rel.RelatedElements or []):
-                    element_to_bld[el.id()] = code
-
-        stamped = 0
+        stamped = failed = 0
         for el in ifc.by_type("IfcElement"):
-            code = element_to_bld.get(el.id(), "BLD1")  # default BLD1
-            _write_stag(ifc, el, {"Location": code})
-            stamped += 1
+            code = element_to_bld.get(el.id(), _inf.LOCATION_FALLBACK)
+            if _write_stag(el, {"Location": code}):
+                stamped += 1
+            else:
+                failed += 1
 
-        self.report({"INFO"}, f"Location stamped on {stamped} element(s)")
+        if stamped == 0 and failed:
+            self.report({"ERROR"}, f"Location write failed on all {failed} element(s)")
+            return {"CANCELLED"}
+        msg = f"Location stamped on {stamped} element(s)"
+        self.report({"WARNING"} if failed else {"INFO"},
+                    msg + (f" — {failed} write(s) failed" if failed else ""))
         return {"FINISHED"}
 
 
@@ -109,80 +94,29 @@ class StingAutoDetectZoneOperator(bpy.types.Operator):
             self.report({"ERROR"}, "No IFC file loaded")
             return {"CANCELLED"}
 
-        try:
-            import ifcopenshell.util.element as ifc_util
-        except ImportError as exc:
-            self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
-            return {"CANCELLED"}
+        element_to_zone = _inf.zone_codes_by_element(ifc)
+        zone_count = len(set(element_to_zone.values()))
 
-        # Enumerate zones and assign codes
-        zones = ifc.by_type("IfcZone")
-        zone_code: dict[int, str] = {}
-        for idx, zone in enumerate(zones, start=1):
-            zone_code[zone.id()] = f"Z{idx:02d}"
-
-        # Map elements → zone via IfcRelAssignsToGroup
-        element_to_zone: dict[int, str] = {}
-        for rel in ifc.by_type("IfcRelAssignsToGroup"):
-            group = rel.RelatingGroup
-            if not group.is_a("IfcZone"):
-                continue
-            code = zone_code.get(group.id())
-            if code is None:
-                continue
-            for obj in (rel.RelatedObjects or []):
-                if obj.is_a("IfcElement"):
-                    element_to_zone[obj.id()] = code
-
-        stamped = 0
+        stamped = failed = 0
         for el in ifc.by_type("IfcElement"):
-            code = element_to_zone.get(el.id(), "ZZ")
-            _write_stag(ifc, el, {"Zone": code})
-            stamped += 1
+            code = element_to_zone.get(el.id(), _inf.ZONE_FALLBACK)
+            if _write_stag(el, {"Zone": code}):
+                stamped += 1
+            else:
+                failed += 1
 
-        self.report({"INFO"}, f"Zone stamped on {stamped} element(s) ({len(zones)} zone(s) found)")
+        if stamped == 0 and failed:
+            self.report({"ERROR"}, f"Zone write failed on all {failed} element(s)")
+            return {"CANCELLED"}
+        msg = f"Zone stamped on {stamped} element(s) ({zone_count} zone(s) found)"
+        self.report({"WARNING"} if failed else {"INFO"},
+                    msg + (f" — {failed} write(s) failed" if failed else ""))
         return {"FINISHED"}
 
 
 # ---------------------------------------------------------------------------
 # Auto-detect Function
 # ---------------------------------------------------------------------------
-
-# IFC class prefix → STING Function code mapping
-_CLASS_TO_FUNC: dict[str, str] = {
-    "IfcAirTerminal":            "SUP",
-    "IfcAirTerminalBox":         "SUP",
-    "IfcFan":                    "SUP",
-    "IfcDuctSegment":            "SUP",
-    "IfcDuctFitting":            "SUP",
-    "IfcDuctSilencer":           "SUP",
-    "IfcFilter":                 "RET",
-    "IfcSanitaryTerminal":       "SAN",
-    "IfcSanitaryTerminalType":   "SAN",
-    "IfcFlowTerminal":           "SAN",
-    "IfcPipeSegment":            "SUP",
-    "IfcPipeFitting":            "SUP",
-    "IfcValve":                  "SUP",
-    "IfcPump":                   "SUP",
-    "IfcElectricDistributionBoard": "PWR",
-    "IfcElectricMotor":          "PWR",
-    "IfcLamp":                   "LTG",
-    "IfcLightFixture":           "LTG",
-    "IfcOutlet":                 "PWR",
-    "IfcCableCarrierSegment":    "PWR",
-    "IfcCableSegment":           "PWR",
-    "IfcProtectiveDevice":       "PWR",
-    "IfcSwitchingDevice":        "PWR",
-    "IfcFireSuppressionTerminal": "FP",
-    "IfcAlarm":                  "FP",
-    "IfcSensor":                 "FP",
-    "IfcBoiler":                 "HTG",
-    "IfcChiller":                "CLG",
-    "IfcCoolingTower":           "CLG",
-    "IfcHeatExchanger":          "HTG",
-    "IfcUnitaryEquipment":       "SUP",
-}
-
 
 class StingAutoDetectFunctionOperator(bpy.types.Operator):
     """Derive Function token from IFC element class."""
@@ -202,26 +136,26 @@ class StingAutoDetectFunctionOperator(bpy.types.Operator):
             self.report({"ERROR"}, "No IFC file loaded")
             return {"CANCELLED"}
 
-        try:
-            import ifcopenshell  # noqa: F401
-        except ImportError as exc:
-            self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
-            return {"CANCELLED"}
-
-        stamped = unrecognised = 0
+        stamped = failed = unrecognised = 0
         for el in ifc.by_type("IfcElement"):
-            ifc_class = el.is_a()
-            func = _CLASS_TO_FUNC.get(ifc_class, "GEN")
-            if func == "GEN":
+            func = _inf.infer_function(el)
+            if func == _inf.FUNCTION_FALLBACK:
                 unrecognised += 1
-            _write_stag(ifc, el, {"Function": func})
-            stamped += 1
+            if _write_stag(el, {"Function": func}):
+                stamped += 1
+            else:
+                failed += 1
 
-        self.report(
-            {"INFO"},
+        if stamped == 0 and failed:
+            self.report({"ERROR"}, f"Function write failed on all {failed} element(s)")
+            return {"CANCELLED"}
+        msg = (
             f"Function stamped on {stamped} element(s) "
-            f"({unrecognised} mapped to GEN — add to _CLASS_TO_FUNC to refine)",
+            f"({unrecognised} mapped to {_inf.FUNCTION_FALLBACK} — extend "
+            f"stingtools_core.hosts.inference.FUNCTION_BY_IFC_CLASS to refine)"
         )
+        self.report({"WARNING"} if failed else {"INFO"},
+                    msg + (f" — {failed} write(s) failed" if failed else ""))
         return {"FINISHED"}
 
 

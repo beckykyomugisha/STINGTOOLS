@@ -19,7 +19,7 @@ def _get_ifc():
         return None
 
 
-def _get_mep_pset(ifc, element) -> dict:
+def _get_mep_pset(element) -> dict:
     """Return Pset_StingMEP values for element (may be empty dict)."""
     try:
         import ifcopenshell.util.element as ifc_util
@@ -28,13 +28,14 @@ def _get_mep_pset(ifc, element) -> dict:
         return {}
 
 
-def _write_mep_pset(ifc, element, props: dict) -> None:
-    """Write properties into Pset_StingMEP via BonsaiBridge."""
-    try:
-        from ..core.bonsai import bonsai as _bridge
-        _bridge.add_pset(ifc, element, "Pset_StingMEP", props)
-    except Exception as exc:
-        print(f"[STING] write_mep_pset failed: {exc}")
+def _write_mep_pset(element, props: dict) -> bool:
+    """Write props into Pset_StingMEP on element. Returns True on success.
+
+    BonsaiBridge.add_pset takes (element, pset_name, properties) and resolves the
+    active model itself — passing the model as a fourth argument raises TypeError.
+    """
+    from ..core.bonsai import bonsai as _bridge
+    return _bridge.add_pset(element, "Pset_StingMEP", props)
 
 
 # ---------------------------------------------------------------------------
@@ -95,11 +96,11 @@ class StingCalcPipeFlowOperator(bpy.types.Operator):
 
         processed = 0
         for el in ifc.by_type("IfcPipeSegment"):
-            mep = _get_mep_pset(ifc, el)
+            mep = _get_mep_pset(el)
             # Use existing flow if stamped, else default 0.5 L/s for a domestic branch
             flow_ls = float(mep.get("PLM_SUP_FLOW_LS", 0.5) or 0.5)
             dn, vel, actual_flow = self._select_dn(flow_ls)
-            _write_mep_pset(ifc, el, {
+            _write_mep_pset(el, {
                 "PLM_SUP_DN": str(dn),
                 "PLM_SUP_VEL_MS": f"{vel:.3f}",
                 "PLM_SUP_FLOW_LS": f"{actual_flow:.3f}",
@@ -172,7 +173,7 @@ class StingCalcDrainageUnitsOperator(bpy.types.Operator):
         total_du = 0.0
         for el in ifc.by_type("IfcSanitaryTerminal"):
             du = self._resolve_du(el)
-            _write_mep_pset(ifc, el, {"PLM_DRN_DU": f"{du:.1f}"})
+            _write_mep_pset(el, {"PLM_DRN_DU": f"{du:.1f}"})
             processed += 1
             total_du += du
 
@@ -215,7 +216,7 @@ class StingCalcConduitFillOperator(bpy.types.Operator):
 
         processed = overloaded = 0
         for el in ifc.by_type("IfcCableCarrierSegment"):
-            mep = _get_mep_pset(ifc, el)
+            mep = _get_mep_pset(el)
 
             # Conduit internal diameter (mm); default 25 mm if not set
             conduit_d = float(mep.get("ELC_CONDUIT_DN_MM", 25) or 25)
@@ -230,7 +231,7 @@ class StingCalcConduitFillOperator(bpy.types.Operator):
             fill_pct = (total_cable_area / conduit_area * 100.0) if conduit_area > 0 else 0.0
             status = "OK" if fill_pct <= self._MAX_FILL_PCT else "OVERLOADED"
 
-            _write_mep_pset(ifc, el, {
+            _write_mep_pset(el, {
                 "ELC_FILL_PCT": f"{fill_pct:.1f}",
                 "ELC_FILL_STATUS": status,
             })

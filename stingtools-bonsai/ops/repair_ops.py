@@ -13,12 +13,14 @@ def _get_ifc():
         return None
 
 
-def _write_stag(ifc, element, props: dict) -> None:
-    try:
-        from ..core.bonsai import bonsai as _bridge
-        _bridge.add_pset(ifc, element, "Pset_StingTags", props)
-    except Exception as exc:
-        print(f"[STING] write_stag failed: {exc}")
+def _write_stag(element, props: dict) -> bool:
+    """Write props into Pset_StingTags on element. Returns True on success.
+
+    BonsaiBridge.add_pset takes (element, pset_name, properties) and resolves the
+    active model itself — passing the model as a fourth argument raises TypeError.
+    """
+    from ..core.bonsai import bonsai as _bridge
+    return _bridge.add_pset(element, "Pset_StingTags", props)
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +77,7 @@ class StingRepairDuplicateSeqOperator(bpy.types.Operator):
                 if seq in seen:
                     # Duplicate — assign next available
                     max_seq += 1
-                    _write_stag(ifc, el, {"Sequence": f"{max_seq:04d}"})
+                    _write_stag(el, {"Sequence": f"{max_seq:04d}"})
                     repaired += 1
                 else:
                     seen[seq] = True
@@ -131,7 +133,7 @@ class StingRepairMissingPsetOperator(bpy.types.Operator):
         for el in ifc.by_type("IfcElement"):
             psets = ifc_util.get_psets(el)
             if "Pset_StingTags" not in psets:
-                _write_stag(ifc, el, self._DEFAULT.copy())
+                _write_stag(el, self._DEFAULT.copy())
                 created += 1
 
         self.report({"INFO"}, f"Created Pset_StingTags on {created} element(s)")
@@ -179,7 +181,7 @@ class StingClearStaleTagsOperator(bpy.types.Operator):
                 continue
             missing = [f for f in required if stag.get(f, "XX") in sentinel]
             if missing:
-                _write_stag(ifc, el, {"FullTag": ""})
+                _write_stag(el, {"FullTag": ""})
                 cleared += 1
 
         self.report({"INFO"}, f"Cleared stale FullTag on {cleared} element(s)")
