@@ -117,6 +117,67 @@ public class DataRightsExportTenantScopeTests : IClassFixture<PlanscapeWebApplic
         Assert.DoesNotContain("$2b$", all);   // property is ever renamed.
     }
 
+    /// <summary>
+    /// The archive has to be machine-readable, and until this test existed nothing
+    /// checked that it was.
+    ///
+    /// Every other assertion in this file is <c>Assert.Contains</c> on the raw text.
+    /// A substring check passes against output that no parser can read, so the suite
+    /// was green while the export emitted a format that is neither JSON nor NDJSON:
+    /// <c>DumpAsync</c> pairs <c>WriteIndented = true</c> with one
+    /// <c>WriteLineAsync</c> per row, so each record is pretty-printed across many
+    /// lines and the records are newline-separated. That is not a JSON document
+    /// (several top-level values, no array), and not JSON Lines (records span
+    /// lines). An archive a data subject cannot parse does not satisfy a
+    /// subject-access request.
+    ///
+    /// Generalisable rule: any test asserting on serialized output must PARSE it.
+    /// </summary>
+    [Fact]
+    public async Task Every_export_entry_is_parseable_JSON_Lines()
+    {
+        var client = await _factory.CreateAuthenticatedClientAsync(); // admin@test.org — Owner
+        var res = await client.GetAsync(ExportPath);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        var entries = await ReadArchiveAsync(res);
+        Assert.NotEmpty(entries);
+
+        // Counted, then asserted non-zero. PlanscapeDbContext's tenant filter falls
+        // back to Guid.Empty with no ITenantContext, which matches no rows — so a
+        // per-line loop over an all-empty archive would parse nothing and "pass".
+        var parsedRecords = 0;
+
+        foreach (var (name, content) in entries)
+        {
+            var lines = content.Split('\n');
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].TrimEnd('\r');
+                if (line.Length == 0) continue;
+
+                try
+                {
+                    using var _ = System.Text.Json.JsonDocument.Parse(line);
+                    parsedRecords++;
+                }
+                catch (System.Text.Json.JsonException ex)
+                {
+                    Assert.Fail(
+                        $"{name} line {i + 1} is not a self-contained JSON value: {ex.Message}\n" +
+                        $"  line: {(line.Length > 120 ? line[..120] + "…" : line)}\n" +
+                        "  A record split across lines means the writer is pretty-printing " +
+                        "into a JSON-Lines shape (WriteIndented + WriteLineAsync per row).");
+                }
+            }
+        }
+
+        Assert.True(parsedRecords > 0,
+            "The archive contained no JSON records at all, so this test proved nothing. " +
+            "Expected the caller's own tenant/users/projects rows to be present.");
+    }
+
     [Fact]
     public async Task Export_is_refused_to_roles_below_Owner_or_Admin()
     {

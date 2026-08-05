@@ -90,7 +90,20 @@ public class DataRightsController : ControllerBase
 
     private static readonly JsonSerializerOptions ExportJsonOptions = new()
     {
-        WriteIndented = true,
+        // MUST stay false. DumpAsync writes one WriteLineAsync per row, so the
+        // archive's format is JSON Lines — one self-contained JSON value per line.
+        // With WriteIndented = true each record was pretty-printed across many
+        // lines, which is neither a JSON document (several top-level values, no
+        // enclosing array) nor JSON Lines (records span lines): tenant.json line 1
+        // was the single character "{". Nothing could parse the export.
+        //
+        // Indenting is also why this must not be "fixed" by wrapping each file in
+        // an array instead: the per-line form is what keeps DumpAsync streaming
+        // row-by-row rather than buffering a whole table (issues.json runs to
+        // ~7.4 MB) into one serialized string.
+        //
+        // Guarded by Every_export_entry_is_parseable_JSON_Lines.
+        WriteIndented = false,
         ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
     };
 
