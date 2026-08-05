@@ -61,14 +61,82 @@ namespace StingTools.BIMManager
             => Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), ConfigFileName);
 
         /// <summary>Config path derived from a model (.rvt) file path. No directory creation.</summary>
+        /// <remarks>
+        /// LEGACY FALLBACK ONLY. A bare model path carries no project root, so this
+        /// resolves to the sibling <c>&lt;rvtDir&gt;\STING_BIM_MANAGER\</c> and NOT to the
+        /// canonical <c>&lt;root&gt;\_data\STING_BIM_MANAGER\</c> bucket that every reader uses.
+        /// <para>
+        /// Writing through this path is how issue #570 happened: the BCC link button
+        /// persisted the project id beside the .rvt while <c>PluginSyncTickBridge</c> and
+        /// <c>SitePhotosTab</c> both read the canonical bucket, so a model that had just
+        /// logged "linked to project a3af2ad2-..." reported "no Planscape project linked"
+        /// five minutes later, every five minutes, forever.
+        /// </para>
+        /// <para>
+        /// Prefer <see cref="ResolveConfigPath"/>, which upgrades to
+        /// <see cref="ConfigPathFor(Document)"/> whenever the document is open. This
+        /// overload remains only for genuinely document-less callers and for
+        /// <see cref="Load(string)"/>'s legacy-sibling migration.
+        /// </para>
+        /// </remarks>
         public static string ConfigPathForModel(string? modelPath)
         {
             if (string.IsNullOrEmpty(modelPath)) return "";
-            // path-discipline: legacy-fallback -- a bare model path carries no project
-            // root, so this cannot resolve the canonical bucket. Callers holding a
-            // Document must use ConfigPathFor(doc) instead, which does.
             string dir = Path.Combine(Path.GetDirectoryName(modelPath) ?? "", "STING_BIM_MANAGER");
             return Path.Combine(dir, ConfigFileName);
+        }
+
+        /// <summary>
+        /// The config path a caller holding only a model path should use.
+        ///
+        /// Finds the open <see cref="Document"/> for that model and resolves the
+        /// CANONICAL bucket through <see cref="ConfigPathFor(Document)"/>; only falls
+        /// back to the legacy sibling when the document genuinely is not open. Callers
+        /// that hold a Document should still call <see cref="ConfigPathFor(Document)"/>
+        /// directly.
+        /// </summary>
+        public static string ResolveConfigPath(string? modelPath)
+        {
+            try
+            {
+                var app = StingTools.UI.StingCommandHandler.CurrentApp;
+                var active = app?.ActiveUIDocument?.Document;
+
+                // No model named: the caller means "the document in front of the user".
+                if (string.IsNullOrEmpty(modelPath))
+                    return active != null ? ConfigPathFor(active) : "";
+
+                if (active != null && PathsEqual(active.PathName, modelPath))
+                    return ConfigPathFor(active);
+
+                // Not the active document - look through the rest before giving up,
+                // so a BCC opened over a background document still resolves canonically.
+                var docs = app?.Application?.Documents;
+                if (docs != null)
+                {
+                    foreach (Document d in docs)
+                    {
+                        if (d != null && !d.IsFamilyDocument && PathsEqual(d.PathName, modelPath))
+                            return ConfigPathFor(d);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlanscapeProjectLink.ResolveConfigPath: {ex.Message}");
+            }
+
+            StingLog.Warn("PlanscapeProjectLink.ResolveConfigPath: no open document matched " +
+                          $"'{modelPath}' - falling back to the legacy sibling path. The link " +
+                          "will not be visible to readers that use the canonical bucket.");
+            return ConfigPathForModel(modelPath);
+        }
+
+        private static bool PathsEqual(string? a, string? b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            try { return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+            catch { return string.Equals(a, b, StringComparison.OrdinalIgnoreCase); }
         }
 
         /// <summary>Read the persisted link. Returns an empty <see cref="LinkInfo"/> when no file / no link.</summary>
@@ -165,7 +233,28 @@ namespace StingTools.BIMManager
         public static LinkInfo RestoreInto(Document doc)
         {
             LinkInfo info = default;
-            try { info = Load(ConfigPathFor(doc)); }
+            try
+            {
+                string canonical = ConfigPathFor(doc);
+                info = Load(canonical);
+
+                // Heal #570 in place. Models linked by an older build wrote the id to
+                // the sibling path and nothing has ever read it there, so without this
+                // they stay silently unlinked even after the write path is fixed. Only
+                // adopt when the canonical bucket has no link of its own - a canonical
+                // link is always authoritative over a legacy one.
+                if (!info.IsLinked)
+                {
+                    var legacy = Load(ConfigPathForModel(doc.PathName));
+                    if (legacy.IsLinked)
+                    {
+                        StingLog.Info($"PlanscapeProjectLink: adopting legacy sibling link {legacy.ProjectId} " +
+                                      $"({legacy.Label}) for {doc.Title} and migrating it to the canonical bucket.");
+                        Set(canonical, legacy.ProjectId, legacy.Name, legacy.Code);
+                        info = legacy;
+                    }
+                }
+            }
             catch (Exception ex) { StingLog.Warn($"PlanscapeProjectLink.RestoreInto: {ex.Message}"); }
 
             PlanscapeServerClient.Instance.CurrentProjectId = info.ProjectId; // Empty when not linked

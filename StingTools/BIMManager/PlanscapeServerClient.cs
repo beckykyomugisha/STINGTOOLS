@@ -702,15 +702,43 @@ public sealed partial class PlanscapeServerClient : IDisposable
     {
         try
         {
-            var settings = new JObject
+            // MERGE, never replace. This used to build a fresh JObject and write it
+            // over whatever was there, and the post-login call site passes no
+            // projectId - so saving connection settings silently DELETED the project
+            // link of an already-linked model (issue #571). That defect was dormant
+            // only because the block that calls this never ran: it dereferenced a
+            // null ExternalCommandData and died on an NRE that was logged as
+            // "non-fatal". Fixing the NRE without fixing this would have turned a
+            // harmless log line into link loss on every login.
+            JObject settings;
+            if (File.Exists(configPath))
             {
-                ["serverUrl"]       = _serverUrl,
-                ["email"]           = email,
-                ["lastConnected"]   = DateTime.UtcNow.ToString("o")
-            };
+                try { settings = JObject.Parse(File.ReadAllText(configPath)); }
+                catch (Exception parseEx)
+                {
+                    // Do not silently discard a file we cannot read - it may hold the
+                    // only copy of the project link.
+                    StingLog.Warn($"Planscape: {Path.GetFileName(configPath)} is unreadable " +
+                                  $"({parseEx.Message}); keeping a .corrupt backup before rewriting.");
+                    try { File.Copy(configPath, configPath + ".corrupt", true); } catch { }
+                    settings = new JObject();
+                }
+            }
+            else
+            {
+                settings = new JObject();
+            }
+
+            settings["serverUrl"]     = _serverUrl;
+            settings["email"]         = email;
+            settings["lastConnected"] = DateTime.UtcNow.ToString("o");
+            // Only ever ADD a project id. An absent argument means "not specified",
+            // never "clear the link".
             if (projectId != Guid.Empty)
                 settings["projectId"] = projectId.ToString();
 
+            var dir = Path.GetDirectoryName(configPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             File.WriteAllText(configPath, settings.ToString(Formatting.Indented));
         }
         catch (Exception ex) { StingLog.Warn($"Planscape: Could not save connection settings: {ex.Message}"); }
