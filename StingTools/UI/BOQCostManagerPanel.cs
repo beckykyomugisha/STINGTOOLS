@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQCostManagerPanel.cs — Phase 5 of the BOQ & Cost Manager.
 //  WPF UserControl hosted inside the BIM Coordination Center 4D/5D tab.
 //  No XAML file — layout built in C# following the StingResultPanel pattern.
@@ -130,7 +130,7 @@ namespace StingTools.UI
             {
                 string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — no persistence
-                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_ui_state.json");
+                return StingPaths.MetaFile(Doc, "_BIM_COORD", "boq_ui_state.json");
             }
             catch { return null; }
         }
@@ -2438,7 +2438,7 @@ namespace StingTools.UI
             {
                 string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(parent))
-                    return System.IO.Path.Combine(parent, "_BIM_COORD", "exports");
+                    return StingPaths.MetaFile(Doc, "_BIM_COORD", "exports");
             }
             catch (Exception ex) { StingLog.Warn($"ResolveExportDir: {ex.Message}"); }
             return System.IO.Path.Combine(System.IO.Path.GetTempPath(), "STING_BOQ_exports");

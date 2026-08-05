@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BoqEpd.cs (QS gap G5) — per-material EPD override + carbon data-quality.
 //
 //  Embodied carbon was indicative (ICE DB + material overrides). This adds an
@@ -54,7 +54,7 @@ namespace StingTools.BOQ
             {
                 string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_epd_map.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "boq_epd_map.json");
             }
             catch { return null; }
         }

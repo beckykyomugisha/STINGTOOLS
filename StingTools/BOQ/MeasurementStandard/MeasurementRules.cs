@@ -197,11 +197,7 @@ namespace StingTools.BOQ.MeasurementStandard
         {
             try
             {
-                string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-                if (string.IsNullOrEmpty(bimDir)) return null;
-                string parent = Path.GetDirectoryName(bimDir);
-                if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", $"{id}_measurement_rules.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", $"{id}_measurement_rules.json");
             }
             catch (Exception ex)
             {

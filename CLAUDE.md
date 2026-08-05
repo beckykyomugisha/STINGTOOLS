@@ -25,6 +25,7 @@ The codebase is currently at **Phase 194**. Per-phase history (Phase 179 onward)
 | `CLAUDE.md` (this file — **stable reference + a dated [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) snapshot**) | Architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
 | `docs/CHANGELOG.md` | **Phase-by-phase history** — every `Completed (Phase X)` block in chronological order | When a new phase of work lands; append a new `#### Completed (Phase N — …)` section |
 | `docs/ROADMAP.md` | **Open gaps & future work** — automation-gap tables, future-enhancement lists, deep-review findings | When new gaps are identified or an item is closed (move it to `CHANGELOG.md`) |
+| `docs/INDEX.md` | **Table of contents for the 133 `docs/` files** — grouped by topic, marking which doc is current (✅) vs superseded (⛔) | When a doc is added, or when one supersedes another |
 
 When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than extending this file. When you identify a new gap, add it to `docs/ROADMAP.md` — that keeps this file focused on what the code **is** rather than what it has been or might become.
 
@@ -1173,6 +1174,68 @@ a default `manifest.json` seeded from `ProjectInformation` and
    `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL` are already defined so enabling
    them is additive only.
 
+## Project Output Folder Layout (read before writing any file)
+
+Everything StingTools writes for a project goes inside **one folder**: `<rvtDir>/<PROJECT_CODE>/`.
+`PROJECT_CODE` comes from Revit Project Information → Number (sanitised, ≤8 chars, else `PRJ`), and
+is stamped into ExtensibleStorage so renaming the project number does **not** fork a new tree.
+
+### The rule
+
+> **Never build a project path by hand. Resolve it through `Core/StingPaths.cs`.**
+
+`StingPaths` is the single legal entry point; it delegates to `ProjectFolderEngine`, which owns the
+tree, the per-document root cache and the legacy migration. `tools/check_path_discipline.ps1` fails
+the build on new hand-rolled paths — Tier 1 (legacy bucket names) and Tier 2 (raw-directory
+`_BIM_COORD`) are both **hard zero**, with an empty baseline.
+
+| Need | Call |
+|---|---|
+| A CDE state folder | `StingPaths.Cde(doc, "WIP", discipline, contentType)` |
+| A routed export folder | `StingPaths.Export(doc, "PDF")` · `StingPaths.ExportFile(doc, "BOQ", name, ".xlsx")` |
+| A metadata directory | `StingPaths.Meta(doc, "_BIM_COORD", "sub")` |
+| A metadata **file** | `StingPaths.MetaFile(doc, "_BIM_COORD", "thing.json")` |
+| Same, holding only a model **path** | `StingPaths.MetaFrom(rvtPath, …)` · `StingPaths.MetaFileFrom(rvtPath, …)` |
+| Transient outbound staging | `StingPaths.Staging(doc, "acc")` |
+| The recycle bin | `StingPaths.Recycle(doc)` |
+| A coordination store | `CoordStores.Issues(doc)` · `.Meetings` · `.Register` · `.Transmittals` · `.Revisions` |
+
+`MetaFile` is the one to reach for when migrating an old call site: it returns the consolidated path
+if that file exists, else an existing legacy sibling, else the consolidated path — so a project whose
+data predates consolidation keeps working, and new data is born consolidated. It moves nothing.
+
+### The tree
+
+Three modes, selected once per project and persisted in `<root>/_data/project_setup.json`:
+
+| Mode | When | Shape |
+|---|---|---|
+| **CdeFirst** | default for greenfield projects (`CDE_FIRST_LAYOUT=true`) | 12 top folders; `00_WIP`/`01_SHARED`/`02_PUBLISHED` each hold 7 content-type subfolders |
+| **BIM** | any project with an existing root, legacy folders, or a prior setup | 20 numbered folders `01_WIP`…`20_MISC`; discipline subfolders under WIP/SHARED/PUBLISHED/DRAWINGS |
+| **Mini** | opt-in | 5 flat folders |
+
+Folder display names carry a `_<CODE>` suffix (`01_WIP_FIRESTONE`) unless `FOLDER_CODE_SUFFIX=false`.
+Set that **before** a project's first setup — the names are persisted, so flipping it mid-project
+creates unsuffixed folders alongside the suffixed ones.
+
+`<root>/_data/` holds **all machine state and no deliverables**: `coord/` (the single coordination
+bucket — `_BIM_COORD`, `STING_BIM_MANAGER`, `_bim_manager` and `.bimmanager` are aliases that all
+resolve here), `staging/<channel>/`, `recycle/`, `folder_templates/`, `project_setup.json`.
+
+### Two behaviours worth knowing
+
+- **Folders are created lazily.** `AUTO_CREATE_CDE_FOLDERS` defaults to **false**; every resolver
+  creates the directory it returns. Set it true only to pre-seed the tree — it materialises ~53
+  (CdeFirst) to ~60 (BIM) empty directories on document open.
+- **The legacy migration is opt-in and at-most-once.** `MigrateFromLegacy` requires explicit consent
+  (the `Folders_Consolidate` command), never deletes — drained folders become `*.migrated_yyyyMMdd` —
+  and records every relocation in `_data/.sting_consolidation.json`. That breadcrumb is
+  schema-versioned; bump `ConsolidationSchemaVersion` when adding a step existing projects still need.
+
+Dated assessment of how this got messy, and what is left: [`docs/FOLDER_STRUCTURE_REVIEW_2026-08.md`](docs/FOLDER_STRUCTURE_REVIEW_2026-08.md).
+
+---
+
 ## Technology Stack
 
 - **Platform**: Autodesk Revit 2025/2026/2027 (BIM software)
@@ -1817,7 +1880,7 @@ Sibling dockable panel to `StingElectricalPanel` and `StingPlumbingPanel` — sa
 | DUCT | Duct types + per-region standard-size table + gauge/seam breakpoints + insulation + fab defaults | `CreateDuctsCommand`, `ModelCreateDuctCommand`, `AutoDropCommand`, `GenerateLayoutCommand`, `DuctSeamAuditCommand`, `PlaceHangersCommand`, `ValidateFillsCommand` |
 | LOADS | Spaces × envelope × internal gains × ventilation × computed loads; engine + code pickers | TaskDialog stubs for `Hvac_RunLoads` / `Hvac_ExportGbxml` (Phase 181 Loads + gbXML wizard target); `MEPSpaceAnalysisCommand`, `VentilationCommand` |
 | FAB | Spool grid + Assembly / Hangers / Outputs expanders | `Fabrication_OpenWorkspace`, `ExportCutListCommand`, `ExportIsometricsCommand`, `ExportWeldMapCommand`, `HangerTakedownCommand`, `FlangeRatingCommand`, `SpoolWeightCommand`, `ExportNCCommand` |
-| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync` |
+| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync`, `Hvac_FanStaticReport` (index-run fan external static) |
 
 ### Header context strip
 
@@ -1848,7 +1911,7 @@ Edit either JSON in a text editor and click **RPRT → Reload rules** to pick up
 ### Caveats
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
-2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection (rather than the project-wide `branch` / `chw` defaults) is still pending — the data path is in place.
+2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection is **shipped**: `Core/Mep/HvacSegmentRoleDetector.cs` (Phase 182 — connector-graph walk classifying each duct as main / branch / runout, cached to `HVC_SEGMENT_ROLE_TXT`) and `Core/Mep/PipeServiceDetector.cs` (Phase 183 — `MEPSystem` abbreviation match against `STING_MEP_SERVICE_MAP.json`) replace the old project-wide `branch` / `chw` defaults and are used per-element in the auto-size pass (`DuctSizingApplyEngine.DetectRoles` → `HvacSegmentRoleDetector.DetectRolesBatch`). The old project-wide defaults survive only as fail-soft fallbacks when the connector graph is disconnected or the system carries no abbreviation.
 3. `Hvac_RunLoads` (`Commands/Hvac/HvacRunLoadsCommand`) posts `PostableCommand.AnalyzeHeatingAndCoolingLoads` after an MEP-Spaces pre-flight. `Hvac_ExportGbxml` (`Commands/Hvac/HvacExportGbxmlCommand`) calls `Document.Export` with `GBXMLExportOptions` after a 3D-view check. Both are real, no TaskDialog stubs.
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — commands push rows back into the panel singleton (`StingHvacPanel.Instance`) on completion (same pattern `StingElectricalPanel` uses).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` is stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.

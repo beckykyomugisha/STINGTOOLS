@@ -1,12 +1,30 @@
-"""N-panel registration. Day-1 scaffold — one root panel with About + Reload."""
+"""N-panel registration — root panel + 7 sub-panels."""
 
 from __future__ import annotations
 
 import bpy
 
-from .panel_main import StingMainPanel
+from .panel_main import (
+    StingMainPanel,
+    StingSelectPanel,
+    StingTagsPanel,
+    StingValidatePanel,
+    StingCoordPanel,
+    StingExportPanel,
+    StingSpatialPanel,
+    StingMEPPanel,
+)
 
-CLASSES = (StingMainPanel,)
+CLASSES = (
+    StingMainPanel,
+    StingSelectPanel,
+    StingTagsPanel,
+    StingValidatePanel,
+    StingCoordPanel,
+    StingExportPanel,
+    StingSpatialPanel,
+    StingMEPPanel,
+)
 
 
 def register():

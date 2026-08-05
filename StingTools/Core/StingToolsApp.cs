@@ -559,6 +559,8 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"Classification standard cache invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.LoadProfileRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.LoadAssumptionsRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Load assumptions cache invalidate: {cEx.Message}"); }
                 try { Commands.Hvac.HvacGenerateCxChecklistCommand.InvalidateTaskCache(); }
                 catch (Exception cEx) { StingLog.Warn($"Cx task cache invalidate: {cEx.Message}"); }
                 try { Core.Refrigerant.RefrigerantVendorRegistry.Reload(e.Document); }
@@ -1679,12 +1681,11 @@ namespace StingTools.Core
             try
             {
                 const string FileName = ".sting_live_profile_sync.json";
-                var oldDir = System.IO.Path.GetDirectoryName(oldRvt);
-                var newDir = System.IO.Path.GetDirectoryName(newRvt);
-                if (string.IsNullOrEmpty(oldDir) || string.IsNullOrEmpty(newDir)) return;
-                var oldFile = System.IO.Path.Combine(oldDir, "_BIM_COORD", FileName);
-                if (!System.IO.File.Exists(oldFile)) return;
-                var newCoord = System.IO.Path.Combine(newDir, "_BIM_COORD");
+                if (string.IsNullOrEmpty(oldRvt) || string.IsNullOrEmpty(newRvt)) return;
+                var oldFile = StingPaths.MetaFileFrom(oldRvt, "_BIM_COORD", FileName);
+                if (string.IsNullOrEmpty(oldFile) || !System.IO.File.Exists(oldFile)) return;
+                var newCoord = StingPaths.MetaFrom(newRvt, "_BIM_COORD");
+                if (string.IsNullOrEmpty(newCoord)) return;
                 if (!System.IO.Directory.Exists(newCoord)) System.IO.Directory.CreateDirectory(newCoord);
                 var newFile = System.IO.Path.Combine(newCoord, FileName);
                 if (System.IO.File.Exists(newFile)) return; // don't clobber an existing snapshot

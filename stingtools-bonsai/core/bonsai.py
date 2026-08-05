@@ -25,6 +25,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from .category_inference import infer_disc_sys
+
 logger = logging.getLogger("stingtools_bonsai.core.bonsai")
 
 
@@ -293,6 +295,11 @@ class BonsaiBridge:
         Routes through Bonsai's ``tool.Ifc.run`` when Bonsai is loaded (so Ctrl-Z
         works and Bonsai's property panel refreshes); falls back to direct
         ``ifcopenshell.api.run`` only in headless/standalone. Returns True on success.
+
+        Idempotent with respect to pset existence: if a pset with ``pset_name``
+        already exists on the element, this method calls ``pset.edit_pset`` directly
+        on the existing entity rather than calling ``pset.add_pset`` (which would
+        create a duplicate pset).
         """
         try:
             import ifcopenshell.api  # type: ignore  # noqa: F401 — ensures API present
@@ -302,12 +309,129 @@ class BonsaiBridge:
             model = self.active_ifc()
             if model is None:
                 return False
-            pset = self._run("pset.add_pset", model, product=element, name=pset_name)
-            self._run("pset.edit_pset", model, pset=pset, properties=properties)
+
+            # Find an existing pset with this name to avoid creating a duplicate.
+            existing_pset = None
+            try:
+                for rel in getattr(element, "IsDefinedBy", []):
+                    definition = getattr(rel, "RelatingPropertyDefinition", None)
+                    if definition is not None and getattr(definition, "Name", None) == pset_name:
+                        existing_pset = definition
+                        break
+            except Exception:  # noqa: BLE001 — defensive; fall through to add path
+                pass
+
+            if existing_pset is not None:
+                self._run("pset.edit_pset", model, pset=existing_pset, properties=properties)
+            else:
+                pset = self._run("pset.add_pset", model, product=element, name=pset_name)
+                self._run("pset.edit_pset", model, pset=pset, properties=properties)
             return True
         except Exception as e:
             logger.error("add_pset failed: %s", e, exc_info=True)
             return False
+
+    # ------------------------------------------------------------------
+    # pset property helpers
+    # ------------------------------------------------------------------
+
+    def _read_pset_property(self, element: Any, pset_name: str, prop_name: str) -> Optional[str]:
+        """Return a single property value from a pset on element, or None."""
+        try:
+            import ifcopenshell.util.element as ifc_util  # type: ignore
+            psets = ifc_util.get_psets(element)
+            pset = psets.get(pset_name, {})
+            val = pset.get(prop_name)
+            return str(val) if val is not None else None
+        except Exception as e:
+            logger.debug("_read_pset_property(%s.%s): %s", pset_name, prop_name, e)
+            return None
+
+    def _write_pset_property(
+        self, element: Any, pset_name: str, prop_name: str, value: str
+    ) -> bool:
+        """Write a single property onto element's pset, creating the pset if absent."""
+        return self.add_pset(element, pset_name, {prop_name: value})
+
+    # ------------------------------------------------------------------
+    # STING tag-segment write with TokenLock + TagHistory
+    # ------------------------------------------------------------------
+
+    _TOKEN_LOCK_PROP  = "TokenLock"   # CSV list of locked segment names, e.g. "ASS_DISCIPLINE_COD_TXT,ASS_LOC_TXT"
+    _TOKEN_LOCK_PSET  = "Pset_StingTags"
+    _PREV_TAG_PROP    = "PreviousTag"
+    _MODIFIED_AT_PROP = "ModifiedAt"
+
+    def write_tag_segment(
+        self, element: Any, param_name: str, value: str
+    ) -> bool:
+        """Write one STING tag segment (param_name in Pset_StingTags) on element.
+
+        Raises StingTokenLockError when TokenLock (in Pset_StingTags) is a
+        CSV list that includes param_name and the existing value differs from
+        value.  Records audit trail in PreviousTag + ModifiedAt before
+        overwriting.
+
+        Returns True on success.
+        """
+        from .exceptions import StingTokenLockError
+        import datetime
+
+        locked_val = self._read_pset_property(
+            element, self._TOKEN_LOCK_PSET, self._TOKEN_LOCK_PROP
+        )
+        # TokenLock is an IFCLABEL CSV list of locked segment names, e.g.
+        # "ASS_DISCIPLINE_COD_TXT,ASS_LOC_TXT".  An element is locked for
+        # *this* segment when param_name appears in that list.
+        is_locked = bool(locked_val) and param_name in [
+            s.strip() for s in locked_val.split(",") if s.strip()
+        ]
+
+        existing = self._read_pset_property(element, self._TOKEN_LOCK_PSET, param_name)
+
+        if is_locked and existing is not None and existing != value:
+            raise StingTokenLockError(param_name, existing, value)
+
+        # No-op when the stored value already matches — avoids unnecessary IFC writes
+        # and duplicate audit-trail entries.
+        if existing is not None and existing == value:
+            return True
+
+        # Record audit trail before writing new value
+        if existing is not None and existing != value:
+            self._write_pset_property(
+                element, self._TOKEN_LOCK_PSET, self._PREV_TAG_PROP, existing
+            )
+            self._write_pset_property(
+                element,
+                self._TOKEN_LOCK_PSET,
+                self._MODIFIED_AT_PROP,
+                datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+            )
+
+        return self._write_pset_property(element, self._TOKEN_LOCK_PSET, param_name, value)
+
+    # ------------------------------------------------------------------
+    # discipline inference
+    # ------------------------------------------------------------------
+
+    def auto_infer_discipline(self, element: Any) -> tuple[Optional[str], Optional[str]]:
+        """Return (DISC, SYS) for an IFC element using its entity type.
+
+        Uses category_inference._MAP — same table as TagConfig.SysMap in the
+        C# plugin.  Returns (None, None) when the entity type is unmapped.
+
+        Args:
+            element: an ifcopenshell entity (has .is_a() method).
+
+        Returns:
+            (disc_code, sys_code) e.g. ("M", "HVAC"), or (None, None).
+        """
+        try:
+            ifc_type = element.is_a()
+        except AttributeError:
+            return (None, None)
+        return infer_disc_sys(ifc_type)
 
     def edit_attribute(self, element: Any, attributes: dict) -> bool:
         """Set built-in IFC attributes (Name, Description, etc) on an element.

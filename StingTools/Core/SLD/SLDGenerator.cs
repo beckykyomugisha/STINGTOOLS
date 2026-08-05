@@ -47,6 +47,55 @@ namespace StingTools.Core.SLD
     {
         private const string DrawingTypeId = "elec-sld-A1-1to100";
 
+        /// <summary>
+        /// Which documents SLD generation reads. Defaults to <c>HostOnly</c>, matching
+        /// historic behaviour — a federated project can opt in to <c>HostAndLinks</c>
+        /// to draw panels that live in a linked MEP model.
+        ///
+        /// <para>Settable rather than hard-coded because the right answer is a project
+        /// decision, not a product one: linked equipment is read-only and its circuits
+        /// cannot join the host's, so linked roots are reference content. A team issuing
+        /// the SLD from the MEP model wants HostOnly; a coordinator proving coverage
+        /// across a federation wants HostAndLinks.</para>
+        /// </summary>
+        public static SLDScanScope ScanScope { get; set; } = SLDScanScope.HostOnly;
+
+        /// <summary>
+        /// Explains an empty or failed scan in terms of what was actually found, so a
+        /// genuine failure is never reported as "you have not placed a panel" and a
+        /// federated model is not told to place panels it already has in a link.
+        /// </summary>
+        private static string DescribeEmptyScan(SLDScanResult scan)
+        {
+            if (scan == null)
+                return "SLD scan returned nothing — see StingTools.log.";
+
+            if (scan.Failed)
+                return "SLD scan failed: " + scan.Error
+                     + ". This is a fault, not an empty model — see StingTools.log.";
+
+            bool linked = scan.LinkedDocsWithEquipment != null
+                       && scan.LinkedDocsWithEquipment.Count > 0;
+
+            if (scan.HostEquipmentCount == 0 && linked)
+                return "No electrical equipment in this model, but "
+                     + $"{scan.LinkedDocsWithEquipment.Count} linked model(s) contain some: "
+                     + string.Join(", ", scan.LinkedDocsWithEquipment)
+                     + ". Generate the SLD from the model that owns the equipment, or "
+                     + "enable link scanning to draw the linked distribution as reference.";
+
+            if (scan.HostEquipmentCount == 0)
+                return "no distribution roots found — place at least one "
+                     + "electrical equipment family (Distribution Board / panel / MDB) "
+                     + "before generating an SLD";
+
+            // Equipment exists but every piece is a downstream load: a circuiting loop,
+            // not missing content. Telling the user to place another panel would be wrong.
+            return $"{scan.HostEquipmentCount} electrical equipment element(s) found, but every "
+                 + "one is wired as a load on another circuit, so there is no supply root. "
+                 + "Check for a circular feed, or leave the incoming supply uncircuited.";
+        }
+
         public static SLDResult GenerateSLD(Document doc, string standardId,
             string viewName = null,
             SLDLayoutOptions layoutOpts = null,
@@ -59,16 +108,11 @@ namespace StingTools.Core.SLD
             if (doc == null) { result.Warning = "no document"; return result; }
             try
             {
-                var roots = SLDCircuitTraverser.BuildHierarchyAll(doc);
-                if (roots == null || roots.Count == 0)
+                var scan = SLDCircuitTraverser.ScanHierarchy(doc, ScanScope);
+                var roots = scan.Roots;
+                if (scan.Failed || roots == null || roots.Count == 0)
                 {
-                    // A root is any electrical equipment (OST_ElectricalEquipment) that is
-                    // not itself wired as a downstream load. Zero roots almost always means
-                    // no Distribution Board / panel / MDB has been placed yet — NOT that
-                    // circuits are missing (equipment with no circuits still counts as a root).
-                    result.Warning = "no distribution roots found — place at least one "
-                        + "electrical equipment family (Distribution Board / panel / MDB) "
-                        + "before generating an SLD";
+                    result.Warning = DescribeEmptyScan(scan);
                     return result;
                 }
 
@@ -280,7 +324,9 @@ namespace StingTools.Core.SLD
                 tx.Commit();
             }
 
-            var roots = SLDCircuitTraverser.BuildHierarchyAll(doc);
+            // Same scope as generation, or a rebuild would silently drop the linked
+            // roots the original diagram was drawn with.
+            var roots = SLDCircuitTraverser.ScanHierarchy(doc, ScanScope).Roots;
             if (roots == null || roots.Count == 0) return;
 
             using (var tx = new Transaction(doc, "STING Rebuild SLD content"))

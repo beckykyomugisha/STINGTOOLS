@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQSupportCommands.cs — Phases 8-10 + UI dispatch targets.
 //  Houses the small command classes dispatched from the BOQ panel toolbar
 //  and the snapshot-comparison + reconciliation + import flows.
@@ -100,7 +100,7 @@ namespace StingTools.BOQ
                     string parent = Path.GetDirectoryName(doc.PathName ?? "");
                     if (!string.IsNullOrEmpty(parent))
                     {
-                        string dir = Path.Combine(parent, "_BIM_COORD");
+                        string dir = StingPaths.Meta(doc, "_BIM_COORD");
                         Directory.CreateDirectory(dir);
                         csvPath = Path.Combine(dir, $"boq_rate_gap_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                         var sb = new StringBuilder();
@@ -239,7 +239,7 @@ namespace StingTools.BOQ
                     string parent = Path.GetDirectoryName(doc.PathName ?? "");
                     if (!string.IsNullOrEmpty(parent))
                     {
-                        string dir = Path.Combine(parent, "_BIM_COORD");
+                        string dir = StingPaths.Meta(doc, "_BIM_COORD");
                         Directory.CreateDirectory(dir);
                         csvPath = Path.Combine(dir, $"boq_carbon_gap_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                         var sb = new StringBuilder();

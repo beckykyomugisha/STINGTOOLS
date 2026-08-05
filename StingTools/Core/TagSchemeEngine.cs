@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -277,7 +277,7 @@ namespace StingTools.Core
         {
             string dir = DocKey(doc);
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", ProjectFileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", ProjectFileName);
         }
 
         /// <summary>SHA-256 checksum of a scheme's canonical JSON — used for the render stamp.</summary>
@@ -310,7 +310,7 @@ namespace StingTools.Core
         {
             string dir = DocKey(doc);
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", StampFileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", StampFileName);
         }
 
         /// <summary>Checksums recorded at the last full render, empty when never rendered.</summary>
