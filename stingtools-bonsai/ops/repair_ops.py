@@ -50,7 +50,7 @@ class StingRepairDuplicateSeqOperator(bpy.types.Operator):
             return {"CANCELLED"}
 
         pset_name = "Pset_StingTags"
-        # group_key -> list of (element, current_seq_int)
+        # group_key → list of (element, current_seq_int)
         groups: dict[tuple, list] = {}
 
         for el in ifc.by_type("IfcElement"):
@@ -73,7 +73,7 @@ class StingRepairDuplicateSeqOperator(bpy.types.Operator):
             max_seq = max(s for _, s in entries) if entries else 0
             for el, seq in entries:
                 if seq in seen:
-                    # Duplicate - assign next available
+                    # Duplicate — assign next available
                     max_seq += 1
                     _write_stag(ifc, el, {"Sequence": f"{max_seq:04d}"})
                     repaired += 1

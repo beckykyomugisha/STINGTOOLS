@@ -55,7 +55,7 @@ class StingCalcPipeFlowOperator(bpy.types.Operator):
 
     # Standard metric DN bore diameters in mm
     _DN_SERIES = [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300]
-    _HW_C = 140        # Hazen-Williams C -- copper/plastic
+    _HW_C = 140        # Hazen-Williams C — copper/plastic
     _MAX_VEL = 3.0     # m/s maximum velocity
     _SLOPE = 0.01      # assumed hydraulic gradient (m/m) for preliminary sizing
 
@@ -125,7 +125,7 @@ class StingCalcDrainageUnitsOperator(bpy.types.Operator):
     )
     bl_options = {"REGISTER", "UNDO"}
 
-    # BS EN 12056-2 Table 1 -- Discharge Unit values
+    # BS EN 12056-2 Table 1 — Discharge Unit values
     _DU_TABLE = {
         "WC": 2.0,
         "WATERCLOSETWITHCISTERN": 2.0,
@@ -219,11 +219,11 @@ class StingCalcConduitFillOperator(bpy.types.Operator):
 
             # Conduit internal diameter (mm); default 25 mm if not set
             conduit_d = float(mep.get("ELC_CONDUIT_DN_MM", 25) or 25)
-            conduit_area = math.pi * (conduit_d / 2.0) ** 2   # mm2
+            conduit_area = math.pi * (conduit_d / 2.0) ** 2   # mm²
 
             # Cable count and individual cable outer diameter (mm)
             cable_count = int(float(mep.get("ELC_CABLE_COUNT", 1) or 1))
-            cable_d = float(mep.get("ELC_CABLE_OD_MM", 6) or 6)   # typical 6 mm2/1.5 mm2 T&E
+            cable_d = float(mep.get("ELC_CABLE_OD_MM", 6) or 6)   # typical 6 mm²/1.5 mm² T&E
             cable_area_each = math.pi * (cable_d / 2.0) ** 2
             total_cable_area = cable_count * cable_area_each
 

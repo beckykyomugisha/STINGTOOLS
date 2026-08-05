@@ -1,329 +1,304 @@
-"""Export operators — tag register CSV, compliance snapshot, BOQ, audit log."""
+"""Export operators — tag register CSV, BOQ CSV, compliance snapshot, audit log export."""
 
 from __future__ import annotations
 
 import csv
-import json
-import pathlib
 import hashlib
-import datetime
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
 
 import bpy
 
 
-def _bim_coord_dir(ifc_path: str) -> pathlib.Path:
-    """Return the _BIM_COORD directory next to the IFC file."""
-    p = pathlib.Path(ifc_path)
-    d = p.parent / "_BIM_COORD"
-    d.mkdir(exist_ok=True)
-    return d
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def _get_ifc():
+    try:
+        from ..core.bonsai import bonsai as _bridge
+        return _bridge.active_ifc()
+    except Exception:
+        return None
+
+
+def _bim_coord_dir(ifc_path: str) -> Path:
+    """Return <ifc_dir>/_BIM_COORD/, creating it if absent."""
+    p = Path(ifc_path).parent / "_BIM_COORD"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
 
 def _ts() -> str:
-    return datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
 # ---------------------------------------------------------------------------
-# Tag register export
+# Tag Register CSV export
 # ---------------------------------------------------------------------------
 
 class StingExportTagRegisterOperator(bpy.types.Operator):
-    """Export all tagged IFC elements to a CSV tag register."""
+    """Export Pset_StingTags for every IfcElement to a CSV tag register."""
 
     bl_idname = "sting.export_tag_register"
     bl_label = "Export Tag Register"
-    bl_description = "Write all Pset_StingTags values to a CSV file in _BIM_COORD/"
+    bl_description = (
+        "Write a CSV of all IfcElement Pset_StingTags to "
+        "<ifc_dir>/_BIM_COORD/tag_register_<ts>.csv"
+    )
     bl_options = {"REGISTER"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        try:
-            from ..core.bonsai import bonsai as _bridge
-            ifc = _bridge.active_ifc()
-        except Exception as exc:
-            self.report({"ERROR"}, f"Cannot access IFC model: {exc}")
-            return {"CANCELLED"}
-
-        if ifc is None:
-            self.report({"ERROR"}, "No IFC file loaded — open a model in Bonsai first")
-            return {"CANCELLED"}
-
-        try:
-            ifc_path = ifc.path
-        except AttributeError:
-            self.report({"ERROR"}, "Cannot resolve IFC path")
-            return {"CANCELLED"}
-
-        pset_name = "Pset_StingTags"
-        fields = ["Discipline", "Location", "Zone", "Level", "System", "Function", "Product", "Sequence", "FullTag"]
-        rows = []
-
-        try:
-            import ifcopenshell  # provided by Bonsai
-            import ifcopenshell.util.element as ifc_util
-            for el in ifc.by_type("IfcElement"):
-                psets = ifc_util.get_psets(el)
-                stag = psets.get(pset_name, {})
-                if not stag:
-                    continue
-                rows.append({
-                    "GlobalId": el.GlobalId,
-                    "IfcClass": el.is_a(),
-                    "Name": el.Name or "",
-                    **{f: stag.get(f, "") for f in fields},
-                })
-        except Exception as exc:
-            self.report({"ERROR"}, f"IFC traversal failed: {exc}")
-            return {"CANCELLED"}
-
-        out_path = _bim_coord_dir(ifc_path) / f"tag_register_{_ts()}.csv"
-        try:
-            with out_path.open("w", newline="", encoding="utf-8") as fh:
-                writer = csv.DictWriter(fh, fieldnames=["GlobalId", "IfcClass", "Name"] + fields)
-                writer.writeheader()
-                writer.writerows(rows)
-        except OSError as exc:
-            self.report({"ERROR"}, f"Cannot write CSV: {exc}")
-            return {"CANCELLED"}
-
-        self.report({"INFO"}, f"Tag register exported — {len(rows)} rows → {out_path.name}")
-        return {"FINISHED"}
-
-
-# ---------------------------------------------------------------------------
-# Compliance snapshot export
-# ---------------------------------------------------------------------------
-
-class StingExportComplianceSnapshotOperator(bpy.types.Operator):
-    """Export a JSON compliance snapshot and optionally push to Planscape."""
-
-    bl_idname = "sting.export_compliance_snapshot"
-    bl_label = "Export Compliance Snapshot"
-    bl_description = "Write tag-completeness JSON snapshot; optionally push to Planscape Server"
-    bl_options = {"REGISTER"}
-
-    def execute(self, context: bpy.types.Context) -> set[str]:
-        try:
-            from ..core.bonsai import bonsai as _bridge
-            ifc = _bridge.active_ifc()
-        except Exception as exc:
-            self.report({"ERROR"}, f"Cannot access IFC model: {exc}")
-            return {"CANCELLED"}
-
+        ifc = _get_ifc()
         if ifc is None:
             self.report({"ERROR"}, "No IFC file loaded")
             return {"CANCELLED"}
 
         try:
-            ifc_path = ifc.path
-        except AttributeError:
-            self.report({"ERROR"}, "Cannot resolve IFC path")
+            import ifcopenshell.util.element as ifc_util
+        except ImportError as exc:
+            self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
             return {"CANCELLED"}
 
-        pset_name = "Pset_StingTags"
-        required_fields = ["Discipline", "Location", "Zone", "Level", "System", "Function", "Product", "Sequence"]
+        ifc_path = getattr(ifc, "path", None) or ""
+        if not ifc_path:
+            self.report({"WARNING"}, "IFC path unknown — writing to Blender temp dir")
+            out_dir = Path(bpy.app.tempdir)
+        else:
+            out_dir = _bim_coord_dir(ifc_path)
 
-        total = complete = incomplete = untagged = 0
-        by_disc: dict[str, dict] = {}
+        out_path = out_dir / f"tag_register_{_ts()}.csv"
 
-        try:
-            import ifcopenshell
-            import ifcopenshell.util.element as ifc_util
+        fields = [
+            "GlobalId", "IfcClass", "Name",
+            "Discipline", "Location", "Zone", "Level",
+            "System", "Function", "Product", "Sequence", "FullTag",
+        ]
+
+        rows_written = 0
+        with out_path.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fields)
+            writer.writeheader()
             for el in ifc.by_type("IfcElement"):
                 psets = ifc_util.get_psets(el)
-                stag = psets.get(pset_name, {})
-                total += 1
-                if not stag:
-                    untagged += 1
-                    continue
-                disc = stag.get("Discipline", "XX")
-                filled = sum(1 for f in required_fields if stag.get(f, "XX") not in ("", "XX"))
-                if filled == len(required_fields):
-                    complete += 1
-                else:
-                    incomplete += 1
-                d = by_disc.setdefault(disc, {"total": 0, "complete": 0, "incomplete": 0})
-                d["total"] += 1
-                if filled == len(required_fields):
-                    d["complete"] += 1
-                else:
-                    d["incomplete"] += 1
-        except Exception as exc:
-            self.report({"ERROR"}, f"IFC traversal failed: {exc}")
+                stag = psets.get("Pset_StingTags", {})
+                writer.writerow({
+                    "GlobalId":   getattr(el, "GlobalId", ""),
+                    "IfcClass":   el.is_a(),
+                    "Name":       getattr(el, "Name", "") or "",
+                    "Discipline": stag.get("Discipline", ""),
+                    "Location":   stag.get("Location", ""),
+                    "Zone":       stag.get("Zone", ""),
+                    "Level":      stag.get("Level", ""),
+                    "System":     stag.get("System", ""),
+                    "Function":   stag.get("Function", ""),
+                    "Product":    stag.get("Product", ""),
+                    "Sequence":   stag.get("Sequence", ""),
+                    "FullTag":    stag.get("FullTag", ""),
+                })
+                rows_written += 1
+
+        self.report({"INFO"}, f"Tag register exported: {rows_written} rows → {out_path.name}")
+        return {"FINISHED"}
+
+
+# ---------------------------------------------------------------------------
+# Bill of Quantities CSV export
+# ---------------------------------------------------------------------------
+
+class StingExportBOQOperator(bpy.types.Operator):
+    """Export a simple Bill of Quantities grouped by Discipline / System / IfcClass."""
+
+    bl_idname = "sting.export_boq"
+    bl_label = "Export BOQ"
+    bl_description = (
+        "Group IfcElements by (Discipline, System, IfcClass) and write a "
+        "count-based BOQ to <ifc_dir>/_BIM_COORD/boq_<ts>.csv"
+    )
+    bl_options = {"REGISTER"}
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        ifc = _get_ifc()
+        if ifc is None:
+            self.report({"ERROR"}, "No IFC file loaded")
             return {"CANCELLED"}
+
+        try:
+            import ifcopenshell.util.element as ifc_util
+        except ImportError as exc:
+            self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
+            return {"CANCELLED"}
+
+        from collections import Counter
+        counts: Counter = Counter()
+
+        for el in ifc.by_type("IfcElement"):
+            psets = ifc_util.get_psets(el)
+            stag = psets.get("Pset_StingTags", {})
+            disc = stag.get("Discipline", "XX")
+            sys_ = stag.get("System", "XX")
+            ifc_class = el.is_a()
+            counts[(disc, sys_, ifc_class)] += 1
+
+        ifc_path = getattr(ifc, "path", None) or ""
+        out_dir = _bim_coord_dir(ifc_path) if ifc_path else Path(bpy.app.tempdir)
+        out_path = out_dir / f"boq_{_ts()}.csv"
+
+        with out_path.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(["Discipline", "System", "IfcClass", "Quantity"])
+            for (disc, sys_, ifc_class), qty in sorted(counts.items()):
+                writer.writerow([disc, sys_, ifc_class, qty])
+
+        self.report({"INFO"}, f"BOQ exported: {sum(counts.values())} elements → {out_path.name}")
+        return {"FINISHED"}
+
+
+# ---------------------------------------------------------------------------
+# Compliance Snapshot JSON export
+# ---------------------------------------------------------------------------
+
+class StingExportComplianceSnapshotOperator(bpy.types.Operator):
+    """Snapshot tag completeness metrics to a JSON file and optionally push to Planscape."""
+
+    bl_idname = "sting.export_compliance_snapshot"
+    bl_label = "Export Compliance Snapshot"
+    bl_description = (
+        "Count complete / incomplete / untagged elements and write a JSON "
+        "snapshot to <ifc_dir>/_BIM_COORD/compliance_<ts>.json. "
+        "Pushes to Planscape when a token is configured in add-on prefs."
+    )
+    bl_options = {"REGISTER"}
+
+    _REQUIRED = ["Discipline", "Location", "Zone", "Level",
+                 "System", "Function", "Product", "Sequence"]
+    _SENTINEL = {"", "XX"}
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        ifc = _get_ifc()
+        if ifc is None:
+            self.report({"ERROR"}, "No IFC file loaded")
+            return {"CANCELLED"}
+
+        try:
+            import ifcopenshell.util.element as ifc_util
+        except ImportError as exc:
+            self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
+            return {"CANCELLED"}
+
+        total = complete = incomplete = untagged = 0
+        discipline_counts: dict[str, int] = {}
+
+        for el in ifc.by_type("IfcElement"):
+            psets = ifc_util.get_psets(el)
+            stag = psets.get("Pset_StingTags", {})
+            total += 1
+            disc = stag.get("Discipline", "XX")
+            if not stag or disc in self._SENTINEL:
+                untagged += 1
+                continue
+            missing = [f for f in self._REQUIRED if stag.get(f, "XX") in self._SENTINEL]
+            if missing:
+                incomplete += 1
+            else:
+                complete += 1
+                discipline_counts[disc] = discipline_counts.get(disc, 0) + 1
 
         pct = round(complete / total * 100, 1) if total else 0.0
         snapshot = {
-            "captured_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": _ts(),
             "total": total,
             "complete": complete,
             "incomplete": incomplete,
             "untagged": untagged,
             "compliance_pct": pct,
-            "by_discipline": by_disc,
+            "by_discipline": discipline_counts,
         }
 
-        out_path = _bim_coord_dir(ifc_path) / f"compliance_{_ts()}.json"
-        try:
-            out_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
-        except OSError as exc:
-            self.report({"ERROR"}, f"Cannot write snapshot: {exc}")
-            return {"CANCELLED"}
+        ifc_path = getattr(ifc, "path", None) or ""
+        out_dir = _bim_coord_dir(ifc_path) if ifc_path else Path(bpy.app.tempdir)
+        out_path = out_dir / f"compliance_{_ts()}.json"
+        out_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
 
-        # Attempt Planscape push (non-fatal if offline)
+        # Optional Planscape push
         try:
             from .. import prefs as _p
             pr = _p.get_prefs(context)
-            token = pr.api_token or ""
-            project_id = pr.project_id or ""
-            if token and project_id:
+            if pr.api_token and pr.project_id:
                 from stingtools_core.planscape import PlanscapeClient  # type: ignore
-                client = PlanscapeClient(token=token)
-                client.push_compliance(project_id=project_id, snapshot=snapshot)
-                self.report({"INFO"}, f"Snapshot pushed to Planscape — {pct}% compliant")
-            else:
-                self.report({"INFO"}, f"Snapshot saved locally — {pct}% compliant ({out_path.name})")
+                client = PlanscapeClient(pr.api_token)
+                client.push_compliance_snapshot(pr.project_id, snapshot)
         except Exception:
-            self.report({"INFO"}, f"Snapshot saved locally (Planscape unavailable) — {pct}% compliant")
+            pass
 
+        self.report({"INFO"}, f"{pct}% compliant ({complete}/{total}) — saved to {out_path.name}")
         return {"FINISHED"}
 
 
 # ---------------------------------------------------------------------------
-# BOQ export
-# ---------------------------------------------------------------------------
-
-class StingExportBOQOperator(bpy.types.Operator):
-    """Export a Bill of Quantities CSV grouped by Discipline x System x IfcClass."""
-
-    bl_idname = "sting.export_boq"
-    bl_label = "Export BOQ"
-    bl_description = "Write a Bill of Quantities CSV to _BIM_COORD/"
-    bl_options = {"REGISTER"}
-
-    def execute(self, context: bpy.types.Context) -> set[str]:
-        try:
-            from ..core.bonsai import bonsai as _bridge
-            ifc = _bridge.active_ifc()
-        except Exception as exc:
-            self.report({"ERROR"}, f"Cannot access IFC model: {exc}")
-            return {"CANCELLED"}
-
-        if ifc is None:
-            self.report({"ERROR"}, "No IFC file loaded")
-            return {"CANCELLED"}
-
-        try:
-            ifc_path = ifc.path
-        except AttributeError:
-            self.report({"ERROR"}, "Cannot resolve IFC path")
-            return {"CANCELLED"}
-
-        pset_name = "Pset_StingTags"
-        groups: dict[tuple, int] = {}
-
-        try:
-            import ifcopenshell
-            import ifcopenshell.util.element as ifc_util
-            for el in ifc.by_type("IfcElement"):
-                psets = ifc_util.get_psets(el)
-                stag = psets.get(pset_name, {})
-                disc = stag.get("Discipline", "XX")
-                sys_ = stag.get("System", "XX")
-                ifc_class = el.is_a()
-                key = (disc, sys_, ifc_class)
-                groups[key] = groups.get(key, 0) + 1
-        except Exception as exc:
-            self.report({"ERROR"}, f"IFC traversal failed: {exc}")
-            return {"CANCELLED"}
-
-        out_path = _bim_coord_dir(ifc_path) / f"boq_{_ts()}.csv"
-        try:
-            with out_path.open("w", newline="", encoding="utf-8") as fh:
-                writer = csv.writer(fh)
-                writer.writerow(["Discipline", "System", "IfcClass", "Quantity", "Unit"])
-                for (disc, sys_, cls_), qty in sorted(groups.items()):
-                    writer.writerow([disc, sys_, cls_, qty, "Nr"])
-        except OSError as exc:
-            self.report({"ERROR"}, f"Cannot write BOQ: {exc}")
-            return {"CANCELLED"}
-
-        total_items = sum(groups.values())
-        self.report({"INFO"}, f"BOQ exported — {total_items} items, {len(groups)} lines → {out_path.name}")
-        return {"FINISHED"}
-
-
-# ---------------------------------------------------------------------------
-# Audit log export / integrity check
+# Audit Log export
 # ---------------------------------------------------------------------------
 
 class StingAuditLogExportOperator(bpy.types.Operator):
-    """Verify and export the STING SHA-256-chained audit log."""
+    """Verify SHA-256 chain integrity and export the audit JSONL to a timestamped copy."""
 
     bl_idname = "sting.export_audit_log"
     bl_label = "Export Audit Log"
-    bl_description = "Verify SHA-256 chain integrity and copy audit log to a timestamped file"
+    bl_description = (
+        "Read <ifc_dir>/_BIM_COORD/sting_audit.jsonl, verify the SHA-256 "
+        "tamper-evidence chain, and copy to sting_audit_export_<ts>.jsonl"
+    )
     bl_options = {"REGISTER"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        try:
-            from ..core.bonsai import bonsai as _bridge
-            ifc = _bridge.active_ifc()
-        except Exception as exc:
-            self.report({"ERROR"}, f"Cannot access IFC model: {exc}")
-            return {"CANCELLED"}
-
+        ifc = _get_ifc()
         if ifc is None:
             self.report({"ERROR"}, "No IFC file loaded")
             return {"CANCELLED"}
 
-        try:
-            ifc_path = ifc.path
-        except AttributeError:
-            self.report({"ERROR"}, "Cannot resolve IFC path")
+        ifc_path = getattr(ifc, "path", None) or ""
+        if not ifc_path:
+            self.report({"ERROR"}, "IFC path unknown — cannot locate audit log")
             return {"CANCELLED"}
 
-        src = _bim_coord_dir(ifc_path) / "sting_audit.jsonl"
-        if not src.exists():
-            self.report({"WARNING"}, "No audit log found at _BIM_COORD/sting_audit.jsonl")
+        bim_dir = _bim_coord_dir(ifc_path)
+        audit_path = bim_dir / "sting_audit.jsonl"
+
+        if not audit_path.exists():
+            self.report({"WARNING"}, "No audit log found — nothing to export")
             return {"CANCELLED"}
 
-        lines = src.read_text(encoding="utf-8").splitlines()
-        errors: list[str] = []
+        lines = audit_path.read_text(encoding="utf-8").splitlines()
+        tampered = 0
         prev_hash = ""
-        for i, line in enumerate(lines):
+        for line in lines:
+            if not line.strip():
+                continue
             try:
                 entry = json.loads(line)
+                stored_prev = entry.get("prev_hash", "")
+                if stored_prev != prev_hash:
+                    tampered += 1
+                prev_hash = hashlib.sha256(line.encode()).hexdigest()
             except json.JSONDecodeError:
-                errors.append(f"Line {i+1}: JSON parse error")
-                continue
-            stored_hash = entry.get("hash", "")
-            payload = json.dumps({k: v for k, v in entry.items() if k != "hash"}, sort_keys=True)
-            expected = hashlib.sha256((prev_hash + payload).encode()).hexdigest()
-            if stored_hash != expected:
-                errors.append(f"Line {i+1}: hash mismatch (chain broken)")
-            prev_hash = stored_hash
+                tampered += 1
 
-        out_path = _bim_coord_dir(ifc_path) / f"audit_export_{_ts()}.jsonl"
-        try:
-            import shutil
-            shutil.copy2(src, out_path)
-        except OSError as exc:
-            self.report({"ERROR"}, f"Cannot copy audit log: {exc}")
-            return {"CANCELLED"}
+        out_path = bim_dir / f"sting_audit_export_{_ts()}.jsonl"
+        import shutil
+        shutil.copy2(audit_path, out_path)
 
-        if errors:
-            self.report({"WARNING"}, f"Audit log has {len(errors)} chain error(s) — see system console")
-            for err in errors[:5]:
-                print(f"[STING AUDIT] {err}")
+        if tampered:
+            self.report({"WARNING"}, f"Exported {len(lines)} entries — {tampered} CHAIN VIOLATIONS detected")
         else:
-            self.report({"INFO"}, f"Audit log OK ({len(lines)} entries) → {out_path.name}")
-
+            self.report({"INFO"}, f"Audit log exported: {len(lines)} entries, chain OK → {out_path.name}")
         return {"FINISHED"}
 
 
 CLASSES = (
     StingExportTagRegisterOperator,
-    StingExportComplianceSnapshotOperator,
     StingExportBOQOperator,
+    StingExportComplianceSnapshotOperator,
     StingAuditLogExportOperator,
 )
