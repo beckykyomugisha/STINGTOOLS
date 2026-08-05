@@ -1,0 +1,94 @@
+name: KUT Pre-flight Gate
+
+# The Kampala Uganda Temple pack is configuration-heavy by design: the Owner's
+# BIM standards supersede our interim conventions in week 1, so the LOD matrix,
+# owner-standards rules, tag schemes and Fohlio map are all JSON overlays rather
+# than code. That is the right architecture, and it moves the failure mode from
+# "won't compile" to "compiles, runs, does nothing":
+#
+#   * a shared parameter missing from one of its four registries binds to
+#     nothing, and every downstream audit quietly reports empty;
+#   * a mistyped JSON key is dropped by Newtonsoft without an error, so a rule
+#     that reads correctly in review never fires;
+#   * a workflow commandTag that no longer resolves only surfaces mid-run — in
+#     front of the Owner, at a deliverable gate.
+#
+# None of that is caught by `dotnet build`, and none of it needs Revit. This gate
+# runs tools/kut_preflight.py, which asserts the wiring and the data contracts
+# offline, on every change to the KUT surface. It is deliberately cheap (no SDK,
+# no restore) so it can gate data edits made by the BIM Manager, not just code.
+#
+# It does NOT replace the Revit session: 16 of the 27 steps in
+# docs/examples/KUT/REVIT_SMOKE_TEST.md are geometry-dependent and still need a
+# human in Revit. The script prints that remaining list on every run.
+
+on:
+  push:
+    paths:
+      - 'StingTools/Data/STING_LOD_MATRIX.json'
+      - 'StingTools/Data/STING_OWNER_STANDARDS_PACK.json'
+      - 'StingTools/Data/STING_TAG_SCHEMES.json'
+      - 'StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv'
+      - 'StingTools/Data/STING_DEVICE_COORD_RULES.json'
+      - 'StingTools/Data/STING_CLIMATE_DATA.json'
+      - 'StingTools/Data/WORKFLOW_KUT_*.json'
+      - 'StingTools/Data/WORKFLOW_GateAudit.json'
+      - 'StingTools/Data/PARAMETER_REGISTRY.json'
+      - 'StingTools/Data/MR_PARAMETERS.*'
+      - 'StingTools/Core/ParamRegistry.cs'
+      - 'StingTools/Core/WorkflowEngine.cs'
+      - 'StingTools/Core/TagSchemeEngine.cs'
+      - 'StingTools/Core/Validation/LodVerificationEngine.cs'
+      - 'StingTools/Core/Validation/OwnerStandardsPack.cs'
+      - 'StingTools/ExLink/FohlioLink.cs'
+      - 'StingTools/UI/StingCommandHandler.cs'
+      - 'project-templates/KUT/**'
+      - 'docs/examples/KUT/**'
+      - 'Tests/fixtures/kut/**'
+      - 'tools/kut_preflight.py'
+      - '.github/workflows/kut-preflight.yml'
+  pull_request:
+    paths:
+      - 'StingTools/Data/STING_LOD_MATRIX.json'
+      - 'StingTools/Data/STING_OWNER_STANDARDS_PACK.json'
+      - 'StingTools/Data/STING_TAG_SCHEMES.json'
+      - 'StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv'
+      - 'StingTools/Data/STING_DEVICE_COORD_RULES.json'
+      - 'StingTools/Data/STING_CLIMATE_DATA.json'
+      - 'StingTools/Data/WORKFLOW_KUT_*.json'
+      - 'StingTools/Data/WORKFLOW_GateAudit.json'
+      - 'StingTools/Data/PARAMETER_REGISTRY.json'
+      - 'StingTools/Data/MR_PARAMETERS.*'
+      - 'StingTools/Core/ParamRegistry.cs'
+      - 'StingTools/Core/WorkflowEngine.cs'
+      - 'StingTools/Core/TagSchemeEngine.cs'
+      - 'StingTools/Core/Validation/LodVerificationEngine.cs'
+      - 'StingTools/Core/Validation/OwnerStandardsPack.cs'
+      - 'StingTools/ExLink/FohlioLink.cs'
+      - 'StingTools/UI/StingCommandHandler.cs'
+      - 'project-templates/KUT/**'
+      - 'docs/examples/KUT/**'
+      - 'Tests/fixtures/kut/**'
+      - 'tools/kut_preflight.py'
+      - '.github/workflows/kut-preflight.yml'
+  workflow_dispatch:
+
+jobs:
+  preflight:
+    name: KUT wiring + data contracts (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: KUT pre-flight
+        # Stdlib only — no pip install. Exits non-zero on any FAIL; warnings
+        # (e.g. a new overlay entry that overrides no baseline id) are printed
+        # for a human to confirm but do not fail the build.
+        run: python3 tools/kut_preflight.py --verbose

@@ -2,6 +2,79 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT — offline pre-flight gate + command-tag alias fixes)
+
+The Kampala Uganda Temple pack shipped build-clean but was never exercised in
+Revit, and its behaviour surface is deliberately configuration-heavy (LOD
+matrix, owner-standards rules, tag schemes, Fohlio map are all JSON overlays so
+the Owner's week-1 standards can supersede ours without a rebuild). That moves
+the failure mode from "won't compile" to "compiles, runs, does nothing" — which
+`dotnet build` cannot catch and a Revit session catches only by luck.
+
+**`tools/kut_preflight.py`** (stdlib only, no SDK, no Revit) now asserts the
+wiring and data contracts for **11 of the 27 steps** in
+`docs/examples/KUT/REVIT_SMOKE_TEST.md` — 74 assertions:
+
+- the 8 KUT shared parameters are registered in all four registries
+  (`ParamRegistry.cs`, `PARAMETER_REGISTRY.json`, `MR_PARAMETERS.txt`/`.csv`)
+  with no duplicated GUID;
+- all 25 KUT command tags dispatch on some UI surface and resolve in
+  `WorkflowEngine.ResolveCommand`, under **every** spelling they answer to;
+- every `commandTag` in the 6 KUT workflow presets resolves;
+- every key in the KUT data files and project overlays binds to a POCO
+  property — descending no further than `Dictionary<,>`-valued members, whose
+  keys (a scheme's value `map`, a category rule's `checks`) are free-form by
+  design. This is the `catch{}`-adjacent failure CLAUDE.md §7 describes:
+  Newtonsoft leaves an unrecognised key at its default, silently;
+- owner-standard rule `type`s have evaluator cases, severities are in
+  BLOCK/WARN/INFO, and every `pattern` compiles as a regex;
+- LOD milestone ids, `checks` keys and `inherit` chains resolve;
+- project overlays merge onto baseline ids (a mistyped id silently *adds* a
+  rule instead of activating one, so a non-matching id is surfaced);
+- the three test fixtures carry the columns their parsers look for (reading
+  both `sharedStrings.xml` and inline sheet strings — ClosedXML writes inline
+  for small files);
+- the deployment pack is complete, Kampala resolves in the climate registry,
+  and no Fohlio or ACC credential file is committed;
+- `ResolveCommand` has no duplicated `case` label (CS0152), since alias
+  registration is precisely the edit that risks one and this tree is often
+  edited without an SDK.
+
+Every run also prints the **16 steps that genuinely still need Revit**, so the
+remaining manual scope is explicit rather than assumed.
+
+**`.github/workflows/kut-preflight.yml`** runs it on any change to the KUT
+surface — data files, overlays, the POCOs they bind to, the dispatch/registry
+files, fixtures and the script. Deliberately cheap (no SDK, no restore) so it
+gates data edits, not just code.
+
+**Three defects it found, all fixed:**
+
+1. `AccPullClashes` / `AccSyncIssueStatus` and `ComCheck_Export` each answered
+   to **two tag spellings** — the panel button used one (`AccPullClashes`,
+   `Lite_ComCheck`) and `ResolveCommand` knew only the other (`ACC_PullClashes`,
+   `ComCheck_Export`). Both surfaces worked in isolation, so nothing was broken
+   today; the trap was that a project workflow JSON hand-written with the tag
+   copied off a panel button would fail to resolve mid-run. `ResolveCommand`
+   now accepts either spelling via case fall-through.
+2. `Niagara_ExportPoints`, `Niagara_Reconcile` and `KUT_KpiDashboard` were
+   absent from `_allKnownCommandTags`. Cosmetic — that array only feeds the
+   Levenshtein "did you mean" hint for a mistyped tag — now registered along
+   with the ACC/ComCheck aliases.
+3. `project-templates/KUT/README.md` described the `ffe-fohlio-ref` rule as
+   disabled (the overlay ships it enabled at WARN) and still carried the ACC
+   Model-Coordination read client as an *open item* when
+   `Clash/AccPullClashesCommand.cs` + `V6/AccModelCoordSync.cs` had already
+   landed it — list model sets, pull the latest test's clashes, triage via
+   `ClashTriageEngine`, CSV, and idempotent escalation to ACC Issues. README
+   now matches the code.
+
+**Caveat**: the C# edits (three `ResolveCommand` alias fall-throughs, one
+`_allKnownCommandTags` addition) were made without `dotnet build` verification
+— no SDK in this environment. They are additive `case` labels only, and the
+pre-flight's CS0152 check plus an independent duplicate-label sweep over the
+whole switch both come back clean, but compile before merge.
+
 #### Completed (N6 — DEP-7: restore the HTTP-level handoff provisioning-failure test)
 
 Phase 212 had to drop the end-to-end test for the handoff guarantee — *a

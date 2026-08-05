@@ -99,9 +99,17 @@ parameter set via `IoTDeviceRegistry`; live read-back stays an FM add-on.
 - **Clash in ACC *and* STING.** ACC Model Coordination is the system of record;
   the Coordination Cycle runs STING's rule-based clash (discipline tolerance /
   access / maintenance-space checks ACC can't express) and pushes results as
-  **BCF 2.1 → ACC Issues**. *Open item:* an ACC Model-Coordination **read**
-  client (ingest ACC clash results for triage) — small follow-on, reuses the
-  existing `AccIssueSync` OAuth.
+  **BCF 2.1 → ACC Issues**. The ACC Model-Coordination **read** path is built:
+  `AccPullClashes` (`Clash/AccPullClashesCommand.cs` + `V6/AccModelCoordSync.cs`)
+  lists the coordination model sets, pulls the latest test's clashes, ranks them
+  with `ClashTriageEngine`, writes a CSV, and escalates the top-ranked back to
+  ACC Issues idempotently (order-invariant signature, sidecar at
+  `_BIM_COORD/acc/pushed_clashes.json`). `AccSyncIssueStatus` reconciles the
+  other way so a closed ACC issue lets a recurring clash re-raise. Both sit on
+  the BIM Coordination Center ACC card and in the fortnightly Coordination
+  Cycle preset; credentials stay in `%APPDATA%\Planscape\acc_credentials.json`.
+  Endpoint paths are verified against the public APS sample but not against a
+  live tenant — do one live pull during mobilisation.
 - **Fohlio = link, never duplicate.** Stay on the shipped CSV/XLSX link
   (`ExLink Fohlio_Import`, key `FOHLIO_REF_TXT`). The REST tier stays stubbed —
   no API key needed for this contract (see §6 of the chat advisory).

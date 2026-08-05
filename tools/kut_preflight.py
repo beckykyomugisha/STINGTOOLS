@@ -89,10 +89,32 @@ KUT_TAGS = [
     "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export",
     "ComCheck_Export", "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
     "Niagara_ExportPoints", "Niagara_Reconcile", "KUT_KpiDashboard",
+    # ACC Model Coordination is the clash system of record for this engagement
+    # (KUT README §4): STING pulls ACC's clash results, triages them, and pushes
+    # the top-ranked back as ACC Issues.
+    "AccPullClashes", "AccSyncIssueStatus",
 ]
 
-# Tags that live on a satellite panel, so a main-dock-panel button is not expected.
-SATELLITE_PANEL_TAGS = {"ComCheck_Export", "Hvac_LifeCycleCompare"}
+# Tags the same command answers to on different surfaces. Both spellings must be
+# reachable everywhere, or a workflow JSON written with the tag copied off a
+# panel button fails to resolve at run time.
+TAG_ALIASES = {
+    "AccPullClashes": "ACC_PullClashes",
+    "AccSyncIssueStatus": "ACC_SyncIssueStatus",
+    "ComCheck_Export": "Lite_ComCheck",   # Electrical panel button spelling
+}
+
+# Every UI surface that can declare a button Tag. A command is "reachable" if
+# any one of them offers it — the main dock panel is not the only surface
+# (the Electrical/Plumbing/HVAC panels and the BIM Coordination Center each
+# build their own action rows).
+UI_SURFACES = [
+    "StingTools/UI/StingDockPanel.xaml",
+    "StingTools/UI/StingElectricalPanel.xaml",
+    "StingTools/UI/StingHvacPanel.xaml",
+    "StingTools/UI/Plumbing/StingPlumbingPanel.xaml",
+    "StingTools/UI/BIMCoordinationCenter.cs",
+]
 
 KUT_WORKFLOWS = [
     "StingTools/Data/WORKFLOW_GateAudit.json",
@@ -215,34 +237,49 @@ def check_command_wiring():
     elec_handler = read("StingTools/UI/StingElectricalCommandHandler.cs")
     hvac_handler = read("StingTools/UI/StingHvacCommandHandler.cs")
     wf = read("StingTools/Core/WorkflowEngine.cs")
-    panel = read("StingTools/UI/StingDockPanel.xaml")
+    surfaces = "\n".join(read(s) for s in UI_SURFACES if exists(s))
 
     known_block = wf.split("_allKnownCommandTags", 1)[1]
     known_block = known_block[:known_block.index("};")]
     resolve_block = wf[wf.index("private static IExternalCommand ResolveCommand"):]
 
     for tag in KUT_TAGS:
-        q = '"%s"' % tag
+        spellings = [tag] + ([TAG_ALIASES[tag]] if tag in TAG_ALIASES else [])
         where = []
-        if q not in handler and q not in elec_handler and q not in hvac_handler:
+        if not any('"%s"' % s in handler or '"%s"' % s in elec_handler
+                   or '"%s"' % s in hvac_handler for s in spellings):
             where.append("no dispatch-handler case")
-        if q not in resolve_block:
-            where.append("not in ResolveCommand")
+        # Every spelling must resolve, not just one — the whole point of an
+        # alias is that either can be written into a project workflow.
+        unresolved = [s for s in spellings if '"%s"' % s not in resolve_block]
+        if unresolved:
+            where.append("not in ResolveCommand: " + ", ".join(unresolved))
         if where:
             fail("%s: %s" % (tag, "; ".join(where)))
         else:
-            p("%s dispatches and resolves" % tag)
+            p("%s dispatches and resolves%s"
+              % (tag, " (incl. alias %s)" % TAG_ALIASES[tag] if tag in TAG_ALIASES else ""))
+
+        # A duplicated case label in ResolveCommand is CS0152 — a hard compile
+        # error. Worth asserting here because alias registration is exactly the
+        # edit that risks it, and this repo is often edited without an SDK.
+        for s in spellings:
+            n = len(re.findall(r'case\s+"%s"\s*:' % re.escape(s), resolve_block))
+            if n > 1:
+                fail("ResolveCommand has %d 'case \"%s\":' labels — CS0152 "
+                     "duplicate case label" % (n, s))
 
         # _allKnownCommandTags only feeds the Levenshtein "did you mean" hint
         # for a mistyped tag — absence degrades that hint, it does not break
         # the command. Warn, don't fail.
-        if q not in known_block:
-            warn("%s missing from _allKnownCommandTags — a typo of this tag "
-                 "gets no suggestion (cosmetic; one-line fix)" % tag)
+        for s in spellings:
+            if '"%s"' % s not in known_block:
+                warn("%s missing from _allKnownCommandTags — a typo of this tag "
+                     "gets no suggestion (cosmetic; one-line fix)" % s)
 
-        if tag not in SATELLITE_PANEL_TAGS and q not in panel:
-            warn("%s has no button in StingDockPanel.xaml (command reachable "
-                 "only via workflow/NLP)" % tag)
+        if not any('"%s"' % s in surfaces for s in spellings):
+            warn("%s has no button on any UI surface — reachable only via a "
+                 "workflow preset or NLP" % tag)
 
 
 def check_workflow_tags():
@@ -513,6 +550,15 @@ def check_deployment_pack():
     if exists("project-templates/KUT/_BIM_COORD/fohlio_connection.json"):
         fail("a real fohlio_connection.json is committed — remove it and "
              "gitignore the filename")
+
+    # ACC credentials live in %APPDATA%\Planscape\acc_credentials.json by
+    # design (AccIssueSync.LoadCredentials) — one must never reach the repo.
+    for hit in ("project-templates/KUT/_BIM_COORD/acc_credentials.json",
+                "docs/examples/KUT/acc_credentials.json"):
+        if exists(hit):
+            fail("%s is committed — ACC credentials belong in "
+                 "%%APPDATA%%\\Planscape only" % hit)
+    p("no ACC/Fohlio credential files committed")
 
     # Kampala must resolve for the climate auto-stamp.
     climate = read_json("StingTools/Data/STING_CLIMATE_DATA.json")

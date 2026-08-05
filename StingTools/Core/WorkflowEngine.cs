@@ -347,6 +347,8 @@ namespace StingTools.Core
             "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit", "DeviceCoord_Audit", "ComCheck_Export",
             "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
             "Niagara_ExportPoints", "Niagara_Reconcile", "KUT_KpiDashboard",
+            "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
+            "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
@@ -1596,7 +1598,11 @@ namespace StingTools.Core
                 case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
                 case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
-                case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
+                // "Lite_ComCheck" is the Electrical panel's button tag for the
+                // same command; accept it here too so either spelling works in
+                // a hand-written workflow.
+                case "ComCheck_Export":
+                case "Lite_ComCheck":   return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
                 case "PrototypeDrift_Report": return new BIMManager.PrototypeDriftCommand();
                 case "ReviewComments_Import": return new Docs.ReviewCommentsImportCommand();
@@ -1874,8 +1880,15 @@ namespace StingTools.Core
                 case "ClashSessionRefresh":     return new Core.Clash.ClashSessionRefreshCommand();
                 case "ClashSessionClear":       return new Core.Clash.ClashSessionClearCommand();
                 case "ClashMatrixEdit":         return new Core.Clash.ClashMatrixEditCommand();
-                case "ACC_PullClashes":         return new Core.Clash.AccPullClashesCommand();
-                case "ACC_SyncIssueStatus":     return new Core.Clash.AccSyncIssueStatusCommand();
+                // Both spellings resolve: the dock panel dispatches these as
+                // "AccPullClashes"/"AccSyncIssueStatus" while the shipped KUT
+                // presets use the ACC_-prefixed form. Accepting either stops a
+                // hand-written project workflow failing on the spelling a user
+                // reasonably copied off the panel button.
+                case "ACC_PullClashes":
+                case "AccPullClashes":          return new Core.Clash.AccPullClashesCommand();
+                case "ACC_SyncIssueStatus":
+                case "AccSyncIssueStatus":      return new Core.Clash.AccSyncIssueStatusCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
