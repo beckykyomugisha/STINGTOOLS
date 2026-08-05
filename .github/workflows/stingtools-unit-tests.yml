@@ -1,0 +1,133 @@
+name: StingTools Unit Tests — Build ALL, Run ALL
+
+# Why this workflow exists (#553)
+# ================================
+# StingTools.Clash.Tests and StingTools.Routing.Tests did not compile from mid-May
+# 2026 until 2026-08-06. Nothing went red for two and a half months, because a test
+# project that fails to BUILD reports no failures — it reports nothing at all. The
+# coverage headline kept counting its 97 methods the whole time.
+#
+# A project that cannot compile is indistinguishable from one that was never run
+# unless something explicitly asserts that every project compiles. That assertion
+# is this file.
+#
+# The build step is therefore the point of this workflow, and it is deliberately
+# separate from the test step: `dotnet test` alone would have stayed green-ish and
+# quiet in exactly the way that caused #553.
+#
+# These are the Revit-free side projects. They do not need the Revit API, so they
+# run on ubuntu-latest. The plugin itself is built by stingtools-plugin.yml on
+# Windows; StingTools.SitePhotos.Tests needs that plugin DLL and is excluded here
+# (it already fails loudly with a clear prerequisite message rather than silently,
+# so it is not at risk of the #553 failure mode).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'StingTools/**'
+      - 'StingTools.*.Tests/**'
+      - '.github/workflows/stingtools-unit-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'StingTools/**'
+      - 'StingTools.*.Tests/**'
+      - '.github/workflows/stingtools-unit-tests.yml'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  unit-tests:
+    name: Build all test projects, then run them
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # ── Gate 1: EVERY project must compile ─────────────────────────────────
+      # This is the #553 gate. It runs before any test so a compile break is
+      # reported as a compile break, not as an absence of results.
+      - name: Build every Revit-free test project
+        run: |
+          set -uo pipefail
+          FAIL=0
+          for proj in StingTools.*.Tests/*.csproj; do
+            name=$(basename "$proj" .csproj)
+            # SitePhotos.Tests links the built plugin DLL, which needs the Revit
+            # API and a Windows host. It fails with an explicit message rather
+            # than silently, so it is not exposed to the #553 failure mode.
+            if [ "$name" = "StingTools.SitePhotos.Tests" ]; then
+              echo "SKIP  $name (needs the plugin DLL — built on Windows in stingtools-plugin.yml)"
+              continue
+            fi
+            echo "::group::build $name"
+            if dotnet build "$proj" -c Debug --nologo; then
+              echo "OK    $name"
+            else
+              echo "::error title=Test project does not compile::$name failed to build. A test project that does not compile reports NOTHING — this is exactly how issue #553 hid 97 tests for two and a half months."
+              FAIL=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $FAIL
+
+      # ── Gate 2: run them ───────────────────────────────────────────────────
+      #
+      # KNOWN-FAILING BASELINE
+      # ----------------------
+      # Two tests fail for reasons established and filed, NOT silenced. Each is
+      # excluded BY NAME with its issue number, so the exclusion is greppable and
+      # any OTHER failure in the same project still turns this job red.
+      #
+      #   #596  DuplicateLiveClashUpdater_FileIsRemoved
+      #         Real regression: StingTools/Clash/ClashDetectionCommands.cs is back
+      #         (recreated at 2c20e6724) carrying duplicate LiveClashUpdater +
+      #         ClashSession types. Product defect, not a test defect.
+      #
+      #   #597  ComputeRoute_StraightHorizontal_ProducesOneSegment
+      #         Test defect: asserts reference equality on a stub XYZ that has no
+      #         Equals override. Measured to have NEVER passed — test file, stub
+      #         and ComputeRoute body are all byte-identical to the authoring
+      #         commit 41ee9d591.
+      #
+      # Do NOT add to this list to make a build green. Fix the test or file the
+      # defect, the way these two were.
+      - name: Run every Revit-free test project
+        run: |
+          set -uo pipefail
+          EXCLUDE='FullyQualifiedName!~DuplicateLiveClashUpdater_FileIsRemoved&FullyQualifiedName!~ComputeRoute_StraightHorizontal_ProducesOneSegment'
+          FAIL=0
+          for proj in StingTools.*.Tests/*.csproj; do
+            name=$(basename "$proj" .csproj)
+            [ "$name" = "StingTools.SitePhotos.Tests" ] && continue
+            echo "::group::test $name"
+            if dotnet test "$proj" -c Debug --nologo --no-build --filter "$EXCLUDE"; then
+              echo "OK    $name"
+            else
+              echo "::error title=Test failure::$name"
+              FAIL=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $FAIL
+
+      # ── Report, so the number in CLAUDE.md can be re-measured, not guessed ──
+      - name: Declared-test-method census
+        if: always()
+        run: |
+          echo "| Project | Declared [Fact]/[Theory] |"
+          echo "|---|---|"
+          total=0
+          for d in StingTools.*.Tests; do
+            n=$(grep -rhoE '^\s*\[(Fact|Theory)(\(|\])' "$d" --include=*.cs 2>/dev/null | wc -l)
+            echo "| $d | $n |"
+            total=$((total + n))
+          done
+          echo "| **TOTAL DECLARED** | **$total** |"
