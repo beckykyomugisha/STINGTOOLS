@@ -899,16 +899,32 @@
       if (carryModelId) u.searchParams.set('model', carryModelId);
       return u.toString();
     }
-    function copyToClipboard(text) {
+    // Returns whether the text actually reached the clipboard, so callers can
+    // stop claiming a copy that did not happen.
+    //
+    // navigator.clipboard.writeText rejects ASYNCHRONOUSLY when a permissions
+    // policy blocks it — which is what happens whenever an embedding page's
+    // iframe `allow` attribute omits clipboard-write (that attribute REPLACES
+    // the default policy). The old synchronous try/catch could not observe that
+    // rejection: it returned immediately, the execCommand fallback never ran,
+    // and startMeeting still toasted "join link copied" over an untouched
+    // clipboard. Awaiting it makes the failure visible and lets the fallback do
+    // its job.
+    async function copyToClipboard(text) {
       try {
-        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
       } catch (_) {}
       try {
         const ta = document.createElement('textarea');
         ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
         document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); ta.remove();
+        const ok = document.execCommand('copy'); ta.remove();
+        return !!ok;
       } catch (_) {}
+      return false;
     }
     async function startMeeting() {
       if (!projectId) return toast('No project — cannot start a meeting', 'warn');
@@ -920,8 +936,12 @@
       const id = resp && (resp.id || resp.Id);
       if (!id) return toast('Could not start meeting (check sign-in)', 'error');
       const link = meetingJoinUrl(id);
-      copyToClipboard(link);
-      toast('Meeting started — join link copied. Opening session…');
+      const copied = await copyToClipboard(link);
+      // If the clipboard was refused, don't say it worked — point at where the
+      // link can still be got, which is the address bar once we re-navigate.
+      toast(copied
+        ? 'Meeting started — join link copied. Opening session…'
+        : 'Meeting started — opening session… (copy the link from the address bar to invite others)');
       logHistory && logHistory('Started a live meeting');
       // Reload this tab INTO the meeting so meeting-sync.js activates.
       setTimeout(() => { location.href = link; }, 700);
@@ -931,11 +951,13 @@
       if (!id) return;
       location.href = meetingJoinUrl(id);
     }
-    function copyMeetingLink() {
+    async function copyMeetingLink() {
       const cur = new URLSearchParams(location.search).get('meeting');
       if (!cur) return toast('Not in a meeting yet — Start one first', 'warn');
-      copyToClipboard(meetingJoinUrl(cur));
-      toast('Join link copied to clipboard');
+      const copied = await copyToClipboard(meetingJoinUrl(cur));
+      toast(copied
+        ? 'Join link copied to clipboard'
+        : 'Clipboard blocked — copy the link from the address bar instead', 'warn');
     }
     document.addEventListener('click', () => $$('.menu.open').forEach(m => m.classList.remove('open')));
 
@@ -4487,7 +4509,7 @@
           '-',
           { glyph: 'ℹ', label: 'Properties',           run: () => { $('.tab-bar .tab[data-tab=properties]')?.click(); renderProperties(state.selectedElementGuid); } },
           { glyph: '🚩', label: 'Create issue',         run: () => openIssueModal({ guid, meta }) },
-          tag ? { glyph: '🏷', label: 'Copy STING tag', run: () => { copyToClipboard(String(tag)); toast('Tag copied'); } } : null,
+          tag ? { glyph: '🏷', label: 'Copy STING tag', run: async () => { const ok = await copyToClipboard(String(tag)); toast(ok ? 'Tag copied' : 'Clipboard blocked — could not copy the tag', ok ? undefined : 'warn'); } } : null,
           '-',
           { glyph: '✕', label: 'Deselect',             run: () => selectElementByGuid(null) },   // B2
         ].filter(Boolean), x, y);
