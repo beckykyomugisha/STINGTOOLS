@@ -238,11 +238,56 @@ def check_param_registration():
             fail("GUID %s shared by %s" % (g, ", ".join(sorted(names))))
 
 
+def check_category_bindings():
+    """Registration is necessary but not sufficient. LoadSharedParams binds by
+    precedence (LoadSharedParamsCommand.cs ~470): a DISCIPLINE-scoped param with
+    a CATEGORY_BINDINGS.csv row binds to exactly that category set; without a row
+    it falls through to the broad core set — which that file's own comment calls
+    'a coverage GAP'. The param still works, but it appears on every core
+    category instead of its own, which is the cross-discipline leakage the
+    per-param binding layer exists to prevent.
+
+    Universal-group params are exempt: the broad core set IS their intent."""
+    print("\n[2] Per-param category bindings (discipline params must be scoped)")
+    groups = {}          # param -> group id
+    gnames = {}          # group id -> group name
+    for line in read("StingTools/Data/MR_PARAMETERS.txt").splitlines():
+        f = line.split("\t")
+        if f[0] == "PARAM" and len(f) >= 6:
+            groups[f[2]] = f[5]
+        elif f[0] == "GROUP" and len(f) >= 3:
+            gnames[f[1]] = f[2]
+
+    universal = set()
+    src = read("StingTools/Tags/LoadSharedParamsCommand.cs")
+    blk = src[src.index("UniversalGroups = new HashSet<string>"):]
+    universal = {g.lower() for g in re.findall(r'"([^"]+)"', blk[:blk.index("};")])}
+
+    bound = set()
+    for raw in read("StingTools/Data/CATEGORY_BINDINGS.csv").splitlines():
+        if raw.startswith("#") or not raw.strip():
+            continue
+        bound.add(raw.split(",")[0].strip())
+
+    for name in KUT_PARAMS:
+        gname = gnames.get(groups.get(name, ""), "")
+        if gname.lower() in universal:
+            p("%s is in universal group %s — broad core set is intended"
+              % (name, gname))
+        elif name in bound:
+            p("%s (group %s) is scoped by CATEGORY_BINDINGS.csv" % (name, gname))
+        else:
+            fail("%s is in discipline group '%s' but has no CATEGORY_BINDINGS.csv "
+                 "row — it falls through to the broad core set and will appear on "
+                 "every category (the 'coverage GAP' LoadSharedParamsCommand "
+                 "names)" % (name, gname))
+
+
 def check_command_wiring():
     """Smoke steps 4-25 prerequisite — a tag must be in the dispatch handler,
     the workflow known-tags list, and ResolveCommand, or the button/chain
     silently no-ops."""
-    print("\n[2] Command wiring (dispatch / known-tags / ResolveCommand)")
+    print("\n[3] Command wiring (dispatch / known-tags / ResolveCommand)")
     handler = read("StingTools/UI/StingCommandHandler.cs")
     elec_handler = read("StingTools/UI/StingElectricalCommandHandler.cs")
     hvac_handler = read("StingTools/UI/StingHvacCommandHandler.cs")
@@ -295,7 +340,7 @@ def check_command_wiring():
 def check_workflow_tags():
     """Smoke step 25 — every commandTag in a KUT preset must resolve, or the
     chain dies mid-run."""
-    print("\n[3] Workflow presets resolve (smoke step 25)")
+    print("\n[4] Workflow presets resolve (smoke step 25)")
     wf = read("StingTools/Core/WorkflowEngine.cs")
     resolve_block = wf[wf.index("private static IExternalCommand ResolveCommand"):]
 
@@ -323,7 +368,7 @@ def check_workflow_tags():
 def check_json_key_contracts():
     """The silent-default class of bug (CLAUDE.md §7) — a key Newtonsoft does
     not recognise is dropped without error."""
-    print("\n[4] JSON key contracts vs C# POCOs (silent-default guard)")
+    print("\n[5] JSON key contracts vs C# POCOs (silent-default guard)")
     for data_rel, cs_rel in JSON_CONTRACTS:
         if not exists(data_rel):
             warn("%s not present — skipped" % data_rel)
@@ -350,7 +395,7 @@ def check_json_key_contracts():
 
 def check_domain_values():
     """Enum-ish values that are strings in JSON and switch cases in C#."""
-    print("\n[5] Domain values (rule types, segment kinds, tokens, severities)")
+    print("\n[6] Domain values (rule types, segment kinds, tokens, severities)")
     cs = read("StingTools/Core/Validation/OwnerStandardsPack.cs")
     rule_types = set(re.findall(r'case "(\w+)":', cs))
 
@@ -412,7 +457,7 @@ def check_csi_map():
     regex is therefore swallowed, leaving the matcher null, and the rule then
     matches on category alone — assigning the WRONG CSI section rather than
     failing. That has to be caught here."""
-    print("\n[6] CSI MasterFormat map (smoke step 14)")
+    print("\n[7] CSI MasterFormat map (smoke step 14)")
     for rel in ["StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv",
                 "project-templates/KUT/_BIM_COORD/csi_map.csv"]:
         if not exists(rel):
@@ -461,7 +506,7 @@ def check_csi_map():
 
 def check_device_coord_rules():
     """Smoke step 13 — rule severities and category lists must be usable."""
-    print("\n[7] Device-coordination rules (smoke step 13)")
+    print("\n[8] Device-coordination rules (smoke step 13)")
     rel = "StingTools/Data/STING_DEVICE_COORD_RULES.json"
     if not exists(rel):
         fail("%s missing" % rel)
@@ -484,7 +529,7 @@ def check_device_coord_rules():
 
 def check_lod_matrix():
     """Smoke steps 9-10 — milestone ids and inherit chains must resolve."""
-    print("\n[8] LOD matrix integrity (smoke steps 9-10)")
+    print("\n[9] LOD matrix integrity (smoke steps 9-10)")
     base = read_json("StingTools/Data/STING_LOD_MATRIX.json")
     ids = {m["id"] for m in base.get("milestones", [])}
     lods = {str(m["lod"]) for m in base.get("milestones", [])}
@@ -534,7 +579,7 @@ def check_lod_matrix():
 def check_overlay_merge():
     """The pack activates disabled corporate baselines by id. An id typo means
     the overlay adds a second entry instead of enabling the first."""
-    print("\n[9] Project overlay merges onto corporate baseline by id")
+    print("\n[10] Project overlay merges onto corporate baseline by id")
     pairs = [
         ("project-templates/KUT/_BIM_COORD/tag_schemes.json",
          "StingTools/Data/STING_TAG_SCHEMES.json", "schemes"),
@@ -562,7 +607,7 @@ def check_overlay_merge():
 def check_fixtures():
     """Smoke steps 11, 15, 19 — the fixtures must carry the columns the
     header-forgiving parsers look for."""
-    print("\n[10] Test fixtures parse with the columns the parsers expect")
+    print("\n[11] Test fixtures parse with the columns the parsers expect")
     specs = [
         ("Tests/fixtures/kut/speclink_toc_sample.csv", {"section", "title"}, "SpecLink_Reconcile"),
         ("Tests/fixtures/kut/bluebeam_comments_sample.csv",
@@ -607,7 +652,7 @@ def check_fixtures():
 
 def check_deployment_pack():
     """The files the BIM Manager copies on day one must all be there."""
-    print("\n[11] Deployment pack completeness")
+    print("\n[12] Deployment pack completeness")
     for rel in [
         "project-templates/KUT/README.md",
         "project-templates/KUT/_BIM_COORD/owner_standards.json",
@@ -703,6 +748,7 @@ def main():
     print("KUT Phase 192 pre-flight — offline verification of "
           "docs/examples/KUT/REVIT_SMOKE_TEST.md\n" + "=" * 74)
     check_param_registration()
+    check_category_bindings()
     check_command_wiring()
     check_workflow_tags()
     check_json_key_contracts()

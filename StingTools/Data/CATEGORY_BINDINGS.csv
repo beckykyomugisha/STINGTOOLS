@@ -4675,6 +4675,12 @@ LTG_FIX_LMP_WATTAGE_W,Generic Models,Type,True
 LTG_FIX_LMP_WATTAGE_W,Lighting Fixtures,Type,True
 LTG_FIX_TYPE_CLASSIFICATION_TXT,Generic Models,Type,True
 LTG_FIX_TYPE_CLASSIFICATION_TXT,Lighting Fixtures,Type,True
+LTG_HOIST_DROP_MM,Generic Models,Type,True
+LTG_HOIST_DROP_MM,Lighting Fixtures,Type,True
+LTG_HOIST_MOTOR_TXT,Generic Models,Type,True
+LTG_HOIST_MOTOR_TXT,Lighting Fixtures,Type,True
+LTG_HOIST_WEIGHT_KG,Generic Models,Type,True
+LTG_HOIST_WEIGHT_KG,Lighting Fixtures,Type,True
 MNT_TYPE_TXT,Generic Models,Type,True
 MNT_TYPE_TXT,Lighting Fixtures,Type,True
 MAT_APPLICATION,Materials,Instance,True

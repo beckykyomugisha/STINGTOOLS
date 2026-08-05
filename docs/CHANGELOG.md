@@ -12,7 +12,7 @@ the failure mode from "won't compile" to "compiles, runs, does nothing" — whic
 `dotnet build` cannot catch and a Revit session catches only by luck.
 
 **`tools/kut_preflight.py`** (stdlib only, no SDK, no Revit) asserts the wiring
-and data contracts behind `docs/examples/KUT/REVIT_SMOKE_TEST.md` — 77
+and data contracts behind `docs/examples/KUT/REVIT_SMOKE_TEST.md` — 85
 assertions. It **executes no command and replaces no step**: all 27 checklist
 steps still need a Revit session. What it removes is the precondition failures
 that would otherwise surface *during* that session, or not at all — because the
@@ -21,6 +21,12 @@ command ran and reported zeroes. It checks:
 - the 8 KUT shared parameters are registered in all four registries
   (`ParamRegistry.cs`, `PARAMETER_REGISTRY.json`, `MR_PARAMETERS.txt`/`.csv`)
   with no duplicated GUID;
+- **and are bound to the right categories** — registration alone is not
+  binding. `LoadSharedParams` binds by precedence: a *discipline-scoped* param
+  with a `CATEGORY_BINDINGS.csv` row gets exactly that category set; without a
+  row it falls through to the broad core set, which that file's own comment
+  calls "a coverage GAP". Universal-group params are exempt (the broad set is
+  their intent);
 - all 25 KUT command tags dispatch on some UI surface and resolve in
   `WorkflowEngine.ResolveCommand`, under **every** spelling they answer to;
 - every `commandTag` in the 6 KUT workflow presets resolves;
@@ -72,7 +78,19 @@ gates data edits, not just code.
    absent from `_allKnownCommandTags`. Cosmetic — that array only feeds the
    Levenshtein "did you mean" hint for a mistyped tag — now registered along
    with the ACC/ComCheck aliases.
-3. `project-templates/KUT/README.md` described the `ffe-fohlio-ref` rule as
+3. **The three `LTG_HOIST_*` params were binding to every category.** They sit
+   in the discipline group `LTG_CONTROLS` (not universal) and declared
+   `"binding": "LightingFixtures"` in `PARAMETER_REGISTRY.json` — but that
+   field is never read (`ParamRegistry` takes only `param_name` and `required`
+   from `support_params`), and no `CATEGORY_BINDINGS.csv` rows were added for
+   them. All 44 sibling `LTG_*` params have rows; these three did not, so they
+   hit the fall-through and landed on the full core set — appearing on walls,
+   doors and ducts instead of luminaires. This is the same cross-discipline
+   leakage the per-param binding layer exists to prevent, and the same class as
+   the recent "stop 137 tag containers binding to every category" fix. Six rows
+   added (3 params × `Generic Models` + `Lighting Fixtures`, `Type`), matching
+   the sibling convention exactly.
+4. `project-templates/KUT/README.md` described the `ffe-fohlio-ref` rule as
    disabled (the overlay ships it enabled at WARN) and still carried the ACC
    Model-Coordination read client as an *open item* when
    `Clash/AccPullClashesCommand.cs` + `V6/AccModelCoordSync.cs` had already
