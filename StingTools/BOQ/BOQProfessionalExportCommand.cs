@@ -75,30 +75,6 @@ namespace StingTools.BOQ
                     return Result.Cancelled;
                 }
 
-                // WP2 — uncosted-at-risk export gate. A professional/tender bill
-                // must not silently ship zero-value lines or below-confidence
-                // rates folded into the Contract Sum. Hard-warn with the exposure;
-                // the QS can override knowingly.
-                double minConf = BOQCostManager.MinRateConfidenceForExport();
-                var risk = BOQCostManager.ComputeUncostedRollup(boq, minConf);
-                if (risk.BlocksExport)
-                {
-                    var gate = new TaskDialog("Professional BOQ — pricing gate")
-                    {
-                        MainInstruction = "This bill has unpriced or low-confidence rows.",
-                        MainContent =
-                            $"• {risk.ZeroRateCount} measured row(s) have NO rate — ≈ UGX {risk.ValueAtRiskUGX:N0} at risk (proxy median rates).\n" +
-                            $"• {risk.LowConfidenceCount} row(s) priced below the confidence floor ({minConf:F0}).\n" +
-                            (risk.CouldNotMeasureCount > 0 ? $"• {risk.CouldNotMeasureCount} row(s) could not be measured (quantity 0).\n" : "") +
-                            "\nExporting now ships these into the Contract Sum. Price them first (QS round-trip / rate library), or proceed knowingly.",
-                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
-                        DefaultButton = TaskDialogResult.No,
-                        AllowCancellation = true
-                    };
-                    if (gate.Show() != TaskDialogResult.Yes)
-                        return Result.Cancelled;
-                }
-
                 // Phase 108h / 108j — tender config acquisition.
                 // When invoked from the inline-panel flow on BOQCostManagerPanel
                 // the caller has already persisted config values to
@@ -237,12 +213,6 @@ namespace StingTools.BOQ
                         }
                     }
 
-                    // G9 — DRAFT / CERTIFIED status banner (first sheet).
-                    BoqSignOffStore.StampWorkbook(wb, doc, boq);
-                    // G9 follow-up — DRAFT/CERTIFIED footer on EVERY sheet so the
-                    // mark can't be missed (+ red tab tint when unsigned).
-                    BoqSignOffStore.StampSheetFooters(wb, doc, boq);
-
                     wb.SaveAs(outputPath);
                 }
 
@@ -325,10 +295,6 @@ namespace StingTools.BOQ
             public double ContingencyPct;
             public double OverheadPct;
             public double VatPct;
-            // G3 — itemised preliminaries (when active, replaces the flat prelim %).
-            public bool PrelimsItemised;
-            public List<BoqPrelimLine> PrelimLines = new List<BoqPrelimLine>();
-            public double WorksSubtotalUGX;   // works basis for % prelim lines on the narrative sheet
         }
 
         private ProjectMeta BuildProjectMetadata(Document doc, BOQDocument boq, BOQTenderConfig tcfg)
@@ -362,9 +328,6 @@ namespace StingTools.BOQ
                 ContingencyPct      = tcfg.ContingencyPct,
                 OverheadPct         = tcfg.OverheadProfitPct,
                 VatPct              = tcfg.VatPct,
-                PrelimsItemised     = boq.PrelimsItemised,
-                PrelimLines         = boq.PrelimLines ?? new List<BoqPrelimLine>(),
-                WorksSubtotalUGX    = boq.SubtotalUGX,
             };
         }
 
@@ -809,37 +772,6 @@ namespace StingTools.BOQ
                     row++;
                 }
                 row++;
-            }
-
-            // G3 — when the project uses an itemised prelims schedule, append the
-            // priced built-up table so the Preliminaries section carries the money,
-            // not just the narrative clauses.
-            if (m.PrelimsItemised && m.PrelimLines != null && m.PrelimLines.Count > 0)
-            {
-                row++;
-                ws.Cell(row, 2).Value = "1.9";
-                ws.Cell(row, 3).Value = "PRELIMINARIES — BUILT-UP SCHEDULE";
-                ws.Cell(row, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(11).Font.SetBold(true).Font.SetFontColor(Orange);
-                ws.Cell(row, 3).Style.Font.SetFontName(HeadFont).Font.SetFontSize(11).Font.SetBold(true).Font.SetFontColor(Navy);
-                ws.Range(row, 2, row, 3).Style.Border.SetBottomBorder(XLBorderStyleValues.Thin).Border.SetBottomBorderColor(Navy);
-                ws.Row(row).Height = 20; row++;
-
-                double measured = m.WorksSubtotalUGX;
-                foreach (var line in m.PrelimLines)
-                {
-                    bool pct = string.Equals(line.Basis, "percent", StringComparison.OrdinalIgnoreCase);
-                    string basisTxt = pct ? $"{line.Value:0.###}% of works" : "fixed sum";
-                    ws.Cell(row, 3).Value = $"{line.Name}  —  {basisTxt}";
-                    ws.Cell(row, 4).Value = line.AmountFor(measured);
-                    ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0";
-                    ws.Cell(row, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10);
-                    row++;
-                }
-                ws.Cell(row, 3).Value = "TOTAL PRELIMINARIES";
-                ws.Cell(row, 4).Value = m.PrelimLines.Sum(l => l.AmountFor(measured));
-                ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0";
-                ws.Range(row, 3, row, 4).Style.Font.SetBold().Font.SetFontColor(Navy);
-                ws.Column(4).Width = 18;
             }
         }
 
@@ -1389,25 +1321,20 @@ namespace StingTools.BOQ
             ws.Column(7).Width = 18;   // Level
             ws.Column(8).Width = 22;   // Location
             ws.Column(9).Width = 14;   // Revit ID
-            ws.Column(10).Width = 16;  // Source Model (P1.1)
-            ws.Column(11).Width = 22;  // Ifc GlobalId
 
             SheetBanner(ws, "SCHEDULE OF SIZES", m);
             int r = 5;
 
             ws.Cell(r, 2).Value = "This schedule lists every instance of a repeated item type where the bill sheet carries a \"1 of N similar\" marker. "
                 + "Sizes, levels and locations allow the bidder to verify the quantity and price the extended works accurately.";
-            ws.Range(r, 2, r, 11).Merge().Style
+            ws.Range(r, 2, r, 9).Merge().Style
                 .Font.SetFontName(BodyFont).Font.SetFontSize(10).Font.SetItalic(true)
                 .Font.SetFontColor(XLColor.FromArgb(90, 90, 90))
                 .Alignment.SetWrapText(true).Alignment.SetIndent(1);
             ws.Row(r).Height = 36;
             r += 2;
 
-            // INT-2 — the audit/takeoff sheet carries the stable join key so the
-            // priced professional export can also reconcile back to the model
-            // (the printed tender bill stays clean — no machine ids on it).
-            string[] headers = { "Section", "Category", "Unit", "Qty", "Item / Size", "Level", "Location", "Revit ID", "Source Model", "Ifc GlobalId" };
+            string[] headers = { "Section", "Category", "Unit", "Qty", "Item / Size", "Level", "Location", "Revit ID" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var c = ws.Cell(r, 2 + i);
@@ -1444,9 +1371,7 @@ namespace StingTools.BOQ
                     ws.Cell(r, 7).Value = item.Level ?? "";
                     ws.Cell(r, 8).Value = item.Location ?? "";
                     ws.Cell(r, 9).Value = item.RevitElementId > 0 ? item.RevitElementId.ToString() : "";
-                    ws.Cell(r, 10).Value = string.IsNullOrWhiteSpace(item.SourceModel) ? "Host" : item.SourceModel; // P1.1 provenance
-                    ws.Cell(r, 11).Value = item.IfcGlobalId ?? "";   // INT-2 round-trip join key
-                    for (int i = 2; i <= 11; i++)
+                    for (int i = 2; i <= 9; i++)
                     {
                         ws.Cell(r, i).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
                             .Border.SetBottomBorder(XLBorderStyleValues.Hair)
@@ -1605,25 +1530,18 @@ namespace StingTools.BOQ
             SheetBanner(ws, "GRAND SUMMARY", m);
 
             double measured = rows.Sum(x => x.TotalUGX);
-            // WP1 — the ONE canonical markup waterfall (BoqTotals), the same
-            // helper BOQDocument.GrandTotalUGX and the panel KPI use, so this
-            // sheet's CONTRACT SUM equals the panel's Grand total to the shilling.
-            // G3 — itemised preliminaries replace the flat % when active.
-            double prelims = m.PrelimsItemised
-                ? m.PrelimLines.Sum(l => l.AmountFor(measured))
-                : measured * (m.PrelimPct / 100.0);
-            var mk = BoqTotals.Compute(measured, prelims, m.OverheadPct, m.ContingencyPct, m.VatPct);
-            double overhead = mk.Overhead;
-            double contingency = mk.Contingency;
-            double subTotal = mk.NetExVat;      // Contract Sum exclusive of tax
-            double vat = mk.Vat;
-            double contractSum = mk.GrandTotal; // == boq.GrandTotalUGX
+            double prelims = measured * (m.PrelimPct / 100.0);
+            double contingency = measured * (m.ContingencyPct / 100.0);
+            double overhead = measured * (m.OverheadPct / 100.0);
+            double subTotal = measured + prelims + contingency + overhead;
+            double vat = subTotal * (m.VatPct / 100.0);
+            double contractSum = subTotal + vat;
 
             int r = 5;
             var lines = new List<(string Code, string Label, double? Amount, bool Heavy)>
             {
                 ("A", "Total Measured Works (from Collections)", measured, false),
-                ("B", m.PrelimsItemised ? "General Preliminaries (itemised schedule)" : $"General Preliminaries ({m.PrelimPct:F1}%)", prelims, false),
+                ("B", $"General Preliminaries ({m.PrelimPct:F1}%)", prelims, false),
                 ("C", $"Contingency ({m.ContingencyPct:F1}%)", contingency, false),
                 ("D", $"Main Contractor's Overhead & Profit ({m.OverheadPct:F1}%)", overhead, false),
                 (null, null, null, false),

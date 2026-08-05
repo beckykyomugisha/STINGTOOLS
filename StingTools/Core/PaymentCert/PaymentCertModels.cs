@@ -40,18 +40,12 @@ namespace StingTools.Core.PaymentCert
     public class SovLine
     {
         public string Id = Guid.NewGuid().ToString("N");
-        public string Section { get; set; } = "";        // NRM2 section or trade (display)
-        /// <summary>PM-2 — STABLE carry-forward key (NRM2 section + discipline), set
-        /// by SovFromSnapshot. The cumulative valuation joins on this, NOT the
-        /// free-text <see cref="Section"/> — renaming a section no longer resets the
-        /// previously-certified value to 0 (which silently over-paid). Empty on
-        /// pre-PM-2 certs → readers fall back to Section.</summary>
-        public string SectionKey { get; set; } = "";
+        public string Section { get; set; } = "";        // NRM2 section or trade
         public string Description { get; set; } = "";
-        public double ContractValue { get; set; }        // project currency — fixed at contract signing
+        public double ContractValue { get; set; }        // GBP — fixed at contract signing
         public double PercentComplete { get; set; }      // 0..100
-        public double PreviouslyCertified { get; set; }  // project currency — cumulative pre-this-cert
-        public double MaterialsOnSite { get; set; }      // project currency — held on this cert
+        public double PreviouslyCertified { get; set; }  // GBP — cumulative pre-this-cert
+        public double MaterialsOnSite { get; set; }      // GBP — held on this cert
 
         /// <summary>Gross value earned this cert before retention.</summary>
         public double GrossThisCert
@@ -72,7 +66,7 @@ namespace StingTools.Core.PaymentCert
         public int CertNumber { get; set; }
         public DateTime ValuationDate { get; set; } = DateTime.UtcNow;
         public DateTime IssuedDate { get; set; } = DateTime.UtcNow;
-        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
+        public string Currency { get; set; } = "GBP";
 
         public string ContractorName { get; set; } = "";
         public string EmployerName { get; set; } = "";
@@ -83,27 +77,14 @@ namespace StingTools.Core.PaymentCert
         /// <summary>Retention as a percentage of gross (typical 3% or 5%).</summary>
         public double RetentionPercent { get; set; } = 3.0;
 
-        /// <summary>Retention release threshold (% of contract completed at which
-        /// retention halves). PM-1: defaults to a practical-completion PROXY (95%)
-        /// rather than 100% — works rarely measure to an exact 100% (snagging /
-        /// retained items), so a 100% trigger made the half-retention feature inert.
-        /// JCT/FIDIC halve retention AT Practical Completion; the cloud owns the true
-        /// PC milestone, this is the in-tool proxy (override per project).</summary>
-        public double HalfRetentionAtPercent { get; set; } = 95.0;
-
-        /// <summary>B.4 — max retention THIS cert may withhold = contractual
-        /// cumulative cap (RetentionPercent × contract sum) minus retention
-        /// already withheld on prior certs. Set by PaymentCertEngine.CreateDraft.
-        /// Null ⇒ uncapped (legacy certs deserialise unchanged).</summary>
-        public double? RetentionCapAmount { get; set; }
+        /// <summary>Retention release threshold (% of contract completed at which retention halves).</summary>
+        public double HalfRetentionAtPercent { get; set; } = 100.0;
 
         /// <summary>Other deductions (LDs, contra-charges).</summary>
         public double OtherDeductions { get; set; }
 
-        /// <summary>VAT rate applied to net amount before deductions. PM-1: Uganda
-        /// standard rate 18% (not UK 20%); PaymentCertEngine.CreateDraft seeds this
-        /// from the project/BOQ when available.</summary>
-        public double VatPercent { get; set; } = 18.0;
+        /// <summary>VAT rate applied to net amount before deductions.</summary>
+        public double VatPercent { get; set; } = 20.0;
 
         public PaymentCertStatus Status { get; set; } = PaymentCertStatus.Draft;
         public int? SupersededByCertNumber { get; set; }
@@ -138,29 +119,8 @@ namespace StingTools.Core.PaymentCert
         public double EffectiveRetentionPercent
             => OverallPercentComplete >= HalfRetentionAtPercent ? RetentionPercent / 2.0 : RetentionPercent;
 
-        /// <summary>PM-2 — whether retention is withheld on work-done value only
-        /// (materials-on-site excluded) or on the MoS-inclusive gross. This is
-        /// contract-dependent; PaymentCertEngine.CreateDraft seeds it from
-        /// COST_RETENTION_EXCLUDES_MOS (default false → MoS-inclusive, no regression).</summary>
-        public bool RetentionExcludesMos { get; set; } = false;
-
-        /// <summary>The value retention is computed against (see RetentionExcludesMos).</summary>
-        public double RetentionBasis
-            => RetentionExcludesMos
-                ? Math.Round(Math.Max(0, GrossValuation - Lines.Sum(l => l.MaterialsOnSite)), 2)
-                : GrossValuation;
-
         public double RetentionAmount
-        {
-            get
-            {
-                double raw = Math.Round(RetentionBasis * EffectiveRetentionPercent / 100.0, 2);
-                // B.4 — never withhold beyond the remaining cumulative headroom.
-                return RetentionCapAmount.HasValue
-                    ? Math.Round(Math.Min(raw, Math.Max(0, RetentionCapAmount.Value)), 2)
-                    : raw;
-            }
-        }
+            => Math.Round(GrossValuation * EffectiveRetentionPercent / 100.0, 2);
 
         public double NetThisCert
             => Math.Round(GrossValuation - RetentionAmount - OtherDeductions, 2);
@@ -179,7 +139,7 @@ namespace StingTools.Core.PaymentCert
     public class RetentionLedger
     {
         public string ContractRef { get; set; } = "";
-        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
+        public string Currency { get; set; } = "GBP";
         public List<RetentionEntry> Entries { get; set; } = new List<RetentionEntry>();
 
         public double TotalWithheld => Entries.Where(e => e.Kind == "withhold").Sum(e => e.Amount);

@@ -33,11 +33,6 @@ namespace StingTools.BOQ.Rates
         /// <summary>MAT_CODE on the element — e.g. "CONC-C30", "STL-S355".</summary>
         public string MatCode { get; set; } = "";
 
-        /// <summary>RC-2 — ASS_SYSTEM_TYPE_TXT (e.g. "MedicalGas", "DCW", "LV") so a
-        /// system-keyed rate can differentiate otherwise-identical categories
-        /// (med-gas vs domestic copper). Empty = no system differentiation.</summary>
-        public string SystemType { get; set; } = "";
-
         /// <summary>Unit hint when known up-front (m², m³, m, kg, each).</summary>
         public string Unit { get; set; } = "";
 
@@ -86,15 +81,6 @@ namespace StingTools.BOQ.Rates
 
         /// <summary>Optional matched key (category name, PROD code, MAT_CODE) — useful for logging.</summary>
         public string MatchedKey { get; set; } = "";
-
-        // ── G4 — optional labour / plant / material split (per-unit, same
-        // currency + unit as UnitRate). Null when the source carries no split;
-        // the rate then stays a single number (no regression). When all three
-        // are present they should sum to UnitRate, but the pipeline does not
-        // force this — a source may give a partial split.
-        public double? LabourRate { get; set; }
-        public double? PlantRate { get; set; }
-        public double? MaterialRate { get; set; }
     }
 
     /// <summary>

@@ -3942,7 +3942,6 @@
       "discipline": "Generic",
       "subcategory": "ISO6412",
       "symbolSize": 6.0,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "Symbol Scale",
@@ -4572,7 +4571,6 @@
       "discipline": "Mechanical",
       "subcategory": "ISO6412",
       "symbolSize": 8.0,
-      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "Symbol Scale",
@@ -10234,6 +10232,78 @@
       "status": "draft"
     },
     {
+      "id": "ISO6412_VLV_MOV",
+      "name": "Motor Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_AOV",
+      "name": "Air Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_SOV",
+      "name": "Solenoid Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
+      "id": "ISO6412_VLV_HOV",
+      "name": "Hand-wheel Actuated Valve",
+      "category": "Valves",
+      "familyType": "GenericAnnotation",
+      "discipline": "Generic",
+      "subcategory": "ISO6412",
+      "symbolSize": 6.0,
+      "parameters": [
+        {
+          "name": "Symbol Scale",
+          "type": "Integer",
+          "shared": true
+        }
+      ],
+      "geometry": {},
+      "status": "draft"
+    },
+    {
       "id": "ISO6412_VLV_HANDLE",
       "name": "Valve Handwheel (Operator Overlay)",
       "category": "Valves",
@@ -10738,7 +10808,6 @@
       "discipline": "Generic",
       "subcategory": "ISO6412",
       "symbolSize": 6.0,
-      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "Symbol Scale",
@@ -14299,7 +14368,6 @@
       "discipline": "Generic",
       "subcategory": "ISO6412",
       "symbolSize": 10.0,
-      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "Symbol Scale",

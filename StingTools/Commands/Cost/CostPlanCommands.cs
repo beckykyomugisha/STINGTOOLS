@@ -22,7 +22,6 @@ using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.CostPlan;
 using StingTools.Select;
-using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -34,81 +33,44 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = ParameterHelpers.GetDoc(commandData);
+                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var registry = CostPlanRegistry.Get(doc);
                 if (registry.BuildingTypes.Count == 0)
                 {
-                    StingResultPanel.Create("New Cost Plan")
-                        .AddSection("NO BENCHMARKS")
-                        .Text("No NRM1 benchmarks loaded. Verify STING_NRM1_BENCHMARKS.csv is present in the data folder.")
-                        .Show();
+                    TaskDialog.Show("STING Cost Plan",
+                        "No NRM1 benchmarks loaded. Verify STING_NRM1_BENCHMARKS.csv is present in the data folder.");
                     return Result.Cancelled;
                 }
 
-                // P0.3 — inline-form gate. When the BOQ panel supplied the
-                // CostPlanBuildingType + CostPlanGifa ExtraParams, skip the building-
-                // type picker + GIFA TaskDialog (no popup). Falls back to the modal
-                // picker chain for ribbon / other callers.
-                string buildingType;
-                double gifa;
-                string fBt = UI.StingCommandHandler.GetExtraParam("CostPlanBuildingType");
-                string fGifa = UI.StingCommandHandler.GetExtraParam("CostPlanGifa");
-                string btMatch = string.IsNullOrEmpty(fBt) ? null
-                    : registry.BuildingTypes.FirstOrDefault(b => string.Equals(b, fBt, StringComparison.OrdinalIgnoreCase));
-                if (btMatch != null
-                    && double.TryParse(fGifa, NumberStyles.Any, CultureInfo.InvariantCulture, out gifa) && gifa > 0)
-                {
-                    buildingType = btMatch;
-                }
-                else
-                {
-                    // Pick building type.
-                    var btItems = registry.BuildingTypes
-                        .Select(b => new StingListPicker.ListItem { Label = b })
-                        .ToList();
-                    var pickedBt = StingListPicker.Show(
-                        "STING — Cost plan: building type",
-                        "Pick the building type whose benchmarks should drive this plan.",
-                        btItems, allowMultiSelect: false);
-                    if (pickedBt == null || pickedBt.Count == 0) return Result.Cancelled;
-                    buildingType = pickedBt[0].Label;
+                // Pick building type.
+                var btItems = registry.BuildingTypes
+                    .Select(b => new StingListPicker.ListItem { Label = b })
+                    .ToList();
+                var pickedBt = StingListPicker.Show(
+                    "STING — Cost plan: building type",
+                    "Pick the building type whose benchmarks should drive this plan.",
+                    btItems, allowMultiSelect: false);
+                if (pickedBt == null || pickedBt.Count == 0) return Result.Cancelled;
+                string buildingType = pickedBt[0].Label;
 
-                    // Prompt for GIFA.
-                    gifa = PromptForGifa(doc);
-                    if (gifa <= 0) return Result.Cancelled;
-                }
+                // Prompt for GIFA.
+                double gifa = PromptForGifa(doc);
+                if (gifa <= 0) return Result.Cancelled;
 
                 var plan = CostPlanEngine.Create(doc, buildingType, gifa, label: "Concept");
                 string path = CostPlanEngine.Save(doc, plan);
 
-                // PM-2 — the elemental cost plan auto-seeds the project budget
-                // (PROJECT_BUDGET_UGX, FX-converted), so the budget-variance and the
-                // forecast read the plan's GrandTotalLikely instead of needing a
-                // separate manual budget entry. ReadProjectBudget consumes this.
-                double budgetUgx = plan.GrandTotalLikely;
-                string pc = (plan.Currency ?? "UGX").ToUpperInvariant();
-                if (pc == "USD") budgetUgx *= TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
-                else if (pc == "GBP") budgetUgx *= TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                try
-                {
-                    TagConfig.SetConfigValue("PROJECT_BUDGET_UGX",
-                        Math.Round(budgetUgx, 0).ToString("F0", CultureInfo.InvariantCulture));
-                }
-                catch (Exception ex) { StingLog.Warn($"CostPlan budget seed: {ex.Message}"); }
-
-                StingResultPanel.Create("Cost plan created")
-                    .SetSubtitle($"{buildingType} · {gifa:N0} m² GIFA")
-                    .AddSection("PLAN")
-                    .Metric("Building type", buildingType)
-                    .Metric("GIFA", $"{gifa:N0} m²")
-                    .Metric("Lines", plan.Lines.Count.ToString())
-                    .Metric("Subtotal (likely)", $"{plan.Currency} {plan.SubtotalLikely:N0}")
-                    .Metric("Grand total", $"{plan.Currency} {plan.GrandTotalLikely:N0}")
-                    .Metric($"Headline {plan.Currency}/m² GIFA", $"{plan.CostPerSqmLikely:N0}")
-                    .Text($"Path: {Path.GetFileName(path)}")
-                    .Show();
+                TaskDialog.Show("STING — Cost plan created",
+                    $"Cost plan saved.\n\n" +
+                    $"Building type:      {buildingType}\n" +
+                    $"GIFA:               {gifa:N0} m²\n" +
+                    $"Lines:              {plan.Lines.Count}\n" +
+                    $"Subtotal (likely):  GBP {plan.SubtotalLikely:N0}\n" +
+                    $"Grand total:        GBP {plan.GrandTotalLikely:N0}\n" +
+                    $"Headline £/m² GIFA: {plan.CostPerSqmLikely:N0}\n\n" +
+                    $"Path: {Path.GetFileName(path)}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -181,43 +143,28 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = ParameterHelpers.GetDoc(commandData);
+                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var paths = CostPlanEngine.ListPlans(doc);
                 if (paths.Count == 0)
                 {
-                    StingResultPanel.Create("Compare vs BOQ")
-                        .AddSection("NO PLANS")
-                        .Text("No saved cost plans found. Run CostPlan_Create first.")
-                        .Show();
+                    TaskDialog.Show("STING Cost Plan", "No saved cost plans found. Run CostPlan_Create first.");
                     return Result.Cancelled;
                 }
 
-                // P0.3 — inline-form gate: when the panel supplied CostPlanPath, skip
-                // the picker (no popup). Falls back to the modal picker otherwise.
-                string chosen;
-                string fPath = UI.StingCommandHandler.GetExtraParam("CostPlanPath");
-                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
+                var items = paths.Select(p => new StingListPicker.ListItem
                 {
-                    chosen = fPath;
-                }
-                else
-                {
-                    var items = paths.Select(p => new StingListPicker.ListItem
-                    {
-                        Label = Path.GetFileNameWithoutExtension(p),
-                        Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
-                        Tag = p
-                    }).ToList();
-                    var picked = StingListPicker.Show("STING — Cost plan: compare",
-                        "Pick the cost plan to compare against the live BOQ.",
-                        items, allowMultiSelect: false);
-                    if (picked == null || picked.Count == 0) return Result.Cancelled;
-                    chosen = picked[0].Tag as string;
-                }
+                    Label = Path.GetFileNameWithoutExtension(p),
+                    Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
+                    Tag = p
+                }).ToList();
+                var picked = StingListPicker.Show("STING — Cost plan: compare",
+                    "Pick the cost plan to compare against the live BOQ.",
+                    items, allowMultiSelect: false);
+                if (picked == null || picked.Count == 0) return Result.Cancelled;
 
-                var plan = CostPlanEngine.Load(chosen);
+                var plan = CostPlanEngine.Load(picked[0].Tag as string);
                 if (plan == null)
                 {
                     message = "Failed to load cost plan.";
@@ -230,7 +177,7 @@ namespace StingTools.Commands.Cost
                     .ToDictionary(g => g.Key, g => g.Sum(s => s.TotalUGX));
 
                 var variance = CostPlanEngine.Compare(plan, byNrm2);
-                ShowVarianceReport(doc, plan, variance, boq);
+                ShowVarianceReport(plan, variance);
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -241,56 +188,26 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        private static void ShowVarianceReport(Document doc, CostPlanDocument plan,
-            List<CostPlanEngine.CostPlanVariance> variances, BOQDocument boq)
+        private static void ShowVarianceReport(CostPlanDocument plan,
+            List<CostPlanEngine.CostPlanVariance> variances)
         {
             int red = variances.Count(v => v.Status == "Red");
             int amber = variances.Count(v => v.Status == "Amber");
             int green = variances.Count(v => v.Status == "Green");
 
-            var rp = StingResultPanel.Create("Cost plan compare")
-                .SetSubtitle($"{plan.Label}  ({plan.BuildingType}, {plan.GifaM2:N0} m² GIFA)");
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Plan: {plan.Label}  ({plan.BuildingType}, {plan.GifaM2:N0} m² GIFA)");
+            sb.AppendLine($"Status:  Red {red}  /  Amber {amber}  /  Green {green}");
+            sb.AppendLine();
+            sb.AppendLine("Top 10 variances (by absolute %):");
+            foreach (var v in variances.OrderByDescending(x => Math.Abs(x.DeltaPct)).Take(10))
+            {
+                sb.AppendLine(
+                    $"  [{v.Status[0]}] {v.ElementCode,-5} {Trim(v.ElementName, 28),-28}  " +
+                    $"plan {v.PlannedLikely,12:N0}   actual {v.Actual,12:N0}   {v.DeltaPct,+6:F1}%");
+            }
 
-            // P0-7 — total-level reconciliation: the NRM1 benchmark estimate
-            // (GIFA × £/m²) and the NRM2 element take-off are TWO DELIBERATE
-            // VIEWS of the same project. Tie the plan grand total to the BOQ
-            // Contract Sum via the shared ContractSumResolver so the headline is
-            // "one rate source, two methods" — not two accidental numbers.
-            double planUgx = plan.GrandTotalLikely;
-            string pc = (plan.Currency ?? "UGX").ToUpperInvariant();
-            if (pc == "USD") planUgx *= TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
-            else if (pc == "GBP") planUgx *= TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-
-            double boqSum = ContractSumResolver.Resolve(doc, boq, out string sumSource);
-            double recDelta = boqSum - planUgx;
-            double recPct = planUgx > 0 ? recDelta / planUgx * 100.0 : 0;
-            string recStatus = Math.Abs(recPct) > 20 ? "Red" : Math.Abs(recPct) > 10 ? "Amber" : "Green";
-
-            rp.AddSection("RECONCILIATION — NRM1 plan vs BOQ Contract Sum")
-                .Metric("NRM1 plan (UGX)", $"{planUgx:N0}")
-                .Metric("BOQ Contract Sum (UGX)", $"{boqSum:N0}")
-                .Metric("Δ", $"{recDelta:+#,##0;-#,##0}")
-                .Metric("Δ%", $"{recPct:+0.0;-0.0}%")
-                .Metric("Status", recStatus)
-                .Text($"BOQ basis: {sumSource}. The NRM1 benchmark and the NRM2 element " +
-                      "take-off are deliberate alternative views; both draw on the canonical " +
-                      "rate library so a large Δ flags a real estimating gap, not a method artefact.");
-
-            rp.AddSection("STATUS")
-                .Metric("Red", red.ToString())
-                .Metric("Amber", amber.ToString())
-                .Metric("Green", green.ToString());
-
-            var rows = variances.OrderByDescending(x => Math.Abs(x.DeltaPct)).Take(10)
-                .Select(v => new[]
-                {
-                    v.Status, v.ElementCode ?? "", Trim(v.ElementName, 28),
-                    $"{v.PlannedLikely:N0}", $"{v.Actual:N0}", $"{v.DeltaPct:+0.0;-0.0}%"
-                }).ToList();
-            rp.AddSection("TOP 10 VARIANCES (by absolute %)")
-                .Table(new[] { "Status", "Code", "Element", "Plan", "Actual", "Δ%" }, rows);
-
-            rp.Show();
+            TaskDialog.Show("STING — Cost plan compare", sb.ToString());
         }
 
         private static string Trim(string s, int max) =>
@@ -305,42 +222,27 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = ParameterHelpers.GetDoc(commandData);
+                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var paths = CostPlanEngine.ListPlans(doc);
                 if (paths.Count == 0)
                 {
-                    StingResultPanel.Create("Export Cost Plan")
-                        .AddSection("NO PLANS")
-                        .Text("No saved cost plans found.")
-                        .Show();
+                    TaskDialog.Show("STING Cost Plan", "No saved cost plans found.");
                     return Result.Cancelled;
                 }
 
-                // P0.3 — inline-form gate: when the panel supplied CostPlanPath, skip
-                // the picker (no popup). Falls back to the modal picker otherwise.
-                string chosen;
-                string fPath = UI.StingCommandHandler.GetExtraParam("CostPlanPath");
-                if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
+                var items = paths.Select(p => new StingListPicker.ListItem
                 {
-                    chosen = fPath;
-                }
-                else
-                {
-                    var items = paths.Select(p => new StingListPicker.ListItem
-                    {
-                        Label = Path.GetFileNameWithoutExtension(p),
-                        Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
-                        Tag = p
-                    }).ToList();
-                    var picked = StingListPicker.Show("STING — Cost plan: export",
-                        "Pick the cost plan to export.", items, allowMultiSelect: false);
-                    if (picked == null || picked.Count == 0) return Result.Cancelled;
-                    chosen = picked[0].Tag as string;
-                }
+                    Label = Path.GetFileNameWithoutExtension(p),
+                    Detail = File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm"),
+                    Tag = p
+                }).ToList();
+                var picked = StingListPicker.Show("STING — Cost plan: export",
+                    "Pick the cost plan to export.", items, allowMultiSelect: false);
+                if (picked == null || picked.Count == 0) return Result.Cancelled;
 
-                var plan = CostPlanEngine.Load(chosen);
+                var plan = CostPlanEngine.Load(picked[0].Tag as string);
                 if (plan == null) { message = "Failed to load plan."; return Result.Failed; }
 
                 string outDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "cost_plans");
@@ -413,12 +315,7 @@ namespace StingTools.Commands.Cost
                     wb.SaveAs(outPath);
                 }
 
-                StingResultPanel.Create("Cost plan exported")
-                    .SetCsvPath(outPath)
-                    .AddSection("EXPORT")
-                    .Metric("Plan", plan.Label)
-                    .Text($"Saved to: {outPath}")
-                    .Show();
+                TaskDialog.Show("STING — Cost plan exported", $"Saved to:\n{outPath}");
                 return Result.Succeeded;
             }
             catch (Exception ex)

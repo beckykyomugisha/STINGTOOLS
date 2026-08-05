@@ -24,7 +24,7 @@
   "use strict";
 
   // STEP-0 SERVED marker — bumped per slice that touches this file.
-  var STING_MEETINGSYNC_BUILD = "s3-clashguid";
+  var STING_MEETINGSYNC_BUILD = "ws1d-syncview";
   try { console.log("[meeting] STING_MEETINGSYNC_BUILD " + STING_MEETINGSYNC_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -51,16 +51,11 @@
     myConnId: "",            // our own SignalR connection id (set after start)
     hostUserId: "",          // session host's user id (from room state / RoomChanged)
     myHand: false,
-    // S2 — late-join replay: apply the FIRST markup snapshot we're sent per join,
-    // so a second replier can't redraw a canvas we already caught up on.
-    markupReplayed: false,
     // M4 — AEC functions
     lastPickGuid: "",        // last picked element (for issue link + viewpoint)
     meetingId: "",           // linked formal Meeting (agenda/actions/minutes)
     modelId: "",             // session model (informational)
-    // S3 — tryQueue/awaitGuid/missed drive the "element A, then element B, else say
-    // it isn't in this model" fallback for clash focus (selectAndZoom answers async).
-    clash: { list: [], idx: -1, on: false, tryQueue: [], awaitGuid: "", missed: [] },
+    clash: { list: [], idx: -1, on: false },
     // N1 — live A/V state from livekit-av.js, keyed by participant identity (= userId).
     av: {},
   };
@@ -206,13 +201,7 @@
     });
     conn.on("Moderation", function (m) {
       if (!m || !m.action) return;
-      // S1 — `enforced` says whether the server ALSO acted on the LiveKit SFU
-      // (mute the track / evict the participant) or only relayed the request.
-      // Word the toast to match; never imply enforcement that didn't happen.
-      if (m.action === "mute-all") {
-        window.dispatchEvent(new CustomEvent("sting:selfMute"));
-        toast(m.enforced ? "Host muted everyone 🔇" : "Host asked everyone to mute 🔇");
-      }
+      if (m.action === "mute-all") { window.dispatchEvent(new CustomEvent("sting:selfMute")); toast("Host muted everyone 🔇"); }
       else if (m.action === "remove") {
         if (m.connectionId && m.connectionId === state.myConnId) {
           toast("You were removed from the meeting");
@@ -225,56 +214,11 @@
       }
     });
 
-    // ── S2 — late-join state replay ────────────────────────────────────────
-    // A peer is asking the room what it missed. Everyone answers with their own
-    // roster row + hand (small, and only they know it). Markup is answered by ONE
-    // client so the joiner doesn't receive N copies of the same canvas.
-    conn.on("StateRequested", function (r) {
-      if (!r || !r.connectionId || r.connectionId === state.myConnId) return;
-      var payload = { displayName: displayName, hand: !!state.myHand };
-      // The host owns the shared surface, so it is the natural single replier.
-      // When the HOST is the one rejoining, no host is left to answer — any peer
-      // holding strokes answers instead, and the joiner applies only the first
-      // snapshot it gets (see StateReplay), so duplicates are harmless.
-      var requesterIsHost = r.userId && state.hostUserId && String(r.userId) === state.hostUserId;
-      if (isHost() || requesterIsHost) {
-        var snap = localMarkupSnapshot();
-        if (snap && ((snap.strokes && snap.strokes.length) || snap.surface || snap.granted)) payload.markup = snap;
-      }
-      conn.invoke("SendState", sessionId, r.connectionId, payload).catch(noop);
-    });
-    // A reply. Group-scoped by design (see MeetingHub.SendState) — ignore the ones
-    // addressed to somebody else. Identity fields are server-stamped, not claimed.
-    conn.on("StateReplay", function (m) {
-      if (!m || m.to !== state.myConnId) return;
-      var p = m.payload || {};
-      if (m.fromConnectionId) {
-        var prev = state.participants.get(m.fromConnectionId) || {};
-        state.participants.set(m.fromConnectionId, {
-          displayName: p.displayName || prev.displayName || "Guest",
-          userId: String(m.fromUserId || prev.userId || ""),
-          hand: !!p.hand,
-        });
-        renderPresence();
-      }
-      // First markup snapshot wins — a second would redraw the same canvas.
-      if (p.markup && !state.markupReplayed) {
-        state.markupReplayed = true;
-        window.dispatchEvent(new CustomEvent("sting:docMarkupReplay", { detail: p.markup }));
-      }
-    });
-
-    conn.onreconnected(function () {
-      state.myConnId = conn.connectionId || state.myConnId;
-      // A reconnect is a late join too: strokes drawn while we were offline never
-      // reached us, and the roster we rebuilt is empty until people move again.
-      state.markupReplayed = false;
-      conn.invoke("JoinSession", sessionId, displayName).then(requestState).catch(noop);
-    });
+    conn.onreconnected(function () { state.myConnId = conn.connectionId || state.myConnId; conn.invoke("JoinSession", sessionId, displayName).catch(noop); });
 
     conn.start()
       .then(function () { state.myConnId = conn.connectionId || ""; return conn.invoke("JoinSession", sessionId, displayName); })
-      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); buildConferenceUI(); buildAecUI(); fetchRoomState(); setStatus("live"); requestState(); })
+      .then(function () { wireCameraBroadcast(); wireSelectionAndSection(); buildConferenceUI(); buildAecUI(); fetchRoomState(); setStatus("live"); })
       .catch(function (e) { console.warn("[meeting] connect failed", e); setStatus("offline"); });
 
     window.addEventListener("beforeunload", function () {
@@ -534,7 +478,7 @@
       wrap.appendChild(rosterChip(p.displayName + badge + (p.hand ? " ✋" : "") + avSuffix(String(p.userId)), colorFor(p.displayName)));
       if (isHost()) {  // host controls: make-host (★) + remove (✖)
         wrap.appendChild(miniBtn("★", "Make host", function () { makeHost(p.userId); }));
-        wrap.appendChild(miniBtn("✖", "Remove", function () { removeParticipant(cid, p.userId); }));
+        wrap.appendChild(miniBtn("✖", "Remove", function () { removeParticipant(cid); }));
       }
       host.appendChild(wrap);
     });
@@ -602,25 +546,6 @@
     var b = document.getElementById("meetHand"); if (b) b.style.background = state.myHand ? "rgba(244,180,0,0.9)" : "rgba(255,255,255,0.14)";
     renderPresence();
   }
-  // ── S2 — late-join state replay (sender side) ─────────────────────────────
-  // Ask the room what happened before we arrived. Peers answer via SendState;
-  // the handlers registered in connect() apply the answers. Fired after JoinSession
-  // (the hub only relays to a group we're actually in) and again after a reconnect.
-  function requestState() {
-    if (state.conn) state.conn.invoke("RequestState", sessionId).catch(noop);
-  }
-  // The markup canvas lives in livekit-av.js. A CustomEvent dispatch is synchronous,
-  // so filling `box` in the listener and reading it back here needs no callback,
-  // no polling, and no load-order dependency between the two scripts.
-  function localMarkupSnapshot() {
-    var box = { snapshot: null };
-    try { window.dispatchEvent(new CustomEvent("sting:markupSnapshotRequest", { detail: box })); } catch (e) {}
-    return box.snapshot;
-  }
-
-  // S1 — the server now ALSO mutes on the SFU (LiveKit RoomService). Don't claim
-  // enforcement before the server says it happened: the optimistic toast is the
-  // honest "asked", the Moderation echo upgrades it to "muted".
   function muteAll() { if (state.conn) state.conn.invoke("MuteAll", sessionId).catch(noop); toast("Asked everyone to mute"); }
   function makeHost(userId) {
     if (!userId) return;
@@ -628,13 +553,7 @@
       { method: "POST", headers: jsonHeadersMS(), body: JSON.stringify({ userId: String(userId) }) })
       .then(function (r) { if (r.ok) toast("Host changed"); else toast("Make-host failed"); }).catch(noop);
   }
-  // S1 — send the target's userId too: it's the LiveKit identity the server evicts
-  // with RoomService.RemoveParticipant (the connection id is SignalR-only and, with
-  // the Redis backplane, may not even live on this instance). Server re-validates it
-  // is a participant of this session before acting.
-  function removeParticipant(cid, uid) {
-    if (state.conn && cid) state.conn.invoke("RemoveParticipant", sessionId, cid, uid ? String(uid) : null).catch(noop);
-  }
+  function removeParticipant(cid) { if (state.conn && cid) state.conn.invoke("RemoveParticipant", sessionId, cid).catch(noop); }
   // WS1d — push the host's current viewer appearance (isolate/ghost/colour) to followers now.
   function syncMyView() {
     var viz = (typeof window !== "undefined") && window.STING_VIEWER_VIZ;
@@ -741,12 +660,7 @@
     nav.appendChild(toolBtn(null, "◀", "Previous clash", function () { stepClash(-1); }));
     nav.appendChild(toolBtn(null, "▶", "Next clash", function () { stepClash(1); }));
     nav.appendChild(toolBtn(null, "⚑→", "Promote this clash to an issue", promoteClash));
-    // S3 — a persistent line for "this clash's element isn't in the loaded model",
-    // so the reason the camera didn't move stays on screen after the toast fades.
-    var note = document.createElement("div");
-    note.id = "meetClashNote";
-    note.style.cssText = "display:none;color:#f4b400;font-size:10px;line-height:1.3";
-    cp.appendChild(info); cp.appendChild(note); cp.appendChild(nav);
+    cp.appendChild(info); cp.appendChild(nav);
     panel.appendChild(cp);
     renderAecMeeting();
   }
@@ -804,50 +718,12 @@
     state.clash.idx = (state.clash.idx + delta + state.clash.list.length) % state.clash.list.length;
     renderClash(); focusClash(state.clash.list[state.clash.idx]);
   }
-  // S3 — a clash's elementAGuid is not guaranteed to be a federated IfcGuid (it can
-  // be a clash-row identity, per the clash-job follow-up), and even a real guid may
-  // belong to a model this viewer hasn't loaded. Previously selectAndZoom just
-  // returned and the camera didn't move — indistinguishable from a broken button.
-  // Now: try element A, fall back to element B, and if neither resolves SAY SO.
-  // Full federated-guid matching is still out of scope; this only stops it failing
-  // silently.
   function focusClash(c) {
-    var a = c && (c.elementAGuid || c.ElementAGuid);
-    var b = c && (c.elementBGuid || c.ElementBGuid);
-    state.clash.tryQueue = [a, b].filter(Boolean);
-    state.clash.missed = [];
-    setClashNote("");   // stepping to a new clash clears the previous warning
-    if (!state.clash.tryQueue.length) { setClashNote("⚠ this clash carries no element guid"); return; }
-    focusNextClashGuid();
-  }
-  function focusNextClashGuid() {
-    var guid = state.clash.tryQueue.shift();
-    if (!guid) {   // every candidate missed
-      state.clash.awaitGuid = "";
-      var msg = "⚠ element not in the loaded model — camera not moved";
-      setClashNote(msg);
-      toast("Clash element not found in this model (" + state.clash.missed.join(", ").slice(0, 40) + "…) — camera not moved");
-      return;
-    }
-    state.clash.awaitGuid = guid;
+    var guid = c && (c.elementAGuid || c.ElementAGuid);
+    if (!guid) return;
     state.lastPickGuid = guid;
     postCmd({ type: "selectAndZoom", payload: { guid: guid } });
     if (state.conn) state.conn.invoke("BroadcastHighlight", sessionId, [guid]).catch(noop);
-  }
-  // The viewer answers every selectAndZoom with found true/false (S3).
-  window.addEventListener("sting:selectAndZoomResult", function (e) {
-    var d = (e && e.detail) || {};
-    if (!state.clash.awaitGuid || d.guid !== state.clash.awaitGuid) return;   // not ours
-    state.clash.awaitGuid = "";
-    if (d.found) { state.clash.tryQueue = []; setClashNote(""); return; }
-    state.clash.missed.push(String(d.guid).slice(0, 8));
-    focusNextClashGuid();   // fall back to element B, or report
-  });
-  function setClashNote(text) {
-    var n = document.getElementById("meetClashNote");
-    if (!n) return;
-    n.textContent = text || "";
-    n.style.display = text ? "block" : "none";
   }
   function promoteClash() {
     var c = state.clash.list[state.clash.idx]; if (!c) return;

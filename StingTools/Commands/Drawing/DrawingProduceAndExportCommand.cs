@@ -15,15 +15,14 @@
 //     re-aligns each drifted view to its profile (annotation skipped —
 //     same as the manual SyncStyles command).
 //
-//   Phase C — Revision synchronisation
-//     TitleBlockRevisionSyncer.SyncAll writes the newest Revit Revision's
-//     number / date / description onto every stamped sheet (SHT_REV_TXT,
-//     SHT_REV_DATE_TXT) and its title-block instances
-//     (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT).
+//   Phase C — Revision strip synchronisation
+//     TitleBlockRevisionSyncer.SyncAll writes the current Revit Revision
+//     sequence into PRJ_TB_REV_COL_n / _DATE_n / _DESC_n cells on every
+//     stamped sheet.
 //
 //   Phase D — PDF export
 //     Every STING-stamped sheet is exported to PDF via doc.Export, ordered
-//     by PRJ_SHEET_SEQUENCE_INT then SheetNumber.  Output goes to the
+//     by STING_SHEET_SEQUENCE_INT then SheetNumber.  Output goes to the
 //     project output folder (OutputLocationHelper).
 //
 //   Phase E — Sheet register CSV
@@ -54,7 +53,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // ── Scope dialog ────────────────────────────────────────────────
@@ -169,13 +168,7 @@ namespace StingTools.Commands.Drawing
                     {
                         try
                         {
-                            // P-9: ctx.Tag must stay null here. ProduceViewsPerLevelCommand leaves
-                            // it null, and BuildContextTag folds Tag into the view
-                            // idempotency key — so setting it to the level name gave the
-                            // two per-level paths different keys and running both
-                            // DUPLICATED every per-level view, despite both claiming
-                            // idempotency. The level is already in the key via ctx.Level.
-                            var ctx = new DrawingContext { Level = level };
+                            var ctx = new DrawingContext { Level = level, Tag = level.Name };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
 
                             stats.ViewsProduced   += res.ViewIds.Count;
@@ -233,8 +226,7 @@ namespace StingTools.Commands.Drawing
                                             SkipAutoDim   = true,
                                             SkipDecorative = true,
                                             SkipSpots     = true,
-                                        },
-                                        SkipSymbolDriftCheck = true // styles re-sync pass
+                                        }
                                     });
                                 if (res.ScaleApplied || res.DetailLevelApplied || res.TemplateApplied || res.PackApplied)
                                     stats.StylesResynced++;
@@ -262,9 +254,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                // Produce & Export operates on STING-stamped sheets throughout,
-                // so keep Phase C to the same scope.
-                var result = TitleBlockRevisionSyncer.SyncAll(doc, stampedOnly: true);
+                var result = TitleBlockRevisionSyncer.SyncAll(doc);
                 stats.RevisionsUpdated = result.SheetsProcessed;
                 stats.Warnings.AddRange(result.Warnings.Select(w => $"[RevSync] {w}"));
             }

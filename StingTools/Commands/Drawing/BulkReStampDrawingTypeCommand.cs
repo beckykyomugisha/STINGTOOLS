@@ -22,7 +22,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uiDoc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument;
+            var uiDoc = commandData.Application?.ActiveUIDocument;
             var doc   = uiDoc?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
@@ -109,8 +109,7 @@ namespace StingTools.Commands.Drawing
                         {
                             var view = doc.GetElement(vid) as View;
                             if (view == null) continue;
-                            var applyResult = DrawingTypePresentation.Apply(doc, view, chosen,
-                                new DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // bulk re-stamp
+                            var applyResult = DrawingTypePresentation.Apply(doc, view, chosen);
                             if (applyResult?.Warnings?.Count > 0)
                                 warnings.AddRange(applyResult.Warnings.Select(w =>
                                     $"{sheet.SheetNumber}/{view.Name}: {w}"));

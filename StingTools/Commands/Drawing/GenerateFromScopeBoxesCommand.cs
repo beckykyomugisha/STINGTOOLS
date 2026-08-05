@@ -31,7 +31,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 // PERF-01: warm view-template + pack caches once before the
@@ -87,8 +87,7 @@ namespace StingTools.Commands.Drawing
 
                             var v = CreateView(doc, dt, b, warnings);
                             if (v == null) { skipped++; continue; }
-                            DrawingTypePresentation.Apply(doc, v, dt,
-                                new DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch from scope boxes
+                            DrawingTypePresentation.Apply(doc, v, dt);
                             StampScopeBoxTag(v, b, warnings);
                             created++;
                         }
@@ -227,16 +226,11 @@ namespace StingTools.Commands.Drawing
             if (levels.Count == 0) return null;
             if (string.IsNullOrWhiteSpace(levelCode)) return levels.OrderBy(l => l.Elevation).FirstOrDefault();
 
-            // P-13b: exact name match, then case-insensitive contains, then
-            // FAIL. The old third fallback returned the lowest-elevation level,
-            // so a typo in a scope box's level code silently produced the view
-            // on the wrong level — and the caller's `level == null` warn-and-skip
-            // could never fire, because a project with any levels always matched
-            // something. An unmatched code now yields null so that guard works.
-            // A level code that was never specified still defaults to the lowest
-            // level (handled above) — that default is deliberate.
+            // Exact name match first, then case-insensitive contains,
+            // then lowest-elevation fallback.
             return levels.FirstOrDefault(l => string.Equals(l.Name, levelCode, StringComparison.OrdinalIgnoreCase))
-                ?? levels.FirstOrDefault(l => l.Name?.IndexOf(levelCode, StringComparison.OrdinalIgnoreCase) >= 0);
+                ?? levels.FirstOrDefault(l => l.Name?.IndexOf(levelCode, StringComparison.OrdinalIgnoreCase) >= 0)
+                ?? levels.OrderBy(l => l.Elevation).FirstOrDefault();
         }
 
         private static string UniqueViewName(Document doc, string baseName)

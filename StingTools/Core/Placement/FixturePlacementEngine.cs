@@ -14,7 +14,6 @@ using System.Linq;
 using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Structure;
 using StingTools.Core;
 using StingTools.Core.Routing;
@@ -76,34 +75,18 @@ namespace StingTools.Core.Placement
         public int RoomsBlockedByDependsOn { get; set; }
         public int CandidatesGenerated { get; set; }
         public int CandidatesRejectedDedup { get; set; }
-        public int CandidatesRejectedWetZone { get; set; }
         public int CandidatesPlaced { get; set; }
         public int SkippedNoSymbol { get; set; }
         public int SkippedHostPreflight { get; set; }
         public int ManufacturerMisses { get; set; }
         public string FirstSkipReason { get; set; } = "";
 
-        // A11 (anchor-miss diagnostics) — count of rooms where this rule's
-        // anchor generator fell back to the room centre (no doors / windows /
-        // boundary segments / unknown anchor), plus the first reason seen.
-        public int AnchorMissRooms { get; set; }
-        public string FirstAnchorMiss { get; set; } = "";
-
-        // A14 (under-fill diagnostics) — count of rooms where the derived cap
-        // (Density / Linear / MaxPerRoom) exceeded the number of candidates
-        // actually generated, so the rule silently placed fewer than asked.
-        public int UnderFilledRooms { get; set; }
-        public int UnderFillShortfall { get; set; }
-        public string FirstUnderFill { get; set; } = "";
-
         public string OneLineSummary()
         {
             return $"{MergeKey}: rooms={RoomsConsidered}/-{RoomsFilteredByName}/-{RoomsFilteredByExclude} " +
                    $"cand={CandidatesGenerated} placed={CandidatesPlaced} " +
-                   $"skip(host={SkippedHostPreflight}, sym={SkippedNoSymbol}, dedup={CandidatesRejectedDedup}, wetzone={CandidatesRejectedWetZone}, " +
+                   $"skip(host={SkippedHostPreflight}, sym={SkippedNoSymbol}, dedup={CandidatesRejectedDedup}, " +
                    $"conflict={RoomsBlockedByConflict}, dep={RoomsBlockedByDependsOn}, mfr={ManufacturerMisses})" +
-                   (AnchorMissRooms > 0 ? $" • anchorMiss={AnchorMissRooms} ({FirstAnchorMiss})" : "") +
-                   (UnderFilledRooms > 0 ? $" • underFill={UnderFilledRooms} (short {UnderFillShortfall}; {FirstUnderFill})" : "") +
                    (string.IsNullOrEmpty(FirstSkipReason) ? "" : $" • first: {FirstSkipReason}");
         }
     }
@@ -121,24 +104,6 @@ namespace StingTools.Core.Placement
         // "Pre-flight: two-phase first-fix" / "Per-room loop" instead of
         // an opaque elapsed-time counter.
         public static volatile string CurrentPhase = "";
-
-        // Per-run wet-zone exclusion state, set from the active building
-        // profile's "Wet-zone checks" toggle. ProcessRoomRule filters
-        // candidates through _wetZoneChecker when enabled and the rule
-        // declares a WetZoneExclusion level.
-        private static bool _wetZoneEnabled;
-        private static WetZoneExclusionChecker _wetZoneChecker;
-
-        // Per-run coverage-guarantee gate, set from the active building
-        // profile's "Coverage guarantee" toggle. When on, rules with
-        // GuaranteeCoverage=true route through CoverageGridGenerator.
-        private static bool _coverageEnabled;
-
-        // Per-run index of positions of fixtures placed by PREVIOUS STING runs
-        // (carry a non-empty ASS_PLACEMENT_RULE_TXT). Seeded into the per-room
-        // dedup so re-running the same rules is idempotent — coincident
-        // placements are skipped instead of doubled.
-        private static List<XYZ> _priorPlaced = new List<XYZ>();
 
         // Phase 139.21 — build stamp. Reads the assembly's PE-header
         // timestamp (the second the DLL was linked) so the Centre title
@@ -229,40 +194,16 @@ namespace StingTools.Core.Placement
             }
             catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect rule-loader validation warnings: {ex.Message}"); }
 
-            // Resolve the active building profile once (in-session UI selection
-            // wins over the on-disk file so the gate works WITHOUT a Save first).
-            // Used by the accessibility / wet-zone / coverage toggles below and
-            // by the rule filter further down.
-            ProjectBuildingProfile activeProfile = null;
+            // Phase 139.27 (N-05) — accessibility / mounting-height validation
+            // against STING_HEIGHT_STANDARDS.json. Silent until 139.27.
             try
             {
-                activeProfile = StingTools.Commands.Placement.PlaceFixturesOptions.SessionProfile
-                                ?? ProjectBuildingProfileIO.Load(doc.PathName);
+                var hsw = HeightStandardsTable.ValidateRulesAgainstStandards(rules);
+                if (hsw != null)
+                    foreach (var w in hsw)
+                        if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
             }
-            catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: load building profile: {ex.Message}"); }
-
-            // Wet-zone exclusion state for ProcessRoomRule. Default ON unless the
-            // profile explicitly disables it.
-            _wetZoneEnabled = activeProfile == null || activeProfile.EnableWetZoneChecks;
-            _wetZoneChecker = _wetZoneEnabled ? new WetZoneExclusionChecker(doc) : null;
-
-            // Coverage-guarantee gate (default ON unless the profile disables it).
-            _coverageEnabled = activeProfile == null || activeProfile.EnableCoverageGuarantee;
-
-            // Accessibility / mounting-height validation against
-            // STING_HEIGHT_STANDARDS.json — gated by the profile's
-            // "Accessibility checks" toggle (default ON).
-            if (activeProfile == null || activeProfile.EnableAccessibilityChecks)
-            {
-                try
-                {
-                    var hsw = HeightStandardsTable.ValidateRulesAgainstStandards(rules);
-                    if (hsw != null)
-                        foreach (var w in hsw)
-                            if (!string.IsNullOrEmpty(w)) result.Warnings.Add(w);
-                }
-                catch (Exception hex) { StingLog.Warn($"HeightStandards validation: {hex.Message}"); }
-            }
+            catch (Exception hex) { StingLog.Warn($"HeightStandards validation: {hex.Message}"); }
 
             if (rules.Count == 0)
             {
@@ -270,64 +211,15 @@ namespace StingTools.Core.Placement
                 return result;
             }
 
-            // Phase 188 (review fix #3b) — apply the project building profile so
-            // a run matches what the Placement Centre displays. FilterByProfile
-            // existed and the UI mirrored it, but the engine ran every rule
-            // regardless of building type. No-op when no
-            // _BIM_COORD/placement_profile.json is configured (empty BuildingType
-            // + ActiveStandards → FilterByProfile returns the set unchanged).
-            try
-            {
-                // Use the profile resolved above (in-session UI selection wins
-                // over the on-disk file so the gate works WITHOUT a Save first).
-                var profile = activeProfile;
-                bool profileActive = profile != null &&
-                    (!string.IsNullOrEmpty(profile.BuildingType) ||
-                     (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0));
-                if (profileActive)
-                {
-                    // The standards gate matches a rule's structured
-                    // ApplicableStandards, falling back to its free-text
-                    // StandardRef. Only warn that the filter is inert when no rule
-                    // carries EITHER field — then standards can't gate anything.
-                    if (profile.ActiveStandards != null && profile.ActiveStandards.Length > 0
-                        && !rules.Any(r => r != null
-                            && (!string.IsNullOrEmpty(r.ApplicableStandards) || !string.IsNullOrEmpty(r.StandardRef))))
-                    {
-                        result.Warnings.Add("Building profile declares ActiveStandards but no rule carries ApplicableStandards or StandardRef — the standards filter is inert. Tag rules with standards to enable standards-based filtering.");
-                    }
+            // Phase 139.27 (C-03) — surface a one-shot warning at start
+            // of run when the user enabled "Tag every placement" but
+            // the reflection target is missing. RunFor() warns once per
+            // session via StingLog; mirroring it into result.Warnings
+            // means the run report shows it too.
+            if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
+                result.Warnings.Add("Post-placement: 'Tag every placement' is on but TagPipelineHelper.RunFullPipeline could not be resolved by reflection — placed instances will NOT be tagged this session.");
 
-                    int before = rules.Count;
-                    rules = PlacementRuleLoader.FilterByProfile(new List<PlacementRule>(rules), profile);
-                    int removed = before - rules.Count;
-                    StingLog.Info($"FixturePlacementEngine: building-profile filter kept {rules.Count} of {before} rules (BuildingType='{profile.BuildingType}').");
-                    if (removed > 0)
-                        result.Warnings.Add($"Building profile '{profile.BuildingType}' filtered out {removed} of {before} rule(s) not matching the active building type / standards.");
-                    if (rules.Count == 0)
-                    {
-                        result.Warnings.Add($"Building profile '{profile.BuildingType}' filtered out ALL rules — nothing to place. Check the profile's BuildingType / ActiveStandards against your rule set.");
-                        return result;
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: building-profile filter: {ex.Message}"); }
-
-            // Reset per-run post-placement hook state (tag-pipeline context
-            // cache + MEP-connect counters + TagPipelineMissing flag) so
-            // consecutive runs are independent and pick up manual edits made
-            // between runs.
-            PostPlacementHooks.BeginRun();
-
-            // Idempotency: index the positions of fixtures placed by previous
-            // STING runs (they carry a non-empty ASS_PLACEMENT_RULE_TXT). Seeded
-            // into the per-room dedup so re-running the same rules doesn't double
-            // fixtures. Skipped for dry-run previews (nothing is committed).
-            _priorPlaced = dryRun ? new List<XYZ>() : BuildPriorPlacedIndex(doc, ResolvePriorPlacedCategories(doc, rules));
-            if (!dryRun && _priorPlaced.Count > 0)
-                result.Warnings.Add($"Idempotency: found {_priorPlaced.Count} fixture(s) from previous STING placement runs — coincident positions will be skipped so this re-run won't duplicate them. Use 'Undo last run' first if you intend to replace them.");
-
-            var roomCtx = new Dictionary<SpatialElement, (Document src, Transform toHost)>();
-            var rooms = CollectRooms(doc, roomIds, result, roomCtx);
+            var rooms = CollectRooms(doc, roomIds, result);
             result.RoomsVisited = rooms.Count;
             if (rooms.Count == 0) return result;
 
@@ -340,11 +232,6 @@ namespace StingTools.Core.Placement
                 // users expect fixtures not to sit inside walls.
                 RejectInsideWall = StingTools.Commands.Placement.PlaceFixturesOptions.RejectInsideWall,
             };
-            // One scorer per source document — host rooms use the host scorer;
-            // linked rooms get a scorer bound to their link document so room +
-            // wall / door geometry is read in the same coordinate space.
-            bool rejectInsideWall = StingTools.Commands.Placement.PlaceFixturesOptions.RejectInsideWall;
-            var scorerByDoc = new Dictionary<Document, PlacementScorer> { [doc] = scorer };
             var perCategorySymbol = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
 
             // Rule ordering: higher Priority first so specialised rules
@@ -443,21 +330,6 @@ namespace StingTools.Core.Placement
 
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
-
-                    // Resolve the room's source document + host transform. Linked
-                    // rooms use a link-bound scorer + the simpler linked path.
-                    var rc = roomCtx.TryGetValue(room, out var rcv) ? rcv : (src: doc, toHost: Transform.Identity);
-                    bool roomLinked = rc.toHost != null && !rc.toHost.IsIdentity;
-                    PlacementScorer roomScorer = scorer;
-                    if (rc.src != null && rc.src != doc)
-                    {
-                        if (!scorerByDoc.TryGetValue(rc.src, out roomScorer))
-                        {
-                            roomScorer = new PlacementScorer(rc.src) { RejectInsideWall = rejectInsideWall };
-                            scorerByDoc[rc.src] = roomScorer;
-                        }
-                    }
-
                     foreach (var rule in ordered)
                     {
                         var diag = result.Diag(rule.MergeKey);
@@ -491,17 +363,6 @@ namespace StingTools.Core.Placement
                             if (!string.IsNullOrEmpty(rule.DependsOn) && !roomState.PlacedByRule.ContainsKey(rule.DependsOn))
                             {
                                 result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — DependsOn '{rule.DependsOn}' has no placement in this room.");
-                                continue;
-                            }
-
-                            if (roomLinked)
-                            {
-                                // Linked-architecture room: score in link coords,
-                                // place non-hosted on the nearest host level at the
-                                // transformed point. (CoPlaceWith / RELATIVE_TO /
-                                // wet-zone are host-path-only in v1.)
-                                ProcessLinkedRoomRule(doc, room, rule, roomScorer, rc.toHost,
-                                    perCategorySymbol, result, dryRun);
                                 continue;
                             }
 
@@ -628,142 +489,36 @@ namespace StingTools.Core.Placement
                 tx?.Dispose();
             }
 
-            // Surface post-placement hook outcomes in the run report.
-            if (!dryRun)
-            {
-                if (PostPlacementHooks.RunDataTagPipeline && PostPlacementHooks.TagPipelineMissing)
-                    result.Warnings.Add("Post-placement: 'Run data-tag pipeline' is on but the tag population context was invalid (rooms / levels / shared parameters missing) — placed instances were NOT tagged this run.");
-                if (PostPlacementHooks.AssignMepSystem &&
-                    (PostPlacementHooks.MepConnectedCount > 0 || PostPlacementHooks.MepLeftOpenCount > 0))
-                    result.Warnings.Add($"Post-placement: MEP connect joined {PostPlacementHooks.MepConnectedCount} connector(s); {PostPlacementHooks.MepLeftOpenCount} left open (no coincident compatible connector within 600 mm).");
-            }
-
             return result;
         }
 
-        // Both Rooms (architecture) and MEP Spaces are SpatialElements sharing the
-        // boundary / bbox / level / area API the engine uses, so it places into
-        // either. MEP models commonly carry Spaces (rooms live in a linked arch
-        // model) — supporting Spaces lets those models place without a host Room.
-        private static bool IsPlaceableSpatial(Element el)
-            => (el is Room r && r.Area > 0.0) || (el is Space sp && sp.Area > 0.0);
-
-        /// <summary>
-        /// Point-in-spatial test. Exact for Rooms (IsPointInRoom); for MEP Spaces
-        /// (no public point test) falls back to plan bounding-box containment.
-        /// Used by the coverage grid + lighting grid so they clip to either.
-        /// </summary>
-        public static bool PointInSpatial(SpatialElement se, XYZ p)
+        private static List<Room> CollectRooms(Document doc, IList<ElementId> roomIds, PlacementResult result)
         {
-            if (se == null || p == null) return false;
-            try { if (se is Room rm) return rm.IsPointInRoom(p); } catch { }
-            try
-            {
-                var bb = se.get_BoundingBox(null);
-                if (bb == null) return true;
-                return p.X >= bb.Min.X && p.X <= bb.Max.X && p.Y >= bb.Min.Y && p.Y <= bb.Max.Y;
-            }
-            catch { return true; }
-        }
-
-        // Per-room source context: which document the room's geometry lives in
-        // and the transform from that document to host coordinates. Host rooms
-        // map to (host, Identity); linked rooms to (linkDoc, linkTransform).
-        private static List<SpatialElement> CollectRooms(
-            Document doc, IList<ElementId> roomIds, PlacementResult result,
-            Dictionary<SpatialElement, (Document src, Transform toHost)> ctx)
-        {
-            var rooms = new List<SpatialElement>();
+            var rooms = new List<Room>();
             try
             {
                 if (roomIds == null || roomIds.Count == 0)
                 {
-                    foreach (var bic in new[] { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces })
-                        foreach (var e in new FilteredElementCollector(doc)
-                            .OfCategory(bic).WhereElementIsNotElementType())
-                            if (IsPlaceableSpatial(e))
-                            {
-                                rooms.Add((SpatialElement)e);
-                                if (ctx != null) ctx[(SpatialElement)e] = (doc, Transform.Identity);
-                            }
-
-                    // Linked architecture: read Rooms/Spaces from each loaded link
-                    // and remember its transform so placement maps back to host
-                    // coordinates. Project-scope only (active-view/selection ids
-                    // are host ids and can't reference linked elements).
-                    CollectLinkedRooms(doc, rooms, ctx, result);
+                    var collector = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .WhereElementIsNotElementType();
+                    foreach (var e in collector)
+                        if (e is Room r && r.Area > 0.0) rooms.Add(r);
                 }
                 else
                 {
                     foreach (var id in roomIds)
                     {
                         var el = doc.GetElement(id);
-                        if (IsPlaceableSpatial(el))
-                        {
-                            rooms.Add((SpatialElement)el);
-                            if (ctx != null) ctx[(SpatialElement)el] = (doc, Transform.Identity);
-                        }
+                        if (el is Room r && r.Area > 0.0) rooms.Add(r);
                     }
                 }
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"Room/Space collection failed: {ex.Message}");
+                result.Warnings.Add($"Room collection failed: {ex.Message}");
             }
             return rooms;
-        }
-
-        /// <summary>Read Rooms/Spaces from every loaded Revit link and record each
-        /// one's source document + host transform.</summary>
-        private static void CollectLinkedRooms(
-            Document doc, List<SpatialElement> rooms,
-            Dictionary<SpatialElement, (Document src, Transform toHost)> ctx,
-            PlacementResult result)
-        {
-            if (ctx == null) return;
-            try
-            {
-                int linkedCount = 0;
-                foreach (var li in new FilteredElementCollector(doc)
-                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>())
-                {
-                    Document ld = null;
-                    try { ld = li.GetLinkDocument(); } catch { }
-                    if (ld == null) continue;                 // link unloaded
-                    Transform tf = Transform.Identity;
-                    try { tf = li.GetTotalTransform() ?? Transform.Identity; } catch { }
-                    foreach (var bic in new[] { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces })
-                        foreach (var e in new FilteredElementCollector(ld)
-                            .OfCategory(bic).WhereElementIsNotElementType())
-                            if (IsPlaceableSpatial(e))
-                            {
-                                var se = (SpatialElement)e;
-                                rooms.Add(se);
-                                ctx[se] = (ld, tf);
-                                linkedCount++;
-                            }
-                }
-                if (linkedCount > 0)
-                    result.Warnings.Add($"Linked architecture: read {linkedCount} room(s)/space(s) from loaded links. Fixtures place non-hosted on the nearest host level at the transformed location (orientation + face-hosting from a linked host are not applied — v1).");
-            }
-            catch (Exception ex) { StingLog.Warn($"CollectLinkedRooms: {ex.Message}"); }
-        }
-
-        /// <summary>Nearest host-document Level to a Z elevation (in host feet).</summary>
-        private static Level NearestHostLevel(Document hostDoc, double zFt)
-        {
-            Level best = null; double bestD = double.MaxValue;
-            try
-            {
-                foreach (var lv in new FilteredElementCollector(hostDoc)
-                    .OfClass(typeof(Level)).Cast<Level>())
-                {
-                    double d = Math.Abs(lv.Elevation - zFt);
-                    if (d < bestD) { bestD = d; best = lv; }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"NearestHostLevel: {ex.Message}"); }
-            return best;
         }
 
         /// <summary>PC-13 per-room state: maps RuleId/MergeKey → list of placed points,
@@ -774,12 +529,6 @@ namespace StingTools.Core.Placement
                 = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, XYZ> LastPointByRule { get; }
                 = new Dictionary<string, XYZ>(StringComparer.OrdinalIgnoreCase);
-            // Phase 195 — every placement in this room indexed by CATEGORY, so
-            // overlapping rules from different packs (e.g. 22 "Lighting Devices"
-            // rules) can't crowd the same spot. A candidate is rejected when a
-            // same-category fixture already sits within the rule's MinSpacingMm.
-            public Dictionary<string, List<XYZ>> PlacedByCategory { get; }
-                = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
         }
 
         private static bool RuleHasConflict(PlacementRule rule, RoomState state)
@@ -792,7 +541,7 @@ namespace StingTools.Core.Placement
 
         private static void ProcessRoomRule(
             Document doc,
-            SpatialElement room,
+            Room room,
             PlacementRule rule,
             PlacementScorer scorer,
             Dictionary<string, FamilySymbol> perCategorySymbol,
@@ -826,31 +575,8 @@ namespace StingTools.Core.Placement
             // PC-13 — RELATIVE_TO / EQUIPMENT_PAIR: short-circuit by stamping the
             // predecessor's last point as the only candidate.
             string anchor = (effRule.AnchorType ?? "").ToUpperInvariant();
-
-            // Coverage guarantee: when the rule sets GuaranteeCoverage=true (and
-            // the building profile's "Coverage guarantee" toggle is on), fill the
-            // room with a √2-spaced grid via CoverageGridGenerator so every floor
-            // point lies within CoverageRadiusMm of a device. The generator
-            // honours CoverageRadiusMm / MaxSpacingMm / MinSpacingMm /
-            // WallClearanceMm / ObstructionClearanceMm itself, so these points
-            // bypass the score-rank + spacing re-selection below.
-            bool coverageMode = _coverageEnabled && effRule.GuaranteeCoverage
-                                && effRule.CoverageRadiusMm > 0
-                                && anchor != "RELATIVE_TO" && anchor != "EQUIPMENT_PAIR";
-
             List<PlacementCandidate> candidates;
-            if (coverageMode)
-            {
-                double anchorZ = scorer.ResolveAnchorZForRoom(room, effRule);
-                var cov = new CoverageGridGenerator(doc).Generate(room, effRule, anchorZ);
-                candidates = new List<PlacementCandidate>(cov.Points.Count);
-                foreach (var p in cov.Points)
-                    candidates.Add(new PlacementCandidate { Position = p, RoomId = room.Id, Rule = effRule, Score = 1.0 });
-                result.CandidatesEvaluated += candidates.Count;
-                foreach (var w in cov.Warnings)
-                    if (!string.IsNullOrEmpty(w)) result.Warnings.Add($"[{effRule.RuleId}] {w}");
-            }
-            else if ((anchor == "RELATIVE_TO" || anchor == "EQUIPMENT_PAIR")
+            if ((anchor == "RELATIVE_TO" || anchor == "EQUIPMENT_PAIR")
                 && !string.IsNullOrEmpty(effRule.DependsOn)
                 && state.LastPointByRule.TryGetValue(effRule.DependsOn, out var prev))
             {
@@ -867,107 +593,15 @@ namespace StingTools.Core.Placement
             {
                 candidates = scorer.Score(room, effRule, placedPoints, alreadyInRoom);
                 result.CandidatesEvaluated += candidates.Count;
-
-                // A11 (anchor-miss diagnostics) — drain the scorer's per-Score()
-                // anchor-fallback list right after the call (it's reset on every
-                // Score, so this must read it now). Surface as a per-rule count +
-                // one-shot warning so a door-anchored rule in a doorless room is
-                // visible instead of silently landing at the room centre.
-                var misses = scorer.LastAnchorMisses;
-                if (misses != null && misses.Count > 0 && diagRoom != null)
-                {
-                    diagRoom.AnchorMissRooms++;
-                    if (string.IsNullOrEmpty(diagRoom.FirstAnchorMiss))
-                        diagRoom.FirstAnchorMiss = misses[0];
-                    string amKey = $"AnchorMiss:{effRule.MergeKey}";
-                    if (!result.Warnings.Any(w => w.StartsWith(amKey, StringComparison.Ordinal)))
-                    {
-                        result.Warnings.Add($"{amKey} — rule '{effRule.MergeKey}' anchor '{effRule.AnchorType}' " +
-                            $"fell back to room centre ({misses[0]}); more rooms may be affected. " +
-                            $"Devices land at the centroid, not the intended feature.");
-                        StingLog.Warn($"Placement A11: rule '{effRule.MergeKey}' anchor fallback in room {room.Id}: {misses[0]}");
-                    }
-                }
             }
             if (candidates.Count == 0) return;
 
-            // Wet-zone exclusion (BS 7671 / IEC 60364-7-701) — gated by the
-            // building profile's "Wet-zone checks" toggle and the rule's
-            // WetZoneExclusion level. Drops candidates that fall inside a
-            // bath/shower/basin exclusion volume. No-op when the toggle is off
-            // or the rule sets no exclusion level.
-            if (_wetZoneEnabled && _wetZoneChecker != null
-                && !string.IsNullOrEmpty(effRule.WetZoneExclusion)
-                && !effRule.WetZoneExclusion.Equals("NONE", StringComparison.OrdinalIgnoreCase))
-            {
-                var keep = new List<PlacementCandidate>(candidates.Count);
-                foreach (var c in candidates)
-                {
-                    bool rejected = false;
-                    try { rejected = _wetZoneChecker.Check(room, c.Position, effRule.WetZoneExclusion).Rejected; }
-                    catch (Exception wzEx) { StingLog.Warn($"WetZone check ({effRule.RuleId}): {wzEx.Message}"); }
-                    if (!rejected) keep.Add(c);
-                }
-                int dropped = candidates.Count - keep.Count;
-                if (dropped > 0)
-                {
-                    StingLog.Info($"WetZone: rule '{effRule.RuleId}' dropped {dropped} candidate(s) in room {room.Id} (exclusion {effRule.WetZoneExclusion}).");
-                    diagRoom.CandidatesRejectedWetZone += dropped;
-                }
-                candidates = keep;
-                if (candidates.Count == 0) return;
-            }
-
             // PC-12 — derive the count for Density / Linear rules from the room's
             // area, occupancy or perimeter, capped by MaxPerRoom when set.
-            // Coverage mode wants ALL generated points placed (that IS the
-            // guarantee), limited only by an explicit MaxPerRoom.
-            int cap;
-            if (coverageMode)
-            {
-                cap = effRule.MaxPerRoom > 0 ? Math.Min(effRule.MaxPerRoom, candidates.Count) : candidates.Count;
-            }
-            else
-            {
-                cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom, out int desiredCap);
-                // A14 (under-fill diagnostics) — the rule wanted more than the
-                // anchor generator could produce (e.g. WALL_MIDPOINT emits one
-                // point per segment but a Linear rule asked for 10). Surface it
-                // so the silent shortfall is visible in the run report.
-                if (desiredCap > candidates.Count && diagRoom != null)
-                {
-                    diagRoom.UnderFilledRooms++;
-                    diagRoom.UnderFillShortfall += (desiredCap - candidates.Count);
-                    if (string.IsNullOrEmpty(diagRoom.FirstUnderFill))
-                        diagRoom.FirstUnderFill = $"cap {desiredCap} vs {candidates.Count} candidate(s)";
-                    string ufKey = $"UnderFill:{effRule.MergeKey}";
-                    if (!result.Warnings.Any(w => w.StartsWith(ufKey, StringComparison.Ordinal)))
-                    {
-                        result.Warnings.Add($"{ufKey} — rule '{effRule.MergeKey}' wanted {desiredCap} but only " +
-                            $"{candidates.Count} candidate(s) were generated (anchor '{effRule.AnchorType}'); " +
-                            $"placed {candidates.Count}. For 'one every N m' along walls use a Linear rule with " +
-                            $"PerLinearMetre (auto-densifies WALL_MIDPOINT) or the LINEAR_WALL anchor.");
-                        StingLog.Warn($"Placement A14: rule '{effRule.MergeKey}' under-fill in room {room.Id}: " +
-                            $"desired {desiredCap} vs candidates {candidates.Count}.");
-                    }
-                }
-            }
+            int cap = ComputeCap(effRule, room, candidates.Count, alreadyInRoom);
             if (cap == 0) return;
 
-            // Phase 188 (review pass-2 #3) — enforce intra-rule MinSpacingMm at
-            // selection. The scorer scores every candidate against an EMPTY
-            // already-placed list (placedPoints is filled only after placement),
-            // so SpacingScore is always 1.0 and a plain Take(cap) could pick
-            // adjacent candidates closer than MinSpacingMm (e.g. CEILING_TILE_CORNER
-            // emits points every 600 mm but the rule asks for 1000 mm). Greedily
-            // accept ranked candidates that clear MinSpacingMm from the ones
-            // already accepted. MinSpacingMm <= 0 ⇒ legacy Take(cap).
-            // Coverage points are already √2-spaced + MinSpacing-floored by the
-            // generator, so take them straight (preserving grid order). Other
-            // rules go through the score-rank + greedy MinSpacing selection.
-            var chosen = coverageMode
-                ? candidates.GetRange(0, Math.Min(cap, candidates.Count))
-                : SelectWithSpacing(candidates, cap, effRule.MinSpacingMm);
+            var chosen = candidates.Take(cap).ToList();
 
             if (dryRun)
             {
@@ -990,28 +624,7 @@ namespace StingTools.Core.Placement
             }
 
             FamilySymbol symbol = ResolveSymbol(doc, effRule.CategoryFilter, effRule, perCategorySymbol, result);
-            if (symbol == null)
-            {
-                // Make the silent "no symbol → 0 placements" case visible.
-                // Count every candidate this rule would have placed as skipped
-                // and surface a one-shot per-(rule, category, variant) warning so
-                // the user knows why the rule placed nothing.
-                if (diagRoom != null)
-                {
-                    diagRoom.SkippedNoSymbol += chosen.Count;
-                    if (string.IsNullOrEmpty(diagRoom.FirstSkipReason))
-                        diagRoom.FirstSkipReason = $"no family symbol resolved for category '{effRule.CategoryFilter}'" +
-                            (string.IsNullOrEmpty(effRule.VariantHint) ? "" : $" / variant '{effRule.VariantHint}'");
-                }
-                result.SkippedCount += chosen.Count;
-                string symWarnKey = $"NoSymbol:{effRule.CategoryFilter}:{effRule.VariantHint}:{effRule.MergeKey}";
-                if (!result.Warnings.Any(w => w.Contains(symWarnKey)))
-                    result.Warnings.Add($"{symWarnKey} — rule '{effRule.MergeKey}' resolved no family symbol for category " +
-                        $"'{effRule.CategoryFilter}'" +
-                        (string.IsNullOrEmpty(effRule.VariantHint) ? "" : $" / variant '{effRule.VariantHint}'") +
-                        $"; {chosen.Count} candidate(s) skipped. Load a matching family or adjust FamilyTypeRegex / VariantHint.");
-                return;
-            }
+            if (symbol == null) return;
 
             // Phase 139.18 — warn once per (rule, family) when a wall- or
             // ceiling-anchored rule resolves to an un-hosted family. The
@@ -1069,53 +682,10 @@ namespace StingTools.Core.Placement
                 if (state?.PlacedByRule != null)
                     foreach (var lst in state.PlacedByRule.Values)
                         if (lst != null) existingNearby.AddRange(lst);
-                // Idempotency: also dedup against fixtures from previous runs so
-                // re-running the same rules doesn't double up.
-                if (_priorPlaced != null && _priorPlaced.Count > 0)
-                    existingNearby.AddRange(_priorPlaced);
             }
             catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Collect existing PlacedByRule for dedup: {ex.Message}"); }
             double dedupFt = Math.Max(effRule.ToleranceMm, 25.0) * MmToFt;
             double dedupSq = dedupFt * dedupFt;
-
-            // Phase 195 — same-category cross-rule crowding guard. Fetch (or create)
-            // this category's running placement list for the room so a candidate can
-            // be rejected when a same-category fixture (placed by ANY rule this run)
-            // already sits within the rule's MinSpacingMm. This collapses the
-            // overlapping pack rules (e.g. 22 "Lighting Devices" rules) that were
-            // each placing a full set, into one fixture per spot.
-            string catKey = effRule.CategoryFilter ?? "";
-            List<XYZ> catPlaced = null;
-            if (state != null && !string.IsNullOrEmpty(catKey))
-            {
-                if (!state.PlacedByCategory.TryGetValue(catKey, out catPlaced))
-                { catPlaced = new List<XYZ>(); state.PlacedByCategory[catKey] = catPlaced; }
-            }
-            // ~290 of the shipped rules leave MinSpacingMm = 0, which would
-            // disable the crowding guard and let overlapping pack rules stack
-            // (the audit's #1 finding). When a rule sets no MinSpacing, fall back
-            // to an anchor-appropriate crowding FLOOR so cross-rule stacking is
-            // still prevented. Ceiling/grid fixtures (lights, diffusers,
-            // sprinklers) use 1000 mm — overlapping lux grids must collapse. Wall/
-            // point devices use a 150 mm PHYSICAL-OVERLAP floor only: two ~86 mm
-            // faceplates can't sit closer than that, but legitimately-distinct
-            // adjacent devices (e.g. a nurse-call socket next to a power socket
-            // ~200 mm apart) survive — a 250 mm floor wrongly rejected those.
-            // An explicit MinSpacingMm always wins.
-            bool ceilGrid = anchor == "CEILING_CENTRE" || anchor == "LIGHTING_GRID"
-                         || anchor == "LUX_GRID" || anchor.StartsWith("CEILING_TILE");
-            double crowdMm = effRule.MinSpacingMm > 0 ? effRule.MinSpacingMm
-                                                      : (ceilGrid ? 1000.0 : 150.0);
-            double catMergeFt = crowdMm * MmToFt;
-            double catMergeSq = catMergeFt * catMergeFt;
-
-            // Tier 1 — collect placed instances and orient them AFTER one
-            // doc.Regenerate() (below the loop). Reading FacingOrientation before
-            // a regen returns zero/default on a freshly-created non-hosted
-            // instance, so the post-hoc wall alignment no-opped and fixtures
-            // stayed diagonal. One regen per rule-room (not per instance) keeps
-            // it cheap while making orientation reliable.
-            var toOrient = new List<FamilyInstance>();
 
             foreach (var c in chosen)
             {
@@ -1133,24 +703,6 @@ namespace StingTools.Core.Placement
                     result.SkippedCount++;
                     if (diagRoom != null) diagRoom.CandidatesRejectedDedup++;
                     continue;
-                }
-                // Phase 195 — same-category crowding: reject when a fixture of this
-                // category already sits within MinSpacing horizontally (any rule).
-                if (catMergeSq > 0 && catPlaced != null && catPlaced.Count > 0)
-                {
-                    bool crowded = false;
-                    foreach (var ex in catPlaced)
-                    {
-                        if (ex == null) continue;
-                        double dx = ex.X - c.Position.X, dy = ex.Y - c.Position.Y;
-                        if (dx * dx + dy * dy < catMergeSq) { crowded = true; break; }
-                    }
-                    if (crowded)
-                    {
-                        result.SkippedCount++;
-                        if (diagRoom != null) diagRoom.CandidatesRejectedDedup++;
-                        continue;
-                    }
                 }
                 try
                 {
@@ -1172,12 +724,6 @@ namespace StingTools.Core.Placement
                     }
 
                     WriteAnchorParameters(fi, effRule);
-                    // Tier 1 — defer orientation. OrientPlacedInstance applies
-                    // RotationDeg, flips the family to face INTO the room, and
-                    // snaps it onto the wall face — but it needs a valid
-                    // FacingOrientation, which only exists after a regen. Collect
-                    // here; orient all after one regen below the loop.
-                    toOrient.Add(fi);
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -1196,7 +742,6 @@ namespace StingTools.Core.Placement
                     if (diagRoom != null) diagRoom.CandidatesPlaced++;
                     placedPoints.Add(c.Position);
                     existingNearby.Add(c.Position); // Phase 139.25 — live dedup
-                    catPlaced?.Add(c.Position);     // Phase 195 — same-category crowding index
 
                     // PC-13 — record placement on per-room state for downstream rules.
                     if (state != null)
@@ -1212,29 +757,12 @@ namespace StingTools.Core.Placement
 
                     // PC-17 — optional post-placement hook: data-tag pipeline + COBie seed.
                     try { PostPlacementHooks.RunFor(fi, effRule); }
-                    catch (Exception hkEx) { result.Warnings.Add($"Post-placement hook for {fi.Id}: {hkEx.Message}"); }
+                    catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook for {fi.Id}: {hkEx.Message}"); }
                 }
                 catch (Exception ex2)
                 {
                     result.SkippedCount++;
                     result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex2.Message}");
-                }
-            }
-
-            // Tier 1 — orient every just-placed instance after ONE regen so
-            // FamilyInstance.FacingOrientation is valid. Previously orientation
-            // ran inline on a freshly-created instance whose facing was still
-            // zero/default, so the wall-alignment in OrientPlacedInstance no-opped
-            // and fixtures stayed diagonal. One regen per rule-room is cheap.
-            if (toOrient.Count > 0)
-            {
-                try { doc.Regenerate(); }
-                catch (Exception rex) { StingLog.Warn($"Regenerate before orient: {rex.Message}"); }
-                foreach (var ofi in toOrient)
-                {
-                    if (ofi == null || !ofi.IsValidObject) continue;
-                    try { OrientPlacedInstance(doc, ofi, effRule, room); }
-                    catch (Exception oex) { result.Warnings.Add($"Orient {rule.CategoryFilter} in {SafeRoomName(room)}: {oex.Message}"); }
                 }
             }
         }
@@ -1245,57 +773,39 @@ namespace StingTools.Core.Placement
         /// occupancy; Linear rules from perimeter. MaxPerRoom (when > 0) is a
         /// hard cap regardless of kind.
         /// </summary>
-        private static int ComputeCap(PlacementRule rule, SpatialElement room, int candidateCount, int alreadyInRoom)
-            => ComputeCap(rule, room, candidateCount, alreadyInRoom, out _);
-
-        /// <summary>
-        /// Overload that also reports the <paramref name="desiredCap"/> — the
-        /// count the rule wanted (after the MaxPerRoom hard cap) BEFORE it was
-        /// clamped to the number of candidates available. A14 (under-fill
-        /// diagnostics) compares desiredCap against candidateCount so the run
-        /// report can flag "wanted N, only M candidates generated".
-        /// </summary>
-        private static int ComputeCap(PlacementRule rule, SpatialElement room, int candidateCount, int alreadyInRoom, out int desiredCap)
+        private static int ComputeCap(PlacementRule rule, Room room, int candidateCount, int alreadyInRoom)
         {
             int cap;
             switch (rule.RuleKind)
             {
                 case PlacementRuleKind.Density:
                 {
-                    // Phase 188 (review fix #2) — derive the count from EVERY
-                    // declared density rate, not just PerAreaM2 / PerOccupant.
-                    // PerBed / PerWorkstation / PerPupil / PerToiletCubicle are
-                    // first-class fields validated by the loader and surfaced in
-                    // the Centre + Excel export, but the engine never read them —
-                    // so healthcare / education / office density rules silently
-                    // collapsed to one fixture per room. cap = max across all
-                    // populated rates (a rule may set several; the binding one
-                    // wins).
-                    int byArea = 0;
+                    int byArea = 0, byOcc = 0;
                     if (rule.PerAreaM2 > 0)
                     {
                         double areaM2 = 0;
                         try { areaM2 = room.Area * 0.3048 * 0.3048; } catch { }
                         if (areaM2 > 0) byArea = Math.Max(1, (int)Math.Ceiling(areaM2 / rule.PerAreaM2));
                     }
-
-                    string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
-                        ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
-                    int byOcc    = CountFromRoomRate(room, occParam,                     rule.PerOccupant);
-                    int byBed    = CountFromRoomRate(room, "STING_BED_COUNT_INT",            rule.PerBed);
-                    int byWs     = CountFromRoomRate(room, "STING_WS_COUNT_INT",             rule.PerWorkstation);
-                    int byPupil  = CountFromRoomRate(room, "STING_PUPIL_COUNT_INT",          rule.PerPupil);
-                    int byCubicle= CountFromRoomRate(room, "STING_TOILET_CUBICLE_COUNT_INT", rule.PerToiletCubicle);
-
-                    cap = Math.Max(byArea,
-                          Math.Max(byOcc,
-                          Math.Max(byBed,
-                          Math.Max(byWs,
-                          Math.Max(byPupil, byCubicle)))));
-
-                    // Phase 139.4 — Density rule with no derivable rate falls
-                    // through with cap=1; the rule-loader validation pass warns
-                    // the user the rule is misconfigured.
+                    if (rule.PerOccupant > 0)
+                    {
+                        int occ = 0;
+                        try
+                        {
+                            string occParam = string.IsNullOrEmpty(rule.OccupancyParamName)
+                                ? "STING_OCC_COUNT_INT" : rule.OccupancyParamName;
+                            var p = room.LookupParameter(occParam);
+                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
+                        }
+                        catch { }
+                        if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
+                    }
+                    cap = Math.Max(byArea, byOcc);
+                    // Phase 139.4 — Density rule with neither PerAreaM2 nor PerOccupant
+                    // (or with both = 0) used to fall through with cap=1, then later
+                    // collapse to candidateCount once MaxPerRoom = 0. Treat the rule
+                    // as misconfigured: place at most one and warn upstream via the
+                    // rule-loader validation pass (#39 below).
                     if (cap == 0) cap = 1;
                     break;
                 }
@@ -1327,60 +837,7 @@ namespace StingTools.Core.Placement
             // Hard cap from MaxPerRoom regardless of kind.
             if (rule.MaxPerRoom > 0)
                 cap = Math.Min(cap, Math.Max(0, rule.MaxPerRoom - alreadyInRoom));
-            // desiredCap = how many we wanted before candidate availability clamps it.
-            desiredCap = cap;
             return Math.Min(cap, candidateCount);
-        }
-
-        /// <summary>
-        /// Phase 188 (review pass-2 #3) — greedy spacing-aware selection. Walks
-        /// the ranked candidates and accepts up to <paramref name="cap"/> whose
-        /// position clears <paramref name="minSpacingMm"/> centre-to-centre from
-        /// every already-accepted candidate. minSpacingMm &lt;= 0 ⇒ plain Take(cap).
-        /// </summary>
-        private static List<PlacementCandidate> SelectWithSpacing(
-            List<PlacementCandidate> ranked, int cap, double minSpacingMm)
-        {
-            if (ranked == null || cap <= 0) return new List<PlacementCandidate>();
-            if (minSpacingMm <= 0) return ranked.Take(cap).ToList();
-
-            double minFt = minSpacingMm * MmToFt;
-            double minSq = minFt * minFt;
-            var accepted = new List<PlacementCandidate>(Math.Min(cap, ranked.Count));
-            foreach (var c in ranked)
-            {
-                if (accepted.Count >= cap) break;
-                if (c?.Position == null) continue;
-                bool tooClose = false;
-                foreach (var a in accepted)
-                {
-                    double dx = a.Position.X - c.Position.X;
-                    double dy = a.Position.Y - c.Position.Y;
-                    double dz = a.Position.Z - c.Position.Z;
-                    if (dx * dx + dy * dy + dz * dz < minSq) { tooClose = true; break; }
-                }
-                if (!tooClose) accepted.Add(c);
-            }
-            return accepted;
-        }
-
-        /// <summary>
-        /// Phase 188 (review fix #2) — read an integer room parameter and
-        /// derive a density count = ceil(count / rate). Returns 0 when the
-        /// rate is unset (≤ 0), the parameter is missing/empty, or the value
-        /// is ≤ 0 — so it contributes nothing to the Math.Max chain.
-        /// </summary>
-        private static int CountFromRoomRate(SpatialElement room, string paramName, double ratePerUnit)
-        {
-            if (ratePerUnit <= 0 || room == null || string.IsNullOrEmpty(paramName)) return 0;
-            int count = 0;
-            try
-            {
-                var p = room.LookupParameter(paramName);
-                if (p != null && p.HasValue && p.StorageType == StorageType.Integer) count = p.AsInteger();
-            }
-            catch (Exception ex) { StingLog.Warn($"ComputeCap: read room param '{paramName}': {ex.Message}"); }
-            return count > 0 ? Math.Max(1, (int)Math.Ceiling(count / ratePerUnit)) : 0;
         }
 
         /// <summary>
@@ -1388,110 +845,9 @@ namespace StingTools.Core.Placement
         /// point. Used by CoPlaceWith / RELATIVE_TO. Skips room-scope filters
         /// because the predecessor already validated the room.
         /// </summary>
-        // Linked-architecture room path (v1). Scores in the link document's
-        // coordinates (so room + wall/door geometry is correct), then transforms
-        // each chosen point to host coordinates and places a non-hosted instance
-        // on the nearest host level. CoPlaceWith / RELATIVE_TO / wet-zone /
-        // orientation / face-hosting are host-path-only here.
-        private static void ProcessLinkedRoomRule(
-            Document hostDoc, SpatialElement room, PlacementRule rule,
-            PlacementScorer linkScorer, Transform toHost,
-            Dictionary<string, FamilySymbol> perCategorySymbol,
-            PlacementResult result, bool dryRun)
-        {
-            if (toHost == null) return;
-            var diagRoom = result.Diag(rule.MergeKey);
-            string roomKey = $"{room.Id}::{SafeRoomName(room)}";
-
-            List<PlacementCandidate> candidates;
-            try { candidates = linkScorer.Score(room, rule, new List<XYZ>(), 0); }
-            catch (Exception ex) { result.Warnings.Add($"[linked {SafeRoomName(room)}] score: {ex.Message}"); return; }
-            if (candidates == null || candidates.Count == 0) return;
-            result.CandidatesEvaluated += candidates.Count;
-
-            // A11 — surface anchor fallbacks on the linked path too.
-            var lmiss = linkScorer.LastAnchorMisses;
-            if (lmiss != null && lmiss.Count > 0 && diagRoom != null)
-            {
-                diagRoom.AnchorMissRooms++;
-                if (string.IsNullOrEmpty(diagRoom.FirstAnchorMiss)) diagRoom.FirstAnchorMiss = lmiss[0];
-            }
-
-            int cap = ComputeCap(rule, room, candidates.Count, 0, out int linkDesired);
-            if (cap == 0) return;
-            if (linkDesired > candidates.Count && diagRoom != null)
-            {
-                diagRoom.UnderFilledRooms++;
-                diagRoom.UnderFillShortfall += (linkDesired - candidates.Count);
-                if (string.IsNullOrEmpty(diagRoom.FirstUnderFill))
-                    diagRoom.FirstUnderFill = $"cap {linkDesired} vs {candidates.Count} candidate(s)";
-            }
-            var chosen = SelectWithSpacing(candidates, cap, rule.MinSpacingMm);
-            if (chosen.Count == 0) return;
-
-            if (dryRun)
-            {
-                result.CountsByRule[rule.MergeKey] =
-                    result.CountsByRule.TryGetValue(rule.MergeKey, out var dn) ? dn + chosen.Count : chosen.Count;
-                return;
-            }
-
-            var symbol = ResolveSymbol(hostDoc, rule.CategoryFilter, rule, perCategorySymbol, result);
-            if (symbol == null) return;
-            try { if (!symbol.IsActive) { symbol.Activate(); hostDoc.Regenerate(); } }
-            catch (Exception ex) { result.Warnings.Add($"[linked] activate {symbol.Name}: {ex.Message}"); return; }
-
-            var placedHost = new List<XYZ>();
-            double dedupFt = Math.Max(rule.ToleranceMm, 25.0) * MmToFt;
-            double dedupSq = dedupFt * dedupFt;
-
-            foreach (var c in chosen)
-            {
-                if (c?.Position == null) continue;
-                XYZ hostPos = toHost.OfPoint(c.Position);
-
-                bool tooClose = false;
-                foreach (var p in placedHost)
-                {
-                    double dx = p.X - hostPos.X, dy = p.Y - hostPos.Y, dz = p.Z - hostPos.Z;
-                    if (dx * dx + dy * dy + dz * dz < dedupSq) { tooClose = true; break; }
-                }
-                if (!tooClose && _priorPlaced != null)
-                    foreach (var p in _priorPlaced)
-                    {
-                        if (p == null) continue;
-                        double dx = p.X - hostPos.X, dy = p.Y - hostPos.Y, dz = p.Z - hostPos.Z;
-                        if (dx * dx + dy * dy + dz * dz < dedupSq) { tooClose = true; break; }
-                    }
-                if (tooClose) { result.SkippedCount++; if (diagRoom != null) diagRoom.CandidatesRejectedDedup++; continue; }
-
-                Level lvl = NearestHostLevel(hostDoc, hostPos.Z);
-                if (lvl == null) { result.Warnings.Add("[linked] no host Level found — cannot place."); result.SkippedCount++; continue; }
-
-                try
-                {
-                    var fi = hostDoc.Create.NewFamilyInstance(
-                        hostPos, symbol, lvl, StructuralType.NonStructural);
-                    if (fi == null) { result.SkippedCount++; continue; }
-                    WriteAnchorParameters(fi, rule);
-                    if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
-                        try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(fi, "FixturePlacementEngine", rule?.MergeKey ?? ""); }
-                        catch (Exception pvEx) { result.Warnings.Add($"[linked] provenance: {pvEx.Message}"); }
-                    result.PlacedIds.Add(fi.Id);
-                    result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
-                    result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
-                    if (diagRoom != null) diagRoom.CandidatesPlaced++;
-                    placedHost.Add(hostPos);
-                    try { PostPlacementHooks.RunFor(fi, rule); }
-                    catch (Exception hkEx) { result.Warnings.Add($"[linked] post-hook {fi.Id}: {hkEx.Message}"); }
-                }
-                catch (Exception ex) { result.Warnings.Add($"[linked place {rule.CategoryFilter}] {ex.Message}"); result.SkippedCount++; }
-            }
-        }
-
         private static void ProcessRoomRuleAtPoint(
             Document doc,
-            SpatialElement room,
+            Room room,
             PlacementRule rule,
             PlacementScorer scorer,
             Dictionary<string, FamilySymbol> perCategorySymbol,
@@ -1526,8 +882,6 @@ namespace StingTools.Core.Placement
                     return;
                 }
                 WriteAnchorParameters(pf.Placed, rule);
-                // Tier 1 — regen so FacingOrientation is valid before aligning.
-                try { doc.Regenerate(); } catch { }
                 OrientPlacedInstance(doc, pf.Placed, rule, room);
                 if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                 {
@@ -1542,7 +896,7 @@ namespace StingTools.Core.Placement
                     lst.Add(at);
                     state.LastPointByRule[rule.MergeKey] = at;
                 }
-                try { PostPlacementHooks.RunFor(pf.Placed, rule); } catch (Exception hkEx) { result.Warnings.Add($"Post-placement hook (co-place): {hkEx.Message}"); }
+                try { PostPlacementHooks.RunFor(pf.Placed, rule); } catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook (co): {hkEx.Message}"); }
             }
             catch (Exception ex)
             {
@@ -1564,10 +918,9 @@ namespace StingTools.Core.Placement
             // by symbol name.
             string hint  = rule?.VariantHint ?? "";
             string ftrx  = rule?.FamilyTypeRegex ?? "";
-            string bicHint = rule?.CategoryBic ?? "";
-            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx) && string.IsNullOrEmpty(bicHint)
+            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx)
                 ? categoryName
-                : $"{categoryName}|{hint}|{ftrx}|{bicHint}";
+                : $"{categoryName}|{hint}|{ftrx}";
             if (cache.TryGetValue(cacheKey, out var cached)) return cached;
 
             // Build matcher and ordered fallback chain.
@@ -1595,22 +948,8 @@ namespace StingTools.Core.Placement
                 // Phase 139.4 — apply OfCategory before OfClass so the
                 // collector pre-filters by category index (Revit's native
                 // index lookup) instead of walking every FamilySymbol.
-                // Phase 188 (review fix #5b) — when the rule sets CategoryBic,
-                // resolve the BuiltInCategory directly and match on the category
-                // id (locale-robust) instead of the localized Category.Name.
                 BuiltInCategory bic = BuiltInCategory.INVALID;
-                bool useBic = false;
-                if (!string.IsNullOrEmpty(bicHint)
-                    && Enum.TryParse<BuiltInCategory>(bicHint, true, out var parsedBic)
-                    && parsedBic != BuiltInCategory.INVALID)
-                {
-                    bic = parsedBic;
-                    useBic = true;
-                }
-                else
-                {
-                    try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
-                }
+                try { bic = ResolveBuiltInCategoryByName(doc, categoryName); } catch { }
                 FilteredElementCollector collector = (bic != BuiltInCategory.INVALID)
                     ? new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilySymbol))
                     : new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
@@ -1618,33 +957,20 @@ namespace StingTools.Core.Placement
                 {
                     if (!(el is FamilySymbol fs)) continue;
                     if (fs.Category == null) continue;
-                    if (useBic)
-                    {
-                        if ((BuiltInCategory)fs.Category.Id.Value != bic) continue;
-                    }
-                    else if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     // FamilyTypeRegex is an additional gate, applied to symbol name.
                     if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
 
                     if (firstForCategory == null) firstForCategory = fs;
-                    // VariantHint resolves against the STING_FIXTURE_VARIANT_TXT
-                    // param when present AND against the TYPE NAME. Seed-minted
-                    // variants name the type after the variant (SOCKET_1G) but do
-                    // NOT bind that param (it isn't a registered shared parameter),
-                    // so name-matching is what actually makes VariantHint resolve
-                    // against seed families — without this, every VariantHint-only
-                    // rule fell through to the first symbol (wrong type).
                     string variant = fs.LookupParameter("STING_FIXTURE_VARIANT_TXT")?.AsString() ?? "";
-                    string variantName = fs.Name ?? "";
 
                     if (chain.Count > 0)
                     {
                         for (int i = 0; i < chain.Count && i < bestChainIndex; i++)
                         {
-                            if (string.Equals(variant, chain[i], StringComparison.OrdinalIgnoreCase)
-                                || string.Equals(variantName, chain[i], StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(variant, chain[i], StringComparison.OrdinalIgnoreCase))
                             {
                                 picked = fs;
                                 bestChainIndex = i;
@@ -1655,7 +981,7 @@ namespace StingTools.Core.Placement
                     }
                     else if (variantRx != null)
                     {
-                        if (variantRx.IsMatch(variant) || variantRx.IsMatch(variantName))
+                        if (variantRx.IsMatch(variant))
                         {
                             picked = fs;
                             goto done;
@@ -1663,8 +989,7 @@ namespace StingTools.Core.Placement
                     }
                     else if (!string.IsNullOrEmpty(hint))
                     {
-                        if (string.Equals(variant, hint, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(variantName, hint, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(variant, hint, StringComparison.OrdinalIgnoreCase))
                         {
                             picked = fs;
                             goto done;
@@ -1688,29 +1013,6 @@ namespace StingTools.Core.Placement
             {
                 picked = TryAutoLoadFromLibrary(doc, categoryName, hint, result, rule?.TypeCatalogKey ?? "");
                 firstForCategory = picked;
-            }
-
-            // Item 1 — seed tier. When neither a loaded family nor the on-disk
-            // library produced a symbol, fall back to the rule's category→seed
-            // mapping (STING_CATEGORY_TO_SEED_MAP). The EnsureSeeds pre-pass
-            // normally builds+loads the seed before the engine runs (so the
-            // loaded-family tier above already found it); this tier additionally
-            // loads a seed .rfa that exists on disk but isn't loaded yet (e.g.
-            // a command path that skipped the pre-pass). Building a seed from
-            // JSON is intentionally NOT done here — that belongs in the pre-pass,
-            // outside the engine's transaction.
-            if (picked == null)
-            {
-                try
-                {
-                    string seedId = CategoryToSeedRegistry.Resolve(doc, categoryName);
-                    if (!string.IsNullOrWhiteSpace(seedId))
-                    {
-                        picked = TryResolveSeedSymbol(doc, categoryName, seedId, result);
-                        if (picked != null) firstForCategory = picked;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"ResolveSymbol seed tier '{categoryName}': {ex.Message}"); }
             }
 
             if (picked == null)
@@ -1786,7 +1088,7 @@ namespace StingTools.Core.Placement
                         }
                         if (first != null)
                         {
-                            result.Warnings.Add($"Auto-loaded '{System.IO.Path.GetFileName(path)}' for category '{categoryName}'.");
+                            result.Warnings.Add($"PC-16 auto-loaded '{System.IO.Path.GetFileName(path)}' for category '{categoryName}'.");
                             return first;
                         }
                     }
@@ -1794,68 +1096,6 @@ namespace StingTools.Core.Placement
                 }
             }
             catch (Exception ex) { StingLog.Warn($"PC-16 TryAutoLoadFromLibrary: {ex.Message}"); }
-            return null;
-        }
-
-        /// <summary>
-        /// Item 1 — resolve a STING seed family for the rule's category. First
-        /// looks for an already-loaded family named <paramref name="seedId"/>
-        /// (handles the case where a FamilyTypeRegex filtered the tier-1 search
-        /// to nothing); otherwise loads the on-disk seed
-        /// <c>&lt;project&gt;/_BIM_COORD/Families/Seeds/&lt;seedId&gt;.rfa</c> if
-        /// it exists (transaction-safe — the engine already owns a transaction).
-        /// Returns null (with a build-me warning) when the seed has not been
-        /// built — the caller then surfaces the normal SkippedNoSymbol path.
-        /// Never builds a seed from JSON here (that is the pre-pass's job).
-        /// </summary>
-        private static FamilySymbol TryResolveSeedSymbol(
-            Document doc, string categoryName, string seedId, PlacementResult result)
-        {
-            // 1. Already-loaded seed family (by family name == seedId).
-            try
-            {
-                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
-                {
-                    if (!(el is FamilySymbol fs) || fs.Category == null) continue;
-                    if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase)) continue;
-                    if (string.Equals(fs.Family?.Name, seedId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.Warnings.Add($"Used STING seed '{seedId}' for category '{categoryName}' — swap to a manufacturer family later (Placement › Swap to Manufacturer).");
-                        return fs;
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"TryResolveSeedSymbol scan '{seedId}': {ex.Message}"); }
-
-            // 2. Load the seed .rfa from disk if it has been built.
-            try
-            {
-                string seedPath = System.IO.Path.Combine(
-                    SeedEnsurer.ResolveSeedOutputFolder(doc), seedId + ".rfa");
-                if (System.IO.File.Exists(seedPath))
-                {
-                    if (doc.LoadFamily(seedPath, out var fam) && fam != null)
-                    {
-                        foreach (var symId in fam.GetFamilySymbolIds())
-                        {
-                            if (doc.GetElement(symId) is FamilySymbol fs && fs.Category != null
-                                && string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                result.Warnings.Add($"Loaded STING seed '{seedId}' from disk for category '{categoryName}' — swap to a manufacturer family later.");
-                                return fs;
-                            }
-                        }
-                        // family loaded but no symbol of the rule's category — fall through
-                    }
-                }
-                else
-                {
-                    string key = $"SeedNotBuilt:{seedId}";
-                    if (!result.Warnings.Any(w => w.StartsWith(key, StringComparison.Ordinal)))
-                        result.Warnings.Add($"{key} — category '{categoryName}' maps to seed '{seedId}' but it isn't built. Run Placement › Ensure Seeds (or Build Seed Families) to place defaults when no manufacturer family is loaded.");
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"TryResolveSeedSymbol load '{seedId}': {ex.Message}"); }
             return null;
         }
 
@@ -2065,16 +1305,10 @@ namespace StingTools.Core.Placement
         private static bool IsRegexLike(string s)
         {
             if (string.IsNullOrEmpty(s)) return false;
-            // Phase 188 (review pass-2 #5) — tightened so literal variant/type
-            // names aren't misclassified as regex. A lone '$' or an unbalanced
-            // '[' (e.g. a literal type "A[1") no longer trips regex mode; we now
-            // require a real anchor / escape / quantifier / balanced char-class.
             return s.StartsWith("^", StringComparison.Ordinal)
-                || s.EndsWith("$", StringComparison.Ordinal)
-                || s.Contains("\\")                                   // escape (\d, \w, \., …)
-                || s.Contains(".*") || s.Contains(".+") || s.Contains(".?")
-                || (s.Contains("[") && s.Contains("]"))               // balanced char-class
-                || (s.Contains("(") && s.Contains(")"));              // group
+                || s.Contains("$")
+                || s.Contains("\\d")
+                || s.Contains("[");
         }
 
         private static void WriteAnchorParameters(FamilyInstance fi, PlacementRule rule)
@@ -2085,15 +1319,6 @@ namespace StingTools.Core.Placement
 
             // MNT_HGT_MM may be absent on some families; swallow failure.
             TrySetDoubleMm(fi, "MNT_HGT_MM", rule.MountingHeightMm);
-
-            // Phase 188 (review pass-2 #6) — persist the rest of the placement
-            // intent so audit / round-trip captures the full transform, not just
-            // X-offset. These shared params may not be bound (no registry
-            // constant); TrySet* no-ops gracefully when the param is absent, and
-            // activates automatically once a project binds them.
-            TrySetDoubleMm(fi, "ASS_PLACE_OFFSET_Y_MM", rule.OffsetYMm);
-            TrySetDoubleMm(fi, "ASS_PLACE_OFFSET_Z_MM", rule.OffsetZMm);
-            TrySetDoubleMm(fi, "ASS_PLACE_ROTATION_DEG", rule.RotationDeg);
         }
 
         /// <summary>
@@ -2107,7 +1332,7 @@ namespace StingTools.Core.Placement
         ///     <c>flipFacing()</c> turns it around. This is what was making
         ///     switches face up / out of the door instead of into the room.
         /// </summary>
-        private static void OrientPlacedInstance(Document doc, FamilyInstance fi, PlacementRule rule, SpatialElement room)
+        private static void OrientPlacedInstance(Document doc, FamilyInstance fi, PlacementRule rule, Room room)
         {
             if (fi == null) return;
             try
@@ -2134,39 +1359,6 @@ namespace StingTools.Core.Placement
                                || anchor == "DOOR_STRIKE_SIDE"
                                || anchor == "DOOR_CLOSER_ZONE"
                                || anchor == "WINDOW_SILL" || anchor == "WINDOW_HEAD";
-
-                // Phase 195 — ceiling / grid fixtures: when the rule didn't pin a
-                // RotationDeg, snap the instance's facing to the nearest 90° so
-                // luminaires sit orthogonal to an axis-aligned room instead of at
-                // the family's default diagonal angle (the "placed anyhow" look).
-                // Cosmetic + undo-safe; only moves genuinely off-axis fixtures.
-                bool ceilingAnchor = anchor == "CEILING_CENTRE" || anchor == "LIGHTING_GRID"
-                                  || anchor == "LUX_GRID" || anchor.StartsWith("CEILING_TILE")
-                                  || anchor == "RAISED_FLOOR_TILE_EDGE";
-                if (ceilingAnchor && Math.Abs(rule.RotationDeg) < 0.001
-                    && fi.Location is LocationPoint lpCeil && lpCeil.Point != null)
-                {
-                    try
-                    {
-                        XYZ f = fi.FacingOrientation;
-                        if (f != null && !f.IsZeroLength())
-                        {
-                            double ang = Math.Atan2(f.Y, f.X);
-                            double quarter = Math.PI / 2.0;
-                            double snapped = Math.Round(ang / quarter) * quarter;
-                            double delta = snapped - ang;
-                            while (delta > Math.PI) delta -= 2 * Math.PI;
-                            while (delta <= -Math.PI) delta += 2 * Math.PI;
-                            if (Math.Abs(delta) > 0.02)
-                            {
-                                var axis = Line.CreateBound(lpCeil.Point, lpCeil.Point + XYZ.BasisZ);
-                                ElementTransformUtils.RotateElement(doc, fi.Id, axis, delta);
-                            }
-                        }
-                    }
-                    catch (Exception ceilEx) { StingLog.Warn($"OrientPlacedInstance ceiling-snap {fi.Id}: {ceilEx.Message}"); }
-                }
-
                 if (!wallAnchor) return;
 
                 // Phase 139.18 — drop the `fi.Host is Wall` gate. Un-hosted
@@ -2224,7 +1416,7 @@ namespace StingTools.Core.Placement
                         roomOnPositiveNormal = probe.X >= bb.Min.X && probe.X <= bb.Max.X
                                             && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y;
                     }
-                    if (room != null && PointInSpatial(room, probe)) roomOnPositiveNormal = true;
+                    if (room != null && room.IsPointInRoom(probe)) roomOnPositiveNormal = true;
                 }
                 catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] Room-side test for facing flip: {ex.Message}"); }
 
@@ -2370,7 +1562,7 @@ namespace StingTools.Core.Placement
 
         // Phase 139.5 Q15 — perimeter from boundary segments (any curve type)
         // with a bbox fallback when the room has no boundary. Result in metres.
-        private static double ComputeRoomPerimeterMetres(SpatialElement room)
+        private static double ComputeRoomPerimeterMetres(Room room)
         {
             try
             {
@@ -2402,7 +1594,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"ComputeRoomPerimeterMetres: {ex.Message}"); return 0; }
         }
 
-        private static int ReadRoomIntParam(SpatialElement room, string paramName)
+        private static int ReadRoomIntParam(Room room, string paramName)
         {
             if (room == null || string.IsNullOrWhiteSpace(paramName)) return 0;
             try
@@ -2421,7 +1613,7 @@ namespace StingTools.Core.Placement
             return 0;
         }
 
-        private static string SafeRoomName(SpatialElement room)
+        private static string SafeRoomName(Room room)
         {
             try
             {
@@ -2440,10 +1632,7 @@ namespace StingTools.Core.Placement
             = new Dictionary<string, Dictionary<string, BuiltInCategory>>(StringComparer.Ordinal);
         private static readonly object _bicByNameLock = new object();
 
-        // Phase 188 (review fix #1b) — promoted from private to internal so
-        // PlacementScorer can reuse the cached category-name → BuiltInCategory
-        // resolution for its sample-instance prefilter.
-        internal static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
+        private static BuiltInCategory ResolveBuiltInCategoryByName(Document doc, string categoryName)
         {
             if (doc == null || string.IsNullOrEmpty(categoryName)) return BuiltInCategory.INVALID;
             string path = "", title = "";
@@ -2629,11 +1818,10 @@ namespace StingTools.Core.Placement
         /// connector joins and shipped to COBie / schedules as orphaned.
         /// </summary>
         /// <summary>
-        /// Bridge to the drop-routing engines: per rule, run the engine that
-        /// matches RoutingMode — AutoConduitDrop (AUTO_CONDUIT), AutoPipeDrop
-        /// (AUTO_PIPE) or AutoDuctDrop (AUTO_DUCT) — across every fixture
-        /// placed under that rule. Returns the number of elements the drop
-        /// engines successfully created. Errors are surfaced into
+        /// Bridge to the conduit-routing engine: run AutoConduitDrop
+        /// across every fixture placed under a rule whose RoutingMode
+        /// is "AUTO_CONDUIT". Returns the number of fixtures the drop
+        /// engine successfully routed. Errors are surfaced into
         /// result.Warnings so the placement-result panel still renders
         /// — a routing failure must never abort the placement run.
         ///
@@ -2658,173 +1846,41 @@ namespace StingTools.Core.Placement
                 {
                     var el = doc.GetElement(id);
                     if (el == null) continue;
-                    // Tie the fixture back to its rule. Provenance (stamped with
-                    // rule.MergeKey) is the authoritative link; fall back to the
-                    // ASS_PLACEMENT_RULE_TXT param when a project stamps it.
-                    // NOTE: the previous code matched the never-written
-                    // ASS_PLACEMENT_RULE_TXT param against rule.RuleId, so AUTO
-                    // routing matched zero fixtures.
-                    string provRule = null;
-                    try { provRule = StingTools.Core.Storage.StingProvenanceSchema.Read(el)?.RuleId; }
-                    catch { }
+                    // Fixture's RuleId param (set by FixturePlacementEngine
+                    // post-place) ties it back to the rule we're routing.
                     string fxRule = ParameterHelpers.GetString(el, "ASS_PLACEMENT_RULE_TXT");
-                    if (string.Equals(provRule, rule.MergeKey, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(fxRule, rule.RuleId, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(fxRule, rule.MergeKey, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(fxRule, rule.RuleId, StringComparison.OrdinalIgnoreCase))
                         fixtures.Add(el);
                 }
                 if (fixtures.Count == 0) continue;
 
-                string rawMode = (rule.RoutingMode ?? "").ToUpperInvariant();
-                string mode = EffectiveRoutingMode(rule);
-                if (mode == "NONE") continue;
-                if (rawMode != mode)
-                    result.Warnings.Add($"[{rule.RuleId}] RoutingMode '{rawMode}' has no dedicated follower engine — routed via {mode} (drop) instead. Set RoutingMode to {mode} to silence this notice.");
                 try
                 {
-                    StingTools.Core.Routing.DropResult dr;
-                    switch (mode)
+                    bool isChased = string.Equals(rule.MountingContext, "CHASED",
+                        StringComparison.OrdinalIgnoreCase);
+
+                    var engine = new StingTools.Core.Routing.AutoConduitDrop(doc)
                     {
-                        case "AUTO_PIPE":
-                            dr = new StingTools.Core.Routing.AutoPipeDrop(doc).Execute(fixtures);
-                            break;
-                        case "AUTO_DUCT":
-                            dr = new StingTools.Core.Routing.AutoDuctDrop(doc).Execute(fixtures);
-                            break;
-                        case "AUTO_CONDUIT":
-                        default:
-                            bool isChased = string.Equals(rule.MountingContext, "CHASED",
-                                StringComparison.OrdinalIgnoreCase);
-                            dr = new StingTools.Core.Routing.AutoConduitDrop(doc)
-                            {
-                                ServiceId = "ELC_PWR",
-                                InstallMethod = isChased ? "CHASED" : "CLIPPED",
-                                UseChaseRoutingWhenAvailable = isChased,
-                                UsePathfinder = false,    // opt-in flag; placement bridge stays
-                                                          // on the safe L/Z path until the host
-                                                          // project explicitly requests A*.
-                            }.Execute(fixtures);
-                            break;
-                    }
+                        ServiceId = "ELC_PWR",
+                        InstallMethod = isChased ? "CHASED" : "CLIPPED",
+                        UseChaseRoutingWhenAvailable = isChased,
+                        UsePathfinder = false,        // opt-in flag; placement bridge stays
+                                                      // on the safe L/Z path until the host
+                                                      // project explicitly requests A*.
+                    };
+                    var dr = engine.Execute(fixtures);
                     totalRouted += dr.CreatedIds.Count;
                     foreach (var w in dr.Warnings)
                         result.Warnings.Add($"[{rule.RuleId}] {w}");
                 }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"[{rule.RuleId}] auto-route ({mode}): {ex.Message}");
+                    result.Warnings.Add($"[{rule.RuleId}] AutoConduitDrop: {ex.Message}");
                 }
             }
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"[FixturePlacementEngine] ComplianceScan.InvalidateCache: {ex.Message}"); }
             return totalRouted;
-        }
-
-        /// <summary>
-        /// Scan the document for fixtures placed by previous STING runs and
-        /// return their plan positions. Detection is via the STING provenance
-        /// entity (authoritative, binding-independent) with the
-        /// ASS_PLACEMENT_RULE_TXT param as a secondary signal. Used to make
-        /// re-runs idempotent.
-        /// </summary>
-        private static List<XYZ> BuildPriorPlacedIndex(Document doc, ICollection<BuiltInCategory> cats)
-        {
-            var pts = new List<XYZ>();
-            if (doc == null) return pts;
-            try
-            {
-                // Narrow the scan to the categories the active rules place into so a
-                // large model isn't walked in full every run. Falls back to all
-                // family instances when no category could be resolved, or if the
-                // category set isn't a valid multicategory filter.
-                FilteredElementCollector col = null;
-                if (cats != null && cats.Count > 0)
-                {
-                    try
-                    {
-                        col = new FilteredElementCollector(doc)
-                            .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats)))
-                            .WhereElementIsNotElementType();
-                    }
-                    catch (Exception fex) { StingLog.Warn($"BuildPriorPlacedIndex multicat filter: {fex.Message}"); col = null; }
-                }
-                if (col == null)
-                    col = new FilteredElementCollector(doc)
-                        .OfClass(typeof(FamilyInstance))
-                        .WhereElementIsNotElementType();
-                foreach (var el in col)
-                {
-                    bool sting = false;
-                    try { sting = StingTools.Core.Storage.StingProvenanceSchema.IsAutoCreated(el); }
-                    catch { }
-                    if (!sting && string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_PLACEMENT_RULE_TXT")))
-                        continue;
-                    if ((el.Location as LocationPoint)?.Point is XYZ p) { pts.Add(p); continue; }
-                    // Face / work-plane-hosted instances have no LocationPoint —
-                    // fall back to the instance transform origin so they're still
-                    // de-duped on re-run.
-                    if (el is FamilyInstance fiHosted)
-                    {
-                        try { var t = fiHosted.GetTransform(); if (t?.Origin != null) pts.Add(t.Origin); }
-                        catch { }
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"BuildPriorPlacedIndex: {ex.Message}"); }
-            return pts;
-        }
-
-        /// <summary>
-        /// Distinct BuiltInCategories the active rules place into, resolved from
-        /// each rule's CategoryBic (enum name) or CategoryFilter (display name).
-        /// Used to scope the idempotency scan; empty ⇒ caller scans all instances.
-        /// </summary>
-        private static List<BuiltInCategory> ResolvePriorPlacedCategories(Document doc, IList<PlacementRule> rules)
-        {
-            var set = new HashSet<BuiltInCategory>();
-            if (rules == null) return new List<BuiltInCategory>();
-            foreach (var r in rules)
-            {
-                if (r == null) continue;
-                BuiltInCategory bic = BuiltInCategory.INVALID;
-                if (!string.IsNullOrEmpty(r.CategoryBic)
-                    && Enum.TryParse<BuiltInCategory>(r.CategoryBic, true, out var parsed)
-                    && parsed != BuiltInCategory.INVALID)
-                    bic = parsed;
-                else if (!string.IsNullOrEmpty(r.CategoryFilter))
-                    try { bic = ResolveBuiltInCategoryByName(doc, r.CategoryFilter); } catch { }
-                if (bic != BuiltInCategory.INVALID) set.Add(bic);
-            }
-            return new List<BuiltInCategory>(set);
-        }
-
-        /// <summary>
-        /// Resolve a rule's RoutingMode to one of the three modes the engine
-        /// can actually execute (AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT) or NONE.
-        /// Legacy follow tokens (WALL_FOLLOW / CEILING_FOLLOW / FLOOR_FOLLOW /
-        /// CONDUIT_RUN / TRAY_RUN) shipped in older rule packs have no dedicated
-        /// follower router, so they map to the drop engine matching the rule's
-        /// RouteSegmentCategory — a real route rather than a silent no-op.
-        /// </summary>
-        private static string EffectiveRoutingMode(PlacementRule r)
-        {
-            string m = (r?.RoutingMode ?? "").ToUpperInvariant();
-            switch (m)
-            {
-                case "AUTO_CONDUIT":
-                case "AUTO_PIPE":
-                case "AUTO_DUCT":
-                    return m;
-                case "":
-                case "NONE":
-                    return "NONE";
-                default:
-                    // Legacy follow / run tokens → drop engine by segment category.
-                    string cat = (r?.RouteSegmentCategory ?? "").ToUpperInvariant();
-                    if (cat.Contains("PIPE")) return "AUTO_PIPE";
-                    if (cat.Contains("DUCT")) return "AUTO_DUCT";
-                    return "AUTO_CONDUIT"; // Conduit / CableTray / unspecified
-            }
         }
 
         private static void AutoJoinMepConnectors(
@@ -2845,31 +1901,35 @@ namespace StingTools.Core.Placement
             }
             if (!anyRouting) return;
 
-            // Bridge placement → routing. Any rule whose RoutingMode is one of
-            // the three real auto-route modes (AUTO_CONDUIT / AUTO_PIPE /
-            // AUTO_DUCT) is dispatched to the matching Core/Routing drop engine
-            // (AutoConduitDrop / AutoPipeDrop / AutoDuctDrop). NONE is a no-op.
-            // The UI dropdown is constrained to exactly these tokens so no
-            // visible mode is a silent no-op. The 600 mm connector-join pass
-            // below still runs afterwards as a secondary stitch for every
-            // routed rule.
+            // Wave B Wire 3 — bridge placement → routing.
+            // Previously, when a rule declared RoutingMode != NONE we
+            // landed here and ran the connector-join pass below, which
+            // only stitched fixtures within a 600 mm radius. The
+            // intended action — actually routing conduit from the
+            // placed fixtures up to a tray — was missing. The silent
+            // return on the original line 1770 has been replaced by a
+            // dispatch into AutoConduitDrop for any rule whose
+            // RoutingMode == "AUTO_CONDUIT". Other modes (NONE / TRAY /
+            // CABLE / CUSTOM) fall through to the legacy connector-
+            // join pass below, preserving existing behaviour.
             try
             {
-                var autoRoutedRules = new List<PlacementRule>();
+                var autoConduitRules = new List<PlacementRule>();
                 if (rules != null)
                 {
                     foreach (var r in rules)
                     {
                         if (r == null) continue;
-                        if (EffectiveRoutingMode(r) != "NONE")
-                            autoRoutedRules.Add(r);
+                        if (string.Equals(r.RoutingMode, "AUTO_CONDUIT",
+                                StringComparison.OrdinalIgnoreCase))
+                            autoConduitRules.Add(r);
                     }
                 }
-                if (autoRoutedRules.Count > 0)
+                if (autoConduitRules.Count > 0)
                 {
-                    int routed = RouteAfterPlacement(doc, autoRoutedRules, result);
+                    int routed = RouteAfterPlacement(doc, autoConduitRules, result);
                     if (routed > 0)
-                        result.Warnings.Add($"Auto-routed drops for {routed} placed fixture(s).");
+                        result.Warnings.Add($"Auto-routed conduit drops for {routed} placed fixture(s).");
                 }
             }
             catch (Exception ex)

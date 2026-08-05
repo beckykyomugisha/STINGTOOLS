@@ -54,19 +54,6 @@ namespace StingTools.Commands.Symbols
 
         public static string ResolveOutputRoot(Document doc)
         {
-            // W-3 — a project that ALREADY has a generated library keeps writing
-            // there, even once a shared root exists.
-            //
-            // Without this, defaulting the shared root would strand every existing
-            // library: builds would move to the shared root while the read path
-            // (projectFirst precedence) still found the older project-local copies
-            // first. The stale families would keep winning and W-1's invalidation
-            // would silently accomplish nothing. Migration is a deliberate act, not
-            // a side effect of an upgrade.
-            string existingProjectLib = ExistingProjectLibrary(doc);
-            if (!string.IsNullOrEmpty(existingProjectLib))
-                return existingProjectLib;
-
             // Firm-wide shared library takes precedence so one build serves every
             // project. STING_SYMBOL_LIB (or sting_symbols.json) points directly at
             // the symbols root; the per-standard sub-folders land beneath it.
@@ -102,50 +89,6 @@ namespace StingTools.Commands.Symbols
         }
 
         /// <summary>
-        /// The project's own generated-symbol folder, but only when it already holds
-        /// built families. An empty or absent folder returns null so a fresh project
-        /// goes to the shared library instead of minting a private copy.
-        /// </summary>
-        private static string ExistingProjectLibrary(Document doc)
-        {
-            try
-            {
-                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-
-                // Both layouts must be probed, in the same order ContentRoots uses:
-                // the consolidated <root>/_data/_BIM_COORD/… and the legacy
-                // <projDir>/_BIM_COORD/… sibling. Hand-assembling the legacy form
-                // alone would miss a populated library on any project that has been
-                // consolidated — and missing it is precisely the orphaning this guard
-                // exists to prevent. Path layout stays owned by StingPaths /
-                // ProjectFolderEngine rather than being rebuilt here.
-                foreach (var lib in new[]
-                {
-                    StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols"),
-                    ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", "Families", "Symbols"),
-                })
-                {
-                    if (string.IsNullOrEmpty(lib) || !Directory.Exists(lib)) continue;
-
-                    // Any .rfa anywhere beneath it counts — the build fans out into
-                    // per-standard sub-folders (SLD/IEC, Lighting, …), so a top-level
-                    // check alone would miss a populated library.
-                    if (!Directory.EnumerateFiles(lib, "*.rfa", SearchOption.AllDirectories).Any())
-                        continue;
-
-                    StingLog.Info($"ResolveOutputRoot: using the project's existing symbol library at '{lib}'.");
-                    return lib;
-                }
-                return null;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ExistingProjectLibrary: {ex.Message}");
-                return null;
-            }
-        }
-
-        /// <summary>
         /// Returns the path to the project-level symbol_size_config.json.
         /// File is at &lt;project&gt;/_BIM_COORD/symbol_size_config.json.
         /// </summary>
@@ -162,13 +105,8 @@ namespace StingTools.Commands.Symbols
             return StingPaths.MetaFile(doc, "_BIM_COORD", "symbol_size_config.json");
         }
 
-        /// <param name="rebuildMode">
-        /// Forces every family in the catalogue to be regenerated even when the
-        /// cache manifest reports it fresh. Normal builds leave this false and let
-        /// <see cref="SymbolCacheManifest"/> decide — see Symbols_Rebuild.
-        /// </param>
         public static SymbolCreationResult RunBatch(Document doc, string jsonName, string subFolder,
-            SymbolSizeConfig sizeConfig = null, bool rebuildMode = false)
+            SymbolSizeConfig sizeConfig = null)
         {
             var aggregate = new SymbolCreationResult();
             string jsonPath = StingToolsApp.FindDataFile(jsonName);
@@ -187,7 +125,7 @@ namespace StingTools.Commands.Symbols
                 sizeConfig = SymbolSizeConfig.LoadOrDefault(ResolveSizeConfigPath(doc));
 
             var r = SymbolLibraryCreator.CreateAllFromFile(doc, jsonPath, outFolder,
-                loadIntoProject: true, rebuildMode: rebuildMode, sizeConfig: sizeConfig);
+                loadIntoProject: true, sizeConfig: sizeConfig);
             aggregate.Created += r.Created;
             aggregate.Existed += r.Existed;
             aggregate.Failed  += r.Failed;
@@ -217,46 +155,6 @@ namespace StingTools.Commands.Symbols
             + "  template files') must point at a folder containing the generic-annotation\n"
             + "  template (e.g. 'Metric Generic Annotation.rft'). Set it, then re-run.";
 
-        /// <summary>
-        /// The accurate version of <see cref="TemplateFixHint"/>.
-        ///
-        /// <para>The flat hint blamed the template FOLDER for every empty batch, which
-        /// misreads the common case: the folder is set and most catalogues build from it
-        /// fine, but one specific .rft (e.g. 'Metric Pipe Accessory.rft') is absent from
-        /// this Revit install. Telling users to set a path they have already set sends
-        /// them the wrong way, so name the missing family types instead.</para>
-        /// </summary>
-        public static string DescribeTemplateProblem(SymbolCreationResult r)
-        {
-            if (r == null) return TemplateFixHint;
-
-            var all = r.Warnings.Concat(r.Errors).Where(w => w != null).ToList();
-
-            // Folder-level failure: nothing on the machine resolved at all.
-            if (all.Any(w => w.IndexOf("no family template folder", StringComparison.OrdinalIgnoreCase) >= 0))
-                return TemplateFixHint;
-
-            // Per-type failure: harvest the "FamilyType/Discipline" tails so the user
-            // knows exactly which template to install.
-            const string marker = "no family template found for ";
-            var kinds = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var w in all)
-            {
-                int i = w.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-                if (i < 0) continue;
-                string tail = w.Substring(i + marker.Length).Trim();
-                if (tail.Length > 0) kinds.Add(tail);
-            }
-            if (kinds.Count == 0) return TemplateFixHint;
-
-            return "ACTION — 0 families created: this Revit install has no template for "
-                 + string.Join(", ", kinds) + ".\n"
-                 + "  The template FOLDER is fine — other catalogues built from it.\n"
-                 + "  Install the matching .rft (a Pipe Accessory batch needs\n"
-                 + "  'Metric Pipe Accessory.rft') into the folder set at Revit → Options →\n"
-                 + "  File Locations → 'Family Template Files', then re-run.";
-        }
-
         public static string FormatReport(string title, SymbolCreationResult r)
         {
             var sb = new StringBuilder();
@@ -267,7 +165,7 @@ namespace StingTools.Commands.Symbols
             if (LooksLikeMissingTemplate(r))
             {
                 sb.AppendLine();
-                sb.AppendLine(DescribeTemplateProblem(r));
+                sb.AppendLine(TemplateFixHint);
             }
             if (r.Warnings.Count > 0)
             {
@@ -320,10 +218,7 @@ namespace StingTools.Commands.Symbols
             {
                 report += "\n\n" + $"{emptyBatches.Count} catalogue(s) produced 0 families:\n"
                     + string.Join("\n", emptyBatches.Select(x => "  · " + x))
-                    // Aggregate, not a single batch: 838 families can build from a folder
-                    // that is plainly set while one catalogue's .rft is simply absent, so
-                    // the message must be derived from the warnings, not assumed.
-                    + "\n\n" + SymbolBatchHelper.DescribeTemplateProblem(aggregate);
+                    + "\n\n" + SymbolBatchHelper.TemplateFixHint;
             }
             TaskDialog.Show("STING - Symbol Library", report);
             return Result.Succeeded;

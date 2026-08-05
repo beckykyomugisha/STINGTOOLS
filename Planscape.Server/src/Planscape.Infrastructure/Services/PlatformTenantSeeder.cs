@@ -49,7 +49,7 @@ public class PlatformTenantSeeder
             Id           = PlatformTenantId,
             Name         = "Planscape",
             Slug         = PlatformSlug,
-            ContactEmail = "ops@planscape.build",
+            ContactEmail = "ops@planscape.app",
             Plan         = BillingPlan.Enterprise,
             Tier         = LicenseTier.Enterprise,
             Currency     = "USD",

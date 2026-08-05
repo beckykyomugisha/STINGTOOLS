@@ -201,7 +201,7 @@ namespace Planscape.API.Controllers
                 var userId = new Guid(MD5.HashData(emailBytes).Take(16).ToArray());
                 _presence.Join(projectId, connId, new PresentUser(userId, payload.AuthorInfo.Name, "archicad"));
 
-                await HubBroadcastExtensions.SafeAsync(() => _notificationHub.Clients.Group($"project-{projectId}").SendAsync("PresenceChanged", new
+                await _notificationHub.Clients.Group($"project-{projectId}").SendAsync("PresenceChanged", new
                 {
                     projectId,
                     users = _presence.ProjectUsers(projectId).Select(u => new
@@ -210,7 +210,7 @@ namespace Planscape.API.Controllers
                         u.DisplayName,
                         u.Source
                     })
-                }), eventName: "PresenceChanged");
+                });
             }
 
             // Fan-out each event to connected web/mobile/desktop clients.
@@ -222,18 +222,18 @@ namespace Planscape.API.Controllers
                     "Deleted" => "ElementDeleted",
                     _         => "ElementChanged"
                 };
-                await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group(group).SendAsync(method, ev), eventName: method);
+                await _hub.Clients.Group(group).SendAsync(method, ev);
             }
 
             // Push a status heartbeat so clients know the author is live.
-            await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group(group).SendAsync("ModelStatus", new
+            await _hub.Clients.Group(group).SendAsync("ModelStatus", new
             {
                 projectId,
                 eventCount   = payload.Events.Count,
                 lastPushUtc  = DateTime.UtcNow,
                 authorInfo   = payload.AuthorInfo,
                 isLive       = true
-            }), eventName: "ModelStatus");
+            });
 
             // Seed the cross-host identity table. Each event that carries an
             // IFC GlobalId (dedicated field or Properties dict) maps to its
@@ -289,14 +289,14 @@ namespace Planscape.API.Controllers
             var project = await AuthenticateBridge(projectId);
             if (project == null) return Unauthorized();
 
-            await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"archicad:{projectId}").SendAsync("ModelStatus", new
+            await _hub.Clients.Group($"archicad:{projectId}").SendAsync("ModelStatus", new
             {
                 projectId,
                 connectedAuthors = payload.ConnectedAuthors,
                 activeLayers     = payload.ActiveLayers,
                 lastPushUtc      = DateTime.UtcNow,
                 isLive           = true
-            }), eventName: "ModelStatus");
+            });
 
             return Ok();
         }

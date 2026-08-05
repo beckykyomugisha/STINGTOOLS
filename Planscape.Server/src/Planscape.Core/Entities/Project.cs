@@ -62,40 +62,6 @@ public class Project : ITenantScoped
     public string? CoverImageUrl { get; set; }
     public bool IsPinned { get; set; } = false;
 
-    /// <summary>
-    /// Document sync — "Auto-sync this project" (design §Flexibility). On by
-    /// default, one toggle per PROJECT rather than per document (too fine-grained
-    /// to manage day to day) and not per member (the design calls it a project
-    /// setting, so one coordinator turning it off turns it off for the project's
-    /// machines, not just their own).
-    ///
-    /// Off does NOT unlink anything: a Planscape Companion still knows the
-    /// project and still syncs on an explicit "Sync now". The flag gates only
-    /// whether the automatic triggers — the SignalR push and the reconnect delta —
-    /// are allowed to fire on their own.
-    /// </summary>
-    public bool DocumentSyncAutoEnabled { get; set; } = true;
-
-    /// <summary>
-    /// Hard delete, staged. When set, the project is scheduled for PERMANENT
-    /// destruction at this instant and is hidden from every normal read path
-    /// immediately (see ProjectVisibility.WhereVisibleTo) — but nothing is
-    /// actually destroyed until ProjectPurgeJob runs after this time.
-    ///
-    /// The delay is the safety property: archive is reversible by design, hard
-    /// delete is not, so the only protection against a misclick or a
-    /// compromised account is a window in which the decision can still be
-    /// undone. Cancelling is just setting this back to null, which is why
-    /// nothing may destroy data before the job runs.
-    ///
-    /// Follows the archive-then-purge pattern already used for custom fields
-    /// (CustomFieldsPurgeJob, 30-day grace).
-    /// </summary>
-    public DateTime? PurgeAfter { get; set; }
-
-    /// <summary>AppUser.Id of whoever scheduled the purge — kept for the audit trail.</summary>
-    public Guid? PurgeRequestedById { get; set; }
-
     // Compliance metrics (cached)
     public double CompliancePercent { get; set; }
     public double ContainerCompliancePercent { get; set; }

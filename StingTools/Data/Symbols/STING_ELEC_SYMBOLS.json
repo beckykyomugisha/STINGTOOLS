@@ -10,7 +10,6 @@
       "discipline": "Electrical",
       "subcategory": "Socket",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -66,7 +65,6 @@
       "discipline": "Electrical",
       "subcategory": "Socket",
       "symbolSize": 5.0,
-      "realSizeMm": 150,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -149,7 +147,6 @@
       "discipline": "Electrical",
       "subcategory": "Outlet",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -234,7 +231,6 @@
       "discipline": "Electrical",
       "subcategory": "Specialist",
       "symbolSize": 6.0,
-      "realSizeMm": 300,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -326,7 +322,6 @@
       "discipline": "Electrical",
       "subcategory": "Socket",
       "symbolSize": 4.0,
-      "realSizeMm": 150,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -382,7 +377,6 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 3.5,
-      "realSizeMm": 85,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -425,7 +419,6 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 4.0,
-      "realSizeMm": 150,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -474,7 +467,6 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 3.5,
-      "realSizeMm": 85,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -529,7 +521,6 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 3.5,
-      "realSizeMm": 85,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -579,8 +570,6 @@
       "discipline": "Electrical",
       "subcategory": "Switch",
       "symbolSize": 3.5,
-      "realSizeMm": 85,
-      "overallExtent": 0.7,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -622,7 +611,6 @@
       "discipline": "Electrical",
       "subcategory": "Distribution",
       "symbolSize": 8.0,
-      "realSizeMm": 350,
       "parameters": [
         {
           "name": "DB_REF",
@@ -725,7 +713,6 @@
       "discipline": "Electrical",
       "subcategory": "Distribution",
       "symbolSize": 8.0,
-      "realSizeMm": 400,
       "parameters": [
         {
           "name": "DB_REF",
@@ -821,7 +808,6 @@
       "discipline": "Electrical",
       "subcategory": "Distribution",
       "symbolSize": 12.0,
-      "realSizeMm": 2000,
       "parameters": [
         {
           "name": "PANEL_REF",
@@ -905,7 +891,6 @@
       "discipline": "Electrical",
       "subcategory": "Protection",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "RATING_A",
@@ -955,7 +940,6 @@
       "discipline": "Electrical",
       "subcategory": "Instrument",
       "symbolSize": 5.0,
-      "realSizeMm": 150,
       "parameters": [
         {
           "name": "METER_REF",
@@ -1033,7 +1017,6 @@
       "discipline": "Electrical",
       "subcategory": "Security",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -1104,7 +1087,6 @@
       "discipline": "Electrical",
       "subcategory": "Security",
       "symbolSize": 4.5,
-      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -1180,7 +1162,6 @@
       "discipline": "Electrical",
       "subcategory": "Security",
       "symbolSize": 3.5,
-      "realSizeMm": 90,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -1246,7 +1227,6 @@
       "discipline": "Electrical",
       "subcategory": "Data",
       "symbolSize": 3.5,
-      "realSizeMm": 85,
       "parameters": [
         {
           "name": "PORT_REF",
@@ -1311,7 +1291,6 @@
       "discipline": "Electrical",
       "subcategory": "Data",
       "symbolSize": 4.5,
-      "realSizeMm": 150,
       "parameters": [
         {
           "name": "PORT_REF",
@@ -1383,7 +1362,6 @@
       "discipline": "Electrical",
       "subcategory": "Audio",
       "symbolSize": 4.0,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -1459,7 +1437,6 @@
       "discipline": "Electrical",
       "subcategory": "Audio",
       "symbolSize": 3.0,
-      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -1515,7 +1492,6 @@
       "discipline": "Electrical",
       "subcategory": "FireDetection",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "DEVICE_ADDRESS",
@@ -1557,7 +1533,6 @@
       "discipline": "Electrical",
       "subcategory": "FireDetection",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "DEVICE_ADDRESS",
@@ -1599,7 +1574,6 @@
       "discipline": "MedicalGas",
       "subcategory": "MedGasOutlet",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "description": "Oxygen (O2) medical pipeline outlet — BS HTM 02-01 / NFPA 99 §5.1",
       "parameters": [
         {
@@ -1688,7 +1662,6 @@
       "discipline": "MedicalGas",
       "subcategory": "MedGasOutlet",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "description": "Nitrous oxide (N2O) medical pipeline outlet — BS HTM 02-01 / NFPA 99",
       "parameters": [
         {
@@ -1777,7 +1750,6 @@
       "discipline": "MedicalGas",
       "subcategory": "MedGasOutlet",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "description": "Carbon dioxide (CO2) medical pipeline outlet — BS HTM 02-01",
       "parameters": [
         {
@@ -1866,7 +1838,6 @@
       "discipline": "MedicalGas",
       "subcategory": "MedGasOutlet",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "description": "Medical compressed air outlet (400 kPa / 7 bar variants) — BS HTM 02-01 / NFPA 99 §5.1.3",
       "parameters": [
         {
@@ -1955,7 +1926,6 @@
       "discipline": "MedicalGas",
       "subcategory": "MedGasOutlet",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "description": "Medical vacuum (MEDIVAC) pipeline outlet — BS HTM 02-01 / NFPA 99 §5.1.5",
       "parameters": [
         {
@@ -2044,7 +2014,6 @@
       "discipline": "MedicalGas",
       "subcategory": "MedGasOutlet",
       "symbolSize": 4.0,
-      "realSizeMm": 85,
       "description": "Anaesthetic Gas Scavenging System (AGSS) outlet — BS HTM 02-01 §4.4 / ISO 7396-2",
       "parameters": [
         {
@@ -2133,7 +2102,6 @@
       "discipline": "Electrical",
       "subcategory": "ATEXZone",
       "symbolSize": 6.0,
-      "overallExtent": 0.6,
       "description": "Hazardous area zone boundary line marker for electrical floor plan drawings — IEC 60079-10-1 / ATEX Directive 2014/34/EU",
       "parameters": [
         {

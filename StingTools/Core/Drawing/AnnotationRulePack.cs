@@ -135,6 +135,7 @@ namespace StingTools.Core.Drawing
         [JsonProperty("leaderStyle", NullValueHandling = NullValueHandling.Ignore)] public string LeaderStyle { get; set; }   // NoLeader / Attached / Free
         [JsonProperty("orientation", NullValueHandling = NullValueHandling.Ignore)] public string Orientation { get; set; }   // Horizontal / Vertical / Model
         [JsonProperty("skipIfTagged")] public bool SkipIfTagged { get; set; } = true;
+        [JsonProperty("densityMode", NullValueHandling = NullValueHandling.Ignore)] public string DensityMode { get; set; }   // All / RepresentativeOne / LargestOnly
         [JsonProperty("minSizeMm",   NullValueHandling = NullValueHandling.Ignore)] public double? MinSizeMm { get; set; }
         [JsonProperty("condition",   NullValueHandling = NullValueHandling.Ignore)] public string Condition { get; set; }
         [JsonProperty("enabled")] public bool Enabled { get; set; } = true;

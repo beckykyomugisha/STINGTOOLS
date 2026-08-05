@@ -78,7 +78,8 @@ namespace StingTools.UI
             {
                 try
                 {
-                    return StingTools.Core.Clash.ClashPersistence.CanonicalPath(_doc);
+                    var projDir = Path.GetDirectoryName(_doc?.PathName ?? "") ?? Path.GetTempPath();
+                    return Path.Combine(projDir, "_BIM_COORD", "clashes.json");
                 }
                 catch { return Path.Combine(Path.GetTempPath(), "clashes.json"); }
             }

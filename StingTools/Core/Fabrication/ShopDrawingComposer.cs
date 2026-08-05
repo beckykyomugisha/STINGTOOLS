@@ -92,55 +92,18 @@ namespace StingTools.Core.Fabrication
             }
         }
 
-        // P-13a: slot positions as NORMALISED fractions of the sheet's drawable
-        // frame — Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM right panel.
-        //
-        // These were absolute feet on an A1 sheet, and PLAN/ISO/BOM carried
-        // Y = 1.95 ft. A1 is 594 mm tall = 1.949 ft, so those viewport CENTRES
-        // sat on the sheet's top edge and their upper halves hung off it. The
-        // values were also A1-only: composing onto any other paper size placed
-        // everything wrongly, with no warning.
-        private static readonly Dictionary<string, (double fx, double fy)> SlotFractions =
-            new Dictionary<string, (double, double)>
+        // Slot positions on a 1:50 A1 sheet (Revit feet, sheet origin).
+        // Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM RIGHT-PANEL.
+        private static readonly Dictionary<string, XYZ> SlotPositions =
+            new Dictionary<string, XYZ>
         {
-            { "PLAN",   (0.22, 0.72) },
-            { "ISO",    (0.58, 0.72) },
-            { "ELEV0",  (0.15, 0.28) },
-            { "ELEV90", (0.38, 0.28) },
-            { "3D",     (0.60, 0.28) },
-            { "BOM",    (0.87, 0.55) },
+            { "PLAN",       new XYZ( 0.20, 1.95, 0) },
+            { "ISO",        new XYZ( 1.55, 1.95, 0) },
+            { "ELEV0",      new XYZ( 0.20, 1.20, 0) },
+            { "ELEV90",     new XYZ( 1.05, 1.20, 0) },
+            { "3D",         new XYZ( 1.55, 1.20, 0) },
+            { "BOM",        new XYZ( 2.20, 1.95, 0) }
         };
-
-        /// <summary>
-        /// P-13a: resolve a slot to a point inside THIS sheet's title block,
-        /// rather than assuming A1 with its origin at (0,0). Falls back to A1
-        /// dimensions when the sheet has no measurable title block.
-        /// </summary>
-        private static XYZ SlotPoint(Document doc, ViewSheet sheet, string slot)
-        {
-            const double a1W = 2.7592, a1H = 1.9488;   // 841 x 594 mm, in feet
-            double minX = 0, minY = 0, w = a1W, h = a1H;
-            try
-            {
-                var tb = new FilteredElementCollector(doc, sheet.Id)
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .WhereElementIsNotElementType()
-                    .FirstOrDefault();
-                var bb = tb?.get_BoundingBox(null);
-                if (bb?.Min != null && bb.Max != null)
-                {
-                    minX = bb.Min.X; minY = bb.Min.Y;
-                    if (bb.Max.X - bb.Min.X > 1e-6) w = bb.Max.X - bb.Min.X;
-                    if (bb.Max.Y - bb.Min.Y > 1e-6) h = bb.Max.Y - bb.Min.Y;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ShopDrawingComposer.SlotPoint('{slot}'): {ex.Message} — assuming A1.");
-            }
-            var f = SlotFractions.TryGetValue(slot, out var hit) ? hit : (fx: 0.5, fy: 0.5);
-            return new XYZ(minX + f.fx * w, minY + f.fy * h, 0);
-        }
 
         public static ElementId ComposeSheet(
             Document doc,
@@ -170,7 +133,7 @@ namespace StingTools.Core.Fabrication
             else
             {
                 // 1) DrawingType profile (corporate spool A1 etc.)
-                tbId = ResolveTitleBlockFromDrawingType(doc, drawingType, result);
+                tbId = ResolveTitleBlockFromDrawingType(doc, drawingType);
                 // 2) Project Setup Wizard router — single source of truth
                 //    populated by ProjectSetupCommand. Honoured here so the
                 //    fabrication path obeys the same per-discipline policy
@@ -299,11 +262,11 @@ namespace StingTools.Core.Fabrication
                       views.ViewPlan != ElementId.InvalidElementId
                           ? views.ViewPlan
                           : views.ElevationTop,
-                      SlotPoint(doc, sheet, "PLAN"),   result);
-            PlaceView(doc, sheet, views.ViewIso6412, SlotPoint(doc, sheet, "ISO"),    result);
-            PlaceView(doc, sheet, views.Elevation0,  SlotPoint(doc, sheet, "ELEV0"),  result);
-            PlaceView(doc, sheet, views.Elevation90, SlotPoint(doc, sheet, "ELEV90"), result);
-            PlaceView(doc, sheet, views.View3D,      SlotPoint(doc, sheet, "3D"),     result);
+                      SlotPositions["PLAN"],   result);
+            PlaceView(doc, sheet, views.ViewIso6412, SlotPositions["ISO"],    result);
+            PlaceView(doc, sheet, views.Elevation0,  SlotPositions["ELEV0"],  result);
+            PlaceView(doc, sheet, views.Elevation90, SlotPositions["ELEV90"], result);
+            PlaceView(doc, sheet, views.View3D,      SlotPositions["3D"],     result);
 
             // Place BOM schedule
             try
@@ -311,7 +274,7 @@ namespace StingTools.Core.Fabrication
                 if (views.BomSchedule != null && views.BomSchedule != ElementId.InvalidElementId)
                 {
                     ScheduleSheetInstance.Create(doc, sheet.Id, views.BomSchedule,
-                        SlotPoint(doc, sheet, "BOM"));
+                        SlotPositions["BOM"]);
                 }
             }
             catch (Exception ex) { result.Warnings.Add($"BOM placement: {ex.Message}"); }
@@ -415,59 +378,15 @@ namespace StingTools.Core.Fabrication
             string discCode = DisciplineCode.TryGetValue(discipline ?? "", out var dc) ? dc : "G";
             string sysCode  = string.IsNullOrEmpty(systemCode) ? "GEN" : Sanitise(systemCode);
             string bucket   = $"{discCode}:{sysCode}:{levelCode}";
-            // P-11 / B5: persist through SheetSequenceStore — the same
-            // ExtensibleStorage counter the production path uses — instead of
-            // an in-memory dictionary that reset to 0001 on every Revit
-            // restart and then degraded through EnsureUniqueSheetNumber's
-            // -A..-Z ladder to a random 6-char suffix. This retires the third
-            // parallel numbering system; the store is now the only one.
-            //
-            // Bucket key shape matches the store's (drawingTypeId, packageId,
-            // discipline, vol): the composer's spool bucket is identified by
-            // its discipline/system/level, so those map onto the store's
-            // packageId/discipline/vol slots with the drawing type carrying
-            // the profile identity.
-            //
-            // A1 made the store fail LOUD — it throws rather than hand back a
-            // number it could not persist — so a persistence failure surfaces
-            // here instead of silently issuing a colliding number. The
-            // in-memory bucket remains as the degraded path for documents
-            // where ExtensibleStorage is unavailable (no transaction, or
-            // ProjectInformation owned by another user).
             int seq;
-            bool persisted = false;
-            try
+            // GAP-B: per-document bucket — the outer lock prevents two
+            // composer calls on the same doc from racing the increment.
+            var docBucket = GetDocBucket(doc);
+            lock (docBucket)
             {
-                seq = SheetSequenceStore.Next(
-                    doc,
-                    drawingTypeId: drawingType?.Id ?? "fabrication-spool",
-                    packageId:     sysCode,
-                    discipline:    discCode,
-                    vol:           levelCode ?? "");
-                persisted = true;
-            }
-            catch (Exception exSeq)
-            {
-                StingLog.Warn(
-                    $"ShopDrawingComposer: sheet sequence not persisted ({exSeq.Message}); " +
-                    "falling back to the in-session counter — numbers may repeat after a restart.");
-                result?.Warnings.Add(
-                    $"Spool sheet number not persisted: {exSeq.Message}. " +
-                    "The number is unique within this session only.");
-                seq = 0;
-            }
-
-            if (!persisted)
-            {
-                // GAP-B: per-document bucket — the outer lock prevents two
-                // composer calls on the same doc from racing the increment.
-                var docBucket = GetDocBucket(doc);
-                lock (docBucket)
-                {
-                    docBucket.TryGetValue(bucket, out seq);
-                    seq += 1;
-                    docBucket[bucket] = seq;
-                }
+                docBucket.TryGetValue(bucket, out seq);
+                seq += 1;
+                docBucket[bucket] = seq;
             }
 
             // Honour the user pattern when the ShopDrawingOptionsDialog
@@ -518,9 +437,7 @@ namespace StingTools.Core.Fabrication
                 if (tbInst != null)
                 {
                     TrySetString(tbInst, AssyParams.SPOOL_NR_TXT,    spool);
-                    // WEIGHT_KG is a NUMBER param — the String path in TrySetString
-                    // silently skips it, so read + write it numerically.
-                    TrySetNumeric(tbInst, AssyParams.WEIGHT_KG,      ReadDouble(ai, AssyParams.WEIGHT_KG));
+                    TrySetString(tbInst, AssyParams.WEIGHT_KG,       ReadString(ai, AssyParams.WEIGHT_KG));
                     TrySetString(tbInst, AssyParams.FAB_LOC_TXT,     ReadString(ai, AssyParams.FAB_LOC_TXT));
                     TrySetString(tbInst, AssyParams.FAB_STATUS_TXT,  ReadString(ai, AssyParams.FAB_STATUS_TXT));
                     TrySetString(tbInst, AssyParams.BOM_REV_TXT,     ReadString(ai, AssyParams.BOM_REV_TXT));
@@ -788,40 +705,6 @@ namespace StingTools.Core.Fabrication
             }
         }
 
-        /// <summary>Read a NUMBER (Double-storage) parameter as a nullable double.
-        /// Returns null when the param is missing or not numeric.</summary>
-        private static double? ReadDouble(Element el, string param)
-        {
-            try
-            {
-                var p = el?.LookupParameter(param);
-                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble();
-            }
-            catch (Exception ex) { StingLog.Warn($"ShopDrawingComposer.ReadDouble({param}): {ex.Message}"); }
-            return null;
-        }
-
-        /// <summary>Set a numeric value onto a param, handling both a NUMBER
-        /// (Double) target and a legacy TEXT target. No-op when val is null or
-        /// the param is missing/read-only. Fixes the WEIGHT_KG cell that the
-        /// String-only TrySetString silently skipped.</summary>
-        private static void TrySetNumeric(Element el, string param, double? val)
-        {
-            if (val == null) return;
-            try
-            {
-                var p = el.LookupParameter(param);
-                if (p == null || p.IsReadOnly) return;
-                if (p.StorageType == StorageType.Double) p.Set(val.Value);
-                else if (p.StorageType == StorageType.String)
-                    p.Set(val.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ShopDrawingComposer.TrySetNumeric({param}) on {el?.Id}: {ex.Message}");
-            }
-        }
-
         // ────────────────────────────────────────────────────────────────
         //  Drawing Template Manager integration
         //
@@ -848,80 +731,30 @@ namespace StingTools.Core.Fabrication
         }
 
         private static ElementId ResolveTitleBlockFromDrawingType(
-            Document doc, StingTools.Core.Drawing.DrawingType dt, FabricationResult result)
+            Document doc, StingTools.Core.Drawing.DrawingType dt)
         {
             if (dt == null || string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
                 return ElementId.InvalidElementId;
             try
             {
-                var declared = dt.TitleBlockFamily;
-
-                // T-1: this tier used to literal-match the profile's declared
-                // name against loaded family names. Drawing types declare
-                // logical names (STING_TB_ASSEMBLY_PIPE) while TitleBlockFactory
-                // saves versioned families (STING_TB_ASSEMBLY_PIPE_v1.0), so the
-                // match never hit and every spool sheet fell through to the
-                // discipline dictionary and ultimately "first title block in the
-                // project". TitleBlockResolver exists precisely for this
-                // mapping; the composer was simply never wired to it.
-                //
-                // Its output is best-effort, not guaranteed concrete: A2/A4 and
-                // unknown vocabulary come back unchanged, and a PRESENT name
-                // resolves to the A1 presentation family regardless of paper
-                // size (review T-6). So try the resolved name, then the declared
-                // one, before giving up.
-                var concrete = StingTools.Core.Drawing.TitleBlockResolver.ToConcreteFamily(doc, dt, declared);
-
-                List<FamilySymbol> Collect(string family) =>
-                    string.IsNullOrWhiteSpace(family)
-                        ? new List<FamilySymbol>()
-                        : new FilteredElementCollector(doc)
-                            .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                            .OfClass(typeof(FamilySymbol))
-                            .Cast<FamilySymbol>()
-                            .Where(fs => string.Equals(fs.FamilyName, family, StringComparison.OrdinalIgnoreCase))
-                            .ToList();
-
-                var candidates = new List<string>();
-                foreach (var c in new[] { concrete, declared })
-                    if (!string.IsNullOrWhiteSpace(c) &&
-                        !candidates.Any(x => string.Equals(x, c, StringComparison.OrdinalIgnoreCase)))
-                        candidates.Add(c);
-
-                foreach (var candidate in candidates)
+                // Mirror DrawingTypeSheetAdapter.ResolveTitleBlock so the
+                // optional TitleBlockSymbolType variant (Tender / Construction
+                // / As-Built etc.) is honoured on the fabrication path too.
+                var matches = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .Where(fs => string.Equals(
+                        fs.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
                 {
-                    var matches = Collect(candidate);
-                    // Built but not yet loaded — pull it from disk on demand,
-                    // same as the production path does.
-                    if (matches.Count == 0 &&
-                        StingTools.Core.Drawing.TitleBlockResolver.EnsureFamilyLoaded(doc, candidate))
-                        matches = Collect(candidate);
-                    if (matches.Count == 0) continue;
-
-                    // Mirror DrawingTypeSheetAdapter.ResolveTitleBlock so the
-                    // optional TitleBlockSymbolType variant (Tender /
-                    // Construction / As-Built etc.) is honoured here too.
-                    if (!string.IsNullOrWhiteSpace(dt.TitleBlockSymbolType))
-                    {
-                        var picked = matches.FirstOrDefault(fs => string.Equals(
-                            fs.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
-                        if (picked != null) return picked.Id;
-                        result?.Warnings.Add(
-                            $"Title-block type '{dt.TitleBlockSymbolType}' not found in family " +
-                            $"'{candidate}'; used '{matches[0].Name}'.");
-                    }
-                    return matches[0].Id;
+                    var picked = matches.FirstOrDefault(fs => string.Equals(
+                        fs.Name, dt.TitleBlockSymbolType, StringComparison.OrdinalIgnoreCase));
+                    if (picked != null) return picked.Id;
                 }
-
-                // Falling through here is not fatal — the caller still tries the
-                // project title-block router and the per-discipline dictionary —
-                // but it was previously silent, which is how spool sheets ended
-                // up on an arbitrary title block with no indication.
-                result?.Warnings.Add(
-                    $"Drawing type '{dt.Id}' declares title block '{declared}'" +
-                    (string.Equals(concrete, declared, StringComparison.OrdinalIgnoreCase)
-                        ? "" : $" (resolved to '{concrete}')") +
-                    " but no such family is loaded or loadable; falling back to the project router.");
+                var fallback = matches.FirstOrDefault();
+                if (fallback != null) return fallback.Id;
             }
             catch (Exception ex)
             {

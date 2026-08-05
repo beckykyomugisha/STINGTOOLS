@@ -12,7 +12,6 @@ using System;
 // typo their way into an invalid project deliverable.
 
 using System.Collections.Generic;
-using System.Linq;
 
 namespace StingTools.Core.Drawing
 {
@@ -117,7 +116,6 @@ namespace StingTools.Core.Drawing
             "S2",  // Suitable for information
             "S3",  // Suitable for review and comment
             "S4",  // Suitable for stage approval
-            "S5",  // Suitable for manufacture / procurement
             "S6",  // Suitable for PIM authorization
             "S7",  // Suitable for AIM authorization
             // Published (authorisation)
@@ -132,9 +130,6 @@ namespace StingTools.Core.Drawing
             "B4",  // Partial sign-off, manufacture
             "B5",  // Partial sign-off, installation
             "B6",  // Partial sign-off, archive
-            // As-constructed record + retirement
-            "CR",  // As-constructed record document
-            "AB",  // Abandoned / superseded
             // Archive
             "AR",  // Archive
         };
@@ -146,7 +141,6 @@ namespace StingTools.Core.Drawing
             { "S2", "S2 — Suitable for information" },
             { "S3", "S3 — Suitable for review & comment" },
             { "S4", "S4 — Suitable for stage approval" },
-            { "S5", "S5 — Suitable for manufacture / procurement" },
             { "S6", "S6 — Suitable for PIM authorization" },
             { "S7", "S7 — Suitable for AIM authorization" },
             { "A1", "A1 — Authorized and accepted" },
@@ -160,51 +154,8 @@ namespace StingTools.Core.Drawing
             { "B4", "B4 — Partial sign-off, manufacture" },
             { "B5", "B5 — Partial sign-off, installation" },
             { "B6", "B6 — Partial sign-off, archive" },
-            { "CR", "CR — As-constructed record document" },
-            { "AB", "AB — Abandoned / superseded" },
             { "AR", "AR — Archive" },
         };
-
-        // ── IM-14: canonical suitability / CDE-status vocabulary ────────────────
-        // These exist so pickers stop hand-rolling their own copies of the same
-        // lists. Before this, S0–S7 and SUPERSEDED/WITHDRAWN/OBSOLETE were spelled
-        // out inline in UI code, which is how the sets drift apart.
-
-        /// <summary>
-        /// The S-series "suitability for issue" codes (S0–S7), in lifecycle order.
-        /// A strict subset of <see cref="SuitabilityCodes"/>: the codes a deliverable
-        /// carries while it moves WIP → Shared, before A/B authorisation codes apply.
-        /// Use this for deliverable suitability pickers.
-        /// </summary>
-        public static readonly string[] SharedSuitabilityCodes =
-        {
-            "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7",
-        };
-
-        /// <summary>
-        /// The four live CDE containers, in lifecycle order. Single-sourced from
-        /// <see cref="StingTools.Core.StingPaths.CdeStates"/> so the folder engine and
-        /// the vocabulary can never disagree about what a container is called.
-        /// </summary>
-        public static readonly string[] CdeStates = StingTools.Core.StingPaths.CdeStates;
-
-        /// <summary>
-        /// Terminal ISO 19650-2 document statuses. These are NOT CDE containers — a
-        /// document does not live in a "SUPERSEDED" folder — which is exactly why they
-        /// are kept separate from <see cref="CdeStates"/> rather than merged into it.
-        /// </summary>
-        public static readonly string[] TerminalStatuses =
-        {
-            "SUPERSEDED", "WITHDRAWN", "OBSOLETE",
-        };
-
-        /// <summary>
-        /// Full CDE status vocabulary: the four live containers followed by the three
-        /// terminal statuses. This is the list a "CDE State" picker should offer.
-        /// Declared after its two inputs — static initialisers run in textual order.
-        /// </summary>
-        public static readonly string[] CdeStatesWithTerminal =
-            CdeStates.Concat(TerminalStatuses).ToArray();
 
         // ── Revision codes (UK convention layered on top of ISO 19650) ──
         public static readonly string[] RevisionPrefixes =
@@ -278,9 +229,7 @@ namespace StingTools.Core.Drawing
             "Spool",
             "Coordination",
             "Legend",
-            "3D",                 // E-8: must match DrawingPurpose.ThreeD ("3D"). "ThreeD"
-                                  // missed the DT-095 scale exemption and every
-                                  // 3D-specific code path for editor-authored profiles.
+            "ThreeD",
             "Cover",
             "Startup",
             "Render",
@@ -342,12 +291,7 @@ namespace StingTools.Core.Drawing
             "{disc}-{sys}-{lvl}-{seq:D3}",                        // STING with system
             "{spool}-{disc}-{seq:D3}",                            // Fabrication
             "{disc}-{lvl}-{mark}-{seq:D2}",                       // Section / detail
-            // E-7: {prj}/{orig} are not tokens DrawingTokenContext emits, nor
-            // members of the validator's _knownTokens, so picking this shipped
-            // suggestion produced literal "{prj}-{orig}" on the sheet plus DT-098
-            // warnings against the tool's own advice. The "ISO19650:" label had
-            // also leaked into the pattern value and would render literally.
-            "{project}-{originator}-{vol}-{lvl}-DR-{role}-{seq:D4}", // Full BS 1192 / ISO 19650-2
+            "ISO19650:{prj}-{orig}-{vol}-{lvl}-DR-{role}-{seq:D4}", // Full BS 1192 / ISO 19650-2
         };
 
         public static readonly string[] SheetNamePatterns =
@@ -358,10 +302,8 @@ namespace StingTools.Core.Drawing
             "Spool {spool} — {discipline}",
             "Detail {mark}",
             "Drawing Register",
-            "Cover Page — {project}",
-            // E-7: no {datadrop} token exists; {rev} is emitted and carries the
-            // issue identity this pattern wanted.
-            "Issue Status — {rev}",
+            "Cover Page — {prj}",
+            "Issue Status — {datadrop}",
         };
 
         // ── Tag families (STING category → tag-family map) ──

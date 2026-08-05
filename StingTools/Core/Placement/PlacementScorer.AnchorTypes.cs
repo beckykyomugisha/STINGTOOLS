@@ -16,26 +16,19 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.DB.Mechanical;
 using System.Text.RegularExpressions;
 
 namespace StingTools.Core.Placement
 {
     public partial class PlacementScorer
     {
-        // Phase 188 (review fix #5d) — upper bound on candidate points emitted
-        // by the grid-style anchors (CEILING_TILE_CORNER / RAISED_FLOOR_TILE_EDGE)
-        // so a large room can't generate thousands of candidates that each get
-        // scored. 2000 covers a ~17 m × 17 m room at 600 mm tile corners.
-        private const int MaxGridAnchorPoints = 2000;
-
         /// <summary>
         /// Append candidate XYZs for one of the 22 Phase 139 anchor types.
         /// Returns true when the anchor was recognised (caller should not
         /// fall through to legacy ROOM_CENTRE), false when unknown.
         /// </summary>
         internal bool TryEmitPhase139Anchor(
-            string anchor, SpatialElement room, PlacementRule rule,
+            string anchor, Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             if (string.IsNullOrEmpty(anchor)) return false;
@@ -188,7 +181,7 @@ namespace StingTools.Core.Placement
         /// without windows, where the WC is placed by the fallback no-window rule).
         /// </summary>
         private void EmitWindowSideWall(
-            SpatialElement room,
+            Room room,
             PlacementRule rule,
             double anchorZ,
             double offsetXFt,
@@ -281,7 +274,7 @@ namespace StingTools.Core.Placement
 
         // ── Phase 139.2 Q — new anchor implementations ────────────────
 
-        private void EmitStructuralSoffit(SpatialElement room, PlacementRule rule,
+        private void EmitStructuralSoffit(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -311,7 +304,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitStructuralSoffit: {ex.Message}"); }
         }
 
-        private void EmitCeilingTileCentre(SpatialElement room, PlacementRule rule,
+        private void EmitCeilingTileCentre(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -332,7 +325,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitCeilingTileCentre: {ex.Message}"); }
         }
 
-        private void EmitWallFaceOffset(SpatialElement room, PlacementRule rule,
+        private void EmitWallFaceOffset(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Mirror WALL_MIDPOINT but apply the rule's plaster offset along the inward wall normal.
@@ -358,7 +351,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitWallFaceOffset: {ex.Message}"); points.AddRange(prev); }
         }
 
-        private void EmitDoorLatchSide(SpatialElement room, PlacementRule rule,
+        private void EmitDoorLatchSide(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -375,7 +368,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitDoorHingeSide150(SpatialElement room, PlacementRule rule,
+        private void EmitDoorHingeSide150(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -403,7 +396,7 @@ namespace StingTools.Core.Placement
         private readonly Dictionary<ElementId, List<BoxIndexEntry>> _boxIndexCache
             = new Dictionary<ElementId, List<BoxIndexEntry>>();
 
-        private List<BoxIndexEntry> GetBoxIndexForRoom(SpatialElement room, string paramName)
+        private List<BoxIndexEntry> GetBoxIndexForRoom(Room room, string paramName)
         {
             if (_boxIndexCache.TryGetValue(room.Id, out var cached)) return cached;
             var list = new List<BoxIndexEntry>();
@@ -442,7 +435,7 @@ namespace StingTools.Core.Placement
             return list;
         }
 
-        private void EmitConduitBoxMatched(SpatialElement room, PlacementRule rule,
+        private void EmitConduitBoxMatched(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -469,7 +462,7 @@ namespace StingTools.Core.Placement
         private readonly Dictionary<ElementId, List<XYZ>> _outletCache
             = new Dictionary<ElementId, List<XYZ>>();
 
-        private List<XYZ> GetOutletPositions(SpatialElement room)
+        private List<XYZ> GetOutletPositions(Room room)
         {
             if (_outletCache.TryGetValue(room.Id, out var hit)) return hit;
             var outlets = new List<XYZ>();
@@ -498,7 +491,7 @@ namespace StingTools.Core.Placement
             return outlets;
         }
 
-        private void EmitCeilingVoidAboveBox(SpatialElement room, PlacementRule rule,
+        private void EmitCeilingVoidAboveBox(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -516,7 +509,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitCeilingVoidAboveBox: {ex.Message}"); }
         }
 
-        private void EmitFloorSlabPenetration(SpatialElement room, PlacementRule rule,
+        private void EmitFloorSlabPenetration(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -532,7 +525,7 @@ namespace StingTools.Core.Placement
 
         // ── Implementations (simplified) ────────────────────────────
 
-        private void EmitWindowVariantSill(SpatialElement room, PlacementRule rule, string anchor,
+        private void EmitWindowVariantSill(Room room, PlacementRule rule, string anchor,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -550,7 +543,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitWindowHead(SpatialElement room, PlacementRule rule,
+        private void EmitWindowHead(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -566,7 +559,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitDoorStrikeSide(SpatialElement room, PlacementRule rule,
+        private void EmitDoorStrikeSide(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Strike side is opposite hinge; we approximate with door origin shifted by 150mm + leaf width.
@@ -584,7 +577,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitDoorCloserZone(SpatialElement room, PlacementRule rule,
+        private void EmitDoorCloserZone(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -598,7 +591,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitBeamSoffit(SpatialElement room, PlacementRule rule,
+        private void EmitBeamSoffit(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -632,41 +625,28 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitBeamSoffit: {ex.Message}"); }
         }
 
-        // Document-wide column locations, collected once per scorer (per run).
-        // EmitColumnFaceNearest is called once per (room, rule); without this
-        // cache each call re-ran two full-model collectors.
-        private List<XYZ> _columnLocsCache;
-
-        private List<XYZ> GetColumnLocations()
-        {
-            if (_columnLocsCache != null) return _columnLocsCache;
-            _columnLocsCache = new List<XYZ>();
-            try
-            {
-                foreach (var cat in new[] { BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_Columns })
-                    foreach (var el in new FilteredElementCollector(_doc)
-                        .OfCategory(cat).WhereElementIsNotElementType())
-                        if ((el.Location as LocationPoint)?.Point is XYZ p) _columnLocsCache.Add(p);
-            }
-            catch (Exception ex) { StingLog.Warn($"GetColumnLocations: {ex.Message}"); }
-            return _columnLocsCache;
-        }
-
-        private void EmitColumnFaceNearest(SpatialElement room, PlacementRule rule,
+        private void EmitColumnFaceNearest(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
+            // Reuse legacy COLUMN_FACE logic by calling the existing path indirectly.
             try
             {
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return;
                 XYZ centroid = (bb.Min + bb.Max) * 0.5;
+                var cats = new[] { BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_Columns };
                 XYZ best = null; double bestSq = double.MaxValue;
-                foreach (var pt in GetColumnLocations())
+                foreach (var cat in cats)
                 {
-                    if (pt == null) continue;
-                    double dx = pt.X - centroid.X, dy = pt.Y - centroid.Y;
-                    double sq = dx * dx + dy * dy;
-                    if (sq < bestSq) { bestSq = sq; best = pt; }
+                    foreach (var el in new FilteredElementCollector(_doc)
+                        .OfCategory(cat).WhereElementIsNotElementType())
+                    {
+                        XYZ pt = (el.Location as LocationPoint)?.Point;
+                        if (pt == null) continue;
+                        double dx = pt.X - centroid.X, dy = pt.Y - centroid.Y;
+                        double sq = dx * dx + dy * dy;
+                        if (sq < bestSq) { bestSq = sq; best = pt; }
+                    }
                 }
                 if (best != null)
                     points.Add(new XYZ(best.X + offsetXFt, best.Y + offsetYFt, anchorZ));
@@ -674,33 +654,19 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitColumnFaceNearest: {ex.Message}"); }
         }
 
-        private void EmitCeilingTileCorner(SpatialElement room, PlacementRule rule,
+        private void EmitCeilingTileCorner(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Approximation: 4 corners of every 600mm tile in room bbox.
             var bb = room.get_BoundingBox(null);
             if (bb == null) return;
             double tileFt = 600.0 / 304.8;
-            // Phase 188 (review fix #5d) — bound the emitted candidate count.
-            // A large hall could otherwise emit thousands of grid points, each
-            // then scored (and sampled). Cap + log once when truncating.
-            int emitted = 0;
             for (double x = bb.Min.X + tileFt; x < bb.Max.X; x += tileFt)
-            {
-                for (double y = bb.Min.Y + tileFt; y < bb.Max.Y; y += tileFt)
-                {
-                    if (emitted >= MaxGridAnchorPoints)
-                    {
-                        StingLog.Info($"EmitCeilingTileCorner room {room.Id}: capped candidate grid at {MaxGridAnchorPoints} points.");
-                        return;
-                    }
-                    points.Add(new XYZ(x + offsetXFt, y + offsetYFt, anchorZ));
-                    emitted++;
-                }
-            }
+            for (double y = bb.Min.Y + tileFt; y < bb.Max.Y; y += tileFt)
+                points.Add(new XYZ(x + offsetXFt, y + offsetYFt, anchorZ));
         }
 
-        private void EmitCurtainPanelCentre(SpatialElement room, PlacementRule rule,
+        private void EmitCurtainPanelCentre(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -725,14 +691,14 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitCurtainPanelCentre: {ex.Message}"); }
         }
 
-        private void EmitSlabPerimeterEdge(SpatialElement room, PlacementRule rule,
+        private void EmitSlabPerimeterEdge(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Use room boundary segments at the floor level.
             EmitPerimeterAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
         }
 
-        private void EmitEscapeDoorBothSides(SpatialElement room, PlacementRule rule,
+        private void EmitEscapeDoorBothSides(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
@@ -750,53 +716,47 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitStairLandingEdge(SpatialElement room, PlacementRule rule,
+        private void EmitStairLandingEdge(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             EmitStairNosingAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
         }
 
-        private void EmitStairFlightMid(SpatialElement room, PlacementRule rule,
+        private void EmitStairFlightMid(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             EmitStairNosingAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
         }
 
-        private void EmitCorridorJunction(SpatialElement room, PlacementRule rule,
+        private void EmitCorridorJunction(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Approximation: corridor junctions are room corners; emit corner points.
             EmitWallCorners(room, rule, anchorZ, offsetXFt, offsetYFt, points);
         }
 
-        private void EmitDoorJambSeeds(SpatialElement room, PlacementRule rule,
+        private void EmitDoorJambSeeds(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             EmitDoorAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points,
                 hingeSide: false, overDoor: false);
         }
 
-        private void EmitRaisedFloorTileEdge(SpatialElement room, PlacementRule rule,
+        private void EmitRaisedFloorTileEdge(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Sample a coarse 600mm grid along bbox edges.
             var bb = room.get_BoundingBox(null);
             if (bb == null) return;
             double stepFt = 600.0 / 304.8;
-            // Phase 188 (review fix #5d) — bound the emitted candidate count.
             for (double x = bb.Min.X; x <= bb.Max.X; x += stepFt)
             {
-                if (points.Count >= MaxGridAnchorPoints)
-                {
-                    StingLog.Info($"EmitRaisedFloorTileEdge room {room.Id}: capped candidate grid at {MaxGridAnchorPoints} points.");
-                    return;
-                }
                 points.Add(new XYZ(x + offsetXFt, bb.Min.Y + offsetYFt, anchorZ));
                 points.Add(new XYZ(x + offsetXFt, bb.Max.Y + offsetYFt, anchorZ));
             }
         }
 
-        private void EmitNearestMepSystemNode(SpatialElement room, PlacementRule rule,
+        private void EmitNearestMepSystemNode(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // v1 simplification: connector points of any MEP equipment in the room.
@@ -821,7 +781,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"EmitNearestMepSystemNode: {ex.Message}"); }
         }
 
-        private void EmitZoneBoundary(SpatialElement room, PlacementRule rule,
+        private void EmitZoneBoundary(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // TODO-VERIFY-API: HVAC Zone collection — falls back to room centroid.

@@ -16,13 +16,8 @@ namespace Planscape.API.Controllers;
 public class ProjectsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
-    private readonly ILogger<ProjectsController> _logger;
 
-    public ProjectsController(PlanscapeDbContext db, ILogger<ProjectsController> logger)
-    {
-        _db = db;
-        _logger = logger;
-    }
+    public ProjectsController(PlanscapeDbContext db) => _db = db;
 
     /// <summary>List active and archived projects for the current tenant.</summary>
     /// <remarks>
@@ -45,15 +40,9 @@ public class ProjectsController : ControllerBase
                 p.CompliancePercent, p.RagStatus, p.TotalElements, p.TaggedElements,
                 p.LastSyncAt, p.CreatedAt,
                 p.Latitude, p.Longitude, p.City, p.Country,
-                p.CoverImageUrl, p.IsPinned, p.DocumentSyncAutoEnabled,
+                p.CoverImageUrl, p.IsPinned,
                 MemberCount = _db.ProjectMembers
-                    .Count(m => m.ProjectId == p.Id && m.IsActive),
-                // The projects grid shows an open-issue count per row. Without
-                // it here the web app would have to call {id}/dashboard once per
-                // project — an N+1 for a single integer. Same predicate the
-                // dashboard's OpenIssues uses, so the two agree.
-                OpenIssueCount = _db.Issues
-                    .Count(i => i.ProjectId == p.Id && i.Status != "CLOSED")
+                    .Count(m => m.ProjectId == p.Id && m.IsActive)
             })
             .OrderByDescending(p => p.IsPinned)
             .ThenByDescending(p => p.LastSyncAt)
@@ -99,8 +88,7 @@ public class ProjectsController : ControllerBase
         return Ok(new
         {
             project.Id, project.Name, project.Code, project.Description, project.Phase,
-            project.Status, project.DocumentSyncAutoEnabled,
-            project.TagSeparator, project.SeqNumPad,
+            project.Status, project.TagSeparator, project.SeqNumPad,
             project.TagPrefix, project.TagSuffix, project.ConfigJson,
             project.CompliancePercent, project.ContainerCompliancePercent,
             project.RagStatus, project.TotalElements, project.TaggedElements,
@@ -216,8 +204,6 @@ public class ProjectsController : ControllerBase
         if (req.TagPrefix != null) project.TagPrefix = req.TagPrefix;
         if (req.TagSuffix != null) project.TagSuffix = req.TagSuffix;
         if (req.ConfigJson != null) project.ConfigJson = req.ConfigJson;
-        if (req.DocumentSyncAutoEnabled.HasValue)
-            project.DocumentSyncAutoEnabled = req.DocumentSyncAutoEnabled.Value;
 
         await _db.SaveChangesAsync();
         return Ok(project);
@@ -345,120 +331,6 @@ public class ProjectsController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// Number of days between scheduling a hard delete and the purge job
-    /// actually destroying anything. Matches CustomFieldsPurgeJob's grace.
-    /// </summary>
-    public const int PurgeGraceDays = 30;
-
-    /// <summary>
-    /// Schedule a project for PERMANENT deletion (hard delete).
-    /// </summary>
-    /// <remarks>
-    /// Unlike <see cref="ArchiveProject"/> this destroys data and cannot be
-    /// undone once the purge runs. Triple-gated, and deliberately stricter
-    /// than archive on every axis:
-    ///   1. Tenant OWNER only — not Admin, not the project author. Archive
-    ///      remains open to author/admin so routine cleanup is unaffected;
-    ///      only irreversible destruction is restricted this hard.
-    ///   2. Must already be Archived. Forces archive → confirm nothing broke
-    ///      → purge, so no single action takes a live project to destroyed.
-    ///   3. Must pass ?confirmCode=&lt;Project.Code&gt;, same proof-of-intent
-    ///      as archive.
-    ///
-    /// Effect is a SCHEDULE, not a destruction: PurgeAfter is set to now +
-    /// <see cref="PurgeGraceDays"/> days and the project vanishes from every
-    /// read path immediately, but the rows survive until ProjectPurgeJob runs
-    /// past that date. Until then <see cref="CancelPurge"/> fully restores it.
-    /// </remarks>
-    [HttpPost("{id}/purge")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> SchedulePurge(Guid id, [FromQuery] string? confirmCode = null)
-    {
-        // Deliberately NOT WhereVisibleTo/CanSeeProjectAsync: those now filter
-        // out anything already pending purge, which would turn a double-call
-        // into a confusing 404 instead of the "already scheduled" answer below.
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == GetTenantId());
-        if (project == null) return NotFound();
-
-        if (!ProjectVisibility.IsTenantOwner(User))
-            return StatusCode(StatusCodes.Status403Forbidden, new
-            {
-                message = "Only the tenant owner can permanently delete a project. Archiving is available to project authors and admins."
-            });
-
-        if (project.Status != ProjectStatus.Archived)
-            return BadRequest(new
-            {
-                message = "Archive this project first. Permanent deletion is only available for an archived project, so there is always a reversible step in between.",
-                currentStatus = project.Status.ToString()
-            });
-
-        if (string.IsNullOrWhiteSpace(confirmCode)
-            || !string.Equals(confirmCode.Trim(), project.Code, StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest(new
-            {
-                message = "Confirmation required — retype the project code to permanently delete.",
-                expectedField = "confirmCode",
-                expectedValue = project.Code
-            });
-        }
-
-        if (project.PurgeAfter != null)
-            return Ok(new { message = "Already scheduled for deletion.", purgeAfter = project.PurgeAfter, alreadyScheduled = true });
-
-        project.PurgeAfter = DateTime.UtcNow.AddDays(PurgeGraceDays);
-        project.PurgeRequestedById = ProjectVisibility.GetUserId(User);
-        await _db.SaveChangesAsync();
-
-        _logger.LogWarning(
-            "[purge] project {ProjectId} ({Code}) scheduled for PERMANENT deletion after {PurgeAfter:u} by user {UserId}",
-            project.Id, project.Code, project.PurgeAfter, project.PurgeRequestedById);
-
-        return Ok(new
-        {
-            message = $"Scheduled for permanent deletion. Recoverable until {project.PurgeAfter:u}.",
-            purgeAfter = project.PurgeAfter,
-            graceDays = PurgeGraceDays,
-            cancelUrl = $"/api/projects/{project.Id}/purge"
-        });
-    }
-
-    /// <summary>
-    /// Cancel a scheduled hard delete, restoring the project. Valid any time
-    /// before ProjectPurgeJob actually runs; after that there is nothing left
-    /// to restore, which is the whole point of the grace window.
-    /// </summary>
-    [HttpDelete("{id}/purge")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> CancelPurge(Guid id)
-    {
-        // Same direct query as SchedulePurge — a pending-purge project is by
-        // definition invisible to the normal visibility path.
-        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == GetTenantId());
-        if (project == null) return NotFound();
-
-        if (!ProjectVisibility.IsTenantOwner(User))
-            return StatusCode(StatusCodes.Status403Forbidden,
-                new { message = "Only the tenant owner can cancel a scheduled deletion." });
-
-        if (project.PurgeAfter == null)
-            return Ok(new { message = "This project is not scheduled for deletion.", wasScheduled = false });
-
-        project.PurgeAfter = null;
-        project.PurgeRequestedById = null;
-        await _db.SaveChangesAsync();
-
-        _logger.LogWarning("[purge] scheduled deletion CANCELLED for project {ProjectId} ({Code})", project.Id, project.Code);
-        return Ok(new { message = "Deletion cancelled — the project is restored (still archived).", wasScheduled = true });
-    }
-
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
@@ -470,7 +342,4 @@ public record CreateProjectRequest(string Name, string? Code, string? Descriptio
 public record UpdateProjectRequest(
     string? Name, string? Description, string? Phase, ProjectStatus? Status,
     string? TagSeparator, int? SeqNumPad, string? TagPrefix, string? TagSuffix,
-    string? ConfigJson,
-    // Document sync — "Auto-sync this project". Nullable so an existing caller
-    // that omits it leaves the flag alone, same as every other field here.
-    bool? DocumentSyncAutoEnabled = null);
+    string? ConfigJson);

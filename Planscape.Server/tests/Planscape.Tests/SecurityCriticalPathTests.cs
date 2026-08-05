@@ -58,21 +58,7 @@ public class SecurityCriticalPathTests
         // Read with no tenant context (Guid.Empty) — filter must yield 0 rows.
         using var db = NewDb(dbName, currentTenant: Guid.Empty);
         Assert.Empty(await db.Projects.ToListAsync());
-
-        // Tenant itself is deliberately NOT filtered: ApplyTenantQueryFilters
-        // only covers types implementing ITenantScoped, and Tenant has no
-        // TenantId — it *is* the tenant. That is load-bearing, not an oversight:
-        // AuthController.Register checks slug uniqueness via
-        // _db.Tenants.AnyAsync(t => t.Slug == ...) before any tenant context
-        // exists, and subdomain resolution looks a tenant up by slug the same
-        // way. Filtering Tenant would make both silently find nothing — and
-        // duplicate slugs would then be allowed through.
-        //
-        // This assertion previously read Assert.Empty(db.Tenants), i.e. it
-        // asserted a filter that was never designed to exist. Narrowed to the
-        // contract that IS guaranteed. Cross-tenant readability of Tenant rows
-        // is a separate question, tracked outside this test.
-        Assert.NotEmpty(await db.Tenants.ToListAsync());
+        Assert.Empty(await db.Tenants.ToListAsync());
     }
 
     [Fact]
@@ -206,10 +192,7 @@ public class SecurityCriticalPathTests
             seed.Tenants.Add(new Tenant
             {
                 Id = tenantId, Slug = "t", Name = "T",
-                // BillingPlanLimits.For(Trial) caps projects at 1, not the 3 this
-                // test was written against. Seeding 3 leaves the tenant over cap,
-                // which is still exactly what the guard must refuse.
-                Plan = BillingPlan.Trial,
+                Plan = BillingPlan.Trial,    // limits: 3 projects
             });
             // 3 projects already exist — Trial cap reached.
             for (int i = 0; i < 3; i++)
@@ -225,7 +208,7 @@ public class SecurityCriticalPathTests
         Assert.False(result.Allowed);
         Assert.Equal(QuotaAxis.Projects, result.Axis);
         Assert.Equal(3, result.Current);
-        Assert.Equal(1, result.Max);
+        Assert.Equal(3, result.Max);
     }
 
     [Fact]
@@ -239,11 +222,7 @@ public class SecurityCriticalPathTests
             seed.Tenants.Add(new Tenant
             {
                 Id = tenantId, Slug = "t", Name = "T",
-                // Was Network, whose project cap is now int.MaxValue — that takes the
-                // "unlimited" early-return in QuotaGuardService.Result and never
-                // exercises the below-the-cap comparison this test is for. Practice
-                // is the plan that caps projects at 10 today.
-                Plan = BillingPlan.Practice,
+                Plan = BillingPlan.Network,   // limits: 10 projects
             });
             seed.Projects.Add(new Project { TenantId = tenantId, Code = "P1", Name = "P1" });
             await seed.SaveChangesAsync();

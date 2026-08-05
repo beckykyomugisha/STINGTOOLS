@@ -311,11 +311,7 @@ public class SlaEscalationJob
             {
                 var pmIds = await db.ProjectMembers
                     .AsNoTracking()
-                    // Was `ProjectRole == "PM"` — an Iso19650Role code read off the
-                    // ProjectRole column, so this escalation notified nobody.
-                    // Chained .Where keeps the predicate EF-translatable.
-                    .Where(m => m.ProjectId == issue.ProjectId && m.IsActive)
-                    .Where(Planscape.Core.Entities.ProjectRoles.CanCurateProject)
+                    .Where(m => m.ProjectId == issue.ProjectId && m.IsActive && m.ProjectRole == "PM")
                     .Select(m => m.UserId)
                     .Distinct()
                     .ToListAsync(ct);

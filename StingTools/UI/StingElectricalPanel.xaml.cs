@@ -97,44 +97,8 @@ namespace StingTools.UI
         {
             if (sender is Button btn && btn.Tag is string tag && !string.IsNullOrEmpty(tag))
             {
-                SnapshotSldOptions();
                 StingElectricalCommandHandler.Instance?.SetCommand(tag);
                 UpdateStatus($"Running: {tag}");
-            }
-        }
-
-        /// <summary>
-        /// Copies the SLD GENERATION controls into the statics the command reads on the
-        /// Revit API thread, mirroring how StingHvacPanel snapshots its header.
-        ///
-        /// <para>Until this existed the five annotation checkboxes were decorative:
-        /// nothing ever read chkSLDShow*, and CurrentSLDAnnotationOptions was assigned
-        /// once at field-initialisation and never again, so every SLD generated with the
-        /// library defaults no matter what the user ticked.</para>
-        /// </summary>
-        private void SnapshotSldOptions()
-        {
-            try
-            {
-                StingElectricalCommandHandler.CurrentSLDAnnotationOptions =
-                    new Core.SLD.SLDAnnotationOptions
-                    {
-                        ShowRatings = chkSLDShowRatings?.IsChecked == true,
-                        ShowLoads   = chkSLDShowLoads?.IsChecked   == true,
-                        ShowVdPct   = chkSLDShowVD?.IsChecked      == true,
-                        ShowFaultKa = chkSLDShowFault?.IsChecked   == true,
-                        ShowCsaMm2  = chkSLDShowWires?.IsChecked   == true,
-                    };
-
-                Core.SLD.SLDGenerator.ScanScope = chkSLDScanLinks?.IsChecked == true
-                    ? Core.SLD.SLDScanScope.HostAndLinks
-                    : Core.SLD.SLDScanScope.HostOnly;
-            }
-            catch (Exception ex)
-            {
-                // Never block a command over option capture; the generator falls back to
-                // whatever the statics already hold.
-                StingLog.Warn($"SnapshotSldOptions: {ex.Message}");
             }
         }
 

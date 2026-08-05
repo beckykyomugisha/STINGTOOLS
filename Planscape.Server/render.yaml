@@ -1,11 +1,5 @@
 # render.yaml — Render.com Infrastructure-as-Code for Planscape Server
-#
-# ⚠️ SUPERSEDED: Render only auto-detects a blueprint at the REPOSITORY ROOT,
-# and this file's dockerfilePath (./docker/Dockerfile) is wrong for the monorepo
-# layout. The canonical, deployable blueprint is /render.yaml at the repo root.
-# This copy is kept for reference only — do not point a Render Blueprint here.
-#
-# Deploy: push to main → Render detects /render.yaml → provisions all services
+# Deploy: push to main → Render detects this file → provisions all services automatically
 # Docs: https://render.com/docs/infrastructure-as-code
 
 services:
@@ -17,7 +11,7 @@ services:
     dockerContext: .
     branch: main
     region: frankfurt  # eu-central-1 — closest to UK/Europe clients
-    plan: starter       # $7/mo — go to standard ($25) at ~30 ACTIVE coordinators
+    plan: starter       # £6/mo — upgrade to standard (£19) when >60 concurrent users
 
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -40,21 +34,11 @@ services:
       - key: Jwt__Audience
         value: Planscape.Client
 
-      # ── Platform Owner bootstrap (PlatformOwnerSeeder) ──
-      # The operator/founder login, seeded idempotently on startup. The email is
-      # safe to declare here; the password is a secret set in the Render
-      # dashboard. Seeding is a one-time bootstrap — after first boot, rotate the
-      # password via change-password / forgot-password, not by editing this var.
-      - key: PLANSCAPE_OWNER_EMAIL
-        value: davis@planscape.build
-      - key: PLANSCAPE_OWNER_PASSWORD
-        sync: false   # Set in Render dashboard → Settings → Environment (secret). Required to make the Owner loginable.
-
-      # ── CORS — web dashboard / app origins ──
+      # ── CORS — add your Flutter Web / dashboard origin ──
       - key: Cors__Origins__0
-        value: https://planscape.build
+        value: https://planscape.io
       - key: Cors__Origins__1
-        value: https://app.planscape.build
+        value: https://app.planscape.io
 
       # ── Serilog ──
       - key: Serilog__MinimumLevel__Default
@@ -95,36 +79,16 @@ databases:
     # The connection string is injected automatically into the API via fromDatabase above
 
 # ── Upgrade Guide ──────────────────────────────────────────────────────────────
-# NOTE: this 2-service file is the LEAN variant (api + db only). The full
-# 7-service production blueprint is /render.yaml at the repo root — that is the
-# one Render auto-detects. Capacity table + connection budget live there and in
-# docs/DEPLOY_RUNBOOK.md.
-#
-# Distinguish "connected" (logged in, WebSocket open, light use) from "active"
-# (driving issues / markup / CRDT). Active is what consumes CPU, and it is the
-# number to size on.
-#
 # When to upgrade:
-#   starter → standard API ($7 → $25):  > ~30 ACTIVE coordinators, or CPU > 70%
-#                                       sustained. Starter holds ~20-30
-#                                       connected / 10-15 active.
-#   standard → pro ($25 → $85):         > ~50 active, or you need autoscaling —
-#                                       Pro is the first tier that has it, and
-#                                       below it a deploy drops every WebSocket.
-#   basic-256mb → basic-1gb DB:         > 1 GB data. NOTE: the connection
-#                                       ceiling does NOT move — every basic
-#                                       tier and pro-4gb allows 100 (~97
-#                                       usable). 200 at pro-8gb, 400 at
-#                                       pro-16gb. Enable PgBouncer (free on
-#                                       paid DBs) before buying RAM you don't
-#                                       need; see DEPLOY_RUNBOOK.md.
+#   starter → standard API:  > 60 concurrent users or CPU > 70% sustained
+#   starter → standard DB:   > 1GB data or need connection pooling (PgBouncer)
 #
-# Cost at launch (Render bills USD):
-#   API starter:  $7/month
-#   DB basic:     $6/month
-#   Total:        $13/month (+ Cloudflare free)
+# Current cost at launch (3 projects, ~60 users):
+#   API starter:  £6/month
+#   DB starter:   £6/month
+#   Total:        £12/month (+ Cloudflare free)
 #
-# At ~50 active coordinators:
-#   API standard: $25/month
-#   DB basic-1gb: ~$19/month
-#   Total:        ~$44/month
+# At 10 projects / 200 users:
+#   API standard: £19/month
+#   DB standard:  £17/month
+#   Total:        £36/month

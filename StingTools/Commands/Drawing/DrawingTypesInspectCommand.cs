@@ -32,7 +32,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
                 var reports = DrawingTypeValidator.ValidateAll(doc);
 
@@ -284,7 +284,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 DrawingTypeRegistry.Reload(doc);
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
                 TaskDialog.Show("STING — Drawing Types",

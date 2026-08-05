@@ -110,12 +110,6 @@ public class PostgresBulkTagUpserter : IBulkTagUpserter
                     ""Seq""  = EXCLUDED.""Seq"",
                     ""Tag1"" = EXCLUDED.""Tag1"",
                     ""LastModifiedUtc"" = EXCLUDED.""LastModifiedUtc"",
-                    -- This path only ever carries LIVE elements (it has no
-                    -- delete channel), so an upsert onto a tombstoned row is an
-                    -- undelete — mirroring TagSyncController.MapDtoToEntity.
-                    -- Without this the row would stay hidden by the global
-                    -- soft-delete query filter despite having just been written.
-                    ""DeletedAtUtc"" = NULL,
                     ""Version"" = ""TaggedElements"".""Version"" + 1
                 RETURNING (xmax = 0) AS inserted)
               SELECT COUNT(*) FILTER (WHERE inserted),

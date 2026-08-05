@@ -92,7 +92,7 @@ namespace StingTools.Core.Placement
         /// </summary>
         public static List<ExclusionRect> BuildForRoom(
             Document doc,
-            SpatialElement room,
+            Room room,
             double bufferFt = DefaultBufferFt,
             IEnumerable<BuiltInCategory> extraCats = null)
         {

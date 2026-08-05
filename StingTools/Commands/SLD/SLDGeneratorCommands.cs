@@ -140,11 +140,9 @@ namespace StingTools.Commands.SLD
                 bool current = (bool)(root["sld_sync_enabled"] ?? false);
                 bool next = !current;
                 root["sld_sync_enabled"] = next;
-                StingTools.Core.OutputLocationHelper.WriteAllTextAtomic(p, root.ToString());
-                // Flip the Revit-level updater and drop the cached gate so the change
-                // takes effect immediately — no Revit restart required.
-                StingTools.Core.SLD.SLDSyncUpdater.InvalidateGateCache(ctx.Doc.PathName);
-                StingTools.Core.SLD.SLDSyncUpdater.SetEnabled(next);
+                File.WriteAllText(p, root.ToString());
+                // The SLDSyncUpdater re-reads project_config.json on every Execute()
+                // call — no Revit restart is required for the change to take effect.
                 TaskDialog.Show("STING",
                     $"SLD live sync {(next ? "enabled" : "disabled")}.");
                 return Result.Succeeded;

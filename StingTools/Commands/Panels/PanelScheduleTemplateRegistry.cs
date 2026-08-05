@@ -55,7 +55,8 @@ namespace StingTools.Commands.Panels
             {
                 try
                 {
-                    string projOverride = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "panel_schedule_templates.json");
+                    string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                    string projOverride = Path.Combine(projDir, "_BIM_COORD", "panel_schedule_templates.json");
                     if (File.Exists(projOverride)) Merge(projOverride);
                 }
                 catch (Exception ex) { StingLog.Warn($"PanelScheduleTemplateRegistry project override: {ex.Message}"); }

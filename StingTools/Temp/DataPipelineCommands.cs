@@ -1012,12 +1012,6 @@ namespace StingTools.Temp
     /// or "TO SUMMARY". Full Excel formatting: bold headers, borders, merged cells,
     /// number formats (#,##0), print settings. Zero manual editing required after export.
     /// </summary>
-    // P0-7 — RETIRED. This legacy exporter ran its own DiscMap + BOQ_TEMPLATE.csv
-    // rate logic, a cost fork that drifted from the BOQ Cost Manager. No dispatch
-    // tag routes here any more ("BOQExport" and "BOQExportLegacy" both resolve to
-    // the canonical BOQ.BOQExportCommand). The class is left compiled but
-    // unreferenced (it shares helpers with other DataPipeline commands in this
-    // file); do not wire new tags to it. Use BOQ.BOQExportCommand instead.
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class BOQExportCommand : IExternalCommand
@@ -3261,29 +3255,6 @@ namespace StingTools.Temp
                 sb.AppendLine($"{prodCode}\t\t{catName}");
             }
 
-            // CSI MasterFormat sections present in the model (Phase G — CSI ↔ keynote
-            // integration). Run CSI_Assign first to populate CSI_SECTION_TXT.
-            var csiSections = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-                {
-                    if (el.Category == null) continue;
-                    string sec = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION);
-                    if (string.IsNullOrWhiteSpace(sec)) continue;
-                    if (!csiSections.ContainsKey(sec))
-                        csiSections[sec] = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE) ?? "";
-                }
-            }
-            catch (Exception cx) { StingLog.Warn($"Keynote CSI scan: {cx.Message}"); }
-            if (csiSections.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("# CSI MasterFormat sections (from model — CSI_Assign)");
-                foreach (var kv in csiSections.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
-                    sb.AppendLine($"{kv.Key}\t\t{kv.Value}");
-            }
-
             try
             {
                 File.WriteAllText(knoPath, sb.ToString());
@@ -3295,7 +3266,7 @@ namespace StingTools.Temp
             }
 
             // Keynote file generated — user loads via Annotate > Keynoting Settings
-            int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count + csiSections.Count;
+            int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count;
             try
             {
                 StingLog.Info($"Keynote file generated at {knoPath} with {entries} entries");
@@ -3310,7 +3281,6 @@ namespace StingTools.Temp
                 $"  Discipline codes: {discCodes.Count}\n" +
                 $"  System codes: {TagConfig.SysMap.Count}\n" +
                 $"  Product codes: {TagConfig.ProdMap.Count}\n" +
-                $"  CSI sections (model): {csiSections.Count}\n" +
                 $"  Total entries: {entries}\n\n" +
                 $"File: {knoPath}");
 
@@ -4525,7 +4495,7 @@ namespace StingTools.Temp
             {
                 string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
                 if (string.IsNullOrEmpty(projDir)) return;
-                string p = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), "material_boq_links.json");
+                string p = Path.Combine(projDir, "_bim_manager", "material_boq_links.json");
                 if (!File.Exists(p)) return;
                 var arr = JArray.Parse(File.ReadAllText(p));
                 foreach (var item in arr)

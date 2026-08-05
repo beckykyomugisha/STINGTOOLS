@@ -70,45 +70,13 @@ namespace StingTools.BOQ
                     string qtoSetName = ResolveQtoSetName(item.Category);
                     if (!string.IsNullOrEmpty(qtoSetName))
                     {
-                        // P0-1 — item.Unit is ASCII ("m2"/"m3"/"each"), not the
-                        // Unicode glyphs ("m²"/"m³") the old comparisons used, so
-                        // every quantity was tested false and StampQuantity's
-                        // `value <= 0` guard skipped it. Canonicalise through the
-                        // BOQ engine's own table so both sides match.
-                        string u = BOQCostManager.NormaliseUnit(item.Unit);
-                        // CA-5 — Net* = the NET measured quantity (after NRM2/CESMM
-                        // deductions); Gross* = the GROSS modelled quantity. The old
-                        // code stamped the net value into BOTH Gross* and Net*, which
-                        // mis-reported the gross as net-of-deductions. Fall back to net
-                        // when no gross was captured (legacy/aggregated rows).
-                        double q = item.Quantity;                                   // net
-                        double g = item.GrossQuantity > 0 ? item.GrossQuantity : q;  // gross
-                        if (u == "m2")
-                        {
-                            StampQuantity(el, qtoSetName, "GrossArea", g);
-                            StampQuantity(el, qtoSetName, "NetArea",   q);
-                        }
-                        else if (u == "m3")
-                        {
-                            StampQuantity(el, qtoSetName, "GrossVolume", g);
-                            StampQuantity(el, qtoSetName, "NetVolume",   q);
-                        }
-                        else if (u == "m")
-                        {
-                            StampQuantity(el, qtoSetName, "Length", q);
-                        }
-                        else if (u == "kg")
-                        {
-                            StampQuantity(el, qtoSetName, "GrossWeight", g);
-                            StampQuantity(el, qtoSetName, "NetWeight",   q);
-                        }
-                        else if (u == "each")
-                        {
-                            // Count is integer-valued in IFC Qto sets but our
-                            // params are typically Double/String — StampQuantity
-                            // handles both storage types.
-                            StampQuantity(el, qtoSetName, "Count", q);
-                        }
+                        StampQuantity(el, qtoSetName, "GrossArea", item.Unit == "m²" ? item.Quantity : 0);
+                        StampQuantity(el, qtoSetName, "NetArea",   item.Unit == "m²" ? item.Quantity : 0);
+                        StampQuantity(el, qtoSetName, "GrossVolume", item.Unit == "m³" ? item.Quantity : 0);
+                        StampQuantity(el, qtoSetName, "NetVolume",   item.Unit == "m³" ? item.Quantity : 0);
+                        StampQuantity(el, qtoSetName, "Length",      item.Unit == "m"  ? item.Quantity : 0);
+                        StampQuantity(el, qtoSetName, "GrossWeight", item.Unit == "kg" ? item.Quantity : 0);
+                        StampQuantity(el, qtoSetName, "NetWeight",   item.Unit == "kg" ? item.Quantity : 0);
                     }
 
                     // STING-specific cost property set.

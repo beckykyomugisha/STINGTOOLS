@@ -34,31 +34,11 @@ namespace StingTools.Core.Drawing
         /// — the registry can match it back to a definition by name and
         /// create it lazily.
         /// </summary>
-        // V-4: name index. GetByName is called once per pack filter rule while
-        // applying a pack; a linear FirstOrDefault over the 298 shipped filters
-        // made that O(rules x 298) per view, for every view in a batch.
-        private static readonly object _nameIndexLock = new object();
-        private static readonly Dictionary<string, Dictionary<string, AecFilterDefinition>> _byNameByDoc
-            = new Dictionary<string, Dictionary<string, AecFilterDefinition>>(StringComparer.OrdinalIgnoreCase);
-
         public static AecFilterDefinition GetByName(Document doc, string filterName)
         {
             if (string.IsNullOrWhiteSpace(filterName)) return null;
-            var lib = GetLibrary(doc);
-            var key = DocKey(doc);
-            lock (_nameIndexLock)
-            {
-                // Rebuild when the library's filter count changes — the registry
-                // is reloadable, and a stale index would hide new filters.
-                if (!_byNameByDoc.TryGetValue(key, out var index) || index.Count != lib.Filters.Count)
-                {
-                    index = new Dictionary<string, AecFilterDefinition>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var f in lib.Filters)
-                        if (!string.IsNullOrEmpty(f?.Name) && !index.ContainsKey(f.Name)) index[f.Name] = f;
-                    _byNameByDoc[key] = index;
-                }
-                return index.TryGetValue(filterName, out var hit) ? hit : null;
-            }
+            return GetLibrary(doc).Filters
+                .FirstOrDefault(f => string.Equals(f.Name, filterName, StringComparison.OrdinalIgnoreCase));
         }
 
         public static IReadOnlyList<AecFilterDefinition> ListAll(Document doc)
@@ -154,20 +134,12 @@ namespace StingTools.Core.Drawing
             if (project?.Filters == null) return merged;
 
             // Project entries win by Id (replace) and any new ids append.
-            // First-wins build (NOT ToDictionary, which throws on a duplicate
-            // id) so duplicate corporate filter ids can't crash override
-            // projects. Null/empty ids get a unique key so they're all kept;
-            // null elements are dropped.
-            var byId = new Dictionary<string, AecFilterDefinition>(StringComparer.OrdinalIgnoreCase);
-            foreach (var f in merged.Filters)
-            {
-                if (f == null) continue;
-                var key = string.IsNullOrEmpty(f.Id) ? Guid.NewGuid().ToString() : f.Id;
-                if (!byId.ContainsKey(key)) byId[key] = f; // first-wins on duplicate id
-            }
+            var byId = merged.Filters.ToDictionary(
+                f => f.Id ?? Guid.NewGuid().ToString(),
+                StringComparer.OrdinalIgnoreCase);
             foreach (var pf in project.Filters)
             {
-                if (pf == null || string.IsNullOrEmpty(pf.Id)) continue;
+                if (string.IsNullOrEmpty(pf.Id)) continue;
                 byId[pf.Id] = pf;
             }
             merged.Filters = byId.Values.ToList();

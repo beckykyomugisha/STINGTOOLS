@@ -1,5 +1,5 @@
 {
-  "version": "5.15",
+  "version": "5.12",
   "description": "STING Tools master parameter registry v5.11 \u2014 Option-3-B + curation passes 1+2 (full sync to MR_PARAMETERS.txt + tag-container moves + warning threshold values + category_enum_map gap-fill). Moved 96 tag-display stubs from support_params into container_groups (1 new ARCH_TAG group + STR_TAG categories extended); set 8 real warning threshold values with UK AEC source citations (BS 8004 / EC7, BS EN 1992-1-1, BS 7671, CIBSE Guide B3 + G, LETI / RIBA 2030 Challenge, BS EN 806-3); marked 376 non-numeric warnings as check_type=presence; added 3 missing Revit categories to category_enum_map (Toposolid, Hardscape, structural sub-categories, etc.). Phase 183: bound 11 HVAC sizing-registry shared params (HVC_SEGMENT_ROLE/SIZE_PREV/SIZE_MODIFIED/SIZE_RULE_ID/PIPE_SERVICE/PRESSURE_CLASS/SIZE_STALE/REFRIGERANT_KG/REFRIGERANT_TYPE/CAPACITY_KW + PRJ_ORG_PRESSURE_PROFILE).",
   "tag_format": {
     "separator": "-",
@@ -220,7 +220,7 @@
       "guid": "e26e01ef-33d8-5a57-9ab7-fa30faa4ceff",
       "description": "Paragraph depth: compact (State 1 only)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -228,7 +228,7 @@
       "guid": "b1080057-9890-5a0c-959a-46fb8847c766",
       "description": "Paragraph depth: standard (States 1+2)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -236,7 +236,7 @@
       "guid": "825a73c0-4b3b-5474-8db5-f54072ff40b8",
       "description": "Paragraph depth: comprehensive (States 1+2+3)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -244,7 +244,7 @@
       "guid": "11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f",
       "description": "Enable/disable warning text in tags",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -259,7 +259,7 @@
       "guid": "a8194ccf-05ae-5eb4-87b5-38bacb4324fe",
       "description": "Show/hide TAG7 Section A (Identity Header)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -267,7 +267,7 @@
       "guid": "b561a313-f873-5648-a127-3e917b5f5dd0",
       "description": "Show/hide TAG7 Section B (System & Function)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -275,7 +275,7 @@
       "guid": "0e535d1a-d2eb-5b15-b954-360ad46e1a57",
       "description": "Show/hide TAG7 Section C (Spatial Context)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -283,7 +283,7 @@
       "guid": "74f5360e-4107-539f-af72-38389e7b64bd",
       "description": "Show/hide TAG7 Section D (Lifecycle & Status)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -291,7 +291,7 @@
       "guid": "fdb2ccfa-6128-545c-8b6c-6a656d418948",
       "description": "Show/hide TAG7 Section E (Technical Specs)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -299,7 +299,7 @@
       "guid": "329929ad-5f26-5d15-98b2-54604ecda858",
       "description": "Show/hide TAG7 Section F (Classification)",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -307,7 +307,7 @@
       "guid": "3ac69694-7584-5ba2-9bce-4d045ca21088",
       "description": "State visibility control tier 4",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -315,7 +315,7 @@
       "guid": "c9045501-eee6-54ce-b725-3ea589ee8025",
       "description": "State visibility control tier 5",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -323,7 +323,7 @@
       "guid": "9b913556-ac00-5a04-b53c-1e262498ad1d",
       "description": "State visibility control tier 6",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -331,7 +331,7 @@
       "guid": "8eb03b28-aaf9-5803-8e87-f0655afbf08d",
       "description": "State visibility control tier 7",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -339,7 +339,7 @@
       "guid": "dd2f491c-8806-5cd2-bb21-d3b915646070",
       "description": "State visibility control tier 8",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -347,7 +347,7 @@
       "guid": "482475c4-be76-5db3-87a6-8aac4a53dc74",
       "description": "State visibility control tier 9",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -355,7 +355,7 @@
       "guid": "8be3ef27-42ab-5668-8cd0-a376578c805a",
       "description": "State visibility control tier 10",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -384,7 +384,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
-      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001001",
       "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -392,7 +392,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
-      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001002",
       "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -400,7 +400,7 @@
     },
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
-      "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001003",
       "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
@@ -1467,7 +1467,7 @@
       "guid": "4ceac996-f3f3-5ba5-8049-06bbbd354ede",
       "description": "Tag bounding box visibility control",
       "binding": "universal",
-      "param_type": "YESNO",
+      "param_type": "TEXT",
       "required": false
     },
     {
@@ -1475,39 +1475,6 @@
       "guid": "b7f3e2a1-0001-4a01-b001-000000090001",
       "description": "Auto-select tag scale tier based on view scale",
       "binding": "universal",
-      "param_type": "YESNO",
-      "required": false
-    },
-    {
-      "param_name": "STING_GATE_DATA_STATUS_INT",
-      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0001",
-      "description": "Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge",
-      "binding": "universal",
-      "param_type": "INTEGER",
-      "required": false
-    },
-    {
-      "param_name": "STING_GATE_QA_STATUS_INT",
-      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0002",
-      "description": "QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge",
-      "binding": "universal",
-      "param_type": "INTEGER",
-      "required": false
-    },
-    {
-      "param_name": "STING_GATE_DATA_MSG_TXT",
-      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0003",
-      "description": "Data gate terse reason stamped by ComplianceScan (blank when green) — label next to the left status badge",
-      "binding": "universal",
-      "param_type": "TEXT",
-      "required": false
-    },
-    {
-      "param_name": "STING_GATE_QA_MSG_TXT",
-      "guid": "b7f3e2a1-0002-4a01-b001-0000000a0004",
-      "description": "QA gate terse reason stamped by ComplianceScan (blank when green) — label next to the right status badge",
-      "binding": "universal",
-      "param_type": "TEXT",
       "required": false
     },
     {
@@ -14864,97 +14831,6 @@
       "curated": true
     },
     {
-      "param_name": "ASS_TAG_SCHEME_TXT",
-      "guid": "2c8224df-92e0-567b-a9df-c8cd1e4402a3",
-      "description": "Project-grammar tag rendering (TagSchemeEngine) \u2014 derived from source tokens, e.g. ISO 19650 PROJECT-ORIGINATOR-VOLUME-LEVEL-DISCIPLINE-NUMBER",
-      "binding": "universal",
-      "required": false
-    },
-    {
-      "param_name": "ASS_LOD_VERIFIED_TXT",
-      "guid": "60440963-a414-5667-88f4-d12082344c4d",
-      "description": "Milestone id stamped by LOD_Stamp on elements that pass LodVerificationEngine at that milestone's LOD (e.g. deliverable-c)",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Asset",
-      "curated": true
-    },
-    {
-      "param_name": "CSI_SECTION_TXT",
-      "guid": "3c2c7d9d-93e2-5f95-a002-69b17450efe6",
-      "description": "CSI MasterFormat section (e.g. 23 31 00) resolved by CSI_Assign; reconciled against the RIB SpecLink spec TOC",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Asset",
-      "curated": true
-    },
-    {
-      "param_name": "CSI_TITLE_TXT",
-      "guid": "160a2335-1886-5503-b569-28d9e63f5a75",
-      "description": "CSI MasterFormat section title (e.g. HVAC Ducts and Casings) resolved by CSI_Assign",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Asset",
-      "curated": true
-    },
-    {
-      "param_name": "FOHLIO_REF_TXT",
-      "guid": "0ecf2056-1239-52bc-87f8-17c281e67209",
-      "description": "Fohlio item URL/ID — the link-never-duplicate key into the Owner FF&E single source of truth (Fohlio ExLink profile)",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Asset",
-      "curated": true
-    },
-    {
-      "param_name": "LTG_HOIST_WEIGHT_KG",
-      "guid": "f2ec67d7-0d9a-561b-b3f6-11b713ac468e",
-      "description": "Decorative-lighting hoist load (kg) — A1 §5 lighting schedule",
-      "datatype": "TEXT",
-      "group_id": 7,
-      "group_name": "LTG_CONTROLS",
-      "binding": "LightingFixtures",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "LTG_HOIST_MOTOR_TXT",
-      "guid": "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5",
-      "description": "Decorative-lighting hoist motor type / reference — A1 §5 lighting schedule",
-      "datatype": "TEXT",
-      "group_id": 7,
-      "group_name": "LTG_CONTROLS",
-      "binding": "LightingFixtures",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "LTG_HOIST_DROP_MM",
-      "guid": "c110503a-c776-5c6e-8298-24adf24d1fd0",
-      "description": "Decorative-lighting hoist drop distance (mm) — A1 §5 lighting schedule",
-      "datatype": "TEXT",
-      "group_id": 7,
-      "group_name": "LTG_CONTROLS",
-      "binding": "LightingFixtures",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
       "param_name": "ASS_WEIGHT_KG_NR",
       "guid": "c9c4a01f-cf9b-5557-bd1b-747b04d9d5fa",
       "description": "Ass Weight Kg [ISO 19650]",
@@ -17561,7 +17437,7 @@
     {
       "param_name": "PRJ_TB_SHOW_KEYPLAN_BOOL",
       "guid": "8dd6b517-7173-5a8d-b951-a08807fed830",
-      "description": "LEGACY -- prefer PRJ_TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]",
+      "description": "LEGACY -- prefer TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]",
       "datatype": "YESNO",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
@@ -17573,7 +17449,7 @@
     {
       "param_name": "PRJ_TB_SHOW_SCALEBAR_BOOL",
       "guid": "fa841ad5-15e1-5ec2-91bc-a69d70cf9c42",
-      "description": "LEGACY -- prefer PRJ_TB_SHOW_SCALE_BAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]",
+      "description": "LEGACY -- prefer TB_SHOW_SCALEBAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]",
       "datatype": "YESNO",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
@@ -17585,7 +17461,7 @@
     {
       "param_name": "PRJ_TB_SHOW_NORTHARROW_BOOL",
       "guid": "58c6e51f-6f22-546b-ac02-086ab6f6fbbf",
-      "description": "LEGACY -- prefer PRJ_TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]",
+      "description": "LEGACY -- prefer TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]",
       "datatype": "YESNO",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
@@ -17597,7 +17473,7 @@
     {
       "param_name": "PRJ_TB_SHOW_DISCBAND_BOOL",
       "guid": "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178",
-      "description": "LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]",
+      "description": "Show discipline colour band on title block [ISO 19650-1:2018]",
       "datatype": "YESNO",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
@@ -18807,7 +18683,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_BIM_MODE_TXT",
+      "param_name": "STING_SHEET_BIM_MODE_TXT",
       "guid": "c6796da5-3755-5074-b19f-493318188ac8",
       "description": "Per-sheet BIM mode marker -- \"BIM\" or \"NONBIM\" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]",
       "datatype": "TEXT",
@@ -18843,7 +18719,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_PROJECT_TXT",
+      "param_name": "STING_SHEET_PROJECT_TXT",
       "guid": "d6b56315-8f12-5bc5-b984-039d2b46bb77",
       "description": "ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. \"STG\"). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18855,7 +18731,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_ORIG_TXT",
+      "param_name": "STING_SHEET_ORIG_TXT",
       "guid": "94cb197e-5358-5bdb-9759-7aca37d9c15c",
       "description": "ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. \"PLNS\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18867,7 +18743,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_VOLUME_TXT",
+      "param_name": "STING_SHEET_VOLUME_TXT",
       "guid": "498273b7-a814-57e4-8316-8359609a8bdd",
       "description": "ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. \"ZZ\" / \"01\" / \"M01\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18879,7 +18755,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_LEVEL_TXT",
+      "param_name": "STING_SHEET_LEVEL_TXT",
       "guid": "43a870ab-1356-5f0e-977e-d9df46688a3b",
       "description": "ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. \"01\" / \"GF\" / \"ZZ\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18891,7 +18767,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_TYPE_TXT",
+      "param_name": "STING_SHEET_TYPE_TXT",
       "guid": "c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a",
       "description": "ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. \"DR\" drawing / \"M3\" model / \"SH\" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18903,7 +18779,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_ROLE_TXT",
+      "param_name": "STING_SHEET_ROLE_TXT",
       "guid": "75667436-72f2-5b47-af1a-2d861e754989",
       "description": "ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. \"A\" architect / \"S\" structural / \"M\" mechanical / \"E\" electrical / \"P\" plumbing / \"FP\" fire / \"LV\" landscape / \"G\" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18915,7 +18791,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_SEQ_TXT",
+      "param_name": "STING_SHEET_SEQ_TXT",
       "guid": "b11bf925-8cf7-5941-b8aa-9ccea031253d",
       "description": "ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. \"0001\"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]",
       "datatype": "TEXT",
@@ -18927,7 +18803,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_FULL_REF_TXT",
+      "param_name": "STING_SHEET_FULL_REF_TXT",
       "guid": "fdb62488-a957-546e-9c2c-95eb4c605559",
       "description": "ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. \"STG-PLNS-ZZ-01-DR-A-0001\"). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]",
       "datatype": "TEXT",
@@ -18939,7 +18815,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_OF_TOTAL_TXT",
+      "param_name": "STING_SHEET_OF_TOTAL_TXT",
       "guid": "da8b102d-0dcc-5dce-83d1-82abc3bdbab5",
       "description": "\"Sheet n of total\" string for the title block (e.g. \"03 / 12\"). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]",
       "datatype": "TEXT",
@@ -18951,7 +18827,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_DWG_SUITABILITY_DESC_TXT",
+      "param_name": "STING_SUITABILITY_DESC_TXT",
       "guid": "7d12b6b6-9c62-515e-a611-92ab4e74e93f",
       "description": "Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for \"S2\" the description is \"Shared, Non-contractual\" [BS EN ISO 19650-2:2018 _5.6 Annex A]",
       "datatype": "TEXT",
@@ -18963,7 +18839,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_FEDERATION_STATUS_TXT",
+      "param_name": "STING_FEDERATION_STATUS_TXT",
       "guid": "9ba3db45-85dd-5f83-92e3-6b9f5a07b52d",
       "description": "Federation status of the sheet's host model at issue time -- e.g. \"Federated v.4\", \"Discipline-isolated\", \"Coordination-pending\" [ISO 19650-2:2018]",
       "datatype": "TEXT",
@@ -18975,7 +18851,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_DWG_LOIN_LOD_TXT",
+      "param_name": "STING_LOIN_LOD_TXT",
       "guid": "3a2b846f-94ae-5dfd-8ab2-aa5800d48f92",
       "description": "Level of Information Need / Level of Detail at issue -- e.g. \"LOD 300\" / \"LOIN-3\" / \"LOD 350\" [BS EN 17412-1:2020]",
       "datatype": "TEXT",
@@ -18987,7 +18863,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_AUTHORISED_BY_TXT",
+      "param_name": "STING_AUTHORISED_BY_TXT",
       "guid": "862eb92a-b8c6-5429-9330-e43afd73744b",
       "description": "4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]",
       "datatype": "TEXT",
@@ -18999,9 +18875,9 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_AUTHORISED_DATE_TXT",
+      "param_name": "STING_AUTHORISED_DATE_TXT",
       "guid": "380b2001-f9db-5977-be90-a98d214353cc",
-      "description": "Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]",
+      "description": "Date of 4-eyes authorisation signature -- paired with STING_AUTHORISED_BY_TXT [ISO 19650-1:2018]",
       "datatype": "TEXT",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
@@ -19479,7 +19355,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_SHOW_NORTH_ARROW_BOOL",
+      "param_name": "TB_SHOW_NORTH_ARROW_BOOL",
       "guid": "0981c0a9-7805-568a-8fee-abb012f6239c",
       "description": "Visibility toggle for nested north arrow [STING TB v1]",
       "datatype": "YESNO",
@@ -19491,7 +19367,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_SHOW_SCALE_BAR_BOOL",
+      "param_name": "TB_SHOW_SCALEBAR_BOOL",
       "guid": "afcd0647-42e0-537f-bd18-5f46ed1871df",
       "description": "Visibility toggle for nested scale bar [STING TB v1]",
       "datatype": "YESNO",
@@ -19503,7 +19379,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_SHOW_KEY_PLAN_BOOL",
+      "param_name": "TB_SHOW_KEY_PLAN_BOOL",
       "guid": "9a64e982-1b97-5922-9831-0948aaf1cf76",
       "description": "Visibility toggle for nested key plan [STING TB v1]",
       "datatype": "YESNO",
@@ -19515,7 +19391,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_SHOW_REV_TABLE_BOOL",
+      "param_name": "TB_SHOW_REV_TABLE_BOOL",
       "guid": "da7b6ce4-8e29-5985-9211-2c5a917bbc4b",
       "description": "Visibility toggle for embedded revision schedule [STING TB v1]",
       "datatype": "YESNO",
@@ -19527,7 +19403,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_SHOW_QR_CODE_BOOL",
+      "param_name": "TB_SHOW_QR_CODE_BOOL",
       "guid": "77246dff-2e64-5986-baa8-7ba6d38a8e1b",
       "description": "Visibility toggle for QR code stamp [STING TB v1]",
       "datatype": "YESNO",
@@ -19539,7 +19415,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_SHOW_COMPANY_STRIP_BOOL",
+      "param_name": "TB_SHOW_COMPANY_STRIP_BOOL",
       "guid": "46ee0d08-0b63-55af-9099-9b1f4a11e2a9",
       "description": "Visibility toggle for company info strip logo address contacts [STING TB v1]",
       "datatype": "YESNO",
@@ -19551,7 +19427,7 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL",
+      "param_name": "TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL",
       "guid": "fcd1f7f2-8b64-5cd7-9d27-982d604a231e",
       "description": "Visibility toggle for discipline color strip [STING TB v1]",
       "datatype": "YESNO",
@@ -19779,22 +19655,10 @@
       "curated": true
     },
     {
-      "param_name": "PRJ_SHEET_SEQUENCE_INT",
+      "param_name": "STING_SHEET_SEQUENCE_INT",
       "guid": "a7c0b2e4-4d91-4a55-9c7e-aa0001000005",
       "description": "Production sheet sequence number [STING DT v137]",
       "datatype": "INTEGER",
-      "group_id": 27,
-      "group_name": "STING_DRAWING",
-      "binding": "project",
-      "required": false,
-      "discipline": "STING",
-      "curated": true
-    },
-    {
-      "param_name": "STING_SHEET_CONTEXT_TXT",
-      "guid": "a7c0b2e4-4d91-4a55-9c7e-aa0001000006",
-      "description": "Production context (level / scope box / room) this sheet was produced for [STING DT v137]",
-      "datatype": "TEXT",
       "group_id": 27,
       "group_name": "STING_DRAWING",
       "binding": "project",
@@ -20226,7 +20090,7 @@
       "param_name": "CLN_HOIST_TRACK_BOOL",
       "guid": "c8d4f6e2-a017-4d27-8c61-0e7a3f9b0017",
       "description": "Ceiling-hoist track installed",
-      "datatype": "TEXT",
+      "datatype": "YESNO",
       "group_id": 28,
       "group_name": "CLN_CLINICAL",
       "binding": "universal",
@@ -25601,606 +25465,6 @@
       "required": false,
       "discipline": "Structural",
       "curated": true
-    },
-    {
-      "param_name": "SUS_ENERGY_KWH_M2_NR",
-      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c01",
-      "description": "Design annual energy use intensity (EUI) in kWh/m2.yr from AnnualEnergyEstimator [Phase 195 EDGE/LEED]",
-      "datatype": "NUMBER",
-      "group_id": 35,
-      "group_name": "SUS_SUSTAINABILITY",
-      "binding": "project",
-      "required": false,
-      "discipline": "Sustainability",
-      "curated": true
-    },
-    {
-      "param_name": "SUS_WATER_L_PD_NR",
-      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c02",
-      "description": "Design water use in litres per person per day from AnnualWaterEstimator [Phase 195 EDGE/LEED]",
-      "datatype": "NUMBER",
-      "group_id": 35,
-      "group_name": "SUS_SUSTAINABILITY",
-      "binding": "project",
-      "required": false,
-      "discipline": "Sustainability",
-      "curated": true
-    },
-    {
-      "param_name": "SUS_MAT_CARBON_KGM2_NR",
-      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03",
-      "description": "Embodied carbon intensity kgCO2e/m2 (A1-A3 GWP EN 15978) from MaterialsRollup [Phase 195 EDGE/LEED]",
-      "datatype": "NUMBER",
-      "group_id": 35,
-      "group_name": "SUS_SUSTAINABILITY",
-      "binding": "project",
-      "required": false,
-      "discipline": "Sustainability",
-      "curated": true
-    },
-    {
-      "param_name": "SUS_MAT_ENERGY_MJ_M2_NR",
-      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04",
-      "description": "Embodied energy intensity MJ/m2 (CED EDGE materials track) from MaterialsRollup [Phase 195 EDGE/LEED]",
-      "datatype": "NUMBER",
-      "group_id": 35,
-      "group_name": "SUS_SUSTAINABILITY",
-      "binding": "project",
-      "required": false,
-      "discipline": "Sustainability",
-      "curated": true
-    },
-    {
-      "param_name": "SUS_EDGE_LEVEL_TXT",
-      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05",
-      "description": "Achieved EDGE level (None / Certified / Advanced / ZeroCarbon) from SchemeEvaluator [Phase 195 EDGE/LEED]",
-      "datatype": "TEXT",
-      "group_id": 35,
-      "group_name": "SUS_SUSTAINABILITY",
-      "binding": "project",
-      "required": false,
-      "discipline": "Sustainability",
-      "curated": true
-    },
-    {
-      "param_name": "SUS_EPD_REF_TXT",
-      "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06",
-      "description": "Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED]",
-      "datatype": "TEXT",
-      "group_id": 35,
-      "group_name": "SUS_SUSTAINABILITY",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Sustainability",
-      "curated": true
-    },
-    {
-      "param_name": "MAT_COST_SUPPLY_NR",
-      "guid": "114852b0-7002-5680-80cd-930f91e8250b",
-      "description": "Material supply unit cost (rate only, currency-neutral) [Material Manager RFQ]",
-      "datatype": "NUMBER",
-      "group_id": 12,
-      "group_name": "MAT_INFO",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Materials",
-      "curated": true
-    },
-    {
-      "param_name": "MAT_COST_INSTALL_NR",
-      "guid": "0621af78-0fbf-540e-9e6d-61df9925ae90",
-      "description": "Material install unit cost (labour and plant) [Material Manager RFQ]",
-      "datatype": "NUMBER",
-      "group_id": 12,
-      "group_name": "MAT_INFO",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Materials",
-      "curated": true
-    },
-    {
-      "param_name": "MAT_VAT_PCT_NR",
-      "guid": "9794f566-efc2-5622-a23f-9e65e117eb48",
-      "description": "Material VAT percentage applied to supply and install [Material Manager RFQ]",
-      "datatype": "NUMBER",
-      "group_id": 12,
-      "group_name": "MAT_INFO",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Materials",
-      "curated": true
-    },
-    {
-      "param_name": "STING_EMB_CARBON_NR",
-      "guid": "800e0d61-f88d-5071-bc87-0c4ca3e51243",
-      "description": "Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon]",
-      "datatype": "NUMBER",
-      "group_id": 12,
-      "group_name": "MAT_INFO",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Materials",
-      "curated": true
-    },
-    {
-      "param_name": "STING_MAT_EPD_SRC_TXT",
-      "guid": "2776ca48-33b8-57a8-b2a6-ee982e442767",
-      "description": "EPD data source / publisher reference [Sustainability Carbon]",
-      "datatype": "TEXT",
-      "group_id": 12,
-      "group_name": "MAT_INFO",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Materials",
-      "curated": true
-    },
-    {
-      "param_name": "STING_MAT_EPD_DATE_TXT",
-      "guid": "c02ad751-5de9-50cc-a018-d7469595f8cf",
-      "description": "EPD publication / validity date ISO 8601 [Sustainability Carbon]",
-      "datatype": "TEXT",
-      "group_id": 12,
-      "group_name": "MAT_INFO",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Materials",
-      "curated": true
-    },
-    {
-      "param_name": "STING_MAT_LIFECYCLE_TXT",
-      "guid": "e5455edb-f4f9-5585-a65e-363aa31f0b59",
-      "description": "Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager]",
-      "datatype": "TEXT",
-      "group_id": 12,
-      "group_name": "MAT_INFO",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Materials",
-      "curated": true
-    },
-    {
-      "param_name": "SUS_FIXTURE_FLOW_LPM",
-      "guid": "b9c085ac-8d25-5286-bb8c-50f78c515e7c",
-      "description": "Sanitary fixture flow rate l/min, WELS water efficiency [Sustainability EDGE]",
-      "datatype": "NUMBER",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "SUS_FIXTURE_FLUSH_L",
-      "guid": "733de214-c4aa-5640-896c-ff9c472c8dfd",
-      "description": "WC/urinal flush volume litres, WELS water efficiency [Sustainability EDGE]",
-      "datatype": "NUMBER",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_REF_TXT",
-      "guid": "dd54810b-00a1-55eb-a388-8a37eea1aa9c",
-      "description": "Circuit reference / designation for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_VOLTAGE_TXT",
-      "guid": "a4618f96-d723-5366-8961-4acfb94e2b60",
-      "description": "Circuit nominal voltage for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_DESIGN_CURRENT_TXT",
-      "guid": "0a442c44-90fa-5d48-b11f-fca5d4cb4407",
-      "description": "Circuit design current Ib for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_DESIGN_LOAD_TXT",
-      "guid": "edd91653-9ccc-580a-af7f-554193b52d4c",
-      "description": "Circuit connected/design load for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_FAULT_LEVEL_TXT",
-      "guid": "f9bc09f0-ca10-511f-9d0d-6c92e3da775c",
-      "description": "Prospective fault level for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_BREAKER_RATING_TXT",
-      "guid": "d4ceb9cd-fc26-5c0d-9fc9-fea42b6d56da",
-      "description": "Protective device rating for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_ZS_TXT",
-      "guid": "6d0798f2-612f-5576-9ad0-a5e824e87ba2",
-      "description": "Earth-fault loop impedance Zs for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIR_DIVERSITY_FACTOR_TXT",
-      "guid": "ef54f174-8dae-5080-8789-ae7eb49e4da1",
-      "description": "Applied diversity factor for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CABLE_CSA_TXT",
-      "guid": "35388573-c2c4-5b1f-95b2-c5e02340682b",
-      "description": "Cable conductor cross-section for SLD annotation [Electrical SLD]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CIRCUIT_TRACE_ACTIVE",
-      "guid": "5311f1a3-f770-5f4a-bb70-4ac466bb9fbf",
-      "description": "Circuit-trace highlight flag (active element marker) [Electrical]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_CDT_STALE_ANNOT_BOOL",
-      "guid": "c449c9ee-acc2-5961-b400-5ef7049d2169",
-      "description": "Conduit wire annotation is stale and needs refresh [Electrical]",
-      "datatype": "YESNO",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_RECONCILE_DRIFT_BOOL",
-      "guid": "2e92fb04-df99-51d1-a450-739a4a943a27",
-      "description": "Conduit reconciliation drift flag [Electrical]",
-      "datatype": "YESNO",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "ELC_WIRE_BEND_COUNT_INT",
-      "guid": "39ad1df7-28c0-5144-a8a5-b4963df20a94",
-      "description": "Conduit bend count for BS 7671 pull validation [Electrical]",
-      "datatype": "INTEGER",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "STING_CONDUIT_FILL_SUMMARY_TXT",
-      "guid": "7cd6fb48-fe09-54c6-af5d-73ade7627e17",
-      "description": "Conduit fill summary string for audit reporting [Electrical]",
-      "datatype": "TEXT",
-      "group_id": 4,
-      "group_name": "ELC_PWR",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Electrical",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_CONN_FROM_TAG",
-      "guid": "0034f546-a7a6-5be0-9789-dd2124edd868",
-      "description": "Routed pipe connection-from fixture tag [Plumbing routing]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_CONN_TO_TAG",
-      "guid": "69d9ba42-3973-5428-82af-18a5907ae9a9",
-      "description": "Routed pipe connection-to fixture tag [Plumbing routing]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_NOMINAL_DIA_MM",
-      "guid": "bbad6a0a-5b5d-5a47-a2e4-62a66d38d861",
-      "description": "Routed pipe nominal diameter mm [Plumbing routing]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_PIPE_SERVICE_TXT",
-      "guid": "2f15c878-6cfe-5a8f-a725-2c329a3c0c4e",
-      "description": "Pipe service type stamp (SoilWaste/ColdWaterSupply/etc) [Plumbing routing]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_PRESSURE_KPA",
-      "guid": "de1041d9-47fb-5e65-9010-ec50f188a112",
-      "description": "Pipe pressure-zone value kPa [Plumbing]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_SLOPE_PCT_V4",
-      "guid": "d71d2cee-95fc-519b-8d61-bb28173c1413",
-      "description": "Drainage pipe slope percent (BS EN 12056-2 validation) [Plumbing]",
-      "datatype": "TEXT",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "PLM_TMV_KVS",
-      "guid": "45c2deda-df6a-56bd-8004-fe9c88744aa5",
-      "description": "TMV flow coefficient Kvs for flow-rate calc (BS 8680) [Plumbing]",
-      "datatype": "NUMBER",
-      "group_id": 6,
-      "group_name": "PLM_DRN",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Plumbing",
-      "curated": true
-    },
-    {
-      "param_name": "ASS_OPTION_SET_TXT",
-      "guid": "a7c0b2e4-d000-4002-9c7e-7f6e5d4c3b2a",
-      "description": "Design option set name carried on the element [Design Options]",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Multi",
-      "curated": true
-    },
-    {
-      "param_name": "ASS_OPTION_PRIMARY_BOOL",
-      "guid": "a7c0b2e4-d000-4003-9c7e-7f6e5d4c3b2a",
-      "description": "Element lives in a primary design option [Design Options]",
-      "datatype": "YESNO",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Multi",
-      "curated": true
-    },
-    {
-      "param_name": "ASS_LAST_PARA_CONTAINER_TXT",
-      "guid": "d026a860-0000-5d0f-8f9a-192fef886734",
-      "description": "Cache of the last TAG7 paragraph container written [Tagging]",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Multi",
-      "curated": true
-    },
-    {
-      "param_name": "STING_COMPOUND_PARENT_ID",
-      "guid": "2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F",
-      "description": "Parent compound-symbol element id (multi-connector grouping) [Symbols]",
-      "datatype": "TEXT",
-      "group_id": 1,
-      "group_name": "ASS_MNG",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Multi",
-      "curated": true
-    },
-    {
-      "param_name": "IFC_GLOBAL_ID_TXT",
-      "guid": "c3e0ef84-0950-55cf-a5b2-d1cc67786128",
-      "description": "Stable IFC GlobalId snapshot for cross-host sync [IFC interop]",
-      "datatype": "TEXT",
-      "group_id": 22,
-      "group_name": "IFC_EXCH",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Multi",
-      "curated": true
-    },
-    {
-      "param_name": "SHT_REV_DATE_TXT",
-      "guid": "ab506594-63fa-5981-8653-48164bef8737",
-      "description": "Sheet revision date synced by TitleBlockRevisionSyncer [Drawing]",
-      "datatype": "TEXT",
-      "group_id": 27,
-      "group_name": "STING_DRAWING",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Documentation",
-      "curated": true
-    },
-    {
-      "param_name": "CLASH_LIVE_FLAG",
-      "guid": "c08f13d1-d442-5afb-a986-81289fd261e4",
-      "description": "Element is flagged by live clash detection [Clash]",
-      "datatype": "YESNO",
-      "group_id": 20,
-      "group_name": "CLASH_COORDINATION",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Coordination",
-      "curated": true
-    },
-    {
-      "param_name": "CLASH_COUNT_INT",
-      "guid": "2f60d397-1bd5-5115-916e-d9d917e3d167",
-      "description": "Count of active clashes on this element [Clash]",
-      "datatype": "INTEGER",
-      "group_id": 20,
-      "group_name": "CLASH_COORDINATION",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Coordination",
-      "curated": true
-    },
-    {
-      "param_name": "STING_VIEW_TOKEN_MASK_TXT",
-      "guid": "F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E",
-      "description": "Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]",
-      "datatype": "TEXT",
-      "group_id": 36,
-      "group_name": "STING_VIEWPARAMS",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Documentation",
-      "curated": true
-    },
-    {
-      "param_name": "STING_PLACED_BY_SYMBOL_PLACER_BOOL",
-      "guid": "8a7365eb-60a1-5224-90d2-d0176ff2e65f",
-      "description": "Idempotency stamp: instance was placed by the STING symbol placer [Symbols]",
-      "datatype": "YESNO",
-      "group_id": 37,
-      "group_name": "STING_PLACER",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Symbols",
-      "curated": true
-    },
-    {
-      "param_name": "STING_PLACER_ASSY_ID_TXT",
-      "guid": "5e189877-e121-53f8-ac57-849685c272e6",
-      "description": "Source assembly element id for the placed symbol (undo/idempotency) [Symbols]",
-      "datatype": "TEXT",
-      "group_id": 37,
-      "group_name": "STING_PLACER",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Symbols",
-      "curated": true
-    },
-    {
-      "param_name": "STING_PLACER_MEMBER_ID_TXT",
-      "guid": "091ab7ea-32fc-57dd-94e4-89a0af05c31c",
-      "description": "Source assembly-member element id for the placed symbol [Symbols]",
-      "datatype": "TEXT",
-      "group_id": 37,
-      "group_name": "STING_PLACER",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Symbols",
-      "curated": true
-    },
-    {
-      "param_name": "STING_PLACER_SYMBOL_CODE_TXT",
-      "guid": "f44c8c2c-5981-517e-91e0-2a1c2970a74d",
-      "description": "Resolved symbol code stamped on the placed symbol [Symbols]",
-      "datatype": "TEXT",
-      "group_id": 37,
-      "group_name": "STING_PLACER",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Symbols",
-      "curated": true
-    },
-    {
-      "param_name": "STING_PLACER_VIEW_ID_TXT",
-      "guid": "e2b1686a-8c6a-5db8-ba02-144add1cc43f",
-      "description": "View id where the symbol was placed (per-view idempotency) [Symbols]",
-      "datatype": "TEXT",
-      "group_id": 37,
-      "group_name": "STING_PLACER",
-      "binding": "universal",
-      "required": false,
-      "discipline": "Symbols",
-      "curated": true
     }
   ],
   "token_presets": {
@@ -26645,9 +25909,7 @@
         "Pipe Fittings",
         "Pipe Accessories",
         "Flex Pipes",
-        "Plumbing Fixtures",
-        "Plumbing Equipment",
-        "Pipe Insulation"
+        "Plumbing Fixtures"
       ],
       "params": [
         {
@@ -28218,12 +27480,12 @@
       "params": [
         {
           "param_name": "SLV_TAG",
-          "guid": "fa93b8a1-3383-5c1f-8935-0dadba420f50",
+          "guid": "00000000-0000-0000-0000-000000000000",
           "description": "MEP Sleeve discipline tag container"
         },
         {
           "param_name": "SLV_TAG_7_PARA_TXT",
-          "guid": "4529fc89-90fb-56f9-955a-2d54998a294c",
+          "guid": "00000000-0000-0000-0000-000000000001",
           "description": "MEP Sleeve TAG7 paragraph container"
         }
       ]
@@ -32597,7 +31859,6 @@
     "Mass": "OST_Mass",
     "Mechanical Control Devices": "OST_MechanicalControlDevices",
     "Mechanical Equipment": "OST_MechanicalEquipment",
-    "MEP Spaces": "OST_MEPSpaces",
     "Mechanical Equipment Sets": "OST_MechanicalEquipmentSets",
     "Medical Equipment": "OST_MedicalEquipment",
     "Model Groups": "OST_IOSModelGroups",
@@ -32610,7 +31871,6 @@
     "Pipe Insulation": "OST_PipeInsulations",
     "Pipe Placeholders": "OST_PlaceHolderPipes",
     "Pipes": "OST_PipeCurves",
-    "Project Information": "OST_ProjectInformation",
     "Piping Systems": "OST_PipingSystem",
     "Planting": "OST_Planting",
     "Plumbing Equipment": "OST_PlumbingEquipment",
@@ -32626,7 +31886,6 @@
     "Roads": "OST_Roads",
     "Roof Soffits": "OST_RoofSoffit",
     "Roofs": "OST_Roofs",
-    "Sheets": "OST_Sheets",
     "Shaft Openings": "OST_ShaftOpening",
     "Rooms": "OST_Rooms",
     "Security Devices": "OST_SecurityDevices",
@@ -32664,8 +31923,6 @@
     "Vertical Circulation": "OST_VerticalCirculation",
     "Wall Sweeps": "OST_WallSweeps",
     "Walls": "OST_Walls",
-    "Views": "OST_Views",
-    "Title Blocks": "OST_TitleBlocks",
     "Wash": "OST_Planting",
     "Windows": "OST_Windows",
     "Wire": "OST_Wire",

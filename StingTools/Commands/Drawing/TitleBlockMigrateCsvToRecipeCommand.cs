@@ -29,7 +29,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 string csvPath = LocateCsv(doc, "TITLE_BLOCK.csv");

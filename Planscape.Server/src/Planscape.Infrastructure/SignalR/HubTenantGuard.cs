@@ -14,15 +14,6 @@ namespace Planscape.Infrastructure.SignalR;
 /// </summary>
 internal static class HubTenantGuard
 {
-    /// <summary>
-    /// The connection's own tenant, straight from its claims. Same source the gates below
-    /// use, exposed because G2's LiveKit room name is tenant-scoped and the hub has to
-    /// build it. <see cref="Guid.Empty"/> when absent or unparseable — callers must treat
-    /// that as "no tenant" and skip, never as a wildcard.
-    /// </summary>
-    public static Guid TenantIdOf(ClaimsPrincipal? user)
-        => Guid.TryParse(user?.FindFirst("tenant_id")?.Value, out var t) ? t : Guid.Empty;
-
     public static async Task<bool> OwnsProjectAsync(
         ClaimsPrincipal? user, PlanscapeDbContext db, Guid projectId)
     {

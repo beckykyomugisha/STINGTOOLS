@@ -136,9 +136,9 @@ namespace StingTools.BOQ
             if (string.IsNullOrEmpty(materialName) || materialName == "(no material)") return "";
             try
             {
-                // WP6 — O(1) per-document name→Material cache instead of a fresh
-                // FilteredElementCollector(Material) for every distinct material.
-                var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, materialName);
+                var mat = new FilteredElementCollector(doc).OfClass(typeof(Material))
+                    .Cast<Material>()
+                    .FirstOrDefault(m => string.Equals(m.Name, materialName, StringComparison.OrdinalIgnoreCase));
                 return mat?.MaterialClass ?? "";
             }
             catch (Exception ex) { StingLog.WarnRateLimited("BOQByMat.Class", $"ResolveMaterialClass: {ex.Message}"); return ""; }

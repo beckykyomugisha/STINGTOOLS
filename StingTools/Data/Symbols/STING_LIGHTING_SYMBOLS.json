@@ -10,7 +10,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.0,
-      "realSizeMm": 150,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -82,7 +81,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.0,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -158,7 +156,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.0,
-      "realSizeMm": 250,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -242,7 +239,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.5,
-      "realSizeMm": 300,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -296,7 +292,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.0,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -343,7 +338,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 10.0,
-      "realSizeMm": 1500,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -430,7 +424,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 12.0,
-      "realSizeMm": 1200,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -502,7 +495,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 12.0,
-      "realSizeMm": 1200,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -573,7 +565,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 10.0,
-      "realSizeMm": 1000,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -644,7 +635,6 @@
       "discipline": "Electrical",
       "subcategory": "Emergency",
       "symbolSize": 4.0,
-      "realSizeMm": 250,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -714,7 +704,6 @@
       "discipline": "Electrical",
       "subcategory": "Emergency",
       "symbolSize": 4.0,
-      "realSizeMm": 250,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -763,7 +752,6 @@
       "discipline": "Electrical",
       "subcategory": "Emergency",
       "symbolSize": 5.0,
-      "realSizeMm": 250,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -840,7 +828,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -895,7 +882,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 3.5,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -955,7 +941,6 @@
       "discipline": "Electrical",
       "subcategory": "External",
       "symbolSize": 5.0,
-      "realSizeMm": 400,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1038,7 +1023,6 @@
       "discipline": "Electrical",
       "subcategory": "External",
       "symbolSize": 2.5,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1093,7 +1077,6 @@
       "discipline": "Electrical",
       "subcategory": "External",
       "symbolSize": 4.5,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1172,7 +1155,6 @@
       "discipline": "Electrical",
       "subcategory": "Industrial",
       "symbolSize": 6.0,
-      "realSizeMm": 500,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1239,7 +1221,6 @@
       "discipline": "Electrical",
       "subcategory": "Industrial",
       "symbolSize": 5.0,
-      "realSizeMm": 400,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1293,7 +1274,6 @@
       "discipline": "Electrical",
       "subcategory": "Industrial",
       "symbolSize": 4.0,
-      "realSizeMm": 300,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1342,7 +1322,6 @@
       "discipline": "Electrical",
       "subcategory": "Specialist",
       "symbolSize": 8.0,
-      "realSizeMm": 600,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1425,7 +1404,6 @@
       "discipline": "Electrical",
       "subcategory": "Specialist",
       "symbolSize": 5.0,
-      "realSizeMm": 350,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1480,8 +1458,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 4.0,
-      "realSizeMm": 200,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1548,7 +1524,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 3.5,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "CIRCUIT_REF",
@@ -1611,7 +1586,6 @@
       "discipline": "Electrical",
       "subcategory": "Lighting",
       "symbolSize": 3.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "CIRCUIT_REF",

@@ -31,7 +31,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 var sheets = new FilteredElementCollector(doc)
@@ -68,26 +68,15 @@ namespace StingTools.Commands.Drawing
                     if (hasRecipe)
                     {
                         var dt = DrawingTypeRegistry.Get(doc, dtId);
-                        if (dt != null)
+                        if (dt != null && !string.IsNullOrEmpty(dt.TitleBlockFamily))
                         {
-                            // P5 — compare the live family against the CONCRETE
-                            // family the resolver maps the profile to, not the
-                            // logical name (else every sheet false-flags a swap).
-                            string declared = dt.TitleBlockFamily;
-                            try { declared = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                            if (string.IsNullOrWhiteSpace(declared)) declared = dt.TitleBlockFamily;
-                            string concrete = declared;
-                            try { concrete = TitleBlockResolver.ToConcreteFamily(doc, dt, declared); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                            if (!string.IsNullOrEmpty(concrete))
+                            foreach (var tb in tbs)
                             {
-                                foreach (var tb in tbs)
+                                var liveFam = tb.Symbol?.FamilyName ?? "(unknown)";
+                                if (!string.Equals(liveFam, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    var liveFam = tb.Symbol?.FamilyName ?? "(unknown)";
-                                    if (!string.Equals(liveFam, concrete, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        familySwap.Add($"{s.SheetNumber}  live='{liveFam}'  profile='{concrete}'");
-                                        break;
-                                    }
+                                    familySwap.Add($"{s.SheetNumber}  live='{liveFam}'  profile='{dt.TitleBlockFamily}'");
+                                    break;
                                 }
                             }
                         }

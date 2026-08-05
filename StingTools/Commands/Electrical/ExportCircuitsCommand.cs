@@ -25,7 +25,8 @@ namespace StingTools.Commands.Electrical
             string outDir;
             try
             {
-                outDir = StingPaths.Meta(doc, "_BIM_COORD", "electrical");
+                var projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? Path.GetTempPath();
+                outDir = Path.Combine(projDir, "_BIM_COORD", "electrical");
             }
             catch { outDir = Path.Combine(Path.GetTempPath(), "STING", "electrical"); }
 

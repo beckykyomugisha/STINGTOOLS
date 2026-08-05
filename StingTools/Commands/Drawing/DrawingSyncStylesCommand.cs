@@ -32,7 +32,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 // Phase 183 — pick up views affected by on-disk profile /
@@ -104,8 +104,7 @@ namespace StingTools.Commands.Drawing
                             AnnotationOptions = new AnnotationRunOptions
                             {
                                 SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                            },
-                            SkipSymbolDriftCheck = true // heal pass — drift is handled separately
+                            }
                         });
                         if (applied.Warnings.Count > 0)
                             warnings.AddRange(applied.Warnings.Select(w => $"[{v.Name}] {w}"));
@@ -171,7 +170,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 var reports = DrawingDriftDetector.Scan(doc)
@@ -211,8 +210,7 @@ namespace StingTools.Commands.Drawing
                             AnnotationOptions = new AnnotationRunOptions
                             {
                                 SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                            },
-                            SkipSymbolDriftCheck = true // heal pass — drift is handled separately
+                            }
                         });
                         if (applied.ScaleApplied || applied.DetailLevelApplied
                             || applied.TemplateApplied || applied.PackApplied

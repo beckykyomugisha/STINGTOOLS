@@ -58,10 +58,12 @@ namespace StingTools.Core.Mcp
             var list = new List<McpToolDescriptor>();
             try
             {
-                // Single source of the command enumeration — shared with the always-compiled
-                // capability catalogue (StingTools.Mcp.McpCommandScan) so there is one scan.
-                foreach (Type t in StingTools.Mcp.McpCommandScan.AllCommandTypes())
+                var asm = Assembly.GetExecutingAssembly();
+                foreach (Type t in asm.GetTypes())
                 {
+                    if (t.IsAbstract || t.IsInterface) continue;
+                    if (!typeof(IExternalCommand).IsAssignableFrom(t)) continue;
+
                     var desc = new McpToolDescriptor
                     {
                         Name = DeriveToolName(t),

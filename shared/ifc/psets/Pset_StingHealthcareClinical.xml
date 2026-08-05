@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingHealthcareClinical</Name>
+    <Definition>STING healthcare clinical parameters — infection control, pressure regime, medical gas, anti-ligature, and radiation protection data. Written by the Healthcare Pack commands (H-1..H-30) and associated validators.</Definition>
+    <IfdGuid>uuid:a1d15c11-0008-4001-9000-000000000008</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.7.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>HTM 02-01 (medical gas); HBN series (room classes); HTM 04-01 (water hygiene); BS EN ISO 7396-1; NFPA 99 §5.1; NCRP 147; IPEM Report 75; BS 8300 (anti-ligature)</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_TYPEDRIVENOVERRIDE</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcSpace</ApplicableEntity>
+    <ApplicableEntity>IfcZone</ApplicableEntity>
+    <ApplicableEntity>IfcElement</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="CLN_ROOM_CLASS_TXT" cardinality="optional">
+      <Definition>HBN / HTM room class code identifying the clinical function (e.g. SingleBedroom, TheatreMain, IsolationRoom, ICU).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="CLN_PRESSURE_PA" cardinality="optional">
+      <Definition>Room pressure regime (Pa) relative to the adjacent corridor — positive for protective isolation, negative for source isolation.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>Pa</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="CLN_PRESSURE_REGIME_TXT" cardinality="optional">
+      <Definition>Pressure regime classification: Positive / Negative / Neutral / Isolation (matched against HTM 03-01 and ASHRAE 170 tables).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="CLN_ACH" cardinality="optional">
+      <Definition>Design air change rate (ACH — air changes per hour) for this clinical space.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>1/h</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="CLN_INFECTION_CONTROL_TXT" cardinality="optional">
+      <Definition>Infection control zone classification: Standard / Enhanced / Protective / SourceIsolation / UltraClean.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="MGS_GAS_TYPE_TXT" cardinality="optional">
+      <Definition>Medical gas type at this terminal unit or pipeline segment: O2 / N2O / MedAir / SurgAir / Vac / AGSS / CO2.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="MGS_FLOW_LS" cardinality="optional">
+      <Definition>Medical gas design flow rate (L/s) at this outlet per NFPA 99 §5.1.13 / HTM 02-01 sizing tables.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>L/s</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="MGS_OUTLET_COUNT" cardinality="optional">
+      <Definition>Number of terminal outlet units in this space or on this equipment item.</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="MGS_SYSTEM_REF_TXT" cardinality="optional">
+      <Definition>MGPS zone or pipeline system reference from the medical gas network graph (MgasNetwork).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="LIG_AREA_OBS_LOS_TXT" cardinality="optional">
+      <Definition>Anti-ligature: observation / line-of-sight requirement for this area — DirectObservation / CCTV / Unobserved.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="LIG_ANCHOR_COMPLIANT_BOOL" cardinality="optional">
+      <Definition>True when all ceiling and wall anchor points in this space are anti-ligature compliant per BS 8300 and Trust policy.</Definition>
+      <DataType>IfcBoolean</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="RAD_LEAD_MM_NR" cardinality="optional">
+      <Definition>Radiation shielding lead equivalent thickness (mm Pb) required for this wall, floor, or ceiling element.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="RAD_WORKLOAD_W_MBQ" cardinality="optional">
+      <Definition>Radiation source workload (W · MBq) used in the NCRP 147 shielding calculation for this room.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>W MBq</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="RAD_AREA_CLASSIFICATION_TXT" cardinality="optional">
+      <Definition>NCRP 147 / IPEM radiation area classification: ControlledArea / SupervisedArea / UncontrolledArea / PublicArea.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CorporateLock>
+    <Sha256>PENDING_FINALISATION</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

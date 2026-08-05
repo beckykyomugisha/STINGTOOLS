@@ -27,7 +27,7 @@
 
   // STEP-0 SERVED marker — bumped per slice so a marker grep on the *served*
   // bundle proves the running container has this exact change.
-  var STING_MEETING_BUILD = "s2-latejoin";
+  var STING_MEETING_BUILD = "meet-discover";
   try { console.log("[livekit] STING_MEETING_BUILD " + STING_MEETING_BUILD); } catch (e) {}
 
   var params = new URLSearchParams(location.search);
@@ -86,15 +86,6 @@
   window.addEventListener("sting:screenShareStopped", function () { if (state.isPresenter && state.surface === "screen") setSurface("model"); });
   // M2 — a markup op (add stroke / clear / grant) arrived from a participant.
   window.addEventListener("sting:docMarkupChanged", function (e) { onRemoteMarkup(e.detail || {}); });
-  // S2 — late-join replay. meeting-sync.js owns the hub round-trip; livekit-av.js
-  // owns the markup canvas, so it answers with a snapshot and applies one.
-  // The request uses a synchronous CustomEvent whose detail is filled in place —
-  // that keeps the two files decoupled and works before A/V is joined (window
-  // .STING_LIVEKIT only exists after a Join, but markup does not need it).
-  window.addEventListener("sting:markupSnapshotRequest", function (e) {
-    if (e && e.detail) e.detail.snapshot = markupSnapshot();
-  });
-  window.addEventListener("sting:docMarkupReplay", function (e) { applyMarkupSnapshot(e.detail); });
   // M3 — host moderation: self-mute on "mute all", leave on "removed".
   window.addEventListener("sting:selfMute", function () {
     if (state.room && state.micOn) { state.micOn = false; state.room.localParticipant.setMicrophoneEnabled(false).catch(noop); paintBtn("lkMic", false, "🎤", "🔇"); }
@@ -105,13 +96,8 @@
   window.addEventListener("sting:meetLayout", function (e) {
     var mode = (e.detail && e.detail.mode) || "pip";
     var bar = document.getElementById("lkBar"); if (!bar) return;
-    // Every mode now docks right. Bottom-centre put the Join button straight
-    // on top of the nav-controls cluster (Orbit / Pan / Walk / Fit …) and the
-    // level strip, so the two fought for the same pixels and the button was
-    // unclickable in places. Right is the only bottom edge with nothing
-    // competing for it once we clear the minimap.
-    bar.style.left = "auto"; bar.style.right = "12px"; bar.style.transform = "none";
-    positionBarAboveTray(bar);
+    if (mode === "sidebar") { bar.style.left = "auto"; bar.style.right = "12px"; bar.style.transform = "none"; }
+    else { bar.style.left = "50%"; bar.style.right = "auto"; bar.style.transform = "translateX(-50%)"; }
   });
   // N2 — the host started/stopped recording (MeetingHub RecordingChanged); show the
   // consent "● REC" indicator to EVERYONE.
@@ -195,7 +181,7 @@
       .then(function () { setStatus("live"); setLobby("live"); renderTiles(); emitAvState(); refreshRecordingState(); return enableDevices(); })
       .catch(function (e) {
         console.warn("[livekit] connect failed", e);
-        setStatus("offline"); setLobby("error", joinFailReason(e));
+        setStatus("offline"); setLobby("error");
         state.joined = false; showLobbyControls();
       });
 
@@ -726,32 +712,6 @@
     MARKUP.strokes = []; MARKUP.cur = null; renderMarkup();
     try { window.STING_MEETING && window.STING_MEETING.broadcastDocMarkup({ op: "clear" }); } catch (e) {}
   }
-
-  // ── S2 — late-join markup replay ──────────────────────────────────────────
-  // What a tab that joined mid-session missed: the strokes already on the canvas,
-  // whether the host has granted markup to everyone, and (if the room is on the
-  // document surface) WHICH document — otherwise it sits on the model while
-  // everyone else annotates a drawing.
-  function markupSnapshot() {
-    var pane = document.getElementById("lkDoc");
-    var snap = { strokes: MARKUP.strokes.slice(), granted: !!MARKUP.granted };
-    if (state.surface === "document") {
-      snap.surface = "document";
-      snap.documentId = (pane && pane._docId) || null;
-    }
-    return snap;
-  }
-  function applyMarkupSnapshot(s) {
-    if (!s) return;
-    // Surface first, so the canvas the strokes land on exists and is sized.
-    if (s.surface === "document" && state.surface !== "document") applySurface("document", s.documentId);
-    if (typeof s.granted === "boolean" && s.granted !== MARKUP.granted) { MARKUP.granted = s.granted; refreshMarkupUI(); }
-    if (!Array.isArray(s.strokes)) return;
-    // Replace rather than append: the replay IS the current canvas, and a late
-    // joiner appending to strokes it already received live would double-draw.
-    MARKUP.strokes = s.strokes.slice(); MARKUP.cur = null; renderMarkup();
-    if (s.strokes.length) toast("Caught up — " + s.strokes.length + " markup stroke" + (s.strokes.length === 1 ? "" : "s"));
-  }
   function setDrawMode(on) {
     MARKUP.draw = !!on && markupAllowed();
     var pane = document.getElementById("lkDoc");
@@ -943,52 +903,11 @@
   // M1 — one persistent bar with three rows: an "in a meeting" pill (always),
   // the participant tile strip (live only), and a control row that swaps between
   // a LOBBY group (Join A/V button) and a LIVE group (mic/cam/screen/surface/leave).
-  // Keep the A/V bar clear of the clash/issues tray, whatever height the user
-  // has dragged it to. Collapsed tray -> sit near the bottom edge as normal.
-  function positionBarAboveTray(bar) {
-    var offset = 16;
-    try {
-      var bp = document.getElementById("bottomPanel");
-      if (bp && !bp.classList.contains("collapsed")) {
-        var r = bp.getBoundingClientRect();
-        if (r.height > 0 && r.top < window.innerHeight) {
-          offset = Math.round(window.innerHeight - r.top) + 16;
-        }
-      }
-      // The bar docks bottom-RIGHT, which is exactly where the minimap lives.
-      // Stack above it rather than on it.
-      var mm = document.getElementById("minimap");
-      if (mm) {
-        var m = mm.getBoundingClientRect();
-        if (m.height > 0 && m.right > window.innerWidth - 260) {
-          offset = Math.max(offset, Math.round(window.innerHeight - m.top) + 16);
-        }
-      }
-    } catch (e) {}
-    // Never push it more than half-way up the viewport, however tall the tray.
-    bar.style.bottom = Math.min(offset, Math.round(window.innerHeight / 2)) + "px";
-  }
-
   function buildShell() {
     if (document.getElementById("lkBar")) return;
-    // The bar used to be position:absolute, bottom:12px, centred, z-index:14.
-    // That put it underneath the clash/issues tray and on top of the centred
-    // nav-controls cluster: windowed you saw a half-cut "Join A/V", and in
-    // full screen with the tray open it vanished completely. Anchor it to the
-    // viewport (fixed, so full screen behaves), keep it clear of the centred
-    // nav cluster, and float it ABOVE the bottom panel — the same thing the
-    // rest of the bottom-anchored UI does with --bottom-panel-height.
     var bar = el("div", { id: "lkBar", style:
-      "position:fixed;right:16px;bottom:16px;z-index:1200;" +
-      "display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none" });
-    positionBarAboveTray(bar);
-    window.addEventListener("resize", function () { positionBarAboveTray(bar); });
-    try {
-      var bpEl = document.getElementById("bottomPanel");
-      if (bpEl && window.ResizeObserver) {
-        new ResizeObserver(function () { positionBarAboveTray(bar); }).observe(bpEl);
-      }
-    } catch (e) {}
+      "position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:14;" +
+      "display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none" });
 
     // Row 1 — the "in a meeting" pill (status indicator, always visible).
     var pill = el("div", { id: "lkPill", style:
@@ -1069,30 +988,11 @@
     left: "Left — Join to rejoin",
     offline: "Reconnecting…",
     unavailable: "A/V unavailable",
-    error: "Couldn't join",
+    error: "Couldn't join — retry",
   };
-  // Turn a LiveKit connect error into something a coordinator can act on.
-  // The SDK says e.g. "could not establish signal connection: invalid token";
-  // the useful half is the bit after the colon.
-  function joinFailReason(e) {
-    // Deliberately NOT String(e): an Error with no message stringifies to the
-    // useless literal "Error", which would read "Couldn't join — Error".
-    var m = (e && (e.message || e.reason)) || (typeof e === "string" ? e : "");
-    m = m.replace(/^.*could not establish signal connection:\s*/i, "");
-    m = (m.split("\n")[0] || "").trim();
-    if (!m) return "";
-    return m.length > 48 ? m.slice(0, 45) + "…" : m;
-  }
-  function setLobby(s, detail) {
+  function setLobby(s) {
     var txt = document.getElementById("lkPillTxt");
-    // Every failure used to collapse into "Couldn't join — retry", with the
-    // real cause only in console.warn — so diagnosing it meant opening
-    // DevTools to read one word ("invalid token"). Show the cause instead.
-    if (txt) {
-      var base = LOBBY_TEXT[s] || "In a meeting";
-      txt.textContent = (s === "error") ? base + " — " + (detail || "retry") : base;
-      if (s === "error" && detail) txt.title = detail;
-    }
+    if (txt) txt.textContent = LOBBY_TEXT[s] || "In a meeting";
     var dot = document.getElementById("lkDot");
     if (dot) dot.style.background =
       s === "live" ? "#37c272" :

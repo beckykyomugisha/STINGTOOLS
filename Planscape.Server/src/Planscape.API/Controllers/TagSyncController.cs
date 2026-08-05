@@ -67,26 +67,17 @@ public class TagSyncController : ControllerBase
     [HttpPost("sync")]
     public async Task<ActionResult<TagSyncResponse>> SyncElements([FromBody] TagSyncRequest request)
     {
+        if (request.Elements.Count == 0)
+            return Ok(new TagSyncResponse { Received = 0 });
+
         if (request.Elements.Count > 50_000)
             return BadRequest(new { message = "Maximum 50,000 elements per sync request" });
 
-        // Tenant + project ownership FIRST, before the empty-payload fast path.
-        //
-        // The zero-element short-circuit used to sit above this, so a caller
-        // from another tenant (or with no tenant claim at all) got 200 OK for a
-        // project they cannot see, while the same request carrying one element
-        // correctly got 404. Nothing was written or disclosed either way, but
-        // the endpoint answered two different things about the same
-        // authorization question — and any future work inside the fast path
-        // would have inherited an unauthorised caller.
         if (RequireTenantClaim(out var tenantId) is { } badClaim) return badClaim;
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
-        if (request.Elements.Count == 0)
-            return Ok(new TagSyncResponse { Received = 0 });
-
-        int created = 0, updated = 0, deleted = 0;
+        int created = 0, updated = 0;
         var conflicts = new List<SyncConflictDto>();
         ComplianceSummaryDto metrics;
 
@@ -103,22 +94,7 @@ public class TagSyncController : ControllerBase
             // Runs inside the transaction so the snapshot is consistent for the
             // duration of the entire sync.
             var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
-            // IgnoreQueryFilters is REQUIRED here, not an optimisation.
-            // Tombstoned rows are hidden from every normal read by the global
-            // soft-delete filter, but the UPSERT must still see them: an
-            // undelete (Revit undo restoring a deleted element) has to find the
-            // existing row and clear its tombstone. Without this the row would
-            // look absent, we would INSERT, and the unique
-            // (ProjectId, RevitElementId) index would throw.
-            //
-            // In EF Core 8 IgnoreQueryFilters drops the TENANT predicate too, so
-            // ownership is carried explicitly instead: `project` was resolved by
-            // (Id + TenantId) above, and (ProjectId, RevitElementId) is this
-            // table's unique key space — a row under this ProjectId is by
-            // definition this project's data. Row-set is therefore exactly what
-            // it was before, plus the previously-hidden tombstones.
             var existingElements = await _db.TaggedElements
-                .IgnoreQueryFilters()
                 .Where(e => e.ProjectId == project.Id && incomingIds.Contains(e.RevitElementId))
                 .ToDictionaryAsync(e => e.RevitElementId);
 
@@ -139,17 +115,6 @@ public class TagSyncController : ControllerBase
 
                         if (clientTs.HasValue && serverTs.HasValue && clientTs.Value <= serverTs.Value)
                         {
-                            // A stale DELETE is rejected by exactly this same
-                            // last-write-wins gate — it must not bypass the
-                            // conflict path just because it is a tombstone.
-                            // A newer server-side edit therefore beats an
-                            // out-of-date client's delete, and the client is
-                            // told via a SERVER_WINS conflict. Only the
-                            // ConflictType distinguishes the two, so an
-                            // operator can tell "your delete was refused" from
-                            // "your edit was refused"; Resolution is
-                            // SERVER_WINS either way.
-                            var conflictType = dto.IsDeleted ? "STALE_DELETE" : "STALE_UPDATE";
                             // Deduplicate: only add a conflict row when none already exists for this
                             // element + client pair so concurrent pushes don't double-count.
                             bool alreadyLogged = await _db.SyncConflicts.AnyAsync(c =>
@@ -163,7 +128,7 @@ public class TagSyncController : ControllerBase
                                     ProjectId       = project.Id,
                                     TaggedElementId = existing.Id,
                                     ElementId       = dto.RevitElementId.ToString(),
-                                    ConflictType    = conflictType,
+                                    ConflictType    = "STALE_UPDATE",
                                     Resolution      = "SERVER_WINS",
                                     ServerTimestamp = serverTs,
                                     ClientTimestamp = clientTs,
@@ -179,47 +144,13 @@ public class TagSyncController : ControllerBase
                             }
                             // Do NOT overwrite — server wins.
                         }
-                        else if (dto.IsDeleted)
-                        {
-                            // TOMBSTONE. Deliberately does NOT call
-                            // MapDtoToEntity: a delete payload must not
-                            // overwrite the last known good tag data, which is
-                            // the whole point of keeping the row (audit +
-                            // valid SyncConflict.TaggedElementId FKs). We only
-                            // stamp the tombstone and the audit fields.
-                            //
-                            // Idempotent: re-deleting an already-tombstoned row
-                            // just refreshes the timestamp and counts again,
-                            // matching how a no-change update still counts as
-                            // Updated.
-                            var deletedAt = clientTs ?? DateTime.UtcNow;
-                            existing.DeletedAtUtc    = deletedAt;
-                            existing.Version        += 1;
-                            existing.LastModifiedUtc = deletedAt;
-                            existing.SyncedAt        = DateTime.UtcNow;
-                            existing.SyncedBy        = request.UserName;
-                            deleted++;
-                        }
                         else
                         {
-                            // Ordinary update — and also the UNDELETE path.
-                            // MapDtoToEntity clears DeletedAtUtc, so a live
-                            // element arriving for a previously-tombstoned row
-                            // simply restores it. No special case needed.
                             MapDtoToEntity(dto, existing, request.UserName);
                             existing.Version        += 1;
                             existing.LastModifiedUtc = ToUtc(clientTs) ?? DateTime.UtcNow;
                             updated++;
                         }
-                    }
-                    else if (dto.IsDeleted)
-                    {
-                        // Delete for an element the server has never seen (e.g.
-                        // created and removed between two syncs, or already
-                        // purged). Nothing to tombstone — a no-op by design:
-                        // NOT an error, and explicitly NOT an insert, which
-                        // would resurrect the element as a dead row.
-                        continue;
                     }
                     else
                     {
@@ -262,7 +193,7 @@ public class TagSyncController : ControllerBase
             {
                 var group = project.Id.ToString();
                 await _tagHub.Clients.Group(group)
-                    .SendAsync("TagsUpdated", new { created, updated, deleted, total = request.Elements.Count });
+                    .SendAsync("TagsUpdated", new { created, updated, total = request.Elements.Count });
                 await _complianceHub.Clients.Group(group)
                     .SendAsync("ComplianceUpdated", metrics);
 
@@ -272,7 +203,7 @@ public class TagSyncController : ControllerBase
                 // plugin). The legacy emits above are kept for backward compat.
                 var notifyGroup = $"project-{project.Id}";
                 await _notificationHub.Clients.Group(notifyGroup)
-                    .SendAsync("TagsUpdated", new { created, updated, deleted, total = request.Elements.Count });
+                    .SendAsync("TagsUpdated", new { created, updated, total = request.Elements.Count });
                 await _notificationHub.Clients.Group(notifyGroup)
                     .SendAsync("ComplianceUpdated", metrics);
             }
@@ -306,12 +237,6 @@ public class TagSyncController : ControllerBase
         var mappingDocGuid = request.HostDocumentGuid;
         var mappings = request.Elements
             .Where(e => !string.IsNullOrWhiteSpace(e.IfcGlobalId))   // true IFC GlobalId only
-            // Don't mint or refresh cross-host identity rows for elements the
-            // client just reported as DELETED — that would keep asserting an
-            // identity for something no longer in the model. Existing mapping
-            // rows are left untouched; their lifecycle is owned by the
-            // reconciliation job, not by this best-effort upsert.
-            .Where(e => !e.IsDeleted)
             .Select(e => new ElementMappingDto(
                 e.IfcGlobalId!,                       // cross-host key — NOT UniqueId
                 e.RevitElementId.ToString(),          // host_element_id = Revit ElementId
@@ -351,7 +276,6 @@ public class TagSyncController : ControllerBase
             Received = request.Elements.Count,
             Created = created,
             Updated = updated,
-            Deleted = deleted,
             CompliancePercent = metrics.CompliancePercent,
             RagStatus = metrics.RagStatus,
             Conflicts = conflicts
@@ -581,12 +505,6 @@ public class TagSyncController : ControllerBase
         entity.Status = dto.Status; entity.Rev = dto.Rev;
         entity.IsComplete = dto.IsComplete; entity.IsFullyResolved = dto.IsFullyResolved;
         entity.SyncedAt = DateTime.UtcNow; entity.SyncedBy = userName;
-        // UNDELETE, centralised: this method is only reached for an element the
-        // client reports as LIVE (the tombstone branch never calls it), so
-        // mapping a live element always clears any existing tombstone. Keeping
-        // it here rather than at the call site means no future caller can map a
-        // live element and forget to resurrect it.
-        entity.DeletedAtUtc = null;
     }
 
     /// <summary>Normalise a DateTime to UTC Kind — rejects Local, passes UTC and Unspecified through as UTC.</summary>

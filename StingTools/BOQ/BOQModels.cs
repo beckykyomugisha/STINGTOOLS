@@ -14,60 +14,7 @@ namespace StingTools.BOQ
     {
         Model,
         Manual,
-        ProvisionalSum,
-        Dayworks,       // P3.1 — daywork / time-and-material rows
-        PCSum          // P3.1 — prime-cost sum (named supplier allowance)
-    }
-
-    /// <summary>P3.1 — shared source label / parse helpers so the export label,
-    /// import parser and panel agree on one spelling per source.</summary>
-    public static class BoqSourceUtil
-    {
-        public static string Label(BOQRowSource s)
-        {
-            switch (s)
-            {
-                case BOQRowSource.Manual:         return "Manual";
-                case BOQRowSource.ProvisionalSum: return "Provisional Sum";
-                case BOQRowSource.Dayworks:       return "Dayworks";
-                case BOQRowSource.PCSum:          return "PC Sum";
-                default:                          return "Model";
-            }
-        }
-
-        /// <summary>Parse a source label (case-insensitive, substring-tolerant).
-        /// Returns Model for unrecognised input.</summary>
-        public static BOQRowSource Parse(string label)
-        {
-            string l = (label ?? "").Trim().ToLowerInvariant();
-            if (l.Contains("provisional")) return BOQRowSource.ProvisionalSum;
-            if (l.Contains("daywork"))     return BOQRowSource.Dayworks;
-            if (l.Contains("pc") || l.Contains("prime cost")) return BOQRowSource.PCSum;
-            if (l.Contains("manual"))      return BOQRowSource.Manual;
-            return BOQRowSource.Model;
-        }
-
-        /// <summary>True for QS-authored rows that must never be overwritten by
-        /// a model re-takeoff (everything except Model).</summary>
-        public static bool IsQsAuthored(BOQRowSource s) => s != BOQRowSource.Model;
-    }
-
-    /// <summary>
-    /// P2.2 — how a BOQ is grouped into sections. NRM2 supports both elemental
-    /// (work-section) and locational (level / zone) bills; this enum selects
-    /// the strategy used by BOQCostManager.GroupIntoSections (and feeds the
-    /// aggregation key so similar items collapse within the active dimension).
-    /// </summary>
-    public enum BoqGroupingMode
-    {
-        WorkSection,            // by NRM2 § + discipline (default — elemental bill)
-        Level,                  // by building level (flat locational bill)
-        Zone,                   // by ASS_ZONE_TXT zone
-        LevelThenWorkSection,   // by level, then NRM2 § within each level
-        Location,              // by room / spatial location code
-        SourceModel,           // by host vs each linked model
-        Wbs,                   // Phase 2E — by user-defined Work Breakdown Structure code
-        Cbs                    // Phase 2E — by user-defined Cost Breakdown Structure code
+        ProvisionalSum
     }
 
     public enum BOQChangeType
@@ -80,34 +27,6 @@ namespace StingTools.BOQ
         PSAdded,
         SourcePromoted
     }
-
-    // ── BoqUncostedRollup ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// WP2 — document-level "value at risk" rollup. Unmatched-rate model rows
-    /// otherwise fold into the grand total as invisible zero-value lines; this
-    /// surfaces them (count + a proxy monetary exposure) so they can't hide, and
-    /// drives the export gate. "Could not measure" rows (measured unit, qty ≈ 0)
-    /// are counted separately. Legitimately-free categories (Rooms/Spaces/Areas)
-    /// are excluded.
-    /// </summary>
-    public struct BoqUncostedRollup
-    {
-        public int ZeroRateCount;        // measured/count model rows with no rate found
-        public int CouldNotMeasureCount; // measured-unit model rows whose quantity came back 0
-        public int LowConfidenceCount;   // priced rows below the export confidence floor
-        public double QtyAtRisk;         // Σ quantity of the zero-rate rows
-        public double ValueAtRiskUGX;    // Σ qty × proxy median rate for the unit (indicative)
-        /// <summary>True when a tender/professional export should be gated.</summary>
-        // WP-M — a measured row with a valid rate but qty 0 ships a silent zero
-        // line into the Contract Sum, so it must gate the export too.
-        public bool BlocksExport => ZeroRateCount > 0 || LowConfidenceCount > 0 || CouldNotMeasureCount > 0;
-        public bool HasAnyIssue => ZeroRateCount > 0 || CouldNotMeasureCount > 0 || LowConfidenceCount > 0;
-    }
-
-    // ── BoqMarkupBreakdown / BoqTotals ─────────────────────────────────────
-    // Moved to BoqTotals.cs (P0-7) so the markup waterfall is Document-free and
-    // linkable into the headless cost tests. Still namespace StingTools.BOQ.
 
     // ── BOQLineItem ────────────────────────────────────────────────────────
 
@@ -125,124 +44,25 @@ namespace StingTools.BOQ
         public string ItemName;
         public string FamilyName;
         public string TypeName;
-        public double Quantity;             // NET measured quantity — the value used for cost
+        public double Quantity;
         public string Unit;                 // "m²" / "m³" / "m" / "each" / "item" / "kg" / "tonne"
-
-        // ── Phase 2A — NRM2 rules-based measurement audit trail ─────────────
-        // The gross→net derivation so a QS can see exactly how a modelled
-        // geometry became a measured quantity. GrossQuantity is the raw Revit
-        // geometry (pre-deduction, pre-wastage); DeductionQuantity is the
-        // opening/void area removed per the active standard's measurement rules
-        // (NRM2 / CESMM4); WastageQuantity is the cutting/offcut/lap allowance
-        // added as a distinct, visible step (never folded silently into the
-        // rate). Quantity = GrossQuantity − DeductionQuantity + WastageQuantity.
-        // MeasurementNote is the human-readable one-liner (e.g.
-        // "Gross 43.0 m² − openings 5.2 m² + wastage 5% = 39.8 m²").
-        // GrossQuantity == 0 on a model row means "not measured separately"
-        // (manual/PS rows, or pre-2A snapshots) — readers fall back to Quantity.
-        public double GrossQuantity;
-        public double DeductionQuantity;
-        public double WastageQuantity;
-        public string MeasurementNote;
         public double RateUGX;
         public double RateUSD;
-        public double EmbodiedCarbonKg;     // kgCO2e — A1-A3 FOSSIL headline (WP-C, RICS WLCA)
-        // ── WP-C — RICS WLCA fossil/biogenic split. EmbodiedCarbonKg is the
-        // A1-A3 FOSSIL upfront figure (the benchmark headline); BiogenicKg is the
-        // separate A1-A3 biogenic line (≤ 0 for timber, 0 otherwise) — never
-        // netted into the headline. NetCarbonKg is the whole-life-context net.
-        // CarbonEstimated = true when the carbon volume came from a guessed
-        // thickness / cross-section rather than real geometry.
-        public double BiogenicKg;           // kgCO2e — A1-A3 biogenic (≤ 0)
-        public bool CarbonEstimated;
-        public double NetCarbonKg => EmbodiedCarbonKg + BiogenicKg;
+        public double EmbodiedCarbonKg;     // kgCO2e
         public double LifecycleCostUGX;     // capital + maintenance NPV 25yr
-        // CA-4 — TRUE whole-life cost: LifecycleCostUGX + monetised carbon
-        // (carbon price × embodied A1-A3; operational carbon is folded at the
-        // building/EDGE level). Equals LifecycleCostUGX when no carbon price is
-        // set. Additive — safe default 0 for old saved rows.
-        public double LifecycleCostInclCarbonUGX;
         public string ResolvedNRM2Paragraph;
         public string BOQLineRef;           // e.g. "14.3.2"
         public string Note;
-        public string SourceModel;          // "" / null = host; else the linked model Title (Group by Source model)
         public BOQRowSource Source;
         public string SnapshotRef;
         public long RevitElementId = -1;    // -1 for manual/PS rows
         public string UniqueId;             // Revit UniqueId (cross-doc, survives Revit save/reopen)
-
-        /// <summary>
-        /// INT-0 — the canonical 22-char IFC GlobalId, derived deterministically
-        /// from <see cref="UniqueId"/> via the one shared resolver
-        /// (<see cref="StingTools.IfcResults.IfcGuidEncoder"/>). This is the single
-        /// cross-platform join key: COBie Component external identifier, Speckle
-        /// applicationId, the server's ExternalElementMapping, and the priced-BOQ
-        /// round-trip all key off it. Empty for manual / provisional-sum rows with
-        /// no modelled element. The COBie writers use the same encoder on the same
-        /// UniqueId, so a BOQ row and the COBie Component for one element always
-        /// carry an identical GlobalId.
-        ///
-        /// STAGED FOLLOW-UP (INT-0 server audit): the server-ingest path
-        /// (<c>IFC_PushModelCommand</c>) keys ExternalElementMapping off the stored
-        /// <c>IFC_GLOBAL_ID_TXT</c> param, which <c>StabilizeIfcGuidsCommand</c>
-        /// fills from Revit's built-in IfcGUID. That equals this encoder value in
-        /// the default case, but DIVERGES when a user sets an explicit IFC-GUID
-        /// override or the element was never IFC-exported. To unify all four
-        /// surfaces under overrides, BOQ + COBie should prefer a stored
-        /// IFC_GLOBAL_ID_TXT when present and fall back to the encoder — threaded
-        /// through BOQ build into this field (the POCO has no live Element here).
-        /// </summary>
-        public string IfcGlobalId =>
-            string.IsNullOrEmpty(UniqueId)
-                ? ""
-                : StingTools.IfcResults.IfcGuidEncoder.FromRevitUniqueId(UniqueId);
         public string Level;
         public string Location;             // room name or spatial code
-        public string Zone;                 // ASS_ZONE_TXT — P2.2 zone grouping key
-
-        // ── Phase 2E — user-defined WBS / CBS. Assigned by the WBS map
-        // (boq_wbs_map.json) from element attributes, with a fallback to the
-        // linked 4D ScheduleTask's WBS so the programme and the bill share one
-        // work-breakdown structure. Empty when no rule matches. Drives the
-        // Wbs / Cbs grouping modes + the ERP export columns.
-        public string WbsCode;
-        public string CbsCode;
         public DateTime LastCosted = DateTime.UtcNow;
-        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated" | "QS"
+        public string RateSource;           // "CSV" | "COBie" | "Default" | "Manual" | "Override" | "Carbon" | "Interpolated"
         public int RateConfidence = 60;     // 0-100 (Phase 11A)
         public int SortOrder;               // stable ordering within a section
-
-        // ── G4 — optional labour / plant / material rate split (per-unit, same
-        // currency/unit as RateUGX). Null when the rate source carries no split,
-        // so the rate stays a single number (no regression). Totals derive by
-        // ×Quantity.
-        public double? LabourUGX;
-        public double? PlantUGX;
-        public double? MaterialUGX;
-        public bool HasRateSplit => LabourUGX.HasValue || PlantUGX.HasValue || MaterialUGX.HasValue;
-        public double LabourTotalUGX => (LabourUGX ?? 0) * Quantity;
-        public double PlantTotalUGX => (PlantUGX ?? 0) * Quantity;
-        public double MaterialTotalUGX => (MaterialUGX ?? 0) * Quantity;
-
-        // ── G5 — carbon factor provenance + data-quality. CarbonSource is the
-        // resolver source ("epd:…" / "material-param" / "material-lookup-csv" /
-        // "carbon-factors-csv" / "none"); CarbonQuality is the band the QS reads
-        // (Verified-EPD / Database / Missing); CarbonMaterial is the primary
-        // material (drives the carbon-gap report).
-        public string CarbonSource;
-        public string CarbonQuality;
-        public string CarbonMaterial;
-
-        // ── P1 aggregation ─────────────────────────────────────────────────
-        // When several near-identical modelled elements collapse into one BOQ
-        // row, SimilarCount holds the element count and ConstituentElementIds
-        // every element id in the group (for drill-down / back-selection in
-        // Revit). RevitElementId/UniqueId remain the representative element.
-        // Defaults keep old snapshots deserialising unchanged (count = 1,
-        // empty list, null key — i.e. an un-aggregated single-element row).
-        public int SimilarCount = 1;
-        public List<long> ConstituentElementIds = new List<long>();
-        public string AggregationKey;       // grouping key used to collapse the row (debug/export)
 
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
@@ -263,44 +83,23 @@ namespace StingTools.BOQ
                 TypeName = this.TypeName,
                 Quantity = this.Quantity,
                 Unit = this.Unit,
-                GrossQuantity = this.GrossQuantity,
-                DeductionQuantity = this.DeductionQuantity,
-                WastageQuantity = this.WastageQuantity,
-                MeasurementNote = this.MeasurementNote,
                 RateUGX = this.RateUGX,
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,
                 LifecycleCostUGX = this.LifecycleCostUGX,
-                LifecycleCostInclCarbonUGX = this.LifecycleCostInclCarbonUGX,
                 ResolvedNRM2Paragraph = this.ResolvedNRM2Paragraph,
                 BOQLineRef = this.BOQLineRef,
                 Note = this.Note,
-                SourceModel = this.SourceModel,
                 Source = this.Source,
                 SnapshotRef = this.SnapshotRef,
                 RevitElementId = this.RevitElementId,
                 UniqueId = this.UniqueId,
                 Level = this.Level,
                 Location = this.Location,
-                Zone = this.Zone,
-                WbsCode = this.WbsCode,
-                CbsCode = this.CbsCode,
                 LastCosted = this.LastCosted,
                 RateSource = this.RateSource,
                 RateConfidence = this.RateConfidence,
-                SortOrder = this.SortOrder,
-                LabourUGX = this.LabourUGX,
-                PlantUGX = this.PlantUGX,
-                MaterialUGX = this.MaterialUGX,
-                BiogenicKg = this.BiogenicKg,
-                CarbonEstimated = this.CarbonEstimated,
-                CarbonSource = this.CarbonSource,
-                CarbonQuality = this.CarbonQuality,
-                CarbonMaterial = this.CarbonMaterial,
-                SimilarCount = this.SimilarCount,
-                ConstituentElementIds = this.ConstituentElementIds != null
-                    ? new List<long>(this.ConstituentElementIds) : new List<long>(),
-                AggregationKey = this.AggregationKey
+                SortOrder = this.SortOrder
             };
         }
     }
@@ -325,8 +124,7 @@ namespace StingTools.BOQ
         public double TotalUSD => Items.Sum(i => i.TotalUSD);
         public double ModeledUGX => Items.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double ProvUGX => Items.Where(i => i.Source != BOQRowSource.Model).Sum(i => i.TotalUGX);
-        public double TotalCarbonKg => Items.Sum(i => i.EmbodiedCarbonKg);       // A1-A3 fossil
-        public double TotalBiogenicKg => Items.Sum(i => i.BiogenicKg);           // A1-A3 biogenic (≤0)
+        public double TotalCarbonKg => Items.Sum(i => i.EmbodiedCarbonKg);
     }
 
     // ── BOQDocument ────────────────────────────────────────────────────────
@@ -343,15 +141,10 @@ namespace StingTools.BOQ
         public string SnapshotLabel;
         public DateTime SnapshotDate = DateTime.UtcNow;
         public string SnapshotType;         // "DD" | "Stage" | "Weekly" | "Handover" | "Manual" | "Live"
-        /// <summary>WP-FIX — the client's cost limit, captured VAT-INCLUSIVE (the
-        /// all-in funding figure), so it compares like-with-like against the
-        /// canonical VAT-inclusive <see cref="GrandTotalUGX"/>. Both
-        /// BudgetVarianceUGX and BudgetCoveragePct use this same basis.</summary>
         public double ProjectBudgetUGX;
         public double PrelimPct = 12.0;
         public double ContingencyPct = 10.0;
         public double OverheadPct = 8.0;
-        public double VatPct = 18.0;                    // WP1 — VAT on the BOQ document (Uganda standard rate)
         public string Currency = "UGX";
         public double ExchangeRateUgxPerUsd = 3700.0;   // Phase 11E multi-currency
         /// <summary>
@@ -360,65 +153,17 @@ namespace StingTools.BOQ
         /// </summary>
         public string MeasurementStandardId = "nrm2";
 
-        // ── G3 — optional built-up preliminaries schedule ───────────────────
-        // When PrelimsItemised is true the grand total uses the itemised prelim
-        // total (PrelimsItemisedUGX) instead of the flat PrelimPct. Loaded by
-        // BuildBOQDocument from BoqPrelimsStore; flat % stays the default so
-        // nothing regresses (Enabled defaults false → these fields stay inert).
-        public bool PrelimsItemised = false;
-        public List<BoqPrelimLine> PrelimLines = new List<BoqPrelimLine>();
-
         public List<BOQSection> Sections = new List<BOQSection>();
 
         public List<BOQLineItem> AllItems => Sections.SelectMany(s => s.Items).ToList();
         public double ModeledTotalUGX => AllItems.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double ProvTotalUGX => AllItems.Where(i => i.Source != BOQRowSource.Model).Sum(i => i.TotalUGX);
         public double SubtotalUGX => AllItems.Sum(i => i.TotalUGX);
-
-        /// <summary>Σ of the itemised prelim lines resolved against the works subtotal.</summary>
-        public double PrelimsItemisedUGX => PrelimLines?.Sum(l => l.AmountFor(SubtotalUGX)) ?? 0;
-
-        /// <summary>
-        /// The preliminaries contribution to the grand total — the itemised
-        /// schedule total when active, else the flat PrelimPct of the works
-        /// subtotal. Left unrounded in the flat case so GrandTotalUGX matches the
-        /// historic single-round formula exactly (zero delivered-number change).
-        /// </summary>
-        public double PrelimContributionUGX =>
-            PrelimsItemised ? PrelimsItemisedUGX : SubtotalUGX * PrelimPct / 100.0;
-
-        /// <summary>
-        /// WP1 — the single canonical markup waterfall (see <see cref="BoqTotals"/>).
-        /// Replaces the old parallel "% × subtotal for everything, no VAT" formula.
-        /// All component properties below and every external surface read from this.
-        /// </summary>
-        public BoqMarkupBreakdown Markup =>
-            BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct);
-
-        public double OverheadProfitUGX => Markup.Overhead;
-        public double ContingencyUGX    => Markup.Contingency;
-        /// <summary>Contract Sum exclusive of VAT (Works + Prelims + OH&P + Contingency).</summary>
-        public double NetTotalExVatUGX  => Markup.NetExVat;
-        public double VatUGX            => Markup.Vat;
-
-        /// <summary>The canonical, fully-marked-up Contract Sum INCLUSIVE of VAT.
-        /// This is the one number the panel KPI, both exporters, the snapshot list,
-        /// the budget variance and the server sync all agree on.</summary>
-        public double GrandTotalUGX => Markup.GrandTotal;
+        public double GrandTotalUGX =>
+            Math.Round(SubtotalUGX * (1 + PrelimPct / 100.0 + ContingencyPct / 100.0 + OverheadPct / 100.0), 0);
         public double BudgetVarianceUGX => ProjectBudgetUGX > 0 ? ProjectBudgetUGX - GrandTotalUGX : 0;
-        // WP-FIX — coverage now uses the VAT-inclusive GrandTotal (same basis as
-        // the budget + the variance), not the bare works subtotal, so the two
-        // budget metrics can no longer disagree on what they measure against.
-        public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? GrandTotalUGX / ProjectBudgetUGX * 100 : 0;
-        public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);    // A1-A3 fossil headline
-        public double TotalBiogenicKg => AllItems.Sum(i => i.BiogenicKg);        // A1-A3 biogenic (≤0), reported separately
-        public double TotalNetCarbonKg => TotalCarbonKg + TotalBiogenicKg;       // whole-life context only
-        // CA-4 — whole-life cost totals. Plain LCC (capital + maintenance NPV) and
-        // the carbon-inclusive LCC (plain + monetised embodied carbon). Equal when
-        // no carbon price is set.
-        public double TotalLifecycleCostUGX => AllItems.Sum(i => i.LifecycleCostUGX);
-        public double TotalLifecycleCostInclCarbonUGX => AllItems.Sum(i => i.LifecycleCostInclCarbonUGX);
-        public double EmbodiedCarbonCostUGX => TotalLifecycleCostInclCarbonUGX - TotalLifecycleCostUGX;
+        public double BudgetCoveragePct => ProjectBudgetUGX > 0 ? SubtotalUGX / ProjectBudgetUGX * 100 : 0;
+        public double TotalCarbonKg => AllItems.Sum(i => i.EmbodiedCarbonKg);
         public int ResolvedParagraphCount => AllItems.Count(i => !string.IsNullOrEmpty(i.ResolvedNRM2Paragraph));
         public double ParagraphCoveragePct => AllItems.Count > 0 ? 100.0 * ResolvedParagraphCount / AllItems.Count : 0;
 
@@ -489,10 +234,6 @@ namespace StingTools.BOQ
         public string Type;
         public DateTime Date;
         public double GrandTotalUGX;
-        // CA-2 — net-of-VAT contract-sum basis (works + prelims + OH&P +
-        // contingency). The PM/QS lifecycle anchors on this; old metas without it
-        // default to 0 and callers fall back to deriving net from GrandTotalUGX.
-        public double NetExVatUGX;
 
         // P1: server-sync provenance. Populated by BoqSyncCoordinator
         // after a successful push. SyncState values:
@@ -549,7 +290,6 @@ namespace StingTools.BOQ
         public double? RateUSD;
         public string NRM2Paragraph;
         public string Note;
-        public string RateSource;           // P3 — provenance ("QS" for imported rates); null ⇒ "Override"
         public DateTime Modified = DateTime.UtcNow;
         public string ModifiedBy;
     }

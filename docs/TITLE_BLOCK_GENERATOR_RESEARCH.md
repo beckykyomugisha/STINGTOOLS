@@ -92,7 +92,7 @@ embedded images on the placed sheet (the user attaches the image at
 project setup time via the sheet's instance properties).
 
 `FamilyManager.MakeType()` then `SetFormula` lets us define a
-calculated parameter. So `PRJ_SHEET_FULL_REF_TXT` can be a
+calculated parameter. So `STING_SHEET_FULL_REF_TXT` can be a
 calculated string concatenating the seven segments — so the user
 edits VOLUME / LEVEL / TYPE / ROLE / SEQ separately and the full
 ref recomputes automatically.
@@ -108,7 +108,7 @@ Per family (e.g. `STING_TB_A1_v2.0`):
    a. `FamilyManager.AddParameter(extDef, GroupTypeId.IdentityData,
       isInstance: true)` for each of the ~35 cells in §2.1 of
       `TITLE_BLOCK_FAMILY_DESIGN.md`.
-   b. For calculated cells (e.g. `PRJ_SHEET_FULL_REF_TXT`):
+   b. For calculated cells (e.g. `STING_SHEET_FULL_REF_TXT`):
       `FamilyManager.SetFormula(fp, "$SHEET_PROJECT & \"-\" & $SHEET_ORIGINATOR
       & \"-\" & $SHEET_VOLUME & ...")`.
    c. Get the family's drafting view via
@@ -197,15 +197,15 @@ project.
       "saveAs": "Families/TitleBlocks/STING_TB_A1_BIM_v2.0.rfa",
 
       "parameters": [
-        { "name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared",
+        { "name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared",
           "instance": true, "group": "IdentityData", "default": "BIM" },
-        { "name": "PRJ_SHEET_FULL_REF_TXT", "kind": "internal",
+        { "name": "STING_SHEET_FULL_REF_TXT", "kind": "internal",
           "instance": true, "type": "Text", "group": "IdentityData",
           "default": "STG-PLNS-ZZ-01-DR-A-0001" }
         // …suitability/status/rev/7-segment ID…
       ],
       "labels": [
-        { "param": "PRJ_SHEET_FULL_REF_TXT",
+        { "param": "STING_SHEET_FULL_REF_TXT",
           "anchor": [684, 48], "size": 2.5, "hAlign": "Center" }
       ],
       "filledRegions": [
@@ -221,7 +221,7 @@ project.
       "saveAs": "Families/TitleBlocks/STING_TB_A1_NONBIM_v2.0.rfa",
 
       "parameters": [
-        { "name": "PRJ_SHEET_BIM_MODE_TXT", "kind": "shared",
+        { "name": "STING_SHEET_BIM_MODE_TXT", "kind": "shared",
           "instance": true, "group": "IdentityData", "default": "NONBIM" },
         { "name": "STING_SHEET_NUMBER_TXT", "kind": "internal",
           "instance": true, "type": "Text", "group": "IdentityData",

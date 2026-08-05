@@ -1,8 +1,7 @@
 // StingTools — TitleBlockRevisionSyncCommand
 // Wires TitleBlockRevisionSyncer.SyncAll() to a user-invocable command.
-// Writes the newest Revision's number / date / description onto every
-// sheet (SHT_REV_TXT, SHT_REV_DATE_TXT) and onto its title-block
-// instances (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT).
+// Syncs revision strip rows (PRJ_TB_REV_COL_n / DATE_n / DESC_n) from
+// Revit's Revision sequence onto every STING-stamped sheet's title block.
 
 using System.Text;
 using Autodesk.Revit.Attributes;
@@ -19,7 +18,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+            var doc = commandData.Application?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
             var result = TitleBlockRevisionSyncer.SyncAll(doc);

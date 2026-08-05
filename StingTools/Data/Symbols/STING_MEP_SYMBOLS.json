@@ -10,7 +10,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 6.0,
-      "realSizeMm": 595,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -122,7 +121,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 5.0,
-      "realSizeMm": 300,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -217,7 +215,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 6.0,
-      "realSizeMm": 595,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -322,7 +319,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 5.0,
-      "realSizeMm": 300,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -410,7 +406,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 12.0,
-      "realSizeMm": 1200,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -493,7 +488,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 4.0,
-      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -586,7 +580,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 6.0,
-      "realSizeMm": 600,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -709,7 +702,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 5.5,
-      "realSizeMm": 600,
       "parameters": [
         {
           "name": "SYSTEM_REF",
@@ -781,8 +773,6 @@
       "discipline": "Mechanical",
       "subcategory": "AirTerminal",
       "symbolSize": 5.0,
-      "realSizeMm": 500,
-      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "FLOW_LS",
@@ -865,7 +855,6 @@
       "discipline": "Mechanical",
       "subcategory": "Damper",
       "symbolSize": 5.0,
-      "realSizeMm": 400,
       "parameters": [
         {
           "name": "FIRE_RATING",
@@ -973,7 +962,6 @@
       "discipline": "Mechanical",
       "subcategory": "Damper",
       "symbolSize": 5.0,
-      "realSizeMm": 400,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -1059,7 +1047,6 @@
       "discipline": "Mechanical",
       "subcategory": "Damper",
       "symbolSize": 5.5,
-      "realSizeMm": 400,
       "parameters": [
         {
           "name": "FIRE_RATING",
@@ -1155,7 +1142,6 @@
       "discipline": "Mechanical",
       "subcategory": "Damper",
       "symbolSize": 4.5,
-      "realSizeMm": 300,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1231,8 +1217,6 @@
       "discipline": "Mechanical",
       "subcategory": "Damper",
       "symbolSize": 5.0,
-      "realSizeMm": 300,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ACTUATOR_TYPE",
@@ -1325,7 +1309,6 @@
       "discipline": "Mechanical",
       "subcategory": "Damper",
       "symbolSize": 4.5,
-      "realSizeMm": 300,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1411,7 +1394,6 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
-      "realSizeMm": 800,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -1546,7 +1528,6 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 8.0,
-      "realSizeMm": 800,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -1637,8 +1618,6 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 6.0,
-      "realSizeMm": 600,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -1757,7 +1736,6 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 6.0,
-      "realSizeMm": 600,
       "parameters": [
         {
           "name": "FLOW_LS",
@@ -1856,7 +1834,6 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 16.0,
-      "realSizeMm": 3000,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -2007,7 +1984,6 @@
       "discipline": "Mechanical",
       "subcategory": "Fan",
       "symbolSize": 5.0,
-      "realSizeMm": 500,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -2087,7 +2063,6 @@
       "discipline": "Mechanical",
       "subcategory": "Fan",
       "symbolSize": 6.0,
-      "realSizeMm": 700,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",
@@ -2176,7 +2151,6 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2218,7 +2192,6 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2260,7 +2233,6 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 60,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2302,7 +2274,6 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 80,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2344,7 +2315,6 @@
       "discipline": "Mechanical",
       "subcategory": "Controls",
       "symbolSize": 3.5,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -2671,7 +2641,6 @@
       "discipline": "HVAC",
       "subcategory": "HVAC Equipment",
       "symbolSize": 7.0,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "Symbol Scale",

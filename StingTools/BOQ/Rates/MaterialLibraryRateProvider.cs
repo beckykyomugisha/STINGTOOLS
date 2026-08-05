@@ -51,13 +51,8 @@ namespace StingTools.BOQ.Rates
                             if (v > 0)
                                 return new RateLookup
                                 {
-                                    // CA-1 — ALL_MODEL_COST is entered in the PROJECT BASE
-                                    // currency (UGX), the same basis the bill is in. It was
-                                    // mislabelled "USD", so the registry's FX layer multiplied
-                                    // it by ~3,700 — a silent order-of-magnitude inflation at
-                                    // priority 95. Label it UGX so no FX conversion fires.
                                     UnitRate = v,
-                                    CurrencyCode = "UGX",
+                                    CurrencyCode = "USD", // ALL_MODEL_COST is project-currency; BOQ FX layer rebases.
                                     Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
                                     SourceId = Id,
                                     Confidence = 95,
@@ -74,10 +69,8 @@ namespace StingTools.BOQ.Rates
                 if (libVal > 0)
                     return new RateLookup
                     {
-                        // CA-1 — MATERIAL_LOOKUP.csv costs are in the project base
-                        // currency (UGX), not USD. See ALL_MODEL_COST note above.
                         UnitRate = libVal,
-                        CurrencyCode = "UGX",
+                        CurrencyCode = "USD",
                         Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
                         SourceId = Id,
                         Confidence = 90,

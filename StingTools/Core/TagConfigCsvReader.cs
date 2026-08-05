@@ -20,13 +20,6 @@ namespace StingTools.Core
     /// are default-present in every family and live outside the tier-variation
     /// plan (<see cref="PerFamilyTierMap"/> never stores T1..T3).
     /// </remarks>
-    // LEGACY(universal-tag): the TierPlan-building API (LoadFile/LoadFiles/Parse) has no
-    // direct caller since TagConfigPlanResolver was deleted (universal-tag teardown). RETAINED
-    // because the v5.0 CSV data it parses is the canonical *synced* tag-config source (see
-    // reference-tag-config-sources; LABEL_DEFINITIONS.json is canonical) and those CSVs are
-    // still read across ParamRegistry / TagConfig / HandoverModeHelper / PresentationModeCommand
-    // / FamilyParamCreatorCommand / LpsValidator via their own paths. A future pass may either
-    // rewire a live reader onto this typed parser or retire it with the CSVs together.
     public static class TagConfigCsvReader
     {
         private static readonly Regex FamilyHeaderRegex =
@@ -118,14 +111,9 @@ namespace StingTools.Core
                 if (trimmed.StartsWith(WarningBanner))
                 {
                     // Warning rows follow this banner. They do not contribute to
-                    // TierPlan, but the family block that PRECEDED the banner must
-                    // be committed first — otherwise every family that ends with a
-                    // "⚠ WARNING PARAMETERS" banner (i.e. essentially all of them
-                    // in the ARCH/GEN/MEP/STR CSVs) is silently dropped and never
-                    // reaches plansByFamily. Commit, then close the current family
-                    // and keep scanning for the next block.
-                    if (!string.IsNullOrEmpty(currentFamily) && currentPlan != null)
-                        result[currentFamily] = Finalise(currentPlan);
+                    // TierPlan, but they may be followed by more family blocks
+                    // in the same file — so we just close the current family
+                    // and keep scanning.
                     currentFamily = null;
                     currentPlan = null;
                     continue;

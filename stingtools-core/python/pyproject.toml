@@ -8,18 +8,14 @@ version = "0.1.0"
 description = "Shared Python core for STING IFC substrate (enums + psets + tag grammar + Planscape client)."
 readme = "README.md"
 requires-python = ">=3.11"
-# Proprietary — this wheel ships inside the gated StingBridge release zips
-# (and future STING distributions); it must not carry an OSI licence that
-# grants redistribution rights.
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 authors = [{ name = "Planscape Limited", email = "info@stingtools.io" }]
 keywords = ["BIM", "IFC", "STING", "ISO19650", "BlenderBIM"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "License :: Other/Proprietary License",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = []

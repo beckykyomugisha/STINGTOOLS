@@ -1030,14 +1030,7 @@ THREE.ColorManagement.enabled = false;
       (err) => {
         console.error('[viewer] load fail', err);
         const el = document.getElementById('bootLoader');
-        if (el) {
-          const m = el.querySelector('.msg'); if (m) m.textContent = 'Failed to load model';
-          // The spinner used to keep spinning under that text, so a hard
-          // failure still read as "in progress". Stop it and let the
-          // coordination layer offer a Retry.
-          const sp = el.querySelector('.spinner'); if (sp) sp.style.display = 'none';
-        }
-        try { window.dispatchEvent(new CustomEvent('sting:modelLoadFailed')); } catch (_) {}
+        if (el) { const m = el.querySelector('.msg'); if (m) m.textContent = 'Failed to load model'; }
         // BLK-5 — unblock meeting co-presence even on a failed model load so
         // the session connects (degraded) rather than waiting on modelReady.
         markModelReady();
@@ -1387,25 +1380,15 @@ THREE.ColorManagement.enabled = false;
   // on its bounding box. Backs ModelViewerHandle.selectAndZoom — used to jump
   // an issue's linked element into view when the issue opens.
   function selectAndZoomByGuid(guid) {
-    if (!guid) return false;
+    if (!guid) return;
     var found = null;
     scene.traverse(function (obj) {
       if (!found && obj.isMesh && obj.userData && obj.userData.elementGuid === guid) found = obj;
     });
-    // S3 — report the outcome instead of returning silently. A guid that matches
-    // no loaded mesh (a clash row identity rather than a federated IfcGuid, or an
-    // element in a model this viewer hasn't loaded) used to make the camera simply
-    // not move, which reads as "the button is broken". Callers listen for this and
-    // say so. Same-window CustomEvent — meeting-sync.js shares this document.
-    try {
-      window.dispatchEvent(new CustomEvent('sting:selectAndZoomResult',
-        { detail: { guid: guid, found: !!found } }));
-    } catch (e) {}
-    if (!found) { try { console.warn('[viewer] selectAndZoom: no loaded mesh with elementGuid', guid); } catch (e) {} return false; }
+    if (!found) return;
     highlight(found);
     var box = new THREE.Box3().setFromObject(found);
     if (!box.isEmpty()) fitCamera(box);
-    return true;
   }
 
   function addMeasurePoint(hit) {
@@ -1464,18 +1447,6 @@ THREE.ColorManagement.enabled = false;
 
   function handleCommand(cmd) {
     if (!cmd || !cmd.type) return;
-    // Tell the coordination layer the HOST has asked for geometry, so its
-    // boot watchdog can distinguish "the host never asked" (nothing is
-    // coming — say so) from "a load is genuinely in flight" (wait longer).
-    if (cmd.type === 'load' || cmd.type === 'addModel') {
-      // Carries modelId so the coordination layer can preserve the model
-      // across a re-navigation (starting a meeting reloads this document).
-      try {
-        window.dispatchEvent(new CustomEvent('sting:modelLoadRequested', {
-          detail: { modelId: cmd.payload && cmd.payload.modelId }
-        }));
-      } catch (_) {}
-    }
     switch (cmd.type) {
       case 'load':            loadModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;
       case 'addModel':        addModel(cmd.payload.url, cmd.payload.transform, cmd.payload.modelId); break;
@@ -1939,35 +1910,6 @@ THREE.ColorManagement.enabled = false;
      calls setupPhotoRealtime(). Skipped automatically inside the React
      Native WebView (mobile owns its own RealtimeClient). -->
 <script defer src="./signalr-shim.js"></script>
-
-<!-- Cross-origin auth bootstrap. When this viewer is embedded as an iframe
-     from a different origin (planscape-web's /projects/{id}/viewer route),
-     this origin's localStorage has never heard of that session — it starts
-     empty on every load. coordination-viewer.js, meeting-sync.js and
-     livekit-av.js each independently read planscape_token / planscape_tenant
-     / planscape_user from localStorage, so all three need it populated
-     before they run, not just whichever happens to read the URL itself.
-     Mirrors the existing ?api= convention already used for "share-links from
-     another origin" (see the apiBase resolution in coordination-viewer.js).
-     The token is stripped from the address bar immediately after reading —
-     same reasoning as the planscape.build handoff page: a JWT sitting in
-     iframe history is exposure with no upside once it's been consumed. -->
-<script>
-(function () {
-  try {
-    var p = new URLSearchParams(location.search);
-    var token = p.get('token'), tenant = p.get('tenant'), user = p.get('user');
-    if (token) localStorage.setItem('planscape_token', token);
-    if (tenant) localStorage.setItem('planscape_tenant', tenant);
-    if (user) localStorage.setItem('planscape_user', user);
-    if (token || tenant || user) {
-      p.delete('token'); p.delete('tenant'); p.delete('user');
-      var qs = p.toString();
-      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
-    }
-  } catch (e) { console.warn('[viewer] auth bootstrap failed:', e); }
-})();
-</script>
 
 <!-- Coordination layer — panels, API, clash + issue management. -->
 <script defer src="./coordination-viewer.js"></script>

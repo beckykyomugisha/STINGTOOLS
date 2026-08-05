@@ -205,8 +205,7 @@ namespace StingTools.Model
                             // Apply DrawingType if resolved.
                             if (dt != null)
                             {
-                                try { DrawingTypePresentation.Apply(doc, view, dt,
-                                    new DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); } // batch view production
+                                try { DrawingTypePresentation.Apply(doc, view, dt); }
                                 catch (Exception ex2)
                                 { StingLog.Warn($"DrawingTypePresentation.Apply on {lvl.Name}: {ex2.Message}"); }
                             }

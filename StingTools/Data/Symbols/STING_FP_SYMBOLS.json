@@ -10,7 +10,6 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
-      "realSizeMm": 50,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -90,8 +89,6 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
-      "realSizeMm": 50,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -167,8 +164,6 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
-      "realSizeMm": 50,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -238,7 +233,6 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -298,8 +292,6 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 5.0,
-      "realSizeMm": 80,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -374,7 +366,6 @@
       "discipline": "FireProtection",
       "subcategory": "Sprinkler",
       "symbolSize": 4.0,
-      "realSizeMm": 50,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -432,7 +423,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -479,7 +469,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -521,7 +510,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -570,7 +558,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -619,8 +606,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.5,
-      "realSizeMm": 110,
-      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -676,8 +661,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 5.0,
-      "realSizeMm": 200,
-      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -761,8 +744,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 5.0,
-      "realSizeMm": 200,
-      "overallExtent": 0.6,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -840,7 +821,6 @@
       "discipline": "FireProtection",
       "subcategory": "Detection",
       "symbolSize": 4.5,
-      "realSizeMm": 120,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -901,7 +881,6 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 4.0,
-      "realSizeMm": 80,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -968,7 +947,6 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1020,8 +998,6 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 5.0,
-      "realSizeMm": 130,
-      "overallExtent": 0.55,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1075,7 +1051,6 @@
       "discipline": "FireProtection",
       "subcategory": "Alarm",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "ZONE_REF",
@@ -1152,7 +1127,6 @@
       "discipline": "FireProtection",
       "subcategory": "Panel",
       "symbolSize": 8.0,
-      "realSizeMm": 400,
       "parameters": [
         {
           "name": "PANEL_REF",
@@ -1255,7 +1229,6 @@
       "discipline": "FireProtection",
       "subcategory": "Panel",
       "symbolSize": 6.0,
-      "realSizeMm": 250,
       "parameters": [
         {
           "name": "PANEL_REF",
@@ -1315,7 +1288,6 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 6.0,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "VALVE_REF",
@@ -1408,7 +1380,6 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 6.0,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "VALVE_REF",
@@ -1498,7 +1469,6 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 7.0,
-      "realSizeMm": 250,
       "parameters": [
         {
           "name": "VALVE_REF",
@@ -1599,7 +1569,6 @@
       "discipline": "FireProtection",
       "subcategory": "Monitor",
       "symbolSize": 5.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "DEVICE_REF",
@@ -1695,7 +1664,6 @@
       "discipline": "FireProtection",
       "subcategory": "Monitor",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [
         {
           "name": "RANGE_BAR",
@@ -1762,7 +1730,6 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [],
       "geometry": {
         "arcs": [
@@ -1827,7 +1794,6 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 4.0,
-      "realSizeMm": 100,
       "parameters": [],
       "geometry": {
         "arcs": [
@@ -1898,7 +1864,6 @@
       "discipline": "FireProtection",
       "subcategory": "Valve",
       "symbolSize": 5.0,
-      "realSizeMm": 200,
       "parameters": [
         {
           "name": "VALVE_REF",
