@@ -2,6 +2,68 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Folder structure — end the sibling sprawl)
+
+Acts on [`FOLDER_STRUCTURE_REVIEW_2026-08.md`](FOLDER_STRUCTURE_REVIEW_2026-08.md),
+which re-measured the July ISO 19650 folder review. The design was already
+correct and singular — `ProjectFolderEngine` owns the tree, `StingPaths` is the
+one legal resolver, a CI gate defends it. The adoption had not happened.
+
+**124 of 140 `_BIM_COORD` path sites built on a raw model-directory base**, so
+they wrote `<rvtDir>/_BIM_COORD` — the folder `MigrateFromLegacy` had just
+retired. Consolidation was undone by the next command that ran, and reads were
+partly masked by the legacy fallback, so the store forked silently rather than
+failing. All now resolve through `StingPaths`; the path-discipline gate's Tier 2
+is a **hard zero with an empty baseline**.
+
+Two new non-destructive resolvers made that migration safe:
+
+- `StingPaths.MetaFile(doc, bucket, …)` — consolidated path if that file exists,
+  else an existing legacy sibling, else consolidated. Projects predating
+  consolidation keep working; new data is born consolidated; nothing moves.
+- `StingPaths.MetaFrom` / `MetaFileFrom` (+ `GetMetaPathForModelPath`) — the
+  path-based equivalents for callers that never hold a `Document`. Root is found
+  by discovery (scanning for a sibling `_data/project_setup.json`), never by
+  guessing a project code, which would fork a second tree.
+
+**`AutoCreateCdeFolders` now defaults false.** It was materialising ~53
+(CdeFirst) to ~60 (BIM) empty directories beside the model on every open, with
+`11_ISSUES/CVI` and `12_CLASHES/Snapshots` existing before the project had an
+issue. Every write path already creates its own directory.
+
+**The four `_data` coordination buckets collapsed onto `_data/coord`.**
+`_BIM_COORD`, `STING_BIM_MANAGER`, `_bim_manager` and `.bimmanager` are aliases
+resolved in `GetMetaPath`, so no call sites changed. Existing projects keep using
+a legacy bucket directory that already holds their data; folding it is the
+consented `MigrateFromLegacy`'s job, which now also folds alias buckets a
+previous consolidation had moved under `_data`. The breadcrumb is
+schema-versioned (v2) so already-consolidated projects are not barred from the
+new step.
+
+Two real bugs surfaced while doing this:
+
+- **Restore-from-recycle never worked.** `DeleteFile` soft-deletes into
+  `_data/recycle`, but the dialog read `<root>/_RECYCLE`, which nothing has
+  written since the bin moved. It reported "Recycle bin is empty" however many
+  files had been deleted, making every soft-delete unrecoverable through the UI.
+  It now reads `StingPaths.Recycle`, still scanning the legacy folder, and
+  delegates to `RestoreFile` (honours `recycle_index.json`, strips the timestamp
+  prefix). `StingPaths.Recycle` having zero callers was the tell.
+- **A fifth tree definition.** `GapFixEngine.GenerateCDEFolders` built 196
+  directories in a shape matching neither `BimFolderDefaults` nor
+  `CdeFirstFolderDefaults`, so scaffolding a share produced a layout disagreeing
+  with where exports land. It now builds from the document's own `ProjectSetup`.
+
+Also: `FOLDER_CODE_SUFFIX` makes the `_<CODE>` folder suffix optional (default
+**true** — flipping it would make existing projects create unsuffixed folders
+alongside their suffixed ones); `CLAUDE.md` gained a **Project Output Folder
+Layout** section (its absence is why 124 sites were written against a rule
+nobody could find); `docs/INDEX.md` added; superseded ISO-19650 folder docs
+marked.
+
+Build: 0 errors, 0 warnings (clean rebuild, Revit 2025 + .NET 8). Path-discipline
+and dispatch-parity gates green.
+
 #### Completed (N6 — DEP-7: restore the HTTP-level handoff provisioning-failure test)
 
 Phase 212 had to drop the end-to-end test for the handoff guarantee — *a

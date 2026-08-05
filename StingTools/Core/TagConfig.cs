@@ -253,6 +253,15 @@ namespace StingTools.Core
         /// </para></summary>
         public static bool AutoCreateCdeFolders { get; internal set; } = false;
 
+        /// <summary>When true (default), project folder display names carry a
+        /// `_&lt;PROJECT_CODE&gt;` suffix (01_WIP → 01_WIP_FIRESTONE) so a folder stays
+        /// identifiable once copied out of the root. Set FOLDER_CODE_SUFFIX=false in
+        /// project_config.json for shorter names — but only BEFORE a project's first
+        /// setup: the suffixed names are persisted in project_setup.json, so flipping it
+        /// mid-project makes new unsuffixed folders appear alongside the existing
+        /// suffixed ones. See <see cref="ProjectSetup.WithCodeSuffix"/>.</summary>
+        public static bool FolderCodeSuffix { get; internal set; } = true;
+
         /// <summary>Phase 165 (NEW-02): When true, ClashScheduler starts on
         /// DocumentOpened with the cadence from default_clash_matrix.json
         /// (SchedulerIntervalMinutes; default 60). Off keeps the scheduler
@@ -986,6 +995,13 @@ namespace StingTools.Core
                 {
                     if (accfObj is bool b) AutoCreateCdeFolders = b;
                     else if (bool.TryParse(accfObj?.ToString(), out bool bp)) AutoCreateCdeFolders = bp;
+                }
+
+                FolderCodeSuffix = true;
+                if (data.TryGetValue("FOLDER_CODE_SUFFIX", out object fcsObj))
+                {
+                    if (fcsObj is bool fb) FolderCodeSuffix = fb;
+                    else if (bool.TryParse(fcsObj?.ToString(), out bool fbp)) FolderCodeSuffix = fbp;
                 }
 
                 // Streaming COBie batch size

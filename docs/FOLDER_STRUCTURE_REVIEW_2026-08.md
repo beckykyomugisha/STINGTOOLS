@@ -1,6 +1,11 @@
 # Folder Structure Review — August 2026 (re-measure)
 
-**Date**: 2026-08-05 · **Branch**: `claude/review-folder-structure-audit` · **Type**: review & advice (no code changes)
+**Date**: 2026-08-05 · **Branch**: `claude/review-folder-structure-audit` · **Type**: review → **implemented**
+
+> ✅ **All findings in this document have been actioned on this branch.** The review text below is
+> preserved as the diagnosis; see [What was implemented](#what-was-implemented) at the end for what
+> changed and what the numbers are now. The rules to follow live in `CLAUDE.md` →
+> *Project Output Folder Layout*.
 
 This re-measures [`ISO19650_DOC_FOLDER_REVIEW.md`](ISO19650_DOC_FOLDER_REVIEW.md) (2026-07-19), which
 asked *"why does folder creation produce many disorganised folders, some repeated inside others?"*
@@ -240,3 +245,97 @@ for p in 'StingPaths\.' 'ProjectFolderEngine\.' 'OutputLocationHelper\.' 'CoordS
 # the gate's current verdict
 cd .. && powershell -NoProfile -File tools/check_path_discipline.ps1
 ```
+
+---
+
+## What was implemented
+
+All of Part 4 landed on `claude/review-folder-structure-audit`, in four commits. Build stayed at
+**0 errors / 0 warnings** (clean rebuild, Revit 2025 + .NET 8) throughout.
+
+### Measured before → after
+
+| Metric | Before | After |
+|---|---|---|
+| `_BIM_COORD` sites on a raw model-dir base (write the sibling) | **124** | **0** |
+| …resolving correctly through `StingPaths` | 15 | 16 (rest now use `Meta`/`MetaFile` directly, off the `Path.Combine` shape entirely) |
+| Path-discipline Tier 2 baseline | 123 files ratcheted | **empty — hard zero** |
+| Empty directories created on document open | ~53–60 | **0** (lazy) |
+| Distinct tree-shape definitions in the product | 3 modes **+ a 4th in `GenerateCDEFolders`** | 3 modes |
+| Coordination bucket directories under `_data/` | 4 (`_BIM_COORD`, `STING_BIM_MANAGER`, `_bim_manager`, `.bimmanager`) | **1** (`coord/`; the four names alias to it) |
+
+### P0
+
+1. **Gate discriminator** — Tier 2 now applies the same `$resolverBase` test as Tier 1, and that
+   regex gained the `StingPaths.*` entry points it had always omitted (which is why it initially
+   scored 139/0 instead of 124/15). Correct sites are counted and reported separately, never
+   baselined. The summary now names Tier 2 as a burn-down and explains what a raw-dir site does.
+2. **`AutoCreateCdeFolders` defaults false** (`TagConfig.cs`). `AUTO_CREATE_CDE_FOLDERS=true`
+   restores pre-seeding.
+
+### P1
+
+3. **124 sites migrated.** Two new non-destructive resolvers made this safe:
+   - `StingPaths.MetaFile(doc, bucket, …)` — consolidated path if that file exists, else an existing
+     legacy sibling, else consolidated. Projects predating consolidation keep working untouched; new
+     data is born consolidated; nothing is moved.
+   - `StingPaths.MetaFrom` / `MetaFileFrom` + `ProjectFolderEngine.GetMetaPathForModelPath` — the
+     path-based equivalents, for callers that never hold a `Document` (the dock-panel preset UIs have
+     only `CurrentDocPath`). Root is found by *discovery* — scanning for a sibling
+     `_data/project_setup.json` — never by guessing a project code, which would fork a second tree.
+4. **Residue routed.** `_acc_mirror_tmp` and `sharepoint_queue` were already on `StingPaths.Staging`.
+   Remaining `STING_Exports` references are read-only legacy indexing (the Document Manager still
+   lists those files) and the migration's own scan list — both correct, left as-is.
+
+### Two real bugs found and fixed while doing the above
+
+5. **Restore-from-recycle never worked.** `ProjectFolderEngine.DeleteFile` soft-deletes into
+   `<root>/_data/recycle`, but `DocumentManagementDialog.RestoreFromRecycle` read `<root>/_RECYCLE` —
+   which nothing has written since the bin moved under `_data`. The dialog reported *"Recycle bin is
+   empty"* however many files had been deleted, making every soft-delete unrecoverable through the
+   UI. It now reads `StingPaths.Recycle(doc)` (still scanning the legacy folder for older items) and
+   delegates to `RestoreFile`, which honours the origin recorded in `recycle_index.json` and strips
+   the `yyyyMMdd_HHmmss_` prefix the raw `File.Move` used to leave in restored filenames.
+   *(Note: `StingPaths.Recycle` had zero callers — that was the tell.)*
+6. **A fifth tree definition.** `GapFixEngine.GenerateCDEFolders` built 4 states × 7 disciplines ×
+   7 doc types = **196 directories**, with discipline names (`A-Architecture`) and doc types matching
+   neither `BimFolderDefaults` nor `CdeFirstFolderDefaults` — so a team scaffolding a share got a
+   layout disagreeing with where their exports actually land. It now builds from the document's own
+   `ProjectSetup`. It also no longer creates `_RECYCLE` (an empty folder nothing wrote to).
+
+### P2
+
+7. **Buckets collapsed.** The four coordination names alias onto `_data/coord` inside
+   `GetMetaPath`, so **no call sites changed** — they still pass `"_BIM_COORD"` and land in the right
+   place. Verified zero filename collisions between the live buckets first.
+   Existing projects are not restructured silently: when a legacy bucket directory already exists
+   under `_data`, it keeps being used. Folding is the consented `MigrateFromLegacy`'s job, which now
+   handles both legacy siblings *and* alias buckets a previous consolidation had already moved under
+   `_data`. `ScanLegacy` previews both, so the dry-run matches the run.
+   The breadcrumb is **schema-versioned (v2)** — without that, every project consolidated before this
+   change would have been permanently barred from the new step by `HasConsolidated`.
+8. **`WithCodeSuffix` is now optional** via `FOLDER_CODE_SUFFIX`, **defaulting to true**. Flipping the
+   default was rejected on evidence: the suffixed names are persisted in every existing project's
+   `project_setup.json`, so those projects would start creating unsuffixed folders *alongside* their
+   suffixed ones — more sprawl, not less. Set it before a project's first setup.
+
+### P3
+
+9. **`CLAUDE.md` gained *Project Output Folder Layout*** — the resolver rule, the call-to-use table,
+   the three modes, the `_data` contract, and the two behaviours (lazy creation, consented
+   migration). Its absence is the direct cause of finding §2.2: 124 sites were written by people with
+   no way to learn the rule they were breaking.
+10. **Stale comments fixed** — "16 numbered folders" → 20; the root documented as
+    `{ProjectDir}/{ProjectCode}/`, with `STING_Project` named as the legacy name it actually is.
+11. **[`docs/INDEX.md`](INDEX.md) added** (P0 #3 from `CLAUDE.md`'s own review, open since July), and
+    the two superseded ISO-19650 folder documents now carry ⛔ banners pointing here.
+
+### Not done, deliberately
+
+- **Renaming the ~80 call sites from `"_BIM_COORD"` to `"coord"`.** They are aliases; the physical
+  layout is already correct. A mass rename would be pure churn across 80 files with no behaviour
+  change, and would lose the alias mapping that keeps existing projects readable.
+- **Restructuring existing projects on open.** Every fold is gated behind the consented
+  `Folders_Consolidate`. Moving a user's files unprompted is the bug the July review flagged; it is
+  not reintroduced here.
+- **Part 2 of the July review (Document Manager vs ISO 19650)** — a separate scope, not re-measured.

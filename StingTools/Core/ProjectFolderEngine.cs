@@ -14,7 +14,8 @@ namespace StingTools.Core
     /// Creates, maintains, and indexes a standardised directory tree linked
     /// to the Document Manager for browsing, deletion, renaming and drag-to-view.
     ///
-    /// Root: {ProjectDir}/STING_Project/ (or user-chosen path)
+    /// Root: {ProjectDir}/{ProjectCode}/ (or user-chosen path). "STING_Project" is a
+    /// LEGACY root name that MigrateFromLegacy drains — it is not what gets created.
     ///
     /// Folder tree:
     ///   01_WIP/               — Work in progress deliverables
@@ -37,6 +38,21 @@ namespace StingTools.Core
     ///   18_PHOTOS/            — Site photos and observations
     ///   19_CORRESPONDENCE/    — Letters, emails, meeting minutes
     ///   20_MISC/              — Uncategorised exports
+    ///   _data/                — ALL machine state; never a deliverable. Contains:
+    ///                             coord/            the one coordination bucket
+    ///                                               (_BIM_COORD / STING_BIM_MANAGER /
+    ///                                                _bim_manager / .bimmanager alias to it)
+    ///                             staging/&lt;channel&gt; transient outbound staging
+    ///                             recycle/          the single project recycle bin
+    ///                             folder_templates/ saved folder templates
+    ///                             project_setup.json
+    ///
+    /// Display names are suffixed with the project code (01_WIP → 01_WIP_&lt;CODE&gt;) unless
+    /// FOLDER_CODE_SUFFIX=false in project_config.json.
+    ///
+    /// Nothing outside this class may build these paths by hand — resolve through
+    /// StingPaths (see tools/check_path_discipline.ps1, which fails the build on new
+    /// hand-rolled sibling paths).
     /// </summary>
     public static class ProjectFolderEngine
     {
