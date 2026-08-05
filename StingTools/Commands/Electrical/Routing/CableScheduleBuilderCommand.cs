@@ -356,7 +356,7 @@ namespace StingTools.Commands.Electrical.Routing
             // Fields to include (ELC_WIRE_* shared params + built-in conduit length)
             var paramNames = new[]
             {
-                "ELC_CIRCUIT_NR_TXT", "ELC_WIRE_PHASE_TXT", "ELC_WIRE_CORE_COUNT_INT",
+                "ELC_CKT_NR", "ELC_WIRE_PHASE_TXT", "ELC_WIRE_CORE_COUNT_INT",
                 "ELC_WIRE_CSA_MM2_NUM", "ELC_WIRE_COND_MAT_TXT", "ELC_WIRE_AMPACITY_A",
                 "ELC_WIRE_VD_PCT_NUM", "ELC_WIRE_INSTALL_METHOD_TXT", "ELC_WIRE_MAX_DEMAND_A",
                 "ELC_WIRE_CIRCUIT_BREAKER_A", "ELC_WIRE_EARTH_CSA_MM2", "ELC_WIRE_CIRCUIT_TYPE_TXT"
@@ -423,7 +423,7 @@ namespace StingTools.Commands.Electrical.Routing
                     .Select(fid => schedDef.GetField(fid))
                     .FirstOrDefault(f => f != null
                         && doc.GetElement(f.ParameterId) is SharedParameterElement spe2
-                        && spe2.GetDefinition().Name == "ELC_CIRCUIT_NR_TXT");
+                        && spe2.GetDefinition().Name == "ELC_CKT_NR");
                 if (circNrFieldId != null)
                 {
                     schedDef.ClearSortGroupFields();

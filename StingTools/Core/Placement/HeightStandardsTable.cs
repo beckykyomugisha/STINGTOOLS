@@ -18,6 +18,11 @@ namespace StingTools.Core.Placement
     {
         public double MinMm    { get; set; }
         public double MaxMm    { get; set; }
+        /// <summary>Preferred mounting height (mm). Present in the JSON; consumed by
+        /// the MEP-from-DWG fixture builder (MEP V1) for the placement Z.</summary>
+        public double PreferredMm { get; set; }
+        /// <summary>Optional mount type, e.g. "Ceiling". Informational.</summary>
+        public string MountType   { get; set; } = "";
         public string Standard { get; set; } = "";
         public string Notes    { get; set; } = "";
     }

@@ -9,20 +9,91 @@
 #   Build output dir:  marketing-site
 #   Root directory:    /
 #
-# This file controls deploy-time options.
+# This file controls deploy-time options + Function bindings.
 
 name = "planscape-marketing"
 pages_build_output_dir = "."
 compatibility_date = "2026-05-01"
 
-# Environment variables — replace placeholders before deploy, or set in the dashboard
-# (Pages → Settings → Environment variables) which is safer for secrets.
+# Project-wide vars (non-secret)
 [vars]
-SITE_URL = "https://planscape.co"
+SITE_URL = "https://planscape.build"
+
+# Auth core (B1) secrets — DO NOT put real values here. Set them as encrypted
+# environment variables / secrets in the Cloudflare dashboard:
+#   Pages → planscape-marketing → Settings → Environment variables (Production).
+#   JWT_SECRET      Secret. 32+ random bytes. Generate: openssl rand -base64 32
+#                   Signs HS256 access tokens. Rotating it invalidates all JWTs.
+#   RESEND_API_KEY  Secret. Resend API key (re_...) for verification / reset email.
+#   APP_ORIGIN      Plain var. Public origin for email links. https://planscape.build
+#   EMAIL_FROM      Plain var (optional). Override the From: address.
+#                   Default: "Planscape <noreply@planscape.build>"
+# The auth Functions reuse the WAITLIST_DB D1 binding below — no new binding needed.
+
+# Cloud handoff (functions/api/cloud/handoff.ts) — where "sign in" hands a
+# logged-in planscape.build user off to the coordinator app.
+#   CLOUD_APP_ORIGIN  Plain var, not actually secret (just a URL) — set as a
+#                     Pages secret only because this project deploys via
+#                     `wrangler pages deploy`, not git, so wrangler.toml [vars]
+#                     changes never reach it without a manual redeploy.
+#                     Falls back to https://app.planscape.build if unset.
+#                     CURRENT VALUE (set 2026-07-31): https://app.planscape.build
+#                     — verified as a Render custom domain on planscape-web-free
+#                     and confirmed serving over HTTPS the same day. Briefly
+#                     pointed at the bare Render URL as an interim value while
+#                     the custom domain was being verified; no longer needed.
+#                     To change it later:
+#                       echo "<new origin>" | \
+#                         wrangler pages secret put CLOUD_APP_ORIGIN \
+#                         --project-name planscape-marketing
+#                     No redeploy required either way — Pages secrets are
+#                     runtime bindings.
+
+# D1 binding for the waitlist Function (functions/api/waitlist.ts)
+# Created via: wrangler d1 create planscape-waitlist
+[[d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
+
+# R2 binding for the gated download area (functions/api/downloads/*).
+# Created via: wrangler r2 bucket create planscape-downloads
+# The bucket is PRIVATE — files are streamed through a Function that checks the
+# caller's subscription entitlement first, so a download link cannot be forwarded
+# to someone who has not paid. Never make this bucket public.
+# Upload a build:
+#   wrangler r2 object put planscape-downloads/<tool>/<version>/<file>.zip --file <path>
+[[r2_buckets]]
+binding     = "DOWNLOADS"
+bucket_name = "planscape-downloads"
 
 # Per-environment overrides
 [env.preview]
 name = "planscape-marketing-preview"
 
+[env.preview.vars]
+SITE_URL = "https://preview.planscape.build"
+
+[[env.preview.d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
+
+[[env.preview.r2_buckets]]
+binding     = "DOWNLOADS"
+bucket_name = "planscape-downloads"
+
 [env.production]
 name = "planscape-marketing"
+
+[env.production.vars]
+SITE_URL = "https://planscape.build"
+
+[[env.production.d1_databases]]
+binding       = "WAITLIST_DB"
+database_name = "planscape-waitlist"
+database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
+
+[[env.production.r2_buckets]]
+binding     = "DOWNLOADS"
+bucket_name = "planscape-downloads"

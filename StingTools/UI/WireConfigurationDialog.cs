@@ -368,7 +368,7 @@ namespace StingTools.UI
                                 any |= SetTypedNumber(seg, "ELC_WIRE_CSA_MM2_NUM",     profile.CsaMm2);
                                 any |= ParameterHelpers.SetString(seg, "ELC_WIRE_COND_MAT_TXT",  profile.ConductorMat ?? "", overwrite: true);
                                 any |= ParameterHelpers.SetString(seg, "ELC_WIRE_PROFILE_ID_TXT", profile.Id, overwrite: true);
-                                any |= ParameterHelpers.SetString(seg, "ELC_CIRCUIT_NR_TXT",     sys.Name ?? "", overwrite: true);
+                                any |= ParameterHelpers.SetString(seg, "ELC_CKT_NR",     sys.Name ?? "", overwrite: true);
                                 any |= ParameterHelpers.SetString(seg, "ELC_PNL_NAME_TXT",       sys.PanelName ?? "", overwrite: true);
                                 if (any) touched++;
                             }

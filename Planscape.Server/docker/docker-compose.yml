@@ -22,6 +22,10 @@ services:
       - Jwt__Issuer=Planscape
       - Jwt__Audience=Planscape.Client
       - Redis__Connection=redis:6379
+      # Cloud handoff (docs/PLANSCAPE_IDENTITY_HANDOFF.md) — shared HMAC secret
+      # with planscape.build. Optional: the exchange endpoint 500s with a clear
+      # message when unset rather than failing the stack.
+      - PLANSCAPE_HANDOFF_SECRET=${PLANSCAPE_HANDOFF_SECRET:-}
       - ModelConverter__Provider=${MODEL_CONVERTER_PROVIDER:-null}
       - ModelConverter__IfcConvertPath=/usr/local/bin/IfcConvert
       - ModelConverter__ThumbnailProvider=${MODEL_THUMBNAIL_PROVIDER:-gltf-bounds}

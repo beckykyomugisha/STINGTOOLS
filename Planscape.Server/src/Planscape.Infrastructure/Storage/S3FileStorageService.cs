@@ -117,6 +117,13 @@ public class S3FileStorageService : IFileStorageService, IAsyncDisposable
             Key = key,
             InputStream = content,
             AutoCloseStream = false,
+            // AWSSDK.S3 3.7.300+ defaults PutObject to a trailing-checksum streaming
+            // signature (STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER). Cloudflare R2
+            // (and MinIO) don't implement that scheme and reject every upload with
+            // "STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER not implemented". Disabling
+            // payload signing falls back to the classic AWS4-HMAC-SHA256 signature,
+            // which every S3-compatible provider supports.
+            DisablePayloadSigning = true,
         };
         await _s3.PutObjectAsync(request, ct);
         _logger.LogDebug("Uploaded {Key} to {Bucket}", key, _bucket);
@@ -247,6 +254,26 @@ public class S3FileStorageService : IFileStorageService, IAsyncDisposable
         };
         return Task.FromResult(new Planscape.Core.Interfaces.PresignedUpload(
             url, objectKey, req.Expires, headers));
+    }
+
+    /// <summary>
+    /// Presigned GET so the converter sidecar (or any external worker) can pull
+    /// an object's bytes directly. Mirror of <see cref="GetPresignedPutUrlAsync"/>
+    /// with <c>Verb = GET</c>; no headers to pin on a download.
+    /// </summary>
+    public Task<string> GetPresignedGetUrlAsync(
+        string objectKey, TimeSpan validFor, CancellationToken ct = default, bool bypassTenantCheck = false)
+    {
+        EnforceTenantOwnership(objectKey, bypassTenantCheck);
+
+        var req = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucket,
+            Key = objectKey,
+            Verb = HttpVerb.GET,
+            Expires = DateTime.UtcNow.Add(validFor),
+        };
+        return Task.FromResult(_s3.GetPreSignedURL(req));
     }
 
     /// <summary>

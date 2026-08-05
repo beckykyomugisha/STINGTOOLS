@@ -20,7 +20,8 @@ namespace StingTools.BOQ
         public string Phase { get; set; } = "";
         public string Level { get; set; } = "";
         public int ElementCount { get; set; }
-        public double TotalCarbonKg { get; set; }
+        public double TotalCarbonKg { get; set; }     // WP-C — A1-A3 fossil headline
+        public double TotalBiogenicKg { get; set; }   // WP-C — A1-A3 biogenic (≤0), reported separately
         public double TotalCostUGX { get; set; }
     }
 
@@ -28,6 +29,7 @@ namespace StingTools.BOQ
     {
         public List<CarbonPivotRow> Rows { get; } = new List<CarbonPivotRow>();
         public double GrandTotalCarbonKg => Rows.Sum(r => r.TotalCarbonKg);
+        public double GrandTotalBiogenicKg => Rows.Sum(r => r.TotalBiogenicKg);
         public double GrandTotalCostUGX => Rows.Sum(r => r.TotalCostUGX);
     }
 
@@ -52,7 +54,8 @@ namespace StingTools.BOQ
                     acc[key] = r;
                 }
                 r.ElementCount++;
-                r.TotalCarbonKg += item.EmbodiedCarbonKg;
+                r.TotalCarbonKg += item.EmbodiedCarbonKg;       // A1-A3 fossil
+                r.TotalBiogenicKg += item.BiogenicKg;           // A1-A3 biogenic (separate)
                 r.TotalCostUGX  += item.TotalUGX;
             }
             result.Rows.AddRange(acc.Values
@@ -66,9 +69,9 @@ namespace StingTools.BOQ
             string path = Path.Combine(outDir,
                 $"STING_carbon_by_phase_level_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Phase,Level,ElementCount,TotalCarbonKg,TotalCostUGX");
+            sb.AppendLine("Phase,Level,ElementCount,FossilCarbonKg_A1A3,BiogenicCarbonKg_A1A3,TotalCostUGX");
             foreach (var r in result.Rows)
-                sb.AppendLine($"\"{r.Phase}\",\"{r.Level}\",{r.ElementCount},{r.TotalCarbonKg:F1},{r.TotalCostUGX:F0}");
+                sb.AppendLine($"\"{r.Phase}\",\"{r.Level}\",{r.ElementCount},{r.TotalCarbonKg:F1},{r.TotalBiogenicKg:F1},{r.TotalCostUGX:F0}");
             File.WriteAllText(path, sb.ToString());
             return path;
         }

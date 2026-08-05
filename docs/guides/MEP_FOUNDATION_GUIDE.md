@@ -739,6 +739,86 @@ Wire annotations link to the broader STING electrical workflow in several ways:
 
 ---
 
+## 1.5 The Automated Symbol Library — Commands and Health Checks
+
+Sections 1.2–1.4 show how to draw a symbol **by hand** in the Family Editor. For most projects you do not have to. STING ships a **data-driven symbol library**: the geometry, connectors, parameters and type variants of every seed family are described in JSON files under `StingTools/Data/Seeds/` and `StingTools/Data/Symbols/`, and a set of commands builds, deploys, swaps, maintains and **validates** those families for you. You hand-draw a symbol only when you need something the library does not yet contain.
+
+Every command below runs from the STING dock panel (or a workflow); the command **tag** is shown so you can find it in the button map.
+
+### 1.5.1 Building and generating families
+
+| Tag / entry point | Command | What it does |
+|---|---|---|
+| `Seeds_Build` | `BuildSeedFamiliesCommand` | Builds all 33 seed families from `Data/Seeds/*.json` — geometry, connectors, STING parameters, type variants, seed-identity stamp. Re-runnable (missing-only / rebuild modes). |
+| `Symbols_CreateAll` | `CreateSymbolLibraryCommand` | Builds every symbol catalogue (SLD, lighting, fire, plumbing, MEP …) in one pass. |
+| `Symbols_CreateSLD` / `_IEEE` / `_BS` / `_NFPA` | *(per-standard)* | Single-line-diagram symbol sets per standard (IEC / IEEE / BS EN / NFPA). |
+| `Symbols_CreateCIBSE` / `_CreateLighting` / `_CreateFP` | *(per-discipline)* | CIBSE building-services, lighting and fire-protection sets. |
+| `Symbols_CreateCompound` | `CreateCompoundSymbolsCommand` | Assembles multi-part symbols (e.g. an RCBO = MCB + RCD, or a full motor starter) using vertical-stack, horizontal-series or ladder layout. |
+| `Symbols_Reload` · `Symbols_Inspect` · `Symbols_ConfigSizes` | — | Reload built `.rfa`s into the project · report defined-vs-loaded coverage · set global / per-category / per-symbol size overrides. |
+
+### 1.5.2 Choosing the drawing standard, and placing symbols
+
+Which symbol shape a family uses (an IEC circle, a BS square, an ANSI zig-zag) is resolved per project, per view, or per element:
+
+| Tag | Command | What it does |
+|---|---|---|
+| `Symbols_SwitchProject` / `_SwitchView` / `_SetProfile` / `_SetElementStandard` | — | Set the active standard at project, view, mixed-profile or single-element level. |
+| `Symbols_Audit` | `SymbolStandardAuditCommand` | Reports which standard each symbol resolves to and flags mismatches. |
+| `Symbols_PlaceView` / `_PlaceAll` | — | Overlay the correct symbol on every MEP element in a view / the whole project. |
+| `Symbols_PlaceMepDetail` / `_PlaceMepDetailAll` / `_ClearMepDetail` | `PlaceMepDetailSymbolsCommand` | Place (or clear) detail-item schematic symbols on any view type. |
+| `Symbols_AutoPlaceToggle` · `Symbols_RemoveInView` / `_RemoveAll` · `Symbols_SyncFilters` | — | Auto-place on/off · remove overlays · sync view-filter visibility. |
+| `Equip_BrowseAll` · `Equip_PlaceElec` / `Plumb` / `Hvac` / `Light` / `FP` / `PipeAcc` | — | Browse and place point-equipment symbols by discipline. |
+
+### 1.5.3 Swapping seeds to manufacturer families
+
+| Tag / entry point | Command | What it does |
+|---|---|---|
+| `Seeds_SwapToManufacturer` · Placement Centre → **Swap to Manufacturer** | `SwapToManufacturerCommand` | Replaces STING seed instances with a real manufacturer `.rfa` while preserving position, host and **every STING parameter** (via a non-destructive parameter bridge). Merges a project-level swap registry over the corporate one, and stamps the UL / EN 1366-3 certification reference for firestop penetrations. |
+
+### 1.5.4 Adding STING data to families you already own
+
+| Tag | Command | What it does |
+|---|---|---|
+| `Symbols_AugmentAll` / `_AugmentSelected` / `_RollbackAugment` | `FamilyAugmentationEngine` | Inject (or roll back) the `STING_SYMBOL_ID` / `_STANDARD` / `_HOST_ELEMENT_ID` parameters into existing loaded families so third-party content joins the symbol system. |
+| `Symbols_AuthorSymbols` | `AuthorFamilySymbolsCommand` | Authors STING symbology onto model families in bulk. |
+
+### 1.5.5 Keeping the library healthy (maintenance)
+
+Over the life of a model, symbols drift, hosts get deleted, and coverage slips. These commands find and fix that:
+
+| Tag | Command | What it does |
+|---|---|---|
+| `Symbols_Coverage` | `SymbolCoverageAuditCommand` | Reports how many MEP elements carry a symbol overlay, broken down by category and level. |
+| `Symbols_HealOrphans` | `HealSymbolOrphansCommand` | Removes symbol tags whose host element has been deleted (and their annotations). |
+| `Symbols_FixDrift` | `FixSymbolDriftCommand` | Re-mints symbols whose standard or family has drifted from what the resolver now expects. |
+| `Symbols_BatchHeal` | `BatchHealAllSymbolsCommand` | One-click: heal orphans + fix drift + sync filter visibility. |
+
+### 1.5.6 Validating the library — `Symbols_Validate` (newest)
+
+`Symbols_Validate` (`SymbolValidateCommand`) is a **read-only pre-flight** you run before building or deploying. It catches the authoring mistakes that otherwise fail *silently* — a symbol that never builds, or a connector that lands in the wrong place — long before they reach a drawing. It checks:
+
+- **Schema keys** — every catalogue and seed JSON deserializes to a *non-empty* symbol list (catches the "wrong top-level key" defect that once stranded 135 SLD symbols).
+- **Blind spots** — catalogue files present on disk but not registered with the builder (invisible to both the builder and older checks).
+- **Concept → family references** — every concept that promises a symbol points to one that actually exists; dangling references are reported by cause (prefix mismatch · view-context variant · genuinely missing).
+- **Geometry range** — coordinates within the valid band (out-of-range points are silently dropped at build).
+- **Connector validity (read from the raw JSON)** — flags connectors that use non-binding keys (e.g. `x`/`y`/`z` instead of `offsetX`/`offsetY`/`offsetZ`, which collapses them to the family origin), connectors that sit on top of each other, and any `domain` / `systemType` the placement engine does not recognise.
+- **Standards + aliases** — fallback chains and alias targets resolve to defined entries.
+
+It prints a summary and logs every issue to `StingTools.log`. On the shipped data it reports **0 issues** — so any issue it lists is something you introduced and should fix before building.
+
+### 1.5.7 What changed most recently
+
+The symbol engine was recently hardened. If you author or maintain seed data, note:
+
+- **Connector system types are now authored correctly.** Return / exhaust / chilled-water / sanitary connectors used to collapse to *supply air* / *supply hydronic*; they now resolve to their declared type. Medical-gas and lab-gas outlets use `OtherPipe` (a first-class type) instead of masquerading as heating water. Always author connectors with `offsetX`/`offsetY`/`offsetZ` + `facing` + a recognised `systemType` — **never** bare `x`/`y`/`z`, which do not bind.
+- **Missing view / scale symbol variants fall back to the base symbol** instead of vanishing from the drawing.
+- **Section symbology draws each line once** (a double-draw that produced overlapping curves was fixed).
+- **`Symbols_Validate` guards all of the above** — run it after editing any seed or catalogue JSON.
+
+> **SLD annotations** are a separate command family (`SldAnnotate_Voltage`, `_Current`, `_Fault`, `_Cable`, `_Phase`, `_Load`, `_Impedance`, `_Diversity`, `_Reference`, plus `_All` / `_Format` / `_UpdateCalcs` / `_Toggle` / `_Clear` / `_Audit`) that stamps calculated electrical values next to single-line-diagram symbols. See the electrical guide for that workflow.
+
+---
+
 # Chapter 2 — Placement Family Authoring
 
 ---

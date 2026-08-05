@@ -48,7 +48,12 @@ namespace StingTools.Core.Drawing
                 { "spool",      spool      ?? string.Empty },
                 { "disc",       discCode   ?? dt?.Discipline ?? string.Empty },
                 { "discipline", discipline ?? dt?.Discipline ?? string.Empty },
-                { "sys",        sysCode    ?? string.Empty },
+                // P4: fall back to the profile's own System code (DCW/HVAC/…)
+                // when the caller doesn't pass one, mirroring the disc/discipline
+                // fallback above. Lets every producer that routes through this
+                // builder fill the {sys} token / SYSTEM title-block cell with no
+                // per-call-site change.
+                { "sys",        sysCode    ?? dt?.System ?? string.Empty },
                 { "lvl",        levelCode  ?? string.Empty },
                 { "mark",       mark       ?? string.Empty },
                 { "purpose",    dt?.Purpose ?? string.Empty },

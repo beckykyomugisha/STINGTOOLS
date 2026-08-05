@@ -187,7 +187,7 @@
       "formula": "if(TAG_WARN_VISIBLE_BOOL, <param>, \"\")",
       "description": "Gates warning text — visible when warnings enabled. Respects TAG_WARN_SEVERITY_FILTER_TXT"
     },
-    "_comment": "Calculated Value templates that tag family labels plug in to. In MR_PARAMETERS v5.3+ every BOOL parameter referenced by one of these templates is stored as TEXT ('Yes'/'No') because Revit label formulas cannot use YESNO parameters as the condition of if(...). STING writers (TagStyleEngine.SetTagFormulaBool, ParameterHelpers.SetYesNo, PresentationModeCommand.SetBool, MigrateTagFamiliesCommand.SetFamilyBool) detect the storage type automatically and write 'Yes'/'No' for TEXT or 1/0 for legacy INTEGER-storage families.",
+    "_comment": "Calculated Value templates that tag family labels plug in to. CONDITION-FORM CONTRACT: every BOOL gate referenced by one of these templates is stored as YESNO in MR_PARAMETERS v5.4+ — YESNO is Revit's native type for an if()/and()/or() condition, so the gate is written BARE: `if(gate, <param>, \"\")`. Do NOT compare a YESNO gate to \"Yes\" — Revit rejects `gate` on a YESNO parameter with 'Inconsistent Units'. The VALUE parameter in the <param> position must stay TEXT (a Revit label can only emit a TEXT result). The emitter (TagConfig.GateToken via FamilyLabelAuthor) picks the form per storage type — it emits bare for YESNO and stays the safety net for any legacy family still holding a gate as TEXT. The file-declared gate type (MR_PARAMETERS.txt) must equal the type bound in the project and in the tag family.",
     "cv_show_tier4": {
       "name": "Show Tier 4",
       "formula": "if(TAG_PARA_STATE_4_BOOL, <param>, \"\")",
@@ -260,6 +260,12 @@
       "prefix": "",
       "suffix": "",
       "label": "Full Tag (8-segment)"
+    },
+    "ASS_TAG_SCHEME_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Scheme Tag (project grammar)",
+      "note": "Project-grammar rendering of the canonical tokens (TagSchemeEngine) — e.g. ISO 19650 KUT-ZZZ-XX-XX-M3-A-0001. Add this as a label row on an annotation tag family to display the scheme identifier on drawings. Derived, never hand-edited."
     },
     "ASS_TAG_2_TXT": {
       "prefix": "",
@@ -1471,6 +1477,76 @@
       "prefix": "⚠ ",
       "suffix": "",
       "label": "Warning: Weld Throat"
+    },
+    "CSI_SECTION_TXT": {
+      "prefix": "CSI ",
+      "suffix": "",
+      "note": "CSI MasterFormat section (Phase H — from CSI_Assign)"
+    },
+    "CLN_DESIGN_ACH_INT": {
+      "prefix": "ACH:",
+      "suffix": " ach",
+      "label": "Cln Design Ach Int"
+    },
+    "CLN_DESIGN_PRESSURE_DELTA_PA_INT": {
+      "prefix": "Δp:",
+      "suffix": " Pa",
+      "label": "Cln Design Pressure Delta Pa Int"
+    },
+    "CLN_DESIGN_TEMP_C_DBL": {
+      "prefix": "T:",
+      "suffix": "°C",
+      "label": "Cln Design Temp C Dbl"
+    },
+    "CLN_DESIGN_RH_PCT_INT": {
+      "prefix": "RH:",
+      "suffix": "%",
+      "label": "Cln Design Rh Pct Int"
+    },
+    "CLN_NOISE_NR_NR": {
+      "prefix": "NR:",
+      "suffix": "",
+      "label": "Cln Noise Nr Nr"
+    },
+    "FOUND_SOIL_CLASS_TXT": {
+      "prefix": "Soil:",
+      "suffix": "",
+      "label": "Found Soil Class Txt"
+    },
+    "FOUND_BEAR_UTIL_TXT": {
+      "prefix": "Util:",
+      "suffix": "",
+      "label": "Found Bear Util Txt"
+    },
+    "FOUND_SUMMARY_TXT": {
+      "prefix": "",
+      "suffix": "",
+      "label": "Found Summary Txt"
+    },
+    "MGS_OUTLET_ZONE_TXT": {
+      "prefix": "Zone:",
+      "suffix": "",
+      "label": "Mgs Outlet Zone Txt"
+    },
+    "MGS_WORKING_PRESSURE_KPA": {
+      "prefix": "P:",
+      "suffix": " kPa",
+      "label": "Mgs Working Pressure Kpa"
+    },
+    "EV_CHARGER_TYPE_TXT": {
+      "prefix": "EV:",
+      "suffix": "",
+      "label": "Ev Charger Type Txt"
+    },
+    "EV_CHARGER_KW": {
+      "prefix": "",
+      "suffix": " kW",
+      "label": "Ev Charger Kw"
+    },
+    "EV_CHARGER_CIRCUIT_REF": {
+      "prefix": "Ckt:",
+      "suffix": "",
+      "label": "Ev Charger Circuit Ref"
     }
   },
   "tier_style_defaults": {
@@ -31036,6 +31112,32 @@
           "size": "2.0"
         },
         {
+          "param": "FOUND_SOIL_CLASS_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Soil:"
+        },
+        {
+          "param": "FOUND_BEAR_UTIL_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Util:"
+        },
+        {
+          "param": "FOUND_SUMMARY_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0"
+        },
+        {
           "param": "RGL_STD_TXT",
           "spaces": 0,
           "break": true,
@@ -46243,6 +46345,16 @@
           "style": "NOM",
           "color": "GREEN",
           "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
         }
       ],
       "tier_6": [
@@ -46987,6 +47099,16 @@
           "style": "NOM",
           "color": "PURPLE",
           "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
         }
       ],
       "tier_6": [
@@ -47552,6 +47674,16 @@
           "style": "NOM",
           "color": "PURPLE",
           "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
         }
       ],
       "tier_6": [
@@ -47951,6 +48083,16 @@
           "break": true,
           "prefix_override": "Quote:",
           "note": "T5 Supplier quote / PO ref",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
           "style": "NOM",
           "color": "PURPLE",
           "size": "2.0"
@@ -48901,6 +49043,16 @@
           "style": "NOM",
           "color": "GREEN",
           "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
         }
       ],
       "tier_6": [
@@ -49309,6 +49461,16 @@
           "break": true,
           "prefix_override": "Quote:",
           "note": "T5 Supplier quote / PO ref",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
           "style": "NOM",
           "color": "PURPLE",
           "size": "2.0"
@@ -50049,6 +50211,16 @@
           "style": "NOM",
           "color": "PURPLE",
           "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
         }
       ],
       "tier_6": [
@@ -50589,6 +50761,16 @@
           "break": true,
           "prefix_override": "Quote:",
           "note": "T5 Supplier quote / PO ref",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
           "style": "NOM",
           "color": "PURPLE",
           "size": "2.0"
@@ -51247,6 +51429,16 @@
           "note": "T5 Last valuation timestamp [Phase 184g P5]",
           "style": "NOM",
           "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
           "size": "2.0"
         }
       ],
@@ -52309,6 +52501,16 @@
           "style": "NOM",
           "color": "GREEN",
           "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
         }
       ],
       "tier_6": [
@@ -53165,6 +53367,16 @@
           "note": "T5 Last valuation timestamp [Phase 184g P5]",
           "style": "NOM",
           "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
           "size": "2.0"
         }
       ],
@@ -54068,6 +54280,16 @@
           "note": "T5 Last valuation timestamp [Phase 184g P5]",
           "style": "NOM",
           "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
           "size": "2.0"
         }
       ],
@@ -55032,6 +55254,16 @@
           "style": "NOM",
           "color": "GREEN",
           "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
+          "size": "2.0"
         }
       ],
       "tier_6": [
@@ -55328,6 +55560,33 @@
           "size": "2.0"
         },
         {
+          "param": "EV_CHARGER_TYPE_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "EV:"
+        },
+        {
+          "param": "EV_CHARGER_KW",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "suffix_override": " kW"
+        },
+        {
+          "param": "EV_CHARGER_CIRCUIT_REF",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Ckt:"
+        },
+        {
           "param": "RGL_STD_TXT",
           "spaces": 0,
           "break": true,
@@ -55569,6 +55828,16 @@
           "note": "T5 Last valuation timestamp [Phase 184g P5]",
           "style": "NOM",
           "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
           "size": "2.0"
         }
       ],
@@ -56514,6 +56783,16 @@
           "note": "T5 Last valuation timestamp [Phase 184g P5]",
           "style": "NOM",
           "color": "GREEN",
+          "size": "2.0"
+        },
+        {
+          "param": "CSI_SECTION_TXT",
+          "spaces": 0,
+          "break": true,
+          "prefix_override": "CSI ",
+          "note": "T5 CSI MasterFormat section (Phase H)",
+          "style": "NOM",
+          "color": "PURPLE",
           "size": "2.0"
         }
       ],
@@ -78520,6 +78799,55 @@
           "prefix_override": "ΔP:"
         },
         {
+          "param": "CLN_DESIGN_ACH_INT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "ACH:",
+          "suffix_override": " ach"
+        },
+        {
+          "param": "CLN_DESIGN_PRESSURE_DELTA_PA_INT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Δp:",
+          "suffix_override": " Pa"
+        },
+        {
+          "param": "CLN_DESIGN_TEMP_C_DBL",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "T:",
+          "suffix_override": "°C"
+        },
+        {
+          "param": "CLN_DESIGN_RH_PCT_INT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "RH:",
+          "suffix_override": "%"
+        },
+        {
+          "param": "CLN_NOISE_NR_NR",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "NR:"
+        },
+        {
           "param": "RGL_STD_TXT",
           "spaces": 0,
           "break": true,
@@ -80444,6 +80772,25 @@
           "color": "BLACK",
           "size": "2.0",
           "prefix_override": "Gas:"
+        },
+        {
+          "param": "MGS_OUTLET_ZONE_TXT",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "Zone:"
+        },
+        {
+          "param": "MGS_WORKING_PRESSURE_KPA",
+          "spaces": 0,
+          "break": true,
+          "style": "NOM",
+          "color": "BLACK",
+          "size": "2.0",
+          "prefix_override": "P:",
+          "suffix_override": " kPa"
         },
         {
           "param": "RGL_STD_TXT",

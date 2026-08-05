@@ -198,7 +198,7 @@ namespace StingTools.Commands.Electrical
         private static WireReconcileItem Reconcile(Document doc, Element conduit)
         {
             string annotPanel  = ParameterHelpers.GetString(conduit, "ELC_PNL_NAME_TXT");
-            string annotCircuit = ParameterHelpers.GetString(conduit, "ELC_CIRCUIT_NR_TXT");
+            string annotCircuit = ParameterHelpers.GetString(conduit, "ELC_CKT_NR");
 
             // Walk connector graph to find an ElectricalSystem
             var sys = FindConnectedElectricalSystem(doc, conduit);
@@ -212,7 +212,7 @@ namespace StingTools.Commands.Electrical
                 // Circuit number: try named param first, then CircuitNumber property
                 try
                 {
-                    var p = sys.LookupParameter("ELC_CIRCUIT_NR_TXT")
+                    var p = sys.LookupParameter("ELC_CKT_NR")
                          ?? sys.LookupParameter("Circuit Number");
                     if (p != null && p.StorageType == StorageType.String)
                         actualCircuit = p.AsString() ?? "";
@@ -356,7 +356,7 @@ namespace StingTools.Commands.Electrical
                             ParameterHelpers.SetString(conduit, "ELC_PNL_NAME_TXT", item.ActualPanelName, overwrite: true);
 
                         if (!string.IsNullOrEmpty(item.ActualCircuitNr))
-                            ParameterHelpers.SetString(conduit, "ELC_CIRCUIT_NR_TXT", item.ActualCircuitNr, overwrite: true);
+                            ParameterHelpers.SetString(conduit, "ELC_CKT_NR", item.ActualCircuitNr, overwrite: true);
 
                         corrected++;
                     }

@@ -144,15 +144,52 @@ namespace StingTools.Commands.Symbols
 
         private static string BuildPhase(Element el, AnnotFormat fmt)
         {
-            // Phase label inferred from voltage / circuit reference
+            // Phase label inferred from voltage.
             string v = Get(el, P_VOLTAGE);
             if (string.IsNullOrWhiteSpace(v)) return "";
-            // Heuristic: 230V → 1Ph, 400V → 3Ph
-            bool is3ph = v.Contains("400") || v.Contains("415") || v.Contains("3") ||
-                         v.Contains("kV");
+
+            // Parse the numeric voltage (handles "V"/"kV" units, normalised to volts)
+            // and classify by line-to-line value rather than substring matching. The old
+            // Contains("400"/"415"/"3"/"kV") heuristic misclassified "0.4 kV" (=400 V)
+            // and any value containing a stray "3" (e.g. "230 V" → contains "3").
+            bool is3ph;
+            if (TryParseVolts(v, out double volts))
+            {
+                // 3-phase distribution is line-to-line >= ~300 V (400/415 V and above);
+                // 110/230/240 V single-phase falls below.
+                is3ph = volts >= 300.0;
+            }
+            else
+            {
+                is3ph = false; // sensible default for an unparseable value
+                StingLog.Warn($"BuildPhase: could not parse voltage '{v}' — defaulting to single-phase.");
+            }
+
             return fmt == AnnotFormat.Full
                 ? (is3ph ? "L1 / L2 / L3 / N / PE" : "L / N / PE")
                 : (is3ph ? "3Ph+N+PE" : "1Ph+N");
+        }
+
+        /// <summary>
+        /// Parses a voltage string such as "400", "400 V", "0.4kV", "3.3 kV" into volts.
+        /// Unit is detected case-insensitively; a bare number is treated as volts.
+        /// Returns false when no numeric token can be extracted.
+        /// </summary>
+        private static bool TryParseVolts(string raw, out double volts)
+        {
+            volts = 0.0;
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            string s = raw.Trim();
+            double multiplier = s.IndexOf("kv", StringComparison.OrdinalIgnoreCase) >= 0 ? 1000.0 : 1.0;
+            var m = System.Text.RegularExpressions.Regex.Match(s, @"[-+]?[0-9]*\.?[0-9]+");
+            if (!m.Success) return false;
+            if (!double.TryParse(m.Value,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double n))
+                return false;
+            volts = n * multiplier;
+            return true;
         }
 
         private static string BuildLoad(Element el, AnnotFormat fmt)
@@ -210,6 +247,7 @@ namespace StingTools.Commands.Symbols
         public static List<Element> CollectAnnotatableElements(Document doc, View view)
         {
             var result = new List<Element>();
+            int scanned = 0;
             try
             {
                 var col = new FilteredElementCollector(doc, view.Id)
@@ -219,6 +257,7 @@ namespace StingTools.Commands.Symbols
                     if (el == null) continue;
                     // Skip TextNotes (those are our own annotations)
                     if (el is TextNote) continue;
+                    scanned++;
                     // Must have at least one SLD electrical parameter with a value
                     bool hasData = !string.IsNullOrWhiteSpace(Get(el, P_VOLTAGE))
                                 || !string.IsNullOrWhiteSpace(Get(el, P_CURRENT))
@@ -226,6 +265,14 @@ namespace StingTools.Commands.Symbols
                                 || !string.IsNullOrWhiteSpace(Get(el, P_CIRCUIT));
                     if (hasData) result.Add(el);
                 }
+                // These parameter names are string literals (no ParamRegistry constant
+                // exists for the ELC_CIR_* SLD names). If a project renames the shared
+                // params, every read returns empty and annotation silently produces
+                // nothing — so make the miss visible in the log naming what we looked for.
+                if (result.Count == 0 && scanned > 0)
+                    StingLog.Warn($"SldAnnotationEngine.Collect: scanned {scanned} element(s) in view " +
+                        $"'{view.Name}' but none carry any of [{P_VOLTAGE}, {P_CURRENT}, {P_CABLE}, " +
+                        $"{P_CIRCUIT}] — check these SLD parameter names have not been renamed.");
             }
             catch (Exception ex) { StingLog.Warn($"SldAnnotationEngine.Collect: {ex.Message}"); }
             return result;

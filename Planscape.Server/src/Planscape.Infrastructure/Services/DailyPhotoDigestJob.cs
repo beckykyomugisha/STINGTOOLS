@@ -153,8 +153,13 @@ public class DailyPhotoDigestJob
         if (pendingReviewCount > 0)
         {
             var approvers = await (
+                // Was `ProjectRole == "PM"` — an Iso19650Role code read off the
+                // ProjectRole column, so the approver nudge emailed nobody. Query
+                // syntax cannot take an Expression in its `where`, so the
+                // capability is applied to the SOURCE, keeping it SQL-translated.
                 from m in _db.ProjectMembers.AsNoTracking()
-                where m.ProjectId == projectId && m.IsActive && m.ProjectRole == "PM"
+                             .Where(Planscape.Core.Entities.ProjectRoles.CanApproveSitePhotosPredicate)
+                where m.ProjectId == projectId && m.IsActive
                 join u in _db.Users.AsNoTracking() on m.UserId equals u.Id
                 join p in _db.UserNotificationPreferences.AsNoTracking() on u.Id equals p.UserId into pg
                 from p in pg.DefaultIfEmpty()

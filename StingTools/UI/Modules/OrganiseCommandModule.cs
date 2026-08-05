@@ -75,6 +75,7 @@ namespace StingTools.UI.Modules
             // ── Clustering ──────────────────────────────────────────────────
             registry.Register("ClusterTags",               app => StingCommandHandler.RunCommandPublic<Organise.ClusterTagsCommand>(app));
             registry.Register("DeclusterTags",             app => StingCommandHandler.RunCommandPublic<Organise.DeclusterTagsCommand>(app));
+            registry.Register("MepTagPolicy",              app => StingCommandHandler.RunCommandPublic<Organise.SetMepTagPolicyCommand>(app));
             registry.Register("SetDisplayMode",            app => StingCommandHandler.RunCommandPublic<Organise.SetDisplayModeCommand>(app));
             registry.Register("ApplyClonedTags",           app => StingCommandHandler.RunCommandPublic<Organise.ApplyClonedTagsCommand>(app));
             registry.Register("JSONExport",                app => StingCommandHandler.RunCommandPublic<Organise.JSONExportCommand>(app));

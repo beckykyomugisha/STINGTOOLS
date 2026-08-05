@@ -22,14 +22,35 @@ namespace StingTools.Core.Drawing
         private static readonly object _lock = new object();
         private static readonly Dictionary<string, ViewStylePackLibrary> _cache
             = new Dictionary<string, ViewStylePackLibrary>(StringComparer.OrdinalIgnoreCase);
+        // Per-document memo of the extends-folded pack, mirroring
+        // DrawingTypeRegistry._resolvedCache. Get() previously re-walked the
+        // whole Extends chain on every call — DrawingDriftDetector.Scan
+        // resolves each view's pack up to 3× (managed / vg-filter / token),
+        // so an N-view scan paid 3N chain-folds. Cleared in Reload().
+        private static readonly Dictionary<string, Dictionary<string, ViewStylePack>> _resolvedCache
+            = new Dictionary<string, Dictionary<string, ViewStylePack>>(StringComparer.OrdinalIgnoreCase);
 
         public static ViewStylePack Get(Document doc, string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
             var lib = GetLibrary(doc);
+            string docKey = DocKey(doc);
+            lock (_lock)
+            {
+                if (_resolvedCache.TryGetValue(docKey, out var memoMap)
+                    && memoMap.TryGetValue(id, out var memo))
+                    return memo;
+            }
             var raw = lib.Packs.FirstOrDefault(
                 p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
-            return raw == null ? null : ResolveExtends(lib, raw);
+            var resolved = raw == null ? null : ResolveExtends(lib, raw);
+            lock (_lock)
+            {
+                if (!_resolvedCache.TryGetValue(docKey, out var memoMap))
+                    _resolvedCache[docKey] = memoMap = new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
+                memoMap[id] = resolved;
+            }
+            return resolved;
         }
 
         public static IReadOnlyList<ViewStylePack> ListAll(Document doc)
@@ -41,6 +62,7 @@ namespace StingTools.Core.Drawing
             {
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
+                if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
             }
             // Phase 183 — snapshot + diff so Inspect / SyncStyles can
             // surface pack edits to the user. See LiveProfileSync.
@@ -137,13 +159,25 @@ namespace StingTools.Core.Drawing
                 Version = Math.Max(baseLib?.Version ?? 1, over.Version),
                 Packs = new List<ViewStylePack>(baseLib?.Packs ?? new List<ViewStylePack>()),
             };
-            var byId = merged.Packs.ToDictionary(p => p.Id ?? "", StringComparer.OrdinalIgnoreCase);
+            // First-wins build (NOT ToDictionary, which throws on a duplicate
+            // key) so a duplicate corporate pack id can never crash pack
+            // resolution on projects carrying an override. Mirrors
+            // DrawingTypeRegistry.Merge; null elements are dropped.
+            var byId = new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
+            var order = new List<string>();
+            foreach (var p in merged.Packs)
+            {
+                if (p == null) continue;
+                var key = p.Id ?? "";
+                if (!byId.ContainsKey(key)) { byId[key] = p; order.Add(key); }
+            }
             foreach (var p in over.Packs ?? new List<ViewStylePack>())
             {
-                if (string.IsNullOrWhiteSpace(p.Id)) continue;
-                byId[p.Id] = p;
+                if (p == null || string.IsNullOrWhiteSpace(p.Id)) continue;
+                if (!byId.ContainsKey(p.Id)) order.Add(p.Id);
+                byId[p.Id] = p; // project overrides corporate on same id
             }
-            merged.Packs = byId.Values.ToList();
+            merged.Packs = order.Select(k => byId[k]).ToList();
             return merged;
         }
 
@@ -173,9 +207,19 @@ namespace StingTools.Core.Drawing
 
             // Fold parent → child. Later entries overwrite earlier.
             chain.Reverse();
-            var merged = new ViewStylePack { Id = leaf.Id, Name = leaf.Name, Origin = leaf.Origin };
+            var merged = new ViewStylePack { Id = leaf.Id, Name = leaf.Name, Origin = leaf.Origin, Extends = leaf.Extends };
             foreach (var p in chain)
             {
+                // Carry every field not explicitly merged below. Without
+                // this the fold dropped templateMode / managedFields /
+                // discipline / visualStyle / viewRange / worksetVisibility /
+                // linkOverrides / colorFillSchemes / categoryDepths /
+                // categoryTag7Sections / viewTemplate / detailLevel /
+                // scaleHint / colorScheme — and since all 35 shipped packs
+                // declare `extends`, that ran on every Get(), which is why
+                // IsManaged never survived to DrawingTypePresentation.
+                ExtendsMerge.Overlay(p, merged, _overlayProps);
+
                 if (p.LineWeightScale != 0) merged.LineWeightScale = p.LineWeightScale;
                 if (!string.IsNullOrEmpty(p.TextStyle))      merged.TextStyle      = p.TextStyle;
                 if (!string.IsNullOrEmpty(p.DimensionStyle)) merged.DimensionStyle = p.DimensionStyle;
@@ -195,9 +239,53 @@ namespace StingTools.Core.Drawing
                         merged.CategoryTagStyles = new Dictionary<string, string>();
                     foreach (var kv in p.CategoryTagStyles) merged.CategoryTagStyles[kv.Key] = kv.Value;
                 }
+
+                // Phase 177 per-category maps — merge by key like their
+                // siblings above rather than letting the child's whole
+                // dictionary replace the parent's.
+                if (p.CategoryDepths != null)
+                {
+                    if (merged.CategoryDepths == null)
+                        merged.CategoryDepths = new Dictionary<string, int>();
+                    foreach (var kv in p.CategoryDepths) merged.CategoryDepths[kv.Key] = kv.Value;
+                }
+                if (p.CategoryTag7Sections != null)
+                {
+                    if (merged.CategoryTag7Sections == null)
+                        merged.CategoryTag7Sections = new Dictionary<string, bool>();
+                    foreach (var kv in p.CategoryTag7Sections) merged.CategoryTag7Sections[kv.Key] = kv.Value;
+                }
             }
             return merged;
         }
+
+        // Fields the fold above merges by hand — collections with
+        // accumulate / merge-by-key semantics, plus the identity fields
+        // taken from the leaf and the scalars whose existing guards are
+        // preserved verbatim. Everything else is carried by
+        // ExtendsMerge.Overlay.
+        private static readonly HashSet<string> _overlaySkip = new HashSet<string>(StringComparer.Ordinal)
+        {
+            nameof(ViewStylePack.Id),
+            nameof(ViewStylePack.Name),
+            nameof(ViewStylePack.Origin),
+            nameof(ViewStylePack.Extends),
+            nameof(ViewStylePack.LineWeightScale),
+            nameof(ViewStylePack.TextStyle),
+            nameof(ViewStylePack.DimensionStyle),
+            nameof(ViewStylePack.HatchPalette),
+            nameof(ViewStylePack.TagColorScheme),
+            nameof(ViewStylePack.DefaultTagStyle),
+            nameof(ViewStylePack.Filters),
+            nameof(ViewStylePack.VgOverrides),
+            nameof(ViewStylePack.TagFamilies),
+            nameof(ViewStylePack.CategoryTagStyles),
+            nameof(ViewStylePack.CategoryDepths),
+            nameof(ViewStylePack.CategoryTag7Sections),
+        };
+
+        private static readonly System.Reflection.PropertyInfo[] _overlayProps
+            = ExtendsMerge.OverlayProps(typeof(ViewStylePack), _overlaySkip);
 
         private static string DocKey(Document doc)
         {

@@ -131,9 +131,10 @@ public class SavedViewsController : ControllerBase
         bool isPrivileged = role is "Admin" or "Owner";
         if (!isPrivileged && view.CapturedByUserId != actor)
         {
-            // PM-on-this-project also OK
-            isPrivileged = await _db.ProjectMembers.AnyAsync(m =>
-                m.ProjectId == projectId && m.UserId == actor && m.IsActive && m.ProjectRole == "PM", ct);
+            // Was `ProjectRole == "PM"` — an Iso19650Role code read off the
+            // ProjectRole column, so it matched essentially nobody and only the
+            // tenant Admin/Owner branch above ever granted this.
+            isPrivileged = await this.CanCurateProjectAsync(_db, projectId, ct);
         }
         if (!isPrivileged && view.CapturedByUserId != actor) return Forbid();
 

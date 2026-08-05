@@ -24,6 +24,7 @@ using StingTools.Core;
 using StingTools.Core.Evm;
 using StingTools.Core.Variation;
 using StingTools.Select;
+using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -37,161 +38,212 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Need 2 snapshots to diff. Pick A (older baseline) then B (newer).
                 var snapshots = BOQCostManager.ListSnapshots(doc);
                 if (snapshots.Count < 2)
                 {
-                    TaskDialog.Show("STING Variation",
-                        "Need at least two BOQ snapshots to mint a variation. Save snapshots before + after the change.");
+                    StingResultPanel.Create("Variation from Diff")
+                        .AddSection("NEED SNAPSHOTS")
+                        .Text("Need at least two BOQ snapshots to mint a variation. Save snapshots before + after the change.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
-                var items = snapshots.Select(s => new StingListPicker.ListItem
-                {
-                    Label = $"{s.Type,-8} {s.Label}",
-                    Detail = $"{s.Date:yyyy-MM-dd HH:mm} — UGX {s.GrandTotalUGX:N0}",
-                    Tag = s
-                }).ToList();
-                var pickedA = StingListPicker.Show("STING — Variation: baseline (A)",
-                    "Pick the BASELINE snapshot (the one before the change).",
-                    items, allowMultiSelect: false);
-                if (pickedA == null || pickedA.Count == 0) return Result.Cancelled;
-                var pickedB = StingListPicker.Show("STING — Variation: revised (B)",
-                    "Pick the REVISED snapshot (after the change).",
-                    items, allowMultiSelect: false);
-                if (pickedB == null || pickedB.Count == 0) return Result.Cancelled;
+                // P0.3 — inline-form gate. When the BOQ panel supplied the Var*
+                // ExtraParams, gather every input without a popup; otherwise fall
+                // back to the modal picker chain (ribbon / non-panel callers).
+                string fA = UI.StingCommandHandler.GetExtraParam("VarSnapA");
+                string fB = UI.StingCommandHandler.GetExtraParam("VarSnapB");
+                bool inline = !string.IsNullOrEmpty(fA) && !string.IsNullOrEmpty(fB)
+                    && snapshots.Any(s => s.Path == fA) && snapshots.Any(s => s.Path == fB);
 
-                var snapA = (pickedA[0].Tag as BOQSnapshotMeta);
-                var snapB = (pickedB[0].Tag as BOQSnapshotMeta);
-                if (snapA == null || snapB == null) return Result.Cancelled;
+                string snapAPath, snapBPath;
+                if (inline)
+                {
+                    snapAPath = fA; snapBPath = fB;
+                }
+                else
+                {
+                    var items = snapshots.Select(s => new StingListPicker.ListItem
+                    {
+                        Label = $"{s.Type,-8} {s.Label}",
+                        Detail = $"{s.Date:yyyy-MM-dd HH:mm} — UGX {s.GrandTotalUGX:N0}",
+                        Tag = s
+                    }).ToList();
+                    var pickedA = StingListPicker.Show("STING — Variation: baseline (A)",
+                        "Pick the BASELINE snapshot (the one before the change).",
+                        items, allowMultiSelect: false);
+                    if (pickedA == null || pickedA.Count == 0) return Result.Cancelled;
+                    var pickedB = StingListPicker.Show("STING — Variation: revised (B)",
+                        "Pick the REVISED snapshot (after the change).",
+                        items, allowMultiSelect: false);
+                    if (pickedB == null || pickedB.Count == 0) return Result.Cancelled;
+
+                    var snapA = (pickedA[0].Tag as BOQSnapshotMeta);
+                    var snapB = (pickedB[0].Tag as BOQSnapshotMeta);
+                    if (snapA == null || snapB == null) return Result.Cancelled;
+                    snapAPath = snapA.Path; snapBPath = snapB.Path;
+                }
 
                 // Sanity-check that both snapshot files exist + parse,
                 // then hand the paths to CompareSnapshots (which takes
                 // string paths, not loaded docs).
-                var docA = BOQCostManager.LoadSnapshot(snapA.Path);
-                var docB = BOQCostManager.LoadSnapshot(snapB.Path);
+                var docA = BOQCostManager.LoadSnapshot(snapAPath);
+                var docB = BOQCostManager.LoadSnapshot(snapBPath);
                 if (docA == null || docB == null)
                 {
                     message = "Failed to load one of the snapshots.";
                     return Result.Failed;
                 }
 
-                var diff = BOQCostManager.CompareSnapshots(snapA.Path, snapB.Path);
+                var diff = BOQCostManager.CompareSnapshots(snapAPath, snapBPath);
                 if (diff == null || diff.CategoryDiffs.Count == 0)
                 {
-                    TaskDialog.Show("STING Variation",
-                        "Snapshots are identical — no variation to mint.");
+                    StingResultPanel.Create("Variation from Diff")
+                        .AddSection("NO CHANGE")
+                        .Text("Snapshots are identical — no variation to mint.")
+                        .Show();
                     return Result.Cancelled;
                 }
 
-                // Pick contract family (Phase 184q — distinct from Kind so
-                // the liability map can match precisely on JCT2024 vs
-                // FIDIC2017Yellow etc.).
-                var formItems = new List<StingListPicker.ListItem>
+                // Gather the variation detail fields — inline (ExtraParams) or via
+                // the modal picker chain.
+                VariationContractForm contractForm;
+                VariationKind kind;
+                VariationReason reason;
+                VariationLiability liability;
+                int eotDays;
+                string reasonDetail;
+
+                if (inline)
                 {
-                    new StingListPicker.ListItem { Label = "JCT 2024",                Detail = "Standard Building Contract 2024 ed.",              Tag = VariationContractForm.JCT2024 },
-                    new StingListPicker.ListItem { Label = "JCT 2016",                Detail = "Legacy SBC 2016 ed. (clauses 5.1 split)",          Tag = VariationContractForm.JCT2016 },
-                    new StingListPicker.ListItem { Label = "NEC4 ECC",                Detail = "Engineering and Construction Contract — Option A-F", Tag = VariationContractForm.NEC4 },
-                    new StingListPicker.ListItem { Label = "FIDIC 2017 Red",          Detail = "Conditions of Contract — employer-design",        Tag = VariationContractForm.FIDIC2017Red },
-                    new StingListPicker.ListItem { Label = "FIDIC 2017 Yellow",       Detail = "Plant + Design-Build — contractor-design",        Tag = VariationContractForm.FIDIC2017Yellow },
-                    new StingListPicker.ListItem { Label = "FIDIC 2017 Silver",       Detail = "EPC / Turnkey — contractor owns nearly everything", Tag = VariationContractForm.FIDIC2017Silver },
-                    new StingListPicker.ListItem { Label = "GC/Works",                Detail = "Legacy UK public-sector forms",                    Tag = VariationContractForm.GCWorks },
-                    new StingListPicker.ListItem { Label = "Bespoke",                 Detail = "Project-specific bespoke contract",                Tag = VariationContractForm.Bespoke },
-                };
-                var formPicked = StingListPicker.Show("STING — Contract form",
-                    "Pick the contract family. Drives liability defaults and clause references.",
-                    formItems, allowMultiSelect: false);
-                VariationContractForm contractForm = (formPicked != null && formPicked.Count > 0 &&
-                    formPicked[0].Tag is VariationContractForm cf) ? cf : VariationContractForm.JCT2024;
-
-                // Pick kind (contractual route — i.e. how the change is being routed).
-                var kindItems = new List<StingListPicker.ListItem>
+                    contractForm = EnumOr(UI.StingCommandHandler.GetExtraParam("VarContractForm"), VariationContractForm.JCT2024);
+                    kind = EnumOr(UI.StingCommandHandler.GetExtraParam("VarKind"), VariationKind.Instruction);
+                    reason = EnumOr(UI.StingCommandHandler.GetExtraParam("VarReason"), VariationReason.Other);
+                    // Liability: an explicit pick wins; an empty value means
+                    // "auto-suggest" via the contract/reason map.
+                    VariationLiability suggested = VariationLiabilityMap
+                        .Get(doc).Resolve(contractForm.ToString(), reason, SuggestLiability(reason));
+                    string fLiab = UI.StingCommandHandler.GetExtraParam("VarLiability");
+                    liability = (!string.IsNullOrEmpty(fLiab) && Enum.TryParse(fLiab, out VariationLiability vl))
+                        ? vl : suggested;
+                    eotDays = int.TryParse(UI.StingCommandHandler.GetExtraParam("VarEot"),
+                        NumberStyles.Any, CultureInfo.InvariantCulture, out int e) ? e : 0;
+                    reasonDetail = UI.StingCommandHandler.GetExtraParam("VarReasonDetail") ?? "";
+                }
+                else
                 {
-                    new StingListPicker.ListItem { Label = "Architect's / engineer's instruction", Tag = VariationKind.Instruction },
-                    new StingListPicker.ListItem { Label = "NEC4 compensation event", Tag = VariationKind.CompensationEvent },
-                    new StingListPicker.ListItem { Label = "FIDIC engineer instruction", Tag = VariationKind.EngineerInstruction },
-                    new StingListPicker.ListItem { Label = "Contractor claim", Tag = VariationKind.ContractorClaim }
-                };
-                var kindPicked = StingListPicker.Show("STING — Variation kind",
-                    "Pick the contractual route — how this change is being issued under the form.",
-                    kindItems, allowMultiSelect: false);
-                VariationKind kind = (kindPicked != null && kindPicked.Count > 0 &&
-                    kindPicked[0].Tag is VariationKind k) ? k : VariationKind.Instruction;
+                    // Pick contract family (Phase 184q — distinct from Kind so
+                    // the liability map can match precisely on JCT2024 vs
+                    // FIDIC2017Yellow etc.).
+                    var formItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "JCT 2024",                Detail = "Standard Building Contract 2024 ed.",              Tag = VariationContractForm.JCT2024 },
+                        new StingListPicker.ListItem { Label = "JCT 2016",                Detail = "Legacy SBC 2016 ed. (clauses 5.1 split)",          Tag = VariationContractForm.JCT2016 },
+                        new StingListPicker.ListItem { Label = "NEC4 ECC",                Detail = "Engineering and Construction Contract — Option A-F", Tag = VariationContractForm.NEC4 },
+                        new StingListPicker.ListItem { Label = "FIDIC 2017 Red",          Detail = "Conditions of Contract — employer-design",        Tag = VariationContractForm.FIDIC2017Red },
+                        new StingListPicker.ListItem { Label = "FIDIC 2017 Yellow",       Detail = "Plant + Design-Build — contractor-design",        Tag = VariationContractForm.FIDIC2017Yellow },
+                        new StingListPicker.ListItem { Label = "FIDIC 2017 Silver",       Detail = "EPC / Turnkey — contractor owns nearly everything", Tag = VariationContractForm.FIDIC2017Silver },
+                        new StingListPicker.ListItem { Label = "GC/Works",                Detail = "Legacy UK public-sector forms",                    Tag = VariationContractForm.GCWorks },
+                        new StingListPicker.ListItem { Label = "Bespoke",                 Detail = "Project-specific bespoke contract",                Tag = VariationContractForm.Bespoke },
+                    };
+                    var formPicked = StingListPicker.Show("STING — Contract form",
+                        "Pick the contract family. Drives liability defaults and clause references.",
+                        formItems, allowMultiSelect: false);
+                    contractForm = (formPicked != null && formPicked.Count > 0 &&
+                        formPicked[0].Tag is VariationContractForm cf) ? cf : VariationContractForm.JCT2024;
 
-                // Phase 184o — pick reason (why) + liability (who pays).
-                // Drives EOT, insurance routing, month-end reporting.
-                var reasonItems = new List<StingListPicker.ListItem>
-                {
-                    new StingListPicker.ListItem { Label = "Design change",        Detail = "Designer-initiated change to drawings / specs", Tag = VariationReason.DesignChange },
-                    new StingListPicker.ListItem { Label = "Client request",       Detail = "Employer-initiated scope or quality change",     Tag = VariationReason.ClientRequest },
-                    new StingListPicker.ListItem { Label = "Site condition",       Detail = "Unforeseen ground / existing-fabric condition",   Tag = VariationReason.SiteCondition },
-                    new StingListPicker.ListItem { Label = "Statutory change",     Detail = "Change in law, permit, building control",         Tag = VariationReason.StatutoryChange },
-                    new StingListPicker.ListItem { Label = "Error / omission",     Detail = "Error in tender docs — designer or contractor",   Tag = VariationReason.ErrorOmission },
-                    new StingListPicker.ListItem { Label = "Contractor proposal",  Detail = "Value-engineering proposal accepted by employer", Tag = VariationReason.ContractorProposal },
-                    new StingListPicker.ListItem { Label = "Scope addition",       Detail = "New scope added to contract",                     Tag = VariationReason.ScopeAddition },
-                    new StingListPicker.ListItem { Label = "Scope omission",       Detail = "Scope removed from contract",                     Tag = VariationReason.ScopeOmission },
-                    new StingListPicker.ListItem { Label = "Specification",        Detail = "Material / spec substitution",                    Tag = VariationReason.Specification },
-                    new StingListPicker.ListItem { Label = "Quality",              Detail = "Quality-driven enhancement / rework",             Tag = VariationReason.Quality },
-                    new StingListPicker.ListItem { Label = "Programme change",     Detail = "Acceleration / deceleration / re-sequencing",     Tag = VariationReason.ProgrammeChange },
-                    new StingListPicker.ListItem { Label = "Other",                Detail = "Bespoke / non-standard cause",                    Tag = VariationReason.Other }
-                };
-                var reasonPicked = StingListPicker.Show("STING — Variation reason",
-                    "Why did this variation arise? Drives EOT entitlement, insurance routing and month-end reporting.",
-                    reasonItems, allowMultiSelect: false);
-                VariationReason reason = (reasonPicked != null && reasonPicked.Count > 0 &&
-                    reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+                    // Pick kind (contractual route — i.e. how the change is being routed).
+                    var kindItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "Architect's / engineer's instruction", Tag = VariationKind.Instruction },
+                        new StingListPicker.ListItem { Label = "NEC4 compensation event", Tag = VariationKind.CompensationEvent },
+                        new StingListPicker.ListItem { Label = "FIDIC engineer instruction", Tag = VariationKind.EngineerInstruction },
+                        new StingListPicker.ListItem { Label = "Contractor claim", Tag = VariationKind.ContractorClaim }
+                    };
+                    var kindPicked = StingListPicker.Show("STING — Variation kind",
+                        "Pick the contractual route — how this change is being issued under the form.",
+                        kindItems, allowMultiSelect: false);
+                    kind = (kindPicked != null && kindPicked.Count > 0 &&
+                        kindPicked[0].Tag is VariationKind k) ? k : VariationKind.Instruction;
 
-                // Suggest liability — consult the config-driven contract
-                // map (Phase 184q now passes the precise contract form,
-                // not Kind.ToString(), so FIDIC Yellow / Silver carry
-                // their contractor-design defaults correctly).
-                VariationLiability codeDefault = SuggestLiability(reason);
-                VariationLiability suggested = VariationLiabilityMap
-                    .Get(doc).Resolve(contractForm.ToString(), reason, codeDefault);
-                var liabilityItems = new List<StingListPicker.ListItem>
-                {
-                    new StingListPicker.ListItem { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
-                    new StingListPicker.ListItem { Label = "Contractor",          Detail = "Contractor absorbs cost",                     Tag = VariationLiability.Contractor },
-                    new StingListPicker.ListItem { Label = "Designer",            Detail = "Routed via designer's PI insurance",          Tag = VariationLiability.Designer },
-                    new StingListPicker.ListItem { Label = "Shared",              Detail = "Proportionate split by agreement",            Tag = VariationLiability.Shared },
-                    new StingListPicker.ListItem { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
-                };
-                var liabilityPicked = StingListPicker.Show("STING — Liability",
-                    $"Who pays for this variation? Suggested from reason: {suggested}.",
-                    liabilityItems, allowMultiSelect: false);
-                VariationLiability liability = (liabilityPicked != null && liabilityPicked.Count > 0 &&
-                    liabilityPicked[0].Tag is VariationLiability l) ? l : suggested;
+                    // Phase 184o — pick reason (why) + liability (who pays).
+                    // Drives EOT, insurance routing, month-end reporting.
+                    var reasonItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "Design change",        Detail = "Designer-initiated change to drawings / specs", Tag = VariationReason.DesignChange },
+                        new StingListPicker.ListItem { Label = "Client request",       Detail = "Employer-initiated scope or quality change",     Tag = VariationReason.ClientRequest },
+                        new StingListPicker.ListItem { Label = "Site condition",       Detail = "Unforeseen ground / existing-fabric condition",   Tag = VariationReason.SiteCondition },
+                        new StingListPicker.ListItem { Label = "Statutory change",     Detail = "Change in law, permit, building control",         Tag = VariationReason.StatutoryChange },
+                        new StingListPicker.ListItem { Label = "Error / omission",     Detail = "Error in tender docs — designer or contractor",   Tag = VariationReason.ErrorOmission },
+                        new StingListPicker.ListItem { Label = "Contractor proposal",  Detail = "Value-engineering proposal accepted by employer", Tag = VariationReason.ContractorProposal },
+                        new StingListPicker.ListItem { Label = "Scope addition",       Detail = "New scope added to contract",                     Tag = VariationReason.ScopeAddition },
+                        new StingListPicker.ListItem { Label = "Scope omission",       Detail = "Scope removed from contract",                     Tag = VariationReason.ScopeOmission },
+                        new StingListPicker.ListItem { Label = "Specification",        Detail = "Material / spec substitution",                    Tag = VariationReason.Specification },
+                        new StingListPicker.ListItem { Label = "Quality",              Detail = "Quality-driven enhancement / rework",             Tag = VariationReason.Quality },
+                        new StingListPicker.ListItem { Label = "Programme change",     Detail = "Acceleration / deceleration / re-sequencing",     Tag = VariationReason.ProgrammeChange },
+                        new StingListPicker.ListItem { Label = "Other",                Detail = "Bespoke / non-standard cause",                    Tag = VariationReason.Other }
+                    };
+                    var reasonPicked = StingListPicker.Show("STING — Variation reason",
+                        "Why did this variation arise? Drives EOT entitlement, insurance routing and month-end reporting.",
+                        reasonItems, allowMultiSelect: false);
+                    reason = (reasonPicked != null && reasonPicked.Count > 0 &&
+                        reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
 
-                // Phase 184r — EOT band picker. Capturing this on
-                // mint means the cash-flow's monthly_eot_adjusted curve
-                // (Phase 184q) lights up automatically once the QS
-                // approves the VO, rather than the user having to edit
-                // the JSON sidecar manually.
-                int eotDays = PickEotDays();
+                    // Suggest liability — consult the config-driven contract
+                    // map (Phase 184q now passes the precise contract form,
+                    // not Kind.ToString(), so FIDIC Yellow / Silver carry
+                    // their contractor-design defaults correctly).
+                    VariationLiability codeDefault = SuggestLiability(reason);
+                    VariationLiability suggested = VariationLiabilityMap
+                        .Get(doc).Resolve(contractForm.ToString(), reason, codeDefault);
+                    var liabilityItems = new List<StingListPicker.ListItem>
+                    {
+                        new StingListPicker.ListItem { Label = "Employer / client",   Detail = "Employer absorbs cost",                       Tag = VariationLiability.Employer },
+                        new StingListPicker.ListItem { Label = "Contractor",          Detail = "Contractor absorbs cost",                     Tag = VariationLiability.Contractor },
+                        new StingListPicker.ListItem { Label = "Designer",            Detail = "Routed via designer's PI insurance",          Tag = VariationLiability.Designer },
+                        new StingListPicker.ListItem { Label = "Shared",              Detail = "Proportionate split by agreement",            Tag = VariationLiability.Shared },
+                        new StingListPicker.ListItem { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
+                    };
+                    var liabilityPicked = StingListPicker.Show("STING — Liability",
+                        $"Who pays for this variation? Suggested from reason: {suggested}.",
+                        liabilityItems, allowMultiSelect: false);
+                    liability = (liabilityPicked != null && liabilityPicked.Count > 0 &&
+                        liabilityPicked[0].Tag is VariationLiability l) ? l : suggested;
 
-                // Phase 184r — short free-text rationale via the existing
-                // WPF input prompt. The PaymentCert detail dialog uses
-                // a similar lightweight prompt; reuse the pattern via a
-                // small Window so we don't pull in a heavier dependency.
-                string reasonDetail = PromptForReasonDetail();
+                    // Phase 184r — EOT band picker. Capturing this on
+                    // mint means the cash-flow's monthly_eot_adjusted curve
+                    // (Phase 184q) lights up automatically once the QS
+                    // approves the VO, rather than the user having to edit
+                    // the JSON sidecar manually.
+                    eotDays = PickEotDays();
+
+                    // Phase 184r — short free-text rationale via the existing
+                    // WPF input prompt. The PaymentCert detail dialog uses
+                    // a similar lightweight prompt; reuse the pattern via a
+                    // small Window so we don't pull in a heavier dependency.
+                    reasonDetail = PromptForReasonDetail();
+                }
 
                 string contractRef = doc.ProjectInformation?.Number ?? "DEFAULT";
                 var vo = VariationEngine.FromDiff(diff, contractRef, kind,
                     reason, liability, reasonDetail: reasonDetail, eotDays: eotDays,
-                    contractForm: contractForm);
+                    contractForm: contractForm, currency: docB?.Currency ?? docA?.Currency ?? "UGX");
                 string path = VariationEngine.Save(doc, vo);
 
-                TaskDialog.Show("STING — Variation minted",
-                    $"{vo.Number}  ({vo.Kind}, {vo.Status})\n\n" +
-                    $"Contract:     {vo.ContractForm}\n" +
-                    $"Reason:       {vo.Reason}\n" +
-                    $"Liability:    {vo.Liability}\n" +
-                    $"Items:        {vo.Items.Count}\n" +
-                    $"Total value:  {vo.Currency} {vo.TotalValue:N2}\n\n" +
-                    $"Path: {Path.GetFileName(path)}");
+                StingResultPanel.Create("Variation minted")
+                    .SetSubtitle($"{vo.Number}  ({vo.Kind}, {vo.Status})")
+                    .AddSection("VARIATION")
+                    .Metric("Contract", vo.ContractForm.ToString())
+                    .Metric("Reason", vo.Reason.ToString())
+                    .Metric("Liability", vo.Liability.ToString())
+                    .Metric("Items", vo.Items.Count.ToString())
+                    .Metric("Total value", $"{vo.Currency} {vo.TotalValue:N2}")
+                    .Text($"Path: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -291,27 +343,13 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        // Default liability suggestion per reason. The picker still lets
-        // the QS override — this just front-loads the common case so
-        // they can hit Enter on the typical assignment.
+        // P0.3 — parse an ExtraParam enum value, falling back when empty/unknown.
+        private static T EnumOr<T>(string s, T fallback) where T : struct
+            => (!string.IsNullOrEmpty(s) && Enum.TryParse<T>(s, out var v)) ? v : fallback;
+
+        // PM-7 — delegates to the one shared rule (Core.Variation.VariationLiabilityRules).
         private static VariationLiability SuggestLiability(VariationReason reason)
-        {
-            switch (reason)
-            {
-                case VariationReason.DesignChange:
-                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
-                case VariationReason.ClientRequest:
-                case VariationReason.ScopeAddition:
-                case VariationReason.ScopeOmission:
-                case VariationReason.Specification:
-                case VariationReason.Quality:              return VariationLiability.Employer;
-                case VariationReason.SiteCondition:
-                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
-                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
-                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
-                default:                                    return VariationLiability.Employer;
-            }
-        }
+            => VariationLiabilityRules.Suggest(reason);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -322,44 +360,45 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                // Minimal build-up wizard — the WPF version comes in P5.4.
-                // Today: a seeded star rate the QS can edit in the JSON file.
-                var rate = new StarRate
+                // P0.3 — inline-form gate. When the BOQ panel supplied a serialized
+                // StarRate (StarRateJson ExtraParam), use it and skip the modal
+                // builder dialog (no popup). Falls back to the dialog otherwise.
+                StarRate rate;
+                string fJson = UI.StingCommandHandler.GetExtraParam("StarRateJson");
+                if (!string.IsNullOrEmpty(fJson))
                 {
-                    Description = "Star rate build-up — edit in JSON",
-                    Unit = "each",
-                    Author = Environment.UserName ?? "",
-                    LabourLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Skilled labourer", Hours = 8, UnitRate = 28, Unit = "hr" },
-                        new StarRateLine { Resource = "General labourer", Hours = 8, UnitRate = 18, Unit = "hr" }
-                    },
-                    PlantLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Excavator 8t", Hours = 4, UnitRate = 65, Unit = "hr" }
-                    },
-                    MaterialsLines = new List<StarRateLine>
-                    {
-                        new StarRateLine { Resource = "Concrete C30/37", Quantity = 1, UnitRate = 135, Unit = "m³" }
-                    },
-                    OverheadPercent = 8.0,
-                    ProfitPercent = 5.0
-                };
+                    try { rate = Newtonsoft.Json.JsonConvert.DeserializeObject<StarRate>(fJson); }
+                    catch (Exception jx) { StingLog.Warn($"StarRateJson parse: {jx.Message}"); rate = null; }
+                    if (rate == null) { message = "Invalid star-rate payload."; return Result.Failed; }
+                    if (string.IsNullOrEmpty(rate.Currency)) rate.Currency = "UGX";
+                }
+                else
+                {
+                    // P4.2 — interactive first-principles build-up (labour + plant +
+                    // materials + OH&P), replacing the canned demo seed.
+                    var dlg = new StingTools.UI.StarRateBuilderDialog();
+                    StingTools.UI.StingWindowHelper.ApplyOwner(dlg);
+                    if (dlg.ShowDialog() != true || dlg.Result == null) return Result.Cancelled;
+                    rate = dlg.Result;
+                }
                 string path = VariationEngine.SaveStarRate(doc, rate);
 
-                TaskDialog.Show("STING — Star rate created",
-                    $"Star-rate template saved.\n\n" +
-                    $"Labour:    GBP {rate.LabourTotal:N2}\n" +
-                    $"Plant:     GBP {rate.PlantTotal:N2}\n" +
-                    $"Materials: GBP {rate.MaterialsTotal:N2}\n" +
-                    $"Subtotal:  GBP {rate.Subtotal:N2}\n" +
-                    $"OH ({rate.OverheadPercent}%): GBP {rate.OverheadAmount:N2}\n" +
-                    $"Profit ({rate.ProfitPercent}%): GBP {rate.ProfitAmount:N2}\n" +
-                    $"FINAL:     GBP {rate.FinalRate:N2}\n\n" +
-                    $"Edit at: {Path.GetFileName(path)}");
+                string cc = rate.Currency ?? "UGX";
+                StingResultPanel.Create("Star rate created")
+                    .SetSubtitle($"Star rate '{rate.Description}' saved")
+                    .AddSection("BUILD-UP")
+                    .Metric("Labour", $"{cc} {rate.LabourTotal:N2}")
+                    .Metric("Plant", $"{cc} {rate.PlantTotal:N2}")
+                    .Metric("Materials", $"{cc} {rate.MaterialsTotal:N2}")
+                    .Metric("Subtotal", $"{cc} {rate.Subtotal:N2}")
+                    .Metric($"OH ({rate.OverheadPercent}%)", $"{cc} {rate.OverheadAmount:N2}")
+                    .Metric($"Profit ({rate.ProfitPercent}%)", $"{cc} {rate.ProfitAmount:N2}")
+                    .MetricHighlight("FINAL", $"{cc} {rate.FinalRate:N2}")
+                    .Text($"Edit at: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -379,12 +418,15 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
                 var paths = VariationEngine.ListVariations(doc);
                 if (paths.Count == 0)
                 {
-                    TaskDialog.Show("STING Variation", "No variations recorded.");
+                    StingResultPanel.Create("VO Register")
+                        .AddSection("NO VARIATIONS")
+                        .Text("No variations recorded.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var vos = paths.Select(VariationEngine.Load).Where(v => v != null)
@@ -423,8 +465,12 @@ namespace StingTools.Commands.Cost
                         }));
                     }
                 }
-                TaskDialog.Show("STING — Variation register",
-                    $"{vos.Count} variation(s) exported to:\n{outPath}");
+                StingResultPanel.Create("Variation register exported")
+                    .SetCsvPath(outPath)
+                    .AddSection("EXPORT")
+                    .Metric("Variations", vos.Count.ToString())
+                    .Text($"Saved to: {outPath}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -443,6 +489,113 @@ namespace StingTools.Commands.Cost
         }
     }
 
+    // ── Variation approval workflow (WP4a dependency) ─────────────────
+    //  Advance the existing VariationStatus state machine in-plugin, so a QS can
+    //  reach an AGREED variation (which the Anticipated Final Cost and the
+    //  Final-Account reconciliation both read) without hand-editing JSON.
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationApproveCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Approved);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationRejectCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Rejected);
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class VariationIncorporateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+            => VariationStatusAdvance.Run(commandData, ref message, VariationStatus.Incorporated);
+    }
+
+    internal static class VariationStatusAdvance
+    {
+        public static Result Run(ExternalCommandData commandData, ref string message, VariationStatus target)
+        {
+            try
+            {
+                Document doc = ParameterHelpers.GetDoc(commandData);
+                if (doc == null) { message = "No active document."; return Result.Failed; }
+
+                var loaded = VariationEngine.ListVariations(doc)
+                    .Select(p => VariationEngine.Load(p)).Where(v => v != null).ToList();
+                var selectable = loaded.Where(v => CanTransition(v.Status, target))
+                    .OrderBy(v => v.ContractRef).ThenBy(v => v.Number).ToList();
+
+                if (selectable.Count == 0)
+                {
+                    StingResultPanel.Create($"Variation — {target}")
+                        .AddSection("NOTHING TO DO")
+                        .Text(loaded.Count == 0
+                            ? "No variations recorded."
+                            : $"No variation is in a state that can move to {target}.")
+                        .Show();
+                    return Result.Cancelled;
+                }
+
+                var labels = selectable
+                    .Select(v => $"{v.Number} · {v.ContractRef} · {v.Currency} {v.TotalValue:N0} · {v.Status}")
+                    .ToList();
+                string pick = StingListPicker.Show($"STING — {target} variation",
+                    $"Pick a variation to move to {target}", labels);
+                if (string.IsNullOrEmpty(pick)) return Result.Cancelled;
+
+                int idx = labels.IndexOf(pick);
+                if (idx < 0) return Result.Cancelled;
+                var vo = selectable[idx];
+
+                vo.Status = target;
+                if (target == VariationStatus.Approved || target == VariationStatus.Incorporated)
+                {
+                    vo.ApprovedBy = Environment.UserName;
+                    vo.ApprovalDate = DateTime.UtcNow;
+                }
+                VariationEngine.Save(doc, vo);
+
+                StingResultPanel.Create($"Variation {target}")
+                    .AddSection("UPDATED")
+                    .Metric("Variation", vo.Number)
+                    .Metric("New status", target.ToString())
+                    .Metric("Value", $"{vo.Currency} {vo.TotalValue:N0}")
+                    .Text("Agreed variations flow into the Anticipated Final Cost and the Final-Account reconciliation.")
+                    .Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Variation status → {target}", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private static bool CanTransition(VariationStatus from, VariationStatus to)
+        {
+            switch (to)
+            {
+                case VariationStatus.Approved:
+                case VariationStatus.Rejected:
+                    return from == VariationStatus.Draft
+                        || from == VariationStatus.Submitted
+                        || from == VariationStatus.Reviewed;
+                case VariationStatus.Incorporated:
+                    return from == VariationStatus.Approved;
+                default:
+                    return false;
+            }
+        }
+    }
+
     // ── EVM ──────────────────────────────────────────────────────────
 
     [Transaction(TransactionMode.ReadOnly)]
@@ -453,12 +606,17 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // Build a single period from live BOQ + actuals CSV.
                 var boq = BOQCostManager.BuildBOQDocument(doc);
-                double bac = boq.GrandTotalUGX;
+                // PM-1 — BAC anchors on the FROZEN Award contract sum
+                // (COST_CONTRACT_SUM_UGX) + agreed variations, via the one shared
+                // ContractSumResolver — NOT the live GrandTotal, which drifts upward
+                // as the model grows even with zero progress. Falls back to the live
+                // bill only when no baseline has been frozen.
+                double bac = ContractSumResolver.Resolve(doc, boq, out _);
 
                 // BCWS — use the current BOQ value × (planned % at this date).
                 // No 4D wiring yet in this commit; QS sets BCWS via Cost_ReloadRules
@@ -466,19 +624,51 @@ namespace StingTools.Commands.Cost
                 // estimate based on weighted ASS_PMT_PCT_COMPLETE_NR.
                 double pctEarned = WeightedPctComplete(doc);
                 double bcwp = bac * pctEarned / 100.0;
-                double bcws = bcwp; // optimistic placeholder until 4D wired
 
-                // ACWP — sum the most recent actuals CSV under _bim_manager/actuals/.
-                string actualsDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");
-                double acwp = 0;
-                if (Directory.Exists(actualsDir))
+                // PM-3/PM-4 — BCWS (Planned Value) now comes from the SCHEDULE-DRIVEN
+                // cash-flow S-curve when one has been built (Sched_SCurve). That curve
+                // time-phases each task's value over its own start/finish, so PV is the
+                // real time-phased planned value — not a hand-keyed planned %. The
+                // QS-entered planned % and the modal picker remain as the fallback when
+                // no S-curve exists yet, so the command stays one-click either way.
+                double bcws;
+                string bcwsSource;
+                var savedCurve = SCurveStore.Load(doc);
+                if (savedCurve != null && savedCurve.Points != null && savedCurve.Points.Count > 0
+                    && savedCurve.TotalValue > 0)
                 {
-                    var latest = Directory.EnumerateFiles(actualsDir, "actuals_*.csv")
-                        .OrderByDescending(File.GetLastWriteTimeUtc)
-                        .FirstOrDefault();
-                    if (!string.IsNullOrEmpty(latest))
-                        acwp = EvmCalculator.ImportActualsToDate(latest, DateTime.UtcNow);
+                    bcws = savedCurve.PlannedValueAt(DateTime.UtcNow);
+                    bcwsSource = "schedule-driven S-curve";
                 }
+                else
+                {
+                    double plannedPct = pctEarned;
+                    string fPlan = UI.StingCommandHandler.GetExtraParam("EvmPlannedPct");
+                    if (!string.IsNullOrEmpty(fPlan))
+                    {
+                        if (!string.Equals(fPlan, "earned", StringComparison.OrdinalIgnoreCase)
+                            && double.TryParse(fPlan, NumberStyles.Any, CultureInfo.InvariantCulture, out double pp0))
+                            plannedPct = Math.Max(0, Math.Min(100, pp0));
+                    }
+                    else
+                    {
+                        var planItems = new[] { 0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 }
+                            .Select(p => new StingListPicker.ListItem { Label = $"{p}% planned", Tag = (double)p }).ToList();
+                        var pickedPlan = StingListPicker.Show("STING — Planned %% (BCWS)",
+                            $"Planned completion at this date for BCWS. Earned (BCWP) is {pctEarned:0.#}%. " +
+                            "Cancel to use the earned %% (SV = 0). Tip: build a schedule-driven S-curve "
+                            + "(Sched_SCurve) for an automatic time-phased PV.", planItems, allowMultiSelect: false);
+                        if (pickedPlan != null && pickedPlan.Count > 0 && pickedPlan[0].Tag is double pp) plannedPct = pp;
+                    }
+                    bcws = bac * plannedPct / 100.0;
+                    bcwsSource = "planned % (no S-curve)";
+                }
+                StingLog.Info($"EVM BCWS source: {bcwsSource} → {bcws:N0}.");
+
+                // ACWP — cumulative across ALL actuals CSVs under _bim_manager/actuals/,
+                // deduped by content so a re-dropped export can't double-count (B.5).
+                string actualsDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");
+                double acwp = EvmCalculator.ImportAllActualsToDate(actualsDir, DateTime.UtcNow, out _, out _);
 
                 var period = EvmCalculator.Compute(bac, bcws, bcwp, acwp, DateTime.UtcNow);
 
@@ -494,20 +684,24 @@ namespace StingTools.Commands.Cost
                 report.Periods.Add(period);
                 string path = EvmCalculator.Save(doc, report);
 
-                TaskDialog.Show("STING — EVM period",
-                    $"Period {period.PeriodLabel}\n\n" +
-                    $"BAC  {report.Currency} {period.Bac:N0}\n" +
-                    $"BCWS {report.Currency} {period.Bcws:N0}\n" +
-                    $"BCWP {report.Currency} {period.Bcwp:N0}\n" +
-                    $"ACWP {report.Currency} {period.Acwp:N0}\n\n" +
-                    $"CV   {period.Cv:N0}\n" +
-                    $"SV   {period.Sv:N0}\n" +
-                    $"CPI  {period.Cpi:F2}  ({period.CostHealth})\n" +
-                    $"SPI  {period.Spi:F2}  ({period.ScheduleHealth})\n" +
-                    $"EAC  {report.Currency} {period.Eac:N0}\n" +
-                    $"ETC  {report.Currency} {period.Etc:N0}\n" +
-                    $"VAC  {report.Currency} {period.Vac:N0}\n\n" +
-                    $"Saved: {Path.GetFileName(path)}");
+                StingResultPanel.Create("EVM period")
+                    .SetSubtitle($"Period {period.PeriodLabel}")
+                    .AddSection("BASELINE")
+                    .Metric("BAC", $"{report.Currency} {period.Bac:N0}")
+                    .Metric("BCWS", $"{report.Currency} {period.Bcws:N0}")
+                    .Metric("BCWP", $"{report.Currency} {period.Bcwp:N0}")
+                    .Metric("ACWP", $"{report.Currency} {period.Acwp:N0}")
+                    .AddSection("VARIANCE + INDICES")
+                    .Metric("CV", $"{period.Cv:N0}")
+                    .Metric("SV", $"{period.Sv:N0}")
+                    .Metric("CPI", $"{period.Cpi:F2}", period.CostHealth)
+                    .Metric("SPI", $"{period.Spi:F2}", period.ScheduleHealth)
+                    .AddSection("FORECAST")
+                    .Metric("EAC", $"{report.Currency} {period.Eac:N0}")
+                    .Metric("ETC", $"{report.Currency} {period.Etc:N0}")
+                    .Metric("VAC", $"{report.Currency} {period.Vac:N0}")
+                    .Text($"Saved: {Path.GetFileName(path)}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -518,12 +712,18 @@ namespace StingTools.Commands.Cost
             }
         }
 
-        private static double WeightedPctComplete(Document doc)
+        // PM-3/PM-6 — internal so the CVR / CTC commands reuse the one weighted
+        // %-complete measure; scoped to STING-tracked categories (was an unfiltered
+        // whole-model sweep) so the heavy LookupParameter pass only touches priced
+        // categories.
+        internal static double WeightedPctComplete(Document doc)
         {
             try
             {
                 double weightSum = 0, valueSum = 0;
-                var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var col = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .WhereElementIsNotElementType();
                 foreach (Element el in col)
                 {
                     Parameter p = el.LookupParameter(ParamRegistry.PMT_PCT_COMPLETE_NR);
@@ -549,32 +749,43 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 string dir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "actuals");
                 if (!Directory.Exists(dir))
                 {
                     Directory.CreateDirectory(dir);
-                    TaskDialog.Show("STING EVM",
-                        $"Created actuals directory:\n{dir}\n\n" +
-                        "Drop CSV files named actuals_YYYYMMDD.csv with columns " +
-                        "Date,Section,Amount and re-run.");
+                    StingResultPanel.Create("Import Actuals")
+                        .AddSection("DIRECTORY CREATED")
+                        .Text($"Created actuals directory: {dir}")
+                        .Text("Drop CSV files named actuals_YYYYMMDD.csv with columns Date,Section,Amount and re-run.")
+                        .Show();
                     return Result.Succeeded;
                 }
 
-                var files = Directory.EnumerateFiles(dir, "actuals_*.csv")
-                    .OrderByDescending(File.GetLastWriteTimeUtc).ToList();
+                var files = Directory.EnumerateFiles(dir, "actuals_*.csv").ToList();
                 if (files.Count == 0)
                 {
-                    TaskDialog.Show("STING EVM",
-                        $"No actuals CSV files found under {dir}.");
+                    StingResultPanel.Create("Import Actuals")
+                        .AddSection("NO FILES")
+                        .Text($"No actuals CSV files found under {dir}.")
+                        .Show();
                     return Result.Cancelled;
                 }
-                double total = EvmCalculator.ImportActualsToDate(files[0], DateTime.UtcNow);
-                TaskDialog.Show("STING — Actuals imported",
-                    $"File: {Path.GetFileName(files[0])}\n\n" +
-                    $"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}: GBP {total:N2}");
+                // B.5 — cumulative across ALL actuals files, deduped by content so
+                // re-dropping the same export can't double-count.
+                double total = EvmCalculator.ImportAllActualsToDate(dir, DateTime.UtcNow,
+                    out int filesRead, out int dupSkipped);
+                string ccy = EvmCalculator.ListReports(doc).Select(EvmCalculator.Load)
+                    .FirstOrDefault(r => r != null)?.Currency ?? "UGX";
+                var rp = StingResultPanel.Create("Actuals imported")
+                    .AddSection("RESULT")
+                    .Metric($"Cumulative ACWP to {DateTime.UtcNow:yyyy-MM-dd}", $"{ccy} {total:N2}")
+                    .Metric("Files read", filesRead.ToString());
+                if (dupSkipped > 0)
+                    rp.Metric("Duplicate files skipped", dupSkipped.ToString(), "identical content");
+                rp.Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -594,18 +805,24 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
                 var reports = EvmCalculator.ListReports(doc);
                 if (reports.Count == 0)
                 {
-                    TaskDialog.Show("STING EVM", "No EVM reports saved. Run Evm_Calculate first.");
+                    StingResultPanel.Create("Export S-Curve")
+                        .AddSection("NO REPORTS")
+                        .Text("No EVM reports saved. Run Evm_Calculate first.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 var rpt = EvmCalculator.Load(reports[0]);
                 if (rpt == null || rpt.Periods.Count == 0)
                 {
-                    TaskDialog.Show("STING EVM", "Latest report has no periods.");
+                    StingResultPanel.Create("Export S-Curve")
+                        .AddSection("NO PERIODS")
+                        .Text("Latest report has no periods.")
+                        .Show();
                     return Result.Cancelled;
                 }
                 string outDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "evm");
@@ -636,7 +853,12 @@ namespace StingTools.Commands.Cost
                         }));
                     }
                 }
-                TaskDialog.Show("STING — EVM exported", $"S-curve written to:\n{outPath}");
+                StingResultPanel.Create("EVM S-curve exported")
+                    .SetCsvPath(outPath)
+                    .AddSection("EXPORT")
+                    .Metric("Periods", rpt.Periods.Count.ToString())
+                    .Text($"S-curve written to: {outPath}")
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -666,7 +888,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                Document doc = commandData?.Application?.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var paths = VariationEngine.ListVariations(doc);
@@ -680,68 +902,103 @@ namespace StingTools.Commands.Cost
 
                 if (legacy.Count == 0)
                 {
-                    TaskDialog.Show("STING — Reclassify legacy variations",
-                        "Nothing to reclassify. Every variation has a non-default reason / liability assigned.");
+                    StingResultPanel.Create("Reclassify legacy variations")
+                        .AddSection("NOTHING TO RECLASSIFY")
+                        .Text("Every variation has a non-default reason / liability assigned.")
+                        .Show();
                     return Result.Succeeded;
                 }
 
-                // Multi-select picker — QS chooses which legacy VOs to walk.
-                var items = legacy.Select(v => new StingListPicker.ListItem
-                {
-                    Label = $"{v.Number}  ({v.Kind}, {v.Currency} {v.TotalValue:N0})",
-                    Detail = v.Title,
-                    Tag = v
-                }).ToList();
-
-                var picked = StingListPicker.Show("STING — Reclassify legacy variations",
-                    $"{legacy.Count} variation(s) still on the default Other / Employer. " +
-                    "Pick which to reclassify (multi-select).",
-                    items, allowMultiSelect: true);
-                if (picked == null || picked.Count == 0) return Result.Cancelled;
-
                 int reclassified = 0;
                 int skipped = 0;
-                foreach (var li in picked)
+
+                // P0.3 — inline gate: when the panel supplied ReclassifyJson (a
+                // {VO number → "Reason|Liability"} map; empty liability ⇒ auto-suggest)
+                // apply it without popups; otherwise the modal multi-select + per-VO
+                // reason/liability pickers.
+                string fJson = UI.StingCommandHandler.GetExtraParam("ReclassifyJson");
+                if (!string.IsNullOrEmpty(fJson))
                 {
-                    if (!(li.Tag is VariationInstruction vo)) { skipped++; continue; }
-
-                    // Reason picker per-variation.
-                    var reasonItems = BuildReasonItems();
-                    var reasonPicked = StingListPicker.Show(
-                        $"STING — Reason for {vo.Number}",
-                        $"{vo.Title}\n\nWhy did this variation arise?",
-                        reasonItems, allowMultiSelect: false);
-                    if (reasonPicked == null || reasonPicked.Count == 0)
+                    System.Collections.Generic.Dictionary<string, string> map = null;
+                    try { map = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.Dictionary<string, string>>(fJson); }
+                    catch (Exception jx) { StingLog.Warn($"ReclassifyJson parse: {jx.Message}"); }
+                    if (map == null) { message = "Invalid reclassify payload."; return Result.Failed; }
+                    foreach (var vo in legacy)
                     {
-                        skipped++;
-                        continue;
+                        if (!map.TryGetValue(vo.Number, out string spec) || string.IsNullOrEmpty(spec)) { skipped++; continue; }
+                        var parts = spec.Split('|');
+                        var reason = (parts.Length > 0 && Enum.TryParse(parts[0], out VariationReason rr)) ? rr : VariationReason.Other;
+                        var codeDefault = SuggestLiabilityShared(reason);
+                        var suggested = VariationLiabilityMap.Get(doc).Resolve(vo.ContractForm.ToString(), reason, codeDefault);
+                        string liabStr = parts.Length > 1 ? parts[1] : "";
+                        var liability = (!string.IsNullOrEmpty(liabStr) && Enum.TryParse(liabStr, out VariationLiability ll)) ? ll : suggested;
+                        vo.Reason = reason;
+                        vo.Liability = liability;
+                        VariationEngine.Save(doc, vo);
+                        reclassified++;
                     }
-                    var reason = (reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+                }
+                else
+                {
+                    // Multi-select picker — QS chooses which legacy VOs to walk.
+                    var items = legacy.Select(v => new StingListPicker.ListItem
+                    {
+                        Label = $"{v.Number}  ({v.Kind}, {v.Currency} {v.TotalValue:N0})",
+                        Detail = v.Title,
+                        Tag = v
+                    }).ToList();
 
-                    // Liability picker, pre-suggested from the map. Use
-                    // the precise contract form (Phase 184q); legacy VOs
-                    // that haven't been touched default to JCT2024 which
-                    // is the safest UK QS assumption.
-                    var codeDefault = SuggestLiabilityShared(reason);
-                    var suggested = VariationLiabilityMap.Get(doc)
-                        .Resolve(vo.ContractForm.ToString(), reason, codeDefault);
-                    var liabilityItems = BuildLiabilityItems();
-                    var liabilityPicked = StingListPicker.Show(
-                        $"STING — Liability for {vo.Number}",
-                        $"Who pays? Suggested: {suggested}.",
-                        liabilityItems, allowMultiSelect: false);
-                    var liability = (liabilityPicked != null && liabilityPicked.Count > 0
-                        && liabilityPicked[0].Tag is VariationLiability lib)
-                            ? lib : suggested;
+                    var picked = StingListPicker.Show("STING — Reclassify legacy variations",
+                        $"{legacy.Count} variation(s) still on the default Other / Employer. " +
+                        "Pick which to reclassify (multi-select).",
+                        items, allowMultiSelect: true);
+                    if (picked == null || picked.Count == 0) return Result.Cancelled;
 
-                    vo.Reason = reason;
-                    vo.Liability = liability;
-                    VariationEngine.Save(doc, vo);
-                    reclassified++;
+                    foreach (var li in picked)
+                    {
+                        if (!(li.Tag is VariationInstruction vo)) { skipped++; continue; }
+
+                        // Reason picker per-variation.
+                        var reasonItems = BuildReasonItems();
+                        var reasonPicked = StingListPicker.Show(
+                            $"STING — Reason for {vo.Number}",
+                            $"{vo.Title}\n\nWhy did this variation arise?",
+                            reasonItems, allowMultiSelect: false);
+                        if (reasonPicked == null || reasonPicked.Count == 0)
+                        {
+                            skipped++;
+                            continue;
+                        }
+                        var reason = (reasonPicked[0].Tag is VariationReason r) ? r : VariationReason.Other;
+
+                        // Liability picker, pre-suggested from the map. Use
+                        // the precise contract form (Phase 184q); legacy VOs
+                        // that haven't been touched default to JCT2024 which
+                        // is the safest UK QS assumption.
+                        var codeDefault = SuggestLiabilityShared(reason);
+                        var suggested = VariationLiabilityMap.Get(doc)
+                            .Resolve(vo.ContractForm.ToString(), reason, codeDefault);
+                        var liabilityItems = BuildLiabilityItems();
+                        var liabilityPicked = StingListPicker.Show(
+                            $"STING — Liability for {vo.Number}",
+                            $"Who pays? Suggested: {suggested}.",
+                            liabilityItems, allowMultiSelect: false);
+                        var liability = (liabilityPicked != null && liabilityPicked.Count > 0
+                            && liabilityPicked[0].Tag is VariationLiability lib)
+                                ? lib : suggested;
+
+                        vo.Reason = reason;
+                        vo.Liability = liability;
+                        VariationEngine.Save(doc, vo);
+                        reclassified++;
+                    }
                 }
 
-                TaskDialog.Show("STING — Reclassification complete",
-                    $"Reclassified: {reclassified}\nSkipped (no reason picked): {skipped}");
+                StingResultPanel.Create("Reclassification complete")
+                    .AddSection("RESULT")
+                    .Metric("Reclassified", reclassified.ToString())
+                    .Metric("Skipped (no reason picked)", skipped.ToString())
+                    .Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -779,25 +1036,58 @@ namespace StingTools.Commands.Cost
             new() { Label = "Force majeure",       Detail = "Unforeseen — typically employer + insurance", Tag = VariationLiability.ForceMajeure },
         };
 
-        // Duplicates VariationFromDiffCommand.SuggestLiability so this
-        // command stays self-contained when the other one isn't used.
+        // PM-7 — delegates to the one shared rule (Core.Variation.VariationLiabilityRules).
         private static VariationLiability SuggestLiabilityShared(VariationReason reason)
+            => VariationLiabilityRules.Suggest(reason);
+    }
+
+    /// <summary>
+    /// PM-1/PM-2 — the ONE contract-sum source. Returns the frozen Award baseline
+    /// (COST_CONTRACT_SUM_UGX, set by Cost_SetContractSum) plus agreed (Approved +
+    /// Incorporated) variations, so EVM BAC, AFC and Final Account all anchor on the
+    /// same number. Falls back to the live bill only when nothing has been frozen.
+    /// </summary>
+    internal static class ContractSumResolver
+    {
+        /// <summary>The frozen contract-sum BASE (no variations): COST_CONTRACT_SUM_UGX
+        /// when set (Cost_SetContractSum), else the live bill. Use this where the
+        /// caller adds variations separately (e.g. the Final Account waterfall) so
+        /// agreed VOs aren't double-counted.
+        ///
+        /// CA-2 — ONE BASIS: this is NET OF VAT (works + prelims + OH&P +
+        /// contingency = NetTotalExVatUGX). The whole PM/QS lifecycle (EVM BAC,
+        /// CVR value, AFC, Final Account, cert SOV) reconciles on this net basis
+        /// because actuals, certs, variations and fluctuations are all net; VAT is
+        /// added only at the final presentation line. COST_CONTRACT_SUM_UGX is
+        /// therefore stored net-of-VAT (re-run Cost_SetContractSum after upgrade).</summary>
+        public static double ResolveBase(Document doc, BOQDocument boq, out string source)
         {
-            switch (reason)
+            double frozen = TagConfig.GetConfigDouble("COST_CONTRACT_SUM_UGX", 0.0);
+            if (frozen > 0) { source = "frozen Award baseline (COST_CONTRACT_SUM_UGX, net of VAT)"; return frozen; }
+            source = "live bill (net of VAT, no frozen contract sum)";
+            return boq?.NetTotalExVatUGX ?? 0;
+        }
+
+        /// <summary>Sum of agreed (Approved + Incorporated) variation values.</summary>
+        public static double AgreedVariationsUGX(Document doc)
+        {
+            try
             {
-                case VariationReason.DesignChange:
-                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
-                case VariationReason.ClientRequest:
-                case VariationReason.ScopeAddition:
-                case VariationReason.ScopeOmission:
-                case VariationReason.Specification:
-                case VariationReason.Quality:              return VariationLiability.Employer;
-                case VariationReason.SiteCondition:
-                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
-                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
-                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
-                default:                                    return VariationLiability.Employer;
+                return VariationEngine.ListVariations(doc)
+                    .Select(VariationEngine.Load).Where(v => v != null)
+                    .Where(v => v.Status == VariationStatus.Approved || v.Status == VariationStatus.Incorporated)
+                    .Sum(v => v.TotalValue);
             }
+            catch (Exception ex) { StingLog.Warn($"ContractSumResolver variations: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>The contract sum INCLUDING agreed variations — the EVM BAC / AFC
+        /// anticipated basis.</summary>
+        public static double Resolve(Document doc, BOQDocument boq, out string source)
+        {
+            double baseSum = ResolveBase(doc, boq, out source);
+            source += " + agreed variations";
+            return baseSum + AgreedVariationsUGX(doc);
         }
     }
 }

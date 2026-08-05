@@ -129,4 +129,56 @@ public class StatusController : ControllerBase
         // Stubbed empty until S7.2 lands the incidents table.
         return Ok(new { incidents = Array.Empty<object>() });
     }
+
+    /// <summary>
+    /// Bootstrap diagnostic — confirms the platform Owner account(s) were seeded
+    /// and are loginable, so an operator can verify the bootstrap straight from a
+    /// browser (e.g. https://api.planscape.build/api/status/bootstrap) BEFORE
+    /// trying to sign in. Public + anonymous, but deliberately leaks no PII:
+    /// only counts + booleans (never the owner email addresses or the password).
+    ///
+    ///   platformTenant          the 'planscape' tenant exists
+    ///   ownerEmailsConfigured   how many owner emails are in the allow-list
+    ///   ownerPasswordConfigured PLANSCAPE_OWNER_PASSWORD is set (primary loginable)
+    ///   ownersSeeded            allow-listed Owner rows present in the platform tenant
+    ///   ownersLoginable         …of those, how many are active (can sign in)
+    ///   ready                   platform tenant present AND ≥1 loginable owner
+    /// </summary>
+    [HttpGet("bootstrap")]
+    public async Task<ActionResult> Bootstrap([FromServices] IConfiguration config, CancellationToken ct)
+    {
+        // Read across the tenant query filter (no HTTP tenant context here).
+        _db.BypassTenantFilter = true;
+
+        var emails = Planscape.API.PlatformOwnerSeeder.ResolveOwnerEmails(config);
+        var tenant = await _db.Tenants
+            .FirstOrDefaultAsync(t => t.Slug == Planscape.Infrastructure.Services.PlatformTenantSeeder.PlatformSlug, ct);
+
+        int seeded = 0, loginable = 0;
+        if (tenant != null && emails.Count > 0)
+        {
+            var owners = await _db.Users
+                .Where(u => u.TenantId == tenant.Id
+                            && u.Role == Planscape.Core.Entities.UserRole.Owner
+                            && emails.Contains(u.Email))
+                .Select(u => u.IsActive)
+                .ToListAsync(ct);
+            seeded = owners.Count;
+            loginable = owners.Count(active => active);
+        }
+
+        bool passwordConfigured = !string.IsNullOrWhiteSpace(
+            config["Platform:OwnerPassword"] ?? Environment.GetEnvironmentVariable("PLANSCAPE_OWNER_PASSWORD"));
+
+        return Ok(new
+        {
+            platformTenant          = tenant != null,
+            ownerEmailsConfigured   = emails.Count,
+            ownerPasswordConfigured = passwordConfigured,
+            ownersSeeded            = seeded,
+            ownersLoginable         = loginable,
+            ready                   = tenant != null && loginable >= 1,
+            checkedUtc              = DateTime.UtcNow,
+        });
+    }
 }

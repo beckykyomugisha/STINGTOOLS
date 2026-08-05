@@ -61,19 +61,38 @@ namespace StingTools.Core.Classification
         public static (string key, string source, string value) ResolveFallback(Element el)
         {
             var c = Read(el);
-            if (!string.IsNullOrEmpty(c.UniclassProduct)) return ("PR:"   + c.UniclassProduct, "Uniclass.Pr",  c.UniclassProduct);
-            if (!string.IsNullOrEmpty(c.UniclassSystem))  return ("SS:"   + c.UniclassSystem,  "Uniclass.Ss",  c.UniclassSystem);
-            if (!string.IsNullOrEmpty(c.UniclassElement)) return ("EF:"   + c.UniclassElement, "Uniclass.Ef",  c.UniclassElement);
-
             Element type = null;
             try { type = el?.Document?.GetElement(el.GetTypeId()); } catch { }
-            string omni = type?.LookupParameter("STING_OMNICLASS_23")?.AsString() ?? "";
-            if (!string.IsNullOrEmpty(omni)) return ("OMNI:" + omni, "OmniClass23", omni);
 
+            string csi  = TypeFirst(el, type, "CSI_SECTION_TXT");
+            string omni = type?.LookupParameter("STING_OMNICLASS_23")?.AsString() ?? "";
             string famTypeKey = (type?.Category?.Name ?? "") + "/" +
                                 ((type as ElementType)?.FamilyName ?? "") + "/" +
                                 (type?.Name ?? "");
-            return ("NATIVE:" + famTypeKey, "Native.Family", famTypeKey);
+
+            // Candidate buckets in Uniclass-default order.
+            var uniPr = ("PR:" + c.UniclassProduct, "Uniclass.Pr", c.UniclassProduct);
+            var uniSs = ("SS:" + c.UniclassSystem,  "Uniclass.Ss", c.UniclassSystem);
+            var uniEf = ("EF:" + c.UniclassElement, "Uniclass.Ef", c.UniclassElement);
+            var csiB  = ("CSI:" + csi,   "CSI.MasterFormat", csi);
+            var omniB = ("OMNI:" + omni, "OmniClass23", omni);
+            var natB  = ("NATIVE:" + famTypeKey, "Native.Family", famTypeKey);
+
+            // Order the cascade by the project's chosen standard (Phase G). Uniclass
+            // is the default and preserves the historic order exactly; the others
+            // promote their bucket to the front, then fall through the rest.
+            (string, string, string)[] order;
+            switch (ClassificationStandard.Active(el?.Document))
+            {
+                case ClassStandard.Csi:      order = new[] { csiB, uniPr, uniSs, uniEf, omniB, natB }; break;
+                case ClassStandard.OmniClass:order = new[] { omniB, uniPr, uniSs, uniEf, csiB, natB }; break;
+                case ClassStandard.Native:   order = new[] { natB }; break;
+                default:                     order = new[] { uniPr, uniSs, uniEf, csiB, omniB, natB }; break;
+            }
+            foreach (var (key, source, value) in order)
+                if (!string.IsNullOrEmpty(value)) return (key, source, value);
+
+            return natB; // famTypeKey is always non-empty-ish, but guarantee a return
         }
 
         /// <summary>

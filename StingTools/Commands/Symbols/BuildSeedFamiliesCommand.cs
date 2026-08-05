@@ -115,8 +115,20 @@ namespace StingTools.Commands.Symbols
                 string seedName = Path.GetFileNameWithoutExtension(spec);
                 try
                 {
+                    // The picker's choice now reaches the builder. It previously
+                    // stopped at the result dialog and the log, so every mode behaved
+                    // as Missing Only — "Rebuild All" silently rebuilt nothing,
+                    // because the builder skips any seed whose .rfa already exists.
+                    //
+                    // RebuildUnfinalized maps to a full rebuild as well: nothing in
+                    // the codebase ever writes the .sting-finalized sidecar its label
+                    // refers to (SymbolCreationResult.Protected is never incremented
+                    // and SymbolDefinition.ProtectExisting is never read), so no seed
+                    // is currently finalized and there is nothing to protect. The
+                    // dialog copy says so rather than implying otherwise.
                     var r = SymbolLibraryCreator.CreateAllFromFile(doc, spec, outRoot,
-                        loadIntoProject: true);
+                        loadIntoProject: true,
+                        rebuildMode: rebuildMode != SeedRebuildMode.MissingOnly);
                     aggregate.Created   += r.Created;
                     aggregate.Existed   += r.Existed;
                     aggregate.Failed    += r.Failed;
@@ -190,16 +202,20 @@ namespace StingTools.Commands.Symbols
             {
                 MainInstruction = "Choose which seeds to build",
                 MainContent =
-                    "Missing Only — create seeds that don't exist yet (safe default).\n" +
-                    "Rebuild Unfinalized — skip only seeds with a .sting-finalized sidecar; rebuild all others.\n" +
-                    "Rebuild All — regenerate every seed including finalized ones (destroys manual polish).",
+                    "Missing Only — create seeds that don't exist yet, plus any whose JSON spec " +
+                    "has changed since it was built (safe default).\n" +
+                    "Rebuild Unfinalized — rebuild seeds not marked finalized. No seed is " +
+                    "currently finalized, so today this behaves as a full rebuild.\n" +
+                    "Rebuild All — regenerate every seed (destroys manual polish).",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
                 DefaultButton  = TaskDialogResult.Cancel,
             };
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Missing Only",
-                "Create seeds whose .rfa does not exist. Protected families are never touched.");
+                "Create seeds whose .rfa does not exist. An existing seed is left alone unless " +
+                "its JSON spec has changed since it was built, in which case it is regenerated.");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Rebuild Unfinalized",
-                "Regenerate seeds that have not been marked as finalized. Finalized seeds are skipped.");
+                "Regenerate seeds not marked finalized. Nothing writes the .sting-finalized " +
+                "sidecar yet, so this currently rebuilds every seed — same as Rebuild All.");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Rebuild All",
                 "Regenerate ALL seeds. WARNING: overwrites any manual polish. You will be asked to confirm.");
 

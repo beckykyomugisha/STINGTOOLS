@@ -18,7 +18,12 @@ namespace StingTools.Tags
     ///   • Bind every shared parameter referenced in the plan's T4..T10 rows.
     ///   • Apply the CSV-derived <c>if(TAG_PARA_STATE_N_BOOL, PARAM, "")</c>
     ///     calculated-value formula on each bound family parameter so tier
-    ///     visibility is gated correctly.
+    ///     visibility is gated correctly. The gate is tested BARE because STING
+    ///     stores the BOOL gates as YESNO (v5.4+) — YESNO is Revit's native
+    ///     <c>if()</c> condition type. <see cref="TagConfig.GateToken"/> still
+    ///     picks the form per storage type (YESNO ⇒ bare, legacy TEXT ⇒
+    ///     <c>= "Yes"</c>) so it self-heals any family still holding a gate as
+    ///     TEXT.
     ///   • Honour <c>preserveHandEdits</c>: when any Dimension/TextNote in the
     ///     family has a non-default (non-origin) position we skip formula
     ///     re-writes for the rows that map to that tier, leaving a user's hand
@@ -103,7 +108,9 @@ namespace StingTools.Tags
         /// visibility formula with the entry's <see cref="ModePlan.GateParam"/>.
         /// When a source parameter appears in more than one mode it gets a
         /// single OR-merged formula of the shape
-        /// <c>if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "")</c>.
+        /// <c>if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "")</c>
+        /// — each gate carries its storage-type-correct condition form (bare for
+        /// the YESNO gates STING ships; see <see cref="TagConfig.GateToken"/>).
         /// </summary>
         public static Result AuthorLabelsMulti(Document fdoc,
             IEnumerable<ModePlan> modePlans, Options opts)
@@ -260,7 +267,9 @@ namespace StingTools.Tags
                 FamilyManager fm = fdoc.FamilyManager;
                 using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — bind tier params"))
                 {
+                    TagParamInjector.InstallSwallower(tx); // Phase 196 — before Start
                     tx.Start();
+                    var idx = TagParamInjector.BuildIndex(fdoc);
                     foreach (string name in paramNames)
                     {
                         ExternalDefinition ext = FindSharedDefinition(defFile, name);
@@ -269,15 +278,17 @@ namespace StingTools.Tags
                             result.Warnings.Add($"Shared param '{name}' not in {Path.GetFileName(opts.SharedParamFile)}");
                             continue;
                         }
-                        if (HasParameter(fm, name)) continue;
-                        try
+                        // Phase 196: pre-skip TEXT↔YESNO conflicts so a stale MR file
+                        // can't raise the unrecoverable "cannot be added" modal here.
+                        switch (TagParamInjector.EnsureFamilyParam(fm, ext, idx, GroupTypeId.General, true))
                         {
-                            fm.AddParameter(ext, GroupTypeId.General, true); // instance
-                            added++;
-                        }
-                        catch (Exception ex)
-                        {
-                            result.Warnings.Add($"AddParameter('{name}') failed: {ex.Message}");
+                            case TagParamInjector.InjectResult.Added:
+                                added++;
+                                break;
+                            case TagParamInjector.InjectResult.SkippedConflict:
+                                result.Warnings.Add($"'{name}': type conflict with the family's existing definition — kept existing (TEXT↔YESNO drift)");
+                                break;
+                            // SkippedExists / Failed: no-op (Failed already logged by the injector).
                         }
                     }
                     tx.Commit();
@@ -302,11 +313,13 @@ namespace StingTools.Tags
 
         // ------------------------------------------------------------------
         // Per-row formula: visibility is gated by TAG_PARA_STATE_N_BOOL; when a
-        // mode gate is supplied the gate becomes and(stateN, modeGate). When
-        // the same source parameter is referenced by multiple (tier, gate)
-        // pairs — which happens when Handover and Design & Construction both
-        // list it — we OR-merge them into a single formula of shape
-        //   if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "").
+        // mode gate is supplied the gate becomes and(stateN, modeGate). Each
+        // gate token carries its storage-type-correct condition form via
+        // TagConfig.GateToken — TEXT gates (the v5.3+ default) emit `= "Yes"`,
+        // YESNO gates stay bare. When the same source parameter is referenced by
+        // multiple (tier, gate) pairs — which happens when Handover and Design &
+        // Construction both list it — we OR-merge them into a single formula of
+        // shape if(or(and(stateN="Yes", gateA="Yes"), …), PARAM, "").
         // Rows whose target tier is in preservedTiers are skipped.
         // ------------------------------------------------------------------
         private static void ApplyVisibilityFormulas(Document fdoc,
@@ -315,6 +328,15 @@ namespace StingTools.Tags
         {
             if (flat.Count == 0) return;
 
+            FamilyManager fm = fdoc.FamilyManager;
+
+            // Resolve each gate's condition FORM via its storage type so the
+            // emitted formula never trips Revit's "Inconsistent Units" error.
+            // STING stores TAG_PARA_STATE_*_BOOL + mode-gate BOOLs as TEXT
+            // ("Yes"/"No"), which is NOT a valid bare if()/and()/or() condition —
+            // it must be written as `gate = "Yes"`. TagConfig.GateToken picks the
+            // right form (TEXT ⇒ `= "Yes"`, YESNO ⇒ bare) and self-heals if a
+            // family carries a legacy Integer gate.
             var gatesByParam = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             int skippedRows = 0;
             foreach (var (tier, row, modeGate) in flat)
@@ -323,9 +345,10 @@ namespace StingTools.Tags
                 if (row == null || string.IsNullOrEmpty(row.Parameter)) { skippedRows++; continue; }
 
                 string stateBool = "TAG_PARA_STATE_" + tier + "_BOOL";
+                string stateTok = TagConfig.GateToken(fm, stateBool);
                 string gateExpr = string.IsNullOrEmpty(modeGate)
-                    ? stateBool
-                    : "and(" + stateBool + ", " + modeGate + ")";
+                    ? stateTok
+                    : "and(" + stateTok + ", " + TagConfig.GateToken(fm, modeGate) + ")";
 
                 if (!gatesByParam.TryGetValue(row.Parameter, out var list))
                 {
@@ -335,7 +358,6 @@ namespace StingTools.Tags
                 if (!list.Contains(gateExpr, StringComparer.Ordinal)) list.Add(gateExpr);
             }
 
-            FamilyManager fm = fdoc.FamilyManager;
             using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — tier formulas"))
             {
                 tx.Start();
@@ -433,11 +455,22 @@ namespace StingTools.Tags
             return null;
         }
 
-        private static bool HasParameter(FamilyManager fm, string name)
+        /// <summary>
+        /// Locate an already-bound family parameter by name, or null. Exposed
+        /// <c>internal</c> so the title-block seed-augment path
+        /// (<see cref="StingTools.Core.Drawing.TitleBlockFactory"/>) can reuse
+        /// the same idempotency check when opening a pre-authored seed .rfa that
+        /// already carries its shared parameters — see the shared-param binding
+        /// idiom in <see cref="BindSharedParameters"/>.
+        /// </summary>
+        internal static FamilyParameter FindParameter(FamilyManager fm, string name)
         {
             foreach (FamilyParameter fp in fm.Parameters)
-                if (fp.Definition?.Name == name) return true;
-            return false;
+                if (fp.Definition?.Name == name) return fp;
+            return null;
         }
+
+        internal static bool HasParameter(FamilyManager fm, string name)
+            => FindParameter(fm, name) != null;
     }
 }

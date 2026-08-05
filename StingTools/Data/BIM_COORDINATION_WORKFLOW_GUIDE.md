@@ -485,7 +485,7 @@ Run **Check Data Files** (TEMP → Setup) to verify all 43 runtime data files ar
 
 | File | Purpose | Rows |
 |------|---------|------|
-| MR_PARAMETERS.txt | Shared parameter definitions | 2,307 params |
+| MR_PARAMETERS.txt | Shared parameter definitions | 3,330 params |
 | BLE_MATERIALS.csv | Building element materials | 815 rows |
 | MEP_MATERIALS.csv | MEP materials | 464 rows |
 | MR_SCHEDULES.csv | Schedule definitions + TPL metadata | 168 schedules + 21 TPL entries |

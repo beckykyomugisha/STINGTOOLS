@@ -1661,21 +1661,22 @@ namespace StingTools.UI
                 ("Transmittal Gate", "TransmittalGateCheck"),
             }));
 
-            // ── Author kit (file map + nested-family pointers) ──
+            // ── Built catalogue (file map + nested-family pointers) ──
             stack.Children.Add(InfoCard(
-                "Author kit (15 .rfa families): COVER_A3 · STARTUP_A3 · ASSEMBLY_PIPE · " +
-                "ASSEMBLY_DUCT · ASSEMBLY_COND · ASSEMBLY_HANGER · TECHNICAL_A1 · CLIENT_A1 · " +
-                "IFC_A1 · IFT_A1 · AS_BUILT_A1 · SUBMISSION_KCCA · SUBMISSION_ERA · " +
-                "SUBMISSION_NEMA · MARKETING_A2.\n\n" +
-                "Each family carries 37 TB_ family parameters (drawable zone, slots, reserved " +
-                "regions, nested-family pointers, visibility toggles, authority code, version " +
-                "stamp). The project carries 37 PRJ_TB_ project-info parameters that the kit " +
-                "auto-fills.\n\n" +
+                "Built catalogue (25 concrete families, minted by 'Build All'): 12 working " +
+                "sheets STING_TB_<SIZE>[_PORT]_<BIM|NONBIM>_v2.0 (A0/A1/A3 × Land/Port × " +
+                "BIM/NONBIM); 4 fabrication ASSEMBLY_{PIPE|DUCT|COND|HANGER}_v1.0 (all A1); " +
+                "specialty PRESENT_A1 (+_MONO) · COVER_A1 · DIVIDER_A1 · REGISTER_A1 · " +
+                "SUBMISSION_{KCCA|ERA|NEMA} · CLARIFICATION_A3.\n\n" +
+                "IFC / IFT / As-Built are SUITABILITY STATES of the BIM family (set via " +
+                "PRJ_DWG_SUITABILITY_COD_TXT), not separate families. A2 / A4 are not shipped.\n\n" +
+                "Each family carries its TB_ family parameters (drawable zone, slots, reserved " +
+                "regions, nested-family pointers, visibility toggles). The full 75-parameter " +
+                "title-block set (PRJ_ORG_* / PRJ_TB_* / PRJ_SHEET_* / STING_SHEET_* / ASS_*) is " +
+                "packaged at StingTools/Data/STING_TITLE_BLOCK_PARAMETERS.txt.\n\n" +
                 "Step-by-step layman guide → docs/guides/TITLE_BLOCK_CREATION_GUIDE.md\n" +
                 "Per-discipline default values → StingTools/Data/TITLE_BLOCK.csv\n" +
-                "Visual style packs (corp-base, fabrication-shop, technical-presentation, " +
-                "client-presentation, construction-issue, tender-issue, as-built, " +
-                "authority-submission, marketing-render) → StingTools/Data/STING_VIEW_STYLE_PACKS.json"));
+                "Visual style packs (corp-base + 10 children) → StingTools/Data/STING_VIEW_STYLE_PACKS.json"));
 
             host.Content = stack;
             return host;
@@ -2304,27 +2305,18 @@ namespace StingTools.UI
                 v => tp.ParaDepth = int.TryParse(v, out var n) ? (int?)n : null,
                 tooltip: "Tier 1 = compact, 10 = full audit. Empty = inherit from preset / leave alone."));
 
-            string[] sizes  = new[] { "", "2", "2.5", "3", "3.5" };
-            string[] styles = new[] { "", "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
-            string[] colors = new[] { "", "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "GREY", "PURPLE", "YELLOW" };
-
-            body.Children.Add(LabeledCombo("Tag size",
-                sizes, tp.TagSize ?? "",
-                v => tp.TagSize = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Empty = inherit from pack DefaultTagStyle. mm text height."));
-            body.Children.Add(LabeledCombo("Tag style",
-                styles, tp.TagStyle ?? "",
-                v => tp.TagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
-            body.Children.Add(LabeledCombo("Tag colour",
-                colors, tp.TagColor ?? "",
-                v => tp.TagColor = string.IsNullOrWhiteSpace(v) ? null : v.Trim().ToUpperInvariant()));
-
-            string[] schemes = new[] { "", "Discipline", "System", "Status", "Zone", "Level", "Location", "Function",
-                                        "Warm", "Cool", "Red", "Yellow", "Blue", "Mono", "Dark" };
-            body.Children.Add(LabeledCombo("View colour scheme (STING_VIEW_TAG_STYLE)",
-                schemes, tp.ColorScheme ?? "",
-                v => tp.ColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "Variable-driven colour map written to STING_VIEW_TAG_STYLE on the view."));
+            // Tag STYLE (size / weight / colour / colour scheme) is single-sourced
+            // in the bound View Style Pack (Default tag style, Category tag styles,
+            // Tag colour scheme — see the View Style Packs tab). Drawing types own
+            // token DEPTH only, so the style controls were removed from this card.
+            body.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Tag style (size / weight / colour / colour scheme) is set on the bound " +
+                       "View Style Pack — see the View Style Packs tab. This card controls token depth only.",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                Opacity = 0.75,
+                Margin = new System.Windows.Thickness(0, 4, 0, 8)
+            });
 
             // Phase 137 — Segment mask: 8 individual checkboxes (one per
             // DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ token). Replaces the
@@ -2577,9 +2569,6 @@ namespace StingTools.UI
             var bits = new List<string>();
             if (!string.IsNullOrWhiteSpace(tp.PresentationMode)) bits.Add($"mode:{tp.PresentationMode}");
             if (tp.ParaDepth.HasValue) bits.Add($"depth:{tp.ParaDepth.Value}");
-            if (!string.IsNullOrWhiteSpace(tp.TagSize) || !string.IsNullOrWhiteSpace(tp.TagStyle) || !string.IsNullOrWhiteSpace(tp.TagColor))
-                bits.Add($"tag:{tp.TagSize ?? "·"}{tp.TagStyle ?? "·"}_{tp.TagColor ?? "·"}");
-            if (!string.IsNullOrWhiteSpace(tp.ColorScheme)) bits.Add($"scheme:{tp.ColorScheme}");
             if (!string.IsNullOrWhiteSpace(tp.SegmentMask)) bits.Add($"mask:{tp.SegmentMask}");
             if (tp.DisplayMode.HasValue) bits.Add($"disp:{tp.DisplayMode.Value}");
             if (!string.IsNullOrWhiteSpace(tp.PatternMode)) bits.Add($"pattern:{tp.PatternMode}");
@@ -2942,8 +2931,18 @@ namespace StingTools.UI
             DockPanel.SetDock(right, Dock.Right);
             var btnClose = MakeBigBtn("Close", CardBg, false);
             var btnSave  = MakeBigBtn("Save",  AccentColor, true);
-            btnClose.Click += (s, e) => { DialogResult = false; };
-            btnSave.Click  += (s, e) => { if (SaveToProjectOverride()) { DialogResult = true; } };
+            // DialogResult may only be set on a window shown with ShowDialog().
+            // DrawingTypeEditorCommand launches this editor MODELESS (Show()) on
+            // purpose — a modal window blocks Revit's ExternalEvent queue, so the
+            // action buttons inside would never fire. Setting DialogResult here
+            // therefore threw InvalidOperationException and the window refused to
+            // close at all. Close() works in both modes.
+            btnClose.Click += (s, e) => { try { Close(); } catch (Exception ex) { StingLog.Warn($"Editor close: {ex.Message}"); } };
+            btnSave.Click  += (s, e) =>
+            {
+                if (!SaveToProjectOverride()) return;
+                try { Close(); } catch (Exception ex) { StingLog.Warn($"Editor close after save: {ex.Message}"); }
+            };
             right.Children.Add(btnClose);
             right.Children.Add(btnSave);
             row.Children.Add(right);

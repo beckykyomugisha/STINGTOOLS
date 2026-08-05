@@ -43,6 +43,16 @@ namespace StingTools.Select
         private readonly Border _searchBorder;
         private readonly TextBlock _validationHint;
         private List<ListItem> _result;
+
+        // ── P0.2 — modal only ────────────────────────────────────────────────
+        // The Slice-1.5 inline-hosting path (InlineHost / InlineHostDoc /
+        // InlineTitleSink / ShowInline) pumped a nested Dispatcher.PushFrame loop
+        // inside the running ExternalEvent. That left the dock panel live and
+        // re-clickable mid-command — the confirmed "lifeless panel" deadlock. It is
+        // removed: every Show(...) now renders as a standard modal dialog (which
+        // disables its Revit owner, so the panel can't be re-entered). Results
+        // still render inline via StingResultPanel.InlineSink — that sets a Border
+        // child with no message pump, so it is safe and unaffected.
         private HashSet<string> _validCodes;
 
         private StingListPicker(string title, string subtitle, List<ListItem> items, bool allowMultiSelect)
@@ -361,6 +371,7 @@ namespace StingTools.Select
                     Background = invalid ? BrushLightRedBg : Brushes.Transparent
                 };
                 _listBox.Items.Add(lbi);
+                if (item.IsSelected) lbi.IsSelected = true;   // honour pre-checked state
             }
             _countText.Text = $"{items.Count}/{_allItems.Count}";
         }
@@ -441,8 +452,9 @@ namespace StingTools.Select
             // Re-populate to apply validation coloring
             picker.PopulateList(items);
 
-            // Phase 98: prefer BCC as owner when it's open so the picker stacks
-            // above the coordination centre (was falling behind with raw Revit HWND).
+            // P0.2 — always modal. Phase 98: prefer BCC as owner when it's open so
+            // the picker stacks above the coordination centre (was falling behind
+            // with raw Revit HWND).
             StingTools.UI.StingWindowHelper.ApplyOwner(picker);
 
             picker.ShowDialog();
@@ -454,8 +466,9 @@ namespace StingTools.Select
         {
             var dlg = new StingListPicker(title, subtitle, items, allowMultiSelect);
 
-            // Phase 98: prefer BCC as owner when open so the picker stacks above
-            // the coordination centre; falls back to Revit main HWND otherwise.
+            // P0.2 — always modal. Phase 98: prefer BCC as owner when open so the
+            // picker stacks above the coordination centre; falls back to Revit main
+            // HWND otherwise.
             StingTools.UI.StingWindowHelper.ApplyOwner(dlg);
 
             dlg.ShowDialog();

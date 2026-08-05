@@ -51,19 +51,29 @@ namespace StingTools.Core.Placement
         // don't run a FilteredElementCollector for every PlaceOnCeilingSoffit
         // call. Cleared whenever the active document changes.
         private static View3D _cachedView3D;
-        private static int _cachedView3DDocHash;
+        // Phase 188 (review pass-2 #4) — key the cache by PathName|Title instead
+        // of doc.GetHashCode(). GetHashCode can collide across documents (the
+        // engine's ResolveBuiltInCategoryByName already moved off it for this
+        // exact reason), which could hand back a View3D belonging to a different
+        // open document. The IsValidObject + Document identity checks below are
+        // the belt-and-braces guard.
+        private static string _cachedView3DDocKey;
 
         private static View3D ResolveView3D(Document doc)
         {
             if (doc == null) return null;
-            int docHash = doc.GetHashCode();
-            if (_cachedView3D != null && _cachedView3DDocHash == docHash && _cachedView3D.IsValidObject)
+            string docKey;
+            try { docKey = (doc.PathName ?? "") + "|" + (doc.Title ?? ""); }
+            catch { docKey = ""; }
+            if (_cachedView3D != null && _cachedView3DDocKey == docKey
+                && _cachedView3D.IsValidObject
+                && ReferenceEquals(_cachedView3D.Document, doc))
                 return _cachedView3D;
             try
             {
                 _cachedView3D = new FilteredElementCollector(doc).OfClass(typeof(View3D))
                     .Cast<View3D>().FirstOrDefault(v => v != null && !v.IsTemplate);
-                _cachedView3DDocHash = docHash;
+                _cachedView3DDocKey = docKey;
             }
             catch { _cachedView3D = null; }
             return _cachedView3D;
@@ -76,7 +86,7 @@ namespace StingTools.Core.Placement
         public static PlacementHostPreflightResult Place(
             Document doc,
             FamilySymbol symbol,
-            Room room,
+            SpatialElement room,
             XYZ position,
             PlacementRule rule)
         {
@@ -141,7 +151,7 @@ namespace StingTools.Core.Placement
         private static PlacementHostPreflightResult TryHostedPlace(
             Document doc,
             FamilySymbol symbol,
-            Room room,
+            SpatialElement room,
             XYZ position,
             PlacementRule rule,
             FamilyPlacementType fpt)
@@ -179,7 +189,7 @@ namespace StingTools.Core.Placement
             try
             {
                 if (prefersWall)
-                    host = NearestOf<Wall>(doc, position, 6.0); // ~1.83m
+                    host = NearestWall(doc, position, 6.0); // Tier 1b — curve-distance, not bbox-centre
                 else if (prefersCeiling)
                     host = NearestOf<Ceiling>(doc, position, 12.0); // ~3.66m
                 else
@@ -236,7 +246,7 @@ namespace StingTools.Core.Placement
         public static PlacementHostPreflightResult PlaceOnCeilingSoffit(
             Document doc,
             FamilySymbol symbol,
-            Room room,
+            SpatialElement room,
             XYZ ceilingSoffitPoint,
             PlacementRule rule,
             double ceilingVoidDepthFt)
@@ -333,7 +343,7 @@ namespace StingTools.Core.Placement
         // back to the level-based overload when no wall/ceiling is
         // nearby (free-standing face-based families).
         private static PlacementHostPreflightResult TryFaceBasedPlace(
-            Document doc, FamilySymbol symbol, Room room, XYZ position, PlacementRule rule)
+            Document doc, FamilySymbol symbol, SpatialElement room, XYZ position, PlacementRule rule)
         {
             var r = new PlacementHostPreflightResult();
             try
@@ -350,7 +360,7 @@ namespace StingTools.Core.Placement
 
                 if (wallAnchor)
                 {
-                    var wall = NearestOf<Wall>(doc, position, 6.0);
+                    var wall = NearestWall(doc, position, 6.0); // Tier 1b — curve-distance find
                     if (wall != null)
                     {
                         IList<Reference> faceRefs = null;
@@ -440,15 +450,63 @@ namespace StingTools.Core.Placement
             }
         }
 
+        // Tier 1b — wall-specific nearest. NearestOf&lt;Wall&gt; measured distance to
+        // the wall's BOUNDING-BOX CENTRE, which for a long wall is metres from the
+        // placement point — so the wall was missed (&gt; radius), face-based hosting
+        // fell back to level-based plonk, and the fixture stayed un-hosted +
+        // diagonal. Measuring distance to the wall's LOCATION CURVE (perpendicular
+        // to the wall line) finds the wall reliably regardless of its length, so
+        // the fixture hosts to the wall face and Revit auto-orients it.
+        private static Wall NearestWall(Document doc, XYZ point, double maxDistFt)
+        {
+            Wall best = null;
+            double bestSq = maxDistFt * maxDistFt;
+            try
+            {
+                var outline = new Outline(
+                    new XYZ(point.X - maxDistFt, point.Y - maxDistFt, point.Z - maxDistFt),
+                    new XYZ(point.X + maxDistFt, point.Y + maxDistFt, point.Z + maxDistFt));
+                var col = new FilteredElementCollector(doc).OfClass(typeof(Wall))
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new BoundingBoxIntersectsFilter(outline));
+                foreach (var el in col)
+                {
+                    if (el is not Wall w) continue;
+                    if (!(w.Location is LocationCurve lc) || lc.Curve == null) continue;
+                    XYZ flat;
+                    try { flat = new XYZ(point.X, point.Y, lc.Curve.GetEndPoint(0).Z); }
+                    catch { flat = point; }
+                    var pr = lc.Curve.Project(flat);
+                    if (pr == null) continue;
+                    double dx = pr.XYZPoint.X - point.X, dy = pr.XYZPoint.Y - point.Y;
+                    double sq = dx * dx + dy * dy;
+                    if (sq < bestSq) { bestSq = sq; best = w; }
+                }
+            }
+            catch { }
+            return best;
+        }
+
         private static T NearestOf<T>(Document doc, XYZ point, double maxDistFt) where T : Element
         {
             T best = null;
             double bestSq = maxDistFt * maxDistFt;
             try
             {
+                // Phase 188 (review pass-2 #2) — bound the search with a
+                // BoundingBoxIntersectsFilter around the point ± maxDistFt so the
+                // collector only touches hosts near the placement, not every wall
+                // / ceiling / floor in the model (this runs once per placement).
                 var col = new FilteredElementCollector(doc)
                     .OfClass(typeof(T))
                     .WhereElementIsNotElementType();
+                if (point != null)
+                {
+                    var outline = new Outline(
+                        new XYZ(point.X - maxDistFt, point.Y - maxDistFt, point.Z - maxDistFt),
+                        new XYZ(point.X + maxDistFt, point.Y + maxDistFt, point.Z + maxDistFt));
+                    col = col.WherePasses(new BoundingBoxIntersectsFilter(outline));
+                }
                 foreach (var el in col)
                 {
                     if (el is not T candidate) continue;

@@ -322,7 +322,7 @@ namespace StingTools.Core.Lightning
         {
             try
             {
-                string explicitTag = StingTools.Core.ParameterHelpers.GetString(fi, "ASS_TAG_1");
+                string explicitTag = StingTools.Core.ParameterHelpers.GetString(fi, "ASS_TAG_1_TXT");
                 if (!string.IsNullOrEmpty(explicitTag)) return explicitTag;
                 string s = StingTools.Core.ParameterHelpers.GetString(fi, StingTools.Core.ParamRegistry.SEQ);
                 if (!string.IsNullOrEmpty(s)) return $"{fallbackPrefix}-{s}";

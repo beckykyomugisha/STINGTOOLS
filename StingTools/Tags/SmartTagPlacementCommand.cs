@@ -914,6 +914,8 @@ namespace StingTools.Tags
             public int NoTagFamily;          // no FamilySymbol (tag) resolved for category
             public int TagCreationFailed;    // Revit InvalidOperationException during IndependentTag.Create
             public int OtherException;       // any other exception during placement
+            public int RunSuppressed;        // linear-MEP segment tags collapsed by run grouping (not a failure)
+            public int Runs;                 // number of MEP runs formed by grouping
             public int Total => NoCenter + NoTagFamily + TagCreationFailed + OtherException;
             public string Format()
                 => Total == 0 ? "0"
@@ -1046,6 +1048,30 @@ namespace StingTools.Tags
             catch (Exception pipeEx)
             {
                 StingLog.Warn($"SmartTagPlacement data-tag prerequisite: {pipeEx.Message}");
+            }
+
+            // MEP declutter (corporate convention): collapse linear-MEP segment tags
+            // down to one visual tag per connected run — breaking at size changes,
+            // branches (tees/crosses) and risers/drops. Runs AFTER the data-tag
+            // pipeline above so every segment keeps its ASS_TAG_1 / container tokens
+            // for schedules & BOQ; only the number of drawn IndependentTags drops.
+            // Equipment / fixtures pass through untouched (policy = All).
+            try
+            {
+                var runGroup = StingTools.Core.Mep.MepRunGrouper.Reduce(doc, view, elements);
+                if (runGroup.SuppressedCount > 0)
+                {
+                    StingLog.Info($"SmartTagPlacement: MEP run grouping kept {runGroup.Representatives.Count} " +
+                        $"representative(s), suppressed {runGroup.SuppressedCount} segment tag(s) across " +
+                        $"{runGroup.RunCount} run(s)");
+                    elements = runGroup.Representatives;
+                    sb.RunSuppressed = runGroup.SuppressedCount;
+                    sb.Runs = runGroup.RunCount;
+                }
+            }
+            catch (Exception grpEx)
+            {
+                StingLog.Warn($"SmartTagPlacement MEP run grouping: {grpEx.Message}");
             }
 
             double offset = GetModelOffset(view);
@@ -2064,6 +2090,10 @@ namespace StingTools.Tags
 
             var report = new StringBuilder();
             report.AppendLine($"Placed: {placed} annotation tags");
+            var bdRun = TagPlacementEngine.LastSkipBreakdown;
+            if (bdRun.RunSuppressed > 0)
+                report.AppendLine($"MEP declutter: {bdRun.RunSuppressed} segment tag(s) collapsed into " +
+                    $"{bdRun.Runs} run(s) — one tag per run (size change / branch / riser start a new tag).");
             if (skipped > 0)
             {
                 var bd = TagPlacementEngine.LastSkipBreakdown;

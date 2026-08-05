@@ -88,25 +88,38 @@ namespace StingTools.Core.Drawing
 
     public static class MatchLineConfigRegistry
     {
-        private static MatchLineConfig _cached;
+        // A-14: keyed by document. A single static config meant the first
+        // project opened in a session decided match-line geometry, captions
+        // and stamping for every other project until Revit restarted.
+        private static readonly System.Collections.Generic.Dictionary<string, MatchLineConfig> _cachedByDoc
+            = new System.Collections.Generic.Dictionary<string, MatchLineConfig>(StringComparer.OrdinalIgnoreCase);
+
+        private static string DocKey(Autodesk.Revit.DB.Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch (Exception ex) { StingLog.Warn($"MatchLineConfigRegistry.DocKey: {ex.Message}"); return "__unknown__"; }
+        }
         private static readonly object _lock = new object();
 
         public static MatchLineConfig Get(Autodesk.Revit.DB.Document doc)
         {
             lock (_lock)
             {
-                if (_cached != null) return _cached;
-                _cached = LoadFromDisk(doc) ?? new MatchLineConfig
+                var key = DocKey(doc);
+                if (_cachedByDoc.TryGetValue(key, out var cached) && cached != null) return cached;
+                var loaded = LoadFromDisk(doc) ?? new MatchLineConfig
                 {
                     Name = "STING Match-Line config (defaults)",
                 };
-                return _cached;
+                _cachedByDoc[key] = loaded;
+                return loaded;
             }
         }
 
         public static void Reload(Autodesk.Revit.DB.Document doc)
         {
-            lock (_lock) { _cached = null; }
+            lock (_lock) { _cachedByDoc.Remove(DocKey(doc)); }
         }
 
         private static MatchLineConfig LoadFromDisk(Autodesk.Revit.DB.Document doc)

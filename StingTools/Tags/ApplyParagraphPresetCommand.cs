@@ -130,32 +130,11 @@ namespace StingTools.Tags
             return sbAll.ToString();
         }
 
+        // D4: delegate to the shared storage-agnostic formatter so the
+        // paragraph-preset path and the tag path (TagConfig.BuildTier4To10-
+        // Summaries) format identical data identically and cannot diverge.
         private static string ReadParamAsText(Element el, string name)
-        {
-            if (string.IsNullOrEmpty(name)) return "";
-            Parameter p = el.LookupParameter(name);
-            if (p == null) return "";
-            switch (p.StorageType)
-            {
-                case StorageType.String:
-                    return p.AsString() ?? "";
-                case StorageType.Integer:
-                    return p.AsInteger().ToString();
-                case StorageType.Double:
-                    return p.AsValueString() ?? p.AsDouble().ToString("0.###");
-                case StorageType.ElementId:
-                    // Revit's Parameter class has no .Document property;
-                    // resolving an ElementId to a name requires a Document
-                    // reference from the caller. Returning the raw id is
-                    // the safe fallback — downstream consumers only need
-                    // a stable stringification.
-                    var eid = p.AsElementId();
-                    return eid == null || eid == ElementId.InvalidElementId
-                           ? "" : eid.Value.ToString();
-                default:
-                    return "";
-            }
-        }
+            => ParameterHelpers.GetDisplayText(el, name);
 
         private static ICollection<ElementId> CollectScope(UIDocument uidoc)
         {

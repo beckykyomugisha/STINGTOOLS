@@ -66,8 +66,37 @@ class PlanscapeClient:
         self._session.headers.update({"Content-Type": "application/json"})
         self._token: str | None = None
         self._token_expiry: float = 0.0
+        # Credentials are retained so long-lived processes (the IFC drop-folder
+        # watcher, `watch` mode) can silently re-authenticate when the server
+        # token expires — see :meth:`_send`.
+        self._email: str = ""
+        self._password: str = ""
+        # A personal access token is an ALTERNATIVE to email+password, not an
+        # addition. It is the only credential available to accounts provisioned
+        # through the planscape.build identity handoff: those are created with a
+        # deliberately unusable password hash, so there is no password to hold.
+        self._pat: str = ""
 
     # ── auth ─────────────────────────────────────────────────────────────────
+
+    # The server issues 30-minute access tokens (AuthController.AccessTokenLifetime).
+    # Refresh a little early so a long-running watcher never presents a token that
+    # expires mid-flight. This previously assumed 60 minutes, which meant the
+    # proactive refresh only fired ~25 minutes after the token was already dead and
+    # every request in that window paid for a reactive 401 + retry.
+    _ACCESS_TOKEN_LIFETIME_S = 30 * 60
+    _REFRESH_MARGIN_S = 5 * 60
+
+    def _accept_session(self, data: dict, how: str) -> None:
+        """Adopt a session payload from /login or /token/exchange (same shape)."""
+        self._token = data.get("token") or data.get("accessToken")
+        if not self._token:
+            raise PlanscapeAuthError(f"No token in {how} response")
+        self._token_expiry = time.time() + (
+            self._ACCESS_TOKEN_LIFETIME_S - self._REFRESH_MARGIN_S
+        )
+        self._session.headers.update({"Authorization": f"Bearer {self._token}"})
+        log.info("Planscape %s successful", how)
 
     def login(self, email: str, password: str) -> None:
         resp = self._session.post(
@@ -78,18 +107,96 @@ class PlanscapeClient:
         if resp.status_code == 401:
             raise PlanscapeAuthError("Invalid credentials")
         resp.raise_for_status()
-        data = resp.json()
-        self._token = data.get("token") or data.get("accessToken")
-        if not self._token:
-            raise PlanscapeAuthError("No token in login response")
-        # Assume 60-minute expiry; refresh 5 minutes early
-        self._token_expiry = time.time() + 55 * 60
-        self._session.headers.update({"Authorization": f"Bearer {self._token}"})
-        log.info("Planscape login successful")
+        # Remember the credentials for transparent re-auth on expiry.
+        self._email, self._password = email, password
+        self._pat = ""
+        self._accept_session(resp.json(), "login")
+
+    def login_with_token(self, token: str) -> None:
+        """Exchange a personal access token for a session.
+
+        The PAT itself is never sent as a bearer token — the server trades it
+        for an ordinary short-lived JWT, exactly as a password would be. That
+        keeps the API single-scheme and means the PAT only ever appears on this
+        one request.
+        """
+        token = (token or "").strip()
+        if not token:
+            raise PlanscapeAuthError("No access token supplied")
+
+        resp = self._session.post(
+            f"{self.base_url}/api/auth/token/exchange",
+            json={"token": token},
+            timeout=_TIMEOUT,
+        )
+        if resp.status_code == 401:
+            raise PlanscapeAuthError(
+                "Access token rejected — it may be revoked, expired, or from a "
+                "different server. Mint a new one and update STING_PLANSCAPE_TOKEN."
+            )
+        if resp.status_code == 404:
+            # An older server predates the exchange endpoint. Say so plainly
+            # rather than surfacing a bare 404 from deep in the stack.
+            raise PlanscapeAuthError(
+                "This Planscape server does not support access tokens "
+                "(no /api/auth/token/exchange). Upgrade the server, or use "
+                "STING_PLANSCAPE_EMAIL + STING_PLANSCAPE_PASSWORD instead."
+            )
+        resp.raise_for_status()
+        # Retain for re-auth; clear any password credentials so the two paths
+        # can never be mixed.
+        self._pat = token
+        self._email, self._password = "", ""
+        self._accept_session(resp.json(), "token exchange")
 
     def _ensure_auth(self, email: str, password: str) -> None:
         if not self._token or time.time() >= self._token_expiry:
             self.login(email, password)
+
+    def _relogin(self) -> bool:
+        """Re-authenticate with whichever credential this client holds.
+
+        Returns False (never raises) when no credential is held or the re-auth
+        itself fails, so the caller can surface the original 401 instead of a
+        masking error.
+        """
+        try:
+            if self._pat:
+                self.login_with_token(self._pat)
+                return True
+            if self._email and self._password:
+                self.login(self._email, self._password)
+                return True
+            return False
+        except Exception as e:  # noqa: BLE001 — a failed refresh must not mask the 401
+            log.warning("Planscape re-authentication failed: %s", e)
+            return False
+
+    def _send(self, verb: str, url: str, **kw):
+        """Send a request, transparently refreshing an expired token.
+
+        A drop-folder watcher logs in once and then runs for days; the server
+        token expires long before the process does. Without this, every ingest
+        after the first hour raised ``PlanscapeAuthError`` and the dropped
+        files were recorded as errored and never retried.
+
+        Two refresh triggers:
+          * proactive — the locally tracked expiry has passed;
+          * reactive  — the server answered 401 (covers clock skew and any
+            server-side revocation), retried exactly once.
+
+        The refreshed ``Authorization`` header is written back onto the same
+        session object, so the retry re-reads it via ``getattr`` below.
+        """
+        if self._token and time.time() >= self._token_expiry:
+            log.info("Planscape token expired locally — refreshing")
+            self._relogin()
+
+        resp = getattr(self._session, verb)(url, **kw)
+        if getattr(resp, "status_code", None) == 401 and self._relogin():
+            log.info("Planscape token rejected (401) — retrying after re-auth")
+            resp = getattr(self._session, verb)(url, **kw)
+        return resp
 
     # ── substrate drift-check (Phase A4) ─────────────────────────────────────
 
@@ -100,11 +207,11 @@ class PlanscapeClient:
         worker-startup drift-check so a bridge running on a stale/forked
         shared/ifc copy is warned before it ingests against divergent enums.
         """
-        resp = self._session.get(
-            f"{self.base_url}/api/substrate/manifest", timeout=_TIMEOUT
+        resp = self._send(
+            "get", f"{self.base_url}/api/substrate/manifest", timeout=_TIMEOUT
         )
         if resp.status_code == 401:
-            raise PlanscapeAuthError("Token expired or invalid")
+            raise PlanscapeAuthError("Token expired or invalid (re-auth failed)")
         resp.raise_for_status()
         return resp.json()
 
@@ -142,15 +249,82 @@ class PlanscapeClient:
             "userName": user_name,
             "elements": [to_wire(e) for e in elements],
         }
-        resp = self._session.post(
+        resp = self._send(
+            "post",
             f"{self.base_url}/api/projects/{self.project_id}/ifc/data",
             json=payload,
             timeout=_TIMEOUT,
         )
         if resp.status_code == 401:
-            raise PlanscapeAuthError("Token expired or invalid")
+            raise PlanscapeAuthError("Token expired or invalid (re-auth failed)")
         resp.raise_for_status()
         return resp.json()
+
+    def reserve_seq(self, reservations: dict[str, int]) -> dict[str, dict]:
+        """Reserve blocks of sequence numbers — POST /api/projects/{id}/seq/reserve.
+
+        ``reservations`` maps counter key → how many numbers are wanted. Returns
+        the same keys mapped to ``{"start": int, "end": int, "count": int}``,
+        an inclusive block this caller now owns exclusively.
+
+        DEGRADES GRACEFULLY. A server that predates the endpoint, an outage, or
+        any other failure returns ``{}`` rather than raising: SEQ is the last
+        segment of the tag and the other seven are still worth syncing. Failing
+        the whole run because numbering was unavailable would turn a cosmetic
+        gap into lost work — the caller simply leaves those tags 7-segment, and
+        a later run fills them in.
+
+        Callers MUST treat a missing key in the result as "no number available"
+        rather than assuming a default, or two runs could mint the same value.
+        """
+        if not reservations:
+            return {}
+        if not self.project_id:
+            log.warning("No project id - skipping SEQ reservation")
+            return {}
+
+        try:
+            resp = self._send(
+                "post",
+                f"{self.base_url}/api/projects/{self.project_id}/seq/reserve",
+                json={"reservations": reservations},
+                timeout=_TIMEOUT,
+            )
+        except Exception as e:  # noqa: BLE001 — network/transport
+            log.warning("SEQ reservation failed (%s) - tags will stay 7-segment", e)
+            return {}
+
+        if resp.status_code == 404:
+            # Either an older server without /seq/reserve, or an unknown project.
+            log.warning(
+                "SEQ reservation unavailable (404) - this server may predate "
+                "/api/projects/{id}/seq/reserve. Tags will stay 7-segment."
+            )
+            return {}
+        if resp.status_code >= 400:
+            log.warning(
+                "SEQ reservation rejected (HTTP %s) - tags will stay 7-segment",
+                resp.status_code,
+            )
+            return {}
+
+        try:
+            payload = resp.json().get("assignments") or {}
+        except Exception as e:  # noqa: BLE001 — malformed body
+            log.warning("SEQ reservation returned unreadable body (%s)", e)
+            return {}
+
+        out: dict[str, dict] = {}
+        for key, block in payload.items():
+            try:
+                out[key] = {
+                    "start": int(block["start"]),
+                    "end": int(block["end"]),
+                    "count": int(block["count"]),
+                }
+            except (KeyError, TypeError, ValueError):
+                log.warning("Ignoring malformed SEQ block for %r: %r", key, block)
+        return out
 
     def sync_elements(
         self,
@@ -197,7 +371,8 @@ class PlanscapeClient:
         if not self._token or not self.project_id or not guids:
             return {}
         try:
-            resp = self._session.post(
+            resp = self._send(
+                "post",
                 f"{self.base_url}/api/projects/{self.project_id}/tagsync/timestamps",
                 json={"guids": guids},
                 timeout=_TIMEOUT,
@@ -226,18 +401,36 @@ class PlanscapeClient:
         from pathlib import Path
         path = Path(glb_path)
         mime = mimetypes.guess_type(str(path))[0] or "model/gltf-binary"
-        with open(path, "rb") as f:
-            resp = self._session.post(
-                f"{self.base_url}/api/projects/{project_id}/models",
-                files={"file": (path.name, f, mime)},
-                timeout=120,
-            )
+        # The file handle is opened per attempt: a retry after re-auth must
+        # re-read from the start, and a consumed handle would upload 0 bytes.
+        def _post():
+            with open(path, "rb") as f:
+                return self._session.post(
+                    f"{self.base_url}/api/projects/{project_id}/models",
+                    files={"file": (path.name, f, mime)},
+                    # The session sets Content-Type: application/json globally,
+                    # which would override the multipart boundary header that
+                    # `files=` generates and corrupt the upload. None deletes
+                    # the session header for this request only.
+                    headers={"Content-Type": None},
+                    timeout=120,
+                )
+
+        if self._token and time.time() >= self._token_expiry:
+            self._relogin()
+        resp = _post()
+        if getattr(resp, "status_code", None) == 401 and self._relogin():
+            log.info("Planscape token rejected on upload (401) — retrying after re-auth")
+            resp = _post()
+        if resp.status_code == 401:
+            raise PlanscapeAuthError("Token expired or invalid (re-auth failed)")
         resp.raise_for_status()
         return resp.json()
 
     def get_compliance(self) -> dict:
         """GET latest compliance snapshot for the project."""
-        resp = self._session.get(
+        resp = self._send(
+            "get",
             f"{self.base_url}/api/projects/{self.project_id}/compliance",
             timeout=_TIMEOUT,
         )

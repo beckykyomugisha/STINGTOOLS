@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Planscape.Core.Entities;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 
@@ -34,6 +36,59 @@ public static class ControllerProjectMembershipExtensions
             return controller.StatusCode(403, new { error = "You are not a member of this project" });
         }
         return null;
+    }
+
+    /// <summary>
+    /// True when the caller may CURATE this project — albums, checklists,
+    /// distribution groups, deleting another member's saved view.
+    ///
+    /// Replaces the hand-rolled `ProjectRole == "PM"` check that was copied
+    /// into eight controllers. "PM" is an Iso19650Role code, never a
+    /// ProjectRole, so those checks matched (essentially) nobody — see
+    /// <see cref="ProjectRoles"/> for the full explanation.
+    /// </summary>
+    public static Task<bool> CanCurateProjectAsync(
+        this ControllerBase controller, PlanscapeDbContext db, Guid projectId, CancellationToken ct = default)
+        => HasCapabilityAsync(controller, db, projectId, ProjectRoles.CanCurateProject, ct);
+
+    /// <summary>
+    /// True when the caller may APPROVE site photos — approve/reject,
+    /// include-originals, issue share links, PUT the photo policy. Narrower
+    /// than curation: these decisions release imagery outside the project.
+    /// </summary>
+    public static Task<bool> CanApproveSitePhotosAsync(
+        this ControllerBase controller, PlanscapeDbContext db, Guid projectId, CancellationToken ct = default)
+        => HasCapabilityAsync(controller, db, projectId, ProjectRoles.CanApproveSitePhotosPredicate, ct);
+
+    /// <summary>
+    /// Shared body. The tenant `role` claim (Admin / Owner) grants without any
+    /// ProjectMember row — that is pre-existing behaviour at every site this
+    /// replaces, kept deliberately.
+    /// </summary>
+    private static async Task<bool> HasCapabilityAsync(
+        ControllerBase controller,
+        PlanscapeDbContext db,
+        Guid projectId,
+        System.Linq.Expressions.Expression<Func<ProjectMember, bool>> capability,
+        CancellationToken ct)
+    {
+        var user = controller.User;
+
+        // Match the claim shapes the replaced sites used: several read the raw
+        // "role" claim rather than IsInRole, so check both.
+        var roleClaim = user.FindFirst("role")?.Value ?? "";
+        if (roleClaim is "Admin" or "Owner" || user.IsInRole("Admin") || user.IsInRole("Owner"))
+            return true;
+
+        var userId = ParseGuid(user.FindFirst("user_id")?.Value
+                              ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                              ?? user.FindFirst("sub")?.Value);
+        if (userId == Guid.Empty) return false;
+
+        return await db.ProjectMembers.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive)
+            .Where(capability)
+            .AnyAsync(ct);
     }
 
     private static Guid ParseGuid(string? value)

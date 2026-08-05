@@ -281,3 +281,19 @@ SERVED-proven (`curl localhost:5000/livekit-av.js` 200 + `N1-presence`; `meeting
   M4 `a362c4582` · M5 docs.
 - Known follow-ups: mobile parity for markup/chat/AEC; server-enforced mute/remove (LiveKit SDK);
   late-join replay of markup/hand state.
+
+## Track B follow-ups — branch `claude/livekit-corporate-ui-research-3233e0` (do not merge)
+Closing the "genuinely needs new code" rows of `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md` §2b.
+Full write-ups + the exact 2-tab checklists live in `docs/MEETINGS_AUDIT.md`.
+
+| Slice | Status | Marker | Proof |
+|---|---|---|---|
+| S1 server-enforced mute/remove | DONE-SERVED + unit-tested | `s1-enforce` (meeting-sync) | New `LiveKitRoomService` (Twirp `livekit.RoomService`, same pattern as `LiveKitEgressClient`); `MeetingHub.MuteAll` mutes every remote mic track on the SFU, `RemoveParticipant` evicts. `dotnet build` 0 errors; **17 tests pass, 0 skipped** — incl. a `[SkippableFact]` that RAN against the real docker LiveKit :7880 and proved the room-scoped admin grant is accepted. Served bundle greps `s1-enforce` + `removeParticipant(cid, p.userId)` + `m.enforced`. |
+| S2 late-join state replay | DONE-SERVED | `s2-latejoin` (livekit-av + meeting-sync) | Peer round-trip `RequestState` → `StateRequested` → `SendState` → `StateReplay` (no server-side buffer: hub stays a wire, works behind the Redis backplane). Replays markup strokes + grant + the shared document, every peer's raised hand, and the roster a late joiner never received. Served bundles grep `s2-latejoin` on BOTH files + `RequestState`/`StateReplay`/`markupSnapshot`/`applyMarkupSnapshot`. |
+
+| S3 clash guid miss made visible | DONE-SERVED | `s3-clashguid` (meeting-sync + viewer.html) | `selectAndZoomByGuid` returns a result and dispatches `sting:selectAndZoomResult`; clash focus tries element A then B, then toasts + shows a persistent amber note in the clash panel. Federated-guid matching itself is still out of scope. Served bundle greps `s3-clashguid` + `selectAndZoomResult`. |
+
+| B1 two-firm tenancy G1+G2 | DONE — functionally REST-verified | (server-only, no JS marker) | New `LiveKitRoom` is the single source of truth for the room name + recording key. Room is now `t{tenantId:N}-{sessionId:N}`; recording key `t_{tenantId}/{sessionId}/{ts}.{ext}`. **Live REST proof:** `livekit-token` returned `tbbdf35e1…-a7029b2e…` and the JWT's `video.room` claim matched exactly; `recording/start` returned StorageKey `t_bbdf35e1-…/a7029b2e-…/20260730233222.mp4`. Full suite **493 passed / 0 failed / 9 skipped**; the new length assertion caught a real off-by-one in `TryParse`. |
+
+Honest limits: live A/V behaviour is **not** machine-verified here — no two-webcam-tab harness in
+this environment. Every runtime claim is filed as PENDING-HUMAN-VERIFY in `docs/MEETINGS_AUDIT.md`.

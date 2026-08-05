@@ -159,20 +159,24 @@ namespace StingTools.Core.Drawing
             var m = new DrawingType { Id = leaf.Id, Name = leaf.Name, Origin = leaf.Origin, Extends = leaf.Extends };
             foreach (var p in chain)
             {
-                if (!string.IsNullOrEmpty(p.Description))      m.Description = p.Description;
-                if (!string.IsNullOrEmpty(p.Purpose))          m.Purpose = p.Purpose;
-                if (!string.IsNullOrEmpty(p.Discipline))       m.Discipline = p.Discipline;
-                if (!string.IsNullOrEmpty(p.Phase))            m.Phase = p.Phase;
-                if (!string.IsNullOrEmpty(p.PaperSize))        m.PaperSize = p.PaperSize;
-                if (!string.IsNullOrEmpty(p.TitleBlockFamily)) m.TitleBlockFamily = p.TitleBlockFamily;
-                if (!string.IsNullOrEmpty(p.Orientation))      m.Orientation = p.Orientation;
-                if (p.Scale > 0)                               m.Scale = p.Scale;
-                if (!string.IsNullOrEmpty(p.DetailLevel))      m.DetailLevel = p.DetailLevel;
-                if (!string.IsNullOrEmpty(p.ViewTemplateName)) m.ViewTemplateName = p.ViewTemplateName;
-                if (!string.IsNullOrEmpty(p.ViewportTypeName)) m.ViewportTypeName = p.ViewportTypeName;
-                if (!string.IsNullOrEmpty(p.SheetNumberPattern)) m.SheetNumberPattern = p.SheetNumberPattern;
-                if (!string.IsNullOrEmpty(p.SheetNamePattern))   m.SheetNamePattern = p.SheetNamePattern;
-                if (!string.IsNullOrEmpty(p.ViewStylePackId))    m.ViewStylePackId = p.ViewStylePackId;
+                // Carry every field not explicitly merged below. Without
+                // this the fold dropped TitleBlockParams,
+                // TitleBlockParamsBySymbol, TitleBlockSymbolType,
+                // IsoNaming, System, MaterialPack, OptionScope,
+                // ProductionRules, PackageId, TitleBlockVariantRules and
+                // TagTextSizeMm — including the leaf's own values, since
+                // the leaf is just the last link of this same chain. A
+                // project profile using the documented inheritance
+                // produced sheets with empty title-block cells and no ISO
+                // naming, silently.
+                ExtendsMerge.Overlay(p, m, _overlayProps);
+
+                // Object / collection fields keep their hand-written
+                // guards: their POCO defaults are freshly-constructed
+                // instances, so no value comparison can tell "child left
+                // this unset" from "child set it to something equal to
+                // the default". A child therefore still replaces these
+                // wholesale, exactly as before.
                 if (p.Crop != null)          m.Crop = p.Crop;
                 if (p.SectionMarker != null) m.SectionMarker = p.SectionMarker;
                 if (p.Slots != null && p.Slots.Count > 0) m.Slots = p.Slots;
@@ -182,6 +186,39 @@ namespace StingTools.Core.Drawing
             }
             return m;
         }
+
+        // Fields the fold above merges by hand: identity taken from the
+        // leaf, plus the object/collection fields whose defaults are
+        // fresh instances. Every other field — including the scalars the
+        // old fold enumerated — is carried by ExtendsMerge.Overlay, which
+        // treats "equal to a fresh instance's value" as unset.
+        //
+        // That last point also fixes a second inheritance defect the
+        // hand-written guards had: fields with a non-null POCO default
+        // (Purpose "Plan", Discipline/Phase "*", PaperSize "A1",
+        // Orientation "Landscape", Scale 100, DetailLevel "Medium", both
+        // sheet patterns) passed !IsNullOrEmpty on a child that never
+        // declared them, so a child could never inherit any of them — an
+        // A0 parent always came back A1. Known limitation of the
+        // default-as-sentinel approach: a child that explicitly restates
+        // a default (e.g. "discipline": "*") is indistinguishable from
+        // one that omits it and will inherit the parent's value instead.
+        private static readonly HashSet<string> _overlaySkip = new HashSet<string>(StringComparer.Ordinal)
+        {
+            nameof(DrawingType.Id),
+            nameof(DrawingType.Name),
+            nameof(DrawingType.Origin),
+            nameof(DrawingType.Extends),
+            nameof(DrawingType.Crop),
+            nameof(DrawingType.SectionMarker),
+            nameof(DrawingType.Slots),
+            nameof(DrawingType.Annotation),
+            nameof(DrawingType.TokenProfile),
+            nameof(DrawingType.Print),
+        };
+
+        private static readonly System.Reflection.PropertyInfo[] _overlayProps
+            = ExtendsMerge.OverlayProps(typeof(DrawingType), _overlaySkip);
 
         public static IReadOnlyList<DrawingType> ListAll(Document doc)
             => GetLibrary(doc).DrawingTypes;
@@ -254,6 +291,47 @@ namespace StingTools.Core.Drawing
 
         // Loading --------------------------------------------------------
 
+        /// <summary>
+        /// Collapse duplicate-id DrawingTypes first-wins, in place. Returns the
+        /// number of dropped duplicates. Guards every downstream consumer that
+        /// assumes ids are unique — most critically <see cref="Merge"/>, whose
+        /// by-id map would otherwise throw on a duplicate key and sink the whole
+        /// corporate catalogue to the 15 built-in defaults. Also keeps pickers /
+        /// checksums / drift counts honest. First-wins matches <see cref="Get"/>,
+        /// which already resolves the first occurrence via FirstOrDefault.
+        /// </summary>
+        // Surfaced to DrawingTypeValidator (DT-101) so the on-demand Inspect
+        // diagnostic can report duplicates the loader silently collapsed —
+        // the validator reads the post-dedup library and would otherwise see
+        // none. Records the last corporate-scope dedup result process-wide.
+        private static volatile string[] _lastCorporateDuplicateIds = System.Array.Empty<string>();
+        public static IReadOnlyList<string> LastCorporateDuplicateIds => _lastCorporateDuplicateIds;
+
+        private static int DedupeById(DrawingTypeLibrary lib, string scope)
+        {
+            if (lib?.DrawingTypes == null || lib.DrawingTypes.Count == 0) return 0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var kept = new List<DrawingType>(lib.DrawingTypes.Count);
+            var dropped = new List<string>();
+            foreach (var t in lib.DrawingTypes)
+            {
+                if (t == null) continue; // drop null array elements so they never reach Merge()/Get()
+                var id = t.Id ?? "";
+                if (string.IsNullOrEmpty(id) || seen.Add(id)) { kept.Add(t); continue; }
+                dropped.Add(id);
+            }
+            var distinct = dropped.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (string.Equals(scope, "corporate", StringComparison.OrdinalIgnoreCase))
+                _lastCorporateDuplicateIds = distinct;
+            if (kept.Count != lib.DrawingTypes.Count) // a duplicate and/or a null element was removed
+                lib.DrawingTypes = kept;
+            if (dropped.Count > 0)
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingTypeRegistry: dropped {dropped.Count} duplicate {scope} drawing-type id(s) " +
+                    $"(first-wins): {string.Join(", ", distinct)}");
+            return dropped.Count;
+        }
+
         private static DrawingTypeLibrary LoadCorporate()
         {
             try
@@ -271,6 +349,7 @@ namespace StingTools.Core.Drawing
                     {
                         foreach (var t in lib.DrawingTypes)
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "corporate";
+                        DedupeById(lib, "corporate");
                         return lib;
                     }
                 }
@@ -299,6 +378,7 @@ namespace StingTools.Core.Drawing
                     {
                         foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                        DedupeById(lib, "project");
                     }
                     return lib;
                 }
@@ -315,6 +395,7 @@ namespace StingTools.Core.Drawing
                 {
                     foreach (var t in libOnDisk.DrawingTypes ?? new List<DrawingType>())
                         if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                    DedupeById(libOnDisk, "project");
                 }
                 return libOnDisk;
             }
@@ -336,15 +417,24 @@ namespace StingTools.Core.Drawing
                 Routing = new List<DrawingRoutingRule>(baseLib?.Routing ?? new List<DrawingRoutingRule>()),
             };
 
-            // Project types win over corporate types sharing the same id
-            var byId = merged.DrawingTypes.ToDictionary(
-                t => t.Id ?? "", StringComparer.OrdinalIgnoreCase);
+            // Project types win over corporate types sharing the same id.
+            // First-wins build (NOT ToDictionary, which throws ArgumentException
+            // on a duplicate key) so a duplicate corporate id can never sink the
+            // whole merge — defence in depth alongside LoadCorporate's DedupeById.
+            var byId = new Dictionary<string, DrawingType>(StringComparer.OrdinalIgnoreCase);
+            var order = new List<string>();
+            foreach (var t in merged.DrawingTypes)
+            {
+                var key = t?.Id ?? "";
+                if (!byId.ContainsKey(key)) { byId[key] = t; order.Add(key); }
+            }
             foreach (var t in over.DrawingTypes ?? new List<DrawingType>())
             {
-                if (string.IsNullOrWhiteSpace(t.Id)) continue;
-                byId[t.Id] = t;
+                if (t == null || string.IsNullOrWhiteSpace(t.Id)) continue;
+                if (!byId.ContainsKey(t.Id)) order.Add(t.Id);
+                byId[t.Id] = t; // project overrides corporate on same id
             }
-            merged.DrawingTypes = byId.Values.ToList();
+            merged.DrawingTypes = order.Select(k => byId[k]).ToList();
 
             // Project routing rules are prepended (first-match-wins semantics).
             // GAP-J: dedupe by the (discipline, phase, docType) triple plus
@@ -539,7 +629,8 @@ namespace StingTools.Core.Drawing
             dt.Slots.AddRange(new[]
             {
                 new DrawingSlot { Label = "Plan",   ViewType = "Plan",     NormX = 0.05, NormY = 0.55, NormW = 0.40, NormH = 0.40 },
-                new DrawingSlot { Label = "ISO",    ViewType = "ISO",      NormX = 0.55, NormY = 0.55, NormW = 0.40, NormH = 0.40 },
+                // NormW 0.23 (not 0.40) so ISO ends at x 0.78 where BOM begins.
+                new DrawingSlot { Label = "ISO",    ViewType = "ISO",      NormX = 0.55, NormY = 0.55, NormW = 0.23, NormH = 0.40 },
                 new DrawingSlot { Label = "Elev0",  ViewType = "Elevation",NormX = 0.05, NormY = 0.10, NormW = 0.28, NormH = 0.40 },
                 new DrawingSlot { Label = "Elev90", ViewType = "Elevation",NormX = 0.36, NormY = 0.10, NormW = 0.28, NormH = 0.40 },
                 new DrawingSlot { Label = "3D",     ViewType = "3D",       NormX = 0.67, NormY = 0.10, NormW = 0.28, NormH = 0.40 },
@@ -553,7 +644,8 @@ namespace StingTools.Core.Drawing
             var dt = new DrawingType
             {
                 Id = id, Name = name, Purpose = DrawingPurpose.Schedule, Discipline = disc,
-                PaperSize = "A2", Scale = 100, DetailLevel = "Medium",
+                PaperSize = id.Contains("A3") ? "A3" : id.Contains("A2") ? "A2" : "A1",
+                Scale = 100, DetailLevel = "Medium",
                 SheetNumberPattern = $"{disc}-SCH-{{seq:D3}}",
                 SheetNamePattern   = "{discipline} Schedule",
                 Crop = new DrawingCropStrategy { Kind = "None" },

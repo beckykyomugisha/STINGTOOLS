@@ -103,6 +103,8 @@
     <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta00016" />
     <!-- ExportCenterPdfPostProcess: PDF stamp / merge for export-centre deliverables. -->
     <PackageReference Include="PdfSharp" Version="6.1.1" />
+    <!-- Licensing: WMI hardware factors for the machine fingerprint. -->
+    <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
   <!-- Template engine v1.1 (S11/S14/S15): embedded default templates + workflow JSON.
@@ -123,6 +125,88 @@
     <!-- Phase 110: Standards & compliance calc library. Pure C#, no
          Revit dependency; StingTools commands wrap the APIs. -->
     <ProjectReference Include="..\StingTools.Standards\StingTools.Standards.csproj" />
+    <!-- StingLink.exe — the registered planscape:// handler. ReferenceOutputAssembly=false
+         because nothing here calls into it: this reference exists ONLY to make the
+         helper build alongside the plugin. It shares Core\PlanscapeProtocol.cs by
+         <Compile Include>, so an actual assembly reference would be circular. -->
+    <ProjectReference Include="..\StingTools.LinkHandler\StingTools.LinkHandler.csproj"
+                      ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <!--
+    Ship StingLink.exe beside StingTools.dll.
+
+    It has to sit next to the plugin because that is where StingToolsApp looks
+    for it when registering the protocol (RegisterPlanscapeProtocol), and because
+    the deploy step is "copy bin\Release over CompiledPlugin" — anything not in
+    the output directory does not reach a user's machine.
+
+    All four files are needed: a framework-dependent .NET 8 exe is an apphost
+    (.exe) plus the managed .dll plus .runtimeconfig.json plus .deps.json. Ship
+    the .exe alone and it fails to start. The .pdb is deliberately not copied.
+  -->
+  <Target Name="CopyStingLinkHelper" AfterTargets="Build">
+    <ItemGroup>
+      <StingLinkPayload Include="$(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.exe;
+                                 $(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.dll;
+                                 $(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.runtimeconfig.json;
+                                 $(MSBuildThisFileDirectory)..\StingTools.LinkHandler\bin\$(Configuration)\StingLink.deps.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(StingLinkPayload)" DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" Condition="Exists('%(StingLinkPayload.FullPath)')" />
+  </Target>
+
+  <!--
+    Planscape.Companion — the document-sync tray app. Same arrangement as
+    StingLink.exe above and for the same reasons: StingToolsApp.OnStartup looks
+    for it NEXT TO this DLL (LaunchCompanionIfInstalled), and the deploy step is
+    "copy bin\Release over the live plugin folder", so anything outside the
+    output directory never reaches a user.
+
+    Framework-dependent .NET 8 exes need all four files — the apphost, the
+    managed dll, runtimeconfig.json and deps.json. Shipping the .exe alone
+    produces a process that refuses to start with no useful message.
+
+    ReferenceOutputAssembly=false: nothing in the plugin links against the
+    Companion's assembly. The one type they share (CompanionIpcContract.cs) is
+    compiled into both by the <Compile Include> below, so an assembly reference
+    would be circular as well as unnecessary.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Planscape.Companion\Planscape.Companion.csproj"
+                      ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CopyPlanscapeCompanion" AfterTargets="Build">
+    <ItemGroup>
+      <CompanionPayload Include="$(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.exe;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.runtimeconfig.json;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Planscape.Companion.deps.json" />
+      <!-- The Companion's own NuGet closure (SignalR client + its transitive
+           deps). Unlike StingLink, which has none, this one will not start
+           without them. Globbed rather than listed because the SignalR client's
+           transitive set is not something to hand-maintain in an MSBuild item. -->
+      <CompanionPayload Include="$(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Microsoft.AspNetCore.*.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\Microsoft.Extensions.*.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\System.IO.Pipelines.dll;
+                                 $(MSBuildThisFileDirectory)..\Planscape.Companion\bin\$(Configuration)\System.Threading.Channels.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CompanionPayload)" DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" Condition="Exists('%(CompanionPayload.FullPath)')" />
+  </Target>
+
+  <!--
+    The Companion↔BCC pipe contract, compiled into BOTH assemblies so the request
+    and response shapes cannot drift apart. Exactly the trick StingLink.exe uses
+    with Core\PlanscapeProtocol.cs, in the opposite direction.
+
+    A build error pointing at this file almost always means Revit/WPF crept into
+    it — it has to stay loadable by a tray app that references neither.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Planscape.Companion\CompanionIpcContract.cs"
+             Link="BIMManager\Shared\CompanionIpcContract.cs" />
   </ItemGroup>
 
   <!-- Phase 95: BcfEngine physically lives here but is compiled into
@@ -152,7 +236,7 @@
            (WindowsBase / Presentation* / mscorlib / netstandard / other System.*/Microsoft.*)
            are still removed. -->
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
-        Condition="($([System.String]::new('%(Filename)').StartsWith('System.')) And '%(Filename)' != 'System.IO.Packaging' And '%(Filename)' != 'System.IO.Pipelines') Or
+        Condition="($([System.String]::new('%(Filename)').StartsWith('System.')) And '%(Filename)' != 'System.IO.Packaging' And '%(Filename)' != 'System.IO.Pipelines' And '%(Filename)' != 'System.Management') Or
                    ($([System.String]::new('%(Filename)').StartsWith('Microsoft.')) And $([System.String]::new('%(Filename)').StartsWith('Microsoft.AspNetCore.')) != 'true' And $([System.String]::new('%(Filename)').StartsWith('Microsoft.Extensions.')) != 'true') Or
                    '%(Filename)' == 'WindowsBase' Or
                    '%(Filename)' == 'PresentationCore' Or
@@ -162,9 +246,16 @@
     </ItemGroup>
   </Target>
 
-  <!-- Copy data files to output directory alongside the DLL -->
+  <!-- Copy data files to output directory alongside the DLL.
+       Ship RUNTIME data only. Reference docs (*.md), the legacy ported
+       script (*.py), editor backups (*.bak) and the two superseded TAG
+       GUIDE spreadsheets stay in the repo but are NOT deployed — they are
+       never loaded by code. TAG_GUIDE_V3.csv (the live tag guide, loaded
+       at runtime) and all *.rfa / *.json / *.csv / *.txt data are kept. -->
   <ItemGroup>
-    <None Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
+    <None Include="Data\**\*"
+          Exclude="Data\**\*.md;Data\**\*.bak;Data\**\*.py;Data\TAG_GUIDE.xlsx;Data\TAG GUIDE V2.xlsx"
+          CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
   </ItemGroup>
 
 </Project>

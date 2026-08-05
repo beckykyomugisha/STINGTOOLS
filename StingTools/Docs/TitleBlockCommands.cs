@@ -360,6 +360,11 @@ namespace StingTools.Docs
             }
 
             int written = 0, lockedSkipped = 0, noTbSkipped = 0, paramFails = 0;
+            // Per-parameter failure tally. A bare paramFails count cannot
+            // distinguish "one odd sheet" from "this parameter is absent from
+            // every title-block family in the project" — the second is what
+            // silently hid the missing PRJ_TB_SHOW_* / LOCK / LAST_SYNC params.
+            var failsByParam = new Dictionary<string, int>(StringComparer.Ordinal);
             int totalSheetListed = 0;
             var updatedSheets = new List<string>();
             var skippedSheets = new List<string>();
@@ -417,7 +422,12 @@ namespace StingTools.Docs
                             ok = ParameterHelpers.SetString(tb, paramName, val, overwrite: true);
 
                         if (ok) paramsWrittenThisSheet++;
-                        else paramFails++;
+                        else
+                        {
+                            paramFails++;
+                            failsByParam.TryGetValue(paramName, out int n);
+                            failsByParam[paramName] = n + 1;
+                        }
                     }
 
                     // Stamp audit fields on every successfully-populated sheet
@@ -460,6 +470,16 @@ namespace StingTools.Docs
                 .Text(updatedSheets.Count == 0 ? "(none)" : string.Join("\n", updatedSheets))
                 .AddSection("Skipped Sheets")
                 .Text(skippedSheets.Count == 0 ? "(none)" : string.Join("\n", skippedSheets))
+                .AddSection("Parameter Write Failures")
+                .Text(failsByParam.Count == 0
+                    ? "(none)"
+                    : string.Join("\n", failsByParam
+                        .OrderByDescending(kv => kv.Value)
+                        .Select(kv => $"  {kv.Key}: {kv.Value} sheet(s)"
+                            + (kv.Value == written
+                               ? "  — failed on every updated sheet; the parameter is "
+                                 + "probably absent from the title-block family"
+                               : ""))))
                 .Show();
 
             return Result.Succeeded;
@@ -480,7 +500,7 @@ namespace StingTools.Docs
                 string projDir = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName);
                 if (!string.IsNullOrEmpty(projDir))
                 {
-                    string p = Path.Combine(projDir, "STING_BIM_MANAGER", name);
+                    string p = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), name);
                     if (File.Exists(p)) return p;
                 }
             }
@@ -992,6 +1012,14 @@ namespace StingTools.Docs
     //  total to PRJ_TB_TOTAL_NO_SHEETS_TXT (on Project Information). The same
     //  logic runs automatically inside TitleBlockPopulate; this standalone
     //  command lets users refresh the count without running a full populate.
+    //
+    //  Also stamps PRJ_SHEET_OF_TOTAL_TXT on each counted sheet's placed
+    //  title block with the compact "NN / MM" pagination string (this sheet's
+    //  ordinal position in SheetNumber order, over the total) — the short
+    //  cell used where the full 7-segment PRJ_SHEET_FULL_REF_TXT ISO 19650
+    //  sheet ID has no room (e.g. the fabrication assembly title blocks' BOM
+    //  strip). Locked title blocks (PRJ_TB_LOCK_BOOL) are skipped, matching
+    //  TitleBlockPopulate's lock gate.
     // ═══════════════════════════════════════════════════════════════════════
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -1005,15 +1033,16 @@ namespace StingTools.Docs
             { TaskDialog.Show("STING Title Block", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            int total = 0;
-            foreach (ViewSheet s in new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
-            {
-                if (s.IsPlaceholder) continue;
-                if (s.get_Parameter(BuiltInParameter.SHEET_SCHEDULED)?.AsInteger() != 0)
-                    total++;
-            }
+            var counted = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder
+                    && s.get_Parameter(BuiltInParameter.SHEET_SCHEDULED)?.AsInteger() != 0)
+                .OrderBy(s => s.SheetNumber, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            int total = counted.Count;
+            int width = Math.Max(2, total.ToString(CultureInfo.InvariantCulture).Length);
 
+            int paginationWritten = 0, lockedSkipped = 0, noTbSkipped = 0;
             using (var tx = new Transaction(doc, "STING Sheet Count Auto-Update"))
             {
                 tx.Start();
@@ -1021,13 +1050,31 @@ namespace StingTools.Docs
                     "PRJ_TB_TOTAL_NO_SHEETS_TXT",
                     total.ToString(CultureInfo.InvariantCulture),
                     overwrite: true);
+
+                for (int i = 0; i < counted.Count; i++)
+                {
+                    var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, counted[i]);
+                    if (tb == null) { noTbSkipped++; continue; }
+                    if (ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0) != 0)
+                    { lockedSkipped++; continue; }
+
+                    string seq = (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
+                    string tot = total.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
+                    if (ParameterHelpers.SetString(tb, "PRJ_SHEET_OF_TOTAL_TXT",
+                        $"{seq} / {tot}", overwrite: true))
+                        paginationWritten++;
+                }
+
                 tx.Commit();
             }
 
-            StingLog.Info($"TB SheetCount: {total} sheets on sheet list");
+            StingLog.Info($"TB SheetCount: {total} sheets on sheet list, "
+                + $"{paginationWritten} pagination cell(s) written, {lockedSkipped} locked, {noTbSkipped} no TB");
             TaskDialog.Show("STING Sheet Count",
-                $"Sheets appearing in sheet list: {total}\n\n" +
-                "Written to PRJ_TB_TOTAL_NO_SHEETS_TXT on Project Information.");
+                $"Sheets appearing in sheet list: {total}\n" +
+                $"Pagination cells written (PRJ_SHEET_OF_TOTAL_TXT): {paginationWritten}\n" +
+                $"Skipped — locked: {lockedSkipped}, no title block: {noTbSkipped}\n\n" +
+                "Total written to PRJ_TB_TOTAL_NO_SHEETS_TXT on Project Information.");
             return Result.Succeeded;
         }
     }
@@ -1052,53 +1099,24 @@ namespace StingTools.Docs
             { TaskDialog.Show("STING Title Block", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .OrderBy(s => s.SheetNumber)
-                .ToList();
+            // Phase 195: this command is now a thin front-end over the single
+            // revision-sync engine, StingTools.Core.Drawing.TitleBlockRevisionSyncer.
+            // The tag "RevisionSync" and this class are retained for back-compat
+            // so both dock buttons ("Rev Sync" and "Sync Rev") do the same
+            // correct thing.
+            var result = StingTools.Core.Drawing.TitleBlockRevisionSyncer.SyncAll(doc);
 
-            int synced = 0, noRev = 0, noTb = 0;
-            using (var tx = new Transaction(doc, "STING Revision Sync"))
-            {
-                tx.Start();
-                foreach (var sheet in sheets)
-                {
-                    var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, sheet);
-                    if (tb == null) { noTb++; continue; }
-                    var revIds = sheet.GetAllRevisionIds();
-                    if (revIds == null || revIds.Count == 0) { noRev++; continue; }
-                    // Pick the most recent revision that is not yet Issued
-                    Revision chosen = null;
-                    foreach (var id in revIds)
-                    {
-                        if (doc.GetElement(id) is Revision r)
-                        {
-                            if (!r.Issued) { chosen = r; /* keep scanning; last non-issued wins */ }
-                            else if (chosen == null) chosen = r;
-                        }
-                    }
-                    if (chosen == null) { noRev++; continue; }
-                    string seq = (chosen.SequenceNumber > 0)
-                        ? chosen.SequenceNumber.ToString(CultureInfo.InvariantCulture)
-                        : (chosen.RevisionNumber ?? "");
-                    string rdate = chosen.RevisionDate ?? "";
-                    ParameterHelpers.SetString(tb, "PRJ_TB_REVISION_NR_TXT", seq, overwrite: true);
-                    ParameterHelpers.SetString(tb, "PRJ_TB_REVISION_DATE_TXT", rdate, overwrite: true);
-                    if (!string.IsNullOrEmpty(chosen.Description))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_ISSUE_SUMMARY,
-                            chosen.Description, overwrite: true);
-                    synced++;
-                }
-                tx.Commit();
-            }
+            string warn = result.Warnings.Count > 0
+                ? $"\n\nWarnings ({result.Warnings.Count}):\n  " +
+                  string.Join("\n  ", result.Warnings.Take(10))
+                : "";
 
-            StingLog.Info($"TB RevisionSync: {synced} synced, {noRev} no revision, {noTb} no TB");
             TaskDialog.Show("STING Revision Sync",
-                $"Synced {synced} sheet(s).\n" +
-                $"Skipped: {noRev} with no revision, {noTb} without a title block.\n\n" +
-                "Wrote PRJ_TB_REVISION_NR_TXT, PRJ_TB_REVISION_DATE_TXT, and PRJ_TB_ISSUE_SUMMARY_TXT.");
+                $"Synced {result.SheetsProcessed} sheet(s), {result.ParamsWritten} parameter(s) written.\n" +
+                $"Skipped: {result.SheetsSkipped}.\n\n" +
+                "Wrote SHT_REV_TXT / SHT_REV_DATE_TXT on sheets and\n" +
+                "PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT\n" +
+                "on title blocks." + warn);
             return Result.Succeeded;
         }
     }

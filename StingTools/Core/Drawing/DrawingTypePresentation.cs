@@ -64,8 +64,20 @@ namespace StingTools.Core.Drawing
                         var elem = doc.GetElement(cached);
                         if (elem is View vTpl && vTpl.IsValidObject && vTpl.IsTemplate)
                             return cached;
+                        // Stale positive entry — the template was deleted or
+                        // renamed. Drop it and re-resolve.
+                        docMap.Remove(name);
                     }
-                    docMap.Remove(name);
+                    else
+                    {
+                        // E-9: a NEGATIVE entry ("this name resolves to nothing")
+                        // used to be evicted on every read, so a template name
+                        // that does not exist paid a full OfClass(View) scan per
+                        // view in a batch — the cache actively defeated itself
+                        // for exactly the case it was meant to make cheap.
+                        // Negative entries now persist until Reload/Prewarm.
+                        return ElementId.InvalidElementId;
+                    }
                 }
             }
 
@@ -206,6 +218,23 @@ namespace StingTools.Core.Drawing
             public AnnotationRunOptions AnnotationOptions { get; set; }
             /// <summary>When true, no writes are made; only validation is run.</summary>
             public bool DryRun { get; set; }
+
+            /// <summary>
+            /// P-6: the scope box this view is being produced FOR, when the
+            /// caller has one. Passed through to DrawingCropApplier, where it
+            /// wins over the profile's static Crop.ScopeBoxName.
+            /// </summary>
+            public Element ContextScopeBox { get; set; }
+
+            /// <summary>
+            /// Skip the per-view symbol-standard drift scan (step 8.5). That
+            /// scan runs a FilteredElementCollector over the view's symbols on
+            /// every Apply; in a batch of N views it fires N times and emits
+            /// N near-identical warnings. Batch producers and heal passes set
+            /// this true and rely on the standalone Fix-Symbol-Drift command
+            /// instead. Default false preserves the single-view diagnostic.
+            /// </summary>
+            public bool SkipSymbolDriftCheck { get; set; }
         }
 
         public sealed class ApplyResult
@@ -307,7 +336,11 @@ namespace StingTools.Core.Drawing
             => Apply(doc, view, dt, runAnnotation ? null : new ApplyOptions {
                 AnnotationOptions = new AnnotationRunOptions {
                     SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                }
+                },
+                // A no-annotation apply is a bulk/refresh/heal pass — skip the
+                // per-view drift scan too (covers the MEP producers, scope-box
+                // refresh, and MEP coordination callers with no per-call edit).
+                SkipSymbolDriftCheck = true
             });
 
         /// <summary>
@@ -522,7 +555,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt);
+                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt, options?.ContextScopeBox);
                     r.Warnings.AddRange(cropWarns);
                     r.CropApplied = true;
                 }
@@ -589,10 +622,10 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
             }
-            else if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
-            {
-                r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
-            }
+            // E-9b: an `else if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))`
+            // stood here — the else branch of that very condition, so provably
+            // unreachable. Its "pack not found" warning is already emitted
+            // inside the if, where resolvedPack is actually tested.
 
             // Token Profile (Phase 135) — Step 7.5 -----------------------
             // Runs between the pack apply and the annotation pass so any
@@ -613,6 +646,43 @@ namespace StingTools.Core.Drawing
                     r.Warnings.AddRange(tpRes.Warnings);
                 }
                 catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
+            }
+
+            // Step 7.6 (FIX-3b) — refresh ASS_DISPLAY_TXT so the DrawingType's
+            // display mode + segment mask actually render on produce. The
+            // annotation pass drops IndependentTags whose label reads the host's
+            // ASS_DISPLAY_TXT; TokenProfileApplier just wrote STING_DISPLAY_MODE +
+            // TAG_SEG_MASK on those hosts, but only the interactive
+            // BuildAndWriteTag path recomputes ASS_DISPLAY_TXT — the produce path
+            // never did, so a dropped-in view showed the stale display string.
+            // Recompute it here (mask now applies in every mode — see
+            // TagConfig.BuildDisplayTag D5) so no separate tag pass is needed.
+            if (dt.TokenProfile != null
+                && (dt.TokenProfile.DisplayMode.HasValue
+                    || !string.IsNullOrWhiteSpace(dt.TokenProfile.SegmentMask)))
+            {
+                try
+                {
+                    int refreshed = 0;
+                    var ids = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .ToElementIds();
+                    foreach (var id in ids)
+                    {
+                        var el = doc.GetElement(id);
+                        if (el == null) continue;
+                        try
+                        {
+                            // BuildDisplayTag self-skips elements with no tokens
+                            // (returns "" without writing), so this is safe to
+                            // run across the whole view.
+                            if (!string.IsNullOrEmpty(TagConfig.BuildDisplayTag(el))) refreshed++;
+                        }
+                        catch { /* per-element — keep going */ }
+                    }
+                    StingLog.Info($"DrawingTypePresentation: refreshed ASS_DISPLAY_TXT on {refreshed} element(s) for mask/mode.");
+                }
+                catch (Exception ex) { r.Warnings.Add($"Display refresh: {ex.Message}"); }
             }
 
             // Phase 175 — Step 7.7 design-option scope. Resolves the
@@ -663,22 +733,26 @@ namespace StingTools.Core.Drawing
             // Step 8.5 — Phase 175 symbol-standard drift gate.
             // Read-only: surfaces drift as a warning so SyncStyles or
             // FixSymbolDriftCommand can heal it. Doesn't auto-apply to
-            // avoid surprising the user mid-Apply.
-            try
+            // avoid surprising the user mid-Apply. Skipped in batch/heal
+            // passes (per-view scan; see ApplyOptions.SkipSymbolDriftCheck).
+            if (!(options?.SkipSymbolDriftCheck ?? false))
             {
-                string activeStd = StingTools.Core.Symbols.SymbolStandardResolver
-                    .ResolveStandard(doc, view, null);
-                var driftReport = StingTools.Core.Symbols.SymbolDriftDetector
-                    .DetectDrift(doc, view);
-                if (driftReport.DriftedSymbols > 0)
+                try
                 {
-                    r.Warnings.Add(
-                        $"Symbol-standard drift in view: {driftReport.DriftedSymbols} symbol(s) "
-                      + $"don't match resolved standard ({activeStd}). "
-                      + "Run 'Fix Symbol Drift' to heal.");
+                    string activeStd = StingTools.Core.Symbols.SymbolStandardResolver
+                        .ResolveStandard(doc, view, null);
+                    var driftReport = StingTools.Core.Symbols.SymbolDriftDetector
+                        .DetectDrift(doc, view);
+                    if (driftReport.DriftedSymbols > 0)
+                    {
+                        r.Warnings.Add(
+                            $"Symbol-standard drift in view: {driftReport.DriftedSymbols} symbol(s) "
+                          + $"don't match resolved standard ({activeStd}). "
+                          + "Run 'Fix Symbol Drift' to heal.");
+                    }
                 }
+                catch (Exception ex) { r.Warnings.Add($"Symbol drift check: {ex.Message}"); }
             }
-            catch (Exception ex) { r.Warnings.Add($"Symbol drift check: {ex.Message}"); }
 
             return r;
         }

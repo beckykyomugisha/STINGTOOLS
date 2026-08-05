@@ -143,6 +143,49 @@ namespace StingTools.Core.Symbols
         /// <summary>Visible symbol size in millimetres at 1:100 (drives geometry scale).</summary>
         [JsonProperty("symbolSize")]  public double SymbolSize { get; set; } = 3.0;
 
+        /// <summary>
+        /// Real-world size in millimetres for MODEL-category symbols
+        /// (MEPEquipment / MEPAccessory / etc.).
+        ///
+        /// <para>Why this exists: <see cref="SymbolSize"/> is a PAPER-space target.
+        /// That is correct for GenericAnnotation, which Revit plots at a constant
+        /// size regardless of view scale. Model-category families live in MODEL
+        /// space, so building them at <see cref="SymbolSize"/> produced devices a
+        /// few millimetres across — a 13A socket 4 mm wide, plotting at 0.08 mm on
+        /// a 1:50 sheet. Those families were effectively invisible.</para>
+        ///
+        /// <para>Model-category geometry is therefore driven by this value, and the
+        /// schematic glyph is carried separately by <see cref="PlanSymbol"/>. Unset
+        /// (0) falls back to <see cref="SymbolSize"/> with a build warning.</para>
+        /// </summary>
+        [JsonProperty("realSizeMm")] public double RealSizeMm { get; set; } = 0;
+
+        /// <summary>
+        /// Id of the GenericAnnotation symbol nested into this model family to
+        /// provide its plan-view schematic glyph.
+        ///
+        /// <para>Real geometry alone plots as a small rectangle in plan, which is
+        /// not how MEP devices are drafted. The nested annotation keeps the
+        /// schematic legible at any scale while the model geometry stays
+        /// dimensionally correct for clash, quantities and COBie.</para>
+        /// </summary>
+        [JsonProperty("planSymbol", NullValueHandling = NullValueHandling.Ignore)]
+        public string PlanSymbol { get; set; }
+
+        /// <summary>
+        /// Largest legal absolute normalised coordinate for this symbol's geometry.
+        ///
+        /// The catalogue convention is a body normalised to -0.5..+0.5. Some symbol
+        /// classes legitimately draw beyond that box — SLD breakers and transformers
+        /// carry terminal leads, and the LPS symbols carry earth stems — so those
+        /// declare a larger extent rather than being squashed into the body box.
+        ///
+        /// Consumed by Symbols_Validate as the strict gate. The creator keeps its own
+        /// permissive +/-2.0 crash-guard so a bad edit degrades to a warning rather
+        /// than a malformed curve.
+        /// </summary>
+        [JsonProperty("overallExtent")] public double OverallExtent { get; set; } = 0.5;
+
         [JsonProperty("parameters", NullValueHandling = NullValueHandling.Ignore)]
         public List<ParameterDefinition> Parameters { get; set; }
             = new List<ParameterDefinition>();
@@ -373,6 +416,30 @@ namespace StingTools.Core.Symbols
         [JsonProperty("endDeg")]   public double EndDeg { get; set; } = 360;
         [JsonProperty("style", NullValueHandling = NullValueHandling.Ignore)]
         public string Style { get; set; }
+
+        // ── Spelling aliases ────────────────────────────────────────────
+        // 375 of the 620 arcs in the shipped catalogues spell the sweep
+        // "startAngle"/"endAngle" rather than the canonical
+        // "startDeg"/"endDeg". Newtonsoft silently ignored those keys, so
+        // StartDeg/EndDeg kept their 0/360 defaults and every one of those
+        // arcs rendered as a FULL CIRCLE instead of the intended sweep.
+        //
+        // The alias only writes while the canonical property still holds its
+        // default, so an explicit startDeg/endDeg always wins regardless of
+        // key order. Getters return null so the alias never re-serialises.
+        [JsonProperty("startAngle", NullValueHandling = NullValueHandling.Ignore)]
+        public double? StartAngle
+        {
+            get => null;
+            set { if (value.HasValue && StartDeg == 0) StartDeg = value.Value; }
+        }
+
+        [JsonProperty("endAngle", NullValueHandling = NullValueHandling.Ignore)]
+        public double? EndAngle
+        {
+            get => null;
+            set { if (value.HasValue && EndDeg == 360) EndDeg = value.Value; }
+        }
     }
 
     public sealed class FilledRegionDefinition
@@ -381,6 +448,24 @@ namespace StingTools.Core.Symbols
             = new List<Point2D>();
         [JsonProperty("fillType", NullValueHandling = NullValueHandling.Ignore)]
         public string FillType { get; set; }
+
+        // ── Spelling alias ──────────────────────────────────────────────
+        // 206 of the 217 filled regions in the shipped catalogues spell the
+        // boundary "vertices". Newtonsoft ignored that key, leaving Boundary
+        // empty, and DrawFilledRegion returns silently on an empty boundary —
+        // so 95% of all filled regions in the library never rendered, with no
+        // warning. The canonical key wins when both are present.
+        [JsonProperty("vertices", NullValueHandling = NullValueHandling.Ignore)]
+        public List<Point2D> Vertices
+        {
+            get => null;
+            set
+            {
+                if (value != null && value.Count > 0 &&
+                    (Boundary == null || Boundary.Count == 0))
+                    Boundary = value;
+            }
+        }
     }
 
     public sealed class Point2D
@@ -426,6 +511,18 @@ namespace StingTools.Core.Symbols
         [JsonProperty("diameterMm")] public double DiameterMm { get; set; }
         [JsonProperty("profile", NullValueHandling = NullValueHandling.Ignore)]
         public List<Point2D> Profile { get; set; }
+
+        // Tier 2 — composite geometry. Each component is its own box/cylinder
+        // extrusion at an XYZ offset (mm), so a seed reads as the real object
+        // class: socket = faceplate + back box; downlight = bezel ring + recess;
+        // diffuser = frame + neck; pendant = canopy + drop + shade. Built with
+        // NewExtrusion only (no sweep/revolve needed). When Components is empty
+        // the single-solid fields above are used (legacy behaviour).
+        [JsonProperty("offsetXMm")] public double OffsetXMm { get; set; }
+        [JsonProperty("offsetYMm")] public double OffsetYMm { get; set; }
+        [JsonProperty("offsetZMm")] public double OffsetZMm { get; set; }
+        [JsonProperty("components", NullValueHandling = NullValueHandling.Ignore)]
+        public List<Solid3DDefinition> Components { get; set; }
     }
 
     // ──────────────────────────────────────────────────────────────────

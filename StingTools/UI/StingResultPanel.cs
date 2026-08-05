@@ -103,6 +103,38 @@ namespace StingTools.UI
                 return this;
             }
 
+            /// <summary>
+            /// A clickable finding line. Rendered as a hyperlink-styled row that
+            /// fires <paramref name="onClick"/> when clicked — used to select /
+            /// zoom the offending element in the model. Falls back to plain text
+            /// when onClick is null.
+            /// </summary>
+            public Builder Finding(string text, Action onClick, SolidColorBrush brush = null)
+            {
+                EnsureSection();
+                _cur.Items.Add(new ResultItem
+                {
+                    Type = onClick == null ? ItemType.Text : ItemType.Finding,
+                    Label = text, ValueBrush = brush, OnClick = onClick
+                });
+                return this;
+            }
+
+            /// <summary>
+            /// A clickable finding carrying an ElementId payload; the click is
+            /// wired by <see cref="StingResultPanel.ElementSelectAction"/> at
+            /// render time (so report-text parsers don't need a selector).
+            /// </summary>
+            public Builder Finding(string text, long elementId, SolidColorBrush brush = null)
+            {
+                EnsureSection();
+                _cur.Items.Add(new ResultItem
+                {
+                    Type = ItemType.Finding, Label = text, ValueBrush = brush, ElementIdPayload = elementId
+                });
+                return this;
+            }
+
             public Builder PassFail(string label, bool passed, string detail = null)
             {
                 EnsureSection();
@@ -166,6 +198,15 @@ namespace StingTools.UI
             /// <summary>Show the result panel and return the index of the clicked action (-1 if closed).</summary>
             public int Show()
             {
+                // Slice 1.5 — when an inline sink is registered (BOQ Cost Manager
+                // Actions pane is hosting), render the result there instead of a
+                // popup window. Falls back to the modal dialog on any failure.
+                var sink = StingResultPanel.InlineSink;
+                if (sink != null)
+                {
+                    try { sink(this); return 1; }
+                    catch (Exception ex) { StingTools.Core.StingLog.Error("StingResultPanel inline sink", ex); }
+                }
                 return StingResultPanel.ShowDialog(this);
             }
 
@@ -198,11 +239,21 @@ namespace StingTools.UI
             public bool? Passed;
             public string[] TableHeaders;
             public List<string[]> TableRows;
+            public Action OnClick;
+            public long? ElementIdPayload;
         }
+
+        /// <summary>
+        /// Optional host hook: when a Finding carries an ElementIdPayload (rather
+        /// than a baked-in OnClick action), clicking it invokes this. The
+        /// Placement Centre sets it to select + zoom the element in the model, so
+        /// findings parsed out of plain report text become clickable too.
+        /// </summary>
+        public static Action<long> ElementSelectAction;
 
         internal enum ItemType
         {
-            Metric, Text, RAGBar, PassFail, Table, Alert, Separator
+            Metric, Text, RAGBar, PassFail, Table, Alert, Separator, Finding
         }
 
         internal class ActionDef
@@ -218,6 +269,11 @@ namespace StingTools.UI
 
         public static Builder Create(string title) => new Builder { Title = title };
 
+        // Slice 1.5 — inline result routing. When set (by the BOQ Cost Manager
+        // while an Actions command runs), Builder.Show() routes here instead of
+        // popping a window. Cleared by the dispatcher after each command.
+        public static Action<Builder> InlineSink;
+
         // ══════════════════════════════════════════════════════════════════
         //  INLINE CONTENT BUILDER
         // ══════════════════════════════════════════════════════════════════
@@ -231,7 +287,14 @@ namespace StingTools.UI
         // Width is host-driven; the embedded ScrollViewer caps height at
         // 380 px so the panel doesn't dominate the dock.
 
-        public static FrameworkElement BuildInlineContent(Builder b)
+        public static FrameworkElement BuildInlineContent(Builder b) => BuildInlineContent(b, 380);
+
+        /// <summary>
+        /// Inline content with a caller-controlled height cap. Pass
+        /// double.PositiveInfinity when the host (e.g. a docked report column)
+        /// manages height itself and the inner ScrollViewer should simply fill.
+        /// </summary>
+        public static FrameworkElement BuildInlineContent(Builder b, double maxHeight)
         {
             var stack = new StackPanel { Margin = new Thickness(0) };
 
@@ -255,14 +318,60 @@ namespace StingTools.UI
                 stack.Children.Add(BuildSection(section));
             }
 
-            return new ScrollViewer
+            var scroller = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = stack,
-                MaxHeight = 380,
+                MaxHeight = maxHeight,
                 Padding = new Thickness(0)
             };
+
+            // Inline action bar. The dialog footer (Open-Export via SetCsvPath +
+            // any Action(...) buttons) was previously dropped inline, so an export
+            // run from the Actions pane had no way to open its file. Render those
+            // buttons in a compact always-visible bottom bar.
+            var actionBar = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            if (!string.IsNullOrEmpty(b.CsvExportPath))
+            {
+                string path = b.CsvExportPath;
+                var openBtn = new Button { Content = "Open file", Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(10, 3, 10, 3) };
+                openBtn.Click += (s, e) =>
+                {
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); }
+                    catch (Exception ex) { StingTools.Core.StingLog.Warn($"Inline open file: {ex.Message}"); }
+                };
+                actionBar.Children.Add(openBtn);
+            }
+            if (b.Actions != null)
+            {
+                foreach (var a in b.Actions)
+                {
+                    var ad = a;
+                    var btn = new Button { Content = ad.Label, ToolTip = ad.Description, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(10, 3, 10, 3) };
+                    btn.Click += (s, e) =>
+                    {
+                        // No Window inline; pass null. Actions that strictly need a
+                        // Window degrade gracefully (logged, not crashed).
+                        try { ad.Click?.Invoke(null); }
+                        catch (Exception ex) { StingTools.Core.StingLog.Warn($"Inline action '{ad.Label}': {ex.Message}"); }
+                    };
+                    actionBar.Children.Add(btn);
+                }
+            }
+
+            if (actionBar.Children.Count == 0) return scroller;
+
+            var root = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(actionBar, Dock.Bottom);
+            root.Children.Add(actionBar);
+            root.Children.Add(scroller);
+            return root;
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -507,9 +616,36 @@ namespace StingTools.UI
                         Height = 1, Margin = new Thickness(0, 4, 0, 4),
                         Background = FZ(new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)))
                     };
+                case ItemType.Finding:
+                    return BuildFinding(item);
                 default:
                     return new TextBlock { Text = item.Label ?? "" };
             }
+        }
+
+        private static UIElement BuildFinding(ResultItem item)
+        {
+            var tb = new TextBlock
+            {
+                Text = "▸ " + (item.Label ?? ""),
+                FontSize = 11.5,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 2),
+                Foreground = item.ValueBrush ?? FZ(new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0))),
+                TextDecorations = TextDecorations.Underline,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Click to select this element in the model"
+            };
+            var click = item.OnClick;
+            if (click == null && item.ElementIdPayload.HasValue)
+            {
+                long id = item.ElementIdPayload.Value;
+                var sel = ElementSelectAction;
+                if (sel != null) click = () => sel(id);
+            }
+            if (click != null)
+                tb.MouseLeftButtonUp += (s, e) => { try { click(); } catch { } };
+            return tb;
         }
 
         private static UIElement BuildMetric(ResultItem item)

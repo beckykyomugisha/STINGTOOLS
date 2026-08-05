@@ -52,6 +52,13 @@ namespace StingTools.Docs
             {
                 foreach (var s in dt.Slots)
                 {
+                    // Straight copy: DrawingSlot and TemplateViewSlot both
+                    // anchor bottom-left. Before the P-7 convergence
+                    // TemplateViewSlot meant the slot CENTRE, so this copy
+                    // silently shifted every slot up and right by half its own
+                    // extent — the reason a profile placed through
+                    // "Create From Template" landed differently from the same
+                    // profile placed through DrawingProducer.
                     st.ViewportSlots.Add(new TemplateViewSlot
                     {
                         Label            = s.Label,
@@ -78,16 +85,21 @@ namespace StingTools.Docs
         {
             if (doc == null || dt == null) return ElementId.InvalidElementId;
             var (tbFamily, tbSymbol) = DrawingDispatcher.ResolveTitleBlockVariant(dt);
+            // P5 — resolve the logical family name to the concrete built family.
+            tbFamily = TitleBlockResolver.ToConcreteFamily(doc, dt, tbFamily);
             if (string.IsNullOrWhiteSpace(tbFamily)) return ElementId.InvalidElementId;
             try
             {
-                var matches = new FilteredElementCollector(doc)
+                List<FamilySymbol> Collect() => new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
                     .Where(fs => string.Equals(fs.FamilyName, tbFamily,
                                                StringComparison.OrdinalIgnoreCase))
                     .ToList();
+                var matches = Collect();
+                if (matches.Count == 0 && TitleBlockResolver.EnsureFamilyLoaded(doc, tbFamily))
+                    matches = Collect();
                 if (!string.IsNullOrWhiteSpace(tbSymbol))
                 {
                     var picked = matches.FirstOrDefault(fs =>

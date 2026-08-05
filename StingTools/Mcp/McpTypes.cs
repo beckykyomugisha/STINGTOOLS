@@ -49,4 +49,13 @@ namespace StingTools.Mcp
         [JsonProperty("content")] public List<McpContent> Content { get; set; }
         [JsonProperty("isError")] public bool             IsError { get; set; }
     }
+
+    // Connection details surfaced by the one-click MCP server toggle: the live URL,
+    // the shared-secret token, and a ready-to-paste Claude Code .mcp.json snippet.
+    internal class McpConnectionInfo
+    {
+        public string Url          { get; set; }
+        public string Token        { get; set; }
+        public string ClaudeConfig { get; set; }
+    }
 }

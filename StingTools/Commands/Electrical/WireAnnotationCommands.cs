@@ -216,7 +216,7 @@ namespace StingTools.Commands.Electrical
 
             string coordDir = string.IsNullOrEmpty(projDir)
                 ? Path.Combine(Path.GetTempPath(), "STING")
-                : Path.Combine(projDir, "_BIM_COORD");
+                : StingPaths.Meta(doc, "_BIM_COORD");
 
             return Path.Combine(coordDir, FileName);
         }
@@ -371,7 +371,7 @@ namespace StingTools.Commands.Electrical
         {
             string phase   = ParameterHelpers.GetString(conduit, "ELC_WIRE_PHASE_TXT");
             string mat     = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
-            string circ    = ParameterHelpers.GetString(conduit, "ELC_CIRCUIT_NR_TXT");
+            string circ    = ParameterHelpers.GetString(conduit, "ELC_CKT_NR");
             string panel   = ParameterHelpers.GetString(conduit, "ELC_PNL_NAME_TXT");
             string circType= ParameterHelpers.GetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT");
             string instMeth= ParameterHelpers.GetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT");
@@ -425,6 +425,7 @@ namespace StingTools.Commands.Electrical
             // the values are already stamped.
             int    circuitPoles    = 0;
             double circuitCurrentA = 0;
+            double circuitVoltV    = 0;
             if (cores <= 0 || (vd <= 0 && csa > 0))
             {
                 try
@@ -435,6 +436,10 @@ namespace StingTools.Commands.Electrical
                         var pp = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES);
                         if (pp != null && pp.StorageType == StorageType.Integer) circuitPoles = pp.AsInteger();
                         try { circuitCurrentA = circuit.ApparentCurrent; } catch { }
+                        // Read the circuit's REAL nominal voltage so the VD recalc
+                        // isn't pinned to the nominal UK LV pair (400/230). Falls
+                        // back to that pair below only when this is unreadable.
+                        try { circuitVoltV = circuit.Voltage; } catch { }
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Circuit resolve: {ex.Message}"); }
@@ -454,15 +459,32 @@ namespace StingTools.Commands.Electrical
                         double lengthM = lc.Curve.Length * 0.3048; // ft → m
                         if (lengthM > 0.01)
                         {
-                            double currentA = circuitCurrentA > 0 ? circuitCurrentA : 16.0; // default 16A
-                            // Phase count comes from the circuit poles, not the core
-                            // count — a 3-core cable is commonly single-phase (L+N+E).
-                            int phases = circuitPoles >= 3 ? 3 : 1;
-                            double voltV = phases == 3 ? 400.0 : 230.0;
-                            string materialStr = string.IsNullOrEmpty(mat) ? "Cu" : mat;
-                            vd = StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.CalculateVoltDropPercent(
-                                currentA, lengthM, csa, materialStr, voltV, phases);
-                            // No write-back: ReadWireData is a pure read.
+                            // Only recompute VD when a REAL circuit current is
+                            // available. Previously a missing/zero current fell back
+                            // to a hardcoded 16 A, printing a confidently-wrong VD%
+                            // on the drawing. With no real current, skip the VD
+                            // portion of the label (leave vd = 0) and warn once
+                            // (rate-limited) so it's diagnosable.
+                            if (circuitCurrentA > 0)
+                            {
+                                // Phase count comes from the circuit poles, not the core
+                                // count — a 3-core cable is commonly single-phase (L+N+E).
+                                int phases = circuitPoles >= 3 ? 3 : 1;
+                                // Prefer the circuit's real voltage; fall back to the
+                                // nominal UK LV pair (400 V 3φ / 230 V 1φ) only when
+                                // the real voltage is unreadable.
+                                double voltV = circuitVoltV > 0 ? circuitVoltV : (phases == 3 ? 400.0 : 230.0);
+                                string materialStr = string.IsNullOrEmpty(mat) ? "Cu" : mat;
+                                vd = StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.CalculateVoltDropPercent(
+                                    circuitCurrentA, lengthM, csa, materialStr, voltV, phases);
+                                // No write-back: ReadWireData is a pure read.
+                            }
+                            else
+                            {
+                                StingLog.WarnRateLimited("WireAnnot.VdNoCurrent",
+                                    "Wire annotation: no connected-circuit current available for VD recompute — " +
+                                    "VD omitted from label rather than assuming 16 A.");
+                            }
                         }
                     }
                 }
@@ -550,7 +572,14 @@ namespace StingTools.Commands.Electrical
 
         // ── Label text builder ───────────────────────────────────────────────
 
-        public static string BuildAnnotationText(WireAnnotationData d, WireAnnotationStyle style)
+        /// <param name="suppressContainmentFields">
+        /// When <c>true</c>, the conduit-only containment fields (Ø diameter and
+        /// conduit fill %) are omitted from the label regardless of style flags or
+        /// data. Defaults to <c>false</c> so existing conduit callers are unchanged.
+        /// Set by the wire-element annotation path (Revit Wires have no containment).
+        /// </param>
+        public static string BuildAnnotationText(WireAnnotationData d, WireAnnotationStyle style,
+            bool suppressContainmentFields = false)
         {
             string mat = string.IsNullOrEmpty(d.ConductorMat) ? "Cu" : d.ConductorMat;
             string baseSpec;
@@ -580,10 +609,10 @@ namespace StingTools.Commands.Electrical
             string result = string.Join("  |  ", parts);
             var extras = new List<string>();
 
-            if (style.ShowDiameter && d.DiameterMm > 0)
+            if (!suppressContainmentFields && style.ShowDiameter && d.DiameterMm > 0)
                 extras.Add($"Ø{d.DiameterMm:0.#} mm");
 
-            if (style.ShowFill && d.FillPct > 0)
+            if (!suppressContainmentFields && style.ShowFill && d.FillPct > 0)
             {
                 string fillStr = $"Fill {d.FillPct:0.#}%";
                 if (d.FillPct > style.FillAlarmPct) fillStr += " ⚠";

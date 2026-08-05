@@ -324,7 +324,7 @@ namespace StingTools.Model
                 {
                     // Read tributary load from STING shared param if present, otherwise
                     // use a conservative default that mirrors the AutoSizeAll report.
-                    double axialKN = TryReadDouble(col, "STR_COL_AXIAL_KN", 500);
+                    double axialKN = TryReadDouble(col, "STR_LOAD_AXIAL_KN", 500);
                     // Conservative square-column sizing: width = sqrt(N/f) heuristic
                     // matching the StructuralAutoSizer column logic.
                     double widthMm = Math.Max(300, Math.Ceiling(Math.Sqrt(axialKN * 4) / 25) * 25);
@@ -396,7 +396,7 @@ namespace StingTools.Model
                 r.FoundationsInspected++;
                 try
                 {
-                    double axialKN = TryReadDouble(fnd, "STR_COL_AXIAL_KN", 500);
+                    double axialKN = TryReadDouble(fnd, "STR_LOAD_AXIAL_KN", 500);
                     // Per-foundation override wins over the project value,
                     // which in turn beats the hard-coded 150.
                     double soilKPa = TryReadDouble(fnd, "STR_SOIL_BEARING_KPA", projectSoilKPa);
@@ -496,7 +496,7 @@ namespace StingTools.Model
             {
                 ParameterHelpers.SetString(col, "STR_COL_SECTION_TXT", $"{widthMm:F0}×{widthMm:F0}mm", overwrite: true);
                 ParameterHelpers.SetString(col, "STR_COL_SIZE_MM",     $"{widthMm:F0}",                overwrite: true);
-                ParameterHelpers.SetString(col, "STR_COL_AXIAL_KN",    $"{axialKN:F0}",                overwrite: true);
+                ParameterHelpers.SetString(col, "STR_LOAD_AXIAL_KN",    $"{axialKN:F0}",                overwrite: true);
                 r.StampsWritten++;
             }
             catch (Exception ex) { r.Warnings.Add($"Column {col.Id.Value} stamp: {ex.Message}"); }

@@ -176,7 +176,10 @@ namespace StingTools.Commands.Healthcare
                         // SetString for double param (store as text representation; if bound as Double use Set).
                         SetDoubleSafe(el, "CLN_DESIGN_TEMP_C_DBL", design.TempC);
                         ParameterHelpers.SetInt(el, "CLN_DESIGN_RH_PCT_INT", design.RhPct);
-                        ParameterHelpers.SetString(el, "CLN_NOISE_NR_TXT", design.Nr, overwrite: true);
+                        // Noise rating → CLN_NOISE_NR_NR (the numeric param AcousticValidator
+                        // reads). design.Nr is an "NR-25"-style label; write its integer value.
+                        if (int.TryParse(design.Nr.Replace("NR-", "").Replace("NR", "").Trim(), out int nrVal))
+                            ParameterHelpers.SetInt(el, "CLN_NOISE_NR_NR", nrVal);
 
                         StingLog.Info($"HbnAutoPopulate: Room '{room.Name}' ({roomClass}) → ACH={design.Ach} ΔPa={design.DeltaPa} T={design.TempC}°C RH={design.RhPct}% NR={design.Nr}");
                         populated++;

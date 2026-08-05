@@ -96,7 +96,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>Server URL</Text>
               <TextInput
                 style={styles.input}
-                placeholder="https://api.planscape.com"
+                placeholder="https://api.planscape.build"
                 placeholderTextColor={theme.colors.disabled}
                 autoCapitalize="none"
                 keyboardType="url"

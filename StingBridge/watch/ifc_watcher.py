@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import time
+from . import hot_folder
 from pathlib import Path
 from threading import Thread
 from typing import Callable
@@ -90,10 +91,16 @@ class IFCDropHandler:
         planscape_client,
         config,
         on_progress: Callable[[str], None] | None = None,
+        cursor_dir: str | Path | None = None,
     ):
         self._ps = planscape_client
         self._cfg = config
         self._on_progress = on_progress or (lambda msg: None)
+        # Where the pull cursor lives. The drop ROOT, not processing/ — that
+        # folder is transient and a cursor written into it would be archived
+        # away with the file, silently resetting every restart to a full
+        # backfill.
+        self._cursor_dir = Path(cursor_dir) if cursor_dir else None
 
     # ── public ────────────────────────────────────────────────────────────────
 
@@ -116,6 +123,7 @@ class IFCDropHandler:
             "synced": 0,
             "written_back": False,
             "glb_path": None,
+            "reconcile": None,      # SB-5a pull→reconcile summary
             "errors": [],
         }
 
@@ -151,6 +159,7 @@ class IFCDropHandler:
         sync_payloads = []
         token_map: dict[str, dict] = {}  # guid → tokens (for write-back)
 
+        rows: list[tuple[dict, dict]] = []
         for el in elements:
             tokens = map_element_to_tokens(
                 element_type=el["ifc_type"],
@@ -159,6 +168,57 @@ class IFCDropHandler:
                 storey_elevation_m=el["storey_elevation_m"],
                 library_part_name=el.get("type_name", ""),
             )
+            # Adopt a SEQ the element already carries from an earlier write-back.
+            # The extractor reads STING_TOKENS.ASS_SEQ_NUM_TXT back into
+            # props["STING.ASS_SEQ_NUM_TXT"] (see _extract), but
+            # map_element_to_tokens does not derive `seq` — it is minted, not
+            # mapped. Without this seed assign_sequences() sees an unnumbered
+            # element on every re-drop and mints a NEW number, burning counter
+            # values and renumbering stable elements. The live ArchiCAD path
+            # already adopts it this way (sync/engine.py:401-413); this keeps the
+            # IFC path honest to the same contract.
+            existing_seq = str(el["props"].get("STING.ASS_SEQ_NUM_TXT", "") or "").strip()
+            if existing_seq:
+                tokens["seq"] = existing_seq
+            rows.append((el, tokens))
+
+        # H-3/identity — stable per-document id so the same IfcGlobalId in
+        # different source documents (federated / hot-linked models) keeps
+        # distinct ExternalElementMapping rows instead of overwriting one. The
+        # composite key is (ProjectId, IfcGlobalId, Host, HostDocumentGuid);
+        # leaving the doc guid null collapsed every federated doc together.
+        # Derived from the resolved file path (≤64 chars to match the column).
+        #
+        # Computed here rather than at push time because the pull cursor is
+        # keyed on it too — see ifc_reconcile.cursor_host_key.
+        doc_guid = hashlib.sha1(str(path.resolve()).lower().encode("utf-8")).hexdigest()
+
+        for el, tokens in rows:
+            token_map[el["guid"]] = tokens
+
+        # ── SB-5a: pull → reconcile, BEFORE minting and pushing ──────────────
+        # Order matters. Reconciling first means a remote element that already
+        # carries a SEQ hands it to us, so assign_sequences() sees a numbered
+        # element and mints nothing — the same idempotency the write-back
+        # adoption above gives us, extended across hosts. Reconciling *after*
+        # minting would burn a counter value on every drop and then immediately
+        # overwrite the number we just minted.
+        result["reconcile"] = self._pull_and_reconcile(path, doc_guid, token_map)
+
+        # SB-2 — mint the 8th tag segment from the server's per-key counters,
+        # in one batched call for the whole file. Elements that already carry a
+        # SEQ are skipped, so re-dropping the same IFC neither renumbers them
+        # nor consumes counter values. If the server cannot reserve, tags stay
+        # 7-segment rather than the file failing to process.
+        from ..sync.seq_minter import assign_sequences
+        try:
+            minted = assign_sequences(self._ps, [t for _, t in rows])
+            if minted:
+                self._emit(f"Minted {minted} SEQ number(s)")
+        except Exception as e:  # noqa: BLE001 — numbering must never fail an ingest
+            self._emit(f"SEQ minting skipped: {e}")
+
+        for el, tokens in rows:
             is_complete = bool(
                 tokens.get("disc") and tokens.get("lvl") and
                 tokens.get("sys") and tokens.get("prod")
@@ -184,30 +244,24 @@ class IFCDropHandler:
                 is_complete=is_complete,
             )
             sync_payloads.append(sync_el)
-            token_map[el["guid"]] = tokens
 
         # ── Sync to Planscape ─────────────────────────────────────────────────
+        # §1.4.4 — chunked with retry and 413-splitting, rather than the old
+        # fixed loop of 100 that lost a slice of the model to a single 503.
         self._emit(f"Syncing {len(sync_payloads)} elements to Planscape…")
-        from ..planscape.client import PlanscapeError
-        # H-3/identity — stable per-document id so the same IfcGlobalId in
-        # different source documents (federated / hot-linked models) keeps
-        # distinct ExternalElementMapping rows instead of overwriting one. The
-        # composite key is (ProjectId, IfcGlobalId, Host, HostDocumentGuid);
-        # leaving the doc guid null collapsed every federated doc together.
-        # Derived from the resolved file path (≤64 chars to match the column).
-        doc_guid = hashlib.sha1(str(path.resolve()).lower().encode("utf-8")).hexdigest()
-        batch_size = 100
-        for i in range(0, len(sync_payloads), batch_size):
-            batch = sync_payloads[i: i + batch_size]
-            try:
-                self._ps.ingest_ifc_data(batch, host="archicad", host_document_guid=doc_guid)
-                result["synced"] += len(batch)
-            except (PlanscapeError, Exception) as exc:
-                msg = f"Planscape sync batch {i // batch_size} failed: {exc}"
-                result["errors"].append(msg)
-                log.error(msg)
+        from ..sync.push_chunker import chunked_push
 
-        self._emit(f"Synced {result['synced']} elements")
+        push = chunked_push(
+            lambda batch: self._ps.ingest_ifc_data(
+                batch, host="archicad", host_document_guid=doc_guid),
+            sync_payloads,
+            chunk_size=int(getattr(self._cfg, "push_chunk_size", 100) or 100),
+            max_retries=int(getattr(self._cfg, "push_max_retries", 3) or 0),
+            on_progress=self._on_progress,
+        )
+        result["synced"] = push.sent
+        result["errors"].extend(push.errors)
+        self._emit(f"Synced {push.sent} elements ({push.summary()})")
 
         # ── Write tokens back into the IFC as IfcPropertySet ─────────────────
         self._emit("Writing STING tokens back to IFC…")
@@ -234,6 +288,49 @@ class IFCDropHandler:
         log.info(msg)
         self._on_progress(msg)
 
+    def _cursor_path(self, ifc_path: Path) -> Path:
+        """Resolve where this drop's cursor store lives.
+
+        Explicit ``cursor_dir`` wins. Otherwise infer it: a file being processed
+        sits in ``<root>/processing/``, so the root is one level up. Anything
+        else (the single-file ``process-ifc`` path) keeps the cursor beside the
+        file itself.
+        """
+        from ..sync.ifc_reconcile import CURSOR_FILENAME
+
+        if self._cursor_dir is not None:
+            return self._cursor_dir / CURSOR_FILENAME
+        parent = ifc_path.parent
+        if parent.name == hot_folder.PROCESSING:
+            parent = parent.parent
+        return parent / CURSOR_FILENAME
+
+    def _pull_and_reconcile(self, path: Path, doc_guid: str,
+                            token_map: dict[str, dict]) -> dict:
+        """SB-5a — pull remote changes and reconcile them into ``token_map``.
+
+        Best-effort by construction: any failure degrades to push-only, which is
+        exactly the pre-SB-5a behaviour. An unreachable hub must never cost an
+        operator their ingest.
+        """
+        if not getattr(self._cfg, "pull_reconcile", False):
+            log.debug("pull_reconcile disabled — pushing without reconcile")
+            return {"skipped": "disabled"}
+
+        try:
+            from ..sync.ifc_reconcile import pull_and_reconcile
+            return pull_and_reconcile(
+                self._ps,
+                token_map=token_map,
+                ifc_path=path,
+                doc_guid=doc_guid,
+                cursor_path=self._cursor_path(path),
+                on_progress=self._on_progress,
+            )
+        except Exception as exc:  # noqa: BLE001 — reconcile must not fail an ingest
+            log.warning("Pull/reconcile skipped for %s: %s", path.name, exc)
+            return {"skipped": f"{type(exc).__name__}: {exc}"}
+
     def _convert_to_glb(self, ifc_path: Path, result: dict) -> Path | None:
         """Try IfcConvert → GLB. Returns GLB path or None."""
         glb_path = ifc_path.with_suffix(".glb")
@@ -243,6 +340,24 @@ class IFCDropHandler:
             return None
 
         import subprocess
+
+        # IfcConvert refuses to clobber an existing output and prompts instead,
+        # which under capture_output blocks until the 300 s timeout and reports
+        # as a conversion failure. That happens on any re-drop of the same
+        # filename — the common case for "fix the model and export again".
+        #
+        # The documented remedy is a -y/--yes overwrite flag, but the flag name
+        # has moved between IfcOpenShell releases and no IfcConvert binary is
+        # installed in this environment to confirm it against (`_find_ifc_convert`
+        # returns None here), so passing an unverified flag risks an "unknown
+        # option" failure on the very versions this is meant to help. Removing
+        # the stale file first is version-independent and needs no flag.
+        if glb_path.exists():
+            try:
+                glb_path.unlink()
+            except OSError as e:
+                log.warning("Could not remove stale GLB %s: %s", glb_path.name, e)
+
         self._emit(f"Converting to GLB ({glb_path.name})…")
         try:
             subprocess.run(
@@ -498,9 +613,13 @@ def _find_ifc_convert() -> str | None:
 class _IFCEventHandler:
     """watchdog FileSystemEventHandler that debounces IFC file events."""
 
-    def __init__(self, handler: IFCDropHandler, debounce_s: float = 3.0):
+    def __init__(self, handler: IFCDropHandler, debounce_s: float = 3.0,
+                 drop_root: Path | None = None):
         self._handler = handler
         self._debounce = debounce_s
+        # When set, files move through processing/ -> done/|failed/ (SB-4).
+        # None keeps the legacy in-place behaviour for one-off processing.
+        self._drop_root = drop_root
         self._pending: dict[str, float] = {}
         self._lock = __import__("threading").Lock()
         self._thread: Thread | None = None
@@ -511,9 +630,20 @@ class _IFCEventHandler:
         if getattr(event, "is_directory", False):
             return
         src = getattr(event, "src_path", "")
-        if src.lower().endswith(".ifc") and "_sting" not in Path(src).stem:
-            with self._lock:
-                self._pending[src] = time.monotonic()
+        if not src.lower().endswith(".ifc"):
+            return
+        if "_sting" in Path(src).stem:
+            return  # our own output
+        if self._drop_root is not None and hot_folder.is_in_managed_subfolder(
+                Path(src), self._drop_root):
+            return  # already claimed, archived, or failed
+        with self._lock:
+            self._pending[src] = time.monotonic()
+
+    def enqueue(self, path: str) -> None:
+        """Queue a path directly (start-up sweep), bypassing watchdog."""
+        with self._lock:
+            self._pending.setdefault(path, time.monotonic())
 
     def start_drainer(self) -> None:
         self._running = True
@@ -531,12 +661,64 @@ class _IFCEventHandler:
                 for path in ready:
                     del self._pending[path]
             for path in ready:
-                try:
-                    result = self._handler.process(path)
-                    _save_result(path, result)
-                except Exception as exc:
-                    log.exception("IFC processing failed for %s: %s", path, exc)
+                self._process_one(Path(path))
             time.sleep(0.5)
+
+    def _process_one(self, src: Path) -> None:
+        """Run one file through the processing/ -> done/|failed/ lifecycle.
+
+        SB-4 — this mirrors StingBridge/src/IFC/IfcDropWatcher.cs so both
+        watchers leave the same folder in the same state. Claiming into
+        processing/ first is what makes "still outstanding" answerable and stops
+        a re-run reprocessing everything.
+        """
+        root = self._drop_root
+        if root is None:
+            # No managed root (single-file `process-ifc`): keep the old
+            # in-place behaviour, sidecar included.
+            try:
+                result = self._handler.process(str(src))
+                _save_result(str(src), result)
+            except Exception as exc:
+                log.exception("IFC processing failed for %s: %s", src, exc)
+            return
+
+        claimed = hot_folder.claim(src, root)
+        if claimed is None:
+            return  # someone else owns it, or it vanished
+
+        try:
+            result = self._handler.process(str(claimed))
+            _save_result(str(claimed), result)
+            if _is_failure(result):
+                # process() reports parse/sync failures in result["errors"]
+                # rather than raising, so routing on exceptions alone would
+                # archive an unopenable file as a success.
+                hot_folder.fail(claimed, root, "; ".join(result.get("errors") or []))
+            else:
+                hot_folder.complete(claimed, root)
+        except Exception as exc:
+            log.exception("IFC processing failed for %s: %s", claimed.name, exc)
+            try:
+                hot_folder.fail(claimed, root, f"{type(exc).__name__}: {exc}")
+            except OSError as move_exc:
+                # Leave it in processing/ — recover_orphans will return it to the
+                # root on the next start rather than the file being lost.
+                log.error("Could not move %s to failed/: %s", claimed.name, move_exc)
+
+
+def _is_failure(result: dict) -> bool:
+    """True when a drop produced nothing usable and should land in failed/.
+
+    The bar is "errors AND nothing synced": a file that yielded elements is a
+    successful drop even if something secondary (write-back, GLB conversion)
+    complained — the sidecar records those. A file that parsed to nothing, or
+    whose elements were all rejected, is a failure the operator needs to see
+    in failed/ rather than buried in a done/ sidecar.
+    """
+    if not (result.get("errors") or []):
+        return False
+    return int(result.get("synced") or 0) == 0
 
 
 def _save_result(ifc_path: str, result: dict) -> None:
@@ -566,21 +748,36 @@ def watch_drop_folder(
         raise RuntimeError("watchdog is not installed. Run: pip install watchdog")
 
     _patch_ifcopenshell_del()  # suppress upstream __del__ KeyError before any model opens
-    handler = IFCDropHandler(planscape_client, config, on_progress)
-    ev_handler = _IFCEventHandler(handler)
+    drop_path = Path(drop_dir)
+    hot_folder.ensure_layout(drop_path)
+    # A run killed mid-file leaves that file invisible to every future run:
+    # gone from the root, and nothing moves it out of processing/.
+    recovered = hot_folder.recover_orphans(drop_path)
+    if recovered and on_progress:
+        on_progress(f"Recovered {recovered} file(s) left in processing/ by a previous run")
+
+    handler = IFCDropHandler(planscape_client, config, on_progress,
+                             cursor_dir=drop_path)
+    ev_handler = _IFCEventHandler(handler, drop_root=drop_path)
 
     # Make watchdog call our dispatch method
     class _Adapter(FileSystemEventHandler):
         def dispatch(self, event):
             ev_handler.dispatch(event)
 
-    drop_path = Path(drop_dir)
-    drop_path.mkdir(parents=True, exist_ok=True)
-
     observer = Observer()
     observer.schedule(_Adapter(), str(drop_path), recursive=False)
     observer.start()
     ev_handler.start_drainer()
+
+    # Sweep files that were already sitting in the root — dropped while the
+    # watcher was down, or present before it started. watchdog only reports
+    # *events*, so without this they would wait for someone to touch them again.
+    # Safe now that processed files move out of the root (SB-4): before that,
+    # a start-up sweep would have reprocessed the entire folder every run.
+    for existing in sorted(drop_path.glob("*.ifc")):
+        if existing.is_file() and "_sting" not in existing.stem:
+            ev_handler.enqueue(str(existing))
 
     log.info("Watching for IFC files in: %s", drop_path)
     if on_progress:

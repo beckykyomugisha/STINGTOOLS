@@ -87,6 +87,8 @@ namespace StingTools.Core.Placement
             => (CollisionFlags & (int)(PlacementCollisionFlags.InsideWall
                                      | PlacementCollisionFlags.OverlapsFixture
                                      | PlacementCollisionFlags.OutsideRoom
+                                     | PlacementCollisionFlags.TooCloseToDoor
+                                     | PlacementCollisionFlags.TooCloseToWindow
                                      | PlacementCollisionFlags.RoomCapReached)) != 0;
     }
 }

@@ -415,6 +415,18 @@ public class ProjectMembersController : ControllerBase
             member.AllowedSuitabilities = profile.AllowedSuitabilities;
         }
 
+        // ProjectRole used to accept ANY string here with no validation, which
+        // is how the vocabulary drifted far enough for eleven gates to end up
+        // testing an Iso19650Role code ("PM") against this column. Reject
+        // anything outside the canonical set; same error shape as invalid_kind
+        // in DistributionGroupsController.
+        //
+        // Iso19650Role is deliberately NOT validated in this pass — its
+        // vocabulary lives in GetRoles() below and constraining it is a
+        // separate, wider change.
+        if (req.ProjectRole != null && !ProjectRoles.IsCanonical(req.ProjectRole))
+            return BadRequest(new { error = "invalid_project_role", allowed = ProjectRoles.All });
+
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;
         // Phase 177 — pass null array to leave a column unchanged; pass an

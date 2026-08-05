@@ -184,6 +184,29 @@ namespace StingTools.Docs
                     return ids;
                 }
 
+                case "Changed Since Last Export":
+                {
+                    // Issue-driven delta: a sheet is "changed" when it has never been
+                    // exported, or its current revision differs from the last-exported
+                    // revision recorded in state. The biggest automation win for an
+                    // ISO 19650 re-issue — only the drawings that moved go out. Records
+                    // are stamped post-run when the profile's Output.StampLastExport is
+                    // on (default). Salvaged from claude/dreamy-maxwell-prlg44.
+                    var state = LoadState();
+                    var byUid = (state.LastExports ?? new List<SheetExportRecord>())
+                        .GroupBy(r => r.SheetUniqueId)
+                        .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ExportedUtc).First());
+                    var ids = new List<ElementId>();
+                    foreach (var s in sheets)
+                    {
+                        var (rev, _) = GetCurrentRevision(doc, s);
+                        if (!byUid.TryGetValue(s.UniqueId, out var rec) ||
+                            !string.Equals(rec.Revision ?? "", rev ?? "", StringComparison.OrdinalIgnoreCase))
+                            ids.Add(s.Id);
+                    }
+                    return ids;
+                }
+
                 case "Currently Opened":
                 {
                     // We can only inspect the active UI app from the dialog layer;
@@ -472,6 +495,9 @@ namespace StingTools.Docs
                     var folder = profile.Output.LocalFolder;
                     if (string.IsNullOrEmpty(folder))
                         issues.Add(Err("NO_OUTPUT_FOLDER", "Output folder is empty."));
+                    else if (!Path.IsPathRooted(folder))
+                        issues.Add(Err("RELATIVE_PATH",
+                            $"Output folder must be an absolute path (e.g. C:\\Exports). Got: '{folder}'"));
                     else if (!Directory.Exists(folder))
                     {
                         if (profile.Output.CreateFolderIfMissing)
@@ -636,7 +662,58 @@ namespace StingTools.Docs
                 StingLog.Error("ExportCenterEngine.Run failed", ex);
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
+            StampLastExports(doc, profile, result);
             return Finalize(profile, result);
+        }
+
+        /// <summary>
+        /// Delta automation (salvaged from claude/dreamy-maxwell-prlg44, scoped to the
+        /// "Changed Since Last Export" feature). After a completed run, persist a
+        /// per-sheet last-export record (revision + path) for every successful,
+        /// single-sheet row so the delta set can tell next time which drawings moved.
+        /// Gated on Output.StampLastExport (default true); skipped for cancelled runs.
+        /// Combined-PDF rows don't map to one sheet and are ignored.
+        /// </summary>
+        private static void StampLastExports(Document doc, ExportProfile profile, ExportRunResult result)
+        {
+            if (doc == null || profile?.Output == null || !profile.Output.StampLastExport) return;
+            if (result == null || result.Cancelled) return;
+            try
+            {
+                var state = LoadState();
+                var byKey = (state.LastExports ?? new List<SheetExportRecord>())
+                    .ToDictionary(r => r.SheetUniqueId + "|" + r.Format, r => r);
+
+                foreach (var r in result.Rows.Where(x => x.Success && !string.IsNullOrEmpty(x.OutputPath)))
+                {
+                    var sheet = ResolveSheet(doc, r.SheetId);
+                    if (sheet == null) continue; // combined rows don't map to one sheet
+                    var (rev, _) = GetCurrentRevision(doc, sheet);
+                    var rec = new SheetExportRecord
+                    {
+                        SheetUniqueId = sheet.UniqueId,
+                        SheetNumber   = sheet.SheetNumber,
+                        Revision      = rev,
+                        Format        = r.Format,
+                        Path          = r.OutputPath,
+                        ExportedUtc   = DateTime.UtcNow,
+                    };
+                    byKey[rec.SheetUniqueId + "|" + rec.Format] = rec;
+                }
+
+                state.LastExports = byKey.Values.ToList();
+                SaveState(state);
+            }
+            catch (Exception ex) { StingLog.Warn($"Last-export stamp: {ex.Message}"); }
+        }
+
+        /// <summary>Resolve a ViewSheet from an ExportResultRow.SheetId string
+        /// (mirrors the long→ElementId parse used by ResolveSet). Returns null for
+        /// combined rows or ids that no longer resolve to a sheet.</summary>
+        private static ViewSheet ResolveSheet(Document doc, string sheetId)
+        {
+            if (string.IsNullOrEmpty(sheetId) || !long.TryParse(sheetId, out long raw)) return null;
+            return doc.GetElement(new ElementId(raw)) as ViewSheet;
         }
 
         /// <summary>
@@ -663,13 +740,17 @@ namespace StingTools.Docs
         {
             if (p.Output.Destination == ExportDestination.PlanscapeCde) return;
             var f = p.Output.LocalFolder;
-            if (!string.IsNullOrEmpty(f) && !Directory.Exists(f) && p.Output.CreateFolderIfMissing)
+            if (string.IsNullOrEmpty(f)) return;
+            if (!Path.IsPathRooted(f)) f = Path.GetFullPath(f);
+            if (!Directory.Exists(f) && p.Output.CreateFolderIfMissing)
                 Directory.CreateDirectory(f);
         }
 
         private static string SubFolderFor(ExportProfile p, string format, string discipline)
         {
             string root = p.Output.LocalFolder;
+            if (!string.IsNullOrEmpty(root) && !Path.IsPathRooted(root))
+                root = Path.GetFullPath(root);
             if (p.Output.SplitByFormatSubFolder) root = Path.Combine(root, format);
             if (p.Output.SplitByDisciplineSubFolder && !string.IsNullOrEmpty(discipline))
                 root = Path.Combine(root, discipline);
@@ -688,13 +769,19 @@ namespace StingTools.Docs
             switch (profile.Pdf.CombineMode)
             {
                 case PdfCombineMode.OnePerSheet:
+                {
+                    // Track output paths already emitted this run so two sheets whose
+                    // sanitised names collide can't silently overwrite one another while
+                    // both report success.
+                    var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var v in sheets)
                     {
                         if (cancel != null && cancel()) return;
-                        ExportSinglePdf(doc, v, profile, result);
+                        ExportSinglePdf(doc, v, profile, result, emitted);
                         tick?.Invoke($"PDF: {GetLabel(v)}");
                     }
                     break;
+                }
 
                 case PdfCombineMode.OnePerDiscipline:
                 {
@@ -729,7 +816,8 @@ namespace StingTools.Docs
             }
         }
 
-        private static void ExportSinglePdf(Document doc, View view, ExportProfile profile, ExportRunResult result)
+        private static void ExportSinglePdf(Document doc, View view, ExportProfile profile,
+            ExportRunResult result, HashSet<string> emittedPaths = null)
         {
             var row = StartRow(view, "PDF");
             try
@@ -743,20 +831,77 @@ namespace StingTools.Docs
                 stem = ResolveConflict(folder, stem, "pdf", profile.Output.ConflictMode, out bool skip);
                 if (skip) { row.Success = false; row.Error = "Skipped — file exists"; return; }
 
+                string outputPath = Path.Combine(folder, stem + ".pdf");
+                row.OutputPath = outputPath;
+
+                // Within-run collision guard: two sheets whose sanitised names resolve to
+                // the same file would otherwise overwrite one another and both report
+                // success. Skip the duplicate and flag it rather than double-reporting.
+                if (emittedPaths != null && !emittedPaths.Add(outputPath))
+                {
+                    row.Success = false;
+                    row.Error = $"Skipped — duplicate output name '{stem}.pdf' already written in this run";
+                    StingLog.Warn($"PDF export {row.SheetNumber}: duplicate output name '{stem}.pdf' within run — skipped to avoid overwrite");
+                    return;
+                }
+
+                // Snapshot the folder's PDFs before export so we can locate whatever
+                // Revit actually writes. PDFExportOptions.FileName honouring is version-
+                // dependent: with Combine == true it is normally authoritative, but some
+                // Revit builds still write a single-sheet export under a default name
+                // (e.g. "<Sheet Number> - <Sheet Name>.pdf" or "Sheet-Unnamed.pdf").
+                // Verifying File.Exists(<stem>.pdf) alone therefore reported perfectly
+                // good exports as failures and left the file under the wrong name.
+                var before = SnapshotFiles(folder, "pdf");
+
                 var opts = new PDFExportOptions
                 {
                     FileName = stem,
-                    Combine = false,
+                    Combine = true,
                     AlwaysUseRaster = profile.Pdf.HiddenLineMode == "Raster",
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
 
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
-                row.OutputPath = Path.Combine(folder, stem + ".pdf");
-                row.Success = ok && File.Exists(row.OutputPath);
-                if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
-                else row.Error = "PDF export returned false";
+
+                // Resolve the file Revit actually produced and move it to <stem>.pdf when
+                // it landed under a different name, so the output matches the naming
+                // template the user configured and the success verify is reliable.
+                string produced = ResolveProducedFile(folder, outputPath, before, "pdf");
+                if (produced != null && !PathsEqual(produced, outputPath))
+                {
+                    try
+                    {
+                        if (File.Exists(outputPath)) File.Delete(outputPath);
+                        File.Move(produced, outputPath);
+                    }
+                    catch (Exception mv)
+                    {
+                        StingLog.Warn($"PDF export {row.SheetNumber}: could not rename " +
+                                      $"'{Path.GetFileName(produced)}' to '{stem}.pdf': {mv.Message}");
+                        outputPath = produced;          // report the real path we ended up with
+                        row.OutputPath = produced;
+                    }
+                }
+
+                row.Success = File.Exists(row.OutputPath);
+                if (row.Success)
+                {
+                    row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+
+                    // Stamp the watermark on the single-sheet output too. Previously only
+                    // the combined-PDF path injected it, so OnePerSheet exports came out
+                    // blank even with "Apply watermark" ticked.
+                    if (profile.Pdf.ApplyWatermark)
+                        TryInjectWatermark(row.OutputPath, profile.Pdf, result);
+                }
+                else
+                {
+                    row.Error = ok
+                        ? $"PDF export reported success but no output PDF was found in '{folder}' (expected '{stem}.pdf')"
+                        : $"PDF export returned false (folder: '{folder}', file: '{stem}.pdf')";
+                }
             }
             catch (Exception ex)
             {
@@ -764,6 +909,73 @@ namespace StingTools.Docs
                 StingLog.Warn($"PDF export {row.SheetNumber}: {ex.Message}");
             }
             finally { CommitRow(row, result); }
+        }
+
+        /// <summary>Snapshot files of the given extension(s) in a folder (full path →
+        /// last-write UTC) so a post-export diff can identify exactly what Revit
+        /// produced. Extensions are given without the dot, e.g. "pdf" or "png","jpg".</summary>
+        private static Dictionary<string, DateTime> SnapshotFiles(string folder, params string[] exts)
+        {
+            var map = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                if (Directory.Exists(folder))
+                {
+                    var set = new HashSet<string>(exts.Select(e => "." + e.TrimStart('.')), StringComparer.OrdinalIgnoreCase);
+                    foreach (var f in Directory.EnumerateFiles(folder))
+                        if (set.Contains(Path.GetExtension(f)))
+                            map[f] = File.GetLastWriteTimeUtc(f);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SnapshotFiles '{folder}': {ex.Message}"); }
+            return map;
+        }
+
+        /// <summary>Identify the file a single-item export produced. Prefers the
+        /// expected path; otherwise returns the newest file (of the given
+        /// extension(s)) that is new — or whose timestamp advanced — versus
+        /// <paramref name="before"/>. Null when nothing was written.</summary>
+        private static string ResolveProducedFile(string folder, string expectedPath,
+            Dictionary<string, DateTime> before, params string[] exts)
+        {
+            try
+            {
+                if (File.Exists(expectedPath) &&
+                    (before == null || !before.TryGetValue(expectedPath, out var prevExp) ||
+                     File.GetLastWriteTimeUtc(expectedPath) > prevExp))
+                    return expectedPath;
+
+                var set = new HashSet<string>(exts.Select(e => "." + e.TrimStart('.')), StringComparer.OrdinalIgnoreCase);
+                string best = null;
+                DateTime bestTime = DateTime.MinValue;
+                if (Directory.Exists(folder))
+                {
+                    foreach (var f in Directory.EnumerateFiles(folder))
+                    {
+                        if (!set.Contains(Path.GetExtension(f))) continue;
+                        var t = File.GetLastWriteTimeUtc(f);
+                        bool changed = before == null || !before.TryGetValue(f, out var prev) || t > prev;
+                        if (!changed) continue;
+                        if (t >= bestTime) { bestTime = t; best = f; }
+                    }
+                }
+                // Overwrite mode may reuse an existing file whose timestamp didn't move —
+                // fall back to the expected path if it is present.
+                if (best == null && File.Exists(expectedPath)) return expectedPath;
+                return best;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveProducedFile '{folder}': {ex.Message}");
+                return File.Exists(expectedPath) ? expectedPath : null;
+            }
+        }
+
+        private static bool PathsEqual(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            try { return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+            catch { return string.Equals(a, b, StringComparison.OrdinalIgnoreCase); }
         }
 
         private static void ExportCombinedPdf(Document doc, List<View> views,
@@ -931,6 +1143,25 @@ namespace StingTools.Docs
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             opts ??= new DWGExportOptions();
+
+            // MergedViews = true makes each exported sheet a SINGLE self-contained DWG with
+            // every view merged into its model space. Left at Revit's default of false, each
+            // view placed on a sheet is written out as its OWN extra sidecar .dwg next to the
+            // real one and referenced as an XREF — so exporting 2 sheets could litter the
+            // output folder with a dozen files like
+            // "<sheet>-Drafting View - SITE LOCATION PLAN.dwg", which reads as the exporter
+            // ignoring the selection and dumping every view. It also silently broke the
+            // multi-layout merge, whose per-sheet sources live in a temp staging folder: the
+            // merged output carried unresolvable xref pointers back into it, so model space
+            // showed only "Xref <temp path>" placeholder text with X1..Xn listed "Not Found".
+            // BUT leaving it false is what makes Revit's own sheets correct, and that matters
+            // more. With MergedViews = false Revit writes one xref per view, all sitting at the
+            // model origin, and isolates them with per-viewport layer freezes — which is why
+            // every exported viewport's Target is (0,0,0) and why the sheets look right.
+            // Setting it true merges the views out across model space while the viewports still
+            // target the origin, so the framing no longer matches the geometry. The sidecar
+            // files are the price of Revit-accurate sheets, so OnePerSheet keeps the default.
+            // Only ModelSpaceOnly — which explicitly wants geometry and no paper space — merges.
             opts.MergedViews = profile.Dwg.OutputMode == DwgOutputMode.ModelSpaceOnly;
             opts.FileVersion = MapDwgVersion(profile.Dwg.DwgVersion);
             return opts;
@@ -1013,10 +1244,29 @@ namespace StingTools.Docs
                     row.OutputPath = merged;
                     row.FileSizeBytes = new FileInfo(merged).Length;
                     row.Success = true;
-                    try { Directory.Delete(temp, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    // Merge() can succeed while having skipped one or more sheets whose page
+                    // setup/plot device it couldn't resolve — surface that instead of reporting
+                    // a silent full success (this is how sheets used to come out at the wrong
+                    // paper size, or missing entirely, without any visible warning).
+                    if (ExportCenterDwgMerger.LastWarning != null)
+                        result.Warnings.Add($"DWG multi-layout merge for '{groupName}': {ExportCenterDwgMerger.LastWarning}");
+
+                    // Only delete the staging folder once every xref is confirmed bound —
+                    // an unbound xref is still a LIVE external reference into this folder, and
+                    // deleting it out from under the saved file is exactly how sheets came back
+                    // showing as "Not Found" when reopened.
+                    if (ExportCenterDwgMerger.AllXrefsBound)
+                        try { Directory.Delete(temp, true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    else
+                        result.Warnings.Add($"DWG multi-layout merge for '{groupName}': kept the staging folder at '{temp}' " +
+                                            "because not every xref bound successfully — deleting it would have broken those " +
+                                            "references in the saved file.");
                 }
                 else
                 {
+                    if (ExportCenterDwgMerger.LastWarning != null)
+                        result.Warnings.Add($"DWG multi-layout merge for '{groupName}': {ExportCenterDwgMerger.LastWarning}");
+
                     // Method B — ODA File Converter (free): version-normalise +
                     // emit merge_manifest.json. Doesn't produce a true single
                     // multi-layout DWG, but the user gets staged files at the
@@ -1139,6 +1389,15 @@ namespace StingTools.Docs
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
                     string path = Path.Combine(folder, stem + "." + profile.Image.Format.ToLowerInvariant());
+                    row.OutputPath = path;
+
+                    // Revit's ExportImage appends the view/sheet name to FilePath for a
+                    // SetOfViews export and writes .jpg for JPEG, so the image rarely lands
+                    // at <stem>.<ext> — the same FileName-not-honoured class as single-sheet
+                    // PDF. Snapshot the folder, export, then move the produced image into
+                    // place so the name matches the template and success is reliable.
+                    string[] imgExts = { "png", "jpg", "jpeg", "tif", "tiff", "bmp" };
+                    var before = SnapshotFiles(folder, imgExts);
 
                     var io = new ImageExportOptions
                     {
@@ -1153,9 +1412,25 @@ namespace StingTools.Docs
                     io.SetViewsAndSheets(new List<ElementId> { v.Id });
                     doc.ExportImage(io);
 
-                    row.OutputPath = path;
-                    row.Success = File.Exists(path);
-                    if (row.Success) row.FileSizeBytes = new FileInfo(path).Length;
+                    string produced = ResolveProducedFile(folder, path, before, imgExts);
+                    if (produced != null && !PathsEqual(produced, path))
+                    {
+                        try
+                        {
+                            if (File.Exists(path)) File.Delete(path);
+                            File.Move(produced, path);
+                        }
+                        catch (Exception mv)
+                        {
+                            StingLog.Warn($"Image export {GetLabel(v)}: could not rename " +
+                                          $"'{Path.GetFileName(produced)}' to '{Path.GetFileName(path)}': {mv.Message}");
+                            row.OutputPath = produced;
+                        }
+                    }
+
+                    row.Success = File.Exists(row.OutputPath);
+                    if (row.Success) row.FileSizeBytes = new FileInfo(row.OutputPath).Length;
+                    else row.Error = "Image export produced no file";
                     tick?.Invoke($"Image: {GetLabel(v)}");
                 }
                 catch (Exception ex) { row.Success = false; row.Error = ex.Message; }

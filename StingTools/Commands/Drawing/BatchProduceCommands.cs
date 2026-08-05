@@ -95,7 +95,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: warm the per-document caches so every per-level
                 // / per-DrawingType Apply call hits the (template name →
@@ -132,7 +132,7 @@ namespace StingTools.Commands.Drawing
                                     var dctx = new DrawingContext { Level = level, PackageId = res.Preset?.PackageId };
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
                                 t.Commit();
@@ -161,7 +161,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
@@ -169,7 +169,10 @@ namespace StingTools.Commands.Drawing
 
                 var scopes = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
-                    .Where(e => (e.Name ?? "").StartsWith("STING::", StringComparison.Ordinal))
+                    // P-13c: OrdinalIgnoreCase to match ScopeBoxBinder's canonical filter.
+                    // Ordinal silently dropped a "sting::" box here while the
+                    // binder surfaced it as a fixable name warning.
+                    .Where(e => (e.Name ?? "").StartsWith("STING::", StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 if (scopes.Count == 0)
                 {
@@ -212,7 +215,7 @@ namespace StingTools.Commands.Drawing
                             var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = tag, PackageId = res.Preset?.PackageId };
                             var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                             views += pr.ViewIds.Count;
-                            if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                            if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                             warnings.AddRange(pr.Warnings);
                             t.Commit();
                         }
@@ -234,7 +237,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches before per-room loop.
                 DrawingTypePresentation.Prewarm(doc);
@@ -282,7 +285,7 @@ namespace StingTools.Commands.Drawing
                                     var dctx = new DrawingContext { Room = room, Tag = roomLabel, PackageId = res.Preset?.PackageId };
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
                                 t.Commit();
@@ -311,7 +314,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
@@ -344,20 +347,31 @@ namespace StingTools.Commands.Drawing
                 {
                     contextsToProduce = grids.Select(g =>
                     {
-                        var bb = new BoundingBoxXYZ();
                         try
                         {
                             var c = g.Curve as Line;
                             if (c == null) return null;
                             var origin = (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
-                            double depthFt = sec.DepthMm / 304.8;
-                            var d = c.Direction;
-                            // perpendicular = (-d.Y, d.X)
-                            var perp = new XYZ(-d.Y, d.X, 0).Normalize();
                             var len = (c.GetEndPoint(1) - c.GetEndPoint(0)).GetLength();
-                            var widthFt = len * 0.5 + 5.0 / 0.3048;
-                            bb.Min = origin - perp * widthFt + new XYZ(0, 0, -3.0 / 0.3048);
-                            bb.Max = origin + perp * widthFt + new XYZ(0, 0, 30.0 / 0.3048);
+
+                            // P-5: one shared frame builder with the producer.
+                            // This used to offset Min/Max by a perpendicular
+                            // vector in MODEL space with an implicit identity
+                            // transform — so height landed on the wrong axis
+                            // (the producer put it on Y, this on Z), and for a
+                            // north-south grid the perpendicular's negative
+                            // components made Min > Max, which CreateSection
+                            // rejects outright. The section now cuts ALONG the
+                            // grid and looks perpendicular to it, which is what
+                            // "section along grid line" means.
+                            var bb = DrawingProducer.BuildSectionBox(
+                                origin:       origin,
+                                cutDirection: c.Direction,
+                                halfWidthFt:  len * 0.5 + 5.0 / 0.3048,
+                                bottomZ:      origin.Z - 3.0 / 0.3048,
+                                topZ:         origin.Z + 30.0 / 0.3048,
+                                depthFt:      sec.DepthMm / 304.8);
+
                             return new DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name, PackageId = preset.PackageId };
                         }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
@@ -382,7 +396,7 @@ namespace StingTools.Commands.Drawing
                                 {
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                     views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId) sheets++;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
                                 t.Commit();
@@ -411,7 +425,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
@@ -488,7 +502,8 @@ namespace StingTools.Commands.Drawing
                                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                                         var ar = DrawingTypePresentation.Apply(doc, view, dt, new DrawingTypePresentation.ApplyOptions
                                         {
-                                            AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale }
+                                            AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale },
+                                            SkipSymbolDriftCheck = true // batch produce
                                         });
                                         warnings.AddRange(ar.Warnings);
                                         DrawingTypeStamper.Stamp(view, dt.Id);
@@ -524,7 +539,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => p.IsManaged).ToList();
                 if (packs.Count == 0)
@@ -582,7 +597,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }
@@ -607,7 +622,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }
@@ -637,7 +652,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }

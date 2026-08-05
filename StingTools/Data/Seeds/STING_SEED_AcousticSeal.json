@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "standard": "STING SEED FAMILY — Acoustic Seal (Approved Document E, BS 8233, DW/144)",
+  "standard": "STING SEED FAMILY \u2014 Acoustic Seal (Approved Document E, BS 8233, DW/144)",
   "_notes": [
     "10 type variants: standard mineral-wool seals at Rw30/Rw40/Rw45/Rw55/Rw63,",
     "DW/144 duct acoustic seal, flexible boot for plant connections,",
@@ -12,46 +12,185 @@
   "symbols": [
     {
       "id": "STING_SEED_AcousticSeal",
-      "name": "STING Seed — Acoustic Seal",
+      "name": "STING Seed \u2014 Acoustic Seal",
       "category": "Specialty Equipment",
       "familyType": "SeedFamily",
       "discipline": "Generic",
       "subcategory": "STING_SEED",
       "isSeed": true,
       "protectExisting": true,
-      "hosting": "FaceBased",
+      "hosting": "Standalone",
       "symbolSize": 4.0,
       "parameters": [
-        { "name": "STING_SEED_FAMILY_TXT",     "type": "Text", "shared": true, "isInstance": true,  "default": "STING_SEED_AcousticSeal" },
-        { "name": "STING_DESIGN_REF_TXT",      "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "STING_SWAP_HISTORY_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ASS_TAG_1",                 "type": "Text", "shared": true, "isInstance": true },
-        { "name": "ASS_DISCIPLINE_COD_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "G" },
-        { "name": "ASS_PRODCT_COD_TXT",        "type": "Text", "shared": true, "isInstance": true,  "default": "ACS" },
-        { "name": "PEN_OD_MM",                 "type": "Text", "shared": true, "isInstance": true,  "default": "0" },
-        { "name": "PEN_HOST_REF_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_HOST_TYPE_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_MEMBER_ID_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_INSTALL_STATUS_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "DRAFT" },
-        { "name": "PEN_INSTALLER_TXT",         "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_INSTALL_DATE",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_CONTROL_NUMBER_TXT",    "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "PEN_PFV_UUID_TXT",          "type": "Text", "shared": true, "isInstance": true,  "default": "" },
-        { "name": "ACS_RW_TARGET_DB",          "type": "Text", "shared": true, "isInstance": false, "default": "45" },
-        { "name": "ACS_SEAL_TYPE_TXT",         "type": "Text", "shared": true, "isInstance": false, "default": "MINERAL_WOOL_PLUS_SEALANT" },
-        { "name": "ACS_DEPTH_MM",              "type": "Text", "shared": true, "isInstance": false, "default": "100" },
-        { "name": "ACS_CERT_TXT",              "type": "Text", "shared": true, "isInstance": false, "default": "BS 8233 / Approved Doc E" }
+        {
+          "name": "STING_SEED_FAMILY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "STING_SEED_AcousticSeal"
+        },
+        {
+          "name": "STING_DESIGN_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "STING_SWAP_HISTORY_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ASS_TAG_1",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true
+        },
+        {
+          "name": "ASS_DISCIPLINE_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "G"
+        },
+        {
+          "name": "ASS_PRODCT_COD_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "ACS"
+        },
+        {
+          "name": "PEN_OD_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "0"
+        },
+        {
+          "name": "PEN_HOST_REF_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_HOST_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_MEMBER_ID_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSTALL_STATUS_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": "DRAFT"
+        },
+        {
+          "name": "PEN_INSTALLER_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_INSTALL_DATE",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_CONTROL_NUMBER_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "PEN_PFV_UUID_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
+        },
+        {
+          "name": "ACS_RW_TARGET_DB",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "45"
+        },
+        {
+          "name": "ACS_SEAL_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "MINERAL_WOOL_PLUS_SEALANT"
+        },
+        {
+          "name": "ACS_DEPTH_MM",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "100"
+        },
+        {
+          "name": "ACS_CERT_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": false,
+          "default": "BS 8233 / Approved Doc E"
+        }
       ],
       "geometry": {
         "arcs": [
-          { "cx": 0, "cy": 0, "r": 0.5, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.4, "startDeg": 0, "endDeg": 360 },
-          { "cx": 0, "cy": 0, "r": 0.3, "startDeg": 0, "endDeg": 360 }
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.5,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.4,
+            "startDeg": 0,
+            "endDeg": 360
+          },
+          {
+            "cx": 0,
+            "cy": 0,
+            "r": 0.3,
+            "startDeg": 0,
+            "endDeg": 360
+          }
         ]
       },
-      "solid3D": { "type": "Box", "widthMm": 80, "depthMm": 80, "heightMm": 100 },
+      "solid3D": {
+        "type": "Box",
+        "widthMm": 80,
+        "depthMm": 80,
+        "heightMm": 100
+      },
       "formulaBindings": [
-        { "target": "Mark", "expression": "PEN_CONTROL_NUMBER_TXT" }
+        {
+          "target": "Mark",
+          "expression": "PEN_CONTROL_NUMBER_TXT"
+        }
       ],
       "swapCandidates": [
         {
@@ -186,7 +325,7 @@
             "ACS_RW_TARGET_DB": "50",
             "ACS_SEAL_TYPE_TXT": "LABYRINTH_BAFFLE",
             "ACS_DEPTH_MM": "300",
-            "ACS_CERT_TXT": "BS 8233 labyrinth seal (Rw ≥50 dB)"
+            "ACS_CERT_TXT": "BS 8233 labyrinth seal (Rw \u226550 dB)"
           }
         }
       ]
