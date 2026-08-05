@@ -82,7 +82,7 @@ prototype.
 | Tests | **774 test methods; 0 exercise `StingTools.csproj`** |
 | Empty `catch` blocks | 683 · `TaskDialog` sites 7,650 · `StingLog` sites 9,530 |
 | Stub/placeholder markers | 646 · `NotImplementedException` 10 · `TODO/FIXME/HACK` 51 |
-| EF migrations | 83 (present & applied — see §9) |
+| EF migrations | 80 migration classes on disk, **2 discoverable, 78 inert** — see §9 |
 
 ### 1. Build & compile health
 
@@ -99,8 +99,9 @@ prototype.
 - **CI exists** (11 GitHub Actions workflows: `stingtools-plugin.yml`, `planscape-server.yml`,
   `contract-drift.yml`, `multi-host-core.yml`, …) — worth referencing from the build docs.
 - **Stale caveats.** Many sections below carry *"committed without `dotnet build` verification (Linux
-  sandbox)"*, and the Healthcare section says *"EF migration not run yet."* **Both are historical**:
-  this machine builds 0/0 and 83 EF migrations exist. Trust the build, not the per-section caveat.
+  sandbox)"*. **That one is historical** — this machine builds 0/0. Trust the build, not the
+  per-section caveat. The Healthcare section's *"EF migration not run yet"* is a **different claim
+  and it still stands**: migration files exist, but almost none of them are applicable (§9).
 
 ### 2. Documentation accuracy — the headline facts have drifted
 
@@ -113,7 +114,7 @@ starts here. Measured drift (fixed in this pass where cheap; see Quick Stats + D
 | Quick Stats: "1,204 C# files, ~572,000 lines" | **1,443 files / 655,982 lines** (plugin alone) |
 | `StingCommandHandler.cs` "4,817 lines" (later section) | **9,519 lines** |
 | Assembly "v1.0.0.0" | `.csproj` `<Version>` = **2.2.0** |
-| Healthcare: "EF migration not run yet" | **83 migrations** present |
+| ~~Healthcare: "EF migration not run yet"~~ — **this row was itself wrong**; retracted 2026-08-02 | 83 was a count of `*.cs` files in `Migrations/` (80 migrations + 2 Designer + 1 snapshot). Only **2 are applicable**; 78 are inert. See §9. |
 | "committed without `dotnet build` verification" (many sections) | Builds **0/0** on Windows+Revit |
 
 **Sustainable fix applied:** the Quick Stats and Documentation Map now round + point *here* (one
@@ -185,8 +186,9 @@ deliverable." Make that distinction explicit wherever it matters to a user.
 
 ### 8. Server & platform (`Planscape.Server`)
 
-ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **83 migrations present**
-and the stack is verified running locally in [`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
+ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **Schema is not managed by
+EF migrations** — see §9 — and the stack is verified running locally in
+[`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
 committed secrets** — `appsettings.Production.template.json` uses `__REPLACE_WITH_…__` placeholders
 and `render.yaml` marks JWT key / owner password `sync: false`. Good hygiene. Open items are honestly
 tracked as **🟡 PARTIAL** (live 2-participant meetings, GLB viewer render, a site-photos route 404, a
@@ -200,12 +202,34 @@ geofence cached-boundary inconsistency) — they need a browser/2-client harness
 - **Branch sprawl.** This assessment was itself first drafted on a task branch **247 commits behind
   `main`** and re-synced to `main` before final measurement — a reminder that per-session `claude/*`
   branches drift fast; always re-base and re-measure before trusting a branch's numbers.
+- **EF migrations are decorative — do not read them as evidence of schema.** *(measured 2026-08-02)*
+  `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/` holds 83 `.cs` files: **80
+  migration classes, 2 `.Designer.cs`, 1 model snapshot**. EF builds its applicable-migration list by
+  reflecting over the `[Migration]` attribute, which normally lives in the Designer file — so only
+  **2 migrations are discoverable** (`MeetingMedia`, `SustainabilitySnapshots`) and **78 are inert
+  classes EF never sees**. `Database.Migrate()` applies those two and nothing else.
+
+  Real schema comes from `OnModelCreating` (via `EnsureCreated`/`CreateTables`) plus
+  `PlatformSchemaPatcher`, which runs on **both** boot branches. This is deliberate and documented in
+  [`docs/adr/0001-schema-management.md`](docs/adr/0001-schema-management.md) (Accepted).
+
+  Two consequences that keep catching people:
+  1. **A migration's contents prove nothing about the database, in either direction.** "No migration
+     creates table X" is not evidence X is missing; "a migration does Y" is not evidence Y happened.
+  2. **Security SQL that exists only in an inert migration was never applied** — Postgres RLS
+     (45 tables) and the audit-log hash-chain/partitioning are both in this category. See issue #545.
+
+  ⚠️ **Do not run `dotnet ef migrations add` here** without reading #545 first. It emits a Designer
+  file, which silently arms that one migration against a snapshot that does not describe live schema.
+  Two migrations have already become discoverable this way.
 
 ### Prioritised recommendations
 
 **P0 — cheap, high-value**
-1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, "EF not run",
-   the blanket "committed without build verification" caveat) and pointed them at this dated source.
+1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, the blanket
+   "committed without build verification" caveat) and pointed them at this dated source.
+   ⚠️ *Partly retracted 2026-08-02:* the "EF migration not run yet → 83 migrations present" correction
+   was **itself wrong** — 83 counted files, not applicable migrations. Fixed in §9.
 2. Populate or delete `StingTools.Connectivity.Tests` (an empty project is a false coverage signal).
 3. Add a `docs/INDEX.md` (or prune) so the 140-doc sprawl has one authoritative table of contents.
 
