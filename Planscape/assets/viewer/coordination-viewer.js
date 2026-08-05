@@ -7607,7 +7607,7 @@
     }
 
     // ── Connectivity heartbeat (U6) ────────────────────────────────────
-    // Lightweight: ping /health every 15s and toggle the session pill.
+    // Lightweight: ping /health/live every 15s and toggle the session pill.
     // SignalR proper would need the full @microsoft/signalr browser bundle;
     // this gives the coordinator a real "Live / Offline" signal without
     // pulling in 100KB of dependencies. Browser online/offline events
@@ -7631,14 +7631,20 @@
       let alive = true;
       async function ping() {
         try {
-          const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
-          // ANY http response means the API answered us, which is all this
-          // pill claims. /health is deliberately locked down in production
-          // (private-range client IP + X-Health-Token, Program.cs), so a
-          // browser ALWAYS gets 403 — `res.ok` left the pill stuck on
-          // "Offline" against a perfectly healthy server, and spammed a 403
-          // into the console every 15 seconds. Only a network-level failure
-          // (the catch below) actually means offline.
+          // /health/live, NOT /health. The full diagnostic at /health is
+          // deliberately locked down in production (private-range client IP +
+          // X-Health-Token, Program.cs), so a browser ALWAYS got 403 from it.
+          // The pill coped — see below — but the browser still logged a failed
+          // request every 15 seconds, and that noise buried real errors: a
+          // console captured while investigating a meeting bug showed 17
+          // errors, almost all of them this poll. /health/live is
+          // AllowAnonymous, returns 200 {status:"alive"}, exposes no topology,
+          // and answers precisely the question the pill asks.
+          await fetch(`${apiBase}/health/live`, { method: 'GET', cache: 'no-store' });
+          // ANY http response still means the API answered us, which is all
+          // this pill claims — checking `res.ok` would put it back on "Offline"
+          // against a healthy server the moment this endpoint's contract
+          // changed. Only a network-level failure (the catch below) is offline.
           setOnline(true);
           alive = true;
         } catch (_) {
