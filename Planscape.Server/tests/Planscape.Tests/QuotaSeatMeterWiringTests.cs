@@ -92,19 +92,26 @@ public class QuotaSeatMeterWiringTests : IClassFixture<PlanscapeWebApplicationFa
         => await client.DeleteAsync($"/api/tenant/users/{userId}");
 
     [Fact]
-    public async Task Inviting_a_coordinator_consumes_a_coordinator_seat()
+    public async Task Inviting_a_viewer_consumes_a_read_only_seat()
     {
         var client = await _factory.CreateAuthenticatedClientAsync(); // Owner
 
         var before = await ReadSeatsAsync(client);
-        var userId = await InviteAsync(client, "Coordinator");
+        var userId = await InviteAsync(client, "Viewer");
         try
         {
             var after = await ReadSeatsAsync(client);
 
-            // The invite succeeded, so a coordinator seat was sold. The surface
+            // The invite succeeded, so a read-only seat was sold. The surface
             // the customer is billed against has to show it.
             Assert.Equal(before.Coordinators + 1, after.Coordinators);
+
+            // ...and it must NOT also land on the authoring axis. This is the
+            // assertion that would have caught the old Author-vs-Coordinator
+            // pairing, where a "Coordinator" invite gated on the read-only axis
+            // and then wrote UserRole.Coordinator — an authoring role — so one
+            // invite moved the wrong counter.
+            Assert.Equal(before.Authors, after.Authors);
         }
         finally
         {
@@ -146,7 +153,7 @@ public class QuotaSeatMeterWiringTests : IClassFixture<PlanscapeWebApplicationFa
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         var before = await ReadSeatsAsync(client);
-        var userId = await InviteAsync(client, "Coordinator");
+        var userId = await InviteAsync(client, "Viewer");
         try
         {
             var after = await ReadSeatsAsync(client);

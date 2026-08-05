@@ -106,7 +106,15 @@ public class TenantAdminController : ControllerBase
     public async Task<ActionResult> Invite([FromBody] InviteUserRequest req, CancellationToken ct)
     {
         // Quota check — refuses with 402 if cap reached.
-        var role = string.Equals(req.Role, "Author", StringComparison.OrdinalIgnoreCase) ? "Author" : "Coordinator";
+        // The two options are the two SEAT axes: an account that can author
+        // information, or a read-only one. It used to be Author-vs-Coordinator,
+        // which does not map onto that split at all — Coordinator is an
+        // authoring role, so a "Coordinator" invite gated on the read-only axis
+        // and then consumed an authoring seat. Gate and write now agree.
+        //
+        // API-VISIBLE: a caller passing role = "Coordinator" now gets a Viewer,
+        // not a Coordinator. Anything that is not "Author" is read-only.
+        var role = string.Equals(req.Role, "Author", StringComparison.OrdinalIgnoreCase) ? "Author" : "Viewer";
         var quota = await _quota.CheckCanAddUserAsync(role, ct);
         if (!quota.Allowed)
             return StatusCode(StatusCodes.Status402PaymentRequired, new
@@ -132,7 +140,14 @@ public class TenantAdminController : ControllerBase
             // Stub password — real flow sends an invite link with a one-time
             // password-set token. For S1.7 we just plant the row.
             PasswordHash = "INVITED",
-            Role        = role == "Author" ? UserRole.Contributor : UserRole.Coordinator,
+            // UserRole is what the seat meter reads (via
+            // ProjectRoles.CanAuthorInformation), so this write IS the seat.
+            Role        = role == "Author" ? UserRole.Contributor : UserRole.Viewer,
+            // Iso19650Role stays for ISO deliverables and reporting; it is NOT a
+            // billing input. Note the codes here are weak: "A" is Appointing
+            // Party (the client), which is not what an author seat means. Left
+            // as-is deliberately — changing what this stamps is an ISO data
+            // decision, not a billing one, and is reported separately.
             Iso19650Role = role == "Author" ? "A" : "C",
             IsActive    = false, // becomes true when invitee sets a password
         };

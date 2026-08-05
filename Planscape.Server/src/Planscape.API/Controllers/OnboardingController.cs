@@ -89,7 +89,12 @@ public class OnboardingController : ControllerBase
         foreach (var m in req.Members)
         {
             // Quota check per member — fail mid-list cleanly with a 402.
-            var role = string.Equals(m.Role, "Author", StringComparison.OrdinalIgnoreCase) ? "Author" : "Coordinator";
+            // Two options = the two seat axes: can-author, or read-only. See the
+            // note in TenantAdminController.Invite — Coordinator is an authoring
+            // role, so the old Author-vs-Coordinator pair gated on one axis and
+            // consumed a seat on the other. API-visible: a member sent with
+            // role = "Coordinator" is now created read-only.
+            var role = string.Equals(m.Role, "Author", StringComparison.OrdinalIgnoreCase) ? "Author" : "Viewer";
             var q = await _quota.CheckCanAddUserAsync(role, ct);
             if (!q.Allowed) return StatusCode(StatusCodes.Status402PaymentRequired, new { error = "quota_exceeded", added, denied = m, quota = q });
 
@@ -102,7 +107,9 @@ public class OnboardingController : ControllerBase
                 Email = m.Email.Trim().ToLowerInvariant(),
                 DisplayName = m.DisplayName,
                 PasswordHash = "INVITED",
-                Role = role == "Author" ? UserRole.Contributor : UserRole.Coordinator,
+                // UserRole is the seat: ProjectRoles.CanAuthorInformation reads it.
+                Role = role == "Author" ? UserRole.Contributor : UserRole.Viewer,
+                // ISO code is for deliverables/reporting only, never billing.
                 Iso19650Role = role == "Author" ? "A" : "C",
                 IsActive = false,
             };
