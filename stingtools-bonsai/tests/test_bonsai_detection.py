@@ -93,6 +93,20 @@ def test_probe_detects_bonsai_installed_as_an_extension():
             sys.modules.pop(name, None)
 
 
+def test_reexported_bonsai_is_the_bridge_instance_not_a_wrapper():
+    """Guards the panel bug: `from ..core import bonsai` re-exports the
+    BonsaiBridge INSTANCE, so the panel must read `_bridge.capabilities`
+    directly. `_bridge.bonsai.capabilities` (the old code) hit a nonexistent
+    attribute and the panel's bare except hid it → 'Bonsai is required' forever."""
+    from core import bonsai as _bridge
+    assert hasattr(_bridge, "capabilities"), "re-export must expose .capabilities"
+    assert hasattr(_bridge, "refresh"), "re-export must be the instance (has .refresh)"
+    assert not hasattr(_bridge, "bonsai"), (
+        "the instance has no .bonsai attribute — panel code accessing "
+        "_bridge.bonsai.capabilities is the bug this test guards"
+    )
+
+
 if __name__ == "__main__":
     import traceback
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
