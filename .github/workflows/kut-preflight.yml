@@ -18,9 +18,12 @@ name: KUT Pre-flight Gate
 # offline, on every change to the KUT surface. It is deliberately cheap (no SDK,
 # no restore) so it can gate data edits made by the BIM Manager, not just code.
 #
-# It does NOT replace the Revit session: 16 of the 27 steps in
-# docs/examples/KUT/REVIT_SMOKE_TEST.md are geometry-dependent and still need a
-# human in Revit. The script prints that remaining list on every run.
+# It does NOT replace the Revit session and does not execute a single command.
+# All 27 steps in docs/examples/KUT/REVIT_SMOKE_TEST.md still need a human in
+# Revit; what this removes is the wiring/data-contract failures that would
+# otherwise be found during that session, or not found at all because the
+# command ran and reported zeroes. The script prints every step with what is
+# already pre-verified for it on each run.
 
 on:
   push:

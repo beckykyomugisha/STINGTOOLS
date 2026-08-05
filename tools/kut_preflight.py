@@ -1,26 +1,30 @@
 #!/usr/bin/env python3
 """KUT (Phase 192) offline pre-flight verifier.
 
-Covers the config-and-wiring half of docs/examples/KUT/REVIT_SMOKE_TEST.md —
-the half that fails *silently* rather than loudly:
+Clears the PRECONDITIONS behind docs/examples/KUT/REVIT_SMOKE_TEST.md. It
+executes no command and replaces no step — all 27 checklist steps still need a
+Revit session. What it removes is the class of failure that is silent rather
+than loud, and that would otherwise be discovered *during* that session (or
+worse, not discovered at all, because the command ran and reported zeroes):
 
   * an unregistered shared parameter binds to nothing and every downstream
     audit reads empty;
   * a mistyped JSON key is left at its default by Newtonsoft — valid JSON,
     green build, dead rule;
   * a workflow commandTag that no longer resolves only surfaces mid-run,
-    in front of the Owner.
+    in front of the Owner;
+  * a malformed regex in the CSI map is swallowed by a catch{}, and the rule
+    then matches on category alone and assigns the WRONG section.
 
-None of that needs Revit, so none of it should wait for a Revit session.
-The geometry-dependent steps (tagging, placement, clash, seeds) still do —
-see the REPORT section at the end of a run for what remains manual.
+So the value is not "N of 27 steps automated" — it is that the Revit session is
+spent on behaviour instead of on wiring. The report at the end of a run lists
+every step with what is already pre-verified for it.
 
 Usage:  python3 tools/kut_preflight.py [--verbose]
 Exit:   0 = all checks pass, 1 = at least one FAIL.
 """
 
 import csv
-import io
 import json
 import os
 import re
@@ -135,7 +139,13 @@ JSON_CONTRACTS = [
     ("StingTools/Data/STING_OWNER_STANDARDS_PACK.json", "StingTools/Core/Validation/OwnerStandardsPack.cs"),
     ("project-templates/KUT/_BIM_COORD/owner_standards.json", "StingTools/Core/Validation/OwnerStandardsPack.cs"),
     ("project-templates/KUT/_BIM_COORD/fohlio_map.json", "StingTools/ExLink/FohlioLink.cs"),
+    ("StingTools/Data/STING_DEVICE_COORD_RULES.json",
+     "StingTools/Core/Validation/DeviceCoordination.cs"),
 ]
+
+# CsiMasterFormat.LoadCsv splits each row into exactly 6 positional fields —
+# column ORDER is the contract, not just presence.
+CSI_COLUMNS = ["category", "familyregex", "typeregex", "sys", "section", "title"]
 
 CANONICAL_TOKENS = {"DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ",
                     "STATUS", "REV"}
@@ -396,9 +406,85 @@ def check_domain_values():
         p("%s: segment kinds/tokens/targets valid" % os.path.basename(rel))
 
 
+def check_csi_map():
+    """Smoke step 14 — CsiMasterFormat.LoadCsv is positional (f[0]..f[5]) and
+    compiles FamilyRegex/TypeRegex inside `try { } catch { }`. A malformed
+    regex is therefore swallowed, leaving the matcher null, and the rule then
+    matches on category alone — assigning the WRONG CSI section rather than
+    failing. That has to be caught here."""
+    print("\n[6] CSI MasterFormat map (smoke step 14)")
+    for rel in ["StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv",
+                "project-templates/KUT/_BIM_COORD/csi_map.csv"]:
+        if not exists(rel):
+            continue
+        rows = [r for r in read(rel).splitlines() if r.strip()
+                and not r.lstrip().startswith("#")]
+        if not rows:
+            fail("%s has no data rows" % rel)
+            continue
+        hdr = [h.strip().lower() for h in rows[0].split(",")]
+        if hdr[:6] != CSI_COLUMNS:
+            fail("%s: column order is %s but the positional loader requires %s"
+                 % (rel, hdr[:6], CSI_COLUMNS))
+            continue
+        bad_rx, short, bad_sec = [], 0, []
+        sec_re = re.compile(r"^\d{2} \d{2} \d{2}(\.\d+)?$")
+        for i, row in enumerate(rows[1:], start=2):
+            f = row.split(",", 5)
+            if len(f) < 6:
+                short += 1          # LoadCsv silently `continue`s on these
+                continue
+            for col, val in (("FamilyRegex", f[1].strip()), ("TypeRegex", f[2].strip())):
+                if val:
+                    try:
+                        re.compile(val)
+                    except re.error as exc:
+                        bad_rx.append("line %d %s=%r (%s)" % (i, col, val, exc))
+            sec = f[4].strip()
+            if sec and not sec_re.match(sec):
+                bad_sec.append("line %d %r" % (i, sec))
+        if bad_rx:
+            fail("%s: %d regex(es) will not compile — CsiMasterFormat swallows "
+                 "the failure and the rule then matches on category alone, "
+                 "assigning the wrong section: %s"
+                 % (rel, len(bad_rx), "; ".join(bad_rx[:4])))
+        if short:
+            fail("%s: %d row(s) have fewer than 6 fields — LoadCsv skips these "
+                 "silently" % (rel, short))
+        if bad_sec:
+            warn("%s: %d section code(s) are not MasterFormat 'NN NN NN': %s"
+                 % (rel, len(bad_sec), "; ".join(bad_sec[:4])))
+        if not (bad_rx or short):
+            p("%s: %d rules, column order correct, every regex compiles"
+              % (rel, len(rows) - 1))
+
+
+def check_device_coord_rules():
+    """Smoke step 13 — rule severities and category lists must be usable."""
+    print("\n[7] Device-coordination rules (smoke step 13)")
+    rel = "StingTools/Data/STING_DEVICE_COORD_RULES.json"
+    if not exists(rel):
+        fail("%s missing" % rel)
+        return
+    rules = read_json(rel).get("rules", [])
+    if not rules:
+        fail("%s defines no rules" % rel)
+        return
+    for r in rules:
+        rid = r.get("id", "?")
+        sev = (r.get("severity") or "WARN").upper()
+        if sev not in SEVERITIES:
+            fail("%s rule '%s': severity '%s' not in %s"
+                 % (os.path.basename(rel), rid, sev, sorted(SEVERITIES)))
+        if not r.get("deviceCategories"):
+            fail("%s rule '%s': deviceCategories is empty — the rule can never "
+                 "select an element" % (os.path.basename(rel), rid))
+    p("%s: %d rules, severities and device categories valid" % (rel, len(rules)))
+
+
 def check_lod_matrix():
     """Smoke steps 9-10 — milestone ids and inherit chains must resolve."""
-    print("\n[6] LOD matrix integrity (smoke steps 9-10)")
+    print("\n[8] LOD matrix integrity (smoke steps 9-10)")
     base = read_json("StingTools/Data/STING_LOD_MATRIX.json")
     ids = {m["id"] for m in base.get("milestones", [])}
     lods = {str(m["lod"]) for m in base.get("milestones", [])}
@@ -448,7 +534,7 @@ def check_lod_matrix():
 def check_overlay_merge():
     """The pack activates disabled corporate baselines by id. An id typo means
     the overlay adds a second entry instead of enabling the first."""
-    print("\n[7] Project overlay merges onto corporate baseline by id")
+    print("\n[9] Project overlay merges onto corporate baseline by id")
     pairs = [
         ("project-templates/KUT/_BIM_COORD/tag_schemes.json",
          "StingTools/Data/STING_TAG_SCHEMES.json", "schemes"),
@@ -476,7 +562,7 @@ def check_overlay_merge():
 def check_fixtures():
     """Smoke steps 11, 15, 19 — the fixtures must carry the columns the
     header-forgiving parsers look for."""
-    print("\n[8] Test fixtures parse with the columns the parsers expect")
+    print("\n[10] Test fixtures parse with the columns the parsers expect")
     specs = [
         ("Tests/fixtures/kut/speclink_toc_sample.csv", {"section", "title"}, "SpecLink_Reconcile"),
         ("Tests/fixtures/kut/bluebeam_comments_sample.csv",
@@ -521,7 +607,7 @@ def check_fixtures():
 
 def check_deployment_pack():
     """The files the BIM Manager copies on day one must all be there."""
-    print("\n[9] Deployment pack completeness")
+    print("\n[11] Deployment pack completeness")
     for rel in [
         "project-templates/KUT/README.md",
         "project-templates/KUT/_BIM_COORD/owner_standards.json",
@@ -570,21 +656,44 @@ def check_deployment_pack():
              "will fall back to london")
 
 
+# Every step of the checklist that needs a running Revit session. This is
+# nearly all of them, and saying so is the point: the pre-flight does NOT
+# "cover" steps, it clears the *preconditions* those steps depend on — the
+# registration, wiring and data-contract failures that would otherwise waste
+# the Revit session or, worse, pass it silently with empty results.
 MANUAL_ONLY = [
+    (1, "Deploy build; dock panel loads clean", "needs Revit startup"),
+    (2, "Copy _BIM_COORD overlays; set PRJ_ORG_*", "manual project setup"),
+    (3, "Load Params binds all new params", "registration pre-verified; "
+        "binding itself needs Revit"),
+    (4, "Scheme Inspect shows enabled + valid", "scheme JSON pre-verified"),
     (5, "Batch Tag a sample area", "needs model elements"),
     (6, "Render Scheme back-fill", "needs elements with tokens"),
     (7, "Scheme Audit reports 0 mismatches", "needs a rendered model"),
     (8, "TokenConfidenceAudit ScopeBox provenance", "needs STING-LOC scope boxes"),
     (9, "LOD_Verify against real geometry", "needs geometry + params"),
     (10, "LOD_Stamp writes ASS_LOD_VERIFIED_TXT", "needs a transaction"),
+    (11, "Program_Audit joins the Owner template", "fixture pre-verified; "
+         "join needs placed rooms"),
+    (12, "OwnerStandards_Audit RAG summary", "rules pre-verified; firing "
+         "needs a model"),
     (13, "DeviceCoord_Audit door-swing case", "needs hosted families"),
+    (14, "CSI_Assign writes section/title", "map pre-verified; assignment "
+         "needs elements"),
+    (15, "SpecLink_Reconcile gap report", "fixture pre-verified; run needs "
+         "assigned CSI params"),
     (16, "Fohlio_Export column output", "needs FF&E elements"),
     (17, "Fohlio_Import diff dialog + ES snapshot", "needs WPF + ExtensibleStorage"),
     (18, "Fohlio_Audit stale detection", "needs an ES snapshot round-trip"),
+    (19, "ReviewComments_Import upserts", "fixture pre-verified; import needs "
+         "a project folder"),
+    (20, "ReviewComments_Dashboard + KPI export", "needs WPF"),
     (21, "ComCheck per-space CSV", "needs spaces + luminaires"),
     (22, "LCC XLSX crossover year", "needs the HVAC panel input dialog"),
     (23, "PrototypeDrift_Report", "needs two models"),
     (24, "LPS NFPA 780 INFO note", "needs the LPS report path"),
+    (25, "Gate Audit workflow runs end to end", "every tag pre-verified to "
+         "resolve; the run itself needs Revit"),
     (26, "Lighting schedule hoist columns", "needs schedule creation"),
     (27, "Build Seeds baptismal font", "needs the family document API"),
 ]
@@ -598,6 +707,8 @@ def main():
     check_workflow_tags()
     check_json_key_contracts()
     check_domain_values()
+    check_csi_map()
+    check_device_coord_rules()
     check_lod_matrix()
     check_overlay_merge()
     check_fixtures()
@@ -609,8 +720,10 @@ def main():
         print("\nFailures:")
         for f in FAILURES:
             print("  - " + f)
-    print("\nStill requires a Revit session (%d of the 27 smoke-test steps):"
-          % len(MANUAL_ONLY))
+    print("\nThis gate clears PRECONDITIONS; it does not execute any command.")
+    print("All %d of the 27 checklist steps still need a Revit session — the "
+          "annotations say\nwhat is already pre-verified, so the session is "
+          "spent on behaviour, not on wiring:" % len(MANUAL_ONLY))
     for num, what, why in MANUAL_ONLY:
         print("  step %-2d  %-42s (%s)" % (num, what, why))
     return 1 if FAILURES else 0

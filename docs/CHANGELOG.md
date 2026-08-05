@@ -11,9 +11,12 @@ the Owner's week-1 standards can supersede ours without a rebuild). That moves
 the failure mode from "won't compile" to "compiles, runs, does nothing" — which
 `dotnet build` cannot catch and a Revit session catches only by luck.
 
-**`tools/kut_preflight.py`** (stdlib only, no SDK, no Revit) now asserts the
-wiring and data contracts for **11 of the 27 steps** in
-`docs/examples/KUT/REVIT_SMOKE_TEST.md` — 74 assertions:
+**`tools/kut_preflight.py`** (stdlib only, no SDK, no Revit) asserts the wiring
+and data contracts behind `docs/examples/KUT/REVIT_SMOKE_TEST.md` — 77
+assertions. It **executes no command and replaces no step**: all 27 checklist
+steps still need a Revit session. What it removes is the precondition failures
+that would otherwise surface *during* that session, or not at all — because the
+command ran and reported zeroes. It checks:
 
 - the 8 KUT shared parameters are registered in all four registries
   (`ParamRegistry.cs`, `PARAMETER_REGISTRY.json`, `MR_PARAMETERS.txt`/`.csv`)
@@ -36,12 +39,20 @@ wiring and data contracts for **11 of the 27 steps** in
   for small files);
 - the deployment pack is complete, Kampala resolves in the climate registry,
   and no Fohlio or ACC credential file is committed;
+- the CSI MasterFormat map's **column order** matches the positional loader
+  (`CsiMasterFormat.LoadCsv` reads `f[0]..f[5]`), every `FamilyRegex`/
+  `TypeRegex` compiles, and no row is short. This one matters: the loader
+  wraps `new Regex(...)` in `try { } catch { }`, so a malformed pattern is
+  swallowed, the matcher stays null, and the rule then matches on category
+  alone — assigning the **wrong** CSI section rather than failing;
+- device-coordination rule severities are valid and no rule has an empty
+  `deviceCategories` (which could never select an element);
 - `ResolveCommand` has no duplicated `case` label (CS0152), since alias
   registration is precisely the edit that risks one and this tree is often
   edited without an SDK.
 
-Every run also prints the **16 steps that genuinely still need Revit**, so the
-remaining manual scope is explicit rather than assumed.
+Every run prints all 27 steps annotated with what is already pre-verified for
+each, so the Revit session is spent on behaviour rather than on wiring.
 
 **`.github/workflows/kut-preflight.yml`** runs it on any change to the KUT
 surface — data files, overlays, the POCOs they bind to, the dispatch/registry
