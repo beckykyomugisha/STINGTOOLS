@@ -2,6 +2,23 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (A6 — clean the Bonsai spatial adapter: move IFC inference back into core)
+
+`stingtools-bonsai/ops/spatial_ops.py` (added by #585) re-implemented two pieces
+of core inference the Phase A6 boundary lint forbids in host adapters, so the
+`Core tests + adapter boundary` job went red on `main` (`check_adapter_boundary.py`:
+`IFC_CLASS_MAP` + `SYSTEM_GROUP_INFERENCE`). The logic now lives in
+`stingtools_core.hosts.inference` and the adapter delegates, exactly as
+`tagging_ops.py` already does:
+
+- The `_CLASS_TO_FUNC` map → `inference.FUNCTION_BY_IFC_CLASS` + `function_for_class()`
+  / `infer_function()` (unknown class → `GEN`, unchanged). All 31 mappings preserved.
+- The `IfcZone` / `IfcRelAssignsToGroup` zone group walk → `inference.zone_codes_for_model()`,
+  which returns `(element_id → zone_code, zone_count)`; the operator keeps its `ZZ` default.
+
+Verified: boundary lint + self-test exit 0; `stingtools-core` suite 100 passed / 1
+skipped (was 98 / 2 failed); both files compile; function-map parity asserted.
+
 #### Completed (Folder structure — end the sibling sprawl)
 
 Acts on [`FOLDER_STRUCTURE_REVIEW_2026-08.md`](FOLDER_STRUCTURE_REVIEW_2026-08.md),
