@@ -170,17 +170,63 @@ public enum BillingCycle
 /// </summary>
 public static class BillingPlanLimits
 {
-    public record Limits(int MaxAuthors, int MaxCoordinators, int MaxProjects, long StorageMb, decimal MonthlyUsd);
+    public record Limits(int MaxAuthors, int MaxCoordinators, int MaxProjects, long StorageMb, decimal MonthlyUsd)
+    {
+        /// <summary>
+        /// Total billable headcount — the number <c>Tenant.MaxUsers</c> is
+        /// derived from at registration.
+        ///
+        /// <para>SATURATES. This must never be written as
+        /// <c>MaxAuthors + MaxCoordinators</c>: with either side at
+        /// <c>int.MaxValue</c> that sum wraps NEGATIVE in C#'s default unchecked
+        /// context, and <c>MaxUsers</c> is consumed as
+        /// <c>userCount >= tenant.MaxUsers</c> — so a negative cap denies the
+        /// tenant's very first user. Enterprise already wrapped to -2 this way;
+        /// it was latent only because registration assigns Trial.</para>
+        ///
+        /// <para>When read-only seats are unlimited this reports the PAID
+        /// headcount (<see cref="MaxAuthors"/>) rather than infinity. That is a
+        /// deliberate no-giveaway choice: <c>MaxUsers</c> is the only cap
+        /// <c>AdminController</c> and <c>ProjectMembersController</c> enforce,
+        /// and neither of them consults the quota guard, so returning infinity
+        /// here would leave both paths able to add unlimited AUTHORING accounts
+        /// with nothing counting them. The cost of this choice is that free
+        /// viewers are not yet free in practice — a Studio tenant is still
+        /// capped at 6 accounts in total. Lifting that safely means teaching
+        /// those two paths the authoring-capability check; until then, erring
+        /// toward charging correctly beats erring toward giving seats away.</para>
+        /// </summary>
+        public int TotalSeats =>
+            MaxCoordinators == int.MaxValue
+                ? MaxAuthors                                   // paid headcount; also int.MaxValue for Enterprise
+                : MaxAuthors == int.MaxValue
+                    ? int.MaxValue
+                    : MaxAuthors + MaxCoordinators;
+    }
 
+    // MaxAuthors is the AUTHORING-seat cap — accounts that can create or change
+    // information (ProjectRoles.CanAuthorInformation). It carries each plan's
+    // former TOTAL headcount (MaxAuthors + MaxCoordinators), so the paid seat
+    // count per plan is unchanged: Trial 1, PluginOnly 1, Studio 6, Practice 12,
+    // Network 20.
+    //
+    // MaxCoordinators is now the READ-ONLY cap and is unlimited — viewers are
+    // free. It was previously the only enforced axis purely by accident: the
+    // author axis counted ProjectRole == "Author", which nothing ever wrote, so
+    // it read 0 forever and MaxAuthors = 1 was never actually tested against a
+    // real count. Once seats are counted by capability, a cap of 1 would have
+    // denied every realistic roster on every plan below Enterprise (measured:
+    // Owner + Manager + 3 Contributors = 5 authoring accounts, denied 5/1 on
+    // Trial, PluginOnly, Studio, Practice and Network).
     public static Limits For(BillingPlan plan) => plan switch
     {
-        BillingPlan.Trial      => new Limits(1,  0,           1,           5_000,      0m),
-        BillingPlan.PluginOnly => new Limits(1,  0, int.MaxValue,               0,     15m),
-        BillingPlan.Studio     => new Limits(1,  5,           5,          10_000,      35m),
-        BillingPlan.Practice   => new Limits(1, 11,          10,          25_000,      55m),
-        BillingPlan.Network    => new Limits(1, 19, int.MaxValue,          50_000,      90m),
+        BillingPlan.Trial      => new Limits( 1, int.MaxValue,            1,       5_000,  0m),
+        BillingPlan.PluginOnly => new Limits( 1, int.MaxValue, int.MaxValue,           0, 15m),
+        BillingPlan.Studio     => new Limits( 6, int.MaxValue,            5,      10_000, 35m),
+        BillingPlan.Practice   => new Limits(12, int.MaxValue,           10,      25_000, 55m),
+        BillingPlan.Network    => new Limits(20, int.MaxValue, int.MaxValue,      50_000, 90m),
         BillingPlan.Enterprise => new Limits(int.MaxValue, int.MaxValue, int.MaxValue, long.MaxValue, 0m),
-        _ => new Limits(1, 5, 1, 500, 0m),
+        _                      => new Limits( 6, int.MaxValue,            1,         500,  0m),
     };
 
     /// <summary>Map a legacy LicenseTier onto the new BillingPlan for migrations.</summary>
