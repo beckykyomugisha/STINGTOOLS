@@ -1257,6 +1257,20 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
 // CSP / Referrer-Policy / Permissions-Policy). Inserted early so even
 // short-circuit responses from the rate limiter or auth middleware
 // still carry the hardening headers. /health endpoints are skipped.
+//
+// NOT early enough to cover STATIC FILES, and that is deliberate.
+// UseStaticFiles is registered above (see the viewer's no-cache block) and
+// short-circuits the pipeline, so /viewer.html and the viewer bundles come
+// back with NONE of these headers — verified with `curl -D -` against the
+// live API. Two consequences that are easy to reason wrongly about:
+//   • X-Frame-Options: DENY / frame-ancestors 'none' do NOT apply to
+//     viewer.html, which is why planscape-web can embed it in an iframe;
+//   • Permissions-Policy: camera=(), microphone=() does NOT block the
+//     in-viewer meeting's camera. Media permission for that frame comes
+//     solely from the embedding page's iframe `allow` attribute.
+// Both were mistaken for causes while chasing a camera bug. If you move
+// UseSecurityHeaders above UseStaticFiles you will break the embed and the
+// meeting camera at once.
 app.UseSecurityHeaders();
 app.UseSerilogRequestLogging();
 // MON-02: request/response metrics (latency histogram, status codes, in-flight).
