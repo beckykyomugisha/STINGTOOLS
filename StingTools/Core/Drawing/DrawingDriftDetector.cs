@@ -135,6 +135,25 @@ namespace StingTools.Core.Drawing
                 cache.Valid = true;
             }
 
+            // PERF: build the (filter name → ParameterFilterElement) index at
+            // most once per Scan, the first time a non-managed pack with
+            // filters is actually encountered. AppendVgAndFilterDrift used to
+            // run a fresh FilteredElementCollector per filter rule per view
+            // (K filters × N views collector scans).
+            var filterIndex = new Lazy<Dictionary<string, ParameterFilterElement>>(() =>
+            {
+                var map = new Dictionary<string, ParameterFilterElement>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    foreach (var f in new FilteredElementCollector(doc)
+                        .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
+                        if (!string.IsNullOrEmpty(f.Name) && !map.ContainsKey(f.Name))
+                            map[f.Name] = f; // first-wins on duplicate names
+                }
+                catch { }
+                return map;
+            });
+
             foreach (var kv in cache.StampByViewId)
             {
                 if (!(doc.GetElement(new ElementId(kv.Key)) is View v) || v.IsTemplate) continue;
@@ -211,7 +230,7 @@ namespace StingTools.Core.Drawing
                 // VG / filter drift (non-managed packs only — managed
                 // packs are covered by AppendManagedTemplateDrift's
                 // checksum comparison against the STING:* template).
-                AppendVgAndFilterDrift(doc, v, dt, report);
+                AppendVgAndFilterDrift(doc, v, dt, report, filterIndex);
 
                 if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
@@ -305,7 +324,8 @@ namespace StingTools.Core.Drawing
         // ALL mismatching attributes joined with semicolons so a single
         // re-apply heals every difference at once. (Phase 183 reported
         // only the first mismatch per category, masking the rest.)
-        private static void AppendVgAndFilterDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        private static void AppendVgAndFilterDrift(Document doc, View v, DrawingType dt, DriftReport report,
+            Lazy<Dictionary<string, ParameterFilterElement>> filterIndex)
         {
             try
             {
@@ -356,10 +376,7 @@ namespace StingTools.Core.Drawing
                     foreach (var rule in pack.Filters)
                     {
                         if (string.IsNullOrWhiteSpace(rule.FilterName)) continue;
-                        var filter = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ParameterFilterElement))
-                            .Cast<ParameterFilterElement>()
-                            .FirstOrDefault(f => string.Equals(f.Name, rule.FilterName, StringComparison.OrdinalIgnoreCase));
+                        filterIndex.Value.TryGetValue(rule.FilterName, out var filter);
                         if (filter == null)
                         {
                             // Filter not in document yet — pack-side issue, not view-side drift.
@@ -377,15 +394,16 @@ namespace StingTools.Core.Drawing
                         bool actualVisible;
                         try { actualVisible = v.GetFilterVisibility(filter.Id); }
                         catch { continue; }
-                        if (actualVisible != rule.Visible)
-                            mismatches.Add($"visible={actualVisible} vs {rule.Visible}");
+                        // V-9: a rule that states nothing cannot drift.
+                        if (rule.Visible.HasValue && actualVisible != rule.Visible.Value)
+                            mismatches.Add($"visible={actualVisible} vs {rule.Visible.Value}");
 
                         OverrideGraphicSettings fogs;
                         try { fogs = v.GetFilterOverrides(filter.Id); } catch { fogs = null; }
                         if (fogs != null)
                         {
-                            if (fogs.Halftone != rule.Halftone)
-                                mismatches.Add($"halftone {fogs.Halftone} vs {rule.Halftone}");
+                            if (rule.Halftone.HasValue && fogs.Halftone != rule.Halftone.Value)
+                                mismatches.Add($"halftone {fogs.Halftone} vs {rule.Halftone.Value}");
                             if (rule.ProjectionLineWeight.HasValue
                                 && fogs.ProjectionLineWeight != rule.ProjectionLineWeight.Value)
                                 mismatches.Add($"projWeight {fogs.ProjectionLineWeight} vs {rule.ProjectionLineWeight.Value}");
@@ -550,16 +568,10 @@ namespace StingTools.Core.Drawing
                     ? null
                     : ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
 
-                // ACC-10: profile wins; only fall back to pack when the
-                // profile is null. An empty-string profile.ColorScheme is
-                // treated as "leave as-is" rather than as a falsy → pack
-                // cascade, so a deliberately-cleared profile slot doesn't
-                // silently re-inherit the pack's scheme.
-                string expectedScheme;
-                if (profile != null && profile.ColorScheme != null)
-                    expectedScheme = profile.ColorScheme;
-                else
-                    expectedScheme = pack?.TagColorScheme;
+                // Tag style/colour scheme is single-sourced in the ViewStylePack
+                // (the per-profile ColorScheme field was removed), so the expected
+                // view-tag-style scheme comes from the bound pack only.
+                string expectedScheme = pack?.TagColorScheme;
                 if (!string.IsNullOrEmpty(expectedScheme))
                 {
                     string actual = ReadStringParam(v, ParamRegistry.VIEW_TAG_STYLE);
@@ -579,14 +591,28 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(expectedMask)
                     && expectedMask.Length == 8)
                 {
-                    string actual = ReadStringParam(v, ParamRegistry.TAG_SEG_MASK);
-                    if (!string.Equals(actual, expectedMask, StringComparison.Ordinal))
+                    // FIX-3a made TAG_SEG_MASK a per-ELEMENT parameter — the produce
+                    // path (TokenProfileApplier) writes it on each model element, not
+                    // the view. Reading it off the view (the old behaviour) is always
+                    // empty, so it raised an unhealable false-positive drift for every
+                    // mask-configured type. Sample the view's model elements instead and
+                    // only flag drift when a POPULATED element disagrees with the
+                    // profile — an untagged/empty view yields no populated sample, so
+                    // there's no false positive.
+                    string actual = null; bool found = false;
+                    try
                     {
-                        if (TemplateControlsParameter(doc, v, ParamRegistry.TAG_SEG_MASK))
-                            report.Suppressed.Add($"DRIFT_SUPPRESSED_BY_TEMPLATE: TAG_SEG_MASK controlled by view template ('{actual ?? "(empty)"}' vs profile '{expectedMask}')");
-                        else
-                            report.Drifts.Add($"TOKEN_PROFILE: TAG_SEG_MASK '{actual ?? "(empty)"}' vs profile '{expectedMask}'");
+                        foreach (var el in new FilteredElementCollector(doc, v.Id)
+                            .WhereElementIsNotElementType())
+                        {
+                            var m = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
+                            if (!string.IsNullOrEmpty(m)) { actual = m; found = true; break; }
+                        }
                     }
+                    catch (Exception exMask) { StingTools.Core.StingLog.Warn($"TAG_SEG_MASK sample({v.Id}): {exMask.Message}"); }
+
+                    if (found && !string.Equals(actual, expectedMask, StringComparison.Ordinal))
+                        report.Drifts.Add($"TOKEN_PROFILE: TAG_SEG_MASK '{actual}' vs profile '{expectedMask}' (per-element sample)");
                 }
             }
             catch (Exception ex)

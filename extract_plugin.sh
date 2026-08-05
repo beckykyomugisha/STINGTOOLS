@@ -108,32 +108,40 @@ cat > "$DEPLOY_DIR/StingTools.addin" <<ADDIN_EOF
 </RevitAddIns>
 ADDIN_EOF
 
-# ── Auto-deploy to Revit Addins folder (Phase 188 follow-up) ──────
-# Manifest now points at CompiledPlugin/StingTools.dll, so the only
-# manual step remaining is "copy StingTools.addin into Revit Addins
-# folder once." This block does that automatically for Revit 2025/26/27
-# common locations so every rebuild reaches Revit without manual copy.
-if [ -n "$APPDATA" ]; then
-    # APPDATA on Git Bash / MSYS may arrive in Windows form (C:\Users\...).
-    # Try the value directly first; if that's not a directory, translate
-    # backslashes to forward slashes and the drive letter to /c/ form.
-    REVIT_ADDINS_BASE="$APPDATA/Autodesk/Revit/Addins"
-    if [ ! -d "$REVIT_ADDINS_BASE" ]; then
-        REVIT_ADDINS_BASE="$(echo "$APPDATA" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/\L\1|')/Autodesk/Revit/Addins"
-    fi
-    deployed=0
-    for ver in 2025 2026 2027; do
-        target_dir="$REVIT_ADDINS_BASE/$ver"
-        if [ -d "$target_dir" ]; then
-            if cp -f "$DEPLOY_DIR/StingTools.addin" "$target_dir/StingTools.addin" 2>/dev/null; then
-                echo "  Auto-deployed manifest to: $target_dir"
-                deployed=$((deployed + 1))
-            fi
+# ── Install into Revit — OPT-IN ONLY (STING_DEPLOY=1) ────────────
+# Installing the manifest into Revit's single shared Addins folder is
+# what makes a build "the live plugin". With multiple parallel checkouts
+# (agents building to verify), auto-installing on every build means the
+# last build silently wins and clobbers whatever you were testing.
+#
+# So this is now opt-in: a plain build stages to CompiledPlugin/ (for
+# verification) and does NOT touch Revit. To make THIS checkout the live
+# plugin, run `deploy.bat` (or `STING_DEPLOY=1 bash extract_plugin.sh`).
+if [ "${STING_DEPLOY:-0}" = "1" ]; then
+    if [ -n "$APPDATA" ]; then
+        REVIT_ADDINS_BASE="$APPDATA/Autodesk/Revit/Addins"
+        if [ ! -d "$REVIT_ADDINS_BASE" ]; then
+            REVIT_ADDINS_BASE="$(echo "$APPDATA" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/\L\1|')/Autodesk/Revit/Addins"
         fi
-    done
-    if [ "$deployed" = "0" ]; then
-        echo "  (No Revit Addins folder found under \$APPDATA — manual copy still needed.)"
+        deployed=0
+        for ver in 2025 2026 2027; do
+            target_dir="$REVIT_ADDINS_BASE/$ver"
+            if [ -d "$target_dir" ]; then
+                # Clear any read-only lock a previous isolated deploy set.
+                chmod u+w "$target_dir/StingTools.addin" 2>/dev/null || true
+                if cp -f "$DEPLOY_DIR/StingTools.addin" "$target_dir/StingTools.addin" 2>/dev/null; then
+                    echo "  Installed manifest into Revit: $target_dir"
+                    deployed=$((deployed + 1))
+                fi
+            fi
+        done
+        if [ "$deployed" = "0" ]; then
+            echo "  (No Revit Addins folder found under \$APPDATA — manual copy still needed.)"
+        fi
     fi
+else
+    echo "  Revit install SKIPPED (staged to CompiledPlugin only)."
+    echo "  -> Run deploy.bat (or STING_DEPLOY=1 bash extract_plugin.sh) to make THIS checkout the live plugin."
 fi
 
 # ── Report ────────────────────────────────────────────────────────

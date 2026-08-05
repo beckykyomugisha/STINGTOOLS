@@ -34,10 +34,32 @@ public class BoqBaseline : ITenantScoped
     /// <summary>Number of <see cref="QuantityLine"/> rows captured.</summary>
     public int LineCount { get; set; }
 
-    /// <summary>Sum of LineTotal across all lines in baseline currency.</summary>
+    /// <summary>Sum of LineTotal across all lines (the WORKS value, ex markup)
+    /// in baseline currency. Recomputed authoritatively from the persisted lines.</summary>
     public decimal TotalValue { get; set; }
 
-    public string Currency { get; set; } = "GBP";
+    // CA-5 — the server used to store works-only (TotalValue) and transmit no
+    // markup, so it could never reconcile to the contract sum. These carry the
+    // BoqMarkupBreakdown the plugin now pushes. Nullable + additive (an EF
+    // migration adds the columns; legacy baselines keep null).
+    /// <summary>Σ line totals (works, ex markup) — the same basis as TotalValue.</summary>
+    public decimal? WorksValue { get; set; }
+    /// <summary>Preliminaries contribution (itemised Σ or works × prelim%).</summary>
+    public decimal? Preliminaries { get; set; }
+    /// <summary>Main-contractor overhead &amp; profit.</summary>
+    public decimal? Overhead { get; set; }
+    /// <summary>Design/construction contingency.</summary>
+    public decimal? Contingency { get; set; }
+    /// <summary>Contract Sum EXCLUSIVE of VAT (CA-2 lifecycle basis): works +
+    /// prelims + OH&amp;P + contingency.</summary>
+    public decimal? ContractSumExVat { get; set; }
+    /// <summary>VAT on the net contract sum.</summary>
+    public decimal? Vat { get; set; }
+    /// <summary>Contract Sum INCLUSIVE of VAT (presentation total).</summary>
+    public decimal? ContractSumInclVat { get; set; }
+
+    // CA-1/CA-5 — the project base currency is UGX, never GBP.
+    public string Currency { get; set; } = "UGX";
 
     /// <summary>Optional reference back to a published <see cref="DocumentRecord"/>.</summary>
     public Guid? DocumentRecordId { get; set; }

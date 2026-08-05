@@ -337,7 +337,15 @@ public class IfcIngestController : ControllerBase
         var mapping = LoadPsetMapping();
 
         // Index existing rows so we can update vs insert in one round-trip.
+        // IgnoreQueryFilters is REQUIRED: soft-deleted rows are hidden by the
+        // global tombstone filter, but this is an UPSERT — if a previously
+        // tombstoned element is re-ingested we must find its row and revive it.
+        // Without this the row looks absent, we INSERT, and the unique
+        // (ProjectId, UniqueId) index throws. Ownership is unchanged: projectId
+        // is already tenant-checked by the caller and (ProjectId, UniqueId) is
+        // this table's cross-host unique key space.
         var existing = await _db.TaggedElements
+            .IgnoreQueryFilters()
             .Where(t => t.ProjectId == projectId)
             .ToDictionaryAsync(t => t.UniqueId, ct);
 
@@ -387,6 +395,11 @@ public class IfcIngestController : ControllerBase
                 row.Tag1         = tag1.Length > 0 ? tag1 : row.Tag1;
                 row.Source       = result.Source;
                 row.SyncedAt     = DateTime.UtcNow;
+                // This path only carries LIVE elements (IFC ingest has no
+                // delete channel), so re-ingesting a tombstoned element is an
+                // undelete — otherwise the row would stay invisible behind the
+                // global filter despite having just been written.
+                row.DeletedAtUtc = null;
                 updated++;
             }
             else

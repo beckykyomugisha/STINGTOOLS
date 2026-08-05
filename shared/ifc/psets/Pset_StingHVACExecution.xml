@@ -162,7 +162,7 @@
   </Properties>
 
   <CorporateLock>
-    <Sha256>PENDING_FINALISATION</Sha256>
+    <Sha256>59dd723bd6f122ac1df1b6d55b026e91a2fac66cc27c4c83678438902f90d1c0</Sha256>
     <LockedAtVersion>5.0.0</LockedAtVersion>
     <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
   </CorporateLock>

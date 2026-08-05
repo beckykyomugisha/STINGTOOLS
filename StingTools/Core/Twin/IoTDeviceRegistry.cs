@@ -77,17 +77,29 @@ namespace StingTools.Core.Twin
             var f = new ElementMulticategoryFilter(cats);
             foreach (var el in new FilteredElementCollector(_doc).WherePasses(f).WhereElementIsNotElementType())
             {
+                // Healthcare device id first, then the generic BMS convention so a
+                // non-healthcare project (e.g. a temple) is also detected:
+                //   BMS_DEVICE_ID_TXT (explicit, optional) → COM_C_DEV_BACNET_INSTANCE_INT
+                //   (the generic BACnet identifier, already in the schema). Unbound
+                //   params return null from Get(), so this is safe without new params.
+                bool fromBacnet = false;
                 var deviceId = Get(el, "ICT_HEALTHIOT_DEVICE_ID_TXT")
+                            ?? Get(el, "BMS_DEVICE_ID_TXT")
                             ?? Get(el, "MGS_AAP_REF_TXT")
                             ?? Get(el, "MGS_ZVB_REF_TXT");
+                if (string.IsNullOrEmpty(deviceId))
+                {
+                    deviceId = Get(el, "COM_C_DEV_BACNET_INSTANCE_INT");
+                    if (!string.IsNullOrEmpty(deviceId)) fromBacnet = true;
+                }
                 if (string.IsNullOrEmpty(deviceId)) continue;
                 _devices.Add(new IoTDeviceRef
                 {
                     BimElementId = el.Id,
                     DeviceId = deviceId,
-                    Protocol = Get(el, "ICT_HEALTHIOT_PROTOCOL_TXT") ?? "PROPRIETARY",
-                    EndpointAddress = Get(el, "ICT_HEALTHIOT_ENDPOINT_TXT") ?? "",
-                    AlertBand = Get(el, "ICT_HEALTHIOT_ALERT_BAND_TXT") ?? "",
+                    Protocol = Get(el, "ICT_HEALTHIOT_PROTOCOL_TXT") ?? Get(el, "BMS_PROTOCOL_TXT") ?? (fromBacnet ? "BACNET" : "PROPRIETARY"),
+                    EndpointAddress = Get(el, "ICT_HEALTHIOT_ENDPOINT_TXT") ?? Get(el, "BMS_ENDPOINT_TXT") ?? "",
+                    AlertBand = Get(el, "ICT_HEALTHIOT_ALERT_BAND_TXT") ?? Get(el, "BMS_ALERT_BAND_TXT") ?? "",
                     LastSeenUtc = default
                 });
             }

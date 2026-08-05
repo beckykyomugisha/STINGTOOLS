@@ -367,8 +367,9 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(zone)) zone = "ZZ";
                     string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                     string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                    string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                     // Use canonical BuildSeqKey for consistent key format across all commands
-                    string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                    string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                     maxSeq.TryGetValue(key, out int ms);
                     maxSeq[key] = ms + 1;
                     // Honor SeqScheme setting (Numeric/Alpha/ZonePrefix/DiscPrefix)
@@ -685,13 +686,12 @@ namespace StingTools.Tags
             td.MainContent = $"Current: {TagConfig.CurrentSeqScheme}\n\n" +
                 "WARNING: Changing scheme may require re-numbering all elements.";
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Numeric (0001, 0042)", "Standard zero-padded numbers");
+                "Numeric (0001, 0042)", "Standard zero-padded numbers (recommended)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "Alphabetic (A, B, AA)", "Base-26 letter codes");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Zone-Prefixed (Z1-0042)", "Zone prefix before number");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Discipline-Prefixed (M-0042)", "Discipline prefix before number");
+            // Zone-Prefixed / Discipline-Prefixed removed: they injected the tag
+            // separator into the SEQ segment and duplicated the ZONE/DISC tokens,
+            // breaking the fixed 8-segment ISO 19650 grammar.
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
             var result = td.Show();
 
@@ -699,8 +699,6 @@ namespace StingTools.Tags
             {
                 case TaskDialogResult.CommandLink1: TagConfig.CurrentSeqScheme = SeqScheme.Numeric; break;
                 case TaskDialogResult.CommandLink2: TagConfig.CurrentSeqScheme = SeqScheme.Alpha; break;
-                case TaskDialogResult.CommandLink3: TagConfig.CurrentSeqScheme = SeqScheme.ZonePrefix; break;
-                case TaskDialogResult.CommandLink4: TagConfig.CurrentSeqScheme = SeqScheme.DiscPrefix; break;
                 default: return Result.Cancelled;
             }
 

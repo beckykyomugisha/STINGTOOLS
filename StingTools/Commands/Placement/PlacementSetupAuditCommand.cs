@@ -68,17 +68,12 @@ namespace StingTools.Commands.Placement
         {
             var doc = commandData?.Application?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
-
-            var findings = new List<AuditFinding>();
             try
             {
-                AuditSharedParameters(doc, findings);
-                AuditFamilies(doc, findings);
-                AuditCategories(doc, findings);
-                AuditPhases(doc, findings);
-                AuditCatalogue(findings);
-                AuditRulePack(doc, findings);
-                AuditViewStylePack(findings);
+                string text = BuildReportText(doc, out _, out _, out string csvPath);
+                TaskDialog.Show("STING - Placement Setup Audit",
+                    text + (string.IsNullOrEmpty(csvPath) ? "" : $"\nCSV: {csvPath}"));
+                return Result.Succeeded;
             }
             catch (Exception ex)
             {
@@ -86,10 +81,27 @@ namespace StingTools.Commands.Placement
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// Run all audit passes and build the report text + CSV. Shared by
+        /// Execute (TaskDialog) and the Placement Centre (inline Report panel).
+        /// </summary>
+        public static string BuildReportText(Document doc, out int errs, out int warns, out string csvPath)
+        {
+            csvPath = "";
+            var findings = new List<AuditFinding>();
+            AuditSharedParameters(doc, findings);
+            AuditFamilies(doc, findings);
+            AuditCategories(doc, findings);
+            AuditPhases(doc, findings);
+            AuditCatalogue(findings);
+            AuditRulePack(doc, findings);
+            AuditViewStylePack(findings);
 
             // Build report.
-            int errs = findings.Count(f => f.Severity == AuditSeverity.Error);
-            int warns = findings.Count(f => f.Severity == AuditSeverity.Warning);
+            errs = findings.Count(f => f.Severity == AuditSeverity.Error);
+            warns = findings.Count(f => f.Severity == AuditSeverity.Warning);
             int info = findings.Count(f => f.Severity == AuditSeverity.Info);
 
             var sb = new StringBuilder();
@@ -108,7 +120,6 @@ namespace StingTools.Commands.Placement
             }
 
             // Always write CSV.
-            string csvPath = "";
             try
             {
                 string outDir = OutputLocationHelper.GetOutputPath(doc, "PlacementSetupAudit") ?? Path.GetTempPath();
@@ -122,9 +133,7 @@ namespace StingTools.Commands.Placement
             }
             catch (Exception ex) { StingLog.Warn($"PlacementSetupAudit CSV: {ex.Message}"); }
 
-            TaskDialog.Show("STING - Placement Setup Audit",
-                sb.ToString() + (string.IsNullOrEmpty(csvPath) ? "" : $"\nCSV: {csvPath}"));
-            return Result.Succeeded;
+            return sb.ToString();
         }
 
         // ── Audit passes ───────────────────────────────────────────

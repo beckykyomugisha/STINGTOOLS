@@ -91,7 +91,7 @@ namespace StingTools.Commands.Electrical.Reports
                     if (string.IsNullOrEmpty(name) && kva <= 0) continue;
                     var row = new EquipmentRow
                     {
-                        Tag           = el.LookupParameter("ASS_TAG_1")?.AsString() ?? el.Id.ToString(),
+                        Tag           = el.LookupParameter("ASS_TAG_1_TXT")?.AsString() ?? el.Id.ToString(),
                         Mark          = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "",
                         Discipline    = defaultDisc,
                         FamilyName    = el.Symbol?.FamilyName ?? "",

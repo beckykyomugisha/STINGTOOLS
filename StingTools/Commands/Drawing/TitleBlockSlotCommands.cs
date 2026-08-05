@@ -11,7 +11,7 @@
 //     at the slot's centre. Applies the slot's scaleHint + viewportType
 //     when set. Reports per-view what slot it landed in.
 //
-//   TitleBlock_ToggleBIMMode — read STING_SHEET_BIM_MODE_TXT on the
+//   TitleBlock_ToggleBIMMode — read PRJ_SHEET_BIM_MODE_TXT on the
 //     active sheet, swap the title-block family between *_BIM_* and
 //     *_NONBIM_* variants, transfer existing viewports onto the new
 //     family (positions transfer 1:1 since slot ids are stable across
@@ -220,29 +220,7 @@ namespace StingTools.Commands.Drawing
         /// Returns the slot id, or null if nothing matches even via aliases.</summary>
         private static string ResolveSlotForTag(Dictionary<string, SlotBounds> slotMap,
             string tag, ViewportPlacementRules rules)
-        {
-            if (slotMap == null || string.IsNullOrEmpty(tag)) return null;
-            // Direct hit: any slot whose purposeTag matches.
-            foreach (var kv in slotMap)
-            {
-                if (string.Equals(kv.Value.PurposeTag, tag, StringComparison.OrdinalIgnoreCase))
-                    return kv.Key;
-            }
-            // Alias chain.
-            if (rules?.PurposeTagAliases != null
-                && rules.PurposeTagAliases.TryGetValue(tag, out var aliases))
-            {
-                foreach (var alias in aliases)
-                {
-                    foreach (var kv in slotMap)
-                    {
-                        if (string.Equals(kv.Value.PurposeTag, alias, StringComparison.OrdinalIgnoreCase))
-                            return kv.Key;
-                    }
-                }
-            }
-            return null;
-        }
+            => TitleBlockSlotUtils.ResolveSlotIdForTag(slotMap, tag, rules);
 
         private static bool GlobMatch(string pattern, string value)
         {
@@ -292,7 +270,7 @@ namespace StingTools.Commands.Drawing
             }
             var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
             var currentName = sym?.Family?.Name ?? "";
-            var bimModeParam = titleBlock.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+            var bimModeParam = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
             var currentMode  = bimModeParam?.AsString();
             if (string.IsNullOrEmpty(currentMode)) currentMode = GuessModeFromName(currentName);
             string targetMode = string.Equals(currentMode, "BIM", StringComparison.OrdinalIgnoreCase)
@@ -344,7 +322,7 @@ namespace StingTools.Commands.Drawing
                 if (fi != null) fi.Symbol = targetSym;
 
                 // Update the BIM mode marker on the new instance.
-                var newBim = titleBlock.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+                var newBim = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
                 if (newBim != null && !newBim.IsReadOnly)
                 {
                     try { newBim.Set(targetMode); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -558,7 +536,57 @@ namespace StingTools.Commands.Drawing
         ///      or migrated layouts may still have them.
         ///
         /// JSON is the authoritative source.</summary>
+        // SLOT-5 — per-family slot-map memo. The reference-plane override pass
+        // below calls Document.EditFamily, which OPENS the family document; that
+        // ran once per sheet, uncached, so an M-sheet batch opened and closed the
+        // same title-block family M times. Cached by family name and dropped
+        // whenever the document changes or a batch starts, so an operator who
+        // nudges slots in the Family Editor still gets a fresh read on the next
+        // production run rather than a stale map for the session.
+        private static readonly object _slotMapLock = new object();
+        private static Dictionary<string, Dictionary<string, SlotBounds>> _slotMapCache;
+        private static string _slotMapDocKey;
+
+        /// <summary>Drop the cached slot maps. Called at batch boundaries by
+        /// DrawingProducer so a re-run re-reads the family.</summary>
+        public static void ClearSlotMapCache()
+        {
+            lock (_slotMapLock) { _slotMapCache = null; _slotMapDocKey = null; }
+        }
+
         public static Dictionary<string, SlotBounds> ReadSlotBoundsFromTitleBlock(Document doc, Element titleBlock)
+        {
+            var cacheKey = GetFamilyName(doc, titleBlock);
+            var docKey = doc?.PathName ?? "";
+            if (!string.IsNullOrEmpty(cacheKey))
+            {
+                lock (_slotMapLock)
+                {
+                    if (!string.Equals(_slotMapDocKey, docKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _slotMapCache = null;
+                        _slotMapDocKey = docKey;
+                    }
+                    if (_slotMapCache != null && _slotMapCache.TryGetValue(cacheKey, out var hit))
+                        return hit;
+                }
+            }
+
+            var computed = ReadSlotBoundsFromTitleBlockCore(doc, titleBlock);
+
+            if (!string.IsNullOrEmpty(cacheKey))
+            {
+                lock (_slotMapLock)
+                {
+                    if (_slotMapCache == null)
+                        _slotMapCache = new Dictionary<string, Dictionary<string, SlotBounds>>(StringComparer.OrdinalIgnoreCase);
+                    _slotMapCache[cacheKey] = computed;
+                }
+            }
+            return computed;
+        }
+
+        private static Dictionary<string, SlotBounds> ReadSlotBoundsFromTitleBlockCore(Document doc, Element titleBlock)
         {
             var result = new Dictionary<string, SlotBounds>(StringComparer.OrdinalIgnoreCase);
             var familyName = GetFamilyName(doc, titleBlock);
@@ -576,16 +604,18 @@ namespace StingTools.Commands.Drawing
                         spec = Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, spec);
                         foreach (var slot in spec.Slots ?? Enumerable.Empty<Core.Drawing.SlotSpec>())
                         {
-                            if (string.IsNullOrEmpty(slot.Id)
-                                || slot.Anchor == null || slot.Anchor.Length < 2
-                                || slot.Size   == null || slot.Size.Length   < 2) continue;
+                            if (string.IsNullOrEmpty(slot.Id)) continue;
+                            // P12 — resolve fractional coords against the family's
+                            // drawable rect when present, else absolute anchor/size.
+                            if (!slot.TryResolveAbsolute(spec.Drawable, out var anchorMm, out var sizeMm))
+                                continue;
                             // Convert the spec's mm coords to feet (Revit
                             // internal length unit), origin at sheet's
                             // bottom-left.
-                            double xFt = MmToFt(slot.Anchor[0]);
-                            double yFt = MmToFt(slot.Anchor[1]);
-                            double wFt = MmToFt(slot.Size[0]);
-                            double hFt = MmToFt(slot.Size[1]);
+                            double xFt = MmToFt(anchorMm[0]);
+                            double yFt = MmToFt(anchorMm[1]);
+                            double wFt = MmToFt(sizeMm[0]);
+                            double hFt = MmToFt(sizeMm[1]);
                             result[slot.Id] = new SlotBounds
                             {
                                 Id           = slot.Id,
@@ -669,6 +699,40 @@ namespace StingTools.Commands.Drawing
                 StingLog.Warn($"ReadSlotBoundsFromTitleBlock (ref planes): {ex2.Message}");
             }
             return result;
+        }
+
+        /// <summary>Find the id of the slot whose <see cref="SlotBounds.PurposeTag"/>
+        /// matches <paramref name="tag"/>. Exact (case-insensitive) match first,
+        /// then the alias chain from
+        /// <see cref="ViewportPlacementRules.PurposeTagAliases"/> for graceful
+        /// fallback (a "main-plan-half-left" request lands in a "main-plan" slot
+        /// when the half-left pocket isn't present). Returns null when nothing
+        /// matches even via aliases. Shared by the manual auto-placer and the
+        /// automated <c>SheetPlacementBridge</c> (P1 — unified slot model).</summary>
+        public static string ResolveSlotIdForTag(Dictionary<string, SlotBounds> slotMap,
+            string tag, ViewportPlacementRules rules)
+        {
+            if (slotMap == null || string.IsNullOrEmpty(tag)) return null;
+            // Direct hit: any slot whose purposeTag matches.
+            foreach (var kv in slotMap)
+            {
+                if (string.Equals(kv.Value.PurposeTag, tag, StringComparison.OrdinalIgnoreCase))
+                    return kv.Key;
+            }
+            // Alias chain.
+            if (rules?.PurposeTagAliases != null
+                && rules.PurposeTagAliases.TryGetValue(tag, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    foreach (var kv in slotMap)
+                    {
+                        if (string.Equals(kv.Value.PurposeTag, alias, StringComparison.OrdinalIgnoreCase))
+                            return kv.Key;
+                    }
+                }
+            }
+            return null;
         }
 
         private const double MmPerFoot = 304.8;

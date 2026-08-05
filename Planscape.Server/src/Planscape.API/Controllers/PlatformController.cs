@@ -131,6 +131,10 @@ public class PlatformController : ControllerBase
 
         var connector = _connectorFactory.GetConnector(conn.Platform);
         var result = await connector.TestConnectionAsync(conn, ct);
+        // TestConnection may have refreshed the OAuth token. Providers like ACC
+        // rotate the refresh token on every refresh, so persist any rotation —
+        // otherwise the stored token is left invalid and the next op fails.
+        await _db.SaveChangesAsync(ct);
         return Ok(result);
     }
 

@@ -1,6 +1,6 @@
 # Deploying Planscape marketing site
 
-Step-by-step walkthrough from "no domain" to "live on planscape.co with HTTPS". Estimated time: 30 minutes if you've never done this before, 5 minutes if you have.
+Step-by-step walkthrough from "no domain" to "live on planscape.build with HTTPS". Estimated time: 30 minutes if you've never done this before, 5 minutes if you have.
 
 **Total cost:** ~$10/year (domain only). Cloudflare Pages hosting, Cloudflare DNS, SSL certificate are all free.
 
@@ -16,7 +16,7 @@ Cloudflare sells domains **at cost** — no markup. A `.com` is $10.44/yr at the
 
 1. Sign up at <https://dash.cloudflare.com/sign-up> (free Cloudflare account).
 2. In the dashboard, click **Domain Registration → Register Domains**.
-3. Search for `planscape.co` (or whatever you've chosen).
+3. Search for `planscape.build` (or whatever you've chosen).
 4. The `.app` TLD is $13.18/yr at cost. The `.com` is $10.44/yr. Pick whichever.
 5. Pay with card. Domain is active within ~5 minutes.
 
@@ -39,7 +39,7 @@ If for some reason Cloudflare Registrar isn't available in your country:
 ### What to register
 
 - Always register the `.com` if available. It's the default people type.
-- Register the `.app` if you're using it as your canonical (we use planscape.co).
+- Register the `.app` if you're using it as your canonical (we use planscape.build).
 - Optionally register your country TLD too (e.g. `.co.ug`) — costs more (~$25/yr) but useful if you want to localise eventually.
 
 ---
@@ -122,12 +122,12 @@ From now on, every `git push` to `main` triggers an automatic deploy. PRs get pr
 
 1. In Cloudflare dashboard, open your Pages project → **Custom domains** tab.
 2. Click **Set up a custom domain**.
-3. Type your apex domain: `planscape.co`.
+3. Type your apex domain: `planscape.build`.
 4. Cloudflare auto-creates the right DNS record (a CNAME or AAAA flattened to the Pages worker).
-5. Repeat for `www.planscape.co` — Cloudflare creates a redirect to the apex.
+5. Repeat for `www.planscape.build` — Cloudflare creates a redirect to the apex.
 6. Wait 1–2 minutes for the certificate to issue. You'll see "Active" with a green checkmark.
 
-Now <https://planscape.co> serves your marketing site.
+Now <https://planscape.build> serves your marketing site.
 
 ---
 
@@ -142,7 +142,7 @@ Before sharing the URL publicly, swap out the placeholders:
 | `DEMO_VIDEO_ID` | `index.html` | YouTube video ID for your 90-second demo |
 | `+256700000000` | every page | Your real WhatsApp Business number |
 | `https://cal.com/planscape/demo` | `contact.html` | Your Cal.com / Calendly booking link |
-| `https://api.planscape.co/marketing/...` | `index.html`, `contact.html` | Your API base URL (or change endpoints to whatever's live) |
+| `https://api.planscape.build/marketing/...` | `index.html`, `contact.html` | Your API base URL (or change endpoints to whatever's live) |
 
 Quickest way:
 
@@ -173,10 +173,10 @@ Forward all incoming mail to your existing Gmail / Outlook inbox.
 2. Enable it. Cloudflare auto-creates the MX records.
 3. Add destination email (your existing inbox). Verify via the click-link they email you.
 4. Add custom routes:
-   - `hello@planscape.co` → your Gmail
-   - `support@planscape.co` → your Gmail
-   - `security@planscape.co` → your Gmail
-   - `*@planscape.co` (catch-all) → your Gmail
+   - `hello@planscape.build` → your Gmail
+   - `support@planscape.build` → your Gmail
+   - `security@planscape.build` → your Gmail
+   - `*@planscape.build` (catch-all) → your Gmail
 
 For sending email FROM the domain (replying, transactional), see Stage 8.
 
@@ -205,7 +205,7 @@ Free up to 300 emails/day. African-friendly support.
 3. Generate an SMTP key for your API server.
 4. Set the SMTP env vars on your API host (Render.com → Environment).
 
-You already have the contact form posting to `https://api.planscape.co/marketing/contact` — wire that endpoint to send via Brevo SMTP.
+You already have the contact form posting to `https://api.planscape.build/marketing/contact` — wire that endpoint to send via Brevo SMTP.
 
 ---
 
@@ -216,7 +216,7 @@ You already have the contact form posting to `https://api.planscape.co/marketing
 Privacy-first, no cookies, GDPR-friendly. Built into Cloudflare. Free.
 
 1. Cloudflare dashboard → **Analytics → Web Analytics**.
-2. Click **Add a site** → enter `planscape.co`.
+2. Click **Add a site** → enter `planscape.build`.
 3. Cloudflare gives you a snippet. Paste into `marketing-site/index.html` just before `</body>`.
 4. Copy the same snippet into every other page (or put it in a shared script — but the snippet is so small that inlining works fine).
 
@@ -233,9 +233,9 @@ Industry standard but cookie-based — you'll need a cookie banner.
 ## Stage 10 — Submit to search engines (10 min)
 
 1. **Google Search Console** — <https://search.google.com/search-console>
-   - Add the property `https://planscape.co`.
+   - Add the property `https://planscape.build`.
    - Verify via DNS TXT record (Cloudflare DNS, takes 2 minutes).
-   - Submit your sitemap: `https://planscape.co/sitemap.xml`.
+   - Submit your sitemap: `https://planscape.build/sitemap.xml`.
 
 2. **Bing Webmaster Tools** — <https://www.bing.com/webmasters>
    - Add the site.
@@ -312,7 +312,7 @@ You haven't replaced `PLANSCAPE_MAPBOX_TOKEN` in `index.html`. The site detects 
 
 ### "Forms don't submit"
 
-The contact and demo forms post to `https://api.planscape.co/marketing/*` — these endpoints need to exist on your API. Until the API is deployed, the forms will show the error path and ask users to email instead.
+The contact and demo forms post to `https://api.planscape.build/marketing/*` — these endpoints need to exist on your API. Until the API is deployed, the forms will show the error path and ask users to email instead.
 
 ---
 
@@ -321,10 +321,10 @@ The contact and demo forms post to `https://api.planscape.co/marketing/*` — th
 1. Test every form by submitting yourself.
 2. Test the WhatsApp link — make sure your business number receives the message.
 3. Share the URL with a friend on a slow phone — confirm it loads in &lt;2s.
-4. Run a Lighthouse audit (`https://pagespeed.web.dev/?url=https://planscape.co`) — aim for &gt;90 on Performance, Accessibility, Best Practices, SEO.
+4. Run a Lighthouse audit (`https://pagespeed.web.dev/?url=https://planscape.build`) — aim for &gt;90 on Performance, Accessibility, Best Practices, SEO.
 5. Submit the sitemap to Google Search Console.
 6. Start writing the next blog post.
 
 ---
 
-Questions: <hello@planscape.co>.
+Questions: <hello@planscape.build>.

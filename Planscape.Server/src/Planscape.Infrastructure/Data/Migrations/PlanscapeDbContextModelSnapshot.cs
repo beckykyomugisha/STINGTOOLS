@@ -3308,6 +3308,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                     b.HasIndex("Status");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("ProjectId", "Code")
                         .IsUnique();
 
@@ -4060,6 +4062,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                     b.HasIndex("MeetingId");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("MeetingId", "Status");
 
                     b.ToTable("MeetingActionItems");
@@ -4110,6 +4114,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(400)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("MeetingId", "OrderIndex");
 
@@ -4165,9 +4171,85 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                     b.HasIndex("MeetingId");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("MeetingAttendees");
+                });
+
+            modelBuilder.Entity("Planscape.Core.Entities.MeetingRecording", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("DurationSeconds")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("EgressId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<Guid?>("MeetingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StartedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("StartedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("StorageKey")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EgressId");
+
+                    b.HasIndex("SessionId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ProjectId", "MeetingId");
+
+                    b.ToTable("MeetingRecordings");
                 });
 
             modelBuilder.Entity("Planscape.Core.Entities.MeetingSession", b =>
@@ -4269,80 +4351,6 @@ namespace Planscape.Infrastructure.Data.Migrations
                     b.HasIndex("SessionId", "CapturedAt");
 
                     b.ToTable("MeetingSnapshots");
-                });
-
-            modelBuilder.Entity("Planscape.Core.Entities.MeetingRecording", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double?>("DurationSeconds")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("EgressId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTime?>("EndedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Error")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FileName")
-                        .HasColumnType("text");
-
-                    b.Property<long?>("FileSizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("character varying(24)");
-
-                    b.Property<Guid?>("MeetingId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("SessionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("StartedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("StartedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<string>("StorageKey")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EgressId");
-
-                    b.HasIndex("SessionId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("ProjectId", "MeetingId");
-
-                    b.ToTable("MeetingRecordings");
                 });
 
             modelBuilder.Entity("Planscape.Core.Entities.MeetingViewerParticipant", b =>
@@ -7197,6 +7205,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                     b.HasIndex("SiteDiaryId");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("SiteDiaryAttachments");
                 });
 
@@ -7795,6 +7805,92 @@ namespace Planscape.Infrastructure.Data.Migrations
                     b.HasIndex("TenantId", "ProjectId", "FromCode", "ToCode");
 
                     b.ToTable("SuitabilityTransitionRules");
+                });
+
+            modelBuilder.Entity("Planscape.Core.Entities.SustainabilitySnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CapturedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClimateZone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EdgeLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EdgePassed")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("EnergyEuiKwhM2Yr")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("EnergySavingsPct")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("FloorAreaM2")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("GwpReductionPct")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("MaterialCarbonKgM2")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("MaterialEnergyMjM2")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("MaterialEnergySavingsPct")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Occupancy")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("OperationalCarbonKgYr")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Rag")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupplyMode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("WaterLPersonDay")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("WaterSavingsPct")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("SustainabilitySnapshots");
                 });
 
             modelBuilder.Entity("Planscape.Core.Entities.SyncConflict", b =>

@@ -58,7 +58,7 @@ namespace StingTools.BOQ.Rates
             double ugxPerGbp = 0)
         {
             string key = doc?.PathName ?? "default";
-            return _cache.GetOrAdd(key, _ => Build(csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp));
+            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp));
         }
 
         /// <summary>
@@ -68,6 +68,7 @@ namespace StingTools.BOQ.Rates
         public static void Invalidate() => _cache.Clear();
 
         private static RateProviderRegistry Build(
+            Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             double ugxPerUsd, double ugxPerGbp)
@@ -76,6 +77,12 @@ namespace StingTools.BOQ.Rates
             {
                 new ParameterOverrideRateProvider(),
                 new ExtensibleStorageRateProvider(),
+                // P3.4 — project rate card (incl. QS-Bill-imported rates at
+                // <project>/_BIM_COORD/rate_card.json). Priority 87 sits above
+                // CSV so a QS-priced category beats the corporate default.
+                // Returns null when the file is absent, so legacy projects are
+                // unaffected.
+                Providers.ProjectRateCardProvider.Load(doc),
                 // N+8 — Material-library rate (priority 95). Sits above CSV
                 // category match so a project that has curated material cost
                 // in the MAT panel always wins over the cost_rates_5d.csv
@@ -90,7 +97,69 @@ namespace StingTools.BOQ.Rates
                 new CobieRateProvider(cobieCostCodes, csvRates),
                 new DefaultRateProvider()
             };
+
+            // Phase 2B — live-rate feeds, configured inline via the "Rate feeds"
+            // action (persisted to _BIM_COORD/rate_feeds.json). Added here so the
+            // priority chain — and ResolveAll (the Fetch live rates surface) —
+            // include them automatically. Disabled feeds add nothing (legacy
+            // projects unaffected); a misconfigured / unreachable feed simply
+            // returns null at Resolve time (offline-safe).
+            try
+            {
+                AddConfiguredFeeds(providers, doc);
+            }
+            catch (Exception ex) { StingLog.Warn($"RateProviderRegistry feeds: {ex.Message}"); }
+
             return new RateProviderRegistry(providers, ugxPerUsd, ugxPerGbp);
+        }
+
+        /// <summary>
+        /// Phase 2B — just the configured live-rate feed providers (BCIS /
+        /// Planscape), with NO model-reading providers. The Fetch-live-rates
+        /// surface calls Resolve on these off the UI thread; they only touch the
+        /// network (category/unit), never the Revit API — safe to run off the
+        /// API thread. Returns an empty list when no feed is enabled.
+        /// </summary>
+        public static List<IRateProvider> GetLiveFeedProviders(Document doc)
+        {
+            var list = new List<IRateProvider>();
+            try { AddConfiguredFeeds(list, doc); }
+            catch (Exception ex) { StingLog.Warn($"RateProviderRegistry.GetLiveFeedProviders: {ex.Message}"); }
+            return list;
+        }
+
+        /// <summary>Append the BCIS / Planscape live-rate providers when the
+        /// project's rate_feeds.json enables them.</summary>
+        private static void AddConfiguredFeeds(List<IRateProvider> providers, Document doc)
+        {
+            if (doc == null) return;
+            var cfg = RateFeedsStore.Load(doc);
+            if (cfg == null) return;
+
+            if (cfg.BcisEnabled && !string.IsNullOrWhiteSpace(cfg.BcisBaseUrl))
+            {
+                string cacheDir = null;
+                try
+                {
+                    string bimDir = StingTools.BIMManager.BIMManagerEngine.GetBIMManagerDir(doc);
+                    if (!string.IsNullOrEmpty(bimDir))
+                        cacheDir = System.IO.Path.Combine(bimDir, "rate_cache");
+                }
+                catch (Exception ex) { StingLog.Warn($"RateProviderRegistry BCIS cacheDir: {ex.Message}"); }
+
+                providers.Add(new Providers.BcisHttpRateProvider(
+                    cfg.BcisBaseUrl, cfg.BcisApiKey, cfg.BcisTtlMinutes, cacheDir));
+                StingLog.Info("RateProviderRegistry: BCIS live feed enabled.");
+            }
+
+            if (cfg.PlanscapeEnabled)
+            {
+                Guid pid = Guid.Empty;
+                try { pid = StingTools.BIMManager.PlanscapeServerClient.Instance?.CurrentProjectId ?? Guid.Empty; }
+                catch (Exception ex) { StingLog.Warn($"RateProviderRegistry Planscape pid: {ex.Message}"); }
+                providers.Add(new Providers.PlanscapeRateProvider(pid));
+                StingLog.Info("RateProviderRegistry: Planscape live feed enabled.");
+            }
         }
 
         /// <summary>
@@ -117,6 +186,13 @@ namespace StingTools.BOQ.Rates
             if (req == null) return ZeroLookup("");
             foreach (var provider in _providers)
             {
+                // WP6 — never block the synchronous per-element / transaction
+                // build on a network call. Network providers (BCIS / Planscape)
+                // do a blocking .GetAwaiter().GetResult() internally; they are
+                // pre-warmed OFF the UI thread via GetLiveFeedProviders + the
+                // Fetch-live-rates action (results land as model overrides) and
+                // remain visible in the ResolveAll diagnostic. Skip them here.
+                if (provider.RequiresNetwork) continue;
                 try
                 {
                     var lookup = provider.Resolve(req);
@@ -154,43 +230,31 @@ namespace StingTools.BOQ.Rates
         private RateLookup ConvertCurrency(RateLookup lookup, string targetCurrency)
         {
             if (lookup == null) return null;
-            if (string.IsNullOrEmpty(targetCurrency) ||
-                string.Equals(lookup.CurrencyCode, targetCurrency, StringComparison.OrdinalIgnoreCase))
+
+            // CA-1 — one converter, one FX pair. A blank source/target currency
+            // normalises to the project base (UGX), never GBP, so a source that
+            // forgot to declare its currency cannot trigger a silent ×4,700.
+            string source = RateCurrency.Normalize(lookup.CurrencyCode);
+            string target = RateCurrency.Normalize(targetCurrency);
+            if (string.Equals(source, target, StringComparison.Ordinal))
+            {
+                // Stamp the normalised code back so downstream never sees blank.
+                if (!string.Equals(lookup.CurrencyCode, source, StringComparison.Ordinal))
+                    lookup.CurrencyCode = source;
                 return lookup;
-
-            // Convert via UGX as the base. Supported: UGX, USD, GBP.
-            double rateInUgx = lookup.UnitRate;
-            switch ((lookup.CurrencyCode ?? "").ToUpperInvariant())
-            {
-                case "UGX": rateInUgx = lookup.UnitRate; break;
-                case "USD": rateInUgx = lookup.UnitRate * _ugxPerUsd; break;
-                case "GBP": rateInUgx = lookup.UnitRate * _ugxPerGbp; break;
-                default:
-                    StingLog.Warn($"RateProviderRegistry: unsupported source currency {lookup.CurrencyCode}, treating as UGX");
-                    rateInUgx = lookup.UnitRate;
-                    break;
             }
 
-            double targetRate = rateInUgx;
-            switch ((targetCurrency ?? "").ToUpperInvariant())
-            {
-                case "UGX": targetRate = rateInUgx; break;
-                case "USD": targetRate = _ugxPerUsd > 0 ? rateInUgx / _ugxPerUsd : 0; break;
-                case "GBP": targetRate = _ugxPerGbp > 0 ? rateInUgx / _ugxPerGbp : 0; break;
-                default:
-                    StingLog.Warn($"RateProviderRegistry: unsupported target currency {targetCurrency}");
-                    return lookup;
-            }
+            double targetRate = RateCurrency.Convert(lookup.UnitRate, source, target, _ugxPerUsd, _ugxPerGbp);
 
             return new RateLookup
             {
                 UnitRate = targetRate,
-                CurrencyCode = targetCurrency.ToUpperInvariant(),
+                CurrencyCode = target,
                 Unit = lookup.Unit,
                 SourceId = lookup.SourceId,
                 FetchedUtc = lookup.FetchedUtc,
                 Confidence = lookup.Confidence,
-                Provenance = $"{lookup.Provenance} (FX {lookup.CurrencyCode}→{targetCurrency})",
+                Provenance = $"{lookup.Provenance} (FX {source}→{target})",
                 MatchedKey = lookup.MatchedKey
             };
         }

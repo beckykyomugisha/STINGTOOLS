@@ -62,7 +62,7 @@ public class StageGate : ITenantScoped
 /// ISO 19650 information-state machine: PENDING → IN_PROGRESS → SUBMITTED →
 /// ACCEPTED (or REJECTED + back to IN_PROGRESS).
 /// </summary>
-public class InformationDeliverable
+public class InformationDeliverable : ITenantScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

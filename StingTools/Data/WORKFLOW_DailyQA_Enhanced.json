@@ -10,6 +10,7 @@
     { "commandTag": "AutoPopulate", "label": "Sync native Revit params → STING shared" },
     { "commandTag": "EvaluateFormulas", "label": "Evaluate 199 dependency formulas" },
     { "commandTag": "CombineParameters", "label": "Update all tag containers" },
+    { "commandTag": "Gate_StampStatus", "label": "Refresh universal-tag status gates (data + QA)" },
     { "commandTag": "AnomalyAutoFix", "label": "Fix anomalies", "optional": true, "maxCompliancePct": 90 },
     { "commandTag": "ResolveAllIssues", "label": "Resolve all issues (low compliance only)", "optional": true, "maxCompliancePct": 70 },
     { "commandTag": "ValidateTags", "label": "Validate ISO 19650 compliance" },

@@ -237,6 +237,11 @@ public class ComplianceController : ControllerBase
         // query plan stays sortable on the bucket name. PG-only; the
         // `EnsureCreated` path is fine because every prod deployment runs
         // PostgreSQL.
+        //
+        // SOFT DELETE: raw SQL bypasses EF global query filters entirely, so
+        // the `"DeletedAtUtc" IS NULL` tombstone predicate that the filter adds
+        // to every LINQ read has to be spelled out by hand here. Without it
+        // this heat-map would keep counting elements deleted in Revit.
         const string sql = @"
 SELECT
   COALESCE(NULLIF(BTRIM(""Disc""), ''), '(unset)')                         AS discipline,
@@ -252,7 +257,7 @@ SELECT
   COUNT(*) FILTER (WHERE BTRIM(""Status"")  <> '' AND ""Status"" IS NOT NULL)::int AS status_n,
   COUNT(*) FILTER (WHERE BTRIM(""Rev"")     <> '' AND ""Rev""    IS NOT NULL)::int AS rev_n
 FROM ""TaggedElements""
-WHERE ""ProjectId"" = {0}
+WHERE ""ProjectId"" = {0} AND ""DeletedAtUtc"" IS NULL
 GROUP BY 1
 ORDER BY (CASE WHEN COALESCE(NULLIF(BTRIM(""Disc""), ''), '(unset)') = '(unset)' THEN 1 ELSE 0 END), 1;";
 

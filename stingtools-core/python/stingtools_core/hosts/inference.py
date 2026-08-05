@@ -67,29 +67,57 @@ def infer_discipline(element: Any) -> str:
         return SENTINEL
 
 
+import re as _re
+
+# Storey-name patterns, ordered. This is the UNION of what the IFC path and the
+# ArchiCAD bridge each recognised before Phase 205 single-sourced them; they had
+# drifted into two functions answering the same question differently (13 of 31
+# probe cases disagreed). Ordering matters — roof before the digit sweep, so
+# "Roof 2" is RF not L02.
+_ROOF_RE     = _re.compile(r"roof|rooftop|penthouse|attic|\btop\b", _re.I)
+_MEZZ_RE     = _re.compile(r"mezzanine|\bmez\b", _re.I)
+_PLANT_RE    = _re.compile(r"plant", _re.I)
+_BASEMENT_RE = _re.compile(r"basement|below|sous[- ]sol|\bb\.?\s*(\d+)\b", _re.I)
+_BASEMENT_N  = _re.compile(r"(?:basement|sous[- ]sol|\bb)\D*?(\d+)", _re.I)
+_GROUND_RE   = _re.compile(r"ground|gr\.?\s*fl|\bg\s*/?\s*f\b|rez[- ]de[- ]chauss", _re.I)
+_LEVEL_N_RE  = _re.compile(r"\b[lL]\s*(\d+)\b|\b(\d+)\s*(?:st|nd|rd|th)\b|\b(\d+)\b")
+
+
 def level_for_storey_name(name: str | None, elevation: float | None = None) -> str:
-    """Pure: derive a short level code from a storey name (+ optional elevation)."""
-    name = (name or "").strip().upper()
-    if "ROOF" in name or "ROOFTOP" in name:
-        return "RF"
-    if "MEZZANINE" in name or "MEZ" in name:
-        return "MZ"
-    if "PLANT" in name:
-        return "PR"
-    if "BASEMENT" in name or (name.startswith("B") and any(c.isdigit() for c in name)):
-        digit = next((c for c in name if c.isdigit()), "1")
-        return f"B{digit}"
-    if "GROUND" in name or name in ("GF", "G", "GROUND FLOOR", "0"):
-        return "GF"
-    for token in name.split():
-        if token.isdigit():
-            return f"L{int(token):02d}"
+    """Derive a short STING level code from a storey name (+ optional elevation).
+
+    Single source of truth for every host. Returns ``XX`` when nothing can be
+    determined — callers treat that as "unknown", never as a real level.
+    """
+    raw = (name or "").strip()
+    if raw:
+        if _ROOF_RE.search(raw):
+            return "RF"
+        if _MEZZ_RE.search(raw):
+            return "MZ"
+        if _PLANT_RE.search(raw):
+            return "PR"
+        if _BASEMENT_RE.search(raw):
+            # Capture the level number wherever it appears. The previous ArchiCAD
+            # regex put the bare word "basement" before the digit group, so it
+            # matched first and "Basement 2" fell through to the default B1 —
+            # silently colliding with Basement 1. Fixed in Phase 205.
+            m = _BASEMENT_N.search(raw)
+            return f"B{int(m.group(1))}" if m else "B1"
+        if _GROUND_RE.search(raw) or raw.upper() in ("GF", "G", "0"):
+            return "GF"
+        m = _LEVEL_N_RE.search(raw)
+        if m:
+            digits = next((g for g in m.groups() if g), None)
+            if digits is not None:
+                return f"L{int(digits):02d}"
+
     if elevation is not None:
         try:
             elev = float(elevation)
-            if elev < 0:
+            if elev < -0.5:
                 return "B1"
-            if elev < 0.5:
+            if abs(elev) <= 0.5:
                 return "GF"
             return f"L{max(1, round(elev / 3)):02d}"
         except (ValueError, TypeError):

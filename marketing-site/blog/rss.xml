@@ -2,46 +2,46 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Planscape blog</title>
-    <link>https://planscape.co/blog/</link>
-    <atom:link href="https://planscape.co/blog/rss.xml" rel="self" type="application/rss+xml" />
+    <link>https://planscape.build/blog/</link>
+    <atom:link href="https://planscape.build/blog/rss.xml" rel="self" type="application/rss+xml" />
     <description>Notes from the Planscape team — BIM coordination, ISO 19650, African AEC delivery, product updates, engineering write-ups.</description>
     <language>en-gb</language>
     <copyright>© 2026 Planscape Ltd</copyright>
-    <managingEditor>hello@planscape.co (Planscape team)</managingEditor>
-    <webMaster>hello@planscape.co (Planscape team)</webMaster>
+    <managingEditor>hello@planscape.build (Planscape team)</managingEditor>
+    <webMaster>hello@planscape.build (Planscape team)</webMaster>
     <lastBuildDate>Sat, 23 May 2026 08:00:00 +0300</lastBuildDate>
     <image>
-      <url>https://planscape.co/images/og-card.png</url>
+      <url>https://planscape.build/images/og-card.png</url>
       <title>Planscape blog</title>
-      <link>https://planscape.co/blog/</link>
+      <link>https://planscape.build/blog/</link>
     </image>
 
     <item>
       <title>Why we built Planscape</title>
-      <link>https://planscape.co/blog/2026-05-23-why-we-built-planscape.html</link>
-      <guid isPermaLink="true">https://planscape.co/blog/2026-05-23-why-we-built-planscape.html</guid>
+      <link>https://planscape.build/blog/2026-05-23-why-we-built-planscape.html</link>
+      <guid isPermaLink="true">https://planscape.build/blog/2026-05-23-why-we-built-planscape.html</guid>
       <pubDate>Sat, 23 May 2026 08:00:00 +0300</pubDate>
-      <author>hello@planscape.co (Planscape team)</author>
+      <author>hello@planscape.build (Planscape team)</author>
       <category>Founder note</category>
       <description>We were paying for Autodesk Construction Cloud seats we never used, sweating the FX spread every month, and watching our coordinators screenshot clashes into WhatsApp groups because the official tool didn't work without 4G. So we built the thing we wished existed.</description>
     </item>
 
     <item>
       <title>ISO 19650 in East Africa — what actually applies</title>
-      <link>https://planscape.co/blog/2026-05-20-iso-19650-in-east-africa.html</link>
-      <guid isPermaLink="true">https://planscape.co/blog/2026-05-20-iso-19650-in-east-africa.html</guid>
+      <link>https://planscape.build/blog/2026-05-20-iso-19650-in-east-africa.html</link>
+      <guid isPermaLink="true">https://planscape.build/blog/2026-05-20-iso-19650-in-east-africa.html</guid>
       <pubDate>Wed, 20 May 2026 08:00:00 +0300</pubDate>
-      <author>hello@planscape.co (Planscape team)</author>
+      <author>hello@planscape.build (Planscape team)</author>
       <category>ISO 19650</category>
       <description>ISO 19650 was written with UK practice in mind. Most of it transposes cleanly to East African delivery — but some bits don't, and a few of the "best practice" guides from the UK BIM Framework will get you in trouble with local building authorities. Here's our running guide to what to adopt, what to adapt, and what to skip.</description>
     </item>
 
     <item>
       <title>Building an offline-first mobile BIM tool</title>
-      <link>https://planscape.co/blog/2026-05-15-offline-first-mobile-bim.html</link>
-      <guid isPermaLink="true">https://planscape.co/blog/2026-05-15-offline-first-mobile-bim.html</guid>
+      <link>https://planscape.build/blog/2026-05-15-offline-first-mobile-bim.html</link>
+      <guid isPermaLink="true">https://planscape.build/blog/2026-05-15-offline-first-mobile-bim.html</guid>
       <pubDate>Fri, 15 May 2026 08:00:00 +0300</pubDate>
-      <author>hello@planscape.co (Planscape team)</author>
+      <author>hello@planscape.build (Planscape team)</author>
       <category>Engineering</category>
       <description>Five lessons from a year of building Planscape's mobile app for sites with no fibre, intermittent 4G, and the occasional total outage. Conflict resolution, replay queues, why we chose SQLite over Realm, and how the federated model loads on a 3-year-old Android.</description>
     </item>

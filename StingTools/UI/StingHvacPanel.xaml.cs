@@ -173,7 +173,7 @@ namespace StingTools.UI
             {
                 try
                 {
-                    string tag    = ReadString(e, "ASS_TAG_1");
+                    string tag    = ReadString(e, "ASS_TAG_1_TXT");
                     if (string.IsNullOrEmpty(tag)) tag = e.Name ?? $"#{e.Id.Value}";
                     string family = (e is FamilyInstance fi) ? (fi.Symbol?.Family?.Name ?? "") : "";
                     string klass  = ClassifyHvacEquipment(family, e.Name ?? "", ReadString(e, "ASS_PRODCT_COD_TXT"));

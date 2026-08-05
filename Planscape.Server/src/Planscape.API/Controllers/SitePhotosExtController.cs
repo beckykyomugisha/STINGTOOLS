@@ -599,16 +599,11 @@ public class SitePhotosExtController : ControllerBase
 
     // ── helpers ──────────────────────────────────────────────────────
 
-    private async Task<bool> IsApproverAsync(Guid projectId, CancellationToken ct)
-    {
-        var role = User.FindFirst("role")?.Value ?? "";
-        if (role is "Admin" or "Owner") return true;
-        var userId = CurrentUserIdOrNull();
-        if (userId == null) return false;
-        return await _db.ProjectMembers.AsNoTracking().AnyAsync(m =>
-            m.ProjectId == projectId && m.UserId == userId.Value &&
-            m.IsActive && m.ProjectRole == "PM", ct);
-    }
+    // Was an inline `ProjectRole == "PM"` test. "PM" is an Iso19650Role
+    // code, never a ProjectRole (ProjectMember.cs:15 vs :18), so this gate
+    // matched essentially nobody. Delegates to the shared capability layer.
+    private Task<bool> IsApproverAsync(Guid projectId, CancellationToken ct)
+        => this.CanApproveSitePhotosAsync(_db, projectId, ct);
     private Guid? CurrentUserIdOrNull()
     {
         var s = User.FindFirst("user_id")?.Value

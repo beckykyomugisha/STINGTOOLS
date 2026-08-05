@@ -40,7 +40,7 @@ namespace StingTools.Core.Placement
         /// found the input points are returned unchanged and a Warn is
         /// logged once per room.
         /// </summary>
-        public static List<XYZ> SnapToCeilingGrid(Document doc, Room room, IList<XYZ> points)
+        public static List<XYZ> SnapToCeilingGrid(Document doc, SpatialElement room, IList<XYZ> points)
         {
             if (doc == null || room == null || points == null || points.Count == 0)
                 return points == null ? new List<XYZ>() : new List<XYZ>(points);
@@ -87,7 +87,7 @@ namespace StingTools.Core.Placement
         /// Find the Ceiling element directly above the room centroid.
         /// Uses BoundingBoxIntersectsFilter per N-G1 perf guidance.
         /// </summary>
-        private static Ceiling FindCeilingOverRoom(Document doc, Room room)
+        private static Ceiling FindCeilingOverRoom(Document doc, SpatialElement room)
         {
             var bb = room.get_BoundingBox(null);
             if (bb == null) return null;

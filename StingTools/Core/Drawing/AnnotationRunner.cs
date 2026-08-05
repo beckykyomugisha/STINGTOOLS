@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using StingTools.Core.Drawing.Dimensioning;
 
 namespace StingTools.Core.Drawing
 {
@@ -34,6 +35,8 @@ namespace StingTools.Core.Drawing
         public int DimsPlaced      { get; set; }
         public int DecorativePlaced { get; set; }
         public int SpotsPlaced     { get; set; }
+        /// <summary>Annotations not re-created because the view already had them (C-4).</summary>
+        public int Skipped         { get; set; }
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -104,24 +107,19 @@ namespace StingTools.Core.Drawing
             int effectiveScale = (options?.ViewScale > 0) ? options.ViewScale : view.Scale;
             bool dense = !pack.DenseUntilScale.HasValue || effectiveScale <= pack.DenseUntilScale.Value;
 
-#pragma warning disable CS0618 // legacy AutoXxx flags are folded into Rules at load time; readers still consult them for backward compat
-            if (options?.SkipDims != true)
-            {
-                try { if (pack.AutoDimGrids)  DimGrids(doc, view, pack, stats); } catch (Exception ex) { stats.Warnings.Add("AutoDimGrids: " + ex.Message); }
-                try { if (pack.AutoDimLevels) DimLevels(doc, view, pack, stats); } catch (Exception ex) { stats.Warnings.Add("AutoDimLevels: " + ex.Message); }
-            }
-
+            // ── Tagging — Phase 137 Rules path. MigrateFromLegacy folds the
+            // legacy per-category bools into pack.Rules at load, so a single
+            // rule walk covers both old and new formats; routed through the
+            // proven TagCategory helper. Density-gated. (The previous body
+            // read the per-category bools directly — but those are zeroed by
+            // MigrateFromLegacy, so it was inert, and pack.Rules — used by 48
+            // shipped drawing types — was never processed at all.)
             if (options?.SkipTags != true)
             {
                 if (dense)
                 {
-                    try { if (pack.AutoTagRooms)     TagCategory(doc, view, pack, BuiltInCategory.OST_Rooms,                 "Rooms",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagRooms: " + ex.Message); }
-                    try { if (pack.AutoTagDoors)     TagCategory(doc, view, pack, BuiltInCategory.OST_Doors,                 "Doors",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagDoors: " + ex.Message); }
-                    try { if (pack.AutoTagWindows)   TagCategory(doc, view, pack, BuiltInCategory.OST_Windows,               "Windows",   stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagWindows: " + ex.Message); }
-                    try { if (pack.AutoTagEquipment) TagEquipment(doc, view, pack, stats); }                                                          catch (Exception ex) { stats.Warnings.Add("AutoTagEquipment: " + ex.Message); }
-                    try { if (pack.AutoTagWelds)     TagCategory(doc, view, pack, BuiltInCategory.OST_PipeFitting,           "Welds",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagWelds: " + ex.Message); }
-                    try { if (pack.AutoTagBends)     TagCategory(doc, view, pack, BuiltInCategory.OST_PipeFitting,           "Bends",     stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagBends: " + ex.Message); }
-                    try { if (pack.AutoTagSupports)  TagCategory(doc, view, pack, BuiltInCategory.OST_StructuralFraming,     "Supports",  stats); } catch (Exception ex) { stats.Warnings.Add("AutoTagSupports: " + ex.Message); }
+                    try { TagByRules(doc, view, pack, stats); }
+                    catch (Exception ex) { stats.Warnings.Add("TagByRules: " + ex.Message); }
                 }
                 else
                 {
@@ -129,114 +127,168 @@ namespace StingTools.Core.Drawing
                     stats.Warnings.Add($"Per-element tagging skipped — view scale 1:{effectiveScale} exceeds denseUntilScale 1:{pack.DenseUntilScale}.");
                 }
             }
-#pragma warning restore CS0618
 
-            // Original sub-pass (`Run(doc, view, pack, options)`) became
-            // self-recursive after the merge collapsed signatures. The
-            // per-element tagging above already populated `stats`; nothing
-            // to merge in from a second pass.
-            var r = new AnnotationResult();
-            stats.TagsPlaced  = r.TagsPlaced;
-            stats.DimsCreated = r.DimsPlaced;
-            stats.Warnings.AddRange(r.Warnings);
-            if (!dense) { stats.Skipped++; stats.Warnings.Add($"Per-element tagging skipped — view scale 1:{view.Scale} exceeds denseUntilScale 1:{pack.DenseUntilScale}."); }
+            // ── Dimensioning — AutoDim + AutoDim/GridDim/LevelAnnotation rules.
+            if (options?.SkipDims != true)
+            {
+                try { DimByRules(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("DimByRules: " + ex.Message); }
+            }
+
+            // ── Decorative (north arrow / scale bar / key plan / matchlines)
+            // + spot (elevation / coordinate) — additive Phase 137 passes that
+            // had no legacy equivalent and were never wired into Apply.
+            if (options?.SkipDecorative != true || options?.SkipSpots != true)
+            {
+                var aux = new AnnotationResult();
+                if (options?.SkipDecorative != true)
+                {
+                    try { RunDecorativeAnnotation(doc, view, pack, options, aux); }
+                    catch (Exception ex) { aux.Warnings.Add("Decorative: " + ex.Message); }
+                }
+                if (options?.SkipSpots != true)
+                {
+                    try { RunSpotAnnotation(doc, view, pack, options, aux); }
+                    catch (Exception ex) { aux.Warnings.Add("Spot: " + ex.Message); }
+                }
+                stats.DecorativePlaced += aux.DecorativePlaced + aux.SpotsPlaced;
+                // Surface decorative + spot idempotency skips (C-4) so a no-op
+                // re-run reads as "skipped N" rather than looking like a failure.
+                stats.Skipped += aux.Skipped;
+                stats.Warnings.AddRange(aux.Warnings);
+            }
+
             return stats;
         }
 
-        // ── Tag rules ──
+        // ─── Rules-based drivers (wire pack.Rules into the proven helpers) ──
 
-        private static void RunTagRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
+        private static readonly HashSet<string> _tagRuleKinds =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "AutoTag", "RoomTag", "SpaceTag", "AreaTag", "MaterialTag", "KeynoteTag", "MultiCategoryTag" };
+
+        /// <summary>
+        /// Phase 137 Rules-based tagging. Walks pack.Rules (which, post-
+        /// MigrateFromLegacy, also holds the folded legacy per-category bools);
+        /// when Rules is empty and the general AutoTag bool is set, synthesises
+        /// one AutoTag rule per taggable category. Auto3DTag short-circuits to
+        /// Tag3DCommand (IndependentTag is 2D-only). Each resolved built-in
+        /// category is tagged at most once via the proven TagCategory helper;
+        /// custom (non-built-in) categories are skipped.
+        /// </summary>
+        private static void TagByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
-            // FG-02: handle every tag-like RuleType, not just bare "AutoTag".
-            // RoomTag / SpaceTag / AreaTag / MaterialTag / KeynoteTag /
-            // MultiCategoryTag are all variants of "tag this category" and
-            // should run via the same per-rule path; the differentiator is
-            // the resolved tag family (RoomTag uses Room tag families, etc.).
-            // RuleType is preserved on the rule so downstream callers can
-            // pick a tag family by purpose.
-            var tagRuleKinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            if (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
+                    string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase)))
             {
-                "AutoTag", "RoomTag", "SpaceTag", "AreaTag",
-                "MaterialTag", "KeynoteTag", "MultiCategoryTag",
-            };
-
-            // Phase 165 — Auto3DTag short-circuits to Tag3DCommand.PlaceTagsInView
-            // when the active view is a 3D view. Pulled out of the standard tag-rule
-            // path because IndependentTag is 2D-only; 3D tags are FamilyInstances of
-            // a Generic Model "tag bubble" carrying ASS_TAG_3D_TXT.
-            if (pack.Rules != null)
-            {
-                var auto3D = pack.Rules
-                    .Where(r => r != null && r.Enabled &&
-                                string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (auto3D.Count > 0)
+                try
                 {
                     if (view is View3D v3d)
                     {
-                        // Read the DrawingType profile's displayMode 6 hint via the
-                        // STING_DISPLAY_MODE view stamp; if 6, tag with TAG7 narrative.
                         bool useNarrative = false;
-                        try
-                        {
-                            int dispMode = StingTools.Core.ParameterHelpers
-                                .GetInt(view, StingTools.Core.ParamRegistry.DISPLAY_MODE, 0);
-                            useNarrative = dispMode == 6;
-                        }
+                        try { useNarrative = ParameterHelpers.GetInt(view, ParamRegistry.DISPLAY_MODE, 0) == 6; }
                         catch { /* defensive */ }
-
                         var r3d = StingTools.Tags.Tag3DCommand.PlaceTagsInView(doc, v3d, useNarrative);
-                        result.TagsPlaced += r3d.Placed;
-                        foreach (var w in r3d.Warnings) result.Warnings.Add($"Auto3DTag: {w}");
+                        stats.TagsPlaced += r3d.Placed;
+                        foreach (var w in r3d.Warnings) stats.Warnings.Add($"Auto3DTag: {w}");
                     }
                     else
                     {
-                        result.Warnings.Add($"Auto3DTag rule skipped — active view '{view.Name}' is not a 3D view.");
+                        stats.Warnings.Add($"Auto3DTag rule skipped — view '{view.Name}' is not a 3D view.");
                     }
                 }
+                catch (Exception ex) { stats.Warnings.Add("Auto3DTag: " + ex.Message); }
             }
 
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
-            {
                 effective = pack.Rules
-                    .Where(r => r != null && r.Enabled
-                                && tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
+                    .Where(r => r != null && r.Enabled && _tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
                     .ToList();
-            }
             else if (pack.AutoTag == true)
-            {
-                // KnownTaggableCategories list was lost to the merge — use the
-                // taxonomy from SharedParamGuids as the canonical source.
-                effective = SharedParamGuids.AllCategoryEnums.Select(bic => new AutoAnnotationRule
-                {
-                    RuleType = "AutoTag",
-                    Category = bic.ToString(),
-                    SkipIfTagged = true,
-                    DensityMode = "All"
-                }).ToList();
-            }
+                effective = SharedParamGuids.AllCategoryEnums
+                    .Select(bic => new AutoAnnotationRule { RuleType = "AutoTag", Category = bic.ToString() })
+                    .ToList();
             else
-            {
-                effective = new List<AutoAnnotationRule>();
-            }
+                return;
 
-            // Process each effective rule
+            // C-4: one scan of this view's existing tags, shared by every
+            // category below. Lazy so a pack with no taggable category never
+            // pays for it. Without this the runner had no idempotency at all:
+            // AutoAnnotationRule.SkipIfTagged (default true) was read nowhere,
+            // so re-running SyncStyles, a drift heal, or DrawingTypePresentation
+            // .Apply doubled every tag on the view.
+            var taggedIndex = new Lazy<HashSet<ElementId>>(() => BuildTaggedElementIndex(doc, view, stats));
+
+            var doneCats = new HashSet<long>(); // tag each category at most once
             foreach (var rule in effective)
             {
                 if (rule == null) continue;
                 try
                 {
+                    // B1: honour the rule's `condition`. AnnotationConditionEvaluator
+                    // is a clean fail-open parser that had ZERO call sites, so this
+                    // field was a silent no-op on every shipped type that declares
+                    // it. Fail-open means an unparseable condition still runs the
+                    // rule rather than silently dropping requested annotation.
+                    if (!string.IsNullOrWhiteSpace(rule.Condition))
+                    {
+                        var cctx = ConditionContext.FromView(doc, view, rule.Category);
+                        if (!AnnotationConditionEvaluator.Evaluate(rule.Condition, cctx))
+                        {
+                            stats.Skipped++;
+                            continue;
+                        }
+                    }
+
                     var catId = ResolveCategoryId(doc, rule.Category);
                     if (catId == ElementId.InvalidElementId) continue;
-                    var bic = (BuiltInCategory)catId.Value;
-                    // TagCategory(doc, view, pack, bic, rule.Category, stats);
-                    // Note: stats is AnnotationRunStats, but we have result which is AnnotationResult
+                    long cv = catId.Value;
+                    if (!doneCats.Add(cv)) continue;
+                    // BuiltInCategory's underlying type is long (Revit 2024+), so
+                    // handing Enum.IsDefined an int threw "Enum underlying type
+                    // and the object must be same type" for EVERY rule — the
+                    // per-rule catch below swallowed it as a warning, so the
+                    // whole auto-tag pass silently placed nothing. Pass the long.
+                    if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
+                    TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats, rule, taggedIndex.Value);
                 }
-                catch (Exception ex)
+                catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Phase 137 Rules-based dimensioning. Honours AutoDim / GridDim /
+        /// LevelAnnotation rules — placing one grid chain and/or one level
+        /// chain — plus the general AutoDim bool fallback, via the proven
+        /// DimGrids / DimLevels helpers. Each chain is placed at most once.
+        /// </summary>
+        private static void DimByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            bool didGrids = false, didLevels = false;
+            if (pack.Rules != null)
+            {
+                foreach (var r in pack.Rules)
                 {
-                    result.Warnings.Add($"Rule '{rule.Category}': {ex.Message}");
+                    if (r == null || !r.Enabled) continue;
+                    var rt = r.RuleType ?? "";
+                    bool isDim = string.Equals(rt, "AutoDim", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(rt, "GridDim", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(rt, "LevelAnnotation", StringComparison.OrdinalIgnoreCase);
+                    if (!isDim) continue;
+                    bool isLevels = (r.Category ?? "").IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0;
+                    try
+                    {
+                        if (isLevels) { if (!didLevels) { DimLevels(doc, view, pack, stats); didLevels = true; } }
+                        else          { if (!didGrids)  { DimGrids(doc, view, pack, stats);  didGrids = true; } }
+                    }
+                    catch (Exception ex) { stats.Warnings.Add($"Dim rule '{r.Category}': {ex.Message}"); }
                 }
+            }
+            if (pack.AutoDim == true && !didGrids)
+            {
+                try { DimGrids(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("AutoDim grids: " + ex.Message); }
             }
         }
 
@@ -246,8 +298,68 @@ namespace StingTools.Core.Drawing
         /// Drop a single overall dimension chain across all grids
         /// visible in the view. Each grid contributes one reference.
         /// </summary>
+        /// <summary>
+        /// C-4 idempotency for the two dimension chains.
+        ///
+        /// Strategy: detect an existing chain by what it REFERENCES rather than
+        /// by a stamped marker. A marker would need a new shared parameter bound
+        /// to Dimensions — provisioning across MR_PARAMETERS.txt, the .csv
+        /// mirror, PARAMETER_REGISTRY.json and a category binding — whereas
+        /// DimByRules places at most one grid chain and one level chain per
+        /// view, so a coarse "does this view already hold a dimension
+        /// referencing Grids / Levels?" question is exactly as precise as the
+        /// runner needs and requires nothing new.
+        ///
+        /// Residual limitation: Revit can report AreReferencesAvailable == false
+        /// (references lost, or the dimension is in a linked/【unloaded】 state).
+        /// Such a dimension is treated as "unknown" and skipped over rather than
+        /// counted as a match, so in the rare case where every dimension in the
+        /// view is unreadable AND a prior STING chain exists, a duplicate is
+        /// still possible. Failing that way round is deliberate: the alternative
+        /// silently refuses to dimension views that merely contain odd geometry.
+        /// </summary>
+        private static bool ViewHasDimensionReferencing(Document doc, View view, BuiltInCategory targetCat)
+        {
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(Dimension))
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is Dimension dim)) continue;
+                    try
+                    {
+                        if (!dim.AreReferencesAvailable) continue;   // unknown — not a match
+                        var refs = dim.References;
+                        if (refs == null) continue;
+                        foreach (Reference r in refs)
+                        {
+                            var host = doc.GetElement(r);
+                            if (host?.Category == null) continue;
+                            if (host.Category.Id.Value == (long)targetCat) return true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ViewHasDimensionReferencing: dimension {dim.Id} — {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewHasDimensionReferencing({view?.Name}): {ex.Message}");
+            }
+            return false;
+        }
+
         private static void DimGrids(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
+            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Grids))
+            {
+                stats.Skipped++;
+                return;
+            }
+
             var grids = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(BuiltInCategory.OST_Grids)
                 .WhereElementIsNotElementType()
@@ -255,29 +367,158 @@ namespace StingTools.Core.Drawing
                 .ToList();
             if (grids.Count < 2) return;
 
-            var refs = new ReferenceArray();
-            XYZ first = null, last = null;
+            // A-4: split by orientation. Every grid used to go into ONE
+            // ReferenceArray with a dimension line running between the end
+            // points of the first and last grid in COLLECTOR order — arbitrary
+            // in both direction and position. A dimension can only measure
+            // mutually parallel references, so on any project with orthogonal
+            // grids (i.e. essentially all of them) NewDimension threw and the
+            // per-view catch swallowed it: grid auto-dimensioning never once
+            // succeeded on a real model.
+            //
+            // Each parallel set now gets its own chain, on a line PERPENDICULAR
+            // to that set — which is the only orientation that can measure the
+            // spacing between them — placed just outside the grid extent.
+            var eastWest = new List<Grid>();   // run along X; spaced along Y
+            var northSouth = new List<Grid>(); // run along Y; spaced along X
+            double zPlane = 0; bool haveZ = false;
+            double xMin = double.MaxValue, xMax = double.MinValue;
+            double yMin = double.MaxValue, yMax = double.MinValue;
+
             foreach (var g in grids)
             {
-                var curve = g.Curve;
-                if (curve == null) continue;
-                var pt = curve.GetEndPoint(1);
-                if (first == null) first = pt;
-                last = pt;
-                try { refs.Append(new Reference(g)); } catch { /* skip */ }
+                var line = g.Curve as Line;
+                if (line == null) continue;    // arc grids cannot join a linear chain
+                var d = line.Direction;
+                var a = line.GetEndPoint(0);
+                var b = line.GetEndPoint(1);
+                if (!haveZ) { zPlane = a.Z; haveZ = true; }
+                xMin = Math.Min(xMin, Math.Min(a.X, b.X)); xMax = Math.Max(xMax, Math.Max(a.X, b.X));
+                yMin = Math.Min(yMin, Math.Min(a.Y, b.Y)); yMax = Math.Max(yMax, Math.Max(a.Y, b.Y));
+                if (RunsEastWest(d.X, d.Y)) eastWest.Add(g); else northSouth.Add(g);
             }
-            if (refs.Size < 2 || first == null || last == null) return;
+            if (!haveZ) return;
 
-            var dimLine = Line.CreateBound(first, last);
-            var dimStyleId = ResolveDimensionStyleId(doc, pack.DimensionStyle);
+            // B1: honour the pack's dimensionStrategy. This was a declared
+            // rule-pack field with no consumer — GridDimensioner read it but
+            // nothing called GridDimensioner. DimensionStrategy.ResolveType
+            // applies the strategy (and still lets an explicit DimensionStyle
+            // name win), so the field now reaches the only grid-dimensioning
+            // path that runs.
+            ElementId dimStyleId = ElementId.InvalidElementId;
             try
             {
+                var kind = DimensionStrategy.Parse(pack.DimensionStrategy);
+                var dimType = DimensionStrategy.ResolveType(doc, kind, pack.DimensionStyle);
+                if (dimType != null) dimStyleId = dimType.Id;
+            }
+            catch (Exception ex) { StingLog.Warn($"DimGrids strategy: {ex.Message}"); }
+            if (dimStyleId == ElementId.InvalidElementId)
+                dimStyleId = ResolveDimensionStyleId(doc, pack.DimensionStyle);
+
+            double marginFt = 10.0;   // ~3 m clear of the grid extent
+
+            // East-west grids are stacked along Y, so their chain runs along Y,
+            // offset beyond the eastern extent.
+            PlaceGridChain(doc, view, eastWest, dimStyleId, stats, "east-west",
+                positionOf: g => ((Line)g.Curve).Origin.Y,
+                pointAt: (pos, off) => new XYZ(xMax + off, pos, zPlane),
+                marginFt: marginFt);
+
+            // North-south grids are stacked along X, so their chain runs along
+            // X, offset beyond the northern extent.
+            PlaceGridChain(doc, view, northSouth, dimStyleId, stats, "north-south",
+                positionOf: g => ((Line)g.Curve).Origin.X,
+                pointAt: (pos, off) => new XYZ(pos, yMax + off, zPlane),
+                marginFt: marginFt);
+        }
+
+        /// <summary>
+        /// Orientation test for a grid line: true when the curve runs
+        /// predominantly along model X (an "east-west" grid on plan), which
+        /// means the set is spaced along Y and must be dimensioned by a chain
+        /// running along Y.
+        /// Revit-free so the classification is testable; ties (|dx| == |dy|,
+        /// a 45-degree grid) resolve to east-west deterministically rather
+        /// than by collector order.
+        /// </summary>
+        internal static bool RunsEastWest(double dirX, double dirY)
+            => Math.Abs(dirX) >= Math.Abs(dirY);
+
+        /// <summary>
+        /// Span of a parallel grid set along its spacing axis, widened by a
+        /// margin. Returns false when there are fewer than two DISTINCT
+        /// positions — coincident grids cannot be dimensioned and produced a
+        /// zero-length dimension line.
+        /// Revit-free so the degenerate cases are testable.
+        /// </summary>
+        internal static bool TryGridSpan(IReadOnlyList<double> positions, double marginFt,
+            out double lo, out double hi)
+        {
+            lo = hi = 0;
+            if (positions == null || positions.Count < 2) return false;
+            double mn = double.MaxValue, mx = double.MinValue;
+            foreach (var p in positions) { if (p < mn) mn = p; if (p > mx) mx = p; }
+            if (mx - mn < 1e-6) return false;
+            lo = mn - marginFt;
+            hi = mx + marginFt;
+            return true;
+        }
+
+        private static void PlaceGridChain(Document doc, View view, List<Grid> set,
+            ElementId dimStyleId, AnnotationRunStats stats, string label,
+            Func<Grid, double> positionOf, Func<double, double, XYZ> pointAt, double marginFt)
+        {
+            if (set == null || set.Count < 2) return;
+            try
+            {
+                var positions = set.Select(positionOf).ToList();
+                if (!TryGridSpan(positions, marginFt, out double lo, out double hi))
+                {
+                    stats.Warnings.Add($"Grid dim ({label}): grids are coincident — no chain placed.");
+                    return;
+                }
+
+                var refs = new ReferenceArray();
+                foreach (var g in set)
+                {
+                    try { refs.Append(new Reference(g)); }
+                    catch (Exception ex) { StingLog.Warn($"Grid ref {g.Id}: {ex.Message}"); }
+                }
+                if (refs.Size < 2) return;
+
+                var dimLine = Line.CreateBound(pointAt(lo, marginFt), pointAt(hi, marginFt));
                 var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
                     ? doc.Create.NewDimension(view, dimLine, refs)
                     : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
                 if (dim != null) stats.DimsCreated++;
             }
-            catch (Exception ex) { stats.Warnings.Add("Grid dim: " + ex.Message); }
+            catch (Exception ex) { stats.Warnings.Add($"Grid dim ({label}): {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Horizontal anchor for the level chain: a model-space point just
+        /// outside the left edge of the view's crop, at mid height. Falls back
+        /// to the view origin, then to the project origin, so a view with no
+        /// active crop still gets a chain somewhere sensible rather than none.
+        /// </summary>
+        private static XYZ ResolveLevelChainAnchor(View view)
+        {
+            const double marginFt = 5.0;
+            try
+            {
+                var cb = view.CropBox;
+                if (cb != null)
+                {
+                    var frame = cb.Transform ?? Transform.Identity;
+                    var pf = new XYZ(cb.Min.X - marginFt, (cb.Min.Y + cb.Max.Y) * 0.5, 0);
+                    return frame.OfPoint(pf);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveLevelChainAnchor({view?.Name}): {ex.Message}"); }
+            try { if (view.Origin != null) return view.Origin; }
+            catch (Exception ex) { StingLog.Warn($"ResolveLevelChainAnchor origin: {ex.Message}"); }
+            return XYZ.Zero;
         }
 
         /// <summary>
@@ -286,6 +527,12 @@ namespace StingTools.Core.Drawing
         /// </summary>
         private static void DimLevels(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
+            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Levels))
+            {
+                stats.Skipped++;
+                return;
+            }
+
             var levels = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(BuiltInCategory.OST_Levels)
                 .WhereElementIsNotElementType()
@@ -297,36 +544,39 @@ namespace StingTools.Core.Drawing
             var refs = new ReferenceArray();
             foreach (var l in levels)
             {
-                try { refs.Append(new Reference(l)); } catch { /* skip */ }
+                try { refs.Append(new Reference(l)); }
+                catch (Exception ex) { StingLog.Warn($"Level ref {l.Id}: {ex.Message}"); }
             }
             if (refs.Size < 2) return;
 
-            var pMin = new XYZ(0, 0, levels.First().Elevation);
-            var pMax = new XYZ(0, 0, levels.Last().Elevation);
-            var dimLine = Line.CreateBound(pMin, pMax);
+            // A-10: the chain used to be pinned at X=0, Y=0 — the project
+            // origin — so on any section not passing through the origin it
+            // landed outside the crop and was invisible. Anchor it to the
+            // view's own crop box instead, just outside the left edge.
+            //
+            // The anchor is computed in the crop's FRAME and mapped back to
+            // model space (the E-2 lesson: crop Min/Max are frame coords, not
+            // model coords), so this works on rotated plans and sections alike.
+            double zLo = levels.First().Elevation;
+            double zHi = levels.Last().Elevation;
+            if (Math.Abs(zHi - zLo) < 1e-6)
+            {
+                // Every visible level shares an elevation — Line.CreateBound
+                // would throw on a zero-length line.
+                stats.Warnings.Add("Level dim: all visible levels share one elevation — no chain placed.");
+                return;
+            }
+
+            var anchor = ResolveLevelChainAnchor(view);
+            var dimLine = Line.CreateBound(
+                new XYZ(anchor.X, anchor.Y, zLo),
+                new XYZ(anchor.X, anchor.Y, zHi));
             try
             {
                 var dim = doc.Create.NewDimension(view, dimLine, refs);
                 if (dim != null) stats.DimsCreated++;
             }
             catch (Exception ex) { stats.Warnings.Add("Level dim: " + ex.Message); }
-        }
-
-        /// <summary>
-        /// Tag all equipment categories (mechanical, electrical, plumbing, lighting).
-        /// </summary>
-        private static void TagEquipment(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
-        {
-            foreach (var bic in new[]
-            {
-                BuiltInCategory.OST_MechanicalEquipment,
-                BuiltInCategory.OST_ElectricalEquipment,
-                BuiltInCategory.OST_PlumbingFixtures,
-                BuiltInCategory.OST_LightingFixtures,
-            })
-            {
-                TagCategory(doc, view, pack, bic, bic.ToString(), stats);
-            }
         }
 
         // ─── Tagging ─────────────────────────────────────────────────────
@@ -339,8 +589,73 @@ namespace StingTools.Core.Drawing
         /// category. After placing each tag, applies CategoryDepths from
         /// the active ViewStylePack if declared.
         /// </summary>
+        /// <summary>
+        /// Element ids already carrying an IndependentTag in this view.
+        /// Built once per view and shared across every tag rule.
+        /// </summary>
+        private static HashSet<ElementId> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
+        {
+            var set = new HashSet<ElementId>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is IndependentTag tag)) continue;
+                    try
+                    {
+                        foreach (var id in tag.GetTaggedLocalElementIds())
+                            if (id != null && id != ElementId.InvalidElementId) set.Add(id);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"BuildTaggedElementIndex: tag {tag.Id} — {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open with a warning: an empty index means "tag
+                // everything", i.e. the previous behaviour, rather than
+                // silently skipping work the user asked for.
+                stats.Warnings.Add($"Could not index existing tags in '{view.Name}' ({ex.Message}); " +
+                                   "duplicate tags are possible on this view.");
+            }
+            return set;
+        }
+
+        /// <summary>
+        /// Map a rule's declared <c>orientation</c> onto Revit's TagOrientation.
+        /// The three accepted values mirror the enum exactly — Horizontal,
+        /// Vertical, Model (= AnyModelDirection) — so no interpretation is
+        /// involved. Unset or unrecognised falls back to Horizontal, which is
+        /// what every tag got before the field was read, and warns once per
+        /// category so a typo is visible rather than silently ignored.
+        /// </summary>
+        private static TagOrientation ResolveTagOrientation(
+            AutoAnnotationRule rule, string catKey, AnnotationRunStats stats)
+        {
+            var declared = rule?.Orientation;
+            if (string.IsNullOrWhiteSpace(declared)) return TagOrientation.Horizontal;
+
+            switch (declared.Trim().ToLowerInvariant())
+            {
+                case "horizontal": return TagOrientation.Horizontal;
+                case "vertical":   return TagOrientation.Vertical;
+                case "model":
+                case "anymodeldirection": return TagOrientation.AnyModelDirection;
+                default:
+                    stats?.Warnings.Add(
+                        $"Rule orientation '{declared}' for {catKey} is not one of " +
+                        "Horizontal / Vertical / Model — tagging horizontally.");
+                    return TagOrientation.Horizontal;
+            }
+        }
+
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
-            BuiltInCategory bic, string catKey, AnnotationRunStats stats)
+            BuiltInCategory bic, string catKey, AnnotationRunStats stats,
+            AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null)
         {
             var elements = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(bic)
@@ -348,7 +663,19 @@ namespace StingTools.Core.Drawing
                 .ToElements();
             if (elements.Count == 0) return;
 
-            ElementId tagTypeId = ResolveTagTypeId(doc, view, pack, catKey, bic);
+            // B1: a per-rule tagFamily wins over the pack-level TagFamilies map.
+            // AutoAnnotationRule.TagFamily was declared and read nowhere, so a rule
+            // naming its own tag family was silently served the pack default.
+            ElementId tagTypeId = ElementId.InvalidElementId;
+            if (!string.IsNullOrWhiteSpace(rule?.TagFamily))
+            {
+                var byRule = FindFamilySymbolByName(doc, rule.TagFamily);
+                if (byRule != null) tagTypeId = byRule.Id;
+                else stats.Warnings.Add(
+                    $"Rule tag family '{rule.TagFamily}' for {catKey} is not loaded; using the pack default.");
+            }
+            if (tagTypeId == ElementId.InvalidElementId)
+                tagTypeId = ResolveTagTypeId(doc, view, pack, catKey, bic, stats);
             if (tagTypeId == ElementId.InvalidElementId)
             {
                 stats.Warnings.Add($"No tag family available for {catKey} — skipped.");
@@ -379,26 +706,81 @@ namespace StingTools.Core.Drawing
             }
             catch { /* resolver must never throw */ }
 
+            // A rule's own tag7Depth is the most specific depth declaration
+            // there is, so it wins over the pack's per-category depth for the
+            // elements this rule covers. Same write as the pack path below
+            // (TAG_PARA_DEPTH_INT + cumulative TAG_PARA_STATE_n_BOOL), just a
+            // different source — the field had no reader at all before, so a
+            // rule asking for depth 3 silently got whatever the pack said.
+            if (rule?.Tag7Depth.HasValue == true && rule.Tag7Depth.Value > 0)
+            {
+                resolvedDepth = Math.Max(1, Math.Min(10, rule.Tag7Depth.Value));
+                hasDepth = true;
+            }
+
+            // Per-rule tag orientation. IndependentTag.Create took a hardcoded
+            // TagOrientation.Horizontal, so the field was inert.
+            TagOrientation orientation = ResolveTagOrientation(rule, catKey, stats);
+
+            // C-4: honour the rule's skipIfTagged (POCO default true). Only the
+            // config dialog ever read this field before.
+            bool skipIfTagged = rule?.SkipIfTagged ?? true;
+
             foreach (var el in elements)
             {
                 try
                 {
+                    if (skipIfTagged && alreadyTagged != null && alreadyTagged.Contains(el.Id))
+                    {
+                        stats.Skipped++;
+                        continue;
+                    }
+
                     var pt = GetElementCentre(el);
+                    if (pt == null)
+                    {
+                        // A-9: GetElementCentre's comment promised an XYZ.Zero
+                        // sentinel "the caller can detect" but returned null,
+                        // and this call site passed it straight into
+                        // IndependentTag.Create — one exception per element on
+                        // floor / ceiling-heavy categories, flooding the
+                        // warning list and tagging nothing. It now falls back
+                        // to the bounding-box centre, so those categories tag
+                        // properly instead of being skipped; null here means
+                        // even that failed.
+                        stats.Skipped++;
+                        stats.Warnings.Add($"No taggable point for {catKey} element {el.Id} — skipped.");
+                        continue;
+                    }
+
                     // Revit 2025 removed IndependentTag.CanTagHost(doc, Reference) +
                     // renamed the Create parameters. The surrounding try/catch
                     // turns any "can't tag this host" failure into a Skipped
                     // count + warning row, replacing the dropped pre-check.
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), false, TagOrientation.Horizontal, pt);
-                    if (tag != null) stats.TagsPlaced++;
+                        new Reference(el), false, orientation, pt);
+                    if (tag != null)
+                    {
+                        stats.TagsPlaced++;
+                        // Keep the index current so a later rule covering the
+                        // same element in this run doesn't tag it twice.
+                        alreadyTagged?.Add(el.Id);
+                    }
 
                     // Apply CategoryDepths from the active pack, if declared.
+                    // FIX-6: write the tier flags CUMULATIVELY — a depth of N
+                    // means tiers 1..N are all visible (higher tiers off), not
+                    // tier N alone. Mirrors TokenProfileApplier.WriteCategoryDepths
+                    // so the produce path and the per-category depth path agree.
                     if (hasDepth)
                     {
                         try { ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth); }
                         catch { }
-                        try { StingTools.Core.ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{resolvedDepth}_BOOL", 1); }
-                        catch { }
+                        for (int t = 1; t <= 10; t++)
+                        {
+                            try { ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{t}_BOOL", t <= resolvedDepth ? 1 : 0); }
+                            catch { }
+                        }
                     }
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
@@ -442,38 +824,30 @@ namespace StingTools.Core.Drawing
                     var c = lc.Curve;
                     return (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
                 }
-                // View-centre fallback removed: this overload doesn't have a `view`
-                // in scope. Origin XYZ.Zero is a sentinel the caller can detect.
+                // A-9: floors, ceilings, roofs and most system families have no
+                // LocationPoint and no LocationCurve, so both branches above
+                // miss and this used to return null — which the caller fed
+                // straight to IndependentTag.Create. The bounding-box centre is
+                // the natural point for those categories and makes them
+                // taggable rather than merely non-crashing. XYZ.Zero would have
+                // satisfied the old comment but piled every tag at the project
+                // origin, which is worse than skipping.
+                var bb = el.get_BoundingBox(null);
+                if (bb?.Min != null && bb.Max != null)
+                    return (bb.Min + bb.Max) * 0.5;
             }
-            catch { /* best effort */ }
-            return null;
-        }
-
-        private static int GetPackTagDepth(AnnotationRulePack pack, string category)
-        {
-            if (pack?.TagDepths == null) return 0;
-            if (pack.TagDepths.TryGetValue(category, out var d)) return d;
-            // Try by display name
-            var rc = RevitCategoryTree.FindByBic(category);
-            if (rc != null && pack.TagDepths.TryGetValue(rc.DisplayName, out var d2)) return d2;
-            return 0;
-        }
-
-        private static ElementId ResolveTagFamilySymbol(Document doc, AutoAnnotationRule rule, AnnotationRulePack pack, string category)
-        {
-            // Rule-level override
-            if (!string.IsNullOrEmpty(rule.TagFamily))
+            catch (Exception ex)
             {
-                var s = FindFamilySymbolByName(doc, rule.TagFamily);
-                if (s != null) return s.Id;
+                StingLog.Warn($"GetElementCentre({el?.Id}): {ex.Message}");
             }
-            return ElementId.InvalidElementId;
+            // Null means "no usable point" — the caller skips and reports.
+            return null;
         }
 
         // ─── Resolution helpers ──────────────────────────────────────────
 
         private static ElementId ResolveTagTypeId(Document doc, View view, AnnotationRulePack pack,
-            string catKey, BuiltInCategory hostCategory)
+            string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats = null)
         {
             ElementId result = ElementId.InvalidElementId;
 
@@ -481,11 +855,44 @@ namespace StingTools.Core.Drawing
             if (pack.TagFamilies != null && pack.TagFamilies.TryGetValue(catKey, out var famName)
                 && !string.IsNullOrWhiteSpace(famName))
             {
-                var byName = new FilteredElementCollector(doc)
+                var named = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
-                    .FirstOrDefault(fs => string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase));
-                if (byName != null) result = byName.Id;
+                    .Where(fs => string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                // A-8: this matched by family name across EVERY category, so a
+                // model family sharing the name could win and then throw once
+                // per element inside IndependentTag.Create. Prefer a symbol in
+                // the expected tag category. The name-only match is kept as a
+                // second choice because TagCategoryFor falls through to the host
+                // category for anything not in its switch, so an exact category
+                // match is not always available — but a non-annotation match is
+                // reported, since that is the case that fails per element.
+                var wantCat = (long)TagCategoryFor(hostCategory);
+                var byCat = named.FirstOrDefault(fs => fs.Category != null && fs.Category.Id.Value == wantCat);
+                var chosen = byCat ?? named.FirstOrDefault();
+
+                if (chosen != null)
+                {
+                    if (byCat == null && chosen.Category?.CategoryType != CategoryType.Annotation)
+                        stats?.Warnings.Add(
+                            $"Tag family '{famName}' for {catKey} is not an annotation family " +
+                            $"(category '{chosen.Category?.Name ?? "none"}') — tagging will likely fail.");
+                    result = chosen.Id;
+                }
+                else
+                {
+                    // Previously silent: a rule naming a family that isn't
+                    // loaded fell straight through to "first loaded tag of the
+                    // category", so the drawing quietly used the wrong tag.
+                    // This is the mechanism that hides the known tagFamilies
+                    // debt (~87 key mismatches, 19 nonexistent STING_TAG_*
+                    // families) at runtime.
+                    stats?.Warnings.Add(
+                        $"Tag family '{famName}' declared for {catKey} is not loaded; " +
+                        "falling back to the first loaded tag of that category.");
+                }
             }
 
             // 2. First loaded tag of the host's tag category (project default)
@@ -543,120 +950,6 @@ namespace StingTools.Core.Drawing
                 .Cast<FamilySymbol>()
                 .FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase) ||
                                      string.Equals(s.FamilyName, name, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static BuiltInCategory? MapCategoryToTagBic(BuiltInCategory model)
-        {
-            // Best-effort mapping from model BIC to its corresponding tag BIC.
-            switch (model)
-            {
-                case BuiltInCategory.OST_Doors:                return BuiltInCategory.OST_DoorTags;
-                case BuiltInCategory.OST_Windows:              return BuiltInCategory.OST_WindowTags;
-                case BuiltInCategory.OST_Rooms:                return BuiltInCategory.OST_RoomTags;
-                case BuiltInCategory.OST_Walls:                return BuiltInCategory.OST_WallTags;
-                case BuiltInCategory.OST_Floors:               return BuiltInCategory.OST_FloorTags;
-                case BuiltInCategory.OST_Ceilings:             return BuiltInCategory.OST_CeilingTags;
-                case BuiltInCategory.OST_Roofs:                return BuiltInCategory.OST_RoofTags;
-                case BuiltInCategory.OST_Stairs:               return BuiltInCategory.OST_StairsTags;
-                case BuiltInCategory.OST_StructuralColumns:    return BuiltInCategory.OST_StructuralColumnTags;
-                case BuiltInCategory.OST_StructuralFraming:    return BuiltInCategory.OST_StructuralFramingTags;
-                case BuiltInCategory.OST_StructuralFoundation: return BuiltInCategory.OST_StructuralFoundationTags;
-                case BuiltInCategory.OST_Furniture:            return BuiltInCategory.OST_FurnitureTags;
-                case BuiltInCategory.OST_LightingFixtures:     return BuiltInCategory.OST_LightingFixtureTags;
-                case BuiltInCategory.OST_MechanicalEquipment:  return BuiltInCategory.OST_MechanicalEquipmentTags;
-                case BuiltInCategory.OST_PlumbingFixtures:     return BuiltInCategory.OST_PlumbingFixtureTags;
-                case BuiltInCategory.OST_DuctCurves:           return BuiltInCategory.OST_DuctTags;
-                case BuiltInCategory.OST_PipeCurves:           return BuiltInCategory.OST_PipeTags;
-                case BuiltInCategory.OST_Conduit:              return BuiltInCategory.OST_ConduitTags;
-                case BuiltInCategory.OST_CableTray:            return BuiltInCategory.OST_CableTrayTags;
-                case BuiltInCategory.OST_ElectricalEquipment:  return BuiltInCategory.OST_ElectricalEquipmentTags;
-                case BuiltInCategory.OST_ElectricalFixtures:   return BuiltInCategory.OST_ElectricalFixtureTags;
-                case BuiltInCategory.OST_GenericModel:         return BuiltInCategory.OST_GenericModelTags;
-                default: return null;
-            }
-        }
-
-        private static TagOrientation ParseOrientation(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return TagOrientation.Horizontal;
-            switch (s.Trim().ToLowerInvariant())
-            {
-                case "vertical": return TagOrientation.Vertical;
-                case "model":    return TagOrientation.AnyModelDirection;
-                default:         return TagOrientation.Horizontal;
-            }
-        }
-
-        // ── Dim rules ──
-
-        private static void RunDimRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
-        {
-            bool autoDim = pack.AutoDim == true ||
-                           (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
-                               string.Equals(r.RuleType, "AutoDim", StringComparison.OrdinalIgnoreCase)));
-            if (!autoDim) return;
-
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(Grid))
-                .Cast<Grid>()
-                .ToList();
-            if (grids.Count >= 2)
-            {
-                try { CreateGridDim(doc, view, grids.Where(IsHorizontal).ToList(), result); } catch (Exception ex) { result.Warnings.Add("DimGrids horizontal: " + ex.Message); }
-                try { CreateGridDim(doc, view, grids.Where(IsVertical).ToList(),   result); } catch (Exception ex) { result.Warnings.Add("DimGrids vertical: " + ex.Message); }
-            }
-
-            DimensionType dt = ResolveDimensionType(doc, pack.DimensionStyle);
-            if (dt != null)
-            {
-                // Best-effort: ChangeTypeId on the most recently placed dimensions is non-trivial without tracking ids;
-                // skipped here, but the resolved dimension type is logged.
-            }
-        }
-
-        private static void CreateGridDim(Document doc, View view, List<Grid> grids, AnnotationResult result)
-        {
-            if (grids == null || grids.Count < 2) return;
-            try
-            {
-                var refArr = new ReferenceArray();
-                foreach (var g in grids)
-                {
-                    var c = g.Curve;
-                    if (c == null) continue;
-                    refArr.Append(new Reference(g));
-                }
-                if (refArr.Size < 2) return;
-                var first = grids[0].Curve;
-                if (first == null) return;
-                var p1 = first.GetEndPoint(0);
-                var p2 = first.GetEndPoint(1);
-                var line = Line.CreateBound(p1, p2);
-                doc.Create.NewDimension(view, line, refArr);
-                result.DimsPlaced++;
-            }
-            catch (Exception ex) { result.Warnings.Add("CreateGridDim: " + ex.Message); }
-        }
-
-        private static bool IsHorizontal(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.Y) > Math.Abs(d.X); }
-            catch { return false; }
-        }
-
-        private static bool IsVertical(Grid g)
-        {
-            try { var c = g.Curve as Line; if (c == null) return false; var d = c.Direction; return Math.Abs(d.X) >= Math.Abs(d.Y); }
-            catch { return false; }
-        }
-
-        private static DimensionType ResolveDimensionType(Document doc, string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(DimensionType))
-                .Cast<DimensionType>()
-                .FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
         }
 
         // ── Decorative annotation: north arrow / scale bar / key plan / matchlines ──
@@ -718,6 +1011,17 @@ namespace StingTools.Core.Drawing
             {
                 var sym = FindFamilySymbolByName(doc, familyName);
                 if (sym == null) { result.Warnings.Add($"Decorative family '{familyName}' not found — skipped."); return; }
+
+                // C-4: the decorative pass had no idempotency either, so every
+                // re-run stacked another north arrow / scale bar / key plan on
+                // the view. One instance of a given family per view is the
+                // whole intent, so an existing instance is the guard.
+                if (ViewHasInstanceOfFamily(doc, view, sym))
+                {
+                    result.Skipped++;
+                    return;
+                }
+
                 if (!sym.IsActive) { try { sym.Activate(); } catch { } }
                 var inset = (sizeMm ?? 0) / 304.8;
                 var pt = ResolvePositionPoint(outline, position, inset);
@@ -725,6 +1029,35 @@ namespace StingTools.Core.Drawing
                 result.DecorativePlaced++;
             }
             catch (Exception ex) { result.Warnings.Add($"Decorative '{familyName}': {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// True when this view already owns an instance of the given family
+        /// symbol's family — the guard that keeps the decorative pass from
+        /// re-stacking a north arrow / scale bar / key plan on every run.
+        /// Matched on family rather than symbol so a type swap still counts.
+        /// </summary>
+        private static bool ViewHasInstanceOfFamily(Document doc, View view, FamilySymbol sym)
+        {
+            if (doc == null || view == null || sym == null) return false;
+            try
+            {
+                var famId = sym.Family?.Id;
+                if (famId == null) return false;
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(FamilyInstance))
+                    .WhereElementIsNotElementType())
+                {
+                    if (el is FamilyInstance fi && fi.Symbol?.Family?.Id == famId) return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open: place it rather than silently omit a required
+                // north arrow because the scan failed.
+                StingLog.Warn($"ViewHasInstanceOfFamily('{sym.Name}'): {ex.Message}");
+            }
+            return false;
         }
 
         private static XYZ ResolvePositionPoint(BoundingBoxXYZ outline, string position, double inset)
@@ -749,9 +1082,67 @@ namespace StingTools.Core.Drawing
             ProcessSpotRules(doc, view, pack.SpotCoordinateRules, isCoordinate: true, result);
         }
 
+        /// <summary>
+        /// Element ids already carrying a spot elevation — or a spot coordinate,
+        /// when <paramref name="isCoordinate"/> is true — in this view. Built
+        /// once per kind and shared across every spot rule: the guard that keeps
+        /// the spot pass from re-stacking a SpotDimension on every run. Like the
+        /// dimension guard (ViewHasDimensionReferencing) it detects an existing
+        /// spot by what it REFERENCES; a spot whose references are unavailable is
+        /// treated as unknown rather than a match. Fails open with a warning so a
+        /// scan failure places spots (previous behaviour) instead of silently
+        /// omitting them.
+        /// </summary>
+        private static HashSet<ElementId> BuildSpottedElementIndex(Document doc, View view, bool isCoordinate, AnnotationResult result)
+        {
+            var set = new HashSet<ElementId>();
+            try
+            {
+                var bic = isCoordinate ? BuiltInCategory.OST_SpotCoordinates : BuiltInCategory.OST_SpotElevations;
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfCategory(bic)
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is SpotDimension sd)) continue;
+                    try
+                    {
+                        if (!sd.AreReferencesAvailable) continue;   // unknown — not a match
+                        var refs = sd.References;
+                        if (refs == null) continue;
+                        foreach (Reference r in refs)
+                        {
+                            var host = doc.GetElement(r);
+                            if (host != null && host.Id != ElementId.InvalidElementId) set.Add(host.Id);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"BuildSpottedElementIndex: spot {sd.Id} — {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open: an empty index means "place every spot", i.e. the
+                // previous behaviour, rather than silently skipping requested work.
+                result.Warnings.Add($"Could not index existing spot {(isCoordinate ? "coordinates" : "elevations")} " +
+                                    $"in '{view.Name}' ({ex.Message}); duplicate spot dims are possible on this view.");
+            }
+            return set;
+        }
+
         private static void ProcessSpotRules(Document doc, View view, List<SpotAnnotationRule> rules, bool isCoordinate, AnnotationResult result)
         {
             if (rules == null || rules.Count == 0) return;
+
+            // C-4: index elements that already carry a spot dimension of this
+            // kind in the view, once and shared across every rule below, so a
+            // re-run doesn't stack a second SpotElevation / SpotCoordinate onto
+            // each element. The tag, dimension and decorative passes each got an
+            // idempotency guard; the spot pass was the one kind left uncovered,
+            // so re-running DrawingTypePresentation.Apply doubled every spot dim.
+            var spotted = BuildSpottedElementIndex(doc, view, isCoordinate, result);
+
             foreach (var r in rules)
             {
                 if (r == null || string.IsNullOrEmpty(r.Category)) continue;
@@ -782,6 +1173,14 @@ namespace StingTools.Core.Drawing
                     {
                         try
                         {
+                            // C-4: skip an element that already carries a spot
+                            // dim of this kind so a re-run places nothing.
+                            if (spotted != null && spotted.Contains(el.Id))
+                            {
+                                result.Skipped++;
+                                continue;
+                            }
+
                             var bb = el.get_BoundingBox(view);
                             if (bb == null) continue;
                             var origin = new XYZ((bb.Min.X + bb.Max.X) / 2.0, (bb.Min.Y + bb.Max.Y) / 2.0, bb.Max.Z);
@@ -797,6 +1196,9 @@ namespace StingTools.Core.Drawing
                                 try { sd.ChangeTypeId(symbolId); } catch { }
                             }
                             result.SpotsPlaced++;
+                            // Keep the index current so a later rule of the same
+                            // kind in this run doesn't re-spot the same element.
+                            spotted?.Add(el.Id);
                         }
                         catch (Exception ex) { result.Warnings.Add($"Spot {(isCoordinate ? "coord" : "elev")} '{r.Category}/{el.Id}': {ex.Message}"); }
                     }

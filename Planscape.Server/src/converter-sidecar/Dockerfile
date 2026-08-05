@@ -12,11 +12,27 @@
 # Run:
 #   docker run --rm -p 7700:7700 -e API_BASE=https://api.planscape.app planscape/converter-sidecar:latest
 
-FROM node:20-alpine
+# Debian (glibc) base so the prebuilt IfcConvert binary runs — the
+# ifcopenshell-builds binaries are glibc, not musl, so node:alpine can't run them.
+FROM node:20-bookworm-slim
 
-# IfcOpenShell is brought in via a separate stage when needed for IFC →
-# glTF; v1 only handles GLB chunking so the image stays light.
-RUN apk add --no-cache curl python3 make g++
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl unzip ca-certificates python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+
+# IfcConvert (IfcOpenShell) for the /ifc-to-glb endpoint. ifcopenshell-builds
+# uses content-hashed filenames, so the URL drifts per release — override at
+# build time with --build-arg IFCCONVERT_URL=<current linux64 IfcConvert zip>
+# (see https://github.com/IfcOpenShell/IfcOpenShell releases). The install is
+# NON-FATAL: if it fails, the image still serves GLB chunking and /ifc-to-glb
+# returns 501 until a working URL is supplied.
+ARG IFCCONVERT_URL=https://s3.amazonaws.com/ifcopenshell-builds/IfcConvert-v0.8.0-linux64.zip
+RUN (curl -fsSL "$IFCCONVERT_URL" -o /tmp/ifc.zip \
+      && unzip -o /tmp/ifc.zip -d /usr/local/bin \
+      && chmod +x /usr/local/bin/IfcConvert \
+      && rm -f /tmp/ifc.zip \
+      && IfcConvert --version) \
+   || echo "WARN: IfcConvert not installed (set IFCCONVERT_URL) — /ifc-to-glb will return 501"
 
 WORKDIR /app
 COPY package.json server.js /app/

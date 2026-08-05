@@ -22,9 +22,19 @@ public class ProjectsControllerTests : IClassFixture<PlanscapeWebApplicationFact
         var items = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(items.GetArrayLength() >= 1);
 
-        var first = items[0];
-        Assert.Equal("TST-001", first.GetProperty("code").GetString());
-        Assert.Equal("Test BIM Project", first.GetProperty("name").GetString());
+        // Find the seeded project rather than assuming it is items[0].
+        //
+        // GetProjects orders by (IsPinned desc, LastSyncAt desc). Every project
+        // this suite creates leaves both at their defaults, so the ordering has
+        // no tiebreak and is whatever the provider returns. Sibling tests in
+        // this class create projects into the SAME database (IClassFixture
+        // shares one factory), so position was never a property of this test —
+        // it merely happened to hold on EF InMemory's insertion order and broke
+        // the moment the suite ran against real PostgreSQL.
+        var seeded = items.EnumerateArray()
+            .FirstOrDefault(p => p.GetProperty("code").GetString() == "TST-001");
+        Assert.Equal(JsonValueKind.Object, seeded.ValueKind);
+        Assert.Equal("Test BIM Project", seeded.GetProperty("name").GetString());
     }
 
     [Fact]

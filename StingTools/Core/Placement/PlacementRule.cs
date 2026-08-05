@@ -53,6 +53,15 @@ namespace StingTools.Core.Placement
         public string CategoryFilter { get; set; } = "";
 
         /// <summary>
+        /// Phase 188 (review fix #5b) — optional BuiltInCategory name
+        /// (e.g. "OST_LightingFixtures"). When set, symbol resolution matches
+        /// on the category id rather than the localized Category.Name, so rules
+        /// resolve correctly on non-English Revit. Empty (default) ⇒ legacy
+        /// behaviour: match by CategoryFilter against Element.Category.Name.
+        /// </summary>
+        public string CategoryBic { get; set; } = "";
+
+        /// <summary>
         /// PC-08 — comma-separated fallback chain (FLUSH,SURFACE,RECESSED)
         /// or a single regex (^IP6[5-7]$). Engine tries each in order
         /// and falls back to the first symbol when nothing matches.
@@ -164,7 +173,7 @@ namespace StingTools.Core.Placement
         /// <summary>PC-12 — Density rule: 1 fixture per N pupils (education; read from room's STING_PUPIL_COUNT_INT).</summary>
         public double PerPupil { get; set; } = 0.0;
 
-        /// <summary>PC-12 — Density rule: 1 fixture per N toilet cubicles (BS 6465 accessory rules).</summary>
+        /// <summary>PC-12 — Density rule: 1 fixture per N toilet cubicles (BS 6465 accessory rules; read from room's STING_TOILET_CUBICLE_COUNT_INT).</summary>
         public double PerToiletCubicle { get; set; } = 0.0;
 
         /// <summary>PC-12 — Name of a room integer parameter to read occupancy from when PerOccupant is set. Defaults to STING_OCC_COUNT_INT.</summary>
@@ -183,7 +192,7 @@ namespace StingTools.Core.Placement
 
         // ── Integrated routing (PC-15) ───────────────────────────────
 
-        /// <summary>PC-15 — NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT / WALL_FOLLOWER. If set, the engine routes from each placed fixture after placement.</summary>
+        /// <summary>NONE / AUTO_CONDUIT / AUTO_PIPE / AUTO_DUCT. If set (non-NONE), the engine routes from each placed fixture after placement via the matching Core/Routing drop engine.</summary>
         public string RoutingMode { get; set; } = "NONE";
 
         /// <summary>PC-15 — vertical offset in mm from the fixture connector to where the route begins (negative = below connector).</summary>
@@ -229,6 +238,22 @@ namespace StingTools.Core.Placement
 
         /// <summary>Minimum clearance from any obstruction in millimetres.</summary>
         public double ObstructionClearanceMm { get; set; } = 0.0;
+
+        /// <summary>
+        /// A6 (placement-quality) — minimum clearance in millimetres a placed
+        /// fixture must keep from a door opening. The scorer rejects any
+        /// candidate within this distance of a door's location point. 0
+        /// (default) = off (legacy behaviour preserved).
+        /// </summary>
+        public double DoorClearanceMm { get; set; } = 0.0;
+
+        /// <summary>
+        /// A6 (placement-quality) — minimum clearance in millimetres a placed
+        /// fixture must keep from a window opening. The scorer rejects any
+        /// candidate within this distance of a window's location point. 0
+        /// (default) = off (legacy behaviour preserved).
+        /// </summary>
+        public double WindowClearanceMm { get; set; } = 0.0;
 
         /// <summary>Wall face to route on — INTERIOR / EXTERIOR / THROUGH / AUTO.</summary>
         public string RouteFace { get; set; } = "";
@@ -409,10 +434,11 @@ namespace StingTools.Core.Placement
         public string BuildingType { get; set; } = "";
 
         /// <summary>Semicolon-separated list of standards this rule enforces (e.g. "BS 8300;BB101;HTM 08-03").</summary>
+        [Newtonsoft.Json.JsonConverter(typeof(StringOrCsvArrayConverter))]
         public string ApplicableStandards { get; set; } = "";
 
         /// <summary>Minimum IP rating required (numeric, e.g. 44 for IP44).</summary>
-        public int IpRatingMin { get; set; } = 0;
+        public string IpRatingMin { get; set; } = "";
 
         /// <summary>Wet zone exclusion zone class string (e.g. "ZONE_1", "ZONE_2").</summary>
         public string WetZoneExclusion { get; set; } = "";
@@ -554,6 +580,7 @@ namespace StingTools.Core.Placement
                 RuleId               = this.RuleId,
                 RuleKind             = this.RuleKind,
                 CategoryFilter       = this.CategoryFilter,
+                CategoryBic          = this.CategoryBic,
                 VariantHint          = this.VariantHint,
                 FamilyTypeRegex      = this.FamilyTypeRegex,
                 RoomFilter           = this.RoomFilter,
@@ -591,6 +618,8 @@ namespace StingTools.Core.Placement
                 MaxSpacingMm         = this.MaxSpacingMm,
                 WallClearanceMm      = this.WallClearanceMm,
                 ObstructionClearanceMm = this.ObstructionClearanceMm,
+                DoorClearanceMm      = this.DoorClearanceMm,
+                WindowClearanceMm    = this.WindowClearanceMm,
                 GuaranteeCoverage    = this.GuaranteeCoverage,
                 RoutingMode          = this.RoutingMode,
                 RouteOffsetMm        = this.RouteOffsetMm,
@@ -675,6 +704,45 @@ namespace StingTools.Core.Placement
         public string MergeKey => string.IsNullOrEmpty(RuleId)
             ? $"{CategoryFilter}::{VariantHint}::{RoomFilter}::{AnchorType}"
             : RuleId;
+    }
+
+    /// <summary>
+    /// Deserialises a string property from EITHER a JSON string
+    /// ("BS 8300;BB101") OR a JSON array (["BS7671","BS 8300"]), normalising an
+    /// array to a semicolon-joined string. Many rule packs (accessibility,
+    /// mk-electrical, baseline-extensions/2, ceiling-pendants, windows-glazing,
+    /// commissioning, conduiting-phase, in-wall-chase, medical-gases, routing)
+    /// author ApplicableStandards as an ARRAY. Without this, Newtonsoft threw on
+    /// the StartArray token while deserialising the whole PlacementRuleSet, so
+    /// LoadFromFileSafe caught the exception and the ENTIRE pack silently loaded
+    /// zero rules — the long-standing "only 147 rules load" bug (baseline + the
+    /// 5 packs that happened to omit the field).
+    /// </summary>
+    internal sealed class StringOrCsvArrayConverter : Newtonsoft.Json.JsonConverter
+    {
+        public override bool CanConvert(Type objectType) => objectType == typeof(string);
+
+        public override object ReadJson(Newtonsoft.Json.JsonReader reader, Type objectType,
+            object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+        {
+            if (reader.TokenType == Newtonsoft.Json.JsonToken.Null) return "";
+            if (reader.TokenType == Newtonsoft.Json.JsonToken.StartArray)
+            {
+                var arr = Newtonsoft.Json.Linq.JArray.Load(reader);
+                var parts = new List<string>();
+                foreach (var t in arr)
+                {
+                    var s = t?.ToString();
+                    if (!string.IsNullOrWhiteSpace(s)) parts.Add(s.Trim());
+                }
+                return string.Join(";", parts);
+            }
+            return reader.Value?.ToString() ?? "";
+        }
+
+        public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object value,
+            Newtonsoft.Json.JsonSerializer serializer)
+            => writer.WriteValue(value as string ?? "");
     }
 
     /// <summary>

@@ -2,7 +2,7 @@
   "standard": "BS EN 60617",
   "version": "1.0",
   "description": "BS EN 60617 / BS 7671 SLD symbols for UK electrical drawings",
-  "symbolDefinitions": [
+  "symbols": [
     {
       "id": "BS_SLD_MCB",
       "familyType": "GenericAnnotation",

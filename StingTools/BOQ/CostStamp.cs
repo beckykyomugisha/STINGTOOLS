@@ -43,6 +43,14 @@ namespace StingTools.BOQ
         // Cache cuts the perf hit to O(unique-category-tuples), typically
         // < 50 entries. Reset via Invalidate() or naturally bounded by
         // _rateCacheMaxEntries.
+        //
+        // RC-4 (documented design constraint): the cache key carries NO location
+        // dimension. This is deliberate and safe because a document uses ONE FX
+        // pair and ONE rate table (the registry is per-doc), so a category tuple
+        // resolves to the same rate everywhere in the model. If multi-region
+        // pricing WITHIN one document ever becomes a requirement, add a location
+        // token (e.g. ASS_LOC_TXT / a region code) to this key AND to the rate
+        // lookup — until then a location key would only bloat the cache.
         private const int _rateCacheMaxEntries = 500;
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Rates.RateLookup>
             _rateCache = new System.Collections.Concurrent.ConcurrentDictionary<string, Rates.RateLookup>();
@@ -114,9 +122,22 @@ namespace StingTools.BOQ
                 var rule = ruleRegistry.Match(catName, disc, prod);
                 if (rule == null) return false;
 
-                double qty = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
-                if (rule.WastePercent > 0) qty *= 1.0 + rule.WastePercent / 100.0;
-                if (qty <= 0.0001) return false;
+                // WP2 — measure via the SAME path the bill uses (MeasureQuantity:
+                // NRM2/CESMM opening/void deductions + the project default waste),
+                // so the stamped CST_QTY_MEASURED / CST_MODELED_TOTAL_UGX equals
+                // the element's BOQ row instead of the raw rule quantity + only
+                // rule.WastePercent (which skipped deductions and the default waste).
+                string stdId = TagConfig.GetConfigValue("COST_MEASUREMENT_STANDARD");
+                if (string.IsNullOrWhiteSpace(stdId)) stdId = "nrm2";
+                var measStd = MeasurementStandard.MeasurementStandardRegistry.Get(stdId);
+                double qty = BOQCostManager.MeasureQuantity(el, rule.Unit ?? "each", catName, measStd,
+                    out _, out _, out _, out _);
+                // WP-M — a MEASURED unit returning 0 is "could not measure": stamp a
+                // FLAGGED zero (below) rather than silently skipping the stamp, so the
+                // element still carries cost params + a visible flag for the QS.
+                // Counted units never legitimately reach 0.
+                bool couldNotMeasure = qty <= 0.0001 && WasteFactor.AppliesTo(rule.Unit ?? "each");
+                if (qty <= 0.0001 && !couldNotMeasure) return false;
 
                 // Resolve rate via the per-batch cache → registry. Cache
                 // key intentionally excludes Element identity so two
@@ -132,8 +153,17 @@ namespace StingTools.BOQ
                 string cacheKey = $"{catName}|{disc}|{prod}|{matCode}|{rule.Unit ?? "each"}";
                 double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
 
+                // CA-5 — the shared rate cache is keyed on category tuple, NOT element
+                // identity, so a per-element override (param CST_RATE_SOURCE=Override
+                // or an ES rate override) must BYPASS it — otherwise the overridden
+                // element would be stamped a sibling's generic category rate, skewing
+                // CST_MODELED_TOTAL_UGX and the EVM %-weighting that reads it.
+                bool hasOverride =
+                    string.Equals(ParameterHelpers.GetString(el, "CST_RATE_SOURCE"), "Override", StringComparison.OrdinalIgnoreCase)
+                    || StingTools.Core.Storage.StingCostRateOverrideSchema.Read(el) != null;
+
                 Rates.RateLookup lookup;
-                if (_rateCache.TryGetValue(cacheKey, out lookup))
+                if (!hasOverride && _rateCache.TryGetValue(cacheKey, out lookup))
                 {
                     System.Threading.Interlocked.Increment(ref _rateCacheHits);
                 }
@@ -141,9 +171,15 @@ namespace StingTools.BOQ
                 {
                     System.Threading.Interlocked.Increment(ref _rateCacheMisses);
                     double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
+                    // CA-5 — pass the REAL CSV + COBie rate tables (was two empty
+                    // dicts). The registry is cached per-document, so whichever caller
+                    // builds it first wins; with empty dicts here a tag-time stamp that
+                    // ran before BuildBOQDocument would have poisoned the bill's
+                    // registry with no CSV/COBie rates. Now CST_MODELED_TOTAL_UGX uses
+                    // the same rate source as the bill.
                     var rateRegistry = RateProviderRegistry.Get(doc,
-                        new Dictionary<string, (double rate, string unit)>(),
-                        new Dictionary<string, string>(),
+                        BOQCostManager.LoadCsvRates(),
+                        BOQCostManager.LoadCobieCostCodes(),
                         ugxPerUsd, ugxPerGbp);
                     var req = new RateRequest
                     {
@@ -159,8 +195,10 @@ namespace StingTools.BOQ
                     lookup = rateRegistry.Resolve(req);
                     // Bounded cache — drop if we exceed the cap. We don't
                     // need LRU semantics because a single tag operation
-                    // typically touches < 100 unique category tuples.
-                    if (lookup != null && _rateCache.Count < _rateCacheMaxEntries)
+                    // typically touches < 100 unique category tuples. CA-5 —
+                    // never cache an override result under the category key (it
+                    // would leak the per-element rate to siblings).
+                    if (lookup != null && !hasOverride && _rateCache.Count < _rateCacheMaxEntries)
                         _rateCache[cacheKey] = lookup;
                 }
                 if (lookup == null || lookup.UnitRate <= 0) return false;
@@ -187,7 +225,8 @@ namespace StingTools.BOQ
                     lookup.UnitRate.ToString("F0", CultureInfo.InvariantCulture),
                     overwrite: true);
                 ParameterHelpers.SetString(el, "CST_QTY_MEASURED",
-                    $"{qty:F3} {rule.Unit ?? "each"}", overwrite: true);
+                    $"{qty:F3} {rule.Unit ?? "each"}" + (couldNotMeasure ? " [COULD NOT MEASURE]" : ""),
+                    overwrite: true);
                 ParameterHelpers.SetString(el, "CST_RATE_SOURCE",
                     MapProviderIdToLegacySource(lookup.SourceId), overwrite: true);
                 WriteNumber(el, "CST_MODELED_TOTAL_UGX", total);
@@ -213,20 +252,9 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.Warn($"CostStamp.WriteNumber {paramName} on {el?.Id}: {ex.Message}"); }
         }
 
-        // Mirrors BOQCostManager.MapProviderIdToLegacySource — kept local
-        // here to avoid a dependency on BOQCostManager from the tag
-        // pipeline.
+        // PM-7: delegates to the one shared map (Rates.RateSourceLabels) instead
+        // of the previously-duplicated local copy.
         private static string MapProviderIdToLegacySource(string providerId)
-        {
-            switch (providerId ?? "")
-            {
-                case "param-override": return "Override";
-                case "es-override":    return "Override";
-                case "csv-default":    return "CSV";
-                case "cobie-typemap":  return "COBie";
-                case "default-baseline": return "Default";
-                default:               return providerId ?? "None";
-            }
-        }
+            => StingTools.BOQ.Rates.RateSourceLabels.ToLegacy(providerId);
     }
 }

@@ -1420,8 +1420,10 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Reload JSON" Tag="DrawingTypes_Reload" Click="Cmd_Click" ToolTip="Clear registry cache so on-disk edits to STING_DRAWING_TYPES.json or _BIM_COORD/drawing_types.json take effect"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Pres Setup" Tag="DrawingTypes_PresentationSetup" Click="Cmd_Click" ToolTip="Create the custom fill patterns (STING-Pres-Herringbone / HorizontalCladding / RoofHatch) and entourage / Generic Models subcategories (STING-LargeTree / STING-SmallShrub / STING-PresGround) required by the pres-* presentation style packs. Idempotent — safe to re-run."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_GroupBrowser" Click="Cmd_Click" ToolTip="Pivot the registry by discipline — quick overview of every drawing type that exists per discipline"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="Reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="Scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Style Refs" Tag="DrawingTypes_AuditStyleRefs" Click="Cmd_Click" ToolTip="Read-only — reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project. Does not modify views."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="WRITES — re-apply every stamped view's profile (scale / detail / template / style pack / annotation) so views snap back into line after editing a Drawing Type or View Style Pack. Views flagged STING_STYLE_LOCKED_BOOL are skipped."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suggest From Scope Boxes" Tag="DrawingTypes_SuggestFromScopeBoxes" Click="Cmd_Click" ToolTip="Read-only — scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name). Creates nothing."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Generate From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="WRITES — create a view per scope box named STING::&lt;drawing-type&gt;::&lt;level&gt;, cropped to that box, with the profile's scale / template / style pack applied. Idempotent per (drawing type, scope box)."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↓ Export to Excel" Tag="DrawingTypes_ExportExcel" Click="Cmd_Click" ToolTip="Export all Drawing Types and Style Packs to an editable Excel workbook (8 sheets, colour swatches, validation dropdowns)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↑ Import from Excel" Tag="DrawingTypes_ImportExcel" Click="Cmd_Click" ToolTip="Import Drawing Types and Style Packs from an edited Excel workbook (validation pre-flight, change preview, applies to project _BIM_COORD/ overrides)"/>
                                 </WrapPanel>
@@ -1433,7 +1435,7 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Migrate Params" Tag="DrawingTypes_MigrateParams" Click="Cmd_Click" ToolTip="One-time migration: copy PRJ_TB_* values from title blocks into PRJ_ORG_* on ProjectInformation, then re-stamp all sheets."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Audit Params" Tag="DrawingTypes_AuditLegacyParams" Click="Cmd_Click" ToolTip="Read-only audit: shows which PRJ_TB_* values would be migrated without writing anything."/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Sync Rev" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Sync Revit Revision sequence into title-block revision-strip rows (PRJ_TB_REV_COL_n / DATE / DESC) on all STING-stamped sheets."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sync Rev" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Mirror the newest Revit revision (number / date / description) onto every sheet (SHT_REV_TXT, SHT_REV_DATE_TXT) and its title blocks (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT / PRJ_TB_ISSUE_SUMMARY_TXT). Same engine as 'Rev Sync'."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Re-Stamp" Tag="DrawingTypes_BulkReStamp" Click="Cmd_Click" ToolTip="Re-apply a DrawingType profile (scale / template / style pack / annotation) to selected sheets or all project sheets."/>
                                     </WrapPanel>
                                 </Expander>
@@ -1477,15 +1479,15 @@
                                     <StackPanel Margin="0,4">
                                         <WrapPanel>
                                             <Button Style="{StaticResource ActionBtn}" Content="Count" Tag="SheetCountAutoUpdate" Click="Cmd_Click" ToolTip="Refresh PRJ_TB_TOTAL_NO_SHEETS_TXT — counts sheets where 'Appears in Sheet List' is Yes"/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Rev Sync" Tag="RevisionSync" Click="Cmd_Click" ToolTip="Mirror Revit native revision number/date into PRJ_TB_REVISION_NR_TXT / PRJ_TB_REVISION_DATE_TXT"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Rev Sync" Tag="RevisionSync" Click="Cmd_Click" ToolTip="Mirror the newest Revit revision (number / date / description) onto every sheet (SHT_REV_TXT, SHT_REV_DATE_TXT) and its title blocks (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT / PRJ_TB_ISSUE_SUMMARY_TXT). Same engine as 'Sync Rev'."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Stamp TX" Tag="TransmittalAutoIssue" Click="Cmd_Click" ToolTip="Stamp transmittal metadata (PRJ_TB_LAST_TRANSMITTAL_*, PRJ_TB_DELIVERABLE_*) onto selected sheets"/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Pre-Export" Tag="PreExportValidate" Click="Cmd_Click" ToolTip="Run pre-export completeness gate — blocks PDF/DWF when critical fields are empty"/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Build…" Tag="TitleBlock_Create" Click="Cmd_Click" ToolTip="Phase 170 factory — mint a STING title-block .rfa from STING_TITLE_BLOCKS.json. Picker appears when multiple concrete (non-abstract) families exist; abstract base specs are filtered out."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Build All" Tag="TitleBlock_CreateAll" Click="Cmd_Click" ToolTip="Mint every concrete (non-abstract) family in STING_TITLE_BLOCKS.json in one batch. Abstract `_common` bases are skipped — they're inheritance scaffolding only."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Auto-VPs" Tag="TitleBlock_AutoPlaceViewports" Click="Cmd_Click" ToolTip="For each selected view, look up its purpose tag via STING_VIEWPORT_PLACEMENT_RULES.json and place a Viewport at the active sheet's matching slot. Slot bounds are read from the title-block .rfa's named reference planes; scaleHint + viewportType applied at creation time."/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="BIM Mode" Tag="TitleBlock_ToggleBIMMode" Click="Cmd_Click" ToolTip="Swap the active sheet's title block between its BIM and NONBIM family variants. Auto-loads the target .rfa from Families/TitleBlocks/ when not already in the project. Updates STING_SHEET_BIM_MODE_TXT."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="BIM Mode" Tag="TitleBlock_ToggleBIMMode" Click="Cmd_Click" ToolTip="Swap the active sheet's title block between its BIM and NONBIM family variants. Auto-loads the target .rfa from Families/TitleBlocks/ when not already in the project. Updates PRJ_SHEET_BIM_MODE_TXT."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Audit Legacy" Tag="TitleBlock_AuditLegacy" Click="Cmd_Click" ToolTip="Read-only — list every sheet whose title block follows the pre-May-2026 single-family naming (STING_TB_&lt;SIZE&gt;_v&lt;N&gt;). Reports counts + sample sheet numbers grouped by legacy family. Run before Migrate Legacy."/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Migrate Legacy" Tag="TitleBlock_MigrateLegacy" Click="Cmd_Click" ToolTip="For each legacy single-family title block, swap to the BIM variant of the same paper size + version. Auto-loads the target .rfa. Sets STING_SHEET_BIM_MODE_TXT = 'BIM'. Run Toggle BIM Mode afterwards on individual sheets that should be NONBIM."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Migrate Legacy" Tag="TitleBlock_MigrateLegacy" Click="Cmd_Click" ToolTip="For each legacy single-family title block, swap to the BIM variant of the same paper size + version. Auto-loads the target .rfa. Sets PRJ_SHEET_BIM_MODE_TXT = 'BIM'. Run Toggle BIM Mode afterwards on individual sheets that should be NONBIM."/>
                                         </WrapPanel>
                                     </StackPanel>
                                 </Expander>
@@ -1760,6 +1762,12 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Create" Tag="AecFilters_Create" Click="Cmd_Click" ToolTip="Mint the AEC ParameterFilterElements from the JSON registry."/>
+                                <!-- W-2: the MatchLine suite had handler cases but no button, no NLP intent, no workflow step — five commands and a ~900-line engine with no way to run them. -->
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Generate" Tag="MatchLine_Generate" Click="Cmd_Click" ToolTip="WRITES — place match-line pairs between adjacent scope boxes, with paired sheet references and tip captions. Idempotent; prunes pairs whose adjacency is gone."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Sync" Tag="MatchLine_Sync" Click="Cmd_Click" ToolTip="WRITES — refresh existing match-line pairs in place after a renumber or sheet change. Captions are replaced, not stacked."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Validate" Tag="MatchLine_Validate" Click="Cmd_Click" ToolTip="Read-only — confirm every placed match line still points at a live sheet and every adjacency still has a pair."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Validate Bundle" Tag="MatchLine_ValidateBundle" Click="Cmd_Click" ToolTip="Read-only — validate match lines across a whole sheet bundle."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Inspect" Tag="MatchLine_Inspect" Click="Cmd_Click" ToolTip="Read-only — list the match-line pairs stamped in this project with their scope boxes, views and references."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Inspect" Tag="AecFilters_Inspect" Click="Cmd_Click" ToolTip="List filter definitions and whether each is present in the active document."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Reload" Tag="AecFilters_Reload" Click="Cmd_Click" ToolTip="Invalidate the AEC filter registry cache (re-read JSON)."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Browser Organize" Tag="Drawing_BrowserOrganize" Click="Cmd_Click" ToolTip="Apply the Project Browser organization grouped by Drawing Type."/>
@@ -1959,7 +1967,9 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="Symbols_CreateLighting" Click="Cmd_Click" ToolTip="Create lighting tag families"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="Symbols_CreateFP" Click="Cmd_Click" ToolTip="Fire protection — sprinklers, detectors, alarm devices, valves"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Reload" Tag="Symbols_Reload" Click="Cmd_Click" ToolTip="Reload every previously-created symbol family from disk"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rebuild" Tag="Symbols_Rebuild" Click="Cmd_Click" ToolTip="Rebuild generated symbol families whose catalogue or generator has changed (or force-rebuild all)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="Symbols_Inspect" Click="Cmd_Click" ToolTip="Read-only diagnostic — defined vs loaded counts per group"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="Symbols_Validate" Click="Cmd_Click" ToolTip="Read-only data-integrity check — catalogue parsing, empty geometry, extent violations, param-less annotations, connector and concept-reference integrity"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Proj" Tag="Symbols_SwitchProject" Click="Cmd_Click" ToolTip="Switch Project Standard — swap every symbol overlay in the project to a chosen standard"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std View" Tag="Symbols_SwitchView" Click="Cmd_Click" ToolTip="Switch View Standard — set the symbol standard for the active view only"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Elem" Tag="Symbols_SetElementStandard" Click="Cmd_Click" ToolTip="Set Element Standard — STING_SYMBOL_STD on selected instances (IEC/ANSI/BS/NFPA/CIBSE)"/>
@@ -1969,6 +1979,7 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Auto Toggle" Tag="Symbols_AutoPlaceToggle" Click="Cmd_Click" ToolTip="Toggle whether the StingAutoTagger drops symbol overlays on every newly-placed MEP element"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Sync Filt" Tag="Symbols_SyncFilters" Click="Cmd_Click" ToolTip="Sync Filters — mirror host visibility onto symbol tags"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Audit" Tag="Symbols_Audit" Click="Cmd_Click" ToolTip="Std Audit — drift + coverage report"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Content Cov" Tag="Content_Coverage" Click="Cmd_Click" ToolTip="Content Coverage — tag-family + model-seed ledger: built vs needs-build / needs-spec gaps, with CSV to _BIM_COORD"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Rm View" Tag="Symbols_RemoveInView" Click="Cmd_Click" ToolTip="Remove In View — delete every STING symbol overlay from the active view"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Rm All" Tag="Symbols_RemoveAll" Click="Cmd_Click" ToolTip="Remove All Views — delete every STING symbol overlay project-wide (chunked)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Clear MEP" Tag="Symbols_ClearMepDetail" Click="Cmd_Click" ToolTip="Clear MEP Symbols — remove all STING MEP detail symbols from the active view"/>
@@ -2294,7 +2305,7 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Load all STING shared parameters into the project (2-pass binding)"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Mint STING tag families (shell + params + type variants) for all categories. Then run 'Propagate Universal' to apply the universal label, and 'Set depth' for the tier count. Label rows are not authored here."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Cfg Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family. Merge-only: re-runs skip already-configured families."/>
                                 </WrapPanel>
                                 <Expander Header="Advanced setup, schema &amp; migration" FontSize="10" Margin="0,4,0,0">
@@ -2319,6 +2330,10 @@
                                             <Button Style="{StaticResource OrangeBtn}" Content="Cfg Loaded"  Tag="ConfigureLoadedFamilies"   Click="Cmd_Click" ToolTip="Inject STING parameters into every editable family already loaded. Mapped scope by default; 'All editable' and purge mode are opt-in."/>
                                             <Button Style="{StaticResource PurpleBtn}" Content="Migrate Fams" Tag="MigrateTagFamilies"       Click="Cmd_Click" ToolTip="Upgrade loaded STING tag families: add PARA_STATE_4..10, 128 style BOOLs, box/leader colour params, pre-create standard type variants"/>
                                             <Button Style="{StaticResource PurpleBtn}" Content="Migrate Refs" Tag="MigrateTagLabelRefs"      Click="Cmd_Click" ToolTip="Rewrite renamed-parameter references inside loaded tag families using SCHEDULE_FIELD_REMAP.csv. FamilyManager.ReplaceParameter preserves every label cell + formula + type value."/>
+                                            <Button Style="{StaticResource PurpleBtn}" Content="Propagate Universal" Tag="Propagate_UniversalTag" Click="Cmd_Click" ToolTip="Universal-tag pivot: clone the hand-built universal master label to loaded STING tag families — EditFamily → recategorise → rename → re-create type variants → SaveAs/LoadFamily. Re-run = safe re-sync. Smoke-test on Duct first."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Stamp Gates" Tag="Gate_StampStatus" Click="Cmd_Click" ToolTip="Compute + stamp STING_GATE_DATA_STATUS_INT / STING_GATE_QA_STATUS_INT (0=red/1=amber/2=green) on every taggable element. Binds the params first if needed."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Status Register" Tag="Status_Register" Click="Cmd_Click" ToolTip="Export a colour-coded data/QA status register to Excel (Register + Summary sheets) to share with modellers. Read-only — computes each element's data + QA gate fresh, reds sorted to top, auto-filtered."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Schedules" Tag="Schedule_DisciplineTagExpander" Click="Cmd_Click" ToolTip="Build one ViewSchedule per model category from SCHEDULE_SPEC_all_disciplines.json — col1 ASS_TAG_1_TXT + the discipline columns dropped from the universal tag + Comments. Sheet / Full as-built / Both. Skips empty entries + unresolved categories."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Style Audit"  Tag="StyleAudit"               Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
                                         </WrapPanel>
                                     </StackPanel>
@@ -2372,11 +2387,27 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Clear Art"  Tag="ClearOverrides"        Click="Cmd_Click" ToolTip="Reset graphic overrides in active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Pre-Flight" Tag="CombinePreFlight"      Click="Cmd_Click" ToolTip="Combine parameters pre-flight check — verifies container bindings before bulk combine"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="Complete %" Tag="CompletenessDashboard" Click="Cmd_Click" ToolTip="Per-discipline tag completeness dashboard with percentage RAG status"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Token Conf" Tag="TokenConfidenceAudit"  Click="Cmd_Click" ToolTip="Confidence audit: classify LOC/ZONE/SYS into High/Medium/Low by detection provenance; surfaces silent BLD1 defaults that a completeness % hides"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="PROD Cover" Tag="Prod_CoverageAudit"    Click="Cmd_Click" ToolTip="PROD coverage audit: per-category how many elements got a family-specific PROD code vs the generic category default; lists the unmatched families + writes a CSV"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="PROD Rules" Tag="Prod_GenerateRules"    Click="Cmd_Click" ToolTip="Generate a project prod_codes.csv overlay seeded from the families that currently get the generic default (gaps only); curate then Tag &amp; Combine"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Dupes"      Tag="FindDuplicates"        Click="Cmd_Click" ToolTip="Find duplicate tag values + select affected elements"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (live recompute — stored vs current LVL/SYS/PROD/FUNC)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stale ⚑"    Tag="SelectStaleFlagged"    Click="Cmd_Click" ToolTip="Select elements flagged STING_STALE_BOOL=1 (the exact set the dashboard STALE count reports)"/>
+                                <Button Style="{StaticResource RedBtn}"    Content="Stale HL"   Tag="HighlightStale"        Click="Cmd_Click" ToolTip="Highlight flagged-stale elements in the active view with a red parameter-filter override"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clear HL"   Tag="ClearStaleHighlight"   Click="Cmd_Click" ToolTip="Remove the stale highlight filter from the active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- SCHEME TAGS (Phase 191/192 — project-grammar renderings of the canonical 8 tokens) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ SCHEME TAGS"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}"  Content="Render Scheme" Tag="TagScheme_Render"  Click="Cmd_Click" ToolTip="Render every enabled project tag scheme onto already-tagged elements and update the render stamp"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="Scheme Inspect" Tag="TagScheme_Inspect" Click="Cmd_Click" ToolTip="List schemes, enablement, validity, checksum drift vs last render, and coverage"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Scheme Audit"   Tag="TagScheme_Audit"   Click="Cmd_Click" ToolTip="Re-render each enabled scheme from current tokens and report mismatches / unrendered tags"/>
                             </WrapPanel>
                         </Border>
 
@@ -2646,6 +2677,13 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Prereqs" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Prerequisites — check loaded families and project readiness"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Type Catalog — browse loaded structural families with extracted dimensions"/>
+                                    </WrapPanel>
+                                </Expander>
+                                <Expander Header="DWG → MEP (fixtures)" FontSize="10" Margin="0,2,0,0">
+                                    <WrapPanel Margin="0,4">
+                                        <Button Style="{StaticResource GreenBtn}" Content="★ MEP Wizard" Tag="Mep_CadWizard" Click="Cmd_Click" FontWeight="Bold" ToolTip="MEP CAD Wizard — per-layer mapping: pick level + host-snap, include/exclude layers, override run kind + elevation, then place fixtures + runs."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="Mep_CadPreview" Click="Cmd_Click" ToolTip="MEP CAD Preview — audit DWG blocks (which place as which fixture vs skip) + straight-run candidates (Duct/Pipe/Conduit/Tray) from lines. Read-only."/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Convert" Tag="Mep_CadToModel" Click="Cmd_Click" ToolTip="MEP CAD → Model — place MEP fixtures (host-snapped to wall/ceiling) AND straight runs from DWG via STING_DWG_FIXTURE_MAP + layer recognition; auto-tagged. (Fittings/risers/slope are V3.)"/>
                                     </WrapPanel>
                                 </Expander>
                                 <Expander Header="Structural analysis" FontSize="10" Margin="0,2,0,0">
@@ -3262,6 +3300,12 @@
                                                 ToolTip="Check sheet names against ISO 19650 naming convention"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Register" Tag="DocumentRegister" Click="Cmd_Click"
                                                 ToolTip="View document register: incoming/outgoing docs, suitability, CDE status"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Unified Register" Tag="DocRegister_Unified" Click="Cmd_Click"
+                                                ToolTip="Export one merged register (deliverables + document register) to CSV — read-only, touches neither store"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Consolidate Register" Tag="Register_Consolidate" Click="Cmd_Click"
+                                                ToolTip="Dry-run preview, then write the canonical _data/register.json (source stores kept intact — reversible)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Consolidate Folders" Tag="Folders_ConsolidateAll" Click="Cmd_Click"
+                                                ToolTip="Dry-run preview, then move legacy STING folders next to the model into the one unified project root"/>
                                         <Button Style="{StaticResource GreenBtn}" Content="Add Doc" Tag="AddDocument" Click="Cmd_Click"
                                                 ToolTip="Register incoming or outgoing document with ISO 19650 naming"/>
                                         <Button Style="{StaticResource PurpleBtn}" Content="Transmittal" Tag="CreateTransmittal" Click="Cmd_Click"
@@ -3592,6 +3636,98 @@
                                             ToolTip="Family Audit — loaded families: unused, in-place, duplicates"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="V/Sh" Tag="ViewSheetCompleteness" Click="Cmd_Click"
                                             ToolTip="View and sheet completeness audit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Devices" Tag="DeviceCoord_Audit" Click="Cmd_Click"
+                                            ToolTip="Device Coordination audit (A1 §7) — switch/outlet vs door swing, casework clearance, mounting-height outliers, art/specialty overlap, fire-alarm vs decorative lighting"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- LOD VERIFICATION (Phase 192 B1) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LOD VERIFICATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Element maturity vs the milestone LOD matrix (param/naming/geometry proxy)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="LOD Verify" Tag="LOD_Verify" Click="Cmd_Click"
+                                            ToolTip="Verify element maturity against a milestone LOD (Deliverable A/B/C/D); TaskDialog + CSV + JSON gate report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LOD Stamp" Tag="LOD_Stamp" Click="Cmd_Click"
+                                            ToolTip="Stamp ASS_LOD_VERIFIED_TXT on every element that passes the picked milestone"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Program Audit" Tag="Program_Audit" Click="Cmd_Click"
+                                            ToolTip="Audit model rooms against the Owner program Excel template — area/count compliance + missing/extra; XLSX deficiency log"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Owner Standards" Tag="OwnerStandards_Audit" Click="Cmd_Click"
+                                            ToolTip="Run the Owner Standards Pack rule-pack (workset prefixes, required PRJ_ORG fields, discipline codes, scheme consistency, sheet naming) — RAG summary + CSV/JSON report"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- BLUEBEAM REVIEW COMMENTS (Phase 192 C3) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="REVIEW COMMENTS (BLUEBEAM)"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Owner Bluebeam Studio comment close-out tracking (phase-gate condition + monthly KPI)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Import" Tag="ReviewComments_Import" Click="Cmd_Click"
+                                            ToolTip="Import a Bluebeam comment summary (CSV/XLSX), assign a gate, upsert into _BIM_COORD/review_comments.json"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard" Tag="ReviewComments_Dashboard" Click="Cmd_Click"
+                                            ToolTip="Tracked comments grid + close-out rate + open count"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="KPI Export" Tag="ReviewComments_Export" Click="Cmd_Click"
+                                            ToolTip="Monthly KPI CSV — per-gate total / closed / close-out % / mean age / overdue"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CSI MASTERFORMAT / SPECLINK (Phase 192 C2) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CSI / SPECLINK"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="CSI MasterFormat classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
+                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
+                                            ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- FOHLIO FF&amp;E (Phase 192 C1) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FOHLIO FF&amp;E"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Owner FF&amp;E single source of truth — link, never duplicate (FOHLIO_REF_TXT)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Fohlio Export" Tag="Fohlio_Export" Click="Cmd_Click"
+                                            ToolTip="Export the FF&amp;E register in Fohlio import shape (CSV)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Fohlio Import" Tag="Fohlio_Import" Click="Cmd_Click"
+                                            ToolTip="Import a Fohlio export — preview the diff, then write FOHLIO_REF_TXT + selected fields back"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fohlio Audit" Tag="Fohlio_Audit" Click="Cmd_Click"
+                                            ToolTip="FF&amp;E missing FOHLIO_REF_TXT + stale rows (model ≠ last Fohlio snapshot); per-category currency KPI"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- BMS (NIAGARA) — controls submittal / station reconcile -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="BMS (NIAGARA)"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#5E35B1">
+                            <StackPanel>
+                                <TextBlock Text="BMS model content + controls submittal — bridge to the Niagara station (ICT_HEALTHIOT_*)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Export Points" Tag="Niagara_ExportPoints" Click="Cmd_Click"
+                                            ToolTip="Export a Niagara-ingestable BMS point list (controls submittal) from tagged ICT_HEALTHIOT_* devices"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Reconcile" Tag="Niagara_Reconcile" Click="Cmd_Click"
+                                            ToolTip="Compare a Niagara/BACnet station export against the modelled BMS devices (station-only / model-only / matched)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- KUT KPI DASHBOARD (proposal §4.6) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="KUT KPI DASHBOARD"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1A237E">
+                            <StackPanel>
+                                <TextBlock Text="§4.6 monthly KPI dashboard — compliance, clash burn-down, model health, Owner-system coverage" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="KUT_KpiDashboard" Click="Cmd_Click"
+                                            ToolTip="Kampala Temple KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3606,6 +3742,8 @@
                                             ToolTip="Whole-life embodied carbon calculator"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Snapshot" Tag="TakeSnapshot" Click="Cmd_Click"
                                             ToolTip="Snapshot current STING parameter values"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Prototype Drift" Tag="PrototypeDrift_Report" Click="Cmd_Click"
+                                            ToolTip="What changed vs the Owner prototype? Type-level diff (added/removed types, count + dimension drift, room program deltas) vs a loaded link or open document; XLSX by discipline"/>
                                 </WrapPanel>
                                 <Expander Header="Carbon + snapshot ops" FontSize="10" Margin="0,2,0,0">
                                     <WrapPanel Margin="0,4">
@@ -4137,6 +4275,19 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
 
+                                        <!-- PRESETS + LIVE (E3/E5) -->
+                                        <TextBlock Text="PRESETS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="cmbTokenPreset" FontSize="9" Height="22" IsEditable="True" IsTextSearchEnabled="False" SelectionChanged="OnTokenPresetSelected" ToolTip="Pick a preset to recall it — or type a name and click Save to store the current settings as a project preset"/>
+                                                    <Button Grid.Column="1" Content="Save" Width="50" Height="22" Margin="4,0,0,0" FontSize="9" Click="OnSaveTokenPreset" ToolTip="Save the current controls as a project preset"/>
+                                                </Grid>
+                                                <CheckBox x:Name="chkLiveTokenDepth" Content="Live — apply to active view as I change controls" FontSize="9" Margin="0,4,0,0" ToolTip="When on, mask / separator / pad / order / depth changes apply to the active view automatically (debounced) — no Set depth press."/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- TOKEN SEGMENT VISIBILITY -->
                                         <TextBlock Text="TOKEN SEGMENT VISIBILITY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
@@ -4165,6 +4316,7 @@
                                                     <ComboBox Grid.Column="1" x:Name="cmbSeqPad" FontSize="9" Height="22">
                                                         <ComboBoxItem Content="0001 (4-digit)" IsSelected="True"/>
                                                         <ComboBoxItem Content="001 (3-digit)"/>
+                                                        <ComboBoxItem Content="01 (2-digit)"/>
                                                         <ComboBoxItem Content="00001 (5-digit)"/>
                                                     </ComboBox>
                                                 </Grid>
@@ -4176,7 +4328,7 @@
                                                         <ComboBoxItem Content="LOC-ZONE-LVL-DISC-SYS-FUNC-PROD-SEQ"/>
                                                     </ComboBox>
                                                 </Grid>
-                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline. Note: separator / pad / order only RE-PAD or reformat tags that already exist when Overwrite = Yes — with Overwrite = No they apply to newly built tags only." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 
@@ -4209,6 +4361,9 @@
                                                     <TextBlock x:Name="lblParaTier10" Grid.Column="9" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T10 —"/>
                                                 </Grid>
                                                 <TextBlock x:Name="lblParaDepthHint" Text="Full — all 10 data tiers. Each tier activates TAG_PARA_STATE_N_BOOL" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                <Button Style="{StaticResource GreenBtn}" Content="Set depth" Tag="SetParagraphDepth" Click="Cmd_Click"
+                                                        Height="24" MinWidth="90" HorizontalAlignment="Left" Margin="0,5,0,0"
+                                                        ToolTip="Apply the slider depth (tiers T1..N ON, N+1..10 OFF) to the SELECTED tags' type — or all tag types if nothing is selected. This is what makes the slider take effect."/>
                                             </StackPanel>
                                         </Border>
 
@@ -4838,6 +4993,8 @@
                                                             <Button Style="{StaticResource ActionBtn}" Content="Live fill"     Tag="Mep_FillLiveCalc"                  Click="Cmd_Click" MinWidth="64" Height="26" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
                                                             <Button Style="{StaticResource ActionBtn}" Content="Wire annotate" Tag="Electrical_WireAnnotate"           Click="Cmd_Click" MinWidth="84" Height="26" ToolTip="Place wire annotation on a picked conduit (BS 7671 format)"/>
                                                             <Button Style="{StaticResource ActionBtn}" Content="Wire batch"    Tag="Electrical_WireAnnotateBatch"      Click="Cmd_Click" MinWidth="72" Height="26" ToolTip="Annotate all conduits in active view with wire specifications"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Wire elem annot" Tag="Electrical_WireElementAnnotate"  Click="Cmd_Click" MinWidth="96" Height="26" ToolTip="Place cable-spec annotation on a picked Revit Wire element (circuit-sourced, compute-on-place)"/>
+                                                            <Button Style="{StaticResource ActionBtn}" Content="Wire elem batch" Tag="Electrical_WireElementAnnotateBatch" Click="Cmd_Click" MinWidth="96" Height="26" ToolTip="Annotate all Revit Wire elements in the active view (circuit-sourced)"/>
                                                             <Button Style="{StaticResource ActionBtn}" Content="Home run"      Tag="Electrical_HomeRunArrow"           Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Place home-run arrow on picked conduit pointing toward panel"/>
                                                             <Button Style="{StaticResource ActionBtn}" Content="Home batch"    Tag="Electrical_HomeRunArrowBatch"      Click="Cmd_Click" MinWidth="72" Height="26" ToolTip="Place home-run arrows for all conduits in the active view"/>
                                                             <Button Style="{StaticResource ActionBtn}" Content="Wire clear"    Tag="Electrical_ClearWireAnnotations"   Click="Cmd_Click" MinWidth="68" Height="26" ToolTip="Remove all STING wire annotations from active view"/>

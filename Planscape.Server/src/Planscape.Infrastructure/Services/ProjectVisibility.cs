@@ -24,8 +24,45 @@ public static class ProjectVisibility
     /// </summary>
     public static bool IsTenantAdmin(ClaimsPrincipal user)
     {
-        var role = user.FindFirst("role")?.Value ?? "";
+        // Read BOTH the raw "role" claim and the mapped one.
+        //
+        // JwtBearer leaves MapInboundClaims at its default of true, so the
+        // handler rewrites the token's "role" claim to the long
+        // ClaimTypes.Role URI before the principal reaches us. Looking only for
+        // "role" therefore found nothing and this method returned false for
+        // EVERY caller — the documented admin bypass above never once fired,
+        // and an Owner could only see projects they had authored or been added
+        // to. GetUserId (below) already guards against exactly this by checking
+        // NameIdentifier before "sub"; this one was missed.
+        //
+        // Kept tolerant of both spellings rather than switching wholesale to
+        // ClaimTypes.Role: principals built by hand in tests, and any future
+        // host that turns claim mapping off, carry the short form.
+        var role = user.FindFirst(ClaimTypes.Role)?.Value
+                   ?? user.FindFirst("role")?.Value
+                   ?? "";
         return role is "Admin" or "Owner" or "SecurityOfficer";
+    }
+
+    /// <summary>
+    /// True only for the tenant OWNER — strictly narrower than
+    /// <see cref="IsTenantAdmin"/>, which also admits Admin and
+    /// SecurityOfficer. Used to gate irreversible operations (project hard
+    /// delete) that are deliberately not available to every admin.
+    ///
+    /// Reads both claim spellings for the same reason as IsTenantAdmin: with
+    /// MapInboundClaims at its default, "role" arrives as the long
+    /// ClaimTypes.Role URI, and checking only the short form silently returns
+    /// false for everyone — which for a permission gate means "always deny",
+    /// i.e. the feature appears broken rather than insecure. (It did exactly
+    /// that here before this helper existed.)
+    /// </summary>
+    public static bool IsTenantOwner(ClaimsPrincipal user)
+    {
+        var role = user.FindFirst(ClaimTypes.Role)?.Value
+                   ?? user.FindFirst("role")?.Value
+                   ?? "";
+        return string.Equals(role, "Owner", StringComparison.OrdinalIgnoreCase);
     }
 
     public static Guid GetTenantId(ClaimsPrincipal user) =>
@@ -51,7 +88,14 @@ public static class ProjectVisibility
         Guid userId,
         bool isTenantAdmin)
     {
-        var q = projects.Where(p => p.TenantId == tenantId);
+        // Scheduled for hard delete — hidden from EVERY read path, admins
+        // included. Filtering here rather than per-controller is deliberate:
+        // this is the one function every project read already funnels through
+        // (that is what made ProjectAccessAttribute possible), so a project
+        // pending purge cannot leak through a caller that forgot to check.
+        // The purge job and the cancel endpoint bypass this by querying
+        // _db.Projects directly, which is the only correct way to reach one.
+        var q = projects.Where(p => p.TenantId == tenantId && p.PurgeAfter == null);
         if (isTenantAdmin) return q;
 
         // Author OR active member

@@ -13,15 +13,22 @@ namespace StingTools.UI
 {
     internal static class ProjectAssetPicker
     {
-        // ── Title-block family symbols (FamilySymbol, OST_TitleBlocks) ──
+        // ── Title-block families (FamilySymbol, OST_TitleBlocks) ──
+        // Yields FAMILY names, not "Family : Type". DrawingType.TitleBlockFamily
+        // is matched by TitleBlockResolver.IsLoadedTitleBlock against
+        // FamilySymbol.FamilyName, so a "Family : Type" entry could never match:
+        // picking one wrote a value that fell through to "unknown vocabulary",
+        // and production then hunted for a family literally called
+        // "STING_TB_A1_BIM_v2.0 : A1". Query shape mirrors the resolver's own
+        // (OfClass over Cast) so the list and the matcher can't disagree.
         public static IEnumerable<string> TitleBlockFamilyTypes(Document doc)
         {
             if (doc == null) return System.Linq.Enumerable.Empty<string>();
             return new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                .WhereElementIsElementType()
+                .OfClass(typeof(FamilySymbol))
                 .Cast<FamilySymbol>()
-                .Select(fs => $"{fs.Family?.Name} : {fs.Name}")
+                .Select(fs => fs.FamilyName)
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Distinct()
                 .OrderBy(s => s)

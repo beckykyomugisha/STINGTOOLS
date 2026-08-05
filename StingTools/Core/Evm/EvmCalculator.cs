@@ -6,9 +6,10 @@
 //    BCWP (Earned value)     = % complete × baseline budget
 //    ACWP (Actual cost)      = imported actuals from accounts
 //
-//  We compute:
-//    CV  = BCWP − ACWP                 (cost variance, GBP)
-//    SV  = BCWP − BCWS                 (schedule variance, GBP)
+//  We compute (all monetary values in the project base currency, UGX, NET of
+//  VAT — CA-2: actuals and certs are net, so EVM reconciles on the net basis):
+//    CV  = BCWP − ACWP                 (cost variance)
+//    SV  = BCWP − BCWS                 (schedule variance)
 //    CPI = BCWP / ACWP                 (cost performance index)
 //    SPI = BCWP / BCWS                 (schedule performance index)
 //    EAC = BAC / CPI                   (estimate at completion)
@@ -16,7 +17,8 @@
 //    VAC = BAC − EAC                   (variance at completion)
 //    TCPI = (BAC − BCWP) / (BAC − ACWP) (to-complete performance index)
 //
-//  BAC (budget at completion) = total contract value at baseline.
+//  BAC (budget at completion) = the net-of-VAT contract sum at baseline
+//  (ContractSumResolver: frozen COST_CONTRACT_SUM_UGX + agreed variations).
 //
 //  P5.3 of the Cost Management Implementation Plan.
 // ══════════════════════════════════════════════════════════════════════════
@@ -31,45 +33,14 @@ using StingTools.BIMManager;
 
 namespace StingTools.Core.Evm
 {
-    public class EvmPeriod
-    {
-        /// <summary>Period end date (typically last day of month).</summary>
-        public DateTime PeriodEnd { get; set; } = DateTime.UtcNow;
-        public string PeriodLabel { get; set; } = "";
-
-        // ── Inputs ──────────────────────────────────────────────────
-        public double Bac { get; set; }     // Budget at Completion (£)
-        public double Bcws { get; set; }    // Planned Value (£)
-        public double Bcwp { get; set; }    // Earned Value (£)
-        public double Acwp { get; set; }    // Actual Cost (£)
-
-        // ── Derived ─────────────────────────────────────────────────
-        public double Cv => Math.Round(Bcwp - Acwp, 2);
-        public double Sv => Math.Round(Bcwp - Bcws, 2);
-        public double Cpi => Acwp > 0 ? Math.Round(Bcwp / Acwp, 4) : 0;
-        public double Spi => Bcws > 0 ? Math.Round(Bcwp / Bcws, 4) : 0;
-        public double Eac => Cpi > 0 ? Math.Round(Bac / Cpi, 2) : 0;
-        public double Etc => Math.Round(Eac - Acwp, 2);
-        public double Vac => Math.Round(Bac - Eac, 2);
-        public double Tcpi
-        {
-            get
-            {
-                double denom = Bac - Acwp;
-                if (Math.Abs(denom) < 0.01) return 0;
-                return Math.Round((Bac - Bcwp) / denom, 4);
-            }
-        }
-
-        public string CostHealth => Cpi >= 1.0 ? "Green" : Cpi >= 0.95 ? "Amber" : "Red";
-        public string ScheduleHealth => Spi >= 1.0 ? "Green" : Spi >= 0.95 ? "Amber" : "Red";
-    }
+    // EvmPeriod (pure EVM math) lives in EvmPeriod.cs so it is unit-tested without
+    // the Revit API. PM-1.
 
     public class EvmReport
     {
         public string ProjectName { get; set; } = "";
         public string ContractRef { get; set; } = "";
-        public string Currency { get; set; } = "GBP";
+        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
         public List<EvmPeriod> Periods { get; set; } = new List<EvmPeriod>();
 
@@ -133,6 +104,41 @@ namespace StingTools.Core.Evm
             }
             catch (Exception ex) { StingLog.Warn($"EvmCalculator.ImportActualsToDate: {ex.Message}"); }
             return Math.Round(total, 2);
+        }
+
+        /// <summary>
+        /// B.5 — cumulative ACWP across EVERY actuals_*.csv under <paramref name="dir"/>,
+        /// to <paramref name="asOf"/>. Files with identical content are counted ONCE
+        /// (SHA-256 dedupe) so re-dropping the same export — or a copy of it — can't
+        /// double-count. Returns the merged cumulative; outputs how many unique files
+        /// were read and how many duplicates were skipped so the caller can warn.
+        /// </summary>
+        public static double ImportAllActualsToDate(string dir, DateTime asOf,
+            out int filesRead, out int duplicatesSkipped)
+        {
+            filesRead = 0; duplicatesSkipped = 0;
+            double total = 0;
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return 0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in Directory.EnumerateFiles(dir, "actuals_*.csv").OrderBy(x => x))
+            {
+                try
+                {
+                    string hash = FileHash(f);
+                    if (!seen.Add(hash)) { duplicatesSkipped++; continue; }  // identical content already counted
+                    total += ImportActualsToDate(f, asOf);
+                    filesRead++;
+                }
+                catch (Exception ex) { StingLog.Warn($"ImportAllActualsToDate({Path.GetFileName(f)}): {ex.Message}"); }
+            }
+            return Math.Round(total, 2);
+        }
+
+        private static string FileHash(string path)
+        {
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            using (var fs = File.OpenRead(path))
+                return Convert.ToHexString(sha.ComputeHash(fs));
         }
 
         public static string Save(Document doc, EvmReport report)

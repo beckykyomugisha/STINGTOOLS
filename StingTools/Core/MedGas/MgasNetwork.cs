@@ -69,7 +69,7 @@ namespace StingTools.Core.MedGas
                 net.Nodes[gas].Add(new MgasNode
                 {
                     Id = el.Id, GasCode = gas, Role = role,
-                    Tag = LookupString(el, "ASS_TAG_1") ?? el.Name, Centre = centre
+                    Tag = LookupString(el, "ASS_TAG_1_TXT") ?? el.Name, Centre = centre
                 });
             }
             return net;

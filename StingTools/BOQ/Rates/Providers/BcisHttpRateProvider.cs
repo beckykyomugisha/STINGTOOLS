@@ -91,6 +91,10 @@ namespace StingTools.BOQ.Rates.Providers
                 var lookup = new RateLookup
                 {
                     UnitRate = rate,
+                    // CA-1 — BCIS is the UK Building Cost Information Service: its
+                    // rates ARE GBP. This is a labelled-source default (BCIS = £),
+                    // not the arbitrary GBP default removed elsewhere. The registry
+                    // FX-rebases to the project base (UGX) via the one doc FX.
                     CurrencyCode = json.Value<string>("currency") ?? "GBP",
                     Unit = json.Value<string>("unit") ?? (req.Unit ?? "each"),
                     SourceId = Id,

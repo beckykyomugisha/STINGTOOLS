@@ -115,6 +115,16 @@ public class LocalFileStorageService : IFileStorageService
             "LocalFileStorageService cannot generate presigned URLs. Use S3 storage in production or POST the bytes through the API.");
 
     /// <summary>
+    /// Local filesystem can't presign — the converter sidecar runs in another
+    /// container and can't read this volume. Callers catch this and skip
+    /// IFC→GLB conversion in dev (S3/MinIO is required for the sidecar path).
+    /// </summary>
+    public Task<string> GetPresignedGetUrlAsync(
+        string objectKey, TimeSpan validFor, CancellationToken ct = default, bool bypassTenantCheck = false)
+        => throw new NotSupportedException(
+            "LocalFileStorageService cannot generate presigned URLs. Use S3/MinIO storage for the IFC→GLB converter path.");
+
+    /// <summary>
     /// Phase 175 — server-side move via filesystem rename.
     /// </summary>
     public Task MoveAsync(string sourceKey, string destKey, CancellationToken ct = default, bool bypassTenantCheck = false)

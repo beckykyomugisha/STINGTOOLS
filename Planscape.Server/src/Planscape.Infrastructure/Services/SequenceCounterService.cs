@@ -59,9 +59,23 @@ public sealed class SequenceCounterService : ISequenceCounterService
                     ""UpdatedAt""    = now()
             RETURNING ""CurrentValue""";
 
-        var newValue = await _db.Database
+        // ToListAsync, NOT FirstAsync. `INSERT … ON CONFLICT … RETURNING` is
+        // non-composable SQL: FirstAsync tries to wrap it in a `SELECT … LIMIT 1`
+        // and Npgsql throws
+        //   "'FromSql' or 'SqlQuery' was called with non-composable SQL and with
+        //    a query composing over it"
+        // …at execution time, so it is a 500 in production and invisible to any
+        // test on the EF InMemory provider. ToListAsync executes the command as
+        // written and materialises whatever RETURNING produced — exactly one row.
+        //
+        // Found by running /seq/reserve against real Postgres; the whole server
+        // unit suite is green on InMemory with this bug present. TransmittalsController
+        // allocates through this same method, so transmittal numbering was
+        // affected too.
+        var rows = await _db.Database
             .SqlQueryRaw<int>(sql, tenantId, projectId, counterKey, seedFloor, count, updatedBy ?? "system")
-            .FirstAsync(ct);
+            .ToListAsync(ct);
+        var newValue = rows.First();
 
         // The returned value is the highest allocated. Caller starts
         // its loop at (newValue - count + 1).

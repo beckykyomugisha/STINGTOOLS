@@ -1223,6 +1223,14 @@ namespace StingTools.Temp
                 category = "Furniture";
                 elementType = "Furniture";
             }
+            // MEP-from-DWG V1: the block-name → fixture patterns now live in the shared
+            // STING_DWG_FIXTURE_MAP (corporate baseline). Consult it first; the original
+            // regexes remain as a fallback so this doc-less plan path never regresses.
+            else if (StingTools.Core.Cad.Mep.MepFixtureMap.ClassifyLegacy(blockName) is { } mapHit)
+            {
+                category = mapHit.Token;
+                elementType = mapHit.ElementType;
+            }
             else if (Regex.IsMatch(blockName, @"(?i)(toilet|sink|basin|shower|bath|wc)", RegexOptions.None))
             {
                 category = "PlumbingFixtures";

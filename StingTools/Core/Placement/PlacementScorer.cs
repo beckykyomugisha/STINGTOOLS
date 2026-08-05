@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Mechanical;
 
 namespace StingTools.Core.Placement
 {
@@ -42,6 +43,10 @@ namespace StingTools.Core.Placement
 
         // Phase 139.2 P — re-weighted scoring; coverage-contribution and
         // manufacturer-resolution scores added.  Sum = 1.00.
+        // NOTE (Phase 188 review #5e): ScoreThreshold (above) and these weights
+        // are process-global run configuration, not true constants — the weights
+        // are const today but ScoreThreshold is a mutable static set from the
+        // Centre's Run & Routing tab. Safe single-threaded; treat as shared config.
         private const double AnchorWeight       = 0.35;
         private const double SideWeight         = 0.22;
         private const double SpacingWeight      = 0.18;
@@ -82,7 +87,23 @@ namespace StingTools.Core.Placement
 
         public PlacementScorer(Document doc)
         {
+            // Phase 188 (review fix #1) — bind the document. The original
+            // constructor discarded its argument, leaving the readonly _doc
+            // field null for the scorer's whole life. Every _doc use is
+            // try/catch-wrapped, so collision scoring, RejectInsideWall,
+            // door/window/grid/column/MEP anchors and manufacturer scoring
+            // all silently no-op'd. Binding it here re-enables them.
+            _doc = doc;
+            if (_doc == null)
+                StingLog.Warn("PlacementScorer constructed with null document — Revit-querying anchors and collision scoring disabled.");
         }
+
+        // Phase 188 (review fix #1b) — doc-wide sample-instance cache keyed
+        // by category name (negative-cached). Replaces a full-model
+        // FilteredElementCollector that previously ran once per candidate
+        // inside ApplyPlacementHints.
+        private readonly Dictionary<string, Element> _sampleInstanceByCategory
+            = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Lazy-initialised BS EN 12464-1 lux calculator. Shared across
@@ -109,12 +130,18 @@ namespace StingTools.Core.Placement
         /// match the room name, or if no candidate clears ScoreThreshold.
         /// </summary>
         public List<PlacementCandidate> Score(
-            Room room,
+            SpatialElement room,
             PlacementRule rule,
             IList<XYZ> alreadyPlaced,
             int countInRoomSoFar)
         {
             var results = new List<PlacementCandidate>();
+            // A11 (anchor-miss diagnostics) — reset the per-Score() anchor-
+            // fallback accumulator. The engine reads LastAnchorMisses
+            // immediately after this call returns to fold the misses into
+            // the per-rule diagnostic. Cleared here so stale entries from a
+            // previous (room, rule) pair never bleed into this one.
+            _anchorMisses.Clear();
             if (room == null || rule == null) return results;
 
             // Room filter gate (PC-07 — full scoping suite)
@@ -143,6 +170,29 @@ namespace StingTools.Core.Placement
             return results;
         }
 
+        // A11 (anchor-miss diagnostics) — anchor generators that can't find
+        // their feature (no doors / no windows / no boundary segments / unknown
+        // anchor) fall back to the room centre. Without a signal the user can't
+        // tell a centred mis-placement from an intentional ROOM_CENTRE rule.
+        // Each fallback pushes "<anchorType>|<reason>" here; the engine drains
+        // LastAnchorMisses after every Score() call and folds it into the
+        // per-rule run-report diagnostic.
+        private readonly List<string> _anchorMisses = new List<string>();
+
+        /// <summary>
+        /// A11 — anchor-fallback diagnostics recorded during the most recent
+        /// <see cref="Score"/> call. Read by FixturePlacementEngine right after
+        /// Score() returns; reset at the top of every Score().
+        /// </summary>
+        public IReadOnlyList<string> LastAnchorMisses => _anchorMisses;
+
+        /// <summary>A11 — record one anchor-generator fallback for diagnostics.</summary>
+        private void RecordAnchorMiss(PlacementRule rule, string reason)
+        {
+            try { _anchorMisses.Add($"{(rule?.AnchorType ?? "?")}|{reason}"); }
+            catch { /* diagnostics must never break placement */ }
+        }
+
         /// <summary>
         /// PC-04 + PC-09 + PC-10 — anchor generator. Each anchor type
         /// inspects the room's actual boundary segments / door / window /
@@ -151,7 +201,7 @@ namespace StingTools.Core.Placement
         /// Falls back to the room's location point when boundary
         /// inspection fails.
         /// </summary>
-        private List<XYZ> GenerateAnchorPoints(Room room, PlacementRule rule)
+        private List<XYZ> GenerateAnchorPoints(SpatialElement room, PlacementRule rule)
         {
             var points = new List<XYZ>();
             XYZ roomPt = null;
@@ -187,7 +237,14 @@ namespace StingTools.Core.Placement
             double offsetZFt = rule.OffsetZMm * MmToFt;
 
             // PC-06 — mounting reference picks which datum MountingHeight is measured from.
-            double anchorZ = ResolveMountingDatumZ(room, rule, roomPt) + (rule.MountingHeightMm * MmToFt) + offsetZFt;
+            // Phase 188 (review fix #6) — MountingHeightMm sign depends on the datum:
+            // FFL / SLAB measure UP from the floor; CEILING / SOFFIT measure DOWN from
+            // the ceiling/soffit face. The original code always added the height, so a
+            // ceiling-referenced fixture with a positive MountingHeightMm landed ABOVE
+            // the ceiling. OffsetZMm stays a signed trim either way.
+            double anchorZ = ResolveMountingDatumZ(room, rule, roomPt)
+                           + MountingHeightSign(rule) * (rule.MountingHeightMm * MmToFt)
+                           + offsetZFt;
 
             string anchor = (rule.AnchorType ?? "ROOM_CENTRE").ToUpperInvariant();
             switch (anchor)
@@ -198,9 +255,18 @@ namespace StingTools.Core.Placement
                     break;
 
                 case "CEILING_CENTRE":
-                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt,
-                        Math.Max(anchorZ, roomPt.Z + 2.8 / 0.3048)));
+                {
+                    double ceilZ = Math.Max(anchorZ, roomPt.Z + 2.8 / 0.3048);
+                    // Density / spacing rules (fire alarms, sprinklers, emergency
+                    // lights, area-based ceiling lights) intend MULTIPLE devices —
+                    // emit a ceiling grid. Without a density signal it stays a
+                    // single centre point (legacy behaviour preserved).
+                    if (rule != null && (rule.MaxSpacingMm > 0 || rule.PerAreaM2 > 0))
+                        EmitCeilingGrid(room, rule, roomPt, offsetXFt, offsetYFt, ceilZ, points);
+                    else
+                        points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, ceilZ));
                     break;
+                }
 
                 case "LIGHTING_GRID":
                 case "LUX_GRID":
@@ -211,7 +277,23 @@ namespace StingTools.Core.Placement
 
                 // PC-04 — wall/door/window anchors now read real boundary geometry.
                 case "WALL_MIDPOINT":
-                    EmitWallMidpoints(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    // A5 (linear densify) — a Linear rule with PerLinearMetre on
+                    // a WALL_MIDPOINT anchor used to emit one point per wall
+                    // segment, so "an outlet every 2 m" placed ~40 % of the
+                    // intended count (4 segment midpoints, not ~10 along the
+                    // walls). When the rule is Linear with a positive
+                    // PerLinearMetre, densify along the perimeter instead; all
+                    // other WALL_MIDPOINT rules keep the legacy 1-per-segment
+                    // behaviour.
+                    if (rule.RuleKind == PlacementRuleKind.Linear && rule.PerLinearMetre > 0)
+                        EmitLinearWallPoints(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    else
+                        EmitWallMidpoints(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "LINEAR_WALL":
+                    // A5 — explicit opt-in densifier: step along every boundary
+                    // segment at PerLinearMetre spacing (inset by WallClearanceMm).
+                    EmitLinearWallPoints(room, rule, anchorZ, offsetXFt, offsetYFt, points);
                     break;
                 case "WALL_CORNER":
                     EmitWallCorners(room, rule, anchorZ, offsetXFt, offsetYFt, points);
@@ -264,7 +346,11 @@ namespace StingTools.Core.Placement
                 default:
                     // Phase 139 — try the new anchor types before fallback.
                     if (!TryEmitPhase139Anchor(anchor, room, rule, anchorZ, offsetXFt, offsetYFt, points))
+                    {
+                        // A11 — unknown anchor name fell through to room centre.
+                        RecordAnchorMiss(rule, $"unknown anchor '{anchor}'");
                         points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+                    }
                     break;
             }
 
@@ -280,7 +366,25 @@ namespace StingTools.Core.Placement
         /// (legacy alias). CEILING / SOFFIT → room top + 0 (caller adds
         /// MountingHeight as an *offset* below the ceiling face).
         /// </summary>
-        private double ResolveMountingDatumZ(Room room, PlacementRule rule, XYZ roomPt)
+        /// <summary>
+        /// Public helper used by the coverage-grid path: resolve the placement
+        /// anchor Z for a rule in a room (mounting datum + signed mounting
+        /// height + Z offset), measured from the room's floor level. Mirrors
+        /// the per-candidate anchorZ formula in Score().
+        /// </summary>
+        public double ResolveAnchorZForRoom(SpatialElement room, PlacementRule rule)
+        {
+            if (room == null || rule == null) return 0.0;
+            double baseZ;
+            try { baseZ = room.Level?.Elevation ?? (room.get_BoundingBox(null)?.Min.Z ?? 0.0); }
+            catch { baseZ = 0.0; }
+            var roomPt = new XYZ(0.0, 0.0, baseZ);
+            return ResolveMountingDatumZ(room, rule, roomPt)
+                 + MountingHeightSign(rule) * (rule.MountingHeightMm * MmToFt)
+                 + (rule.OffsetZMm * MmToFt);
+        }
+
+        private double ResolveMountingDatumZ(SpatialElement room, PlacementRule rule, XYZ roomPt)
         {
             string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();
             if (r == "FFL" || r == "SLAB" || string.IsNullOrEmpty(r)) return roomPt.Z;
@@ -292,6 +396,17 @@ namespace StingTools.Core.Placement
             }
             catch (Exception ex) { StingLog.Warn($"ResolveMountingDatumZ {room.Id}: {ex.Message}"); }
             return roomPt.Z;
+        }
+
+        /// <summary>
+        /// Phase 188 (review fix #6) — direction MountingHeightMm is applied from
+        /// the resolved datum. FFL / SLAB → +1 (measure up from floor);
+        /// CEILING / SOFFIT → −1 (measure down from the overhead face).
+        /// </summary>
+        private static double MountingHeightSign(PlacementRule rule)
+        {
+            string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();
+            return (r == "CEILING" || r == "SOFFIT") ? -1.0 : 1.0;
         }
 
         // PC-10 — emit lighting-grid points snapped to the ceiling tile grid.
@@ -307,7 +422,47 @@ namespace StingTools.Core.Placement
         /// </summary>
         public IReadOnlyDictionary<(ElementId, string), LightingGridResult> GridResults => _gridCache;
 
-        private void EmitLightingGridPoints(Room room, PlacementRule rule, XYZ roomPt,
+        /// <summary>
+        /// Uniform ceiling grid for density / max-spacing rules on a CEILING_CENTRE
+        /// anchor. Spacing is MaxSpacingMm when set, else √(PerAreaM2) (1 device per
+        /// PerAreaM2 m²). Points are clipped to the room/space and capped. Falls back
+        /// to the single centre point on any failure or empty result.
+        /// </summary>
+        private void EmitCeilingGrid(SpatialElement room, PlacementRule rule, XYZ roomPt,
+            double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
+        {
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                double spacingFt;
+                if (rule.MaxSpacingMm > 0)        spacingFt = rule.MaxSpacingMm / 304.8;
+                else if (rule.PerAreaM2 > 0)      spacingFt = Math.Sqrt(rule.PerAreaM2) / 0.3048;
+                else { points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ)); return; }
+                if (spacingFt < 0.5) spacingFt = 0.5;
+                if (bb == null) { points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ)); return; }
+
+                double w = bb.Max.X - bb.Min.X, d = bb.Max.Y - bb.Min.Y;
+                int nx = Math.Max(1, (int)Math.Ceiling(w / spacingFt));
+                int ny = Math.Max(1, (int)Math.Ceiling(d / spacingFt));
+                double stepX = w / nx, stepY = d / ny;
+                int emitted = 0;
+                for (int i = 0; i < nx && emitted < 400; i++)
+                    for (int j = 0; j < ny && emitted < 400; j++)
+                    {
+                        var p = new XYZ(bb.Min.X + stepX * (i + 0.5) + offsetXFt,
+                                        bb.Min.Y + stepY * (j + 0.5) + offsetYFt, anchorZ);
+                        if (FixturePlacementEngine.PointInSpatial(room, p)) { points.Add(p); emitted++; }
+                    }
+                if (emitted == 0) points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.EmitCeilingGrid {room.Id}: {ex.Message}");
+                points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+            }
+        }
+
+        private void EmitLightingGridPoints(SpatialElement room, PlacementRule rule, XYZ roomPt,
             double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
         {
             try
@@ -336,7 +491,7 @@ namespace StingTools.Core.Placement
         }
 
         private PlacementCandidate BuildCandidate(
-            Room room,
+            SpatialElement room,
             PlacementRule rule,
             XYZ anchor,
             IList<XYZ> alreadyPlaced)
@@ -392,6 +547,59 @@ namespace StingTools.Core.Placement
                 }
             }
 
+            // A6 (door/window clearance) — reject candidates that fall within
+            // DoorClearanceMm of a door opening or WindowClearanceMm of a
+            // window opening. Uses the cached boundary door/window sets. Both
+            // default to 0 (off) so existing rules are unaffected. Hard-collision
+            // flags (TooCloseToDoor / TooCloseToWindow) cause rejection upstream
+            // even for GuaranteeCoverage rules, mirroring the obstruction buffer.
+            if (rule.DoorClearanceMm > 0 || rule.WindowClearanceMm > 0)
+            {
+                try
+                {
+                    var bnd = GetBoundary(room);
+                    if (bnd != null)
+                    {
+                        if (rule.DoorClearanceMm > 0 && bnd.Doors != null && bnd.Doors.Count > 0)
+                        {
+                            double clrFt = rule.DoorClearanceMm * MmToFt;
+                            double clrSq = clrFt * clrFt;
+                            foreach (var d in bnd.Doors)
+                            {
+                                var dp = (d?.Location as LocationPoint)?.Point;
+                                if (dp == null) continue;
+                                double dx = dp.X - anchor.X, dy = dp.Y - anchor.Y;
+                                if (dx * dx + dy * dy < clrSq)
+                                {
+                                    c.CollisionScore = 0;
+                                    c.CollisionFlags |= (int)PlacementCollisionFlags.TooCloseToDoor;
+                                    break;
+                                }
+                            }
+                        }
+                        if (rule.WindowClearanceMm > 0 && bnd.Windows != null && bnd.Windows.Count > 0
+                            && (c.CollisionFlags & (int)PlacementCollisionFlags.TooCloseToDoor) == 0)
+                        {
+                            double clrFt = rule.WindowClearanceMm * MmToFt;
+                            double clrSq = clrFt * clrFt;
+                            foreach (var w in bnd.Windows)
+                            {
+                                var wp = (w?.Location as LocationPoint)?.Point;
+                                if (wp == null) continue;
+                                double dx = wp.X - anchor.X, dy = wp.Y - anchor.Y;
+                                if (dx * dx + dy * dy < clrSq)
+                                {
+                                    c.CollisionScore = 0;
+                                    c.CollisionFlags |= (int)PlacementCollisionFlags.TooCloseToWindow;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer door/window clearance: {ex.Message}"); }
+            }
+
             // Phase 139 G — LinkedModelClearance: query linked
             // RevitLinkInstances for obstructions within
             // ObstructionClearanceMm.  When clearance is breached, halve
@@ -416,13 +624,29 @@ namespace StingTools.Core.Placement
             double coverageContribution = ScoreCoverageContribution(anchor, rule, alreadyPlaced);
             double manufacturerScore    = ScoreManufacturerResolution(rule);
 
-            c.Score = c.AnchorScore       * AnchorWeight
-                    + c.SideScore         * SideWeight
-                    + c.SpacingScore      * SpacingWeight
-                    + c.CollisionScore    * CollisionWeight
-                    + c.SymmetryScore     * SymmetryWeight
-                    + coverageContribution * CoverageWeight
-                    + manufacturerScore   * ManufacturerWeight;
+            // A9 — per-RuleKind weight profile. Point rules favour anchor fit
+            // (where it must sit); Density/Coverage favour spacing + coverage
+            // (even spread, no clusters); Linear favours symmetry (regular runs).
+            // Point keeps the original defaults, so the common case is unchanged.
+            double wAnchor = AnchorWeight, wSide = SideWeight, wSpacing = SpacingWeight,
+                   wColl = CollisionWeight, wSym = SymmetryWeight, wCov = CoverageWeight, wMan = ManufacturerWeight;
+            switch (rule?.RuleKind)
+            {
+                case PlacementRuleKind.Density:
+                    wAnchor = 0.18; wSide = 0.10; wSpacing = 0.34; wColl = 0.10; wSym = 0.06; wCov = 0.19; wMan = 0.03;
+                    break;
+                case PlacementRuleKind.Linear:
+                    wAnchor = 0.22; wSide = 0.16; wSpacing = 0.24; wColl = 0.10; wSym = 0.22; wCov = 0.03; wMan = 0.03;
+                    break;
+            }
+
+            c.Score = c.AnchorScore       * wAnchor
+                    + c.SideScore         * wSide
+                    + c.SpacingScore      * wSpacing
+                    + c.CollisionScore    * wColl
+                    + c.SymmetryScore     * wSym
+                    + coverageContribution * wCov
+                    + manufacturerScore   * wMan;
 
             // §5.1 — apply family-level placement hints as a final score
             // modifier. Only the level hint biases the composite score
@@ -444,7 +668,7 @@ namespace StingTools.Core.Placement
         /// engines to consume — zero-impact for families that declared
         /// nothing.
         /// </summary>
-        private void ApplyPlacementHints(PlacementCandidate c, Room room, PlacementRule rule)
+        private void ApplyPlacementHints(PlacementCandidate c, SpatialElement room, PlacementRule rule)
         {
             // PlacementRule-bound families: the scorer doesn't own a
             // FamilySymbol reference, so read hints from any instance of
@@ -496,23 +720,46 @@ namespace StingTools.Core.Placement
         /// FamilySymbol the caller already chose; deferred to keep this
         /// wiring small.
         /// </summary>
-        private Element ResolveSampleInstanceForRule(Room room, PlacementRule rule)
+        private Element ResolveSampleInstanceForRule(SpatialElement room, PlacementRule rule)
         {
-            if (rule == null || room == null) return null;
+            if (rule == null || _doc == null || string.IsNullOrEmpty(rule.CategoryFilter)) return null;
+
+            // Phase 188 (review fix #1b) — doc-wide cache + category prefilter.
+            // The sample is the first instance of the rule's category anywhere
+            // in the model (used only to read family-level placement hints), so
+            // it is the same regardless of room. Caching by category — and
+            // pre-filtering the collector with OfCategory — replaces the
+            // previous whole-model walk that ran once per candidate.
+            if (_sampleInstanceByCategory.TryGetValue(rule.CategoryFilter, out var cached))
+                return cached;
+
+            Element found = null;
             try
             {
-                var col = new FilteredElementCollector(_doc)
-                    .WhereElementIsNotElementType();
+                BuiltInCategory bic = BuiltInCategory.INVALID;
+                try { bic = FixturePlacementEngine.ResolveBuiltInCategoryByName(_doc, rule.CategoryFilter); }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer.ResolveSampleInstanceForRule BIC resolve '{rule.CategoryFilter}': {ex.Message}"); }
+
+                var col = (bic != BuiltInCategory.INVALID)
+                    ? new FilteredElementCollector(_doc).OfCategory(bic).WhereElementIsNotElementType()
+                    : new FilteredElementCollector(_doc).WhereElementIsNotElementType();
+
                 foreach (var el in col)
                 {
                     if (el.Category == null) continue;
                     if (!string.Equals(el.Category.Name, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
                         continue;
-                    return el;
+                    found = el;
+                    break;
                 }
             }
-            catch { }
-            return null;
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.ResolveSampleInstanceForRule '{rule.CategoryFilter}': {ex.Message}");
+            }
+
+            _sampleInstanceByCategory[rule.CategoryFilter] = found; // negative-cache null too
+            return found;
         }
 
         /// <summary>
@@ -552,7 +799,13 @@ namespace StingTools.Core.Placement
         private Dictionary<string, string> _loadedFamilyCategoryByName;
         private double ScoreManufacturerResolution(PlacementRule rule)
         {
-            if (rule == null || string.IsNullOrEmpty(rule.CatalogueRef)) return 0.0;
+            // Phase 188 (review fix #5e) — neutral 0.5 (was 0.0) when no
+            // catalogue is specified, matching ScoreCoverageContribution's
+            // neutral default. A constant 0.0 docked every catalogue-less rule
+            // ManufacturerWeight (0.03) of absolute score, which could tip
+            // borderline candidates below ScoreThreshold for no good reason.
+            if (rule == null) return 0.5;
+            if (string.IsNullOrEmpty(rule.CatalogueRef)) return 0.5;
             try
             {
                 var entry = ManufacturerCatalogueRegistry.GetForRule(rule);
@@ -598,7 +851,7 @@ namespace StingTools.Core.Placement
         /// Within one buffer distance of an edge → linear penalty
         /// 0..1 across the buffer. Outside all exclusions → 1.0.
         /// </summary>
-        private (double score, int flags) ComputeCollisionScore(Room room, XYZ pt)
+        private (double score, int flags) ComputeCollisionScore(SpatialElement room, XYZ pt)
         {
             if (room == null || pt == null) return (1.0, 0);
 
@@ -647,7 +900,7 @@ namespace StingTools.Core.Placement
         /// around the candidate point — cheaper than computing each
         /// wall's 3D geometry and doing the intersection manually.
         /// </summary>
-        private bool IsInsideWall(Room room, XYZ pt)
+        private bool IsInsideWall(SpatialElement room, XYZ pt)
         {
             if (room == null || pt == null) return false;
 
@@ -714,7 +967,7 @@ namespace StingTools.Core.Placement
             return false;
         }
 
-        private List<(ElementId wallId, Solid solid)> CollectWallSolidsNearRoom(Room room)
+        private List<(ElementId wallId, Solid solid)> CollectWallSolidsNearRoom(SpatialElement room)
         {
             var list = new List<(ElementId, Solid)>();
             if (_doc == null || room == null) return list;
@@ -792,6 +1045,12 @@ namespace StingTools.Core.Placement
             }
         }
 
+        // NOTE: during Score() the engine passes an EMPTY already-placed list
+        // (placedPoints is filled only after placement), so this returns 1.0 for
+        // every candidate and spacing does NOT influence the ranking. MinSpacing
+        // is instead enforced as a post-rank GATE in
+        // FixturePlacementEngine.SelectWithSpacing. This is intentional — see the
+        // comment at that call site.
         private double ComputeSpacingScore(XYZ pt, IList<XYZ> placed, double minSpacingMm)
         {
             if (placed == null || placed.Count == 0) return 1.0;
@@ -828,7 +1087,7 @@ namespace StingTools.Core.Placement
             return best;
         }
 
-        private string SafeRoomName(Room room)
+        private string SafeRoomName(SpatialElement room)
         {
             try
             {
@@ -853,7 +1112,7 @@ namespace StingTools.Core.Placement
         private readonly Dictionary<ElementId, RoomBoundaryCache> _boundaryCache
             = new Dictionary<ElementId, RoomBoundaryCache>();
 
-        private RoomBoundaryCache GetBoundary(Room room)
+        private RoomBoundaryCache GetBoundary(SpatialElement room)
         {
             if (room == null) return null;
             if (_boundaryCache.TryGetValue(room.Id, out var cached)) return cached;
@@ -914,7 +1173,7 @@ namespace StingTools.Core.Placement
         // collector is too greedy and grabs doors of adjacent rooms.
         // Falls back to bbox-intersect when both FromRoom and ToRoom
         // are null (door's spatial context not yet computed).
-        private static List<FamilyInstance> FilterDoorsForRoom(List<FamilyInstance> all, Room room)
+        private static List<FamilyInstance> FilterDoorsForRoom(List<FamilyInstance> all, SpatialElement room)
         {
             if (all == null || room == null) return all ?? new List<FamilyInstance>();
             var keep = new List<FamilyInstance>();
@@ -965,11 +1224,11 @@ namespace StingTools.Core.Placement
 
         // ── PC-04 — wall midpoints / corners from real boundary segments ─
 
-        private void EmitWallMidpoints(Room room, PlacementRule rule, double anchorZ,
+        private void EmitWallMidpoints(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
-            if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            if (b == null || b.Segments.Count == 0) { RecordAnchorMiss(rule, "no boundary segments"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
             foreach (var seg in b.Segments)
             {
                 if (seg.Curve == null) continue;
@@ -986,11 +1245,69 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitWallCorners(Room room, PlacementRule rule, double anchorZ,
+        /// <summary>
+        /// A5 (linear densify) — step candidate points along every boundary
+        /// segment at <see cref="PlacementRule.PerLinearMetre"/> spacing,
+        /// inset from each segment end by <see cref="PlacementRule.WallClearanceMm"/>.
+        /// Replaces the one-point-per-segment behaviour of WALL_MIDPOINT for
+        /// Linear rules so "a device every N metres" hits its target count
+        /// evenly along the walls. The engine's ComputeCap (perimeter ÷
+        /// PerLinearMetre) + SelectWithSpacing (MinSpacingMm) then trim the
+        /// dense candidate set down to the required, spaced count.
+        /// </summary>
+        private void EmitLinearWallPoints(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
-            if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            if (b == null || b.Segments.Count == 0)
+            {
+                RecordAnchorMiss(rule, "no boundary segments");
+                Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+                return;
+            }
+            // PerLinearMetre is in metres; convert to feet. Floor at 0.25 ft so
+            // a mis-authored tiny spacing can't generate an unbounded grid.
+            double spacingFt = (rule.PerLinearMetre > 0 ? rule.PerLinearMetre : 2.0) / 0.3048;
+            if (spacingFt < 0.25) spacingFt = 0.25;
+            double insetFt = (rule.WallClearanceMm > 0 ? rule.WallClearanceMm : 0.0) / 304.8;
+
+            foreach (var seg in b.Segments)
+            {
+                if (seg.Curve == null) continue;
+                double len;
+                try { len = seg.Curve.Length; } catch { continue; }
+                if (len <= 1e-6) continue;
+
+                XYZ inward = ComputeInwardFromCurve(seg.Curve, room);
+
+                // Inset from both ends; clamp so a short segment still yields a
+                // single mid-point rather than nothing.
+                double startFt = Math.Min(insetFt, len * 0.5);
+                double endFt   = len - startFt;
+                if (endFt - startFt <= 1e-6)
+                {
+                    XYZ mid = seg.Curve.Evaluate(0.5, true);
+                    points.Add(new XYZ(mid.X + inward.X * offsetXFt + (-inward.Y) * offsetYFt,
+                                       mid.Y + inward.Y * offsetXFt + ( inward.X) * offsetYFt, anchorZ));
+                    continue;
+                }
+
+                for (double d = startFt; d <= endFt + 1e-6; d += spacingFt)
+                {
+                    double t = d / len; // Evaluate uses a normalised [0,1] param when normalized=true
+                    if (t > 1.0) t = 1.0;
+                    XYZ p = seg.Curve.Evaluate(t, true);
+                    points.Add(new XYZ(p.X + inward.X * offsetXFt + (-inward.Y) * offsetYFt,
+                                       p.Y + inward.Y * offsetXFt + ( inward.X) * offsetYFt, anchorZ));
+                }
+            }
+        }
+
+        private void EmitWallCorners(SpatialElement room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            var b = GetBoundary(room);
+            if (b == null || b.Segments.Count == 0) { RecordAnchorMiss(rule, "no boundary segments"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
             // Corner = endpoint of every segment (line, arc or spline), deduped.
             var seen = new HashSet<long>();
             foreach (var seg in b.Segments)
@@ -1006,12 +1323,12 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitDoorAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitDoorAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points,
             bool hingeSide, bool overDoor)
         {
             var b = GetBoundary(room);
-            if (b == null || b.Doors == null || b.Doors.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            if (b == null || b.Doors == null || b.Doors.Count == 0) { RecordAnchorMiss(rule, "no doors in room"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
             foreach (var door in b.Doors)
             {
                 XYZ origin = (door.Location as LocationPoint)?.Point;
@@ -1063,11 +1380,11 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitWindowSills(Room room, PlacementRule rule, double anchorZ,
+        private void EmitWindowSills(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             var b = GetBoundary(room);
-            if (b == null || b.Windows == null || b.Windows.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            if (b == null || b.Windows == null || b.Windows.Count == 0) { RecordAnchorMiss(rule, "no windows in room"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
             foreach (var win in b.Windows)
             {
                 XYZ origin = (win.Location as LocationPoint)?.Point;
@@ -1087,7 +1404,7 @@ namespace StingTools.Core.Placement
             return null;
         }
 
-        private XYZ ComputeInwardFromWall(Wall w, Room room)
+        private XYZ ComputeInwardFromWall(Wall w, SpatialElement room)
         {
             try
             {
@@ -1116,14 +1433,14 @@ namespace StingTools.Core.Placement
             catch { return null; }
         }
 
-        private XYZ ComputeInward(Line line, Room room)
+        private XYZ ComputeInward(Line line, SpatialElement room)
             => ComputeInwardFromCurve(line, room);
 
         // Phase 139.5 Q3 — generalised inward-normal computation for any
         // boundary curve (Line, Arc, NurbSpline). Tangent comes from the
         // first derivative at the midpoint parameter; the normal is the
         // 90° rotation of the planar tangent.
-        private XYZ ComputeInwardFromCurve(Curve curve, Room room)
+        private XYZ ComputeInwardFromCurve(Curve curve, SpatialElement room)
         {
             try
             {
@@ -1151,7 +1468,7 @@ namespace StingTools.Core.Placement
             catch { return XYZ.BasisY; }
         }
 
-        private void Fallback(Room room, double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
+        private void Fallback(SpatialElement room, double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
             {
@@ -1164,7 +1481,7 @@ namespace StingTools.Core.Placement
 
         // ── PC-09 — additional anchor types ──────────────────────────
 
-        private void EmitOppositeWallAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitOppositeWallAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Find the longest boundary edge on the wall opposite the first door.
@@ -1189,7 +1506,7 @@ namespace StingTools.Core.Placement
             points.Add(new XYZ(midOpp.X + inward.X * offsetXFt, midOpp.Y + inward.Y * offsetXFt, anchorZ));
         }
 
-        private void EmitGridIntersectionAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitGridIntersectionAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -1242,7 +1559,7 @@ namespace StingTools.Core.Placement
             catch { return null; }
         }
 
-        private void EmitColumnFaceAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitColumnFaceAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -1271,7 +1588,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"ColumnFaceAnchor: {ex.Message}"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); }
         }
 
-        private void EmitPerimeterAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitPerimeterAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             // Sample every PerLinearMetre or every 1.5m along all boundary lines.
@@ -1299,7 +1616,7 @@ namespace StingTools.Core.Placement
             }
         }
 
-        private void EmitFloorTileAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitFloorTileAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points, double tileMm = 600.0)
         {
             var bb = room.get_BoundingBox(null);
@@ -1311,7 +1628,7 @@ namespace StingTools.Core.Placement
             points.Add(new XYZ(gx + offsetXFt, gy + offsetYFt, anchorZ));
         }
 
-        private void EmitStairNosingAnchor(Room room, PlacementRule rule, double anchorZ,
+        private void EmitStairNosingAnchor(SpatialElement room, PlacementRule rule, double anchorZ,
             double offsetXFt, double offsetYFt, List<XYZ> points)
         {
             try
@@ -1349,7 +1666,7 @@ namespace StingTools.Core.Placement
         /// Empty / 0 means "no filter" — preserves legacy behaviour for
         /// rules that don't set the new fields.
         /// </summary>
-        private bool RoomMatchesScope(Room room, PlacementRule rule)
+        private bool RoomMatchesScope(SpatialElement room, PlacementRule rule)
         {
             if (room == null || rule == null) return false;
 
@@ -1436,17 +1753,38 @@ namespace StingTools.Core.Placement
             return true;
         }
 
+        // Phase 188 (review fix #5c) — compiled-regex cache for the room-scope
+        // filters (dept / level / phase / workset / room). RoomMatchesScope ran
+        // Regex.IsMatch uncompiled on every call; the engine already pre-compiles
+        // RoomFilter / ExcludeRoomFilter, so this brings the remaining scope
+        // filters up to the same standard.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> _scopeRxCache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, Regex>();
+
+        private static Regex GetScopeRegex(string pattern)
+        {
+            return _scopeRxCache.GetOrAdd(pattern, p =>
+            {
+                try { return new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled); }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer scope regex '{p}': {ex.Message}"); return null; }
+            });
+        }
+
         private static bool RegexAllow(string pattern, string text)
         {
             if (string.IsNullOrEmpty(pattern)) return true;
-            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            var rx = GetScopeRegex(pattern);
+            if (rx == null) return false; // malformed pattern — fail closed (as before)
+            try { return rx.IsMatch(text ?? ""); }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer regex '{pattern}': {ex.Message}"); return false; }
         }
 
         private static bool RegexBlock(string pattern, string text)
         {
             if (string.IsNullOrEmpty(pattern)) return false;
-            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            var rx = GetScopeRegex(pattern);
+            if (rx == null) return false; // malformed pattern — don't block (as before)
+            try { return rx.IsMatch(text ?? ""); }
             catch (Exception ex) { StingLog.Warn($"PlacementScorer block regex '{pattern}': {ex.Message}"); return false; }
         }
     }

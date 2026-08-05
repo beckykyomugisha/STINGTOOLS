@@ -137,7 +137,42 @@ namespace StingTools.Core.Drawing
         /// One-pass O(N) over the doc, no extra dependency on the UI
         /// layer's MaterialRowBuilder.
         /// </summary>
+        // T-4 / B3: memoised per document. This walks EVERY non-element-type
+        // in the model calling GetMaterialIds and LookupParameter on each —
+        // genuinely O(all elements). It was harmless only because Resolve had
+        // no callers; now that the ${MAT_*} handler is wired it would run per
+        // token per sheet. Cleared by InvalidateUsage when a caller knows the
+        // model changed materially.
+        private static readonly object _usageLock = new object();
+        private static readonly Dictionary<string, Dictionary<long, int>> _usageByDoc
+            = new Dictionary<string, Dictionary<long, int>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string UsageDocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch (Exception ex) { StingLog.Warn($"UsageDocKey: {ex.Message}"); return "__unknown__"; }
+        }
+
+        /// <summary>Drop the memoised material-usage map for a document.</summary>
+        public static void InvalidateUsage(Document doc)
+        {
+            lock (_usageLock) { _usageByDoc.Remove(UsageDocKey(doc)); }
+        }
+
         private static Dictionary<long, int> ComputeUsage(Document doc)
+        {
+            var ck = UsageDocKey(doc);
+            lock (_usageLock)
+            {
+                if (_usageByDoc.TryGetValue(ck, out var memo)) return memo;
+            }
+            var computed = ComputeUsageUncached(doc);
+            lock (_usageLock) { _usageByDoc[ck] = computed; }
+            return computed;
+        }
+
+        private static Dictionary<long, int> ComputeUsageUncached(Document doc)
         {
             var map = new Dictionary<long, int>();
             if (doc == null) return map;

@@ -987,6 +987,12 @@ namespace StingTools.Tags
                 result.Add($"TAG_PARA_STATE_{t}_BOOL");
             result.Add("TAG_WARN_VISIBLE_BOOL");
 
+            // Phase 192 — always carry the project-grammar scheme tag so a label
+            // row pointing at ASS_TAG_SCHEME_TXT can display the scheme identifier
+            // on annotation tags (the param is injected; the label row is added
+            // manually in the Family Editor per the Revit API limitation).
+            result.Add("ASS_TAG_SCHEME_TXT");
+
             // Collect params from all tiers (tier_1..tier_10). Tiers 4-10 hold the cross-family
             // commissioning / cost / carbon / fabrication / clash / as-built / compliance rows
             // mirrored from STING_TAG_CONFIG_v5_0_*.csv schema v5.3.

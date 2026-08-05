@@ -96,11 +96,7 @@ namespace StingTools.Commands.Electrical.Photometric
         {
             try
             {
-                string projectFile = doc?.PathName ?? "";
-                string projectDir = string.IsNullOrEmpty(projectFile)
-                    ? OutputLocationHelper.GetOutputDirectory(doc)
-                    : Path.GetDirectoryName(projectFile);
-                return Path.Combine(projectDir ?? "", "_BIM_COORD", ConfigFileName);
+                return Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), ConfigFileName);
             }
             catch (Exception ex) { StingLog.Warn($"ResolveConfigPath: {ex.Message}"); return null; }
         }

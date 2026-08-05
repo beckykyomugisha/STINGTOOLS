@@ -1,8 +1,9 @@
 # STING Electrical Workflow Guide
 
-> **Version note:** This guide reflects the STING Tools plugin as shipped on branch
-> `claude/merge-branches-update-docs-SvA31` (Phase 176 + v4 MVP). All button names,
-> dialog labels, and parameter names are written exactly as they appear in STING.
+> **Version note:** This guide reflects the STING Tools plugin as shipped on `main`
+> (Phase 176 + v4 MVP, plus the Phase 196–198 conduit auto-routing / sleeve method /
+> Electrical Rough-In workflow — see Chapter 6). All button names, dialog labels, and
+> parameter names are written exactly as they appear in STING.
 
 ---
 
@@ -967,6 +968,86 @@ flagged in red.
 > in the result), the `STING_SEED_JunctionBox` family is not loaded. Go to
 > **TEMP → Build Seed Families** to create and load it.
 
+### How routing knows where to start: conduit connectors
+
+A conduit run has to begin somewhere on the device. STING routing starts at a **conduit
+connector** on the fixture rather than the family's insertion point, so the run lands
+exactly where the conduit physically enters the back box.
+
+- **Placed fixtures already carry a connector.** `STING_SEED_ElectricalFixture` authors one
+  `Domain = Conduit` terminal connector (facing +Z, 20 mm) on **every** variant — sockets,
+  switches, FCUs, isolators, EV chargers, data outlets, floor boxes. Auto Drop finds it
+  automatically.
+- **Junction boxes and panels are routing anchors.** `STING_SEED_JunctionBox` (four faces)
+  and `STING_SEED_ElectricalEquipment` (panels/DBs) also carry `Domain = Conduit` terminals,
+  so Auto Drop can bond a rising or branching conduit to them — a JB is a real conduit
+  junction, not a dead end.
+- **One start-point contract.** Both routers — Auto Drop (device → containment) and the
+  cable-manifest router (device → panel) — pick the start point the same way: *free conduit
+  connector → any free connector → the insertion point*, in that order.
+
+> **Why this matters:** before this, a side-mounted socket routed from its insertion point,
+> which could sit 100 mm off the real terminal. Now the run starts on the connector.
+
+### The sleeve method — routing manufacturer families that have no conduit connector
+
+Vendor families (the `.rfa` you swap to with **Seeds → Swap to Manufacturer**) almost never
+ship with a conduit connector. Every off-the-shelf conduit plugin (EasyConduit, ConduiTool,
+Automatic Conduit, EVOLVE) simply *requires* the family to have one and cannot route these
+fixtures. STING authors the connector for you with the **sleeve method**.
+
+For each electrical fixture with **no free conduit connector**, `SleeveConnectorEngine`
+places a short conduit **stub** (20 mm × 150 mm by default) at the fixture face — rising +Z
+for wall/ceiling devices, dropping −Z for floor boxes. A conduit always exposes real
+`Domain = Conduit` connectors, so the stub's free end becomes the routable terminal that
+Auto Drop then extends to containment.
+
+| Command | Where | Behaviour |
+|---------|-------|-----------|
+| **Place Sleeve Connectors** (`Routing_PlaceSleeveConnectors`) | TAGS → Routing | Interactive: previews *"N fixtures would get a conduit terminal"*, then places on confirm. |
+| **Place Sleeve Connectors (Auto)** (`Routing_PlaceSleeveConnectorsAuto`) | Workflow / dispatch | Non-interactive, no dialog — used inside the rough-in workflow. |
+
+- **Target set:** the current selection when it holds electrical fixtures, otherwise every
+  electrical fixture in the active view.
+- **Idempotent.** Each stub is stamped `ELC_CDT_INSTALL_METHOD_TXT = STING_SLEEVE_STUB:<id>`
+  with the fixture's ElementId, so a re-run places nothing new, and two connector-less
+  fixtures 30 mm apart each get their **own** stub (they are not merged onto one).
+- **Skips fixtures that don't need it** — anything that already has a free conduit connector
+  (a seed fixture, or a manufacturer family that does carry one) is left alone.
+- **Tunable** via `conduit.sleeveStubSizeMm` / `sleeveStubLengthMm` in the project's
+  `_BIM_COORD/mep_sizing_rules.json` override.
+
+> **Stuck?** If the sleeve pass reports `placed=0 alreadyRoutable=N`, your fixtures already
+> have conduit connectors — nothing to do; go straight to Auto Drop.
+
+### One-click rough-in: the Electrical Rough-In workflow
+
+`WORKFLOW_ElectricalRoughIn.json` chains the whole sequence so you can take a set of rooms to
+fully-routed conduit in one run. Open the **Workflow Preset** picker (BIM → Workflows) and
+choose **"Electrical Rough-In Pipeline"**:
+
+| Step | Command | What happens |
+|------|---------|--------------|
+| 1 | `Seeds_Build` | Builds `STING_SEED_ElectricalFixture` (with its conduit terminal). Safe to re-run. |
+| 2 | `Placement_PlaceFixtures` | Places fixtures per room rules; leaves them selected. |
+| 3 | `Routing_PlaceSleeveConnectorsAuto` | Authors sleeve terminals on any connector-less fixtures (no-op for seed fixtures). |
+| 4 | `Routing_AutoDrop` | Routes conduit from each fixture/stub connector to the nearest containment. |
+| 5 | `Validation_RunAll` | Flags any conduit connector left open + firestop coverage. |
+
+**Select the target rooms before you launch** — step 2 needs them, and each step hands the
+next its selection automatically.
+
+### Routing pre-flight checks
+
+`RoutingPreflightValidator` runs automatically inside Auto Drop (electrical group) and as part
+of **Run All Validators**. It surfaces two things before a drop goes wrong:
+
+- **`SIZE.MISMATCH`** — a conduit connector whose diameter is not in the project's Conduit
+  Standards size list. Off-list sizes are what make Revit throw *"No auto-route solution
+  found"* or silently insert a junction-box reducer.
+- **`CONN.DOMAIN.NOCONDUIT`** (Info) — an electrical device that has MEP connectors but no
+  conduit connector: a **sleeve target**. Run the sleeve pass before Auto Drop to clear these.
+
 ### Creating conduit runs manually (and tagging them)
 
 When you draw conduits using Revit's native `Systems → Electrical → Conduit` tool, STING
@@ -1554,8 +1635,10 @@ separately, then run the workflow again from step 1 to re-audit and confirm conv
 | Fill All Spares (Project-Wide) | BIM | Panel Schedules | Fills all empty slots in every schedule as SPARE | Before export and issue |
 | Convert Spaces to Spares | BIM | Panel Schedules | Changes SPACE declarations to SPARE | When breakers have been retrofitted to previously empty slots |
 | Clear Spares and Spaces | BIM | Panel Schedules | Removes all spare/space declarations from active schedule | When resetting a schedule |
-| Workflow Preset | BIM | Workflows | Runs a named workflow chain | Run PanelScheduleProduction for panel schedule batch processing |
-| Auto Drop | TAGS | Routing | Routes conduits from panels to all connected devices | After circuit assignment |
+| Workflow Preset | BIM | Workflows | Runs a named workflow chain | Run **Electrical Rough-In Pipeline** for place → sleeve → drop → validate, or PanelScheduleProduction for panel schedules |
+| Auto Drop | TAGS | Routing | Routes conduits from fixture/stub connectors to the nearest containment | After circuit assignment (or after the sleeve pass) |
+| Place Sleeve Connectors | TAGS | Routing | Authors a conduit terminal stub on connector-less fixtures (interactive, previews first) | After swapping fixtures to manufacturer families, before Auto Drop |
+| Place Sleeve Connectors (Auto) | (workflow) | Routing | Non-interactive sleeve pass used inside the Electrical Rough-In workflow | Runs headless as a workflow step |
 | Validate Fills | TAGS | Routing | Checks conduit fill percentages against BS EN 61386 | Before issuing drawings |
 | Consolidate Conduits | TAGS | Routing | Merges multiple per-cable conduits sharing a route into one | After initial routing to rationalise the model |
 | Run All Validators | TAGS | Routing | Runs full validation chain (BS 7671 + all STING validators) | Final QA before drawing issue |

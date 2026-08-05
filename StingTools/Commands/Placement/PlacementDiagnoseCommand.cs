@@ -27,6 +27,19 @@ namespace StingTools.Commands.Placement
             var doc = cd?.Application?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
+            var (text, txtPath) = BuildReportText(doc);
+            string preview = text.Length > 4000 ? text.Substring(0, 4000) + "\n…(truncated, see file)" : text;
+            TaskDialog.Show("STING - Placement Diagnose", preview + $"\n\nFull report: {txtPath}");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Build the diagnostic report text (and write it to disk). Shared by
+        /// Execute (which TaskDialogs it) and the Placement Centre (which renders
+        /// it inline in the shared Report panel). Returns (report, filePath).
+        /// </summary>
+        public static (string Text, string FilePath) BuildReportText(Document doc)
+        {
             var sb = new StringBuilder();
             sb.AppendLine($"Build: STING placement diagnostic — Phase 139.19 ({DateTime.UtcNow:O})");
             sb.AppendLine($"Document: {doc.Title}");
@@ -36,7 +49,7 @@ namespace StingTools.Commands.Placement
             sb.AppendLine();
 
             // 2. Active view + scope.
-            var view = cd.Application.ActiveUIDocument.ActiveView;
+            var view = doc.ActiveView;
             sb.AppendLine($"Active view: {view?.Name} ({view?.GetType().Name})");
             int roomsAll = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().Count();
             int roomsView = view is ViewPlan vp && vp.GenLevel != null
@@ -115,6 +128,56 @@ namespace StingTools.Commands.Placement
             }
             catch (Exception ex) { sb.AppendLine($"Rule pack load: {ex.Message}"); }
 
+            // Seed-variant coverage — how many rules bind to a type variant their
+            // mapped seed actually mints (the "each rule matches a family type"
+            // alignment). 100% of placeable rules should match; Conduits/Stairs
+            // are intentionally seedless (routing, not family instances).
+            try
+            {
+                var crules = PlacementRuleLoader.LoadDefaults();
+                int total = 0, covered = 0, noSeed = 0;
+                var gaps = new List<string>();
+                var seedVarCache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var r in crules)
+                {
+                    if (r == null || string.IsNullOrEmpty(r.CategoryFilter)) continue;
+                    total++;
+                    string seedId = CategoryToSeedRegistry.Resolve(doc, r.CategoryFilter);
+                    if (string.IsNullOrWhiteSpace(seedId)) { noSeed++; continue; }
+                    if (!seedVarCache.TryGetValue(seedId, out var vars))
+                    { vars = ReadSeedVariantNames(seedId); seedVarCache[seedId] = vars; }
+                    bool ok = false;
+                    if (vars != null && vars.Count > 0)
+                    {
+                        if (!string.IsNullOrEmpty(r.FamilyTypeRegex))
+                        {
+                            try { var rx = new System.Text.RegularExpressions.Regex(r.FamilyTypeRegex, System.Text.RegularExpressions.RegexOptions.IgnoreCase); ok = vars.Any(v => rx.IsMatch(v)); }
+                            catch { }
+                        }
+                        if (!ok && !string.IsNullOrEmpty(r.VariantHint))
+                            ok = r.VariantHint.Split(',').Select(s => s.Trim()).Any(h => h.Length > 0 && vars.Contains(h));
+                        if (string.IsNullOrEmpty(r.FamilyTypeRegex) && string.IsNullOrEmpty(r.VariantHint))
+                            ok = true; // no discriminator → first symbol of the right category is acceptable
+                    }
+                    if (ok) covered++; else gaps.Add($"{r.MergeKey} → seed {seedId}");
+                }
+                int placeable = total - noSeed;
+                int pct = placeable > 0 ? (100 * covered / placeable) : 100;
+                sb.AppendLine();
+                sb.AppendLine("SEED-VARIANT COVERAGE (rule → family type):");
+                sb.AppendLine($"  Rules {total} · placeable {placeable} · matched a seed variant {covered} ({pct}%)");
+                sb.AppendLine($"  Seedless (Conduits/Stairs/routing): {noSeed}");
+                if (gaps.Count == 0)
+                    sb.AppendLine("  ✓ Every placeable rule binds to a minted seed variant.");
+                else
+                {
+                    sb.AppendLine($"  Gaps ({gaps.Count}) — VariantHint/FamilyTypeRegex matches no minted variant:");
+                    foreach (var g in gaps.Take(15)) sb.AppendLine($"    - {g}");
+                    if (gaps.Count > 15) sb.AppendLine($"    + {gaps.Count - 15} more");
+                }
+            }
+            catch (Exception ex) { sb.AppendLine($"Seed coverage: {ex.Message}"); }
+
             // Write to disk + show in a window the user can copy-paste.
             string outDir = OutputLocationHelper.GetOutputPath(doc, "PlacementDiagnose") ?? Path.GetTempPath();
             Directory.CreateDirectory(outDir);
@@ -122,9 +185,31 @@ namespace StingTools.Commands.Placement
                 $"STING_PlacementDiagnose_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
             try { File.WriteAllText(txtPath, sb.ToString()); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            string preview = sb.Length > 4000 ? sb.ToString().Substring(0, 4000) + "\n…(truncated, see file)" : sb.ToString();
-            TaskDialog.Show("STING - Placement Diagnose", preview + $"\n\nFull report: {txtPath}");
-            return Result.Succeeded;
+            return (sb.ToString(), txtPath);
+        }
+
+        /// <summary>Reads the type-variant NAMES from a seed spec (Data/Seeds/&lt;seedId&gt;.json),
+        /// whether typeVariants live at the root or under symbols[].</summary>
+        private static HashSet<string> ReadSeedVariantNames(string seedId)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string path = StingToolsApp.FindDataFile(seedId + ".json");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return set;
+                var root = Newtonsoft.Json.Linq.JToken.Parse(File.ReadAllText(path));
+                void Collect(Newtonsoft.Json.Linq.JToken node)
+                {
+                    if (node?["typeVariants"] is Newtonsoft.Json.Linq.JArray tv)
+                        foreach (var v in tv)
+                        { var n = (string)v["name"]; if (!string.IsNullOrEmpty(n)) set.Add(n); }
+                }
+                Collect(root);
+                if (root["symbols"] is Newtonsoft.Json.Linq.JArray syms)
+                    foreach (var s in syms) Collect(s);
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadSeedVariantNames {seedId}: {ex.Message}"); }
+            return set;
         }
     }
 }
