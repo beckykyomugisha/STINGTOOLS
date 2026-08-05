@@ -4962,6 +4962,84 @@ namespace StingTools.UI
                     _savedEmail = BIMManager.PlanscapeServerClient.Instance.ConnectedUser;
                 }
 
+                // ── #563 — WHICH SERVER AM I ON? ─────────────────────────
+                // This banner is the point of the issue. Switching targets was
+                // awkward, but what actually cost an evening was that the BCC
+                // never said which server it was talking to: a panel showing
+                // production data and a panel showing dev data looked identical,
+                // so a site-photo failure that could not be reproduced looked
+                // like the tests were wrong rather than the target being wrong.
+                //
+                // Non-production is styled loudly and deliberately. A dev session
+                // must not be mistakable for a real one at a glance.
+                {
+                    var activeTarget = BIMManager.PlanscapeServerTargets.GetActiveTarget();
+                    var banner = new Border
+                    {
+                        Background = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xFF, 0xF3, 0xE0)
+                            : Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                        BorderBrush = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xE6, 0x51, 0x00)
+                            : Color.FromRgb(0x2E, 0x7D, 0x32)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 6, 10, 6),
+                        Margin = new Thickness(0, 0, 0, 8),
+                    };
+                    var bannerGrid = new Grid();
+                    bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var bannerText = new StackPanel();
+                    bannerText.Children.Add(new TextBlock
+                    {
+                        Text = (activeTarget.IsNonProduction ? "⚠ SERVER: " : "SERVER: ") + activeTarget.Label,
+                        FontWeight = FontWeights.Bold, FontSize = 12,
+                        Foreground = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xE6, 0x51, 0x00)
+                            : Color.FromRgb(0x2E, 0x7D, 0x32)),
+                    });
+                    bannerText.Children.Add(new TextBlock
+                    {
+                        Text = activeTarget.Url
+                             + (activeTarget.EnvOverrideActive
+                                 ? $"   (from {BIMManager.PlanscapeServerClient.ServerUrlEnvVar})"
+                                 : ""),
+                        FontSize = 10, Foreground = Brushes.Gray,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                    });
+                    Grid.SetColumn(bannerText, 0);
+                    bannerGrid.Children.Add(bannerText);
+
+                    var changeBtn = new Button
+                    {
+                        Content = "Change…", Height = 26, Padding = new Thickness(10, 0, 10, 0),
+                        FontSize = 11, Cursor = Cursors.Hand,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        ToolTip = "Pick which Planscape server this machine connects to. "
+                                + "Takes effect after Revit restarts."
+                    };
+                    changeBtn.Click += (s, e) =>
+                    {
+                        try
+                        {
+                            if (PlanscapeServerTargetDialog.Show(Window.GetWindow(this)))
+                                ShowPlatformDetail("Planscape");   // redraw the banner
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[server-picker] {ex.Message}");
+                            ShowStatus($"Server picker failed: {ex.Message}");
+                        }
+                    };
+                    Grid.SetColumn(changeBtn, 1);
+                    bannerGrid.Children.Add(changeBtn);
+
+                    banner.Child = bannerGrid;
+                    detailStack.Children.Add(banner);
+                }
+
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbUrlRow.Children.Add(new TextBlock { Text = "Server URL:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
                 var sbUrlBox = new System.Windows.Controls.TextBox

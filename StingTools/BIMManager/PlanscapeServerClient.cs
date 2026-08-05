@@ -195,10 +195,26 @@ public sealed partial class PlanscapeServerClient : IDisposable
             // P1 — store the session so a Revit restart doesn't require
             // re-entering credentials. Encrypted with DPAPI (current-user).
             PersistSession();
-            // Remember the server URL machine-wide so every other document
-            // (and the "Open Planscape" buttons) default to the same cloud
-            // server without the user re-typing it. Idempotent on the same URL.
-            SaveDefaultServerUrl(_serverUrl);
+            // #563 — DELIBERATELY DOES NOT PERSIST THE SERVER URL.
+            //
+            // This used to call SaveDefaultServerUrl(_serverUrl) on every
+            // successful login, so merely connecting to a local docker stack
+            // once rewrote the machine-wide pointer in
+            // %APPDATA%\StingTools\planscape_server.json. That file holds the
+            // production pointer and is the fallback that makes the launcher
+            // script safe: a user who connected to localhost for an afternoon
+            // stayed pointed at it afterwards, against a dev database full of
+            // real-looking data, without ever having CHOSEN to be.
+            //
+            // The target is now written only by PlanscapeServerTargets
+            // .SetActiveTarget, from a confirmed choice in the server picker.
+            // Connecting is not a choice about where to point in future.
+            //
+            // Note this is not a loss of convenience: _serverUrl for THIS
+            // session is already whatever the user typed or the picker
+            // resolved, and the per-document link in planscape_connection.json
+            // still records the project. Only the machine-wide default is no
+            // longer written behind the user's back.
             StingLog.Info($"Planscape: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
 
             // C2 — fire-and-forget SignalR start so real-time updates flow without
