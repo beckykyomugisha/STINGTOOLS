@@ -5210,6 +5210,9 @@
       const modal = $('#issueModal');
       modal.classList.add('open');
       $('#imTitle').value = '';
+      // Clear any validation state left over from a previous attempt.
+      $('#imTitle').classList.remove('invalid');
+      const titleErr0 = $('#imTitleError'); if (titleErr0) titleErr0.hidden = true;
       $('#imDesc').value  = '';
       const initialEl = $('#imInitialComment'); if (initialEl) initialEl.value = '';
       $('#imScreenshot').innerHTML = '';
@@ -5444,6 +5447,13 @@
         wrap.dataset.b64 = b64;
       });
       $('#imSubmit').addEventListener('click', submitIssue);
+      // Clear the title error as soon as the user starts fixing it, rather
+      // than leaving a stale 'required' message under a filled field.
+      $('#imTitle')?.addEventListener('input', () => {
+        if (!$('#imTitle').value.trim()) return;
+        $('#imTitle').classList.remove('invalid');
+        const e2 = $('#imTitleError'); if (e2) e2.hidden = true;
+      });
     }
 
     async function submitIssue() {
@@ -5479,24 +5489,51 @@
         modelY: lastClickPoint?.y ?? null,
         modelZ: lastClickPoint?.z ?? null,
       };
-      if (!payload.title) return toast('Title required', 'warn');
+      // Title is required. This used to be a toast and nothing else — and the
+      // toast rendered UNDER the modal backdrop, so Create appeared to do
+      // nothing at all. Mark the field, say why next to it, and put the cursor
+      // in it. (The toast still fires; it is now above the backdrop too.)
+      const titleEl = $('#imTitle');
+      const titleErr = $('#imTitleError');
+      if (!payload.title) {
+        titleEl.classList.add('invalid');
+        if (titleErr) titleErr.hidden = false;
+        titleEl.focus();
+        return toast('A title is required to create an issue', 'warn');
+      }
+      titleEl.classList.remove('invalid');
+      if (titleErr) titleErr.hidden = true;
 
-      let result;
-      if (projectId) {
-        result = await api(`/api/projects/${projectId}/issues`, {
+      if (!projectId) {
+        return toast('No project — cannot create an issue here.', 'error');
+      }
+
+      const submitBtn = $('#imSubmit');
+      const prevLabel = submitBtn ? submitBtn.textContent : null;
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating…'; }
+      let created;
+      try {
+        created = await api(`/api/projects/${projectId}/issues`, {
           method: 'POST', body: JSON.stringify(payload)
         });
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = prevLabel; }
       }
-      const created = result || Object.assign({
-        id: 'local-' + Date.now(),
-        code: 'ISS-LOCAL-' + (state.issues.length + 1),
-        status: status,
-        slaBreached: false
-      }, payload);
+
+      // api() returns null for every failure. This used to fabricate a
+      // stand-in issue (id 'local-…', code 'ISS-LOCAL-n'), push it into the
+      // list and toast SUCCESS — so a rejected or failed create looked
+      // identical to a real one, and the row vanished on the next reload
+      // with no record anywhere that it had ever failed.
+      if (!created || !created.id) {
+        return toast('Could not create the issue — it was not saved. Check your connection and try again.', 'error');
+      }
 
       // Upload any attachments + post the initial comment now the issue
       // exists. Both are best-effort — failures don't unwind the issue.
-      if (projectId && created.id && !String(created.id).startsWith('local-')) {
+      // (The `local-` id guard that used to be here is gone with the
+      // fabricated stand-in issue; we only reach this with a real server id.)
+      {
         for (const f of pendingIssueAttachments) {
           try {
             const fd = new FormData();
