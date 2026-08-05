@@ -440,17 +440,66 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"ProbeGreenfield: {ex.Message}"); return false; }
         }
 
+        /// <summary>The one physical directory the coordination buckets resolve to.</summary>
+        public const string CoordBucketName = "coord";
+
+        /// <summary>
+        /// Historic bucket names that all mean "coordination JSON for this project".
+        /// They exist because the consolidation moved each legacy SIBLING folder under
+        /// _data while keeping its old name, so a consolidated project ended up with
+        /// three or four directories side by side under _data — split by which subsystem
+        /// historically owned the file, a distinction no user can see. They now all
+        /// resolve to <see cref="CoordBucketName"/>.
+        /// <para>Order matters: it is the read-fallback precedence.</para>
+        /// </summary>
+        public static readonly string[] CoordBucketAliases =
+            { "_BIM_COORD", "STING_BIM_MANAGER", "_bim_manager", ".bimmanager" };
+
+        /// <summary>True when <paramref name="bucket"/> is one of the coordination aliases.</summary>
+        public static bool IsCoordBucket(string bucket)
+            => !string.IsNullOrEmpty(bucket)
+               && (string.Equals(bucket, CoordBucketName, StringComparison.OrdinalIgnoreCase)
+                   || CoordBucketAliases.Contains(bucket, StringComparer.OrdinalIgnoreCase));
+
         /// <summary>
         /// Resolve a metadata bucket path inside the consolidated <root>/_data/
-        /// folder. Replaces 47-site hardcoded sibling-of-RVT folders like
-        /// "_BIM_COORD" / "_bim_manager" / "STING_BIM_MANAGER" by nesting them
-        /// inside the project root, so the user only sees ONE folder per project.
+        /// folder. Replaces hardcoded sibling-of-RVT folders like "_BIM_COORD" /
+        /// "_bim_manager" / "STING_BIM_MANAGER" by nesting them inside the project root,
+        /// so the user only sees ONE folder per project.
+        /// <para>
+        /// The four coordination aliases now collapse onto a single <c>_data/coord</c>
+        /// directory. Existing projects are NOT restructured behind the user's back: if a
+        /// legacy bucket directory already exists under _data, it keeps being used, in
+        /// <see cref="CoordBucketAliases"/> order. Only projects with no such directory —
+        /// i.e. new ones — are born with the single folder. The consented
+        /// <see cref="MigrateFromLegacy"/> is what folds an existing project's buckets in.
+        /// </para>
         /// </summary>
         public static string GetMetaPath(Document doc, string bucket = null, params string[] subParts)
         {
             string data = GetDataPath(doc);
             if (string.IsNullOrEmpty(data)) return null;
-            string p = string.IsNullOrEmpty(bucket) ? data : Path.Combine(data, bucket);
+
+            string effective = bucket;
+            if (IsCoordBucket(bucket))
+            {
+                effective = CoordBucketName;
+                // Keep using a legacy bucket directory that already holds this project's
+                // data, so collapsing the names cannot orphan it.
+                try
+                {
+                    if (!Directory.Exists(Path.Combine(data, CoordBucketName)))
+                    {
+                        foreach (string alias in CoordBucketAliases)
+                        {
+                            if (Directory.Exists(Path.Combine(data, alias))) { effective = alias; break; }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"GetMetaPath alias probe: {ex.Message}"); }
+            }
+
+            string p = string.IsNullOrEmpty(effective) ? data : Path.Combine(data, effective);
             foreach (var part in subParts ?? Array.Empty<string>())
                 if (!string.IsNullOrEmpty(part)) p = Path.Combine(p, part);
             try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetMetaPath: {ex.Message}"); }
@@ -874,18 +923,36 @@ namespace StingTools.Core
                     catch { return 0; }
                 }
 
-                // Metadata buckets folded into _data/<bucket>/
-                foreach (string bucket in new[] { "_BIM_COORD", "_bim_manager", "STING_BIM_MANAGER", ".bimmanager" })
+                string coordDest = string.IsNullOrEmpty(dataPath)
+                    ? "<root>/_data/" + CoordBucketName
+                    : Path.Combine(dataPath, CoordBucketName);
+
+                // Legacy sibling metadata buckets, folded into the single _data/coord/
+                foreach (string bucket in CoordBucketAliases)
                 {
                     string src = Path.Combine(projDir, bucket);
                     if (!Directory.Exists(src)) continue;
                     int n = Count(src);
                     if (n > 0) rep.Items.Add(new LegacyScanItem
                     {
-                        Source = src,
-                        Destination = string.IsNullOrEmpty(dataPath) ? "<root>/_data/" + bucket : Path.Combine(dataPath, bucket),
-                        FileCount = n
+                        Source = src, Destination = coordDest, FileCount = n
                     });
+                }
+
+                // Alias buckets that a PREVIOUS consolidation already moved under _data,
+                // before the four names were collapsed onto one.
+                if (!string.IsNullOrEmpty(dataPath))
+                {
+                    foreach (string bucket in CoordBucketAliases)
+                    {
+                        string src = Path.Combine(dataPath, bucket);
+                        if (!Directory.Exists(src)) continue;
+                        int n = Count(src);
+                        if (n > 0) rep.Items.Add(new LegacyScanItem
+                        {
+                            Source = src, Destination = coordDest, FileCount = n
+                        });
+                    }
                 }
 
                 // Separate CDE tree + export dumps, routed by content/extension
@@ -916,16 +983,44 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// True once a consolidation has completed for this project. The breadcrumb is
-        /// what makes the migration at-most-once — re-running it after the user has
-        /// reorganised their folders by hand would drag files back.
+        /// Current consolidation schema. Bumped when a new consolidation STEP is added
+        /// that an already-consolidated project still needs. v2 added the fold of the
+        /// _data alias buckets (_BIM_COORD / STING_BIM_MANAGER / …) into _data/coord.
+        /// </summary>
+        private const int ConsolidationSchemaVersion = 2;
+
+        /// <summary>
+        /// True once a consolidation has completed for this project AT THE CURRENT SCHEMA.
+        /// The breadcrumb is what makes the migration at-most-once — re-running it after
+        /// the user has reorganised their folders by hand would drag files back.
+        /// <para>
+        /// A breadcrumb written by an older schema does NOT count as done: it records that
+        /// the sibling folders were drained, not that the newer steps ran. Without the
+        /// version check, every project consolidated before the bucket collapse would be
+        /// permanently barred from it and keep its side-by-side _data buckets forever.
+        /// Re-running is safe because each step is a move of files that, once moved, are
+        /// no longer at the source.
+        /// </para>
         /// </summary>
         public static bool HasConsolidated(Document doc)
         {
             try
             {
                 string p = ConsolidationBreadcrumbPath(doc);
-                return !string.IsNullOrEmpty(p) && File.Exists(p);
+                if (string.IsNullOrEmpty(p) || !File.Exists(p)) return false;
+                try
+                {
+                    var o = JObject.Parse(File.ReadAllText(p));
+                    int v = (int?)o["schema_version"] ?? 1;
+                    return v >= ConsolidationSchemaVersion;
+                }
+                catch (Exception ex)
+                {
+                    // Unreadable breadcrumb: treat as consolidated rather than risk a
+                    // re-run the user did not ask for.
+                    StingLog.Warn($"HasConsolidated: unreadable breadcrumb {p}: {ex.Message}");
+                    return true;
+                }
             }
             catch { return false; }
         }
@@ -1032,14 +1127,14 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { rep.Warnings.Add($"Sidecar scan: {ex.Message}"); }
 
-                // 2. Move legacy metadata buckets into _data/<bucket>/ — preserves
-                //    subsystem code that hard-codes these names while tucking the
-                //    files inside the unified project root.
-                foreach (string legacyName in new[] { "_BIM_COORD", "_bim_manager", "STING_BIM_MANAGER" })
+                // 2. Move legacy metadata buckets into the single _data/coord/ bucket.
+                //    These four names all mean "coordination JSON"; keeping them apart
+                //    reproduced the sibling sprawl one level down, inside _data.
+                foreach (string legacyName in CoordBucketAliases)
                 {
                     string legacy = Path.Combine(projDir, legacyName);
                     if (!Directory.Exists(legacy)) continue;
-                    string bucket = Path.Combine(dataPath, legacyName);
+                    string bucket = Path.Combine(dataPath, CoordBucketName);
                     try
                     {
                         Directory.CreateDirectory(bucket);
@@ -1063,34 +1158,40 @@ namespace StingTools.Core
                     catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
 
-                // 2b. Hidden helper folder used by clash detection
+                // 2b. Fold any ALREADY-CONSOLIDATED alias bucket (_data/_BIM_COORD,
+                //     _data/STING_BIM_MANAGER, …) into the single _data/coord.
+                //     A project consolidated before the buckets were collapsed has these
+                //     sitting side by side under _data; without this they would stay
+                //     there forever, since GetMetaPath deliberately keeps using an
+                //     existing alias directory rather than orphaning it.
+                foreach (string alias in CoordBucketAliases)
                 {
-                    string hiddenLegacy = Path.Combine(projDir, ".bimmanager");
-                    if (Directory.Exists(hiddenLegacy))
+                    string aliasDir = Path.Combine(dataPath, alias);
+                    if (!Directory.Exists(aliasDir)) continue;
+                    string dest = Path.Combine(dataPath, CoordBucketName);
+                    if (string.Equals(Path.GetFullPath(aliasDir), Path.GetFullPath(dest),
+                                      StringComparison.OrdinalIgnoreCase)) continue;
+                    try
                     {
-                        string dest = Path.Combine(dataPath, ".bimmanager");
-                        try
+                        Directory.CreateDirectory(dest);
+                        foreach (string f in Directory.GetFiles(aliasDir, "*.*", SearchOption.AllDirectories))
                         {
-                            Directory.CreateDirectory(dest);
-                            foreach (string f in Directory.GetFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories))
+                            try
                             {
-                                try
-                                {
-                                    string rel = f.Substring(hiddenLegacy.Length).TrimStart(Path.DirectorySeparatorChar);
-                                    string dst = Path.Combine(dest, rel);
-                                    string ddir = Path.GetDirectoryName(dst);
-                                    if (!string.IsNullOrEmpty(ddir)) Directory.CreateDirectory(ddir);
-                                    if (File.Exists(dst)) dst = GetUniqueFileName(dst);
-                                    File.Move(f, dst);
-                                    rep.FilesMoved++;
-                                    rep.Moves.Add(f + "|" + dst);
-                                }
-                                catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
+                                string rel = f.Substring(aliasDir.Length).TrimStart(Path.DirectorySeparatorChar);
+                                string dst = Path.Combine(dest, rel);
+                                string ddir = Path.GetDirectoryName(dst);
+                                if (!string.IsNullOrEmpty(ddir)) Directory.CreateDirectory(ddir);
+                                if (File.Exists(dst)) dst = GetUniqueFileName(dst);
+                                File.Move(f, dst);
+                                rep.FilesMoved++;
+                                rep.Moves.Add(f + "|" + dst);
                             }
-                            RetireLegacyFolder(hiddenLegacy, rep);
+                            catch (Exception ex2) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex2.Message}"); }
                         }
-                        catch (Exception ex2) { rep.Warnings.Add($"Process {hiddenLegacy}: {ex2.Message}"); }
+                        RetireLegacyFolder(aliasDir, rep);
                     }
+                    catch (Exception ex2) { rep.Warnings.Add($"Process {aliasDir}: {ex2.Message}"); }
                 }
 
                 // 2c. Workflow run log written as a flat file alongside the .rvt
@@ -1230,7 +1331,32 @@ namespace StingTools.Core
             {
                 // Nothing moved: leave no breadcrumb, so a project that genuinely has
                 // legacy folders later still gets its one consolidation.
-                if (rep.FilesMoved == 0 && rep.FoldersRemoved == 0) return;
+                //
+                // Exception — an OLDER-schema breadcrumb already exists. This project was
+                // consolidated before a newer step was added, that step found nothing to
+                // do, and it is now fully up to date. Stamp the current version so
+                // HasConsolidated reports "already consolidated" instead of re-scanning
+                // on every run forever.
+                if (rep.FilesMoved == 0 && rep.FoldersRemoved == 0)
+                {
+                    try
+                    {
+                        string existing = ConsolidationBreadcrumbPath(doc);
+                        if (!string.IsNullOrEmpty(existing) && File.Exists(existing))
+                        {
+                            var prev = JObject.Parse(File.ReadAllText(existing));
+                            if (((int?)prev["schema_version"] ?? 1) < ConsolidationSchemaVersion)
+                            {
+                                prev["schema_version"] = ConsolidationSchemaVersion;
+                                prev["schema_upgraded_utc"] = DateTime.UtcNow.ToString("o");
+                                OutputLocationHelper.WriteAllTextAtomic(existing, prev.ToString());
+                                rep.BreadcrumbPath = existing;
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Breadcrumb schema upgrade: {ex.Message}"); }
+                    return;
+                }
 
                 // A straggler remains: at least one file threw on move (RetireLegacyFolder
                 // has already left any folder that still holds files in place). Writing the
@@ -1253,6 +1379,7 @@ namespace StingTools.Core
 
                 var payload = new JObject
                 {
+                    ["schema_version"]   = ConsolidationSchemaVersion,
                     ["consolidated_utc"] = DateTime.UtcNow.ToString("o"),
                     ["model"]            = doc?.PathName ?? "",
                     ["files_moved"]      = rep.FilesMoved,
