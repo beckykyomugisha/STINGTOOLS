@@ -47,10 +47,7 @@ namespace StingTools.BOQ
         private static BOQDocument GetBoq(Document doc)
         {
             if (doc == null) return null;
-            // WP6 — fold the model-edit epoch into the cache key so an in-place
-            // geometry/type/material edit (which leaves PathName unchanged) busts
-            // the cache instead of feeding stale rates into 4D/5D cash-flow.
-            string key = (doc.PathName ?? doc.Title ?? "") + "#" + StingCostDirtyMarker.ChangeEpoch;
+            string key = doc.PathName ?? doc.Title ?? "";
             if (_boqCache != null && _boqCacheDocKey == key) return _boqCache;
             try
             {
@@ -526,11 +523,9 @@ namespace StingTools.BOQ
             }
             try
             {
-                // Route into the unified CDE state folder (01_WIP … 04_ARCHIVE) rather
-                // than a second "_CDE" tree beside the .rvt.
-                string stateDir = StingTools.Core.ProjectFolderEngine.GetFolderPath(doc, cdeFolder);
-                if (string.IsNullOrEmpty(stateDir)) return null;
-                string cdeBase = Path.Combine(stateDir, "BOQ");
+                string bimDir = GetBimManagerDir(doc);
+                if (string.IsNullOrEmpty(bimDir)) return null;
+                string cdeBase = Path.Combine(Path.GetDirectoryName(bimDir) ?? "", "_CDE", cdeFolder, "BOQ");
                 Directory.CreateDirectory(cdeBase);
                 string target = Path.Combine(cdeBase, Path.GetFileName(xlsxPath));
                 File.Copy(xlsxPath, target, overwrite: true);
@@ -559,15 +554,13 @@ namespace StingTools.BOQ
             return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, fileName);
         }
 
-        /// <summary>
-        /// Thin shim over the canonical atomic writer. This used to be a private
-        /// re-implementation of temp-file + File.Replace; it now delegates so there
-        /// is a single atomic-write implementation (which also carries the
-        /// cross-volume copy fallback this copy lacked).
-        /// </summary>
         private static void AtomicJsonWrite(string path, JToken content)
-            => StingTools.Core.OutputLocationHelper.WriteAllTextAtomic(
-                   path, (content ?? new JObject()).ToString(Formatting.Indented));
+        {
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, content.ToString(Formatting.Indented));
+            if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
+            else File.Move(tmp, path);
+        }
     }
     // ══════════════════════════════════════════════════════════════════════
     //  BOQBccRefreshCommand — Phase 108k on-demand trigger

@@ -285,10 +285,7 @@ public class P6LiveLinkService
         {
             var pmUserIds = await db.ProjectMembers
                 .AsNoTracking()
-                // Was `ProjectRole == "PM"` — see ProjectRoles. Chained .Where so
-                // the capability predicate is translated to SQL, not client-evaluated.
-                .Where(m => m.ProjectId == projectId && m.IsActive)
-                .Where(Planscape.Core.Entities.ProjectRoles.CanCurateProject)
+                .Where(m => m.ProjectId == projectId && m.IsActive && m.ProjectRole == "PM")
                 .Select(m => m.UserId)
                 .Distinct()
                 .ToListAsync(ct);

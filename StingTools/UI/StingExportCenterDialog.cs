@@ -426,29 +426,6 @@ namespace StingTools.UI
             DockPanel.SetDock(chips, Dock.Top);
             dock.Children.Add(chips);
 
-            // Select all / deselect all — operate on the rows currently visible in
-            // the grid, so they honour any active search / filter-chip selection.
-            var selAllRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-            // Momentary action buttons — no checkbox glyph (a static ☑ made
-            // "Select all" look permanently ticked even when nothing was selected).
-            var selectAllBtn = new Button
-            {
-                Content = "Select all",
-                Padding = new Thickness(8, 2, 8, 2),
-                Margin = new Thickness(0, 0, 6, 0),
-            };
-            selectAllBtn.Click += (_, __) => SetVisibleRowsChecked(true);
-            var deselectAllBtn = new Button
-            {
-                Content = "Deselect all",
-                Padding = new Thickness(8, 2, 8, 2),
-            };
-            deselectAllBtn.Click += (_, __) => SetVisibleRowsChecked(false);
-            selAllRow.Children.Add(selectAllBtn);
-            selAllRow.Children.Add(deselectAllBtn);
-            DockPanel.SetDock(selAllRow, Dock.Top);
-            dock.Children.Add(selAllRow);
-
             // Grid
             _selectGrid = new DataGrid
             {
@@ -597,57 +574,6 @@ namespace StingTools.UI
             var wmText = new TextBox { Text = _profile.Pdf.WatermarkText };
             wmText.TextChanged += (_, __) => _profile.Pdf.WatermarkText = wmText.Text;
             sp.Children.Add(LabelFor("Watermark text", wmText));
-
-            // Watermark position — friendly label → engine position id
-            var wmPositions = new (string Label, string Value)[]
-            {
-                ("Diagonal (centre)", "DiagonalCentre"),
-                ("Centre",            "Centre"),
-                ("Top left",          "TopLeft"),
-                ("Top centre",        "TopCentre"),
-                ("Top right",         "TopRight"),
-                ("Middle left",       "MiddleLeft"),
-                ("Middle right",      "MiddleRight"),
-                ("Bottom left",       "BottomLeft"),
-                ("Bottom centre",     "BottomCentre"),
-                ("Bottom right",      "BottomRight"),
-            };
-            var wmPos = new ComboBox();
-            foreach (var (label, value) in wmPositions)
-                wmPos.Items.Add(new ComboBoxItem { Content = label, Tag = value });
-            wmPos.SelectedIndex = Math.Max(0, Array.FindIndex(wmPositions,
-                p => string.Equals(p.Value, _profile.Pdf.WatermarkPosition, StringComparison.OrdinalIgnoreCase)));
-            wmPos.SelectionChanged += (_, __) =>
-            {
-                if (wmPos.SelectedItem is ComboBoxItem item && item.Tag is string v)
-                    _profile.Pdf.WatermarkPosition = v;
-            };
-            sp.Children.Add(LabelFor("Watermark position", wmPos));
-
-            // Watermark scale (font size in points)
-            var wmSize = new ComboBox { IsEditable = true };
-            foreach (int s in new[] { 48, 72, 96, 144, 200, 300 }) wmSize.Items.Add(s);
-            wmSize.Text = _profile.Pdf.WatermarkFontSize.ToString();
-            wmSize.SelectionChanged += (_, __) => { if (int.TryParse(wmSize.SelectedItem?.ToString(), out int n) && n > 0) _profile.Pdf.WatermarkFontSize = n; };
-            wmSize.LostFocus      += (_, __) => { if (int.TryParse(wmSize.Text, out int n) && n > 0) _profile.Pdf.WatermarkFontSize = n; };
-            sp.Children.Add(LabelFor("Watermark scale (pt)", wmSize));
-
-            // Watermark opacity (transparency) — 0 = invisible, 100 = solid
-            var wmOpacity = new ComboBox { IsEditable = true };
-            foreach (int o in new[] { 10, 20, 30, 40, 50, 60, 75, 100 }) wmOpacity.Items.Add(o);
-            wmOpacity.Text = _profile.Pdf.WatermarkOpacityPct.ToString();
-            wmOpacity.SelectionChanged += (_, __) => { if (int.TryParse(wmOpacity.SelectedItem?.ToString(), out int n)) _profile.Pdf.WatermarkOpacityPct = Math.Clamp(n, 0, 100); };
-            wmOpacity.LostFocus      += (_, __) => { if (int.TryParse(wmOpacity.Text, out int n)) _profile.Pdf.WatermarkOpacityPct = Math.Clamp(n, 0, 100); };
-            sp.Children.Add(LabelFor("Watermark opacity %", wmOpacity));
-
-            // Tiling — repeat the watermark in a grid across the page
-            sp.Children.Add(BindCheck("Tile across page", () => _profile.Pdf.WatermarkTile, v => _profile.Pdf.WatermarkTile = v));
-            var wmCols = new TextBox { Text = _profile.Pdf.WatermarkTileColumns.ToString() };
-            wmCols.TextChanged += (_, __) => { if (int.TryParse(wmCols.Text, out int n) && n > 0) _profile.Pdf.WatermarkTileColumns = n; };
-            sp.Children.Add(LabelFor("Tile columns", wmCols));
-            var wmRows = new TextBox { Text = _profile.Pdf.WatermarkTileRows.ToString() };
-            wmRows.TextChanged += (_, __) => { if (int.TryParse(wmRows.Text, out int n) && n > 0) _profile.Pdf.WatermarkTileRows = n; };
-            sp.Children.Add(LabelFor("Tile rows", wmRows));
 
             return card;
         }
@@ -907,25 +833,13 @@ namespace StingTools.UI
             var folderRow = new Grid { Margin = new Thickness(0, 6, 0, 0) };
             folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _folderBox = new TextBox { Text = _profile.Output.LocalFolder ?? "" };
             _folderBox.TextChanged += (_, __) => { _profile.Output.LocalFolder = _folderBox.Text; UpdateStatusLine(); };
             Grid.SetColumn(_folderBox, 0);
             folderRow.Children.Add(_folderBox);
-            var autoBtn = new Button
-            {
-                Content = "⌖ Auto",
-                Margin = new Thickness(4, 0, 0, 0),
-                Padding = new Thickness(8, 2, 8, 2),
-                ToolTip = "Auto-locate the ISO 19650 CDE folder for this export's suitability " +
-                          "(01_WIP / 02_SHARED / 03_PUBLISHED) inside the Document Manager structure.",
-            };
-            autoBtn.Click += (_, __) => AutoLocateOutputFolder(force: true);
-            Grid.SetColumn(autoBtn, 1);
-            folderRow.Children.Add(autoBtn);
             var browse = new Button { Content = "Browse…", Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
             browse.Click += OnBrowseFolderClick;
-            Grid.SetColumn(browse, 2);
+            Grid.SetColumn(browse, 1);
             folderRow.Children.Add(browse);
             destSp.Children.Add(folderRow);
 
@@ -1122,11 +1036,6 @@ namespace StingTools.UI
             if (_fmtImage != null) _fmtImage.IsChecked = (_profile.Formats & ExportFormats.Image) != 0;
             if (_fmtXml   != null) _fmtXml.IsChecked   = (_profile.Formats & ExportFormats.XML)   != 0;
 
-            // Perfect autolocation — seed the CDE output folder from the Document
-            // Manager structure when this profile has no folder set yet (never
-            // overrides an explicit path).
-            AutoLocateOutputFolder(force: false);
-
             if (_namingBox != null) _namingBox.Text = _profile.Output.NamingTemplate;
             if (_folderBox != null) _folderBox.Text = _profile.Output.LocalFolder;
 
@@ -1186,30 +1095,6 @@ namespace StingTools.UI
                 };
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-        }
-
-        /// <summary>Check or uncheck every row currently visible in the SELECT grid.
-        /// Respects the active search text / filter chip, so "Select all" after
-        /// filtering to e.g. "Issued" selects only that subset. Falls back to all
-        /// rows when no collection view is available.</summary>
-        private void SetVisibleRowsChecked(bool value)
-        {
-            try
-            {
-                var view = CollectionViewSource.GetDefaultView(_rows);
-                int n = 0;
-                if (view != null)
-                {
-                    foreach (var item in view)
-                        if (item is SheetRow r) { r.IsChecked = value; n++; }
-                }
-                if (n == 0)
-                    foreach (var r in _rows) r.IsChecked = value;
-
-                UpdateStatusLine();
-                RefreshNamingPreview();
-            }
-            catch (Exception ex) { StingLog.Warn($"SetVisibleRowsChecked: {ex.Message}"); }
         }
 
         private void ApplySavedSetSelection()
@@ -1334,65 +1219,6 @@ namespace StingTools.UI
         }
 
         // ── OUTPUT button handlers ──────────────────────────────────────────────
-
-        /// <summary>
-        /// Perfect autolocation — resolve the ISO 19650 CDE folder that matches this
-        /// export's suitability and point the output there, so files land inside the
-        /// Document Manager's project structure instead of next to the .rvt or
-        /// wherever the user last browsed:
-        ///   S0 / S1            → 01_WIP        (work in progress)
-        ///   S2 / S3 + A/B/CR   → 02_SHARED     (shared for coordination / review)
-        ///   S4 / S6 / S7       → 03_PUBLISHED  (approved / issued)
-        /// Called on open / profile switch with force == false (never overrides an
-        /// explicit path) and by the "Auto" button with force == true.
-        /// </summary>
-        private void AutoLocateOutputFolder(bool force)
-        {
-            try
-            {
-                if (_profile?.Output == null) return;
-                if (!force && !string.IsNullOrWhiteSpace(_profile.Output.LocalFolder)) return;
-
-                string folder = ResolveCdeFolder(_profile.Output.CdeSuitability);
-                if (string.IsNullOrEmpty(folder)) return;
-
-                _profile.Output.LocalFolder = folder;
-                if (_folderBox != null) _folderBox.Text = folder;  // TextChanged syncs profile + status line
-            }
-            catch (Exception ex) { StingLog.Warn($"AutoLocateOutputFolder: {ex.Message}"); }
-        }
-
-        /// <summary>Resolve the on-disk CDE bucket path via ProjectFolderEngine
-        /// (auto-bootstraps the project structure), falling back to the generic
-        /// project export directory for unsaved / structureless documents.</summary>
-        private string ResolveCdeFolder(SuitabilityCode suitability)
-        {
-            string bucket = CdeBucketForSuitability(suitability);
-            try
-            {
-                string path = ProjectFolderEngine.GetFolderPath(_doc, bucket);
-                if (!string.IsNullOrEmpty(path)) return path;
-            }
-            catch (Exception ex) { StingLog.Warn($"ResolveCdeFolder '{bucket}': {ex.Message}"); }
-            try { return OutputLocationHelper.GetOutputDirectory(_doc); }
-            catch (Exception ex) { StingLog.Warn($"ResolveCdeFolder fallback: {ex.Message}"); return null; }
-        }
-
-        private static string CdeBucketForSuitability(SuitabilityCode s)
-        {
-            switch (s)
-            {
-                case SuitabilityCode.S0:
-                case SuitabilityCode.S1:
-                    return "WIP";
-                case SuitabilityCode.S4:
-                case SuitabilityCode.S6:
-                case SuitabilityCode.S7:
-                    return "PUBLISHED";
-                default:
-                    return "SHARED";  // S2 / S3 / A1–A3 / AB / B1–B3 / CR → shared for coordination/review
-            }
-        }
 
         private void OnBrowseFolderClick(object _, RoutedEventArgs __)
         {

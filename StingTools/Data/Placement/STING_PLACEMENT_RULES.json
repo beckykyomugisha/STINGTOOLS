@@ -4,7 +4,6 @@
   "Rules": [
     {
       "CategoryFilter": "Electrical Fixtures",
-      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -18,7 +17,6 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
-      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)kitchen",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -32,7 +30,6 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
-      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)\\b(bathroom|wc|toilet|shower|en\\s*-?suite|lavatory|powder\\s*room|cloakroom)\\b",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -46,7 +43,6 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
-      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)office|study|workstation",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -60,7 +56,6 @@
     },
     {
       "CategoryFilter": "Lighting Devices",
-      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "",
       "AnchorType": "DOOR_HINGE",
       "OffsetXMm": 300.0,
@@ -70,12 +65,10 @@
       "MaxPerRoom": 1,
       "Priority": 80,
       "Notes": "Light switch 300mm from door hinge, hinge side (Approved Doc M 2015)",
-      "RuleId": "baseline-lighting-devices-",
-      "VariantHint": "One Way Switch"
+      "RuleId": "baseline-lighting-devices-"
     },
     {
       "CategoryFilter": "Lighting Devices",
-      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)corridor|circulation",
       "AnchorType": "DOOR_HINGE",
       "OffsetXMm": 300.0,
@@ -85,12 +78,10 @@
       "MaxPerRoom": 2,
       "Priority": 75,
       "Notes": "Two-way switch pair in corridors",
-      "RuleId": "baseline-lighting-devices-corridor-circulation",
-      "VariantHint": "One Way Switch"
+      "RuleId": "baseline-lighting-devices-corridor-circulation"
     },
     {
       "CategoryFilter": "Lighting Devices",
-      "FamilyTypeRegex": "(?i)switch|gang|dimmer",
       "RoomFilter": "(?i)stair",
       "AnchorType": "DOOR_HINGE",
       "OffsetXMm": 300.0,
@@ -100,12 +91,10 @@
       "MaxPerRoom": 2,
       "Priority": 80,
       "Notes": "Two-way at each stair landing",
-      "RuleId": "baseline-lighting-devices-stair",
-      "VariantHint": "Two Way Switch"
+      "RuleId": "baseline-lighting-devices-stair"
     },
     {
       "CategoryFilter": "Communication Devices",
-      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)living|lounge|reception",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -119,7 +108,6 @@
     },
     {
       "CategoryFilter": "Communication Devices",
-      "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "RoomFilter": "(?i)bedroom",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -133,7 +121,6 @@
     },
     {
       "CategoryFilter": "Data Devices",
-      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)office|study",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -156,12 +143,10 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "Notes": "Floor box at conference table centroid",
-      "RuleId": "baseline-data-devices-meeting-conference-board",
-      "VariantHint": "DEVICES_MEETING_CONFERENCE_BOARD"
+      "RuleId": "baseline-data-devices-meeting-conference-board"
     },
     {
       "CategoryFilter": "Data Devices",
-      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)server|comms|idf|mdf",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 500.0,
@@ -184,12 +169,10 @@
       "MaxPerRoom": 0,
       "Priority": 60,
       "Notes": "CCTV dome 2.8m ceiling mount",
-      "RuleId": "baseline-security-devices-corridor-entrance-lobby",
-      "VariantHint": "_DEVICES_CORRIDOR_ENTRANCE_LOBBY"
+      "RuleId": "baseline-security-devices-corridor-entrance-lobby"
     },
     {
       "CategoryFilter": "Security Devices",
-      "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)entrance|reception",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": -200.0,
@@ -203,7 +186,6 @@
     },
     {
       "CategoryFilter": "Security Devices",
-      "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)server|comms|plant",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": -200.0,
@@ -226,8 +208,7 @@
       "MaxPerRoom": 0,
       "Priority": 70,
       "Notes": "Smoke detector per BS 5839-1 max 7.5m radius",
-      "RuleId": "baseline-fire-alarm-devices-",
-      "VariantHint": "BASELINE_FIRE_ALARM_DEVICES"
+      "RuleId": "baseline-fire-alarm-devices-"
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
@@ -240,12 +221,10 @@
       "MaxPerRoom": 0,
       "Priority": 80,
       "Notes": "Heat detector per BS 5839-1 max 5.3m radius",
-      "RuleId": "baseline-fire-alarm-devices-kitchen-boiler-plant",
-      "VariantHint": "ARM_DEVICES_KITCHEN_BOILER_PLANT"
+      "RuleId": "baseline-fire-alarm-devices-kitchen-boiler-plant"
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
-      "FamilyTypeRegex": "(?i)detector|smoke|heat|sound|call.?point",
       "RoomFilter": "(?i)corridor|escape",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": 0.0,
@@ -259,7 +238,6 @@
     },
     {
       "CategoryFilter": "Fire Alarm Devices",
-      "FamilyTypeRegex": "(?i)detector|smoke|heat|sound|call.?point",
       "RoomFilter": "(?i)stair|lobby",
       "AnchorType": "DOOR_JAMB",
       "OffsetXMm": 0.0,
@@ -282,8 +260,7 @@
       "MaxPerRoom": 0,
       "Priority": 65,
       "Notes": "Emergency luminaire per BS 5266-1, max 8m spacing",
-      "RuleId": "baseline-lighting-fixtures-escape-corridor-stair",
-      "VariantHint": "G_FIXTURES_ESCAPE_CORRIDOR_STAIR"
+      "RuleId": "baseline-lighting-fixtures-escape-corridor-stair"
     },
     {
       "CategoryFilter": "Lighting Fixtures",
@@ -296,8 +273,7 @@
       "MaxPerRoom": 1,
       "Priority": 85,
       "Notes": "Escape route sign above exit door, BS 5266",
-      "RuleId": "baseline-lighting-fixtures-exit-entrance",
-      "VariantHint": "_LIGHTING_FIXTURES_EXIT_ENTRANCE"
+      "RuleId": "baseline-lighting-fixtures-exit-entrance"
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
@@ -310,8 +286,7 @@
       "MaxPerRoom": 2,
       "Priority": 55,
       "Notes": "Basin rim at 850mm (800-900mm range, BS 6465)",
-      "RuleId": "baseline-plumbing-fixtures-bathroom-wc-toilet",
-      "VariantHint": "BING_FIXTURES_BATHROOM_WC_TOILET"
+      "RuleId": "baseline-plumbing-fixtures-bathroom-wc-toilet"
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
@@ -324,8 +299,7 @@
       "MaxPerRoom": 2,
       "Priority": 55,
       "Notes": "WC pan 300mm from sidewall (BS 6465)",
-      "RuleId": "baseline-plumbing-fixtures-bathroom-wc-toilet-x",
-      "VariantHint": "NG_FIXTURES_BATHROOM_WC_TOILET_X"
+      "RuleId": "baseline-plumbing-fixtures-bathroom-wc-toilet-x"
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
@@ -338,8 +312,7 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "Notes": "Shower head at 1800mm from FFL",
-      "RuleId": "baseline-plumbing-fixtures-shower-wetroom",
-      "VariantHint": "PLUMBING_FIXTURES_SHOWER_WETROOM"
+      "RuleId": "baseline-plumbing-fixtures-shower-wetroom"
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
@@ -352,8 +325,7 @@
       "MaxPerRoom": 1,
       "Priority": 55,
       "Notes": "Kitchen sink rim at 900mm counter height",
-      "RuleId": "baseline-plumbing-fixtures-kitchen-utility",
-      "VariantHint": "LUMBING_FIXTURES_KITCHEN_UTILITY"
+      "RuleId": "baseline-plumbing-fixtures-kitchen-utility"
     },
     {
       "CategoryFilter": "Plumbing Fixtures",
@@ -366,8 +338,7 @@
       "MaxPerRoom": 1,
       "Priority": 55,
       "Notes": "Cleaner's sink low-level per BS 6465",
-      "RuleId": "baseline-plumbing-fixtures-cleaner-janitor",
-      "VariantHint": "LUMBING_FIXTURES_CLEANER_JANITOR"
+      "RuleId": "baseline-plumbing-fixtures-cleaner-janitor"
     },
     {
       "CategoryFilter": "Air Terminals",
@@ -380,8 +351,7 @@
       "MaxPerRoom": 0,
       "Priority": 50,
       "Notes": "Default supply diffuser, 3m spacing per CIBSE Guide B1",
-      "RuleId": "baseline-air-terminals-",
-      "VariantHint": "BASELINE_AIR_TERMINALS"
+      "RuleId": "baseline-air-terminals-"
     },
     {
       "CategoryFilter": "Air Terminals",
@@ -394,8 +364,7 @@
       "MaxPerRoom": 0,
       "Priority": 55,
       "Notes": "Office supply diffuser",
-      "RuleId": "baseline-air-terminals-office-meeting",
-      "VariantHint": "INE_AIR_TERMINALS_OFFICE_MEETING"
+      "RuleId": "baseline-air-terminals-office-meeting"
     },
     {
       "CategoryFilter": "Air Terminals",
@@ -408,8 +377,7 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "Notes": "Extract grille, single per WC compartment",
-      "RuleId": "baseline-air-terminals-toilet-wc-bathroom",
-      "VariantHint": "AIR_TERMINALS_TOILET_WC_BATHROOM"
+      "RuleId": "baseline-air-terminals-toilet-wc-bathroom"
     },
     {
       "CategoryFilter": "Mechanical Equipment",
@@ -422,8 +390,7 @@
       "MaxPerRoom": 0,
       "Priority": 55,
       "Notes": "Plant room equipment 800mm clear of walls for service access",
-      "RuleId": "baseline-mechanical-equipment-plant-boiler",
-      "VariantHint": "ECHANICAL_EQUIPMENT_PLANT_BOILER"
+      "RuleId": "baseline-mechanical-equipment-plant-boiler"
     },
     {
       "CategoryFilter": "Sprinklers",
@@ -436,8 +403,7 @@
       "MaxPerRoom": 0,
       "Priority": 65,
       "Notes": "BS EN 12845 standard hazard sprinkler 4m max spacing",
-      "RuleId": "baseline-sprinklers-",
-      "VariantHint": "BASELINE_SPRINKLERS"
+      "RuleId": "baseline-sprinklers-"
     },
     {
       "CategoryFilter": "Sprinklers",
@@ -450,8 +416,7 @@
       "MaxPerRoom": 0,
       "Priority": 75,
       "Notes": "Pre-action / clean agent, tighter grid per BS EN 15004",
-      "RuleId": "baseline-sprinklers-server-comms",
-      "VariantHint": "BASELINE_SPRINKLERS_SERVER_COMMS"
+      "RuleId": "baseline-sprinklers-server-comms"
     },
     {
       "CategoryFilter": "Nurse Call Devices",
@@ -464,8 +429,7 @@
       "MaxPerRoom": 1,
       "Priority": 70,
       "Notes": "Bedside nurse call per HTM 08-03",
-      "RuleId": "baseline-nurse-call-devices-ward-bedroom-patient",
-      "VariantHint": "ALL_DEVICES_WARD_BEDROOM_PATIENT"
+      "RuleId": "baseline-nurse-call-devices-ward-bedroom-patient"
     },
     {
       "CategoryFilter": "Nurse Call Devices",
@@ -478,12 +442,10 @@
       "MaxPerRoom": 1,
       "Priority": 80,
       "Notes": "Toilet nurse call pull cord, HTM 08-03",
-      "RuleId": "baseline-nurse-call-devices-toilet-bathroom",
-      "VariantHint": "RSE_CALL_DEVICES_TOILET_BATHROOM"
+      "RuleId": "baseline-nurse-call-devices-toilet-bathroom"
     },
     {
       "CategoryFilter": "Electrical Fixtures",
-      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)corridor",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -497,7 +459,6 @@
     },
     {
       "CategoryFilter": "Electrical Fixtures",
-      "FamilyTypeRegex": "(?i)socket|outlet|13a|sso|usb",
       "RoomFilter": "(?i)plant|boiler|pump",
       "AnchorType": "WALL_CORNER",
       "OffsetXMm": 500.0,
@@ -520,8 +481,7 @@
       "MaxPerRoom": 1,
       "Priority": 60,
       "Notes": "DB / consumer unit, 300-1800mm BS 7671 accessibility",
-      "RuleId": "baseline-electrical-equipment-plant-electrical-comms",
-      "VariantHint": "EQUIPMENT_PLANT_ELECTRICAL_COMMS"
+      "RuleId": "baseline-electrical-equipment-plant-electrical-comms"
     },
     {
       "CategoryFilter": "Specialty Equipment",
@@ -534,12 +494,10 @@
       "MaxPerRoom": 1,
       "Priority": 55,
       "Notes": "Under-counter white goods",
-      "RuleId": "baseline-specialty-equipment-kitchen",
-      "VariantHint": "LINE_SPECIALTY_EQUIPMENT_KITCHEN"
+      "RuleId": "baseline-specialty-equipment-kitchen"
     },
     {
       "CategoryFilter": "Data Devices",
-      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)classroom|lecture",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -553,7 +511,6 @@
     },
     {
       "CategoryFilter": "Data Devices",
-      "FamilyTypeRegex": "(?i)data|rj45|outlet|patch|network|comms",
       "RoomFilter": "(?i)lab|laboratory",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -567,7 +524,6 @@
     },
     {
       "CategoryFilter": "Security Devices",
-      "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "RoomFilter": "(?i)ward|bedroom|office",
       "AnchorType": "WALL_MIDPOINT",
       "OffsetXMm": 0.0,
@@ -590,8 +546,7 @@
       "MaxPerRoom": 0,
       "Priority": 55,
       "Notes": "Office recessed LED panel, 2.4m spacing for 500 lux",
-      "RuleId": "baseline-lighting-fixtures-office-workstation",
-      "VariantHint": "TING_FIXTURES_OFFICE_WORKSTATION"
+      "RuleId": "baseline-lighting-fixtures-office-workstation"
     },
     {
       "CategoryFilter": "Lighting Fixtures",
@@ -604,8 +559,7 @@
       "MaxPerRoom": 0,
       "Priority": 50,
       "Notes": "Corridor downlight 3m spacing for 150 lux",
-      "RuleId": "baseline-lighting-fixtures-corridor-circulation",
-      "VariantHint": "NG_FIXTURES_CORRIDOR_CIRCULATION"
+      "RuleId": "baseline-lighting-fixtures-corridor-circulation"
     }
   ]
 }

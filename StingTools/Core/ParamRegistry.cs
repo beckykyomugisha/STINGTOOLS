@@ -165,12 +165,8 @@ namespace StingTools.Core
         /// <summary>
         /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
         /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
-        /// Defaults to 5 (full 8-segment): ASS_DISPLAY_TXT is the on-drawing tag and
-        /// must start from the full string so a segment mask (TAG_SEG_MASK_TXT /
-        /// STING_VIEW_TOKEN_MASK_TXT / UI "TokenMask") has all 8 segments to shorten.
-        /// Masks only apply in modes 0/5 — the only modes that carry every segment.
         /// </summary>
-        public static int DisplayModeDefault = 5;
+        public static int DisplayModeDefault = 2;
         public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
         public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
         public const string TAG_POS = "STING_TAG_POS";
@@ -189,57 +185,6 @@ namespace StingTools.Core
         /// <summary>Revit Environment.UserName that performed the last tag modification.</summary>
         public const string TAG_MODIFIED_BY = "ASS_TAG_MODIFIED_BY_TXT";
         public const string TAG_MODIFIED_BY_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f";
-        // ── Project tag scheme (Phase 191) ──────────────────────────────
-        /// <summary>Default target container for project-grammar tag renderings
-        /// (TagSchemeEngine) — e.g. the ISO 19650 PROJECT-ORIGINATOR-VOLUME-
-        /// LEVEL-DISCIPLINE-NUMBER form. Always derived from the source
-        /// tokens; never edited directly. UUIDv5 in the Planscape docs
-        /// namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
-        public const string TAG_SCHEME = "ASS_TAG_SCHEME_TXT";
-        public const string TAG_SCHEME_GUID = "2c8224df-92e0-567b-a9df-c8cd1e4402a3";
-        /// <summary>Phase 192 (B1) — milestone id stamped by LOD_Stamp on elements
-        /// that PASS LodVerificationEngine at that milestone's LOD (e.g.
-        /// "deliverable-c"). UUIDv5 in the Planscape docs namespace
-        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
-        public const string LOD_VERIFIED = "ASS_LOD_VERIFIED_TXT";
-        public const string LOD_VERIFIED_GUID = "60440963-a414-5667-88f4-d12082344c4d";
-        /// <summary>Phase 192 (C2) — CSI MasterFormat section (e.g. "23 31 00")
-        /// resolved by CSI_Assign from STING_CSI_MASTERFORMAT_MAP.csv. Reconciled
-        /// against the RIB SpecLink spec TOC. UUIDv5 in namespace
-        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
-        public const string CSI_SECTION = "CSI_SECTION_TXT";
-        public const string CSI_SECTION_GUID = "3c2c7d9d-93e2-5f95-a002-69b17450efe6";
-        public const string CSI_TITLE = "CSI_TITLE_TXT";
-        public const string CSI_TITLE_GUID = "160a2335-1886-5503-b569-28d9e63f5a75";
-        /// <summary>Phase 192 (C1) — Fohlio item URL/ID. The "link, never
-        /// duplicate" key into the Owner's Fohlio FF&amp;E single source of truth.
-        /// UUIDv5 in namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
-        public const string FOHLIO_REF = "FOHLIO_REF_TXT";
-        public const string FOHLIO_REF_GUID = "0ecf2056-1239-52bc-87f8-17c281e67209";
-        /// <summary>Phase 195 — EDGE/LEED Sustainability shared params (group 35
-        /// SUS_SUSTAINABILITY). SUS_*_NR intensities are project-scoped; SUS_EDGE_LEVEL_TXT
-        /// is project-scoped; SUS_EPD_REF_TXT binds to materials/types.</summary>
-        public const string SUS_ENERGY_KWH_M2 = "SUS_ENERGY_KWH_M2_NR";
-        public const string SUS_ENERGY_KWH_M2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c01";
-        public const string SUS_WATER_L_PD = "SUS_WATER_L_PD_NR";
-        public const string SUS_WATER_L_PD_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c02";
-        public const string SUS_MAT_CARBON_KGM2 = "SUS_MAT_CARBON_KGM2_NR";
-        public const string SUS_MAT_CARBON_KGM2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03";
-        public const string SUS_MAT_ENERGY_MJ_M2 = "SUS_MAT_ENERGY_MJ_M2_NR";
-        public const string SUS_MAT_ENERGY_MJ_M2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04";
-        public const string SUS_EDGE_LEVEL = "SUS_EDGE_LEVEL_TXT";
-        public const string SUS_EDGE_LEVEL_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05";
-        public const string SUS_EPD_REF = "SUS_EPD_REF_TXT";
-        public const string SUS_EPD_REF_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06";
-        /// <summary>Phase 192 (E4) — decorative-lighting hoisting params (A1 §5
-        /// lighting schedule). UUIDv5 in namespace
-        /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
-        public const string LTG_HOIST_WEIGHT_KG = "LTG_HOIST_WEIGHT_KG";
-        public const string LTG_HOIST_WEIGHT_KG_GUID = "f2ec67d7-0d9a-561b-b3f6-11b713ac468e";
-        public const string LTG_HOIST_MOTOR_TXT = "LTG_HOIST_MOTOR_TXT";
-        public const string LTG_HOIST_MOTOR_TXT_GUID = "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5";
-        public const string LTG_HOIST_DROP_MM = "LTG_HOIST_DROP_MM";
-        public const string LTG_HOIST_DROP_MM_GUID = "c110503a-c776-5c6e-8298-24adf24d1fd0";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view
@@ -382,7 +327,7 @@ namespace StingTools.Core
         public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
-        public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";
+        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
 
         // ── Annotation marker constants (Phase 179) ──────────────────────
         public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
@@ -499,38 +444,19 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
-        // P4 — MEP system/service code shown on the title block SYSTEM cell.
-        // Instance param on OST_TitleBlocks; filled from DrawingType.System via
-        // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
-        public const string PRJ_SHEET_SYSTEM       = "PRJ_SHEET_SYSTEM_TXT";
-        public const string PRJ_SHEET_SYSTEM_GUID  = "972024c1-53c5-5b57-b9f7-98e89fa53572";
-        // Canonical home for these toggles is the GROUP 26 TBL_TITLEBLOCK FamilyInstance
-        // (added in Drawing Template Manager). All five constants below name GROUP 26
-        // params; the root title-block spec A1_common_v2.0 declares them, so
-        // TitleBlockFactory mints them as INSTANCE family params onto every family it
-        // builds, and TITLE_BLOCK.csv seeds them through TitleBlockPopulate.
-        //
-        // Their GROUP 13 near-namesakes (PRJ_TB_SHOW_KEYPLAN_BOOL, ...SCALEBAR...,
-        // ...NORTHARROW..., ...DISCBAND...) are NOT a project-wide override tier — no
-        // code reads or writes them, and they bind to Generic Models / Project
-        // Information rather than Title Blocks. They remain in MR_PARAMETERS.txt only so
-        // models that already bound them keep the binding.
-        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
+        // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
+        // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
+        // constants below are kept on ViewSheet for backwards compat with sheets that
+        // were authored before STING TB v1; new title block families should bind to the
+        // GROUP 26 TB_ versions.
+        public const string TB_SHOW_KEYPLAN        = "TB_SHOW_KEY_PLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
-        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
+        public const string TB_SHOW_SCALEBAR       = "TB_SHOW_SCALEBAR_BOOL";
         public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
-        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTH_ARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW     = "TB_SHOW_NORTH_ARROW_BOOL";
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
-        // NB: this pair pointed at the GROUP 13 legacy param (PRJ_TB_SHOW_DISCBAND_BOOL
-        // / 483f47d7) while its three siblings above already pointed at their GROUP 26
-        // equivalents — the odd one out in a block whose stated contract is "the GROUP 26
-        // TB_ versions". Repointed to match.
-        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL";
-        public const string TB_SHOW_DISCBAND_GUID  = "fcd1f7f2-8b64-5cd7-9d27-982d604a231e";
-        // Gates the revision-history zone (the native Revit revision schedule
-        // created by TitleBlockFactory for slots with purposeTag "revision-history").
-        public const string TB_SHOW_REV_TABLE      = "PRJ_TB_SHOW_REV_TABLE_BOOL";
-        public const string TB_SHOW_REV_TABLE_GUID = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
+        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
+        public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
         public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
@@ -550,14 +476,11 @@ namespace StingTools.Core
         public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
 
-        /// <summary>All 20 title-block parameters added in STING Title Block System v1.0
-        /// (19 originals plus PRJ_TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
-        /// schedule created by TitleBlockFactory).</summary>
+        /// <summary>All 19 PRJ_TB_* parameters added in STING Title Block System v1.0.</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
             TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
-            TB_SHOW_REV_TABLE,
             TB_SCALE_OVERRIDE, TB_ISSUE_SUMMARY,
             TB_DELIVERABLE_DATADROP, TB_DELIVERABLE_STATUS, TB_DELIVERABLE_DUE, TB_DELIVERABLE_CDE,
             TB_LAST_TRANSMITTAL, TB_LAST_TRANSMITTAL_DATE, TB_NOTES_LEGEND_REF
@@ -566,8 +489,7 @@ namespace StingTools.Core
         /// <summary>Subset of TB params that are YESNO flags (for TitleBlockPopulate type coercion).</summary>
         public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
         {
-            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
-            TB_SHOW_REV_TABLE
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
         };
 
         // ── Organisation parameters (v1.1 template engine + workflow) ──
@@ -629,34 +551,14 @@ namespace StingTools.Core
             ORG_AI_EXTRACT_ENABLED
         };
 
-        // I-4 — Material Manager cost-split + EPD + lifecycle params, plus the
-        // water-efficiency fixture params consumed by the Sustainability engine.
-        // GUIDs are UUIDv5 in the Planscape namespace a7c0b2e4-4d91-4a55-9c7e-
-        // 7f6e5d4c3b2a; values mirror the PARAM rows in MR_PARAMETERS.txt so
-        // LoadSharedParamsCommand binds them (the STING_* material ones bind to
-        // OST_Materials via IsMaterialRelevantParam; the SUS_FIXTURE_* ones bind
-        // to plumbing fixtures via the PLM_DRN group → MEP category set).
+        // I-4 — Material Manager cost-split + EPD params (registered so the
+        // parameter audit / drift detection picks them up).
         public const string MAT_COST_SUPPLY  = "MAT_COST_SUPPLY_NR";
-        public const string MAT_COST_SUPPLY_GUID = "114852b0-7002-5680-80cd-930f91e8250b";
         public const string MAT_COST_INSTALL = "MAT_COST_INSTALL_NR";
-        public const string MAT_COST_INSTALL_GUID = "0621af78-0fbf-540e-9e6d-61df9925ae90";
         public const string MAT_VAT_PCT      = "MAT_VAT_PCT_NR";
-        public const string MAT_VAT_PCT_GUID = "9794f566-efc2-5622-a23f-9e65e117eb48";
         public const string MAT_EMB_CARBON   = "STING_EMB_CARBON_NR";
-        public const string MAT_EMB_CARBON_GUID = "800e0d61-f88d-5071-bc87-0c4ca3e51243";
         public const string MAT_EPD_SRC      = "STING_MAT_EPD_SRC_TXT";
-        public const string MAT_EPD_SRC_GUID = "2776ca48-33b8-57a8-b2a6-ee982e442767";
         public const string MAT_EPD_DATE     = "STING_MAT_EPD_DATE_TXT";
-        public const string MAT_EPD_DATE_GUID = "c02ad751-5de9-50cc-a018-d7469595f8cf";
-        public const string MAT_LIFECYCLE    = "STING_MAT_LIFECYCLE_TXT";
-        public const string MAT_LIFECYCLE_GUID = "e5455edb-f4f9-5585-a65e-363aa31f0b59";
-
-        // Sustainability water-efficiency stamps (read off plumbing fixtures by
-        // SustainabilityEngine before falling back to vendor flow/flush params).
-        public const string SUS_FIXTURE_FLOW = "SUS_FIXTURE_FLOW_LPM";
-        public const string SUS_FIXTURE_FLOW_GUID = "b9c085ac-8d25-5286-bb8c-50f78c515e7c";
-        public const string SUS_FIXTURE_FLUSH = "SUS_FIXTURE_FLUSH_L";
-        public const string SUS_FIXTURE_FLUSH_GUID = "733de214-c4aa-5640-896c-ff9c472c8dfd";
 
         /// <summary>All Material-scoped STING parameters surfaced by the
         /// Material Manager. Drift detection + ParameterHelpers refresh
@@ -664,7 +566,7 @@ namespace StingTools.Core
         public static readonly string[] AllMaterialParams = new[]
         {
             MAT_COST_SUPPLY, MAT_COST_INSTALL, MAT_VAT_PCT,
-            MAT_EMB_CARBON, MAT_EPD_SRC, MAT_EPD_DATE, MAT_LIFECYCLE,
+            MAT_EMB_CARBON, MAT_EPD_SRC, MAT_EPD_DATE,
         };
 
         /// <summary>Default values for PRJ_ORG_* parameters (used by TemplateManifest.CreateDefault).</summary>
@@ -792,10 +694,6 @@ namespace StingTools.Core
         public static string ELC_FEEDER_RATING_A   => Ext("ELC_FEEDER_RATING_A");   // → ELC_FEEDER_RATING_A (new)
         public static string ELC_CKT_VD_PCT        => Ext("ELC_CKT_VD_PCT");        // → ELC_VLT_DROP_PCT (existing)
         public static string ELC_CKT_CSA_MM2       => Ext("ELC_CKT_CSA_MM2");       // → ELC_CBL_SZ_MM (existing)
-        // Per-circuit NUMBER cable-sizing results (bound Instance-level to Electrical
-        // Circuits via the ELC_PWR group; see LoadSharedParamsCommand.MepCategories).
-        public static string ELC_WIRE_CSA_MM2_NUM  => Ext("ELC_WIRE_CSA_MM2_NUM");  // Number, conductor CSA mm² [BS 7671 Table 4D1A]
-        public static string ELC_WIRE_VD_PCT_NUM   => Ext("ELC_WIRE_VD_PCT_NUM");   // Number, voltage drop % [BS 7671 App 12]
         public static string ELC_CONDUIT_FILL_PCT  => Ext("ELC_CONDUIT_FILL_PCT");  // → ELC_CDT_CBL_FILL_PCT (existing)
         public static string ELC_CDT_BEND_ANGLE_DEG => Ext("ELC_CDT_BEND_ANGLE_DEG"); // BS 7671 §522.8 bend angle on conduit fittings
         public static string ELC_CDT_BEND_COUNT_NR  => Ext("ELC_CDT_BEND_COUNT_NR");  // BS 7671 §522.8.5 — max 3 between draw-in points
@@ -1307,20 +1205,6 @@ namespace StingTools.Core
         public static string TAG_SCALE_TIER_AUTO { get; private set; } = "TAG_SCALE_TIER_AUTO_BOOL";
         /// <summary>Active depth tier cached on tag family type (1-10, type INTEGER).</summary>
         public static string TAG_DEPTH_TIER { get; private set; } = "TAG_DEPTH_TIER_INT";
-
-        // ── Universal-tag status gates (Phase 195 Task 2) ────────────────
-        // Instance INTEGER params stamped on model elements by ComplianceScan
-        // and read by the universal tag's two status badges (left = data gate,
-        // right = QA gate) via and(TAG_WARN_VISIBLE_BOOL, STING_GATE_x = n).
-        // 0 = red, 1 = amber, 2 = green.
-        /// <summary>Data-completeness gate status (instance INTEGER, 0/1/2).</summary>
-        public static string GATE_DATA_STATUS { get; private set; } = "STING_GATE_DATA_STATUS_INT";
-        /// <summary>QA / sign-off gate status (instance INTEGER, 0/1/2).</summary>
-        public static string GATE_QA_STATUS { get; private set; } = "STING_GATE_QA_STATUS_INT";
-        /// <summary>Data gate terse reason for the label next to the left badge (instance TEXT, blank when green).</summary>
-        public static string GATE_DATA_MSG { get; private set; } = "STING_GATE_DATA_MSG_TXT";
-        /// <summary>QA gate terse reason for the label next to the right badge (instance TEXT, blank when green).</summary>
-        public static string GATE_QA_MSG { get; private set; } = "STING_GATE_QA_MSG_TXT";
 
         // ── Semantic color meaning registry ──────────────────────────────
         // Maps colors to what they represent in each context:
@@ -2592,8 +2476,6 @@ namespace StingTools.Core
             _extendedParams["ELC_FEEDER_RATING_A"]   = "ELC_FEEDER_RATING_A";
             _extendedParams["ELC_CKT_VD_PCT"]        = "ELC_VLT_DROP_PCT";
             _extendedParams["ELC_CKT_CSA_MM2"]       = "ELC_CBL_SZ_MM";
-            _extendedParams["ELC_WIRE_CSA_MM2_NUM"]  = "ELC_WIRE_CSA_MM2_NUM";   // per-circuit numeric CSA
-            _extendedParams["ELC_WIRE_VD_PCT_NUM"]   = "ELC_WIRE_VD_PCT_NUM";    // per-circuit numeric VD %
             _extendedParams["ELC_CONDUIT_FILL_PCT"]  = "ELC_CDT_CBL_FILL_PCT";
             _extendedParams["ELC_CDT_BEND_ANGLE_DEG"] = "ELC_CDT_BEND_ANGLE_DEG";
             _extendedParams["ELC_CDT_BEND_COUNT_NR"]  = "ELC_CDT_BEND_COUNT_NR";
@@ -2845,8 +2727,6 @@ namespace StingTools.Core
                 "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
                 "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
                 "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
-                "ASS_TAG_SCHEME_TXT", "ASS_LOD_VERIFIED_TXT",
-                "CSI_SECTION_TXT", "CSI_TITLE_TXT", "FOHLIO_REF_TXT",
             };
 
             // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.
@@ -3328,10 +3208,6 @@ namespace StingTools.Core
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
         {
-            // KUT phased tagging: TAG1-only mode writes ASS_TAG_1 + tokens and defers the
-            // discipline containers for colleagues to complete later. Central guard so every
-            // caller (RunFullPipeline, token writers, auto-tagger) honours it uniformly.
-            if (TagConfig.Tag1Only) return 0;
             if (tokenValues == null || tokenValues.Length < 8) return 0;
             int written = 0;
 

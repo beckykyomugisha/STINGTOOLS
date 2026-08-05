@@ -23,17 +23,8 @@ namespace StingTools.Docs
     {
         [JsonProperty("viewType")] public string ViewType { get; set; }
         [JsonProperty("discipline")] public string Discipline { get; set; }
-        // CENTRE-anchored, unlike DrawingSlot and TemplateViewSlot which anchor
-        // bottom-left. The comments here used to claim "0.0 = left / 0.0 =
-        // bottom", which the code has never done: ApplyLayoutPreset denormalises
-        // with cx = zone.Min.X + NormX * zone.Width and SetBoxCenter's that
-        // straight onto the viewport, and every built-in preset below is
-        // authored around 0.5. Layout presets are a separate saved format that
-        // never exchanges slots with the other two, so the convention is left
-        // as-is and documented rather than converted; converging it is logged
-        // in ROADMAP.
-        [JsonProperty("normX")] public double NormX { get; set; }  // slot CENTRE, fraction of drawable width
-        [JsonProperty("normY")] public double NormY { get; set; }  // slot CENTRE, fraction of drawable height
+        [JsonProperty("normX")] public double NormX { get; set; }  // 0.0 = left, 1.0 = right
+        [JsonProperty("normY")] public double NormY { get; set; }  // 0.0 = bottom, 1.0 = top
         [JsonProperty("normW")] public double NormW { get; set; }  // fraction of drawable width
         [JsonProperty("normH")] public double NormH { get; set; }  // fraction of drawable height
         [JsonProperty("scale")] public int Scale { get; set; }

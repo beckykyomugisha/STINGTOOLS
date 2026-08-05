@@ -29,8 +29,7 @@
       ],
       "Priority": 70,
       "StandardRef": "BS 7671 / BS 4568",
-      "Notes": "Residential pendant 1\u00d7 E27.",
-      "VariantHint": "PENDANT_RESIDENTIAL_GENERAL"
+      "Notes": "Residential pendant 1\u00d7 E27."
     },
     {
       "RuleId": "pendant-residential-kitchen",
@@ -60,8 +59,7 @@
       ],
       "Priority": 70,
       "StandardRef": "BS 7671",
-      "Notes": "Kitchen pendant deeper BESA for LED driver.",
-      "VariantHint": "PENDANT_RESIDENTIAL_KITCHEN"
+      "Notes": "Kitchen pendant deeper BESA for LED driver."
     },
     {
       "RuleId": "pendant-residential-bathroom",
@@ -92,8 +90,7 @@
       ],
       "Priority": 80,
       "StandardRef": "BS 7671 Part 7-701",
-      "Notes": "Bathroom IP65 ceiling fitting.",
-      "VariantHint": "PENDANT_RESIDENTIAL_BATHROOM"
+      "Notes": "Bathroom IP65 ceiling fitting."
     },
     {
       "RuleId": "pendant-office-led",
@@ -125,8 +122,7 @@
       ],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1 OFFICE_GENERAL 500lux",
-      "Notes": "Office LED panel pendant on 1200\u00d7600 grid.",
-      "VariantHint": "PENDANT_OFFICE_LED"
+      "Notes": "Office LED panel pendant on 1200\u00d7600 grid."
     },
     {
       "RuleId": "pendant-classroom",
@@ -158,8 +154,7 @@
       ],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1 CLASSROOM 300lux",
-      "Notes": "Classroom LED pendant tile-snapped.",
-      "VariantHint": "PENDANT_CLASSROOM"
+      "Notes": "Classroom LED pendant tile-snapped."
     },
     {
       "RuleId": "pendant-corridor-emergency",
@@ -187,8 +182,7 @@
       ],
       "Priority": 80,
       "StandardRef": "BS 5266-1:2016",
-      "Notes": "Combined emergency / mains corridor luminaire.",
-      "VariantHint": "PENDANT_CORRIDOR_EMERGENCY"
+      "Notes": "Combined emergency / mains corridor luminaire."
     },
     {
       "RuleId": "downlight-general",
@@ -310,8 +304,7 @@
       ],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1",
-      "Notes": "High-bay luminaire over plant/warehouse.",
-      "VariantHint": "HIGHBAY"
+      "Notes": "High-bay luminaire over plant/warehouse."
     },
     {
       "RuleId": "track-spotlight-base",
@@ -418,8 +411,7 @@
       "Priority": 50,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "Lighting JB at ceiling void.",
-      "VariantHint": "JB_LIGHTING_CIRCUIT_PENDANT"
+      "Notes": "Lighting JB at ceiling void."
     },
     {
       "RuleId": "jb-power-ring-mid",
@@ -441,8 +433,7 @@
       "Priority": 50,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
-      "Notes": "Power ring final JB at mid-span.",
-      "VariantHint": "JB_POWER_RING_MID"
+      "Notes": "Power ring final JB at mid-span."
     },
     {
       "RuleId": "pendant-livingroom-pendant-cluster",
@@ -468,8 +459,7 @@
       "Priority": 65,
       "MaxPerRoom": 3,
       "StandardRef": "BS 7671",
-      "Notes": "Living room cluster pendant.",
-      "VariantHint": "NDANT_LIVINGROOM_PENDANT_CLUSTER"
+      "Notes": "Living room cluster pendant."
     },
     {
       "RuleId": "pendant-stair-landing",
@@ -493,8 +483,7 @@
       "EmitNogginRequirement": true,
       "Priority": 75,
       "StandardRef": "BS 5266-1",
-      "Notes": "Stair / landing luminaire on 2-way switch.",
-      "VariantHint": "PENDANT_STAIR_LANDING"
+      "Notes": "Stair / landing luminaire on 2-way switch."
     },
     {
       "RuleId": "pendant-conf-dimmable",
@@ -587,8 +576,7 @@
       ],
       "Priority": 65,
       "StandardRef": "BS EN 12464-1 CORRIDOR 100lux",
-      "Notes": "Corridor LED on 1200\u00d7600 grid.",
-      "VariantHint": "PENDANT_CORRIDOR_TILE"
+      "Notes": "Corridor LED on 1200\u00d7600 grid."
     }
   ]
 }

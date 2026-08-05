@@ -73,7 +73,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
+                var t = Type.GetType("StingTools.Core.Drawing.DrawingTypeStamper");
+                t?.GetMethod("Stamp", new[] { typeof(Element), typeof(string) })
+                  ?.Invoke(null, new object[] { v, DrawingTypeId });
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

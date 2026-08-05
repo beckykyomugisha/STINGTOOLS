@@ -46,18 +46,8 @@ namespace StingTools.Core
         /// <summary>
         /// TW-02: Configurable SEQ zero-pad width. Defaults to NumPad (4) but can be
         /// overridden independently (e.g., 2 for small projects, 6 for large estates).
-        /// Set by the Tokens &amp; Depth panel (the live driver); read via
-        /// <see cref="EffectiveSeqPad"/>.
         /// </summary>
         public static int SeqPadWidth { get; internal set; } = 4;
-
-        /// <summary>
-        /// Single source of truth for the SEQ zero-pad width used across the tag builder:
-        /// the explicit <see cref="SeqPadWidth"/> when set (&gt; 0), else <see cref="ParamRegistry.NumPad"/>
-        /// (still the fallback + <c>num_pad</c> export driver). Callers must read this rather
-        /// than re-deriving <c>SeqPadWidth &gt; 0 ? SeqPadWidth : NumPad</c> so the two never desync.
-        /// </summary>
-        public static int EffectiveSeqPad => SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad;
 
         /// <summary>
         /// TW-03: Optional tag prefix prepended before the first segment.
@@ -85,67 +75,6 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(disc)) return null;
             return DisciplineProfiles.TryGetValue(disc, out var profile) ? profile : null;
-        }
-
-        // ------------------------------------------------------------------
-        // Tag-formula gate emission (Inconsistent-Units fix)
-        // ------------------------------------------------------------------
-        /// <summary>
-        /// Resolve the correct condition-FORM for a boolean gate parameter used
-        /// inside a tag label / style-row Calculated Value formula, so the
-        /// emitted formula is consistent with the gate's STORAGE TYPE and never
-        /// trips Revit's "Inconsistent Units" error.
-        ///
-        /// <para>STING stores its tag-formula gates — the 10
-        /// <c>TAG_PARA_STATE_*_BOOL</c>, the 128
-        /// <c>TAG_{size}{style}_{colour}_BOOL</c> style params, the 6
-        /// <c>TAG_7_SECTION_VISIBLE_*_BOOL</c>, <c>TAG_WARN_VISIBLE_BOOL</c>, and
-        /// the mode gates — as YESNO (v5.4+). YESNO (Integer) is Revit's native
-        /// <c>if()</c>/<c>and()</c>/<c>or()</c> condition type and must stay bare.
-        /// A legacy TEXT gate, by contrast, has no truthy-string semantics: a
-        /// bare TEXT parameter is NOT a valid condition and must be tested
-        /// explicitly as <c>gate = "Yes"</c>.</para>
-        ///
-        /// <para>Returns the bare <paramref name="gateName"/> when the gate
-        /// resolves to <see cref="StorageType.Integer"/> (YESNO — the v5.4+
-        /// canonical type), or <c>gateName + " = \"Yes\""</c> when it resolves to
-        /// <see cref="StorageType.String"/> (legacy TEXT). Because this reads the
-        /// gate's ACTUAL bound storage, it self-heals the runtime formula: a
-        /// YESNO family gets bare, a legacy TEXT family still gets the explicit
-        /// comparison. When the gate cannot be resolved on <paramref name="fm"/>
-        /// at all, it conservatively defaults to the TEXT comparison form (the
-        /// legacy-safe shape, unchanged from when TEXT was the default).</para>
-        /// </summary>
-        public static string GateToken(FamilyManager fm, string gateName)
-        {
-            if (string.IsNullOrEmpty(gateName)) return gateName;
-
-            StorageType storage = StorageType.String; // TEXT is the v5.3+ default
-            try
-            {
-                if (fm != null)
-                {
-                    foreach (FamilyParameter fp in fm.Parameters)
-                    {
-                        if (string.Equals(fp?.Definition?.Name, gateName, StringComparison.Ordinal))
-                        {
-                            storage = fp.StorageType;
-                            break;
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // Tolerate API surface drift — fall back to TEXT comparison form.
-                storage = StorageType.String;
-            }
-
-            // Integer/YESNO gate → bare token (valid Revit condition).
-            // String/TEXT gate (and unknown) → explicit "Yes" comparison.
-            return storage == StorageType.Integer
-                ? gateName
-                : gateName + " = \"Yes\"";
         }
 
         /// <summary>
@@ -207,14 +136,6 @@ namespace StingTools.Core
         /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
         public static int ComplianceGatePct { get; internal set; } = 0;
 
-        /// <summary>KUT phased tagging: when true, every tag-write path populates the
-        /// 8 source tokens + ASS_TAG_1_TXT (the ISO 19650 first line) only, and SKIPS the
-        /// discipline containers (ASS_TAG_2..7) + the TAG7 narrative — so colleagues can
-        /// complete those tiers later while coordination proceeds. Enforced centrally in
-        /// ParamRegistry.WriteContainers + TagConfig.WriteTag7All. Loaded from
-        /// project_config.json TAG1_ONLY. Default false (full pipeline).</summary>
-        public static bool Tag1Only { get; internal set; } = false;
-
         /// <summary>HC-001: Configurable proximity radius in feet for CopyTokensFromNearest. Default 10 ft.</summary>
         public static double ProximityRadiusFt { get; internal set; } = 10.0;
 
@@ -246,19 +167,6 @@ namespace StingTools.Core
         /// dormant until the user starts it from the Clash tab. Default false
         /// because the per-tick run on a large model is non-trivial.</summary>
         public static bool AutoStartClashScheduler { get; internal set; } = false;
-
-        /// <summary>WP9: When true (default), brand-new (greenfield) projects adopt the ISO
-        /// 19650 CDE-first folder tree (content types nested inside WIP/SHARED/PUBLISHED).
-        /// Existing projects are unaffected. Set CDE_FIRST_LAYOUT=false in project_config.json
-        /// to keep new projects on the numbered BIM tree.</summary>
-        public static bool CdeFirstLayout { get; internal set; } = true;
-
-        /// <summary>BIM-CLASH-LIVE-01: When true (default), LiveClashUpdater attaches
-        /// its geometry/addition/deletion triggers at startup so live clash capture
-        /// works out of the box. Set LIVE_CLASH_TRIGGERS_ENABLED=false in
-        /// project_config.json on models that never use clash detection to skip the
-        /// trigger attachment entirely.</summary>
-        public static bool LiveClashTriggersEnabled { get; internal set; } = true;
 
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
@@ -311,19 +219,6 @@ namespace StingTools.Core
 
         /// <summary>Whether to auto-save warning baseline on revision creation. Default true.</summary>
         public static bool AutoSaveBaselineOnRevision { get; internal set; } = true;
-
-        /// <summary>Whether creating a revision overwrites ASS_REV_TXT on EVERY tagged
-        /// element with the new revision code (opt-in: REV as a project-wide "current
-        /// revision" mirror). Default false, in which case REV keeps its normal
-        /// semantics — the revision an element last CHANGED in, written per-element by
-        /// RevisionEngine.StampAffectedElements. Loaded from PROPAGATE_REV_ON_CREATE.</summary>
-        public static bool PropagateRevOnCreate { get; internal set; } = false;
-
-        /// <summary>Whether issuing a revision auto-opens the next DRAFT revision in
-        /// the same numbering sequence. Revit locks an Issued revision — no new clouds
-        /// can target it — so without a fresh draft the team is blocked until someone
-        /// manually adds one. Default true. Loaded from AUTO_NEXT_REVISION_ON_ISSUE.</summary>
-        public static bool AutoNextRevisionOnIssue { get; internal set; } = true;
 
         /// <summary>FUT-01: Get the SEQ range for the current model's discipline.
         /// Returns (minSeq, maxSeq) or (1, 9999) if no allocation defined.</summary>
@@ -403,27 +298,11 @@ namespace StingTools.Core
         public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
             = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// Per-category VISUAL tag policy override. Key = category name, Value =
-        /// "All" | "PerRun" | "None" (see <see cref="StingTools.Core.Mep.TagVisualPolicy"/>).
-        /// Governs how many <c>IndependentTag</c> annotations Smart Placement draws —
-        /// NOT how token data is written (every element still gets its ASS_TAG_1).
-        /// When a category is absent, linear MEP (pipes / ducts / conduit / tray)
-        /// defaults to PerRun (one tag per connected run) and everything else to All.
-        /// Set via CATEGORY_VISUAL_POLICY in project_config.json.
-        /// </summary>
-        public static Dictionary<string, string> CategoryVisualPolicy { get; internal set; }
-            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
 
         /// <summary>Current sequence numbering scheme (loaded from project_config.json).</summary>
         internal static SeqScheme CurrentSeqScheme { get; set; } = SeqScheme.Numeric;
         /// <summary>Whether SEQ resets per zone.</summary>
         internal static bool SeqIncludeZone { get; set; } = false;
-        /// <summary>Phase 191 — whether SEQ groups per location (building/volume),
-        /// giving each building an independent counter on multi-building campuses.
-        /// Set via project_config.json key SEQ_INCLUDE_LOC.</summary>
-        internal static bool SeqIncludeLoc { get; set; } = false;
         /// <summary>Whether SEQ resets per level within DISC-SYS group.</summary>
         internal static bool SeqLevelReset { get; set; } = false;
 
@@ -475,22 +354,22 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
-            string zoneKey = null;
             if (SeqIncludeZone)
-                zoneKey = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-            string locKey = null;
-            if (SeqIncludeLoc)
-                locKey = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+            {
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                return $"{disc}_{zone}_{sys}_{lvl}";
+            }
 
-            return SeqAssigner.BuildSeqKey(disc, sys, lvl, zoneKey, locKey, SeqIncludeZone, SeqIncludeLoc);
+            return $"{disc}_{sys}_{lvl}";
         }
 
         /// <summary>
         /// Build a canonical SEQ key from explicit token values.
         /// Matches the same format as BuildSeqKey(Element) for consistency.
         /// </summary>
-        public static string BuildSeqKey(string disc, string sys, string func, string prod, string lvl, string zone = null, string loc = null)
-            => SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, loc, SeqIncludeZone, SeqIncludeLoc);
+        public static string BuildSeqKey(string disc, string sys, string func, string prod, string lvl, string zone = null)
+            => SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, SeqIncludeZone);
 
         /// <summary>
         /// Build a SEQ string for sequence number n using the configured scheme.
@@ -498,7 +377,7 @@ namespace StingTools.Core
         /// project-configured pad width.
         /// </summary>
         public static string BuildSeqString(int n, SeqScheme scheme, string zoneOrDisc = "")
-            => SeqAssigner.BuildSeqString(n, scheme, EffectiveSeqPad, zoneOrDisc);
+            => SeqAssigner.BuildSeqString(n, scheme, SeqPadWidth > 0 ? SeqPadWidth : ParamRegistry.NumPad, zoneOrDisc);
 
         /// <summary>Convert alphabetic SEQ string back to integer (A=1, B=2... Z=26, AA=27...).</summary>
         private static int FromAlpha(string alpha)
@@ -672,15 +551,15 @@ namespace StingTools.Core
                 {
                     "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
                     "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
-                    "SEQ_INCLUDE_ZONE","SEQ_INCLUDE_LOC","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
-                    "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT","TAG1_ONLY",
+                    "SEQ_INCLUDE_ZONE","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
+                    "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
                     "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
                     "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
-                    "AUTO_CREATE_CDE_FOLDERS","LIVE_CLASH_TRIGGERS_ENABLED","CDE_FIRST_LAYOUT",
+                    "AUTO_CREATE_CDE_FOLDERS",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -780,22 +659,12 @@ namespace StingTools.Core
                 // A1: Track previous SEQ scheme settings for change warning
                 SeqScheme prevScheme = CurrentSeqScheme;
                 bool prevIncludeZone = SeqIncludeZone;
-                bool prevIncludeLoc = SeqIncludeLoc;
 
                 // Load SEQ scheme settings from config (optional)
                 if (data.TryGetValue("SEQ_SCHEME", out object seqSchemeObj) && seqSchemeObj is string seqSchemeStr)
                 {
                     if (Enum.TryParse<SeqScheme>(seqSchemeStr, true, out var parsed))
-                    {
-                        // ZonePrefix / DiscPrefix are deprecated (they corrupt the
-                        // fixed 8-segment grammar). Heal a persisted value to Numeric.
-                        if (parsed == SeqScheme.ZonePrefix || parsed == SeqScheme.DiscPrefix)
-                        {
-                            StingLog.Warn($"SEQ scheme '{parsed}' is deprecated (breaks the 8-segment tag); using Numeric.");
-                            parsed = SeqScheme.Numeric;
-                        }
                         CurrentSeqScheme = parsed;
-                    }
                 }
                 if (data.TryGetValue("SEQ_INCLUDE_ZONE", out object seqZoneObj))
                 {
@@ -803,17 +672,9 @@ namespace StingTools.Core
                     else if (seqZoneObj is string szs) SeqIncludeZone =
                         szs.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
-                // Phase 191: per-building (volume) sequence grouping
-                if (data.TryGetValue("SEQ_INCLUDE_LOC", out object seqLocObj))
-                {
-                    if (seqLocObj is bool slb) SeqIncludeLoc = slb;
-                    else if (seqLocObj is string sls) SeqIncludeLoc =
-                        sls.Equals("true", StringComparison.OrdinalIgnoreCase);
-                }
 
                 // A1: Detect SEQ scheme changes for warning in BuildAndWriteTag
-                if (CurrentSeqScheme != prevScheme || SeqIncludeZone != prevIncludeZone
-                    || SeqIncludeLoc != prevIncludeLoc)
+                if (CurrentSeqScheme != prevScheme || SeqIncludeZone != prevIncludeZone)
                 {
                     _seqSchemeChanged = true;
                     _seqSchemeWarned = false;
@@ -840,12 +701,6 @@ namespace StingTools.Core
                 var forceSys = TryDeserialize<Dictionary<string, string>>(data, "CATEGORY_FORCE_SYS");
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
-
-                // MEP declutter: per-category visual tag policy overrides (All/PerRun/None)
-                CategoryVisualPolicy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                var visPolicy = TryDeserialize<Dictionary<string, string>>(data, "CATEGORY_VISUAL_POLICY");
-                if (visPolicy != null)
-                    foreach (var kvp in visPolicy) CategoryVisualPolicy[kvp.Key] = kvp.Value;
 
                 // Load custom token validators from config
                 ISO19650Validator.CustomDiscCodes = LoadCustomCodes(data, "CUSTOM_VALID_DISC");
@@ -954,20 +809,6 @@ namespace StingTools.Core
                 }
 
                 // Auto-bootstrap CDE folder structure on doc open.
-                LiveClashTriggersEnabled = true;
-                if (data.TryGetValue("LIVE_CLASH_TRIGGERS_ENABLED", out object lctObj))
-                {
-                    if (lctObj is bool lb) LiveClashTriggersEnabled = lb;
-                    else if (bool.TryParse(lctObj?.ToString(), out bool lbp)) LiveClashTriggersEnabled = lbp;
-                }
-
-                CdeFirstLayout = true;
-                if (data.TryGetValue("CDE_FIRST_LAYOUT", out object cflObj))
-                {
-                    if (cflObj is bool cb) CdeFirstLayout = cb;
-                    else if (bool.TryParse(cflObj?.ToString(), out bool cbp)) CdeFirstLayout = cbp;
-                }
-
                 AutoCreateCdeFolders = true;
                 if (data.TryGetValue("AUTO_CREATE_CDE_FOLDERS", out object accfObj))
                 {
@@ -1001,14 +842,6 @@ namespace StingTools.Core
                 {
                     if (gateObj is long gl) ComplianceGatePct = (int)gl;
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
-                }
-
-                // KUT phased tagging — TAG1-only mode (defer containers + TAG7 narrative)
-                Tag1Only = false;
-                if (data.TryGetValue("TAG1_ONLY", out object t1Obj))
-                {
-                    if (t1Obj is bool t1b) Tag1Only = t1b;
-                    else if (bool.TryParse(t1Obj?.ToString(), out bool t1p)) Tag1Only = t1p;
                 }
 
                 // Phase 40: Configurable cost rates filename
@@ -1130,18 +963,6 @@ namespace StingTools.Core
                     if (asbrObj is bool asbrb) AutoSaveBaselineOnRevision = asbrb;
                     else if (asbrObj is string asbrs) AutoSaveBaselineOnRevision = asbrs.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
-                PropagateRevOnCreate = false;
-                if (data.TryGetValue("PROPAGATE_REV_ON_CREATE", out object procObj))
-                {
-                    if (procObj is bool procb) PropagateRevOnCreate = procb;
-                    else if (procObj is string procs) PropagateRevOnCreate = procs.Equals("true", StringComparison.OrdinalIgnoreCase);
-                }
-                AutoNextRevisionOnIssue = true;
-                if (data.TryGetValue("AUTO_NEXT_REVISION_ON_ISSUE", out object anriObj))
-                {
-                    if (anriObj is bool anrib) AutoNextRevisionOnIssue = anrib;
-                    else if (anriObj is string anris) AutoNextRevisionOnIssue = anris.Equals("true", StringComparison.OrdinalIgnoreCase);
-                }
 
                 // Phase 77: Custom title block family
                 PreferredTitleBlockFamily = null;
@@ -1176,7 +997,7 @@ namespace StingTools.Core
                 ConfigSource = path;
                 // Reload CSV-derived lookup tables so project-specific additions survive config reload
                 // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
-                InvalidateProdRulesCache(); // clears corporate + project prod_codes overlays
+                _csvProdRulesLoaded = false;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
@@ -1219,7 +1040,6 @@ namespace StingTools.Core
             TagSuffix = string.Empty;
             CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            CategoryVisualPolicy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
             LocPatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1247,7 +1067,6 @@ namespace StingTools.Core
             // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
             CurrentSeqScheme = SeqScheme.Numeric;
             SeqIncludeZone = false;
-            SeqIncludeLoc = false;
             SeqLevelReset = false;
             _seqSchemeChanged = false;
             _seqSchemeWarned = false;
@@ -1269,7 +1088,7 @@ namespace StingTools.Core
             // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
             ISO19650Validator.InvalidateValidatorCaches();
             // Load PROD code rules from CSV (lazy — invalidate so next GetFamilyAwareProdCode call reloads)
-            InvalidateProdRulesCache();
+            _csvProdRulesLoaded = false;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -1460,9 +1279,7 @@ namespace StingTools.Core
                     ["TAG_SUFFIX"] = TagSuffix,
                     ["CATEGORY_SKIP"] = CategorySkipList.ToList(),
                     ["CATEGORY_FORCE_SYS"] = CategoryForceSys,
-                    ["CATEGORY_VISUAL_POLICY"] = CategoryVisualPolicy,
                     ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
-                    ["TAG1_ONLY"] = Tag1Only,
                     ["SEPARATOR_HISTORY"] = SeparatorHistory,
                     ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
                     ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides,
@@ -1759,13 +1576,6 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(hwsFunc)) return hwsFunc;
             }
 
-            // For SAN, a vent/soil-vent pipe gets FUNC=VNT (validator allows SAN→VNT)
-            if (sysCode == "SAN")
-            {
-                string sanFunc = GetSanSubFunction(el);
-                if (!string.IsNullOrEmpty(sanFunc)) return sanFunc;
-            }
-
             return FuncMap.TryGetValue(sysCode, out string val) ? val : string.Empty;
         }
 
@@ -1848,42 +1658,6 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Detect SAN sub-function: a vent / soil-vent pipe gets FUNC=VNT
-        /// (BS EN 12056-2). Reads from connector system name, pipe system type
-        /// parameter, and family name.
-        /// </summary>
-        private static string GetSanSubFunction(Element el)
-        {
-            try
-            {
-                FamilyInstance fi = el as FamilyInstance;
-                if (fi?.MEPModel?.ConnectorManager != null)
-                {
-                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
-                    {
-                        if (conn.MEPSystem != null)
-                        {
-                            string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
-                            if (sysName.Contains("VENT")) return "VNT";
-                        }
-                    }
-                }
-
-                Parameter pipeSys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
-                if (pipeSys != null && pipeSys.HasValue)
-                {
-                    string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
-                    if (val.Contains("VENT")) return "VNT";
-                }
-
-                string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
-                if (familyName.Contains("VENT")) return "VNT";
-            }
-            catch (Exception ex) { StingLog.Warn($"SAN sub-function detection failed: {ex.Message}"); }
-            return null;
-        }
-
-        /// <summary>
         /// Family-name-aware product code resolution. Checks the element's family name
         /// for specific equipment patterns before falling back to category-based lookup.
         /// This gives more specific PROD codes: e.g., "FCU-01" → FCU, "VAV Box" → VAV,
@@ -1895,97 +1669,16 @@ namespace StingTools.Core
         private static Dictionary<string, List<(string Pattern, string ProdCode)>> _csvProdRules;
         private static bool _csvProdRulesLoaded = false;
 
-        // Project-scoped PROD rule overlays, keyed by the project's _BIM_COORD dir.
-        // Mirrors the Fohlio / tag-scheme project-override pattern: a project
-        // <project>/_BIM_COORD/prod_codes.csv layers OVER the corporate
-        // STING_PROD_CODES.csv, and its rules WIN (checked first, first-match).
-        private static readonly Dictionary<string, Dictionary<string, List<(string Pattern, string ProdCode)>>>
-            _projProdRules = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly HashSet<string> _projProdLoaded = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly object _prodRulesLock = new object();
-
-        /// <summary>
-        /// Public entry to drop the PROD rule caches so the next lookup re-reads
-        /// from disk. Call after writing a project <c>prod_codes.csv</c> (e.g.
-        /// Prod_GenerateRules) or before a fresh audit so on-disk edits are
-        /// reflected in the same session without a config reload / Revit restart.
-        /// </summary>
-        public static void ReloadProdRules() => InvalidateProdRulesCache();
-
-        /// <summary>The generic category-default PROD code (no family match), or
-        /// "GEN" when the category isn't mapped. Used by the coverage audit to
-        /// tell "genuinely specific" from "happens to equal the default".</summary>
-        public static string CategoryProdDefault(string categoryName)
-            => (!string.IsNullOrEmpty(categoryName) && ProdMap != null &&
-                ProdMap.TryGetValue(categoryName, out string p)) ? p : "GEN";
-
-        /// <summary>Drop the corporate + project PROD rule caches so the next
-        /// lookup re-reads from disk (called on config reload).</summary>
-        private static void InvalidateProdRulesCache()
-        {
-            lock (_prodRulesLock)
-            {
-                _csvProdRulesLoaded = false;
-                _csvProdRules = null;
-                _projProdLoaded.Clear();
-                _projProdRules.Clear();
-            }
-            ProdPatternMatcher.Reset(); // drop compiled-glob cache so edited patterns recompile
-        }
-
         private static void EnsureProdRulesLoaded()
         {
             if (_csvProdRulesLoaded) return;
-            lock (_prodRulesLock)
-            {
-                if (_csvProdRulesLoaded) return;
-                _csvProdRules = LoadProdCsv(StingToolsApp.FindDataFile("STING_PROD_CODES.csv"))
-                                ?? new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
-                _csvProdRulesLoaded = true;
-                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} corporate PROD category rule sets from STING_PROD_CODES.csv");
-            }
-        }
-
-        /// <summary>
-        /// Resolve the project-scoped PROD rule overlay for a document, if any.
-        /// Loaded from &lt;project&gt;/_BIM_COORD/prod_codes.csv and cached per
-        /// project dir. Returns null when the document is unsaved or no overlay
-        /// file exists. Project rules take precedence over the corporate baseline.
-        /// </summary>
-        private static Dictionary<string, List<(string Pattern, string ProdCode)>> GetProjectProdRules(Document doc)
-        {
-            string path = doc?.PathName;
-            if (string.IsNullOrEmpty(path)) return null;
-            string dir = System.IO.Path.GetDirectoryName(path);
-            if (string.IsNullOrEmpty(dir)) return null;
-            string key = System.IO.Path.Combine(dir, "_BIM_COORD");
-            lock (_prodRulesLock)
-            {
-                if (_projProdLoaded.Contains(key))
-                    return _projProdRules.TryGetValue(key, out var cached) ? cached : null;
-                _projProdLoaded.Add(key);
-                var rules = LoadProdCsv(System.IO.Path.Combine(key, "prod_codes.csv"));
-                if (rules != null && rules.Count > 0)
-                {
-                    _projProdRules[key] = rules;
-                    StingLog.Info($"TagConfig: loaded {rules.Count} project PROD category rule sets from {key}");
-                }
-                return rules;
-            }
-        }
-
-        /// <summary>
-        /// Parse a STING_PROD_CODES.csv-format file into category → (pattern, prodCode)
-        /// rules. The FAMILY_PATTERN cell is stored upper-cased; matching is
-        /// glob/alternation-aware via <see cref="ProdPatternMatcher"/>. Returns null
-        /// when the file is missing or unreadable.
-        /// </summary>
-        private static Dictionary<string, List<(string Pattern, string ProdCode)>> LoadProdCsv(string csvPath)
-        {
-            if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return null;
-            var map = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
+            _csvProdRulesLoaded = true;
+            _csvProdRules = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
             try
             {
+                string csvPath = StingToolsApp.FindDataFile("STING_PROD_CODES.csv");
+                if (string.IsNullOrEmpty(csvPath) || !System.IO.File.Exists(csvPath)) return;
+
                 bool first = true;
                 foreach (string raw in System.IO.File.ReadLines(csvPath))
                 {
@@ -2001,13 +1694,13 @@ namespace StingTools.Core
                     string pattern  = cols[2].Trim().ToUpperInvariant();
                     if (string.IsNullOrEmpty(prodCode) || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(pattern)) continue;
 
-                    if (!map.TryGetValue(category, out var list))
-                    { list = new List<(string, string)>(); map[category] = list; }
+                    if (!_csvProdRules.TryGetValue(category, out var list))
+                    { list = new List<(string, string)>(); _csvProdRules[category] = list; }
                     list.Add((pattern, prodCode));
                 }
+                StingLog.Info($"TagConfig: loaded {_csvProdRules.Count} category rule sets from STING_PROD_CODES.csv");
             }
-            catch (Exception ex) { StingLog.Warn($"TagConfig: LoadProdCsv({csvPath}) failed: {ex.Message}"); return null; }
-            return map;
+            catch (Exception ex) { StingLog.Warn($"TagConfig: EnsureProdRulesLoaded failed: {ex.Message}"); }
         }
 
         /// <summary>
@@ -2019,17 +1712,8 @@ namespace StingTools.Core
         /// when no material rule matches.
         /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
-            => GetFamilyAwareProdCode(el, categoryName, out _);
-
-        /// <summary>
-        /// Resolve PROD and report which tier produced it (for the coverage
-        /// audit). <paramref name="source"/> ∈ project | corporate | lps |
-        /// sleeve | category | gen. The material-suffix pass below doesn't
-        /// change the source — it only appends -STL/-CON/… to the base code.
-        /// </summary>
-        public static string GetFamilyAwareProdCode(Element el, string categoryName, out string source)
         {
-            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName, out source);
+            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName);
             try
             {
                 string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
@@ -2046,27 +1730,176 @@ namespace StingTools.Core
             return baseProd;
         }
 
-        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName, out string source)
+        private static string GetFamilyAwareProdCodeCore(Element el, string categoryName)
         {
             string familyName = ParameterHelpers.GetFamilyName(el);
             string symbolName = ParameterHelpers.GetFamilySymbolName(el);
+            // Combined name checks both family AND type name for broader pattern matching
+            string combinedName = $"{familyName} {symbolName}".ToUpperInvariant();
 
-            // Data-driven, single-source PROD resolution. The per-category rule
-            // lists are fetched from Revit here (project overlay + corporate CSV);
-            // the precedence chain (project → corporate → LPS → sleeve → category
-            // default → GEN), the glob matching, and the LPS/sleeve special cases
-            // all live in the pure, unit-tested ProdResolver.
+            // CSV pre-lookup: try data-driven rules before falling through to hardcoded branches
             EnsureProdRulesLoaded();
-            List<(string Pattern, string ProdCode)> projForCat = null;
-            List<(string Pattern, string ProdCode)> corpForCat = null;
+            if (!string.IsNullOrEmpty(familyName) && _csvProdRules != null
+                && _csvProdRules.TryGetValue(categoryName, out var csvRules))
+            {
+                foreach (var (pattern, prodCode) in csvRules)
+                    if (combinedName.Contains(pattern)) return prodCode;
+            }
+
+            // Only apply family-level overrides for categories with diverse equipment
             if (!string.IsNullOrEmpty(familyName))
             {
-                var projRules = GetProjectProdRules(el?.Document);
-                projRules?.TryGetValue(categoryName, out projForCat);
-                _csvProdRules?.TryGetValue(categoryName, out corpForCat);
+                // Search both family name and combined (family + type) name for patterns
+                string upper = combinedName;
+
+                // ── Lightning Protection System (BS EN 62305) ────────────────
+                // LPS elements may be modelled in Electrical Equipment, Generic Models,
+                // Conduits, or Specialty Equipment. Family-name discriminates the
+                // 6 LPS sub-element kinds (12 PROD codes) regardless of category.
+                // Phase 176 — wired into LPS tag families #54 to #59.
+                if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
+                    upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                    upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                    upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
+                    upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
+                    upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL"))
+                {
+                    if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
+                        upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD"))
+                        return "ATR";  // Air terminal rod
+                    if (upper.Contains("AIR MESH") || upper.Contains("MESH NODE"))
+                        return "AMS";  // Air mesh section
+                    if (upper.Contains("CATENARY"))
+                        return "ACT";  // Air catenary
+                    if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
+                        upper.Contains("DESCENT"))
+                        return "DCN";  // Down conductor
+                    if (upper.Contains("EARTH ROD") || upper.Contains("ROD EARTH"))
+                        return "ERD";  // Earth rod
+                    if (upper.Contains("RING EARTH") || upper.Contains("EARTH RING"))
+                        return "ERG";  // Ring earth
+                    if (upper.Contains("FOUNDATION EARTH"))
+                        return "EFE";  // Foundation earth
+                    if (upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH"))
+                        return "EME";  // Mesh earth
+                    if (upper.Contains("EARTH ELECTRODE") || upper.Contains("EARTH PLATE"))
+                        return "ERD";
+                    if (upper.Contains("BOND") || upper.Contains("EQUIPOTENTIAL"))
+                        return "BCN";  // Bond conductor (default)
+                    if (upper.Contains("BONDING BAR") || upper.Contains("EARTH BAR"))
+                        return "BBR";
+                    if (upper.Contains("SPARK GAP"))
+                        return "BSG";
+                    if (upper.Contains("TYPE 1") && upper.Contains("SPD"))
+                        return "SPD1";
+                    if (upper.Contains("TYPE 2") && upper.Contains("SPD"))
+                        return "SPD2";
+                    if (upper.Contains("TYPE 3") && upper.Contains("SPD"))
+                        return "SPD3";
+                    if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
+                        return "TCL";
+                    // Generic LPS fallback — always return some LPS PROD code
+                    if (upper.Contains("LPS") || upper.Contains("LIGHTNING"))
+                        return "LPS";
+                }
+
+                // Mechanical Equipment — distinguish AHU, FCU, VAV, CHR, BLR, PMP, FAN, etc.
+                if (categoryName == "Mechanical Equipment")
+                {
+                    if (upper.Contains("FCU") || upper.Contains("FAN COIL")) return "FCU";
+                    if (upper.Contains("VAV") || upper.Contains("VARIABLE AIR")) return "VAV";
+                    if (upper.Contains("CHILLER") || upper.Contains("CHR")) return "CHR";
+                    if (upper.Contains("BOILER") || upper.Contains("BLR")) return "BLR";
+                    if (upper.Contains("PUMP") || upper.Contains("PMP")) return "PMP";
+                    if (upper.Contains("FAN") || upper.Contains("EXF")) return "FAN";
+                    if (upper.Contains("HRU") || upper.Contains("HEAT RECOVERY")) return "HRU";
+                    if (upper.Contains("SPLIT") || upper.Contains("CASSETTE")) return "SPL";
+                    if (upper.Contains("INDUCTION")) return "IND";
+                    if (upper.Contains("RADIANT") || upper.Contains("RAD PANEL")) return "RAD";
+                    if (upper.Contains("DAMPER") || upper.Contains("DAM")) return "DAM";
+                    if (upper.Contains("COOLING TOWER") || upper.Contains("CLT")) return "CLT";
+                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("INVERTER")) return "VFD";
+                    if (upper.Contains("AHU") || upper.Contains("AIR HANDLING")) return "AHU";
+                }
+                // Electrical Equipment — distinguish DB, MCC, MSB, SWB, UPS, TRF, GEN, etc.
+                else if (categoryName == "Electrical Equipment")
+                {
+                    if (upper.Contains("MCC") || upper.Contains("MOTOR CONTROL")) return "MCC";
+                    if (upper.Contains("MSB") || upper.Contains("MAIN SWITCH")) return "MSB";
+                    if (upper.Contains("SWB") || upper.Contains("SWITCHBOARD")) return "SWB";
+                    if (upper.Contains("UPS") || upper.Contains("UNINTERRUPT")) return "UPS";
+                    if (upper.Contains("TRANSFORMER") || upper.Contains("TRF")) return "TRF";
+                    if (upper.Contains("GENERATOR") || upper.Contains("GEN SET")) return "GEN";
+                    if (upper.Contains("ATS") || upper.Contains("AUTO TRANSFER")) return "ATS";
+                    if (upper.Contains("VFD") || upper.Contains("VARIABLE FREQ") || upper.Contains("DRIVE")) return "VFD";
+                    if (upper.Contains("SPD") || upper.Contains("SURGE")) return "SPD";
+                    if (upper.Contains("RCD") || upper.Contains("RESIDUAL")) return "RCD";
+                    if (upper.Contains("ISOLAT") || upper.Contains("DISCONNECT")) return "ISO";
+                    if (upper.Contains("SOFT START")) return "SFS";
+                    if (upper.Contains("BATTERY") || upper.Contains("BKP")) return "BKP";
+                    if (upper.Contains("DB") || upper.Contains("DISTRIBUTION")) return "DB";
+                }
+                // Lighting — distinguish LUM, EML, DEC, TRK, DWN, LIN, SPT, etc.
+                else if (categoryName == "Lighting Fixtures")
+                {
+                    if (upper.Contains("EMERGENCY") || upper.Contains("EML") || upper.Contains("EXIT")) return "EML";
+                    if (upper.Contains("TRACK") || upper.Contains("TRK")) return "TRK";
+                    if (upper.Contains("DECORATIVE") || upper.Contains("PENDANT") || upper.Contains("CHANDELIER")) return "DEC";
+                    if (upper.Contains("DOWNLIGHT") || upper.Contains("RECESSED")) return "DWN";
+                    if (upper.Contains("LINEAR") || upper.Contains("CONTINUOUS") || upper.Contains("BATTEN")) return "LIN";
+                    if (upper.Contains("SPOTLIGHT") || upper.Contains("PROJECTOR")) return "SPT";
+                    if (upper.Contains("WALL") && (upper.Contains("WASH") || upper.Contains("LIGHT"))) return "WSH";
+                    if (upper.Contains("BOLLARD")) return "BOL";
+                    if (upper.Contains("UPLIGHT") || upper.Contains("UPLIGHTER")) return "UPL";
+                    if (upper.Contains("FLOOD") || upper.Contains("FLOODLIGHT")) return "FLD";
+                }
+                // Plumbing Fixtures — distinguish WC, WHB, URN, SNK, SHW, BTH, etc.
+                else if (categoryName == "Plumbing Fixtures")
+                {
+                    if (upper.Contains("WC") || upper.Contains("WATER CLOSET") || upper.Contains("TOILET")) return "WC";
+                    if (upper.Contains("WHB") || upper.Contains("WASH HAND") || upper.Contains("BASIN")) return "WHB";
+                    if (upper.Contains("URINAL") || upper.Contains("URN")) return "URN";
+                    if (upper.Contains("SINK") || upper.Contains("SNK")) return "SNK";
+                    if (upper.Contains("SHOWER") || upper.Contains("SHW")) return "SHW";
+                    if (upper.Contains("BATH") || upper.Contains("BTH")) return "BTH";
+                    if (upper.Contains("DRINKING") || upper.Contains("FOUNTAIN")) return "DRK";
+                    if (upper.Contains("COOLER") || upper.Contains("WATER COOLER")) return "CWL";
+                    if (upper.Contains("GREASE") || upper.Contains("TRAP")) return "TRP";
+                    if (upper.Contains("BIDET")) return "BID";
+                    if (upper.Contains("EYEWASH") || upper.Contains("EYE WASH")) return "EWS";
+                    if (upper.Contains("MOP") && upper.Contains("SINK")) return "MOP";
+                }
+                // Fire Alarm — distinguish FAD, SML, MCP, BLL, STB, etc.
+                else if (categoryName == "Fire Alarm Devices")
+                {
+                    if (upper.Contains("SMOKE") || upper.Contains("DETECTOR") || upper.Contains("SML")) return "SML";
+                    if (upper.Contains("MCP") || upper.Contains("CALL POINT") || upper.Contains("MANUAL")) return "MCP";
+                    if (upper.Contains("BELL") || upper.Contains("SOUNDER") || upper.Contains("BLL")) return "BLL";
+                    if (upper.Contains("STROBE") || upper.Contains("BEACON")) return "STB";
+                    if (upper.Contains("HEAT") && upper.Contains("DETECT")) return "HTD";
+                    if (upper.Contains("INTERFACE") || upper.Contains("MODULE")) return "FIM";
+                }
+                // Pipe Accessories — distinguish valve types
+                else if (categoryName == "Pipe Accessories")
+                {
+                    if (upper.Contains("BALANCING") || upper.Contains("BLV")) return "BLV";
+                    if (upper.Contains("TRV") || upper.Contains("THERMOSTATIC") || upper.Contains("RADIATOR VALVE")) return "TRV";
+                    if (upper.Contains("ISOLATION") || upper.Contains("GATE") || upper.Contains("BALL")) return "IVL";
+                    if (upper.Contains("CHECK") || upper.Contains("NON RETURN") || upper.Contains("NRV")) return "NRV";
+                    if (upper.Contains("PRESSURE REDUC") || upper.Contains("PRV")) return "PRV";
+                    if (upper.Contains("STRAINER") || upper.Contains("FILTER")) return "STN";
+                }
+                // Generic Models — MEP Sleeves (fire-rated penetration elements)
+                else if (categoryName == "Generic Models")
+                {
+                    if (upper.Contains("SLEEVE") || upper.Contains("SLV") || upper.Contains("PENETRATION")
+                        || upper.Contains("FIRESTOP") || upper.Contains("FIRE STOP") || upper.Contains("FIRE SEAL")) return "SLV";
+                }
             }
-            return ProdResolver.Resolve(familyName, symbolName, categoryName,
-                                        projForCat, corpForCat, ProdMap, out source);
+
+            // Fall back to category-based PROD code
+            string fallbackProd = ProdMap.TryGetValue(categoryName, out string prod) ? prod : "GEN";
+            return fallbackProd;
         }
 
         /// <summary>
@@ -2352,13 +2185,15 @@ namespace StingTools.Core
             //   - Duplicate SEQ numbers across mismatched groups
             //   - Counter drift between sessions
             // The tag string itself will be rebuilt from actual stored values later (line 2234+).
-            string seqKey = SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, loc, SeqIncludeZone, SeqIncludeLoc);
+            string seqKey = SeqIncludeZone
+                ? $"{disc}_{zone}_{sys}_{lvl}"
+                : $"{disc}_{sys}_{lvl}";
 
             // A1: Warn once per session when SEQ scheme has changed — counter keys may not
             // match existing tags, leading to duplicate or restarted sequences.
             if (_seqSchemeChanged && !_seqSchemeWarned)
             {
-                StingLog.Warn($"SEQ scheme changed (scheme={CurrentSeqScheme}, includeZone={SeqIncludeZone}, includeLoc={SeqIncludeLoc}). " +
+                StingLog.Warn($"SEQ scheme changed (scheme={CurrentSeqScheme}, includeZone={SeqIncludeZone}). " +
                     "Existing SEQ counters may not align with the new key format. " +
                     "Run 'Assign Numbers' or 'Batch Tag' with Overwrite to re-sequence.");
                 _seqSchemeWarned = true;
@@ -2383,7 +2218,7 @@ namespace StingTools.Core
             // on success; on its own failure it has already rolled back).
             int seqPreAlloc = sequenceCounters.TryGetValue(seqKey, out int _preAlloc) ? _preAlloc : 0;
 
-            int seqPad = EffectiveSeqPad;
+            int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
             SeqResult seqRes = SeqAssigner.AssignNext(
                 seqKey, sequenceCounters, tagBody, tagSuffix,
                 CurrentSeqScheme, seqPad, seqSchemeContext,
@@ -2520,19 +2355,6 @@ namespace StingTools.Core
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
                 return false;
             }
-
-            // ASS_DISPLAY_TXT is the ON-DRAWING tag: the display-mode + segment-mask
-            // resolved rendering of the canonical ASS_TAG_1_TXT. Let BuildDisplayTag
-            // compute AND write it (it resolves STING_DISPLAY_MODE / DisplayModeDefault,
-            // applies any active TAG_SEG_MASK_TXT / STING_VIEW_TOKEN_MASK_TXT / UI
-            // "TokenMask", and SetStrings the result). The token params it reads were
-            // just written above (lines ~2301/2318), so the tokens are in scope here.
-            // Fall back to the full canonical tag only when BuildDisplayTag yields
-            // nothing (element has no tokens / ASS_DISPLAY_TXT unbound) so the display
-            // never goes blank. ASS_TAG_1_TXT stays the full key — always recoverable.
-            string displayResolved = BuildDisplayTag(el);
-            if (string.IsNullOrEmpty(displayResolved))
-                ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, tag, overwrite: true);
 
             // 5.3: Re-read TAG1 to catch write failures and add to existingTags
             // to prevent same-batch duplicates even when existingTags was null at entry
@@ -2860,17 +2682,12 @@ namespace StingTools.Core
             //   1. STING_VIEW_TOKEN_MASK_TXT on the active view — user-set
             //      "hide ZONE in this view" without mutating ASS_TAG_1_TXT
             //      (review fix for TAG-token-toggling #1).
-            //   2. TAG_SEG_MASK_TXT on the element — written PER-ELEMENT by
-            //      TokenProfileApplier step 7.5 (FIX-3a: was previously written
-            //      to the view, where this consumer never read it).
+            //   2. TAG_SEG_MASK_TXT on the element — written by
+            //      TokenProfileApplier step 7.5.
             //   3. UI ExtraParam "TokenMask" — ad-hoc preview override.
-            // D5 (Phase 196): the mask now applies in EVERY display mode, not
-            // just 0/5. A mask selects which of the 8 canonical segments show,
-            // so it is applied to the FULL 8-token string — not the mode-derived
-            // compact form, whose 1-4 segments would give an 8-char mask nothing
-            // to map onto. A real mask therefore defines visibility 1:1 and
-            // overrides the mode's segment choice; when no real mask is set the
-            // mode-derived display stands.
+            // Mask now applies in modes 1-5/0 (was 5/0 only). Modes that
+            // already drop segments by design just no-op when the mask
+            // matches, so layered masks stay safe.
             try
             {
                 string mask = null;
@@ -2888,17 +2705,10 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(mask))
                     mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
 
-                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111")
+                if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111"
+                    && (mode == 0 || mode == 5))
                 {
-                    // Map the mask over the canonical 8 segments (not the
-                    // compact mode-derived string), so it applies in every mode.
-                    string[] maskTokens = ParamRegistry.ReadTokenValues(el);
-                    if (maskTokens != null && maskTokens.Length >= 8)
-                    {
-                        string fullEight = string.Join(ParamRegistry.Separator, maskTokens);
-                        string masked = ApplySegmentMask(fullEight, mask);
-                        if (!string.IsNullOrEmpty(masked)) display = masked;
-                    }
+                    display = ApplySegmentMask(display, mask);
                 }
             }
             catch { /* mask is an optional UX hint — ignore failures */ }
@@ -3288,11 +3098,7 @@ namespace StingTools.Core
             if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "HVAC";
             if (sysName.Contains("FRESH AIR") || sysName.Contains("OUTSIDE AIR")) return "HVAC";
             if (sysName.Contains("CHILLED") || sysName.Contains("COOLING")) return "HVAC";
-            // Air ventilation is duct/HVAC. For pipe categories, "Vent" = sanitary soil-vent
-            // pipe (BS EN 12056-2) — fall through to the SAN block below.
-            if ((sysName.Contains("VENT") || sysName.Contains("VENTILATION"))
-                && !_pipeCategories.Contains(categoryName ?? ""))
-                return "HVAC";
+            if (sysName.Contains("VENT") || sysName.Contains("VENTILATION")) return "HVAC";
             // Abbreviated HVAC system names (Revit defaults and common shorthand)
             if (sysName == "SA" || sysName.StartsWith("SA ") || sysName.Contains(" SA ")) return "HVAC";
             if (sysName == "RA" || sysName.StartsWith("RA ") || sysName.Contains(" RA ")) return "HVAC";
@@ -3335,7 +3141,6 @@ namespace StingTools.Core
             if (sysName.Contains("DRAIN") || sysName.Contains("SEWAGE") || sysName.Contains("FOUL")) return "SAN";
             // Abbreviated sanitary
             if (sysName == "SVP" || sysName == "WP" || sysName.StartsWith("SVP ") || sysName.StartsWith("WP ")) return "SAN";
-            if (sysName.Contains("VENT")) return "SAN";  // pipe vent; HVAC vent handled above
 
             // Rainwater
             if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER")) return "RWD";

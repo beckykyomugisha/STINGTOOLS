@@ -122,34 +122,6 @@ namespace StingTools.Core.Variation
     }
 
     /// <summary>
-    /// PM-7 — the single default-liability-by-reason rule. Was duplicated as
-    /// SuggestLiability / SuggestLiabilityShared in two variation commands; both
-    /// now delegate here. The QS picker still overrides this — it just front-loads
-    /// the typical assignment. Pure — unit-tested in StingTools.Cost.Tests.
-    /// </summary>
-    public static class VariationLiabilityRules
-    {
-        public static VariationLiability Suggest(VariationReason reason)
-        {
-            switch (reason)
-            {
-                case VariationReason.DesignChange:
-                case VariationReason.ErrorOmission:        return VariationLiability.Designer;
-                case VariationReason.ClientRequest:
-                case VariationReason.ScopeAddition:
-                case VariationReason.ScopeOmission:
-                case VariationReason.Specification:
-                case VariationReason.Quality:              return VariationLiability.Employer;
-                case VariationReason.SiteCondition:
-                case VariationReason.StatutoryChange:      return VariationLiability.Employer;
-                case VariationReason.ContractorProposal:   return VariationLiability.Shared;
-                case VariationReason.ProgrammeChange:      return VariationLiability.Employer;
-                default:                                    return VariationLiability.Employer;
-            }
-        }
-    }
-
-    /// <summary>
     /// One variation instruction. Items are individual measured lines
     /// that price the change — typically minted from a BOQSnapshotDiff
     /// cluster.
@@ -196,7 +168,7 @@ namespace StingTools.Core.Variation
         public DateTime? ApprovalDate { get; set; }
         public string ApprovedBy { get; set; } = "";
 
-        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
+        public string Currency { get; set; } = "GBP";
         public List<VariationItem> Items { get; set; } = new List<VariationItem>();
 
         /// <summary>Reference to the BOQ snapshot diff that produced this VO (optional).</summary>
@@ -233,7 +205,7 @@ namespace StingTools.Core.Variation
         public string Id = Guid.NewGuid().ToString("N");
         public string Description { get; set; } = "";
         public string Unit { get; set; } = "each";
-        public string Currency { get; set; } = "UGX";   // project currency — set from BOQDocument.Currency on create
+        public string Currency { get; set; } = "GBP";
 
         public List<StarRateLine> LabourLines { get; set; } = new List<StarRateLine>();
         public List<StarRateLine> PlantLines { get; set; } = new List<StarRateLine>();
@@ -262,26 +234,6 @@ namespace StingTools.Core.Variation
         public double UnitRate { get; set; }         // £/hr or £/unit
         public string Unit { get; set; } = "hr";
 
-        // PM-1 — select the basis by RESOURCE TYPE (via Unit), not Max(Hours,Quantity)
-        // which silently mis-costs a line that carries both. Time-based resources
-        // (labour / plant) are priced on Hours; everything else on Quantity.
-        public double LineTotal => Math.Round(BasisQuantity * UnitRate, 2);
-
-        private double BasisQuantity
-        {
-            get
-            {
-                switch ((Unit ?? "").Trim().ToLowerInvariant())
-                {
-                    case "hr": case "hrs": case "hour": case "hours":
-                    case "day": case "days": case "week": case "weeks":
-                        return Hours;
-                    default:
-                        // Materials priced on Quantity; if a line only carries Hours
-                        // (mis-set Unit) fall back to whichever is populated.
-                        return Quantity > 0 ? Quantity : Hours;
-                }
-            }
-        }
+        public double LineTotal => Math.Round(Math.Max(Hours, Quantity) * UnitRate, 2);
     }
 }

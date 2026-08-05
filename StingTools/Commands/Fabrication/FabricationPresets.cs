@@ -71,7 +71,10 @@ namespace StingTools.Commands.Fabrication
         {
             try
             {
-                string dir = StingPaths.Meta(doc, "_BIM_COORD");
+                string projectDir = Path.GetDirectoryName(doc?.PathName ?? "") ?? "";
+                if (string.IsNullOrEmpty(projectDir))
+                    projectDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string dir = Path.Combine(projectDir, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
                 return Path.Combine(dir, FileName);
             }

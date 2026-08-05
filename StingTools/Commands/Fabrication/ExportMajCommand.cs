@@ -121,7 +121,10 @@ namespace StingTools.Commands.Fabrication
             string baseDir;
             try
             {
-                baseDir = StingPaths.Meta(doc, "_BIM_COORD", "fab");
+                var projDir = Path.GetDirectoryName(doc.PathName);
+                baseDir = !string.IsNullOrEmpty(projDir)
+                    ? Path.Combine(projDir, "_BIM_COORD", "fab")
+                    : Path.Combine(Path.GetTempPath(), "STING", "fab");
             }
             catch
             {

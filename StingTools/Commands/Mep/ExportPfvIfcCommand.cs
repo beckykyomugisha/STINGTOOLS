@@ -39,7 +39,8 @@ namespace StingTools.Commands.Mep
             string outDir, path;
             try
             {
-                outDir = StingPaths.Meta(doc, "_BIM_COORD", "ifc");
+                var projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? Path.GetTempPath();
+                outDir = Path.Combine(projDir, "_BIM_COORD", "ifc");
                 Directory.CreateDirectory(outDir);
                 string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 path = Path.Combine(outDir, $"sting_pfv_{stamp}.ifc");

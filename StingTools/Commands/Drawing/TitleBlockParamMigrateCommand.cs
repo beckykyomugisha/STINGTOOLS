@@ -130,7 +130,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No active document."; return Result.Failed; }
 
                 // Collect PRJ_TB_* values from all title-block instances.
@@ -243,7 +243,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No active document."; return Result.Failed; }
 
                 var tbValues   = TitleBlockParamMigrateHelper.CollectTbValues(doc);

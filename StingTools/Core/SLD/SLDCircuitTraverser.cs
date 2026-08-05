@@ -62,52 +62,6 @@ namespace StingTools.Core.SLD
         public bool IsLoad { get; set; }
         public bool IsProtection { get; set; }
         public FamilyInstance RevitElement { get; set; }
-
-        /// <summary>True when this node came from a Revit link rather than the host.
-        /// Linked elements are read-only, so anything that writes back must skip them.</summary>
-        public bool IsLinked { get; set; }
-
-        /// <summary>Title of the document this node was read from. Null for host nodes.</summary>
-        public string SourceDocumentTitle { get; set; }
-    }
-
-    /// <summary>Which documents a hierarchy scan reads.</summary>
-    public enum SLDScanScope
-    {
-        /// <summary>The open document only. Default — preserves historic behaviour.</summary>
-        HostOnly,
-
-        /// <summary>
-        /// The open document plus every loaded Revit link.
-        ///
-        /// <para>Revit electrical systems never span documents, so a link contributes its
-        /// own independent hierarchy rather than joining the host's. A host load cannot be
-        /// circuited to a linked panel, and linked elements are read-only. Linked roots are
-        /// therefore reference content: useful to draw and to prove coverage, not to edit.</para>
-        /// </summary>
-        HostAndLinks
-    }
-
-    /// <summary>
-    /// Outcome of a hierarchy scan. Exists so callers can tell "nothing is modelled"
-    /// apart from "the scan failed" — previously both surfaced as a null list, and the
-    /// UI reported a genuine exception to the user as "you have not placed a panel".
-    /// </summary>
-    public sealed class SLDScanResult
-    {
-        public List<SLDNode> Roots { get; set; } = new List<SLDNode>();
-
-        /// <summary>Non-null when the scan threw. Roots is then meaningless, not empty.</summary>
-        public string Error { get; set; }
-
-        /// <summary>Electrical equipment instances found in the host document.</summary>
-        public int HostEquipmentCount { get; set; }
-
-        /// <summary>Titles of loaded links that contain electrical equipment.</summary>
-        public List<string> LinkedDocsWithEquipment { get; set; } = new List<string>();
-
-        public bool Failed => Error != null;
-        public bool HasRoots => Roots != null && Roots.Count > 0;
     }
 
     public static class SLDCircuitTraverser
@@ -129,114 +83,14 @@ namespace StingTools.Core.SLD
         /// </summary>
         public static List<SLDNode> BuildHierarchyAll(Document doc)
         {
-            var r = ScanHierarchy(doc);
-            return r.HasRoots ? r.Roots : null;
-        }
-
-        /// <summary>
-        /// Full hierarchy scan with diagnostics. Prefer this over
-        /// <see cref="BuildHierarchyAll"/> when the caller shows the user a message,
-        /// so a failure is not reported as an empty model.
-        /// </summary>
-        public static SLDScanResult ScanHierarchy(Document doc,
-            SLDScanScope scope = SLDScanScope.HostOnly)
-        {
-            var result = new SLDScanResult();
-            if (doc == null) { result.Error = "no document"; return result; }
-
+            if (doc == null) return null;
             try
             {
-                result.Roots.AddRange(ScanOneDocument(doc, isLinked: false, out int hostCount));
-                result.HostEquipmentCount = hostCount;
-
-                // Links are always inspected for equipment, even in HostOnly, so the
-                // caller can say "your panels are in a link" instead of "you have no
-                // panels" — the single most misleading message this tool produced.
-                foreach (var link in new FilteredElementCollector(doc)
-                             .OfClass(typeof(RevitLinkInstance))
-                             .Cast<RevitLinkInstance>())
-                {
-                    Document ldoc = null;
-                    try { ldoc = link.GetLinkDocument(); }
-                    catch (Exception ex) { StingLog.Warn($"SLD link probe: {ex.Message}"); }
-                    if (ldoc == null) continue;   // unloaded link
-
-                    int linkCount;
-                    var linkRoots = ScanOneDocument(ldoc, isLinked: true, out linkCount);
-                    if (linkCount == 0) continue;
-
-                    string title = SafeTitle(ldoc);
-                    if (!result.LinkedDocsWithEquipment.Contains(title))
-                        result.LinkedDocsWithEquipment.Add(title);
-
-                    if (scope == SLDScanScope.HostAndLinks)
-                        result.Roots.AddRange(linkRoots);
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("SLDCircuitTraverser.ScanHierarchy", ex);
-                result.Error = ex.Message;
-                return result;
-            }
-        }
-
-        private static string SafeTitle(Document d)
-        {
-            try { return string.IsNullOrEmpty(d.Title) ? "(unnamed link)" : d.Title; }
-            catch { return "(unnamed link)"; }
-        }
-
-        /// <summary>Roots within a single document. Never spans documents — Revit
-        /// electrical systems do not.</summary>
-        private static List<SLDNode> ScanOneDocument(Document doc, bool isLinked, out int equipmentCount)
-        {
-            equipmentCount = 0;
-            var built = new List<SLDNode>();
-            try
-            {
-                // OfType, not Cast: a single non-FamilyInstance element in the category
-                // would make Cast throw mid-enumeration, and the caught exception used to
-                // surface as "no distribution roots found".
                 var equipment = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
                     .WhereElementIsNotElementType()
-                    .OfType<FamilyInstance>()
+                    .Cast<FamilyInstance>()
                     .ToList();
-                equipmentCount = equipment.Count;
-                if (equipmentCount == 0) return built;
-
-                built.AddRange(BuildRootsFrom(doc, equipment, isLinked));
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"SLD scan '{SafeTitle(doc)}': {ex.Message}");
-            }
-            return built;
-        }
-
-        private static List<SLDNode> BuildRootsFrom(Document doc, List<FamilyInstance> equipment, bool isLinked)
-        {
-            var legacy = LegacyBuild(doc, equipment);
-            if (isLinked)
-                foreach (var n in legacy) MarkLinked(n, SafeTitle(doc));
-            return legacy;
-        }
-
-        private static void MarkLinked(SLDNode n, string title)
-        {
-            if (n == null) return;
-            n.IsLinked = true;
-            n.SourceDocumentTitle = title;
-            foreach (var c in n.Children) MarkLinked(c, title);
-        }
-
-        private static List<SLDNode> LegacyBuild(Document doc, List<FamilyInstance> equipment)
-        {
-            try
-            {
 
                 var allSystems = new FilteredElementCollector(doc)
                     .OfClass(typeof(ElectricalSystem))
@@ -319,14 +173,12 @@ namespace StingTools.Core.SLD
                     catch (Exception ex) { StingLog.Warn($"BuildHierarchyAll dual-source pass: {ex.Message}"); }
                 }
 
-                return roots;
+                return roots.Count > 0 ? roots : null;
             }
             catch (Exception ex)
             {
-                // Surfaces to the caller as an empty document rather than a hard failure;
-                // ScanHierarchy's own catch reports a true failure distinctly.
-                StingLog.Warn($"SLD build roots '{SafeTitle(doc)}': {ex.Message}");
-                return new List<SLDNode>();
+                StingLog.Warn($"BuildHierarchyAll: {ex.Message}");
+                return null;
             }
         }
 

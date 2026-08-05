@@ -34,18 +34,6 @@ namespace StingTools.Tags
         // Intent patterns: regex pattern → (commandTag, intent, description)
         internal static readonly List<(string Pattern, string CommandTag, string Intent, string Description)> IntentPatterns = new()
         {
-            // Phase 195 — Sustainability (EDGE/LEED) reach (WS H1).
-            (@"\b(run\s+edge|edge\s+(run|assessment|export)|export\s+edge)\b",
-                "Sustain_EdgeExport", "Sustainability", "Export the EDGE submission workbook"),
-            (@"\b(sustainability\s+(dashboard|assessment|check)|run\s+sustainability|green\s+dashboard|edge.{0,5}leed)\b",
-                "Sustain_Dashboard", "Sustainability", "Run the sustainability (EDGE/LEED) dashboard"),
-            (@"\b(carbon\s+estimate|embodied\s+carbon|estimate\s+carbon|whole.?life\s+carbon|wlca)\b",
-                "Sustain_Dashboard", "Sustainability", "Estimate embodied + operational carbon (sustainability dashboard)"),
-            (@"\b(set\s+(green|sustainability|edge)\s+baseline|sustainability\s+baseline)\b",
-                "Sustain_SetBaseline", "Sustainability", "Resolve + stamp the climate-zone sustainability baseline"),
-            (@"\b(life.?cycle\s+cost|lcc\s+benefit|sustainability\s+payback)\b",
-                "Sustain_LccBenefit", "Sustainability", "Life-cycle cost benefit of the sustainability measures"),
-
             // Phase 165 — Issue #9. Mode-switch + tier-depth + System B intents.
             (@"\b(switch\s+to\s+handover|enable\s+(fm|handover)|handover\s+mode)\b",
                 "SetPatternMode_Handover", "SetPatternMode", "Switch active T4-T10 payload to handover pack"),
@@ -81,10 +69,6 @@ namespace StingTools.Tags
             (@"\b(duplicate.?tags?|find\s+dup|fix\s+dup)\b", "FixDuplicates", "FixDuplicates", "Find and fix duplicate tags"),
             (@"\b(build\s+tags?|rebuild\s+tags?|assemble)\b", "BuildTags", "BuildTags", "Rebuild tags from tokens"),
             (@"\b(completeness|dashboard|compliance\s+dash)\b", "CompletenessDashboard", "CompletenessDashboard", "Tag completeness dashboard"),
-            (@"\b(token\s+confidence|confidence\s+audit|fallback\s+audit)\b", "TokenConfidenceAudit", "TokenConfidenceAudit", "Audit token detection confidence (High/Medium/Low)"),
-            (@"\b(render\s+scheme\s+tags?|scheme\s+render)\b", "TagScheme_Render", "TagScheme_Render", "Render project tag schemes onto tagged elements"),
-            (@"\b(scheme\s+inspect|inspect\s+schemes?)\b", "TagScheme_Inspect", "TagScheme_Inspect", "Inspect tag schemes — enablement, drift, coverage"),
-            (@"\b(scheme\s+audit|audit\s+schemes?)\b", "TagScheme_Audit", "TagScheme_Audit", "Audit scheme-tag consistency vs current tokens"),
 
             // Token setting
             (@"\b(set\s+disc|discipline|set\s+discipline)\b", "SetDisc", "SetDiscipline", "Set discipline code"),
@@ -191,7 +175,7 @@ namespace StingTools.Tags
             (@"\b(remove\s+leader)\b", "RemoveLeaders", "RemoveLeaders", "Remove leaders from tags"),
 
             // Legends
-            (@"\b(create\s+legend|legend|color\s+legend)\b", "CreateColorLegend", "Legend", "Create legend"),
+            (@"\b(create\s+legend|legend|color\s+legend)\b", "CreateMasterLegend", "Legend", "Create legend"),
 
             // Export
             (@"\b(export\s+csv|csv\s+export|export\s+data)\b", "ExportCSV", "ExportCSV", "Export to CSV"),
@@ -296,7 +280,7 @@ namespace StingTools.Tags
             (@"\b(from\s*scope\s*box|scope\s*box\s*view|generate\s*from\s*scope)\b",
                 "DrawingTypes_FromScopeBoxes", "DrawingTypes", "Generate views from STING scope box naming convention"),
             (@"\b(browser\s*organ|view\s*browser\s*org|drawing\s*browser)\b",
-                "Drawing_BrowserOrganize", "DrawingTypes", "Create browser organizer by drawing type"),
+                "DrawingTypes_BrowserOrganize", "DrawingTypes", "Create browser organizer by drawing type"),
             (@"\b(inspect\s*drawing\s*type|drawing\s*type\s*inspect|list\s*drawing\s*type)\b",
                 "DrawingTypes_Inspect", "DrawingTypes", "Inspect all drawing types and routing rules"),
             (@"\b(reload\s*drawing\s*type|refresh\s*drawing|drawing\s*type\s*reload)\b",
@@ -492,25 +476,25 @@ namespace StingTools.Tags
 
             // ── Legends Extended ──────────────────────────────────────────────────
             (@"\b(discipline\s+legend|legend\s+disc|disc\s+legend)\b",
-                "CreateColorLegend", "DisciplineLegend", "Create discipline colour-coded legend"),
+                "CreateDisciplineLegend", "DisciplineLegend", "Create discipline colour-coded legend"),
             (@"\b(system\s+legend|legend\s+system|sys\s+legend)\b",
-                "MepSystemLegend", "SystemLegend", "Create system type colour legend"),
+                "CreateSystemLegend", "SystemLegend", "Create system type colour legend"),
             (@"\b(material\s+legend|legend\s+material|material\s+color\s+key)\b",
-                "MaterialLegend", "MaterialLegend", "Create material legend from model"),
+                "CreateMaterialLegend", "MaterialLegend", "Create material legend from model"),
             (@"\b(equipment\s+legend|legend\s+equip|equip\s+key)\b",
-                "EquipmentLegend", "EquipmentLegend", "Create equipment type legend"),
+                "CreateEquipmentLegend", "EquipmentLegend", "Create equipment type legend"),
             (@"\b(fire\s+rating\s+legend|fire\s+legend|fire\s+rating\s+key)\b",
-                "FireRatingLegend", "FireRatingLegend", "Create fire rating key/legend"),
+                "CreateFireRatingLegend", "FireRatingLegend", "Create fire rating key/legend"),
             (@"\b(tag\s+legend|legend\s+tag|iso\s+tag\s+legend)\b",
                 "CreateTagLegend", "TagLegend", "Create ISO 19650 tag format legend"),
             (@"\b(status\s+legend|legend\s+status|state\s+legend)\b",
-                "StatusLegend", "StatusLegend", "Create element status legend (new/existing/demolished)"),
+                "CreateStatusLegend", "StatusLegend", "Create element status legend (new/existing/demolished)"),
             (@"\b(phase\s+legend|legend\s+phase|demolition\s+legend)\b",
-                "StatusLegend", "PhaseLegend", "Create phase legend for demolition and new work"),
+                "CreatePhaseLegend", "PhaseLegend", "Create phase legend for demolition and new work"),
             (@"\b(symbol\s+legend|legend\s+symbol|drawing\s+key)\b",
-                "ComponentTypeLegend", "SymbolLegend", "Create symbol/notation key for drawings"),
+                "CreateSymbolLegend", "SymbolLegend", "Create symbol/notation key for drawings"),
             (@"\b(sync\s+legend|update\s+legend|refresh\s+legend)\b",
-                "UpdateLegend", "SyncLegend", "Synchronize legend with current element data"),
+                "SyncLegend", "SyncLegend", "Synchronize legend with current element data"),
             (@"\b(color\s+swatch|colour\s+swatch|swatch\s+legend)\b",
                 "CreateColorLegend", "ColorLegend", "Create colour swatch legend from current scheme"),
 

@@ -9,7 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Symbols
@@ -64,7 +63,7 @@ namespace StingTools.Core.Symbols
         public static string GetFamilyName(
             string conceptId, string standardId,
             string viewContext = null, string scaleTier = null,
-            string orientationState = null, Document doc = null)
+            string orientationState = null)
         {
             var concept = GetConcept(conceptId);
             if (concept == null) return null;
@@ -75,7 +74,7 @@ namespace StingTools.Core.Symbols
             {
                 if (concept.StandardMappings.TryGetValue(std, out var map))
                 {
-                    string fam = ResolveFromMapping(map, viewContext, scaleTier, doc);
+                    string fam = ResolveFromMapping(map, viewContext, scaleTier);
                     if (!string.IsNullOrWhiteSpace(fam)) return fam;
                 }
                 var fb = SymbolStandardRegistry.GetFallback(std);
@@ -86,7 +85,7 @@ namespace StingTools.Core.Symbols
             // Last resort: IEC default mapping.
             if (concept.StandardMappings.TryGetValue("IEC", out var iec))
             {
-                string fam = ResolveFromMapping(iec, viewContext, scaleTier, doc);
+                string fam = ResolveFromMapping(iec, viewContext, scaleTier);
                 if (!string.IsNullOrWhiteSpace(fam)) return fam;
             }
 
@@ -95,51 +94,21 @@ namespace StingTools.Core.Symbols
             return null;
         }
 
-        /// <summary>
-        /// Resolves the family name for a mapping. Precedence is viewContextOverrides →
-        /// scaleVariants → base (TagFamily ?? GenericAnnotation). A missing override
-        /// family MUST degrade to the base: when a <paramref name="doc"/> is supplied and
-        /// the override/scale-variant family is not loaded in that document, the override
-        /// is skipped so the caller receives a base family that actually exists instead
-        /// of a dangling override name that silently fails to place. With no doc the
-        /// legacy behaviour (return the override when non-empty) is preserved.
-        /// </summary>
         private static string ResolveFromMapping(ConceptStandardMapping map,
-            string viewContext, string scaleTier, Document doc = null)
+            string viewContext, string scaleTier)
         {
             if (map == null) return null;
-            string baseName = map.TagFamily ?? map.GenericAnnotation;
-
             if (!string.IsNullOrEmpty(viewContext)
                 && map.ViewContextOverrides != null
                 && map.ViewContextOverrides.TryGetValue(viewContext, out var vc)
-                && !string.IsNullOrWhiteSpace(vc)
-                && (doc == null || IsFamilyLoaded(doc, vc)))
+                && !string.IsNullOrWhiteSpace(vc))
                 return vc;
             if (!string.IsNullOrEmpty(scaleTier)
                 && map.ScaleVariants != null
                 && map.ScaleVariants.TryGetValue(scaleTier, out var sv)
-                && !string.IsNullOrWhiteSpace(sv)
-                && (doc == null || IsFamilyLoaded(doc, sv)))
+                && !string.IsNullOrWhiteSpace(sv))
                 return sv;
-            return baseName;
-        }
-
-        /// <summary>True when a family with the given name is loaded in the document.</summary>
-        private static bool IsFamilyLoaded(Document doc, string familyName)
-        {
-            if (doc == null || string.IsNullOrWhiteSpace(familyName)) return false;
-            try
-            {
-                return new FilteredElementCollector(doc)
-                    .OfClass(typeof(Family))
-                    .Any(f => string.Equals(f.Name, familyName, StringComparison.OrdinalIgnoreCase));
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"IsFamilyLoaded('{familyName}'): {ex.Message}");
-                return false;
-            }
+            return map.TagFamily ?? map.GenericAnnotation;
         }
 
         public static string GetTagFamilyName(string conceptId, string standardId)

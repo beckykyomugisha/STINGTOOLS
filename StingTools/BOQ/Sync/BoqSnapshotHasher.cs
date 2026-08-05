@@ -37,11 +37,7 @@ namespace StingTools.BOQ.Sync
         {
             Formatting = Formatting.None,
             NullValueHandling = NullValueHandling.Ignore,
-            // PM-1 — DO NOT drop default/zero values. An unmeasured (qty 0) or
-            // zero-rate row was invisible to the checksum, so a model change that
-            // only zeroed a line slipped past dedupe/drift detection. Zeros are
-            // now part of the canonical projection.
-            DefaultValueHandling = DefaultValueHandling.Include,
+            DefaultValueHandling = DefaultValueHandling.Ignore,
             Culture = CultureInfo.InvariantCulture
         };
 
@@ -85,15 +81,6 @@ namespace StingTools.BOQ.Sync
                 prelim = Round(boq.PrelimPct, 2),
                 contingency = Round(boq.ContingencyPct, 2),
                 overhead = Round(boq.OverheadPct, 2),
-                vat = Round(boq.VatPct, 2),            // WP1 — VAT now part of the canonical total → must be hashed
-                // CA-5 — an itemised-preliminaries edit or a measurement-standard
-                // change alters the contract sum / net quantities but left the flat
-                // prelim% / category lines untouched, so the old hash missed it.
-                // Hash the itemised flag, the RESOLVED prelim total, and the active
-                // measurement standard so these edits are detected as drift.
-                prelimsItemised = boq.PrelimsItemised,
-                prelimResolved = Round(boq.PrelimContributionUGX, 0),
-                measStd = boq.MeasurementStandardId ?? "nrm2",
                 currency = boq.Currency ?? "UGX",
                 fx = Round(boq.ExchangeRateUgxPerUsd, 4),
                 sections = boq.Sections
@@ -104,21 +91,11 @@ namespace StingTools.BOQ.Sync
                         nrm2 = s.NRM2Section ?? "",
                         name = s.Name ?? "",
                         disc = s.Discipline ?? "",
-                        // P0-2 — order by a STABLE key, never BOQLineItem.Id
-                        // (a fresh Guid.NewGuid() per build). UniqueId survives
-                        // save/reopen; RevitElementId + BOQLineRef + ItemName
-                        // disambiguate manual/PS rows that share an empty
-                        // UniqueId. The random Id is also dropped from the
-                        // hashed projection below so two builds of an unchanged
-                        // model produce the same checksum.
                         items = s.Items
-                            .OrderBy(i => i.UniqueId ?? "", StringComparer.OrdinalIgnoreCase)
-                            .ThenBy(i => i.RevitElementId)
-                            .ThenBy(i => i.BOQLineRef ?? "", StringComparer.OrdinalIgnoreCase)
-                            .ThenBy(i => i.Category ?? "", StringComparer.OrdinalIgnoreCase)
-                            .ThenBy(i => i.ItemName ?? "", StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
                             .Select(i => new
                             {
+                                id = i.Id ?? "",
                                 cat = i.Category ?? "",
                                 disc = i.Discipline ?? "",
                                 ref_ = i.BOQLineRef ?? "",

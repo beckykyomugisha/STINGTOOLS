@@ -10,15 +10,8 @@ namespace Planscape.API.Controllers;
 
 /// <summary>
 /// TOTP multi-factor authentication: enroll, verify, recovery codes, challenge log.
-///
-/// This IS the production implementation. An earlier version of this docstring said
-/// "production implementation would use a TOTP library (e.g. Otp.NET) and
-/// IDataProtectionProvider for secret encryption" — that was already false when
-/// written and is corrected here. Both are in use:
-///   • <c>OtpNet</c> — <c>new Totp(secretBytes).VerifyTotp(code, out _,
-///     new VerificationWindow(2, 2))</c> (see VerifyEnrollment);
-///   • <c>IDataProtector</c> — injected and used to encrypt the shared secret at rest.
-/// Do not treat this controller as a stub.
+/// Production implementation would use a TOTP library (e.g. Otp.NET) and
+/// IDataProtectionProvider for secret encryption.
 /// </summary>
 [ApiController]
 [Route("api/mfa")]

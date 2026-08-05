@@ -72,40 +72,17 @@ namespace StingTools.Core
         /// sessions (empty DISC→A, SYS→GEN, LVL/XX→L00, ZONE/XX/ZZ→Z01).
         /// </summary>
         public static string BuildSeqKey(string disc, string sys, string lvl, string zone, bool includeZone)
-            => BuildSeqKey(disc, sys, lvl, zone, null, includeZone, includeLoc: false);
-
-        /// <summary>
-        /// Phase 191 — LOC-aware overload. When <paramref name="includeLoc"/> is
-        /// set the location (building/volume) code joins the counter key so each
-        /// building numbers independently — multi-building campuses get
-        /// per-volume sequences (Temple AHU-0001 and Meetinghouse AHU-0001
-        /// coexist). Key shapes: <c>DISC_SYS_LVL</c> · <c>DISC_ZONE_SYS_LVL</c>
-        /// · <c>DISC_LOC_SYS_LVL</c> · <c>DISC_LOC_ZONE_SYS_LVL</c>.
-        /// Empty/placeholder LOC normalises to BLD1 to match PopulateAll.
-        /// </summary>
-        public static string BuildSeqKey(string disc, string sys, string lvl, string zone, string loc, bool includeZone, bool includeLoc)
         {
             if (string.IsNullOrEmpty(disc)) disc = "A";
             if (string.IsNullOrEmpty(sys))  sys  = "GEN";
             if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
 
-            string locPart = null;
-            if (includeLoc)
-            {
-                locPart = loc;
-                if (string.IsNullOrEmpty(locPart) || locPart == "XX") locPart = "BLD1";
-            }
-
             if (includeZone)
             {
                 if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
-                return includeLoc
-                    ? $"{disc}_{locPart}_{zone}_{sys}_{lvl}"
-                    : $"{disc}_{zone}_{sys}_{lvl}";
+                return $"{disc}_{zone}_{sys}_{lvl}";
             }
-            return includeLoc
-                ? $"{disc}_{locPart}_{sys}_{lvl}"
-                : $"{disc}_{sys}_{lvl}";
+            return $"{disc}_{sys}_{lvl}";
         }
 
         /// <summary>Format a sequence number for the given scheme and pad width.</summary>
@@ -116,18 +93,14 @@ namespace StingTools.Core
             {
                 case SeqScheme.Alpha:
                     return ToAlpha(n);
-                // ZonePrefix / DiscPrefix are DEPRECATED. They emitted a SEQ
-                // string like "Z1-0042" / "M-0042" — which (1) injects the tag
-                // separator '-' into the SEQ segment, turning the fixed
-                // 8-segment ISO 19650 tag into 9 segments, and (2) duplicates
-                // the ZONE (seg 3) and DISC (seg 1) tokens that already have
-                // their own segments. The net effect on the assembled tag was
-                // "DISC shows twice / SEQ replaced by the discipline code".
-                // They now fall through to Numeric so the canonical tag can
-                // never be corrupted and any project that persisted one of
-                // these schemes self-heals on the next re-sequence.
                 case SeqScheme.ZonePrefix:
+                    string zPrefix = !string.IsNullOrEmpty(zoneOrDisc) && zoneOrDisc.Length >= 2
+                        ? zoneOrDisc.Substring(0, 2)
+                        : "Z1";
+                    return $"{zPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.DiscPrefix:
+                    string dPrefix = !string.IsNullOrEmpty(zoneOrDisc) ? zoneOrDisc : "X";
+                    return $"{dPrefix}-{n.ToString().PadLeft(pad, '0')}";
                 case SeqScheme.Numeric:
                 default:
                     return n.ToString().PadLeft(pad, '0');
@@ -172,8 +145,7 @@ namespace StingTools.Core
             int pad,
             string seqSchemeContext,
             int maxCollisionDepth,
-            HashSet<string> existingTags,
-            SeqBlockReservation reservation = null)
+            HashSet<string> existingTags)
         {
             if (counters == null) throw new ArgumentNullException(nameof(counters));
             tagBody ??= string.Empty;
@@ -186,28 +158,7 @@ namespace StingTools.Core
             }
 
             int preIncrementValue = currentSeqVal;
-
-            // Server-reserved block, when one was granted for this key. Taking the
-            // number from the reservation is what makes Revit and StingBridge
-            // safe to run against the same key concurrently: the server bumped
-            // and returned the counter in one indivisible step, so no other host
-            // can be holding the same value. We still advance the local counter
-            // to the taken number so the existing rollback, overflow and
-            // collision logic below is unchanged, and so the later /seq/sync
-            // max-merge reports a high-water mark that reflects what we used.
-            //
-            // reservation == null (no server configured, or the reserve call
-            // failed) falls through to purely local allocation — today's exact
-            // behaviour, including its cross-host duplicate window. See the
-            // remarks on SeqBlockReservation.
-            if (reservation != null && reservation.TryTake(seqKey, out int reservedSeq))
-            {
-                counters[seqKey] = reservedSeq;
-            }
-            else
-            {
-                counters[seqKey]++;
-            }
+            counters[seqKey]++;
 
             int maxSeq = MaxSeqForPad(pad);
             if (counters[seqKey] > maxSeq)

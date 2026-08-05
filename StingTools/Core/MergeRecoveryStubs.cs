@@ -146,30 +146,14 @@ namespace StingTools.UI.PlacementCenter
         public DateTime StartUtc { get; set; }
         public bool PrevStamp { get; set; }
         public bool PrevLearn { get; set; }
-        public bool DryRun { get; set; }
     }
 
-    /// <summary>
-    /// Run-Placement ExternalEvent handler. Forwards to the Placement Centre's
-    /// ExecuteRun on the Revit API thread, which runs FixturePlacementEngine and
-    /// marshals the result back to OnRunCompleted on the WPF thread. (Replaces
-    /// the merge-recovery no-op stub that left Run Placement non-functional.)
-    /// </summary>
+    /// <summary>Stub handler — wires up the modeless async-run pattern but does no work.</summary>
     public sealed class PlacementRunHandler : Autodesk.Revit.UI.IExternalEventHandler
     {
-        private readonly StingPlacementCenter _owner;
         public PlacementRunHandler() { }
-        public PlacementRunHandler(StingPlacementCenter owner) { _owner = owner; }
-        public void Execute(Autodesk.Revit.UI.UIApplication app)
-        {
-            if (_owner == null)
-            {
-                StingTools.Core.StingLog.Warn("PlacementRunHandler: no owner — run skipped.");
-                return;
-            }
-            try { _owner.ExecuteRun(app); }
-            catch (Exception ex) { StingTools.Core.StingLog.Error("PlacementRunHandler.Execute", ex); }
-        }
+        public PlacementRunHandler(StingPlacementCenter owner) { }
+        public void Execute(Autodesk.Revit.UI.UIApplication app) { }
         public string GetName() => "PlacementRunHandler";
     }
 }
@@ -412,7 +396,7 @@ namespace StingTools.UI.PlacementCenter
 
         private void EnsureRunEvent()
         {
-            if (_runHandler == null) _runHandler = new PlacementRunHandler(this);
+            if (_runHandler == null) _runHandler = new PlacementRunHandler();
             if (_runEvent == null)   _runEvent   = Autodesk.Revit.UI.ExternalEvent.Create(_runHandler);
         }
 
@@ -437,91 +421,18 @@ namespace StingTools.Core.Drawing
         {
             try { if (Enum.TryParse<BuiltInCategory>(key, out var bic)) return new ElementId(bic); }
             catch { }
-            // The corporate/project packs key vgOverrides by localised category
-            // name ("Walls", "Ducts") and by custom subcategory ("STING-LargeTree",
-            // "STING_TagStatus" — the universal-tag status-badge subcategory). The
-            // BIC-only fast path above misses both, leaving those overrides
-            // runtime-dead. Fall back to the richer resolver in the main partial,
-            // which matches top-level category names and subcategory names.
-            try
-            {
-                var byName = ResolveCategoryId(doc, key);
-                if (byName != null && byName != ElementId.InvalidElementId) return byName;
-            }
-            catch { }
             return ElementId.InvalidElementId;
         }
-        // V-4: these are the "Cached" resolvers that never cached. Each ran a
-        // full FilteredElementCollector on EVERY call — and they are called
-        // once per filter rule per view, so a batch of N sheets x F rules paid
-        // O(N*F) whole-model scans. Now a genuine per-document, per-name index
-        // built on first miss and dropped by InvalidateCache.
-        private static readonly object _resolveLock = new object();
-        private static readonly Dictionary<string, Dictionary<string, ElementId>> _filterIdByDoc
-            = new Dictionary<string, Dictionary<string, ElementId>>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, Dictionary<string, ElementId>> _fillPatternByDoc
-            = new Dictionary<string, Dictionary<string, ElementId>>(StringComparer.OrdinalIgnoreCase);
-
-        private static string ResolveDocKey(Document doc)
-        {
-            if (doc == null) return "__null__";
-            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveDocKey: {ex.Message}"); return "__unknown__"; }
-        }
-
-        /// <summary>Drop the per-document resolver indexes (V-4). Called when a
-        /// filter or pattern is created mid-run so later lookups see it.</summary>
-        internal static void InvalidateResolverCaches(Document doc)
-        {
-            var key = ResolveDocKey(doc);
-            lock (_resolveLock)
-            {
-                _filterIdByDoc.Remove(key);
-                _fillPatternByDoc.Remove(key);
-            }
-        }
-
-        private static ElementId LookupCached(
-            Dictionary<string, Dictionary<string, ElementId>> store,
-            Document doc, string name, Func<Document, Dictionary<string, ElementId>> build)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
-            var key = ResolveDocKey(doc);
-            lock (_resolveLock)
-            {
-                if (!store.TryGetValue(key, out var index))
-                {
-                    try { index = build(doc); }
-                    catch (Exception ex)
-                    {
-                        StingTools.Core.StingLog.Warn($"Resolver index build: {ex.Message}");
-                        index = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
-                    }
-                    store[key] = index;
-                }
-                return index.TryGetValue(name, out var id) ? id : ElementId.InvalidElementId;
-            }
-        }
-
         internal static ElementId ResolveFilterIdCached(Document doc, string name)
-            => LookupCached(_filterIdByDoc, doc, name, d =>
-            {
-                var m = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
-                foreach (var el in new FilteredElementCollector(d).OfClass(typeof(ParameterFilterElement)))
-                    if (el is ParameterFilterElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
-                        m[f.Name] = f.Id;
-                return m;
-            });
-
+            => new FilteredElementCollector(doc).OfClass(typeof(ParameterFilterElement))
+                .Cast<ParameterFilterElement>()
+                .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? ElementId.InvalidElementId;
         internal static ElementId ResolveFillPattern(Document doc, string name)
-            => LookupCached(_fillPatternByDoc, doc, name, d =>
-            {
-                var m = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
-                foreach (var el in new FilteredElementCollector(d).OfClass(typeof(FillPatternElement)))
-                    if (el is FillPatternElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
-                        m[f.Name] = f.Id;
-                return m;
-            });
+            => new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? ElementId.InvalidElementId;
     }
 }
 
@@ -543,36 +454,13 @@ namespace StingTools.Core.Drawing
             return false;
         }
 
-        /// <summary>
-        /// Peek plus the list of title-block values that still contain
-        /// unsubstituted tokens after resolution.
-        ///
-        /// T-13: this was a stub that cleared `unresolved` and returned an
-        /// empty dictionary — "no title-block params, nothing unresolved" —
-        /// under a comment saying the real implementation was lost to a merge.
-        /// Nothing called it, so it never lied to anyone; it was left as a
-        /// landmine for whoever called it next. Implemented rather than
-        /// deleted because knowing WHICH tokens failed to resolve is the
-        /// diagnostic T-5 notes is missing elsewhere.
-        /// </summary>
+        /// <summary>Stub Peek overload that accepts an `unresolved` out-list. Real impl was lost to the merge.</summary>
         public static System.Collections.Generic.Dictionary<string, string> Peek(
             Document doc, DrawingType dt, System.Collections.Generic.IDictionary<string, string> tokens,
             System.Collections.Generic.List<string> unresolved)
         {
             unresolved?.Clear();
-            var resolved = Peek(doc, dt, tokens);
-            if (unresolved != null)
-            {
-                // Anything still carrying {token} or ${PROJ_PARAM} did not
-                // resolve — the applier writes these through literally.
-                var leftover = new System.Text.RegularExpressions.Regex(@"\{[^}]+\}|\$\{[^}]+\}");
-                foreach (var kv in resolved)
-                {
-                    if (!string.IsNullOrEmpty(kv.Value) && leftover.IsMatch(kv.Value))
-                        unresolved.Add($"{kv.Key} = {kv.Value}");
-                }
-            }
-            return resolved;
+            return new System.Collections.Generic.Dictionary<string, string>();
         }
     }
 }

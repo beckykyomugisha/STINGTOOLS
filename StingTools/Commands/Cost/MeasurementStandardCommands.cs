@@ -14,11 +14,9 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using System.Collections.Generic;
 using StingTools.BOQ.MeasurementStandard;
 using StingTools.Core;
 using StingTools.Select;
-using StingTools.UI;       // StingResultPanel
 
 namespace StingTools.Commands.Cost
 {
@@ -30,53 +28,28 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                // P0.3 — inline-form gate: when the BOQ panel supplied the
-                // MeasStandardId ExtraParam, skip the picker (no popup). Falls back
-                // to the modal picker for ribbon / other callers. The id is validated
-                // against the registry; an unknown id falls through to the picker.
-                string id;
-                string label;
-                string fId = UI.StingCommandHandler.GetExtraParam("MeasStandardId");
-                var registered = MeasurementStandardRegistry.All().ToList();
-                var match = string.IsNullOrEmpty(fId) ? null
-                    : registered.FirstOrDefault(s => string.Equals(s.Id, fId, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
-                {
-                    id = match.Id;
-                    label = match.DisplayName;
-                }
-                else
-                {
-                    var items = registered
-                        .Select(s => new StingListPicker.ListItem
-                        {
-                            Label = s.DisplayName,
-                            Detail = s.Version,
-                            Tag = s.Id
-                        }).ToList();
-                    var picked = StingListPicker.Show("STING — Measurement standard",
-                        "Pick the measurement standard for future BOQ builds. Stored in project_config.json (key: COST_MEASUREMENT_STANDARD).",
-                        items, allowMultiSelect: false);
-                    if (picked == null || picked.Count == 0) return Result.Cancelled;
-                    id = picked[0].Tag as string ?? "nrm2";
-                    label = picked[0].Label;
-                }
+                var items = MeasurementStandardRegistry.All()
+                    .Select(s => new StingListPicker.ListItem
+                    {
+                        Label = s.DisplayName,
+                        Detail = s.Version,
+                        Tag = s.Id
+                    }).ToList();
+                var picked = StingListPicker.Show("STING — Measurement standard",
+                    "Pick the measurement standard for future BOQ builds. Stored in project_config.json (key: COST_MEASUREMENT_STANDARD).",
+                    items, allowMultiSelect: false);
+                if (picked == null || picked.Count == 0) return Result.Cancelled;
+                string id = picked[0].Tag as string ?? "nrm2";
 
                 // Persist via TagConfig's project_config.json setter. The
                 // BOQ engine reads this key when building snapshots; see
                 // BOQDocument.MeasurementStandardId.
                 TagConfig.SetConfigValue("COST_MEASUREMENT_STANDARD", id);
-                // Phase 2D — the standard drives measurement nets; the incremental
-                // host cache holds rows measured under the old standard, so force a
-                // full rebuild on the next refresh.
-                StingTools.BOQ.BOQCostManager.InvalidateHostCache();
 
-                StingResultPanel.Create("Measurement standard")
-                    .AddSection("RESULT")
-                    .Metric("Active standard", $"{label} ({id})")
-                    .Text("Future BOQ_Build runs will classify and describe rows per this standard. " +
-                          "Existing snapshots keep the standard they were saved with.")
-                    .Show();
+                TaskDialog.Show("STING — Measurement standard",
+                    $"Measurement standard set to {picked[0].Label} ({id}).\n\n" +
+                    "Future BOQ_Build runs will classify and describe rows per this standard. " +
+                    "Existing snapshots keep the standard they were saved with.");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -100,11 +73,13 @@ namespace StingTools.Commands.Cost
                                      "Pipes", "Electrical Equipment", "Lighting Fixtures",
                                      "Roads", "Reinforcement" };
 
-                var rp = StingResultPanel.Create("Measurement standard preview")
-                    .SetSubtitle("How each standard classifies + measures common categories");
+                var sb = new StringBuilder();
+                sb.AppendLine("Standard / Category → (Section, Unit)");
+                sb.AppendLine(new string('─', 60));
                 foreach (var std in MeasurementStandardRegistry.All())
                 {
-                    var rows = new List<string[]>();
+                    sb.AppendLine();
+                    sb.AppendLine($"━ {std.DisplayName}  [{std.Version}]");
                     foreach (var cat in samples)
                     {
                         var stubLine = new BOQ.BOQLineItem
@@ -122,13 +97,11 @@ namespace StingTools.Commands.Cost
                         };
                         string section = std.ClassifyRow(stubLine, null);
                         string unit = std.PreferredUnit(cat);
-                        rows.Add(new[] { cat, section, unit });
+                        sb.AppendLine($"  {cat,-22} → ({section,-6}, {unit})");
                     }
-                    rp.AddSection($"{std.DisplayName}  [{std.Version}]")
-                        .Table(new[] { "Category", "Section", "Unit" }, rows);
                 }
 
-                rp.Show();
+                TaskDialog.Show("STING — Measurement standard preview", sb.ToString());
                 return Result.Succeeded;
             }
             catch (Exception ex)

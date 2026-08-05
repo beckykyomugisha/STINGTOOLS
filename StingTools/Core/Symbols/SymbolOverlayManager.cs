@@ -29,7 +29,7 @@ namespace StingTools.Core.Symbols
                 string scaleTier = SymbolScaleEngine.GetScaleTier(view);
 
                 string famName = SymbolConceptRegistry.GetFamilyName(
-                    conceptId, standardId, viewCtx, scaleTier, null, doc);
+                    conceptId, standardId, viewCtx, scaleTier, null);
                 if (string.IsNullOrEmpty(famName))
                 {
                     StingTools.Core.StingLog.Warn(

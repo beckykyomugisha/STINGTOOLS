@@ -2,7 +2,7 @@
   "standard": "CIBSE",
   "version": "1.0",
   "description": "CIBSE building services schematic symbols for HVAC/MEP drawings",
-  "symbols": [
+  "symbolDefinitions": [
     {
       "id": "CIBSE_FAN",
       "familyType": "GenericAnnotation",
@@ -262,7 +262,6 @@
       "id": "CIBSE_AHU",
       "familyType": "GenericAnnotation",
       "symbolSize": 8.0,
-      "overallExtent": 0.65,
       "geometry": {
         "lines": [
           {
@@ -365,7 +364,6 @@
       "id": "CIBSE_FCU",
       "familyType": "GenericAnnotation",
       "symbolSize": 6.0,
-      "overallExtent": 0.55,
       "geometry": {
         "lines": [
           {
@@ -523,7 +521,6 @@
       "id": "CIBSE_CHILLER",
       "familyType": "GenericAnnotation",
       "symbolSize": 6.0,
-      "overallExtent": 0.55,
       "geometry": {
         "lines": [
           {
@@ -824,7 +821,6 @@
       "id": "CIBSE_DUCT_COIL",
       "familyType": "GenericAnnotation",
       "symbolSize": 5.0,
-      "overallExtent": 0.55,
       "geometry": {
         "lines": [
           {

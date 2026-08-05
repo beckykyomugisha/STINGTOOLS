@@ -420,29 +420,6 @@ namespace StingTools.ExLink
 
     #endregion
 
-    /// <summary>
-    /// Register a completed batch export in the ISO 19650 document register.
-    /// The ExLink batch export family (PDF / DWG / NWC / IFC / parameters) previously
-    /// registered with NEITHER auto-registration facade, so everything it produced was
-    /// invisible to the register. The output folder (or single file) is registered as
-    /// one entry, matching how PlatformLinkCommands registers package directories —
-    /// registering every exported sheet individually would swamp the register.
-    /// </summary>
-    internal static class BatchExportRegistrar
-    {
-        internal static void Register(Document doc, string outputPath, int count,
-            string docType, string description)
-        {
-            if (doc == null || string.IsNullOrEmpty(outputPath) || count <= 0) return;
-            try
-            {
-                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(
-                    doc, outputPath, docType, $"{description} ({count} item(s))");
-            }
-            catch (Exception ex) { StingLog.Warn($"BatchExportRegistrar ({docType}): {ex.Message}"); }
-        }
-    }
-
     // ────────────────────────────────────────────────────────────────────────
     //  1. BatchPDFExportCommand
     // ────────────────────────────────────────────────────────────────────────
@@ -465,7 +442,6 @@ namespace StingTools.ExLink
                 var msg = $"PDF Export Complete.\n\nSheets exported: {count}\nOutput: {outputDir}";
                 if (warnings.Count > 0)
                     msg += $"\n\nWarnings ({warnings.Count}):\n{string.Join("\n", warnings.Take(10))}";
-                BatchExportRegistrar.Register(ctx.Doc, outputDir, count, "PDF", "Batch PDF sheet export");
                 TaskDialog.Show("STING — Batch PDF", msg);
                 return Result.Succeeded;
             }
@@ -500,7 +476,6 @@ namespace StingTools.ExLink
                 var msg = $"DWG Export Complete.\n\nSheets exported: {count}\nOutput: {outputDir}";
                 if (warnings.Count > 0)
                     msg += $"\n\nWarnings ({warnings.Count}):\n{string.Join("\n", warnings.Take(10))}";
-                BatchExportRegistrar.Register(ctx.Doc, outputDir, count, "DWG", "Batch DWG sheet export");
                 TaskDialog.Show("STING — Batch DWG", msg);
                 return Result.Succeeded;
             }
@@ -532,7 +507,6 @@ namespace StingTools.ExLink
                 if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
                 AutomationEngine.ExportToNWC(ctx.Doc, outputDir, out bool ok, out string resultMsg);
-                if (ok) BatchExportRegistrar.Register(ctx.Doc, outputDir, 1, "NWC", "Batch NWC model export");
                 TaskDialog.Show("STING — NWC Export", resultMsg);
                 return Result.Succeeded;
             }
@@ -564,7 +538,6 @@ namespace StingTools.ExLink
                 if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
                 AutomationEngine.ExportToIFC(ctx.Doc, outputDir, out bool ok, out string resultMsg);
-                if (ok) BatchExportRegistrar.Register(ctx.Doc, outputDir, 1, "IFC", "Batch IFC model export");
                 TaskDialog.Show("STING — IFC Export", resultMsg);
                 return Result.Succeeded;
             }
@@ -868,7 +841,6 @@ namespace StingTools.ExLink
                 var msg = $"Parameter Export Complete.\n\nParameters exported: {count:N0}\nOutput: {outputPath}";
                 if (warnings.Count > 0)
                     msg += $"\n\nWarnings:\n{string.Join("\n", warnings.Take(5))}";
-                BatchExportRegistrar.Register(ctx.Doc, outputPath, count, "RP", "Parameter export (XLSX)");
                 TaskDialog.Show("STING — Batch Param Export", msg);
                 return Result.Succeeded;
             }

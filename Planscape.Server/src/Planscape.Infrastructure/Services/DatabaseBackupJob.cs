@@ -66,27 +66,17 @@ public class DatabaseBackupJob
         var connStr = _config.GetConnectionString("Default")
             ?? throw new InvalidOperationException("ConnectionStrings:Default missing");
 
-        // Parse into pg_dump-friendly args via Npgsql's own parser.
-        //
-        // The previous hand-rolled split on ';' and '=' silently produced
-        // localhost/planscape defaults for any managed provider, because
-        // Render/Heroku/Fly hand out a `postgresql://` URL, which contains
-        // neither separator. That meant the nightly backup connected to
-        // nothing and the failure looked like a pg_dump problem. It also
-        // truncated any password containing ';' or '='.
-        // PgConnectionStrings.Normalise handles both formats and throws on
-        // a genuinely unusable string instead of guessing.
-        //
-        // Deliberately the DIRECT connection: pg_dump needs a session, so it
-        // must never be pointed at the PgBouncer (transaction-pooled) port.
-        var pg = new Npgsql.NpgsqlConnectionStringBuilder(
-            Planscape.Infrastructure.Data.PgConnectionStrings.Normalise(connStr));
+        // Parse the Npgsql connection string into pg_dump-friendly args
+        var parts = connStr.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(kv => kv.Split('=', 2))
+            .Where(kv => kv.Length == 2)
+            .ToDictionary(kv => kv[0].Trim().ToLowerInvariant(), kv => kv[1].Trim());
 
-        var host = string.IsNullOrWhiteSpace(pg.Host) ? "localhost" : pg.Host;
-        var port = (pg.Port > 0 ? pg.Port : 5432).ToString();
-        var user = string.IsNullOrWhiteSpace(pg.Username) ? "planscape" : pg.Username;
-        var pass = pg.Password ?? "";
-        var db   = string.IsNullOrWhiteSpace(pg.Database) ? "planscape" : pg.Database;
+        var host = parts.GetValueOrDefault("host") ?? "localhost";
+        var port = parts.GetValueOrDefault("port") ?? "5432";
+        var user = parts.GetValueOrDefault("username") ?? "planscape";
+        var pass = parts.GetValueOrDefault("password") ?? "";
+        var db   = parts.GetValueOrDefault("database") ?? "planscape";
 
         var pgDump = _config["Backup:PgDumpPath"] ?? "pg_dump";
         var fileName = $"planscape-{DateTime.UtcNow:yyyyMMdd-HHmmss}.sql";

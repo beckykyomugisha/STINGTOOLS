@@ -66,20 +66,19 @@ namespace StingTools.Commands.Drawing
             }
             else
             {
-                // T-8: a TaskDialog capped at Math.Min(4, …) command links meant
-                // only the first 4 of the 31 concrete families could ever be
-                // minted individually — the other 27 were unreachable from this
-                // command, with no indication they existed. A list picker has no
-                // such ceiling.
-                var labels = concrete
-                    .Select(f => string.IsNullOrWhiteSpace(f.Description) ? f.Id : $"{f.Id}  —  {f.Description}")
-                    .ToList();
-                var choice = StingTools.Select.StingListPicker.Show(
-                    "STING — Pick title-block family",
-                    $"Choose which family to mint ({concrete.Count} available)",
-                    labels);
-                if (string.IsNullOrEmpty(choice)) return Result.Cancelled;
-                int chosen = labels.IndexOf(choice);
+                var dlg = new TaskDialog("STING — Pick title-block family")
+                {
+                    MainInstruction = "Choose which family to mint",
+                    AllowCancellation = true,
+                };
+                for (int i = 0; i < Math.Min(4, concrete.Count); i++)
+                {
+                    var f = concrete[i];
+                    dlg.AddCommandLink((TaskDialogCommandLinkId)(1001 + i),
+                        f.Id, f.Description);
+                }
+                var res = dlg.Show();
+                int chosen = (int)res - 1001;
                 if (chosen < 0 || chosen >= concrete.Count) return Result.Cancelled;
                 pick = concrete[chosen];
             }
@@ -126,51 +125,24 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine();
 
             int ok = 0, failed = 0;
-            // T-XX: (id, LabelsPlaced) for every family that built with ZERO
-            // working value cells — neither its own seed nor a master seed was
-            // available, so PROJECT NAME / REV / DATE / etc. all render blank.
-            // Surfaced as one consolidated punch-list below instead of relying
-            // on the per-family warning line (which callers can miss when
-            // scrolling a 30+ family report).
-            var needsSeed = new List<string>();
             foreach (var rawSpec in concrete)
             {
                 // Flatten extends chain so the factory sees a complete spec.
                 var spec = TitleBlockSpecRegistry.Resolve(lib, rawSpec);
                 var build = TitleBlockFactory.Build(uiApp, spec, sharedFile);
                 if (build.Ok) ok++; else failed++;
-                string labelSrc = build.BuiltFromSeed ? "(seed)"
-                    : build.PropagatedFromMaster ? "(master)"
-                    : "(none)";
                 sb.AppendLine($"{(build.Ok ? "✓" : "✗")} {spec.Id,-30}  "
                     + $"params {build.ParametersAdded,3}  lines {build.LinesPlaced,3}  "
-                    + $"labels {build.LabelsPlaced,3} {labelSrc,-8}  "
-                    + $"slots {build.SlotsPlaced}  "
+                    + $"labels {build.LabelsPlaced,3}  slots {build.SlotsPlaced}  "
                     + $"→ {build.SavedPath ?? "(not saved)"}");
                 foreach (var w in build.Warnings.Take(3)) sb.AppendLine($"    ! {w}");
                 foreach (var e in build.Errors.Take(3))   sb.AppendLine($"    ✗ {e}");
                 foreach (var w in build.Warnings) StingLog.Warn($"TitleBlockCreateAll '{spec.Id}': {w}");
                 foreach (var e in build.Errors)   StingLog.Error($"TitleBlockCreateAll '{spec.Id}': {e}");
-
-                if (build.Ok && build.LabelsPlaced == 0)
-                    needsSeed.Add(spec.Id);
             }
 
             sb.AppendLine();
             sb.AppendLine($"Done.  succeeded {ok},  failed {failed}.");
-
-            if (needsSeed.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine($"⚠ {needsSeed.Count} famil{(needsSeed.Count == 1 ? "y builds" : "ies build")} as a BARE FRAME "
-                    + "— zero working value cells (PROJECT NAME / REV / DATE / etc. render blank).");
-                sb.AppendLine("  Revit 2025 removed the API used to author labels from a blank template, so each of");
-                sb.AppendLine("  these needs its OWN hand-authored seed at the path below (copy an existing seed in the");
-                sb.AppendLine("  Family Editor, wire its labels to these params, Save As):");
-                foreach (var id in needsSeed)
-                    sb.AppendLine($"    - Families/TitleBlocks/_seeds/{id}.rfa");
-            }
-
             TaskDialog.Show("STING — Title Block Factory", sb.ToString());
             return failed == 0 ? Result.Succeeded : Result.Failed;
         }
@@ -219,14 +191,13 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine($"  generated   : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"  status      : {(r.Ok ? "OK" : "FAILED")}");
             sb.AppendLine($"  saved       : {r.SavedPath ?? "(not saved)"}");
-            sb.AppendLine($"  seed        : {(r.BuiltFromSeed ? r.SeedSource : "(none — template fallback, label-less)")}");
             sb.AppendLine("===================================================================");
             sb.AppendLine();
             sb.AppendLine("Counts");
             sb.AppendLine("------");
             sb.AppendLine($"  parameters     : {r.ParametersAdded}");
             sb.AppendLine($"  lines          : {r.LinesPlaced}");
-            sb.AppendLine($"  labels         : {r.LabelsPlaced}  {(r.BuiltFromSeed ? "(from seed)" : "(no seed — label-less fallback)")}");
+            sb.AppendLine($"  labels         : {r.LabelsPlaced}");
             sb.AppendLine($"  static text    : {r.StaticTextPlaced}");
             sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
             sb.AppendLine($"  slots          : {r.SlotsPlaced}");
@@ -282,10 +253,9 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine($"Title-block family: {id}");
             sb.AppendLine();
             sb.AppendLine($"  saved        : {r.SavedPath ?? "(not saved)"}");
-            sb.AppendLine($"  seed         : {(r.BuiltFromSeed ? r.SeedSource : "(none — template fallback, label-less)")}");
             sb.AppendLine($"  parameters   : {r.ParametersAdded}");
             sb.AppendLine($"  lines        : {r.LinesPlaced}");
-            sb.AppendLine($"  labels       : {r.LabelsPlaced}  {(r.BuiltFromSeed ? "(from seed)" : "(no seed)")}");
+            sb.AppendLine($"  labels       : {r.LabelsPlaced}");
             sb.AppendLine($"  static text  : {r.StaticTextPlaced}");
             sb.AppendLine($"  filled regions : {r.FilledRegionsPlaced}");
             sb.AppendLine($"  slots        : {r.SlotsPlaced}");

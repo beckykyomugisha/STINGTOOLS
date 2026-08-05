@@ -44,8 +44,7 @@ namespace StingTools.Core.Variation
             VariationLiability liability = VariationLiability.Employer,
             string reasonDetail = "",
             int eotDays = 0,
-            VariationContractForm contractForm = VariationContractForm.JCT2024,
-            string currency = "UGX")
+            VariationContractForm contractForm = VariationContractForm.JCT2024)
         {
             if (diff == null) throw new ArgumentNullException(nameof(diff));
             var vo = new VariationInstruction
@@ -63,7 +62,7 @@ namespace StingTools.Core.Variation
                     $"Auto-minted from BOQSnapshotDiff. Net change: " +
                     $"{diff.NetChange:N0} ({diff.NetChangePct:F1}%).",
                 InstructionDate = DateTime.UtcNow,
-                Currency = string.IsNullOrEmpty(currency) ? "UGX" : currency,
+                Currency = "GBP",
                 IssuedBy = Environment.UserName ?? "",
                 SourceSnapshotDiff = $"{diff.LabelA}→{diff.LabelB}"
             };
@@ -74,41 +73,21 @@ namespace StingTools.Core.Variation
                 var item = new VariationItem
                 {
                     Description = $"{c.Name} ({c.NRM2Section}) — {c.ChangeType}",
-                    Unit = "varies"
+                    Unit = "varies",
+                    Quantity = c.QtyB,
+                    UnitRate = c.RateB,
+                    RateSource = c.ChangeType == BOQChangeType.NewItem
+                        ? "BOQ" : "BOQ+pct"
                 };
-                // B.2 — every change-type carries the correct SIGNED value so
-                // omissions and reductions reach the VO net total (they used to
-                // fall through to the full B-state value, zeroing removed scope).
-                switch (c.ChangeType)
+                // For revisions, the variation value is the DELTA, not the
+                // full B-state value. Express that by overriding UnitRate
+                // to the rate delta when quantity is unchanged.
+                if (c.ChangeType == BOQChangeType.RateRevised &&
+                    Math.Abs(c.QtyA - c.QtyB) < 0.001)
                 {
-                    case BOQChangeType.ItemRemoved:
-                        // Omission — removed scope leaves the contract as a credit.
-                        item.Quantity = c.QtyA;
-                        item.UnitRate = -c.RateA;
-                        item.RateSource = "Omission";
-                        break;
-                    case BOQChangeType.QtyChanged:
-                        // Signed quantity change at the current rate.
-                        item.Quantity = c.QtyB - c.QtyA;
-                        item.UnitRate = c.RateB;
-                        item.RateSource = "QtyDelta";
-                        break;
-                    case BOQChangeType.RateRevised when Math.Abs(c.QtyA - c.QtyB) < 0.001:
-                        // Rate change on unchanged quantity — value is the rate delta.
-                        item.Quantity = c.QtyB;
-                        item.UnitRate = c.RateB - c.RateA;
-                        item.RateSource = "Delta";
-                        break;
-                    case BOQChangeType.NewItem:
-                        item.Quantity = c.QtyB;
-                        item.UnitRate = c.RateB;
-                        item.RateSource = "BOQ";
-                        break;
-                    default:
-                        item.Quantity = c.QtyB;
-                        item.UnitRate = c.RateB;
-                        item.RateSource = "BOQ+pct";
-                        break;
+                    item.Quantity = c.QtyB;
+                    item.UnitRate = c.RateB - c.RateA;
+                    item.RateSource = "Delta";
                 }
                 vo.Items.Add(item);
             }

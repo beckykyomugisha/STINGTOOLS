@@ -125,8 +125,8 @@ public class AutodeskWebhooksController : ControllerBase
         }
         doc.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.All.SendAsync("document.version.added",
-            new { documentId = doc.Id, urn, at = doc.UpdatedAt }), _log, "document.version.added");
+        await _hub.Clients.All.SendAsync("document.version.added",
+            new { documentId = doc.Id, urn, at = doc.UpdatedAt });
     }
 
     private async Task HandleApprovalCompleted(JsonElement payload)
@@ -141,15 +141,15 @@ public class AutodeskWebhooksController : ControllerBase
             doc.CdeStatus = "PUBLISHED";
             doc.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
-            await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.All.SendAsync("document.cde.published",
-                new { documentId = doc.Id, urn, at = doc.UpdatedAt }), _log, "document.cde.published");
+            await _hub.Clients.All.SendAsync("document.cde.published",
+                new { documentId = doc.Id, urn, at = doc.UpdatedAt });
         }
     }
 
     private async Task HandleReviewCompleted(JsonElement payload)
     {
         string urn = payload.TryGetProperty("resourceUrn", out var urnEl) ? urnEl.GetString() ?? "" : "";
-        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.All.SendAsync("review.completed", new { urn, at = DateTime.UtcNow }), _log, "review.completed");
+        await _hub.Clients.All.SendAsync("review.completed", new { urn, at = DateTime.UtcNow });
     }
 
     /// <summary>

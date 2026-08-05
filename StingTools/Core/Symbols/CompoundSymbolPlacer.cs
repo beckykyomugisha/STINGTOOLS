@@ -302,7 +302,7 @@ namespace StingTools.Core.Symbols
             try
             {
                 string fam = SymbolConceptRegistry.GetAnnotationFamilyName(componentId, standardId)
-                    ?? SymbolConceptRegistry.GetFamilyName(componentId, standardId, "Schematic", "standard", null, doc);
+                    ?? SymbolConceptRegistry.GetFamilyName(componentId, standardId, "Schematic", "standard", null);
                 if (string.IsNullOrEmpty(fam)) return ElementId.InvalidElementId;
 
                 var sym = new FilteredElementCollector(doc)

@@ -94,10 +94,18 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                // Match SeqIncludeZone/SeqIncludeLoc key format used by BuildAndWriteTag/BuildSeqKey
-                string scanZone = SeqIncludeZone ? ParameterHelpers.GetString(elem, ParamRegistry.ZONE) : null;
-                string scanLoc = SeqIncludeLoc ? ParameterHelpers.GetString(elem, ParamRegistry.LOC) : null;
-                string key = SeqAssigner.BuildSeqKey(disc, sys, lvl, scanZone, scanLoc, SeqIncludeZone, SeqIncludeLoc);
+                // Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
+                string key;
+                if (SeqIncludeZone)
+                {
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                    key = $"{disc}_{zone}_{sys}_{lvl}";
+                }
+                else
+                {
+                    key = $"{disc}_{sys}_{lvl}";
+                }
 
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
@@ -163,10 +171,18 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(lvl) || lvl == "XX")
                     lvl = "L00";
 
-                // Match SeqIncludeZone/SeqIncludeLoc key format used by BuildAndWriteTag/BuildSeqKey
-                string scanZone = SeqIncludeZone ? ParameterHelpers.GetString(elem, ParamRegistry.ZONE) : null;
-                string scanLoc = SeqIncludeLoc ? ParameterHelpers.GetString(elem, ParamRegistry.LOC) : null;
-                string key = SeqAssigner.BuildSeqKey(disc, sys, lvl, scanZone, scanLoc, SeqIncludeZone, SeqIncludeLoc);
+                // Match SeqIncludeZone key format used by BuildAndWriteTag/BuildSeqKey
+                string key;
+                if (SeqIncludeZone)
+                {
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ") zone = "Z01";
+                    key = $"{disc}_{zone}_{sys}_{lvl}";
+                }
+                else
+                {
+                    key = $"{disc}_{sys}_{lvl}";
+                }
 
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {

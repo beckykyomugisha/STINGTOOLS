@@ -249,7 +249,8 @@ namespace StingTools.Commands.Lightning
 
             // Resolve the template — pre-extracted by EmbeddedTemplates.ExtractIfMissing
             // into _BIM_COORD/templates/.
-            string templatePath = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD", "templates"), "lps_spd_spec.docx");
+            string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+            string templatePath = Path.Combine(projDir, "_BIM_COORD", "templates", "lps_spd_spec.docx");
             if (!File.Exists(templatePath))
             {
                 // Fallback to the embedded copy via StingToolsApp.FindDataFile
@@ -263,7 +264,7 @@ namespace StingTools.Commands.Lightning
                 }
             }
 
-            string outDir = StingPaths.Meta(doc, "_BIM_COORD", "generated");
+            string outDir = Path.Combine(projDir, "_BIM_COORD", "generated");
             if (!Directory.Exists(outDir)) Directory.CreateDirectory(outDir);
 
             var snap = StingLpsCommandHandler.Snapshot();

@@ -87,17 +87,6 @@ namespace StingTools.Core.Clash
             {
                 var updater = new LiveClashUpdater();
                 UpdaterRegistry.RegisterUpdater(updater);
-
-                // Triggers ARE attached here for all models — the previous comment at
-                // the call site claimed they were deferred, which was never true. Models
-                // that never use clash detection can opt out with
-                // LIVE_CLASH_TRIGGERS_ENABLED=false in project_config.json.
-                if (!StingTools.Core.TagConfig.LiveClashTriggersEnabled)
-                {
-                    StingLog.Info("LiveClashUpdater registered without triggers (LIVE_CLASH_TRIGGERS_ENABLED=false).");
-                    return;
-                }
-
                 var filter = new LogicalOrFilter(new System.Collections.Generic.List<ElementFilter>
                 {
                     new ElementCategoryFilter(BuiltInCategory.OST_DuctCurves),

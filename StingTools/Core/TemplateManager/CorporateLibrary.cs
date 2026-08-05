@@ -125,7 +125,7 @@ namespace StingTools.Core.TemplateManager
             {
                 string projDir = Path.GetDirectoryName(doc?.PathName ?? "") ?? "";
                 if (string.IsNullOrEmpty(projDir)) return pulled;
-                string targetDir = StingPaths.Meta(doc, "_BIM_COORD");
+                string targetDir = Path.Combine(projDir, "_BIM_COORD");
                 Directory.CreateDirectory(targetDir);
                 foreach (string source in Directory.GetFiles(libPath, "*.json"))
                 {
@@ -155,7 +155,8 @@ namespace StingTools.Core.TemplateManager
             }
             try
             {
-                string srcDir = StingPaths.Meta(doc, "_BIM_COORD");
+                string projDir = Path.GetDirectoryName(doc?.PathName ?? "") ?? "";
+                string srcDir = Path.Combine(projDir, "_BIM_COORD");
                 if (!Directory.Exists(srcDir)) return pushed;
                 foreach (string source in Directory.GetFiles(srcDir, "*.json"))
                 {

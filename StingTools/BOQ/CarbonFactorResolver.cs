@@ -34,21 +34,6 @@ namespace StingTools.BOQ
             if (string.IsNullOrWhiteSpace(materialName))
                 return new CarbonFactorResult { Factor = 0, PerUnit = CarbonFactorUnit.Unknown, Source = "" };
 
-            // Tier 0 (G5) — verified EPD override from _BIM_COORD/boq_epd_map.json.
-            // Highest priority; a mapped material uses its verified A1–A3 figure
-            // and is flagged "Verified-EPD". ICE / library remain the fallback.
-            try
-            {
-                if (BoqEpdStore.TryGet(doc, materialName, out var epd) && epd != null && epd.A1A3 > 0)
-                {
-                    var unit = string.Equals(epd.Unit, "kg", StringComparison.OrdinalIgnoreCase)
-                        ? CarbonFactorUnit.KgCo2ePerKg : CarbonFactorUnit.KgCo2ePerM3;
-                    string src = string.IsNullOrWhiteSpace(epd.Source) ? "epd" : $"epd:{epd.Source}";
-                    return new CarbonFactorResult { Factor = epd.A1A3, PerUnit = unit, Source = src };
-                }
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("CFRes.Epd", $"CarbonFactorResolver epd: {ex.Message}"); }
-
             // Tier 1 — Material parameter (per m³).
             // P-2 — MaterialNameCache lookup is O(1); previously we ran a
             // fresh FilteredElementCollector per BOQ row.
@@ -71,25 +56,6 @@ namespace StingTools.BOQ
             }
             catch (Exception ex) { StingLog.WarnRateLimited("CFRes.Mat", $"CarbonFactorResolver mat: {ex.Message}"); }
 
-            // Tier 1.5 (WP3) — Uganda/EDGE default basis, SPECIFIC match
-            // (exact material name → Revit material class → keyword). This is the
-            // primary regional default — it sits ahead of the generic material
-            // library so an un-EPD'd Uganda project gets a sourced factor, but
-            // behind a verified EPD / the material's own STING_EMB_CARBON_NR.
-            try
-            {
-                string matClass = null;
-                if (doc != null)
-                {
-                    var m = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, materialName);
-                    matClass = m?.MaterialClass;
-                }
-                var ug = UgCarbonFactors.ResolveSpecific(doc, materialName, matClass);
-                if (ug.Factor > 0)
-                    return new CarbonFactorResult { Factor = ug.Factor, PerUnit = CarbonFactorUnit.KgCo2ePerM3, Source = ug.Source };
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("CFRes.Ug", $"CarbonFactorResolver ug: {ex.Message}"); }
-
             // Tier 2 — Corporate library (per m³).
             try
             {
@@ -107,17 +73,6 @@ namespace StingTools.BOQ
                     return new CarbonFactorResult { Factor = dictVal, PerUnit = CarbonFactorUnit.KgCo2ePerKg, Source = "carbon-factors-csv" };
             }
             catch (Exception ex) { StingLog.WarnRateLimited("CFRes.Legacy", $"CarbonFactorResolver legacy: {ex.Message}"); }
-
-            // Tier 5 (WP3) — Uganda/EDGE GENERIC default. Last resort, still a
-            // sourced indicative figure (better than 0) so the row carries a
-            // carbon estimate flagged as "uganda-edge:default" rather than Missing.
-            try
-            {
-                var ugDef = UgCarbonFactors.GenericDefault(doc);
-                if (ugDef.Factor > 0)
-                    return new CarbonFactorResult { Factor = ugDef.Factor, PerUnit = CarbonFactorUnit.KgCo2ePerM3, Source = ugDef.Source };
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("CFRes.UgDef", $"CarbonFactorResolver ug-default: {ex.Message}"); }
 
             return new CarbonFactorResult { Factor = 0, PerUnit = CarbonFactorUnit.Unknown, Source = "none" };
         }

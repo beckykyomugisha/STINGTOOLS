@@ -640,8 +640,7 @@ namespace StingTools.Docs
                                     family == ViewFamily.Elevation ? StingTools.Core.Drawing.DrawingPurpose.Elevation :
                                     family == ViewFamily.CeilingPlan ? StingTools.Core.Drawing.DrawingPurpose.Rcp     :
                                                                      StingTools.Core.Drawing.DrawingPurpose.Plan);
-                                var dtApplied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtView,
-                                    new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch views
+                                var dtApplied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtView);
                                 if (dtApplied.TemplateApplied) templatesAssigned++;
 
                                 // Auto-assign template (7-layer intelligence)
@@ -1628,8 +1627,7 @@ namespace StingTools.Docs
                                         doc, disc.Code, "*",
                                         family == ViewFamily.CeilingPlan ? StingTools.Core.Drawing.DrawingPurpose.Rcp
                                                                          : StingTools.Core.Drawing.DrawingPurpose.Plan);
-                                    var dtApp = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtPkg,
-                                        new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch package views
+                                    var dtApp = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtPkg);
                                     if (dtApp.TemplateApplied) templatesAssigned++;
 
                                     if (!dtApp.TemplateApplied)
@@ -1895,8 +1893,7 @@ namespace StingTools.Docs
                             // the current behaviour.
                             var dt = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
                                 doc, "*", "*", StingTools.Core.Drawing.DrawingPurpose.Section);
-                            var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, section, dt,
-                                new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch sections
+                            var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, section, dt);
                             if (!applied.TemplateApplied)
                             {
                                 View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Section");
@@ -2014,8 +2011,7 @@ namespace StingTools.Docs
                                     // Fall back to historic template search.
                                     var dt = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
                                         doc, "*", "*", StingTools.Core.Drawing.DrawingPurpose.Elevation);
-                                    var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, elev, dt,
-                                        new StingTools.Core.Drawing.DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch elevations
+                                    var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, elev, dt);
                                     if (!applied.TemplateApplied)
                                     {
                                         View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Elevation");
@@ -3124,12 +3120,9 @@ namespace StingTools.Docs
                         string assetId = ParameterHelpers.GetString(el, ParamRegistry.ASSET_ID);
                         if (string.IsNullOrEmpty(assetId)) assetId = tag1;
 
-                        // INT-0 — ExternalIdentifier is the stable 22-char IFC
-                        // GlobalId, not the volatile Revit ElementId.
-                        string globalId = StingTools.IfcResults.IfcGuidEncoder.FromElementGoldStandard(el);
                         WriteRow(wsComp, compRow++,
                             assetName, createdBy, createdOn, typeName, roomName,
-                            assetName, "Revit", "IfcElement", globalId,
+                            assetName, "Revit", "IfcElement", el.Id.ToString(),
                             serial, installDate, warrStart,
                             tag1, barcode, assetId);
                         cobieComponentCount++;

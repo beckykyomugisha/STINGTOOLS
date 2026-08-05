@@ -9,13 +9,7 @@
 (function () {
   'use strict';
 
-  // Was `true` with the note "server endpoint may not exist yet". It does
-  // exist (GET /clashes, POST /clashes/run), so this flag meant the viewer
-  // NEVER asked the server and always rendered mockClashes() — fabricated
-  // pairings of real element GUIDs, indistinguishable from real findings.
-  // That is why the viewer showed 12 clashes while the server (and the web
-  // app, correctly) had none.
-  const USE_MOCK_CLASHES = false;
+  const USE_MOCK_CLASHES = true;   // server endpoint may not exist yet
 
   // ── Boot guard — wait for STING_VIEWER to be ready ────────────────────
   // C3: bail with a visible error card after 30s so dependency failures
@@ -71,17 +65,6 @@
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
-    // Which model the HOST actually put on screen. planscape-web never puts
-    // ?model= in the iframe url — it drives the model over postMessage — so
-    // `modelId` above is empty in the web app and this is the only record of
-    // what is loaded. Starting a meeting re-navigates this document (see
-    // meetingJoinUrl), and without this the model was silently dropped on the
-    // way and never came back. Set from the 'load' / 'addModel' host command.
-    let hostActiveModelId = '';
-    window.addEventListener('sting:modelLoadRequested', (e) => {
-      const id = e && e.detail && e.detail.modelId;
-      if (id) hostActiveModelId = String(id);
-    });
     // U10 — resolve the API base from (in order): explicit window override
     // for embedders, user-saved Settings popover value (LAN/staging/on-prem),
     // build-time injected EXPO_PUBLIC_API_BASE, the URL ?api= param for
@@ -120,15 +103,6 @@
     // iframe) can pass ?embed=1 to suppress the auto-redirect on 401 and
     // handle re-auth themselves.
     const embedMode     = params.get('embed') === '1';
-    // Being inside ANY iframe counts as embedded, whether or not the host
-    // remembered to pass ?embed=1 — and planscape-web does not pass it. That
-    // omission meant a single 401 sent this document to /index.html, so the
-    // old "office dashboard" page appeared INSIDE the 3D viewer panel and the
-    // model was gone. A frame must never navigate itself out from under its
-    // host; it should report the problem and let the host re-auth.
-    let inIframe = false;
-    try { inIframe = window.top !== window.self; } catch (_) { inIframe = true; } // cross-origin throws
-    const embeddedNoRedirect = embedMode || inIframe;
 
     // ── State ───────────────────────────────────────────────────────────
     const state = {
@@ -236,13 +210,11 @@
           // so a future dashboard-side `?next=` handler can pick it up.
           // Embedders pass ?embed=1 to keep the viewer mounted and
           // re-auth themselves.
-          toast(embeddedNoRedirect
-            ? 'Sign-in expired — reload the page to continue.'
-            : 'Sign-in expired — redirecting to login…', 'error');
+          toast('Sign-in expired — redirecting to login…', 'error');
           if (typeof localStorage !== 'undefined') {
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
           }
-          if (!embeddedNoRedirect) {
+          if (!embedMode) {
             const next = location.pathname + location.search;
             try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
             setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
@@ -369,48 +341,16 @@
       }
       renderModels();
 
-      // Element map. This used to be gated on `modelId` — the ?model= param —
-      // which planscape-web NEVER sets, because it drives the model over
-      // postMessage instead. So in the web app the map was simply never
-      // fetched: state.elementMap stayed empty and the Model overview read
-      // "0 Elements / 0% Tagged / 0% Compliance" next to a model that had
-      // just rendered 562 meshes. The model tree, discipline chips, level
-      // bands and the properties panel all read the same map, so they were
-      // starved too. Fetch for whichever model we know about, from either
-      // source, and re-fetch when the host later tells us what it loaded.
-      await loadElementMap(modelId || hostActiveModelId);
-      window.addEventListener('sting:modelLoadRequested', (e) => {
-        const id = e && e.detail && e.detail.modelId;
-        if (id && id !== state.elementMapModelId) loadElementMap(String(id));
-      });
-
-      async function loadElementMap(mid) {
-        if (!projectId || !mid || mid === state.elementMapModelId) return;
-        let map = null;
-        try {
-          map = await api(`/api/projects/${projectId}/models/${mid}/element-map`);
-        } catch (err) {
-          // A model published as pure geometry has no map — that is a normal
-          // state, not a failure. Leave the KPIs at zero and say nothing.
-          console.warn('[coord] element-map unavailable', err && err.message);
-          return;
+      // Element map
+      if (projectId && modelId) {
+        const map = await api(`/api/projects/${projectId}/models/${modelId}/element-map`);
+        if (map) {
+          state.elementMap = map;
+          if (V && V.scene) {
+            // forward to original viewer command so it can populate userData links
+            handleHostCommand({ type: 'elementMap', payload: { map } });
+          }
         }
-        if (!map || !Object.keys(map).length) return;
-        state.elementMap = map;
-        state.elementMapModelId = mid;
-        if (V && V.scene) {
-          // forward to original viewer command so it can populate userData links
-          handleHostCommand({ type: 'elementMap', payload: { map } });
-        }
-        // The map can now land AFTER these were first built (the host tells us
-        // the model id asynchronously), so refresh everything that reads it.
-        try { buildModelTree(); } catch (_) {}
-        try { buildDisciplineChips(); } catch (_) {}
-        try { buildLevelStrip(); } catch (_) {}
-        // Only refresh the overview when nothing is selected — otherwise this
-        // would wipe the element card the user is reading.
-        const selCount = (state.selectedElementGuids && state.selectedElementGuids.size) || 0;
-        if (!selCount && !state.selectedElementGuid) { try { renderProperties(null); } catch (_) {} }
       }
       buildModelTree();
       buildDisciplineChips();
@@ -434,11 +374,6 @@
       // with a Retry affordance. The boot overlay lives in viewer.html; this
       // script runs in the same document so it drives #bootLoader directly.
 
-      // How long to wait for the HOST to drive a model onto the screen before
-      // giving up and showing an actionable error. Generous: a large GLB on a
-      // cold free-tier backend can legitimately take a while.
-      const HOST_LOAD_WATCHDOG_MS = 45000;
-
       function bootLoaderEl() { return document.getElementById('bootLoader'); }
       function setBootProgress(pct, label) {
         const elp = document.getElementById('loadingProgress');
@@ -458,11 +393,7 @@
         setBootMessage('Loading model');
         setBootProgress(0, null);
       }
-      // The Retry action is pluggable: the URL-param path retries the GLB
-      // fetch, but the host-driven path (no ?model= — the web app posts a
-      // 'load' command instead) has nothing to re-fetch, so it reloads.
-      let bootRetryAction = () => { resetBootLoader(); loadModelGlb(); };
-      function showBootError(msg, canRetry, onRetry) {
+      function showBootError(msg, canRetry) {
         const bl = bootLoaderEl();
         toast(msg, 'error');                       // keep the toast too
         if (!bl) return;
@@ -470,7 +401,6 @@
         const sp = bl.querySelector('.spinner'); if (sp) sp.style.display = 'none';
         setBootMessage(msg);
         setBootProgress(null, '');
-        if (onRetry) bootRetryAction = onRetry;
         let retry = bl.querySelector('#bootRetryBtn');
         if (canRetry) {
           if (!retry) {
@@ -478,7 +408,7 @@
             retry.id = 'bootRetryBtn';
             retry.textContent = 'Retry';
             retry.style.cssText = 'margin-top:14px;padding:7px 20px;cursor:pointer;border-radius:6px;border:1px solid #2a6fd0;background:#1d6fd0;color:#fff;font:inherit;';
-            retry.addEventListener('click', () => bootRetryAction());
+            retry.addEventListener('click', () => { resetBootLoader(); loadModelGlb(); });
             bl.appendChild(retry);
           }
           retry.style.display = '';
@@ -536,15 +466,9 @@
           if (res.status === 401) {
             if (!authChallenged) {
               authChallenged = true;
-              // Embedded: stay put and offer a reload. Navigating the frame to
-              // the old dashboard is what replaced the 3D view with a marketing
-              // page and lost the model.
-              showBootError(embeddedNoRedirect
-                ? 'Sign-in expired — reload the page to load this model.'
-                : 'Sign-in expired — redirecting to login…',
-                embeddedNoRedirect, () => location.reload());
+              showBootError('Sign-in expired — redirecting to login…', false);
               try { localStorage.removeItem('planscape_token'); } catch (_) {}
-              if (!embeddedNoRedirect) {
+              if (!embedMode) {
                 // Same target as the api() helper above: dashboard's login
                 // overlay at /index.html (the bare /login path is a SPA hash).
                 const next = location.pathname + location.search;
@@ -584,36 +508,9 @@
       if (projectId && modelId) {
         await loadModelGlb();
       } else {
-        // No model in OUR url — but that is the NORMAL case for the web app:
-        // planscape-web builds the iframe src with only project/token/tenant/
-        // user and drives the model over postMessage ('load' / 'addModel').
-        // So we must not treat this as "nothing to load" and walk away: the
-        // boot overlay is dismissed only by a SUCCESSFUL load (viewer.html),
-        // which meant any hiccup in the host's load path — manifest throw,
-        // empty model list, ready-handshake never firing, failed fetch — left
-        // a permanent "Loading model 0%" spinner with no error and no Retry.
-        // Watchdog: if no geometry is on screen and the host never even asked
-        // us to load anything, surface it instead of spinning forever.
+        // No model to load on this view — unblock meeting co-presence (BLK-5)
+        // so a model-less coordination session still connects.
         try { window.STING_VIEWER && window.STING_VIEWER.markModelReady && window.STING_VIEWER.markModelReady(); } catch (_) {}
-        let hostLoadRequested = false;
-        window.addEventListener('sting:modelLoadRequested', () => { hostLoadRequested = true; });
-        window.addEventListener('sting:modelLoadFailed', () => {
-          showBootError('Failed to load the model file.', true, () => location.reload());
-        });
-        setTimeout(() => {
-          const V = window.STING_VIEWER;
-          const hasGeometry = !!(V && V.modelRoot && V.modelBounds && !V.modelBounds.isEmpty());
-          const bl = bootLoaderEl();
-          if (hasGeometry || !bl || bl.style.display === 'none') return;   // loaded fine
-          showBootError(hostLoadRequested
-            ? 'The model is taking longer than expected to load.'
-            // Don't blame publishing: the far more common cause is that this
-            // page never sent us a model (expired sign-in, or the host's load
-            // never fired). Telling a user to re-publish a model that is
-            // already published sends them down the wrong path entirely.
-            : 'This page didn\'t send a model to the viewer — try reloading.',
-            true, () => location.reload());
-        }, HOST_LOAD_WATCHDOG_MS);
       }
 
       // Project members — populates assignee + watcher pickers with the
@@ -626,15 +523,6 @@
       await loadIssues();
       await loadClashes();
       await loadSitePhotos();
-
-      // The Model overview reads state.clashes / state.issues, but it is
-      // rendered BEFORE these resolve — so it kept reporting "0 Clashes"
-      // while the tray right below it said "Showing 12 of 12". Nothing ever
-      // re-rendered it, so the panel was a snapshot of an empty state.
-      // Refresh once the real counts are in (never over a selected element —
-      // that would wipe the card the user is reading).
-      const selN = (state.selectedElementGuids && state.selectedElementGuids.size) || 0;
-      if (!selN && !state.selectedElementGuid) { try { renderProperties(null); } catch (_) {} }
     }
 
     async function loadProjectMembers() {
@@ -889,14 +777,7 @@
       const u = new URL(location.href);
       u.searchParams.set('meeting', sessionId);
       if (projectId) u.searchParams.set('project', projectId);
-      // Carry the model through the re-navigation. `modelId` is the ?model=
-      // param, which is EMPTY in the web app (the host drives the model over
-      // postMessage), so falling back to the host-loaded id is what stops
-      // "start a meeting" from reloading into a permanently model-less
-      // viewer: the host does not re-post 'load' after this document
-      // reloads, so nothing else would ever bring the geometry back.
-      const carryModelId = modelId || hostActiveModelId;
-      if (carryModelId) u.searchParams.set('model', carryModelId);
+      if (modelId) u.searchParams.set('model', modelId);
       return u.toString();
     }
     function copyToClipboard(text) {
@@ -2813,73 +2694,24 @@
       });
       const fallback = ['B1','GF','L01','L02','L03','L04','RF'];
       const levels = arr.length ? arr : fallback;
-
-      // ◀ / ▶ used to be inert decoration — appended with no handler at all,
-      // so the only visible controls by the strip did nothing and there was no
-      // obvious way back to the whole building. They now step through levels,
-      // and stepping off either end returns to "All".
-      const prev = el('button', { class: 'nav-arrow', title: 'Previous level' }, '◀');
-      prev.addEventListener('click', () => stepLevel(-1));
-      strip.appendChild(prev);
-
-      // Explicit reset. Clicking the active pill again already cleared the
-      // filter, but nothing on screen said so — this makes "show the whole
-      // model" a visible control instead of a hidden toggle.
-      const allPill = el('button', { class: 'level-pill level-all', title: 'Show every level' }, 'All');
-      allPill.addEventListener('click', () => { clearLevelSelection(); applyLevelFilter(); paintLevelStrip(); });
-      strip.appendChild(allPill);
-
+      strip.appendChild(el('button', { class: 'nav-arrow' }, '◀'));
       levels.forEach(lvl => {
         const pill = el('button', { class: 'level-pill', 'data-lvl': lvl }, lvl);
         pill.addEventListener('click', (e) => {
           if (e.shiftKey) pill.classList.toggle('active');
           else {
             const isActive = pill.classList.contains('active');
-            clearLevelSelection();
+            $$('.level-pill').forEach(p => p.classList.remove('active'));
             if (!isActive) pill.classList.add('active');
           }
           applyLevelFilter();
-          paintLevelStrip();
         });
         strip.appendChild(pill);
       });
-
-      const next = el('button', { class: 'nav-arrow', title: 'Next level' }, '▶');
-      next.addEventListener('click', () => stepLevel(1));
-      strip.appendChild(next);
-      paintLevelStrip();
+      strip.appendChild(el('button', { class: 'nav-arrow' }, '▶'));
 
       // Compute Y bands from model bounds — fall back to even slices.
       computeLevelBands(levels);
-    }
-
-    // Level-strip helpers. Only the real level pills carry data-lvl; the "All"
-    // pill deliberately does not, so every selector here is scoped to
-    // [data-lvl] — an "active" All pill would otherwise put an undefined level
-    // into applyLevelFilter's set, which matches no band and would hide the
-    // whole model instead of showing it. applyLevelFilter uses the same scope.
-    function levelPills() { return $$('#levelStrip .level-pill[data-lvl]'); }
-    function clearLevelSelection() { levelPills().forEach(p => p.classList.remove('active')); }
-    function paintLevelStrip() {
-      const anyActive = levelPills().some(p => p.classList.contains('active'));
-      const all = $('#levelStrip .level-all');
-      if (all) all.classList.toggle('active', !anyActive);   // "All" lit when unfiltered
-    }
-    function stepLevel(dir) {
-      const pills = levelPills();
-      if (!pills.length) return;
-      const cur = pills.findIndex(p => p.classList.contains('active'));
-      // From "All", ▶ enters at the lowest level and ◀ at the highest.
-      const idx = (cur === -1) ? (dir > 0 ? 0 : pills.length - 1) : cur + dir;
-      clearLevelSelection();
-      if (idx >= 0 && idx < pills.length) {
-        pills[idx].classList.add('active');
-        try { pills[idx].scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) {}
-      }
-      // Stepping off either end leaves nothing active — i.e. back to the whole
-      // model, so the arrows alone can always get you out of a level filter.
-      applyLevelFilter();
-      paintLevelStrip();
     }
 
     function computeLevelBands(levels) {
@@ -2936,7 +2768,7 @@
     function invalidateCentroidCache() { centroidYCache.clear(); }
 
     function applyLevelFilter() {
-      const active = $$('.level-pill.active[data-lvl]').map(p => p.dataset.lvl);   // [data-lvl] excludes the "All" pill
+      const active = $$('.level-pill.active').map(p => p.dataset.lvl);
       if (!active.length) {
         V.renderer.clippingPlanes = [];
         if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.visible = true; });
@@ -2974,7 +2806,7 @@
         camPos: cam.position.toArray(),
         camTarget: V.controls.target.toArray(),
         disciplines: Array.from(state.activeDisciplines),
-        levels: $$('.level-pill.active[data-lvl]').map(p => p.dataset.lvl),
+        levels: $$('.level-pill.active').map(p => p.dataset.lvl),
         viz: serializeViz(),   // C5 — full visualize state (scheme + modes + custom colours)
       };
     }
@@ -3860,10 +3692,7 @@
       if (!USE_MOCK_CLASHES && projectId) {
         data = await api(`/api/projects/${projectId}/clashes`);
       }
-      // No fabrication fallback. An empty or failed response means we show
-      // nothing and say so — inventing clashes a coordinator might act on is
-      // far worse than an empty list.
-      state.clashes = Array.isArray(data) ? data : (data?.items || []);
+      state.clashes = (Array.isArray(data) ? data : (data?.items || null)) || mockClashes();
       placeClashPins();
       renderClashes();
       updateBadges();
@@ -4553,39 +4382,12 @@
       // Restore persisted collapse state + widths on load.
       try {
         const s = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
-        // Clamp restored widths to the SAME range the drag handle enforces
-        // (180-560), and additionally to a sane share of the CURRENT viewport.
-        // Dragging clamped but restoring did not, so a width saved on a wide
-        // monitor came back verbatim on a smaller one: the panel overflowed
-        // the viewport and took its own drag grip off-screen with it, leaving
-        // no way to get it back. Anything unparseable is dropped rather than
-        // applied blindly.
-        const clampPanelPx = (raw) => {
-          const n = parseFloat(String(raw));
-          if (!isFinite(n) || n <= 0) return null;
-          const viewportCap = Math.max(180, Math.floor(window.innerWidth * 0.4));
-          return Math.min(560, Math.max(180, Math.min(n, viewportCap))) + 'px';
-        };
-        const lw = s.lw ? clampPanelPx(s.lw) : null;
-        const rw = s.rw ? clampPanelPx(s.rw) : null;
-        if (lw) document.documentElement.style.setProperty('--panel-left-width', lw);    // V2
-        if (rw) document.documentElement.style.setProperty('--panel-right-width', rw);
+        if (s.lw) document.documentElement.style.setProperty('--panel-left-width', s.lw);    // V2
+        if (s.rw) document.documentElement.style.setProperty('--panel-right-width', s.rw);
         if (s.l) shell.classList.add('left-collapsed');
         if (s.r) shell.classList.add('right-collapsed');
         if (s.b) $('#bottomPanel')?.classList.add('collapsed');
         if (s.l || s.r || s.b || s.lw || s.rw) onResize();
-      } catch (e) {}
-      // Phones start with BOTH panels closed so the 3D view owns the screen.
-      // This deliberately overrides the persisted desktop state: those widths
-      // are restored from localStorage, and a saved "both panels open" would
-      // otherwise reproduce the zero-width-canvas bug on a phone. The header
-      // toggles still open them (as overlays — see the max-width:700px block
-      // in coordination-viewer.css), so nothing is lost, just out of the way.
-      try {
-        if (window.matchMedia && window.matchMedia('(max-width: 700px)').matches) {
-          shell.classList.add('left-collapsed', 'right-collapsed');
-          onResize();
-        }
       } catch (e) {}
       // V2 — each rail handle: DRAG to resize the panel's width live (clamped), CLICK (no
       // drag) to collapse/expand. Width persists; the canvas + camera resize live via the
@@ -6360,19 +6162,9 @@
           onResize();
         });
       }
-      $('#btnRunDetect').addEventListener('click', async () => {
-        // Previously this invented results client-side and reported success.
-        // Run the REAL detection job on the server, then reload the roster.
-        if (!projectId) return toast('No project — cannot run detection', 'warn');
-        toast('Running clash detection…');
-        try {
-          await api(`/api/projects/${projectId}/clashes/run`, { method: 'POST' });
-          await loadClashes();
-          toast(`Clash detection complete — ${state.clashes.length} found`, 'success');
-        } catch (err) {
-          console.warn('[coord] clash detection failed', err && err.message);
-          toast('Clash detection failed — see console', 'error');
-        }
+      $('#btnRunDetect').addEventListener('click', () => {
+        toast('Running clash detection… (mock)', 'warn');
+        setTimeout(() => { state.clashes = mockClashes(); placeClashPins(); renderClashes(); toast('Clash detection complete', 'success'); }, 1200);
       });
       $('#btnExportCsv').addEventListener('click', exportClashesCsv);
       $('#btnExportIssues').addEventListener('click', exportIssuesCsv);
@@ -7532,19 +7324,7 @@
         </div>`;
       wrap.appendChild(cta);
       $('#ctaBackToProjects', cta).addEventListener('click', () => {
-        // apiBase is the JSON API's own origin (this viewer is served FROM
-        // it) — it has no /projects page, so navigating there 404s/blocks
-        // instead of showing anything useful. When this viewer is embedded
-        // in an iframe (the normal case, from planscape-web), the referrer
-        // is the web app that hosts a real /projects page — go there, and
-        // navigate the top-level tab, not just this iframe. Bare/standalone
-        // opens (no referrer) fall back to the API root as the least-bad option.
-        let target = (apiBase || '') + '/';
-        try {
-          if (document.referrer) target = new URL('/projects', document.referrer).toString();
-        } catch (_) {}
-        if (window.top && window.top !== window.self) window.top.location.href = target;
-        else location.href = target;
+        location.href = (apiBase || '') + '/projects';
       });
       // Hide the boot loader behind it so it doesn't double-spin.
       const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
@@ -7610,15 +7390,8 @@
       async function ping() {
         try {
           const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
-          // ANY http response means the API answered us, which is all this
-          // pill claims. /health is deliberately locked down in production
-          // (private-range client IP + X-Health-Token, Program.cs), so a
-          // browser ALWAYS gets 403 — `res.ok` left the pill stuck on
-          // "Offline" against a perfectly healthy server, and spammed a 403
-          // into the console every 15 seconds. Only a network-level failure
-          // (the catch below) actually means offline.
-          setOnline(true);
-          alive = true;
+          setOnline(res.ok);
+          alive = res.ok;
         } catch (_) {
           setOnline(false);
           alive = false;

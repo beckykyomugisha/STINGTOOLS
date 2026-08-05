@@ -88,21 +88,15 @@ namespace StingTools.Core
                 }
 
                 var locs = LocVocabularyOverride.GetAllLocCodes();
-                var states = StingPaths.CdeStates;
+                var states = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
                 var subs = new[] { "MODELS", "DRAWINGS", "SCHEDULES", "BOQ", "COBie", "REPORTS" };
 
-                // Build per-building subfolders INSIDE the unified CDE state folders
-                // (01_WIP … 04_ARCHIVE) rather than minting a second "_CDE" tree beside
-                // the .rvt. One project ⇒ one CDE hierarchy.
                 int created = 0;
                 foreach (var state in states)
                 {
-                    string stateDir = ProjectFolderEngine.GetFolderPath(doc, state);
-                    if (string.IsNullOrEmpty(stateDir)) continue;
-
                     foreach (var loc in locs)
                     {
-                        string bldDir = Path.Combine(stateDir, loc);
+                        string bldDir = Path.Combine(projDir, "_CDE", state, loc);
                         if (!Directory.Exists(bldDir)) { Directory.CreateDirectory(bldDir); created++; }
                         foreach (var sub in subs)
                         {
@@ -111,7 +105,7 @@ namespace StingTools.Core
                         }
                     }
                     // Common (non-building) folders under each state
-                    string commonDir = Path.Combine(stateDir, "_COMMON");
+                    string commonDir = Path.Combine(projDir, "_CDE", state, "_COMMON");
                     if (!Directory.Exists(commonDir)) { Directory.CreateDirectory(commonDir); created++; }
                 }
 
@@ -123,7 +117,7 @@ namespace StingTools.Core
                     .Metric("States",              states.Length.ToString())
                     .Metric("Subfolders per building-state", subs.Length.ToString())
                     .AddSection("ROOT")
-                    .Text(ProjectFolderEngine.GetRootPath(doc) ?? projDir)
+                    .Text(Path.Combine(projDir, "_CDE"))
                     .Show();
                 return Result.Succeeded;
             }

@@ -3,19 +3,6 @@
   "_note": "Corporate baseline take-off rules. Project overrides go in <project>/_BIM_COORD/takeoff_rules.json. Rule order matters — first match wins.",
   "rules": [
     {
-      "id": "curtain-wall-area",
-      "matchCategory": "Curtain",
-      "matchDiscipline": "*",
-      "matchProdCode": "*",
-      "unit": "m2",
-      "quantitySource": "HOST_AREA_COMPUTED",
-      "unitConversion": "ft2_to_m2",
-      "wastePercent": 0,
-      "nrm2Section": "17",
-      "description": "Curtain wall / mullion system",
-      "_note": "RC-2 — ordered BEFORE wall-area so a Curtain* category files under §17, not §14."
-    },
-    {
       "id": "wall-area",
       "matchCategory": "Walls",
       "matchDiscipline": "*",
@@ -26,6 +13,18 @@
       "wastePercent": 0,
       "nrm2Section": "14",
       "description": "Wall — supply and fix as drawn"
+    },
+    {
+      "id": "curtain-wall-area",
+      "matchCategory": "Curtain",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m2",
+      "quantitySource": "HOST_AREA_COMPUTED",
+      "unitConversion": "ft2_to_m2",
+      "wastePercent": 0,
+      "nrm2Section": "17",
+      "description": "Curtain wall / mullion system"
     },
     {
       "id": "floor-area",
@@ -81,35 +80,35 @@
       "matchDiscipline": "*",
       "matchProdCode": "*",
       "unit": "m3",
-      "quantitySource": "SolidVolume",
+      "quantitySource": "HOST_VOLUME_COMPUTED",
       "unitConversion": "ft3_to_m3",
       "wastePercent": 0,
       "nrm2Section": "4",
-      "description": "Foundation — concrete to specified mix (WP2: true solid volume, not the often-empty HOST_VOLUME_COMPUTED)"
+      "description": "Foundation — concrete to specified mix"
     },
     {
       "id": "column",
       "matchCategory": "Column",
       "matchDiscipline": "*",
       "matchProdCode": "*",
-      "unit": "m3",
-      "quantitySource": "SolidVolume",
-      "unitConversion": "ft3_to_m3",
+      "unit": "each",
+      "quantitySource": "literal:1.0",
+      "unitConversion": "none",
       "wastePercent": 0,
       "nrm2Section": "15",
-      "description": "Structural column — RC by volume (WP2: priced per m3 in cost_rates_5d.csv; reads true solid geometry, not literal 1.0)"
+      "description": "Structural column"
     },
     {
       "id": "framing",
       "matchCategory": "Framing",
       "matchDiscipline": "*",
       "matchProdCode": "*",
-      "unit": "m",
-      "quantitySource": "LocationCurve",
-      "unitConversion": "ft_to_m",
+      "unit": "each",
+      "quantitySource": "literal:1.0",
+      "unitConversion": "none",
       "wastePercent": 0,
       "nrm2Section": "15",
-      "description": "Structural framing member — per linear metre (WP2: priced per m in cost_rates_5d.csv; reads member length, not literal 1.0)"
+      "description": "Structural framing member"
     },
     {
       "id": "truss",
@@ -210,7 +209,6 @@
     {
       "id": "duct",
       "matchCategory": "Duct",
-      "matchCategoryExclude": "Fitting,Accessor,Insulation,Lining,Flex",
       "matchDiscipline": "M",
       "matchProdCode": "*",
       "unit": "m",
@@ -223,7 +221,6 @@
     {
       "id": "pipe",
       "matchCategory": "Pipe",
-      "matchCategoryExclude": "Fitting,Accessor,Insulation,Flex",
       "matchDiscipline": "*",
       "matchProdCode": "*",
       "unit": "m",
@@ -284,7 +281,6 @@
     {
       "id": "cable-tray",
       "matchCategory": "Cable",
-      "matchCategoryExclude": "Fitting,Accessor",
       "matchDiscipline": "E",
       "matchProdCode": "*",
       "unit": "m",

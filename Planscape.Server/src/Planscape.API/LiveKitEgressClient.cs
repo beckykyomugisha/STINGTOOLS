@@ -6,7 +6,6 @@ using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
-using Planscape.Infrastructure.SignalR;   // LiveKitRoom — shared room-name + storage-key contract
 
 namespace Planscape.API;
 
@@ -86,25 +85,15 @@ public sealed class LiveKitEgressClient
         catch { /* idempotent best-effort */ }
     }
 
-    /// <summary>
-    /// Start recording a room. Returns null on transport error.
-    ///
-    /// <paramref name="room"/> is the LiveKit room name — build it with
-    /// <see cref="LiveKitRoom.Name"/>, never inline, or the egress attaches to a
-    /// different room than the participants' tokens joined (G2).
-    /// <paramref name="tenantId"/> / <paramref name="sessionId"/> are taken separately
-    /// because they key the OBJECT-STORE path, which is a different namespace from the
-    /// room name (G1 — see <see cref="LiveKitRoom.RecordingKey"/>).
-    /// </summary>
-    public async Task<EgressResult?> StartAsync(
-        string room, Guid tenantId, Guid sessionId, bool audioOnly, CancellationToken ct)
+    /// <summary>Start recording a room (= session id). Returns null on transport error.</summary>
+    public async Task<EgressResult?> StartAsync(string room, bool audioOnly, CancellationToken ct)
     {
         if (!IsConfigured) return null;
         var ext = audioOnly ? "ogg" : "mp4";
         var fileType = audioOnly ? "OGG" : "MP4";
         // Key is WITHIN the bucket — do NOT prefix with the bucket name (path-style URLs
         // already include the bucket, else you get /recordings/recordings/...).
-        var key = LiveKitRoom.RecordingKey(tenantId, sessionId, DateTime.UtcNow, ext);
+        var key = $"{room}/{DateTime.UtcNow:yyyyMMddHHmmss}.{ext}";
         var body = new Dictionary<string, object?>
         {
             ["room_name"] = room,

@@ -1,8 +1,6 @@
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.Infrastructure.SignalR;
@@ -26,13 +24,7 @@ public class MeetingHub : Hub
 {
     private const string AuthKey = "auth_sessions";
     private readonly PlanscapeDbContext _db;
-    private readonly LiveKitRoomService _lkRooms;
-
-    public MeetingHub(PlanscapeDbContext db, IConfiguration config)
-    {
-        _db = db;
-        _lkRooms = new LiveKitRoomService(config);
-    }
+    public MeetingHub(PlanscapeDbContext db) => _db = db;
 
     private static string Group(string sessionId) => $"meeting:{sessionId}";
 
@@ -164,138 +156,32 @@ public class MeetingHub : Hub
             : Task.CompletedTask;
 
     /// <summary>
-    /// Host-only: mute everyone but the host.
-    ///
-    /// Two layers, both host-gated by <see cref="HubTenantGuard.IsSessionHostAsync"/>:
-    ///   1. ENFORCE — LiveKit <c>RoomService.MutePublishedTrack</c> on every remote
-    ///      microphone track. The SFU stops forwarding the audio; a modified client
-    ///      cannot decline. Screen-share audio is deliberately left alone.
-    ///   2. SIGNAL — the existing <c>Moderation</c> broadcast, so each client's own mic
-    ///      button paints "off" and the user is told what happened.
-    /// The signal is still sent when LiveKit is unconfigured (or a participant is on the
-    /// co-presence plane only, with no A/V joined): moderation degrades to the old
-    /// advisory behaviour rather than failing. <c>enforced</c> in the payload says which
-    /// happened, so the UI never claims more than it did.
+    /// Host-only: ask everyone (but the host) to mute. The mute is self-applied
+    /// on each client's LiveKit mic — the hub only carries the request.
     /// </summary>
     public async Task MuteAll(string sessionId)
     {
         if (!Authorized.Contains(sessionId)) return;
         if (!Guid.TryParse(sessionId, out var sid)
             || !await HubTenantGuard.IsSessionHostAsync(Context.User, _db, sid)) return;
-
-        // G2 — the room is tenant-scoped (LiveKitRoom.Name), NOT the bare session id, and
-        // must match what MeetingRoomController minted into the participants' tokens or
-        // this mutes an empty room. identity == userId. IsSessionHostAsync has already
-        // checked the tenant claim against the session, so it is safe to build from here.
-        var room = LiveKitRoomFor(sid);
-        var mutedTracks = room is null
-            ? 0
-            : await _lkRooms.MuteAllMicrophonesAsync(room, CallerUserId(), Context.ConnectionAborted);
-
         await Clients.OthersInGroup(Group(sessionId)).SendAsync("Moderation",
-            new { action = "mute-all", by = Context.UserIdentifier, enforced = _lkRooms.IsConfigured && room is not null, mutedTracks });
+            new { action = "mute-all", by = Context.UserIdentifier });
     }
 
     /// <summary>
-    /// Host-only: remove a participant.
-    ///
-    /// ENFORCE — LiveKit <c>RoomService.RemoveParticipant</c> evicts them from the media
-    /// room outright. SIGNAL — the existing group-scoped <c>Moderation</c> broadcast still
-    /// fires so the target leaves the co-presence plane too (SignalR group, roster,
-    /// markup) and everyone else drops the row. Enforcement covers media; the signal
-    /// covers everything media doesn't own.
-    ///
-    /// <paramref name="targetUserId"/> is the LiveKit identity to evict. It is NOT trusted
-    /// blindly: it must be a participant of THIS session, so a host cannot aim the eviction
-    /// at a room they don't own. (The connection id can't be used for this — SignalR does
-    /// not expose a connection→user map, and with the Redis backplane the target's
-    /// connection may live on another instance.)
+    /// Host-only: remove a participant. Broadcast to the GROUP carrying the
+    /// target connection id; the matching client self-leaves, everyone else
+    /// drops it from the roster. (Group-scoped so the signal can't be aimed at
+    /// a connection outside the session.)
     /// </summary>
-    public async Task RemoveParticipant(string sessionId, string targetConnectionId, string? targetUserId)
+    public async Task RemoveParticipant(string sessionId, string targetConnectionId)
     {
         if (!Authorized.Contains(sessionId)) return;
         if (!Guid.TryParse(sessionId, out var sid)
             || !await HubTenantGuard.IsSessionHostAsync(Context.User, _db, sid)) return;
-
-        var enforced = false;
-        if (Guid.TryParse(targetUserId, out var targetUid))
-        {
-            var inSession = await _db.MeetingViewerParticipants.IgnoreQueryFilters()
-                .AnyAsync(p => p.SessionId == sid && p.UserId == targetUid);
-            var room = LiveKitRoomFor(sid);   // G2 — tenant-scoped, see MuteAll
-            if (inSession && room is not null)
-                enforced = await _lkRooms.RemoveParticipantAsync(
-                    room, targetUid.ToString(), Context.ConnectionAborted);
-        }
-
         await Clients.Group(Group(sessionId)).SendAsync("Moderation",
-            new { action = "remove", connectionId = targetConnectionId, by = Context.UserIdentifier, enforced });
+            new { action = "remove", connectionId = targetConnectionId, by = Context.UserIdentifier });
     }
-
-    /// <summary>
-    /// G2 — the tenant-scoped LiveKit room for a session, built from the connection's own
-    /// tenant claim. Null when the connection carries no usable tenant, in which case
-    /// moderation falls back to signal-only rather than guessing at a room name (a wrong
-    /// name would silently act on nothing, which is worse than not acting).
-    /// Only call after a HubTenantGuard check has tied the claim to the session.
-    /// </summary>
-    private string? LiveKitRoomFor(Guid sessionId)
-    {
-        var tenantId = HubTenantGuard.TenantIdOf(Context.User);
-        return tenantId == Guid.Empty ? null : LiveKitRoom.Name(tenantId, sessionId);
-    }
-
-    /// <summary>The caller's user id — the LiveKit identity minted for them by
-    /// MeetingRoomController.LiveKitToken. Used to exempt the host from mute-all.</summary>
-    private string? CallerUserId() =>
-        Context.UserIdentifier
-        ?? Context.User?.FindFirst("sub")?.Value
-        ?? Context.User?.FindFirst("user_id")?.Value;
-
-    // ── S2 — late-join state replay ───────────────────────────────────────────
-    //
-    // The hub mirrors live ops, so a tab joining mid-session saw a blank markup
-    // canvas and an empty roster: the strokes, the raised hands and the
-    // ParticipantJoined events it needed all happened before it arrived.
-    //
-    // The fix is a round-trip between PEERS rather than a server-side buffer.
-    // The hub stays a wire — it holds no meeting state, so nothing to bound, to
-    // evict, or to lose when an instance restarts, and it works unchanged behind
-    // the Redis backplane (a server-side buffer would live on one instance only).
-    // The clients already hold the authoritative copy of what needs replaying.
-
-    /// <summary>A client that just joined asks the room for its current state.
-    /// Peers answer with <see cref="SendState"/>.</summary>
-    public Task RequestState(string sessionId)
-        => Authorized.Contains(sessionId)
-            ? Clients.OthersInGroup(Group(sessionId)).SendAsync("StateRequested",
-                new { connectionId = Context.ConnectionId, userId = Context.UserIdentifier })
-            : Task.CompletedTask;
-
-    /// <summary>
-    /// A peer's answer to <see cref="RequestState"/>, addressed to
-    /// <paramref name="targetConnectionId"/>.
-    ///
-    /// Deliberately sent to the GROUP with a <c>to</c> field the client filters on,
-    /// not to <c>Clients.Client(targetConnectionId)</c>: a connection id is not a
-    /// session-scoped capability, so relaying to an arbitrary one would let a caller
-    /// push a payload at any connection whose id they learned. Group-scoped keeps the
-    /// blast radius inside the session, and the extra recipients learn nothing new —
-    /// they are already receiving every one of these ops live.
-    ///
-    /// The sender's identity is stamped server-side (connection id + user id) so a
-    /// replay cannot claim to be from someone else.
-    /// </summary>
-    public Task SendState(string sessionId, string targetConnectionId, object payload)
-        => Authorized.Contains(sessionId) && !string.IsNullOrEmpty(targetConnectionId)
-            ? Clients.Group(Group(sessionId)).SendAsync("StateReplay", new
-            {
-                to = targetConnectionId,
-                fromConnectionId = Context.ConnectionId,
-                fromUserId = Context.UserIdentifier,
-                payload,
-            })
-            : Task.CompletedTask;
 
     /// <summary>
     /// Server-side push (from MeetingRoomController) when host/model/status

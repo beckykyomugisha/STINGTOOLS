@@ -70,7 +70,7 @@ public class Meeting : ITenantScoped
 /// A person invited to or attending a meeting.
 /// Role distinguishes chair / secretary / attendee / notified-only (BCC).
 /// </summary>
-public class MeetingAttendee : ITenantScoped
+public class MeetingAttendee
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -103,7 +103,7 @@ public class MeetingAttendee : ITenantScoped
 /// <summary>
 /// One agenda item within a meeting (ordered list, outcomes recorded in-place).
 /// </summary>
-public class MeetingAgendaItem : ITenantScoped
+public class MeetingAgendaItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
@@ -131,7 +131,7 @@ public class MeetingAgendaItem : ITenantScoped
 /// <summary>
 /// Action item assigned during a coordination meeting.
 /// </summary>
-public class MeetingActionItem : ITenantScoped
+public class MeetingActionItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }

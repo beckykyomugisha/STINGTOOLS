@@ -80,7 +80,8 @@ namespace StingTools.Commands.Mep
             string outDir, path;
             try
             {
-                outDir = StingPaths.Meta(doc, "_BIM_COORD", "bcf");
+                var projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? Path.GetTempPath();
+                outDir = Path.Combine(projDir, "_BIM_COORD", "bcf");
                 Directory.CreateDirectory(outDir);
                 string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 path = Path.Combine(outDir, $"sting_sleeves_{stamp}.bcf");

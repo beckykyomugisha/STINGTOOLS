@@ -21,7 +21,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
+                var doc = data?.Application?.ActiveUIDocument?.Document;
                 var dlg = new DrawingTypeEditorDialog(doc);
                 // Phase 137 — Show() (modeless) instead of ShowDialog() (modal).
                 // A modal WPF window blocks Revit's ExternalEvent queue, so action

@@ -221,7 +221,7 @@ export default function SettingsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              placeholder="https://api.planscape.build"
+              placeholder="https://api.planscape.com"
               placeholderTextColor={theme.colors.disabled}
             />
             <TouchableOpacity style={styles.smallBtn} onPress={saveUrl}>
