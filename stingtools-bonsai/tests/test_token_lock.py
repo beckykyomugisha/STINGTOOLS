@@ -42,8 +42,11 @@ class TestWriteTagSegment:
         element = MagicMock()
 
         def fake_read(el, pset, prop):
+            # TokenLock is a CSV list of locked segment names, not a boolean
+            # flag — see shared/ifc/ids/sting-tag-grammar.ids spec
+            # "TokenLock_csv_of_segments" and Pset_StingTags.xml.
             if prop == bridge._TOKEN_LOCK_PROP:
-                return "True"
+                return "ASS_DISC_TXT,ASS_LOC_TXT"
             if prop == "ASS_DISC_TXT":
                 return "M"
             return None
@@ -62,7 +65,7 @@ class TestWriteTagSegment:
 
         def fake_read(el, pset, prop):
             if prop == bridge._TOKEN_LOCK_PROP:
-                return "True"
+                return "ASS_DISC_TXT,ASS_LOC_TXT"
             if prop == "ASS_DISC_TXT":
                 return "M"
             return None
@@ -70,7 +73,7 @@ class TestWriteTagSegment:
         bridge._read_pset_property = fake_read
         bridge._write_pset_property = MagicMock(return_value=True)
 
-        # Same value — should not raise
+        # Locked, but the value is unchanged — a no-op write, not a violation
         result = bridge.write_tag_segment(element, "ASS_DISC_TXT", "M")
         assert result is True
 
