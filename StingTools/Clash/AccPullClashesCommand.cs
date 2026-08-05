@@ -1,4 +1,4 @@
-// AccPullClashesCommand.cs — ACC Model Coordination read + triage.
+﻿// AccPullClashesCommand.cs — ACC Model Coordination read + triage.
 //
 // Closes the "clash in ACC AND STING" loop confirmed for the Kampala Temple
 // engagement: ACC Model Coordination runs the federated clash (system of
@@ -194,7 +194,7 @@ namespace StingTools.Core.Clash
             string dir = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(dir))
                 dir = Path.GetDirectoryName(OutputLocationHelper.GetOutputPath(doc, "x.txt")) ?? Path.GetTempPath();
-            string accDir = Path.Combine(dir, "_BIM_COORD", "acc");
+            string accDir = StingPaths.MetaFile(doc, "_BIM_COORD", "acc");
             try { Directory.CreateDirectory(accDir); } catch { }
             return Path.Combine(accDir, "pushed_clashes.json");
         }

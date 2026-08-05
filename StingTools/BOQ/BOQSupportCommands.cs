@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQSupportCommands.cs — Phases 8-10 + UI dispatch targets.
 //  Houses the small command classes dispatched from the BOQ panel toolbar
 //  and the snapshot-comparison + reconciliation + import flows.

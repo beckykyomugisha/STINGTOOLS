@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager
+﻿// StingTools — Drawing Template Manager
 //
 // DrawingTypeEditorDialog is the Graitec-style corporate editor for
 // the registry: left-panel list of all Drawing Types with search,
@@ -3023,7 +3023,7 @@ namespace StingTools.UI
             }
             try
             {
-                var dir = Path.Combine(Path.GetDirectoryName(_doc.PathName), "_BIM_COORD");
+                var dir = StingPaths.Meta(_doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, "drawing_types.json");
 

@@ -393,6 +393,10 @@ namespace StingTools.Core.Symbols
                 return null;
             }
 
+            // A Generic Model stand-in carries the wrong category; correct it before any
+            // geometry, parameters or connectors are added.
+            ApplySubstituteCategory(fdoc, def, templateFile, result);
+
             // Warn when generating from draft geometry — a hand-drafted seed .rfa is preferred.
             if (string.Equals(def.Status, "draft", StringComparison.OrdinalIgnoreCase))
                 result.Warnings.Add($"[DRAFT] {def.Id}: using approximate JSON geometry. " +
@@ -2203,6 +2207,70 @@ namespace StingTools.Core.Symbols
         /// returning the first match. Returns null (never throws) when no template
         /// is found so the caller can skip that symbol gracefully.
         /// </summary>
+        /// <summary>
+        /// When a family was built from a Generic Model stand-in because its proper
+        /// template is absent, sets the category the symbol actually needs.
+        ///
+        /// <para>The accessory .rft files ship in Autodesk's MEP content pack, which is
+        /// an optional install — this machine has 1328 templates and not one
+        /// *Accessory*.rft. Autodesk's own guidance for that case is to start from the
+        /// generic-model template and change the category, and OwnerFamily.FamilyCategory
+        /// is settable inside a family document.</para>
+        ///
+        /// <para>Graceful degradation, not parity: a re-categorised Generic Model may
+        /// differ from a true accessory in work-plane basedness and in how it breaks into
+        /// a run. Connectors are unaffected — those are added explicitly either way. The
+        /// substitution is therefore warned about, not performed silently.</para>
+        /// </summary>
+        private static void ApplySubstituteCategory(Document fdoc, SymbolDefinition def,
+            string templateFile, SymbolCreationResult result)
+        {
+            try
+            {
+                if (fdoc == null || !fdoc.IsFamilyDocument || def == null) return;
+                if (!string.Equals(def.FamilyType, "MEPAccessory", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                // Only when the resolver actually fell through to a generic stand-in.
+                string tpl = Path.GetFileName(templateFile) ?? "";
+                if (tpl.IndexOf("Generic Model", StringComparison.OrdinalIgnoreCase) < 0) return;
+
+                bool isDuct = string.Equals(def.Discipline, "Mechanical", StringComparison.OrdinalIgnoreCase)
+                              && def.Connectors != null
+                              && def.Connectors.Any(c => string.Equals(c?.Domain, "HVAC", StringComparison.OrdinalIgnoreCase));
+                var target = isDuct ? BuiltInCategory.OST_DuctAccessory : BuiltInCategory.OST_PipeAccessory;
+
+                var cat = Category.GetCategory(fdoc, target);
+                if (cat == null)
+                {
+                    result.Warnings.Add($"{def.Id}: built from '{tpl}' but category {target} is " +
+                                        "unavailable in this document — left as Generic Model.");
+                    return;
+                }
+
+                using (var tx = new Transaction(fdoc, "STING Set substitute family category"))
+                {
+                    tx.Start();
+                    fdoc.OwnerFamily.FamilyCategory = cat;
+                    tx.Commit();
+                }
+
+                result.Warnings.Add($"{def.Id}: '{TrueAccessoryTemplate(isDuct)}' is not installed; " +
+                    $"built from '{tpl}' and re-categorised to {target}. Install the Autodesk MEP " +
+                    "content pack for a true accessory family.");
+            }
+            catch (Exception ex)
+            {
+                // Never fail the build over this — the family is still usable, just
+                // categorised as a Generic Model.
+                result.Warnings.Add($"{def.Id}: substitute category not applied — {ex.Message}");
+                StingLog.Warn($"ApplySubstituteCategory {def?.Id}: {ex.Message}");
+            }
+        }
+
+        private static string TrueAccessoryTemplate(bool isDuct)
+            => isDuct ? "Metric Duct Accessory.rft" : "Metric Pipe Accessory.rft";
+
         private static string ResolveTemplateFile(SymbolDefinition def, string folder, SymbolCreationResult result)
         {
             if (string.IsNullOrEmpty(folder))
@@ -2363,10 +2431,18 @@ namespace StingTools.Core.Symbols
             }
             if (string.Equals(ft, "MEPAccessory", StringComparison.OrdinalIgnoreCase))
             {
+                // The Generic Model tail matters: the accessory .rft files ship in the
+                // Autodesk MEP content pack, which is an optional install. Without it
+                // this branch resolved nothing and every MEPAccessory symbol failed —
+                // 42 of them — while the 838 others built, because every OTHER MEP
+                // branch already carried this same fallback. BuildOne restores the real
+                // category afterwards (see ApplySubstituteCategory).
                 if (string.Equals(disc, "Mechanical", StringComparison.OrdinalIgnoreCase)
                     && def.Connectors != null && def.Connectors.Any(c => string.Equals(c?.Domain, "HVAC", StringComparison.OrdinalIgnoreCase)))
-                    return new[] { "Metric Duct Accessory.rft", "Duct Accessory.rft" };
-                return new[] { "Metric Pipe Accessory.rft", "Pipe Accessory.rft" };
+                    return new[] { "Metric Duct Accessory.rft", "Duct Accessory.rft",
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
+                return new[] { "Metric Pipe Accessory.rft", "Pipe Accessory.rft",
+                               "Metric Generic Model.rft", "Generic Model.rft" };
             }
             if (string.Equals(ft, "MEPEquipment", StringComparison.OrdinalIgnoreCase))
             {

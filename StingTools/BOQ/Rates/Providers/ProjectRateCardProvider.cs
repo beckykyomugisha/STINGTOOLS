@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  ProjectRateCardProvider.cs — Project-specific rate card.
 //
 //  Reads <project>/_BIM_COORD/rate_card.json with the shape:
@@ -47,7 +47,7 @@ namespace StingTools.BOQ.Rates.Providers
                 string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
                 string parent = Path.GetDirectoryName(bimDir);
                 if (string.IsNullOrEmpty(parent)) return new ProjectRateCardProvider(map);
-                string path = Path.Combine(parent, "_BIM_COORD", "rate_card.json");
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", "rate_card.json");
                 if (!File.Exists(path)) return new ProjectRateCardProvider(map);
 
                 var entries = JsonConvert.DeserializeObject<List<RateCardEntry>>(

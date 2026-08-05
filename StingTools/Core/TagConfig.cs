@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -158,8 +158,30 @@ namespace StingTools.Core
         /// `ProjectFolderEngine.CreateFolderStructure(doc)` on every
         /// DocumentOpened event so the WIP / SHARED / PUBLISHED / ARCHIVE
         /// CDE folders exist before any export tries to write into them.
-        /// Idempotent — folders that already exist are skipped. Default true.</summary>
-        public static bool AutoCreateCdeFolders { get; internal set; } = true;
+        /// Idempotent — folders that already exist are skipped.
+        /// <para>
+        /// Default FALSE. It defaulted true so exports "never race a missing
+        /// directory", but every write path already creates its own directory
+        /// (GetFolderPath / GetMetaPath / GetDataPath / StingPaths.Cde all call
+        /// Directory.CreateDirectory), so the eager pass is redundant with the
+        /// lazy one. What it did cost was ~53 (CdeFirst) to ~60 (BIM) empty
+        /// directories materialised beside the model the moment it is opened —
+        /// 11_ISSUES/CVI, 12_CLASHES/Snapshots and the rest existing before the
+        /// project has a single issue. That is the most visible source of the
+        /// "STING creates a mess of folders" complaint, for no behaviour gained.
+        /// Set AUTO_CREATE_CDE_FOLDERS=true in project_config.json to pre-seed
+        /// the tree (e.g. so a coordinator can populate it by hand up front).
+        /// </para></summary>
+        public static bool AutoCreateCdeFolders { get; internal set; } = false;
+
+        /// <summary>When true (default), project folder display names carry a
+        /// `_&lt;PROJECT_CODE&gt;` suffix (01_WIP → 01_WIP_FIRESTONE) so a folder stays
+        /// identifiable once copied out of the root. Set FOLDER_CODE_SUFFIX=false in
+        /// project_config.json for shorter names — but only BEFORE a project's first
+        /// setup: the suffixed names are persisted in project_setup.json, so flipping it
+        /// mid-project makes new unsuffixed folders appear alongside the existing
+        /// suffixed ones. See <see cref="ProjectSetup.WithCodeSuffix"/>.</summary>
+        public static bool FolderCodeSuffix { get; internal set; } = true;
 
         /// <summary>Phase 165 (NEW-02): When true, ClashScheduler starts on
         /// DocumentOpened with the cadence from default_clash_matrix.json
@@ -814,6 +836,13 @@ namespace StingTools.Core
                 {
                     if (accfObj is bool b) AutoCreateCdeFolders = b;
                     else if (bool.TryParse(accfObj?.ToString(), out bool bp)) AutoCreateCdeFolders = bp;
+                }
+
+                FolderCodeSuffix = true;
+                if (data.TryGetValue("FOLDER_CODE_SUFFIX", out object fcsObj))
+                {
+                    if (fcsObj is bool fb) FolderCodeSuffix = fb;
+                    else if (bool.TryParse(fcsObj?.ToString(), out bool fbp)) FolderCodeSuffix = fbp;
                 }
 
                 // Streaming COBie batch size

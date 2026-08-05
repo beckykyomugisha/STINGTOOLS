@@ -14,7 +14,8 @@ namespace StingTools.Core
     /// Creates, maintains, and indexes a standardised directory tree linked
     /// to the Document Manager for browsing, deletion, renaming and drag-to-view.
     ///
-    /// Root: {ProjectDir}/STING_Project/ (or user-chosen path)
+    /// Root: {ProjectDir}/{ProjectCode}/ (or user-chosen path). "STING_Project" is a
+    /// LEGACY root name that MigrateFromLegacy drains — it is not what gets created.
     ///
     /// Folder tree:
     ///   01_WIP/               — Work in progress deliverables
@@ -37,6 +38,21 @@ namespace StingTools.Core
     ///   18_PHOTOS/            — Site photos and observations
     ///   19_CORRESPONDENCE/    — Letters, emails, meeting minutes
     ///   20_MISC/              — Uncategorised exports
+    ///   _data/                — ALL machine state; never a deliverable. Contains:
+    ///                             coord/            the one coordination bucket
+    ///                                               (_BIM_COORD / STING_BIM_MANAGER /
+    ///                                                _bim_manager / .bimmanager alias to it)
+    ///                             staging/&lt;channel&gt; transient outbound staging
+    ///                             recycle/          the single project recycle bin
+    ///                             folder_templates/ saved folder templates
+    ///                             project_setup.json
+    ///
+    /// Display names are suffixed with the project code (01_WIP → 01_WIP_&lt;CODE&gt;) unless
+    /// FOLDER_CODE_SUFFIX=false in project_config.json.
+    ///
+    /// Nothing outside this class may build these paths by hand — resolve through
+    /// StingPaths (see tools/check_path_discipline.ps1, which fails the build on new
+    /// hand-rolled sibling paths).
     /// </summary>
     public static class ProjectFolderEngine
     {
@@ -315,15 +331,43 @@ namespace StingTools.Core
 
         /// <summary>
         /// Resolve a metadata bucket path inside the consolidated <root>/_data/
-        /// folder. Replaces 47-site hardcoded sibling-of-RVT folders like
-        /// "_BIM_COORD" / "_bim_manager" / "STING_BIM_MANAGER" by nesting them
-        /// inside the project root, so the user only sees ONE folder per project.
+        /// folder. Replaces hardcoded sibling-of-RVT folders like "_BIM_COORD" /
+        /// "_bim_manager" / "STING_BIM_MANAGER" by nesting them inside the project root,
+        /// so the user only sees ONE folder per project.
+        /// <para>
+        /// The four coordination aliases now collapse onto a single <c>_data/coord</c>
+        /// directory. Existing projects are NOT restructured behind the user's back: if a
+        /// legacy bucket directory already exists under _data, it keeps being used, in
+        /// <see cref="CoordBucketAliases"/> order. Only projects with no such directory —
+        /// i.e. new ones — are born with the single folder. The consented
+        /// <see cref="MigrateFromLegacy"/> is what folds an existing project's buckets in.
+        /// </para>
         /// </summary>
         public static string GetMetaPath(Document doc, string bucket = null, params string[] subParts)
         {
             string data = GetDataPath(doc);
             if (string.IsNullOrEmpty(data)) return null;
-            string p = string.IsNullOrEmpty(bucket) ? data : Path.Combine(data, bucket);
+
+            string effective = bucket;
+            if (IsCoordBucket(bucket))
+            {
+                effective = CoordBucketName;
+                // Keep using a legacy bucket directory that already holds this project's
+                // data, so collapsing the names cannot orphan it.
+                try
+                {
+                    if (!Directory.Exists(Path.Combine(data, CoordBucketName)))
+                    {
+                        foreach (string alias in CoordBucketAliases)
+                        {
+                            if (Directory.Exists(Path.Combine(data, alias))) { effective = alias; break; }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"GetMetaPath alias probe: {ex.Message}"); }
+            }
+
+            string p = string.IsNullOrEmpty(effective) ? data : Path.Combine(data, effective);
             foreach (var part in subParts ?? Array.Empty<string>())
                 if (!string.IsNullOrEmpty(part)) p = Path.Combine(p, part);
             try { Directory.CreateDirectory(p); } catch (Exception ex) { StingLog.Warn($"GetMetaPath: {ex.Message}"); }
@@ -570,14 +614,14 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { rep.Warnings.Add($"Sidecar scan: {ex.Message}"); }
 
-                // 2. Move legacy metadata buckets into _data/<bucket>/ — preserves
-                //    subsystem code that hard-codes these names while tucking the
-                //    files inside the unified project root.
-                foreach (string legacyName in new[] { "_BIM_COORD", "_bim_manager", "STING_BIM_MANAGER" })
+                // 2. Move legacy metadata buckets into the single _data/coord/ bucket.
+                //    These four names all mean "coordination JSON"; keeping them apart
+                //    reproduced the sibling sprawl one level down, inside _data.
+                foreach (string legacyName in CoordBucketAliases)
                 {
                     string legacy = Path.Combine(projDir, legacyName);
                     if (!Directory.Exists(legacy)) continue;
-                    string bucket = Path.Combine(dataPath, legacyName);
+                    string bucket = Path.Combine(dataPath, CoordBucketName);
                     try
                     {
                         Directory.CreateDirectory(bucket);
@@ -601,16 +645,25 @@ namespace StingTools.Core
                     catch (Exception ex2) { rep.Warnings.Add($"Process {legacy}: {ex2.Message}"); }
                 }
 
-                // 2b. Hidden helper folder used by clash detection
+                // 2b. Fold any ALREADY-CONSOLIDATED alias bucket (_data/_BIM_COORD,
+                //     _data/STING_BIM_MANAGER, …) into the single _data/coord.
+                //     A project consolidated before the buckets were collapsed has these
+                //     sitting side by side under _data; without this they would stay
+                //     there forever, since GetMetaPath deliberately keeps using an
+                //     existing alias directory rather than orphaning it.
+                foreach (string alias in CoordBucketAliases)
                 {
-                    string hiddenLegacy = Path.Combine(projDir, ".bimmanager");
-                    if (Directory.Exists(hiddenLegacy))
+                    string aliasDir = Path.Combine(dataPath, alias);
+                    if (!Directory.Exists(aliasDir)) continue;
+                    string dest = Path.Combine(dataPath, CoordBucketName);
+                    if (string.Equals(Path.GetFullPath(aliasDir), Path.GetFullPath(dest),
+                                      StringComparison.OrdinalIgnoreCase)) continue;
+                    try
                     {
-                        string dest = Path.Combine(dataPath, ".bimmanager");
-                        try
+                        Directory.CreateDirectory(dest);
+                        foreach (string f in Directory.GetFiles(aliasDir, "*.*", SearchOption.AllDirectories))
                         {
-                            Directory.CreateDirectory(dest);
-                            foreach (string f in Directory.GetFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories))
+                            try
                             {
                                 try
                                 {
@@ -627,8 +680,9 @@ namespace StingTools.Core
                             try { if (!Directory.EnumerateFiles(hiddenLegacy, "*.*", SearchOption.AllDirectories).Any()) { Directory.Delete(hiddenLegacy, true); rep.FoldersRemoved++; } }
                             catch (Exception ex2) { rep.Warnings.Add($"Delete {hiddenLegacy}: {ex2.Message}"); }
                         }
-                        catch (Exception ex2) { rep.Warnings.Add($"Process {hiddenLegacy}: {ex2.Message}"); }
+                        RetireLegacyFolder(aliasDir, rep);
                     }
+                    catch (Exception ex2) { rep.Warnings.Add($"Process {aliasDir}: {ex2.Message}"); }
                 }
 
                 // 2c. Workflow run log written as a flat file alongside the .rvt

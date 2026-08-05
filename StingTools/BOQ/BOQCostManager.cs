@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQCostManager.cs — Phase 3 of the BOQ & Cost Manager.
 //  Central engine. Builds a BOQDocument from the Revit model, writes cost
 //  parameters back to elements and the ProjectInformation record, persists

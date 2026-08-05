@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager · Phase 168
+﻿// StingTools — Drawing Template Manager · Phase 168
 //
 // DrawingHealTitleBlocksCommand is the partial-sync sibling of
 // DrawingSyncStylesCommand. Where SyncStyles re-applies the entire
@@ -143,7 +143,7 @@ namespace StingTools.Commands.Drawing
             try
             {
                 string outDir = !string.IsNullOrEmpty(doc?.PathName)
-                    ? Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_BIM_COORD")
+                    ? StingPaths.Meta(doc, "_BIM_COORD")
                     : Path.Combine(Path.GetTempPath(), "STING");
                 Directory.CreateDirectory(outDir);
                 var path = Path.Combine(outDir, "titleblock_heal_audit.jsonl");

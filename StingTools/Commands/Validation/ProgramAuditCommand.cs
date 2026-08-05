@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -43,7 +43,7 @@ namespace StingTools.Commands.Validation
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string p = Path.Combine(dir, "_BIM_COORD", "program_audit_map.json");
+                    string p = StingPaths.MetaFile(doc, "_BIM_COORD", "program_audit_map.json");
                     if (File.Exists(p))
                     {
                         var overlay = JsonConvert.DeserializeObject<ProgramAuditMap>(File.ReadAllText(p));

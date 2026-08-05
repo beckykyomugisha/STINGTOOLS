@@ -1,4 +1,4 @@
-// StingTools — Classification Standard selector (Phase G).
+﻿// StingTools — Classification Standard selector (Phase G).
 //
 // Lets a project choose which classification standard is AUTHORITATIVE for the
 // BOQ / COBie / handover / IFC grouping cascade. Until now the fallback order was
@@ -45,7 +45,7 @@ namespace StingTools.Core.Classification
         {
             if (doc == null || string.IsNullOrEmpty(doc.PathName))
                 throw new InvalidOperationException("Save the project before setting its classification standard.");
-            string dir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_BIM_COORD");
+            string dir = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             string path = Path.Combine(dir, "sting_classification.json");
             var j = new JObject { ["standard"] = std.ToString(), ["_note"] = "STING classification standard (Phase G). Values: Uniclass | CSI | OmniClass | Native." };

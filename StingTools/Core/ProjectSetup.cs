@@ -62,7 +62,7 @@ namespace StingTools.Core
             "A_Architectural", "E_Electrical", "M_Mechanical", "P_Plumbing", "S_Structural"
         };
 
-        // ── BIM folder defaults (16 numbered folders) ──────────────────────
+        // ── BIM folder defaults (20 numbered folders) ──────────────────────
         // Display names get suffixed with the project code at setup time
         // (e.g. "01_WIP" → "01_WIP_FIRESTONE_LIBERIA"). This makes every
         // folder uniquely identifiable when copied or zipped out of the root.
@@ -104,11 +104,25 @@ namespace StingTools.Core
         /// Append `_<projectCode>` to a folder display name if not already suffixed.
         /// Idempotent: WithCodeSuffix("01_WIP", "FIRESTONE") → "01_WIP_FIRESTONE"
         /// but a second call returns the same string.
+        /// <para>
+        /// The suffix exists so a folder stays identifiable once copied or zipped out of
+        /// the root. It costs legibility everywhere else — it lengthens all ~20 folder
+        /// names in the very tree meant to look tidy, and FOLDER_INDEX.txt (written by
+        /// <c>WriteFolderIndex</c> at the root) already identifies the project.
+        /// </para>
+        /// <para>
+        /// Set FOLDER_CODE_SUFFIX=false in project_config.json to omit it. The default
+        /// stays TRUE deliberately: the suffixed names are baked into every existing
+        /// project's <c>project_setup.json</c>, and flipping the default would have those
+        /// projects start creating unsuffixed folders ALONGSIDE their suffixed ones —
+        /// more sprawl, not less. Set it before a project's first setup, not mid-project.
+        /// </para>
         /// </summary>
         public static string WithCodeSuffix(string folderName, string projectCode)
         {
             if (string.IsNullOrWhiteSpace(folderName)) return folderName;
             if (string.IsNullOrWhiteSpace(projectCode)) return folderName;
+            if (!TagConfig.FolderCodeSuffix) return folderName;
             string suffix = "_" + projectCode;
             if (folderName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) return folderName;
             return folderName + suffix;

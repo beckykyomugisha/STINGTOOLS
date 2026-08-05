@@ -1,4 +1,4 @@
-// DistributionGroups.cs — template engine v1.1 (S18).
+﻿// DistributionGroups.cs — template engine v1.1 (S18).
 //
 // Persistent distribution groups for transmittals and deliverable issues.
 // Stored in _BIM_COORD/distribution_groups.json; suggested per deliverable
@@ -99,7 +99,7 @@ namespace Planscape.Docs.Workflow
         private static string StorePath(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "distribution_groups.json");
         }

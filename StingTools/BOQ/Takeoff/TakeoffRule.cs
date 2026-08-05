@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  TakeoffRule.cs — Data-driven take-off rule model + registry.
 //
 //  Replaces the hard-coded if/switch chains in BOQCostManager.DeriveQuantity
@@ -243,7 +243,7 @@ namespace StingTools.BOQ.Takeoff
                 // one level and look for the canonical _BIM_COORD folder.
                 string parent = Path.GetDirectoryName(bimDir);
                 if (string.IsNullOrEmpty(parent)) return null;
-                string canonical = Path.Combine(parent, "_BIM_COORD", "takeoff_rules.json");
+                string canonical = StingPaths.MetaFile(doc, "_BIM_COORD", "takeoff_rules.json");
                 return canonical;
             }
             catch (Exception ex)

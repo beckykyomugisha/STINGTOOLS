@@ -3972,42 +3972,88 @@ namespace StingTools.UI
             return style;
         }
 
-        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        /// <summary>
+        /// Restore a file from the project recycle bin.
+        /// <para>
+        /// Reads the SAME bin that <see cref="ProjectFolderEngine.DeleteFile"/> writes:
+        /// &lt;root&gt;/_data/recycle/, via <see cref="StingPaths.Recycle"/>. It previously read
+        /// &lt;root&gt;/_RECYCLE — a folder nothing has written since the recycle bin moved under
+        /// _data — so Restore reported "Recycle bin is empty" however many files had been
+        /// deleted, and every soft-delete was unrecoverable through the UI. The legacy
+        /// location is still scanned so files recycled before that move can be restored.
+        /// </para>
+        /// </summary>
         private static void RestoreFromRecycle(Document doc)
         {
+            // Canonical bin first, then the legacy sibling for anything recycled before
+            // the bin moved under _data.
+            var bins = new List<string>();
+            try { bins.Add(StingPaths.Recycle(doc)); } catch (Exception ex) { StingLog.Warn($"Restore bin: {ex.Message}"); }
             string rootPath = ProjectFolderEngine.GetRootPath(doc);
-            string recyclePath = string.IsNullOrEmpty(rootPath) ? "" : Path.Combine(rootPath, "_RECYCLE");
-            if (!Directory.Exists(recyclePath) || Directory.GetFiles(recyclePath).Length == 0)
+            if (!string.IsNullOrEmpty(rootPath))
+                bins.Add(Path.Combine(rootPath, "_RECYCLE"));   // path-discipline: legacy-fallback -- pre-_data recycle bin
+
+            // Map display name -> full path so a pick from either bin resolves correctly.
+            var entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string bin in bins)
+            {
+                if (string.IsNullOrEmpty(bin) || !Directory.Exists(bin)) continue;
+                try
+                {
+                    foreach (string f in Directory.GetFiles(bin))
+                    {
+                        string name = Path.GetFileName(f);
+                        // Bookkeeping sidecar, not a recycled deliverable.
+                        if (string.Equals(name, "recycle_index.json", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!entries.ContainsKey(name)) entries[name] = f;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Restore scan {bin}: {ex.Message}"); }
+            }
+
+            if (entries.Count == 0)
             {
                 MessageBox.Show("Recycle bin is empty.", "STING Restore");
                 return;
             }
-            var files = Directory.GetFiles(recyclePath)
-                .Select(f => Path.GetFileName(f)).OrderByDescending(f => f).ToList();
-            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
-            if (string.IsNullOrEmpty(pick)) return;
 
-            string srcPath = Path.Combine(recyclePath, pick);
-            // Let user choose destination folder
-            var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}").ToList();
+            var files = entries.Keys.OrderByDescending(f => f).ToList();
+            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
+            if (string.IsNullOrEmpty(pick) || !entries.TryGetValue(pick, out string srcPath)) return;
+
+            // Default to the location the file was deleted from — DeleteFile records it in
+            // recycle_index.json, and RestoreFile also strips the yyyyMMdd_HHmmss_ prefix
+            // that the raw File.Move here used to leave baked into the restored filename.
+            const string OriginalChoice = "(original location)";
+            var folders = new List<string> { OriginalChoice };
+            folders.AddRange(ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}"));
             string destPick = StingListPicker.Show("Restore To", "Restore to which folder?", folders);
             if (string.IsNullOrEmpty(destPick)) return;
 
-            string folderId = destPick.Split(':')[0].Trim();
-            string destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
-            if (!string.IsNullOrEmpty(destDir))
+            string folderId = null;
+            string destDir = null;
+            if (!string.Equals(destPick, OriginalChoice, StringComparison.OrdinalIgnoreCase))
             {
-                try
-                {
-                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
-                    string destPath = Path.Combine(destDir, pick);
-                    File.Move(srcPath, destPath);
-                    ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {folderId}");
-                    MessageBox.Show($"Restored: {pick}\nTo: {folderId}", "STING Restore", MessageBoxButton.OK, MessageBoxImage.Information);
-                    RefreshData();
-                }
-                catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+                folderId = destPick.Split(':')[0].Trim();
+                destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
+                if (string.IsNullOrEmpty(destDir)) return;
             }
+
+            try
+            {
+                if (!ProjectFolderEngine.RestoreFile(srcPath, destDir))
+                {
+                    MessageBox.Show($"Could not restore {pick}.", "STING Restore",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                string where = folderId ?? "original location";
+                ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {where}");
+                MessageBox.Show($"Restored: {pick}\nTo: {where}", "STING Restore",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                RefreshData();
+            }
+            catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
         }
 
         // ── File operation implementations ──

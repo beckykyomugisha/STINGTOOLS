@@ -1,4 +1,4 @@
-// StingTools — SwapToManufacturerCommand.
+﻿// StingTools — SwapToManufacturerCommand.
 //
 // Bulk-swap STING seed-family instances to manufacturer-specific real
 // families. Reads STING_SEED_FAMILY_TXT off every selected instance,

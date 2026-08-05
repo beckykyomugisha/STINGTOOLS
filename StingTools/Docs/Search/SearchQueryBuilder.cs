@@ -1,4 +1,4 @@
-// SearchQueryBuilder.cs — template engine v1.1 (S17).
+﻿// SearchQueryBuilder.cs — template engine v1.1 (S17).
 //
 // Small fluent builder + saved-search persistence. Search queries are strings
 // passed to DocumentIndex.Search; the builder assembles facet constraints
@@ -95,7 +95,7 @@ namespace Planscape.Docs.Search
         private static string StorePath(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "saved_searches.json");
         }

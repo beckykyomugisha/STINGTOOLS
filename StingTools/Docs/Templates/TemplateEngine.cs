@@ -1,4 +1,4 @@
-// TemplateEngine.cs — template engine v1.1 (S08).
+﻿// TemplateEngine.cs — template engine v1.1 (S08).
 //
 // Façade callers interact with. Given a Revit Document it discovers the
 // project's _BIM_COORD/templates/ folder, loads the manifest, and dispatches
@@ -25,8 +25,8 @@ namespace Planscape.Docs.Templates
         {
             Document = doc;
             ProjectRoot = ResolveProjectRoot(doc);
-            TemplatesDir = Path.Combine(ProjectRoot, "_BIM_COORD", "templates");
-            GeneratedDir = Path.Combine(ProjectRoot, "_BIM_COORD", "generated");
+            TemplatesDir = StingPaths.MetaFile(doc, "_BIM_COORD", "templates");
+            GeneratedDir = StingPaths.MetaFile(doc, "_BIM_COORD", "generated");
             Directory.CreateDirectory(TemplatesDir);
             Directory.CreateDirectory(GeneratedDir);
 

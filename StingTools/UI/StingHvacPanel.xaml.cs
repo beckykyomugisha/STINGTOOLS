@@ -408,9 +408,13 @@ namespace StingTools.UI
             try
             {
                 if (string.IsNullOrEmpty(projectFolder)) return null;
-                string dir = System.IO.Path.Combine(projectFolder, "_BIM_COORD");
-                if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
-                string path = System.IO.Path.Combine(dir, "mep_sizing_rules.json");
+                // projectFolder is the folder holding the .rvt; a synthetic model path
+                // inside it is enough to reach the consolidated resolver.
+                string modelProbe = System.IO.Path.Combine(projectFolder, "_.rvt");
+                string path = StingTools.Core.StingPaths.MetaFileFrom(modelProbe, "_BIM_COORD", "mep_sizing_rules.json");
+                if (string.IsNullOrEmpty(path)) return null;
+                string dir = System.IO.Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
 
                 var existing = System.IO.File.Exists(path)
                     ? Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(path))

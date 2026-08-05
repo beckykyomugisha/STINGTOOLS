@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQCostManagerPanel.cs — Phase 5 of the BOQ & Cost Manager.
 //  WPF UserControl hosted inside the BIM Coordination Center 4D/5D tab.
 //  No XAML file — layout built in C# following the StingResultPanel pattern.

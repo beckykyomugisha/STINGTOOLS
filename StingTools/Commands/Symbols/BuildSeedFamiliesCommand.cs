@@ -1,4 +1,4 @@
-// StingTools — BuildSeedFamiliesCommand.
+﻿// StingTools — BuildSeedFamiliesCommand.
 //
 // Scaffolds the STING seed-family library from JSON specs in
 // Data/Seeds/. For each spec, calls SymbolLibraryCreator to:
@@ -371,7 +371,7 @@ namespace StingTools.Commands.Symbols
             catch (Exception ex) { StingLog.Warn($"ResolveSeedOutputFolder: {ex.Message}"); }
             if (string.IsNullOrEmpty(baseDir))
                 baseDir = Path.Combine(Path.GetTempPath(), "STING_Seeds");
-            return Path.Combine(baseDir, "_BIM_COORD", "Families", "Seeds");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "Families", "Seeds");
         }
 
         /// <summary>

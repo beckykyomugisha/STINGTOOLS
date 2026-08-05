@@ -13,11 +13,19 @@
       hand-built path to one of them reads or writes the OLD location, so a writer here
       silently forks a store away from its readers. Allowed count: 0. No baseline.
 
-    TIER 2 -- HAND-ROLLED "_BIM_COORD" CONSTRUCTIONS (ratcheted).
-      Path.Combine(..., "_BIM_COORD", ...) written out by hand rather than obtained from
-      StingPaths.Meta / CoordStores. These are layout-coupled but mostly land in the right
-      place today, so they are ratcheted against tools/path_discipline_baseline.txt rather
-      than banned outright: the count may fall, never rise.
+    TIER 2 -- RAW-DIRECTORY "_BIM_COORD" CONSTRUCTIONS (ratcheted burn-down).
+      Path.Combine(..., "_BIM_COORD", ...) whose BASE argument is a raw directory rather
+      than a resolver result. These write <rvtDir>/_BIM_COORD -- the PRE-consolidation
+      sibling -- so each one re-creates the folder MigrateFromLegacy just retired, and
+      forks the store away from the consolidated <root>/_data/_BIM_COORD that readers
+      fall back from. Ratcheted against tools/path_discipline_baseline.txt: the count may
+      fall, never rise. The target is 0; the baseline is a burn-down, not an accepted state.
+
+      A combine whose base IS a resolver (StingPaths.Meta / GetMetaPath / GetDataPath /
+      GetRootPath) lands under _data and is CORRECT -- those are counted and reported
+      separately, never baselined. Tier 2 previously counted both together and described
+      them as "mostly land in the right place", which reported OK while 124 of 140 sites
+      were writing the sibling. Both tiers now share one $resolverBase discriminator.
 
     WHY THIS WAS REWRITTEN
       The previous gate reported a clean ZERO baseline while ~10 legacy-bucket sites and
@@ -91,7 +99,7 @@ $legacyPattern = 'Path\.Combine\(.*"(STING_BIM_MANAGER|_bim_manager)"'
 
 # Bases that already resolve through the layout owner -- combining a bucket name onto
 # one of these is the CORRECT idiom, not residue.
-$resolverBase = '(GetMetaPath|GetDataPath|GetProjectDataDir|GetRootPath)\s*\('
+$resolverBase = '(StingPaths\.(Meta|Data|Cde|Staging|Recycle|Export|ExportFile)|GetMetaPath|GetDataPath|GetProjectDataDir|GetRootPath|GetFolderPath|GetExportFolder|GetStagingPath|GetRecyclePath)\s*\('
 
 # Explicit per-line opt-out for the genuinely-legitimate cases: a read fallback that
 # must look at the OLD location to find pre-consolidation data, or a last-resort
@@ -107,6 +115,7 @@ $siblingPattern = 'Path\.Combine\(.*"_BIM_COORD"'
 
 $legacyHits = @{}
 $siblingHits = @{}
+$resolvedHits = @{}
 
 Get-ChildItem -Path $srcRoot -Recurse -Filter *.cs |
     Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } |
@@ -128,10 +137,23 @@ Get-ChildItem -Path $srcRoot -Recurse -Filter *.cs |
             ForEach-Object { $legacyN += $_.Matches.Count }
         if ($legacyN -gt 0) { $legacyHits[$rel] = [int]$legacyN }
 
+        # Tier 2 applies the SAME base discriminator as Tier 1. A bucket name combined
+        # onto a resolver result lands under _data and is correct; only a combine whose
+        # base is a raw directory writes the pre-consolidation sibling. Counting both as
+        # one number was what let the gate report OK with the fork live.
         $sibN = 0
-        Select-String -Path $_.FullName -Pattern $siblingPattern -AllMatches |
-            ForEach-Object { $sibN += $_.Matches.Count }
+        $okN = 0
+        Select-String -Path $_.FullName -Pattern $siblingPattern -AllMatches -Context 3,0 |
+            ForEach-Object {
+                $ctx = ($_.Context.PreContext -join "`n") + "`n" + $_.Line
+                if ($_.Line -match $resolverBase -or $ctx -match $allowMarker) {
+                    $okN += $_.Matches.Count
+                } else {
+                    $sibN += $_.Matches.Count
+                }
+            }
         if ($sibN -gt 0) { $siblingHits[$rel] = [int]$sibN }
+        if ($okN -gt 0) { $resolvedHits[$rel] = [int]$okN }
     }
 
 if ($UpdateBaseline) {
@@ -195,7 +217,16 @@ if ($failed) { exit 1 }
 
 $sibTotal = ($siblingHits.Values | Measure-Object -Sum).Sum
 if ($null -eq $sibTotal) { $sibTotal = 0 }
+$okTotal = ($resolvedHits.Values | Measure-Object -Sum).Sum
+if ($null -eq $okTotal) { $okTotal = 0 }
 Write-Host "Path-discipline OK."
-Write-Host "  Tier 1 legacy bucket names outside resolvers : 0"
-Write-Host "  Tier 2 hand-rolled _BIM_COORD sites          : $sibTotal across $($siblingHits.Count) file(s), all within baseline"
+Write-Host "  Tier 1 legacy bucket names outside resolvers   : 0"
+Write-Host "  Tier 2 raw-dir _BIM_COORD sites (must reach 0) : $sibTotal across $($siblingHits.Count) file(s), all within baseline"
+Write-Host "  _BIM_COORD sites resolving correctly           : $okTotal"
+if ($sibTotal -gt 0) {
+    Write-Host ""
+    Write-Host "Note: the $sibTotal raw-dir site(s) write <rvtDir>/_BIM_COORD -- the PRE-consolidation"
+    Write-Host "sibling -- not <root>/_data/_BIM_COORD. Each one re-creates the folder a consolidation"
+    Write-Host "just retired. The baseline is a burn-down, not an accepted state."
+}
 exit 0

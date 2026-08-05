@@ -1,4 +1,4 @@
-// StingTools — EDGE export + LCC benefit commands (Phase 195, spec §11).
+﻿// StingTools — EDGE export + LCC benefit commands (Phase 195, spec §11).
 //
 //   Sustain_EdgeExport  ClosedXML workbook of model quantities + selections for
 //                       upload to the official EDGE app (EDGE owns the certified
@@ -327,7 +327,7 @@ namespace StingTools.Commands.Sustainability
             try
             {
                 string dir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
-                string path = string.IsNullOrEmpty(dir) ? null : System.IO.Path.Combine(dir, "_BIM_COORD", "boq_epd_map.json");
+                string path = string.IsNullOrEmpty(dir) ? null : StingPaths.MetaFile(doc, "_BIM_COORD", "boq_epd_map.json");
                 if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
                 {
                     var map = Newtonsoft.Json.JsonConvert.DeserializeObject<BoqEpdMap>(System.IO.File.ReadAllText(path));
