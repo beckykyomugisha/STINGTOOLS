@@ -7609,14 +7609,21 @@
       let alive = true;
       async function ping() {
         try {
-          const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
-          // ANY http response means the API answered us, which is all this
-          // pill claims. /health is deliberately locked down in production
-          // (private-range client IP + X-Health-Token, Program.cs), so a
-          // browser ALWAYS gets 403 — `res.ok` left the pill stuck on
-          // "Offline" against a perfectly healthy server, and spammed a 403
-          // into the console every 15 seconds. Only a network-level failure
-          // (the catch below) actually means offline.
+          // /health/live, NOT /health.
+          //
+          // /health is deliberately locked down in production — it needs a
+          // private-range client IP AND a matching X-Health-Token header
+          // (Program.cs:1409-1418). A browser satisfies neither, so it got a
+          // 403 every single time. The previous code worked around that by
+          // treating any HTTP response as "reachable", which kept the pill
+          // honest but still put a failed request in the console every 15s —
+          // ~240 an hour, burying real errors.
+          //
+          // /health/live is AllowAnonymous, returns 200 with no DB hit
+          // (Program.cs:1375), and exists for exactly this kind of ping.
+          const res = await fetch(`${apiBase}/health/live`, { method: 'GET', cache: 'no-store' });
+          // Any HTTP response still means the API answered, which is all this
+          // pill claims; only a network-level failure (catch) means offline.
           setOnline(true);
           alive = true;
         } catch (_) {
