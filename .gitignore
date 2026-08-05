@@ -49,12 +49,13 @@ build_output.txt
 # and gets COPIED here during build — the source is what we ship.
 CompiledPlugin/
 
-# Pre-redeploy backups of the above (CompiledPlugin.bak-<sha|label>/). Same
-# disposable build output, but `CompiledPlugin/` does not match them, so each
-# one shows up as ~18 MB of untracked DLL waiting to be committed by accident.
-# PR #501 covers the sibling `CompiledPlugin_backup_*` naming; this covers the
-# `.bak-` form the deploy steps actually produce.
+# Pre-redeploy backups of the above. Two naming conventions exist in the wild and
+# neither is matched by `CompiledPlugin/`, so each backup shows up as untracked
+# build output waiting to be committed by accident:
+#   CompiledPlugin.bak-<sha|label>/        — what the deploy steps produce
+#   CompiledPlugin_backup_YYYYMMDD_HHMMSS/ — what a manual pre-deploy copy produces
 CompiledPlugin.bak-*/
+CompiledPlugin_backup_*/
 
 # Claude Code session worktrees + local settings.
 .claude/worktrees/
