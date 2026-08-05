@@ -6,6 +6,12 @@ import json
 
 import bpy
 
+# Phase A3/A6 — IFC→token inference and the zone group walk live in
+# stingtools_core.hosts.inference (the shared core), NOT here. This module is a
+# thin Blender adapter that calls core; the boundary lint (Phase A6) enforces
+# that no inference logic is (re)defined in adapter files like this one.
+from stingtools_core.hosts import inference as _inf
+
 
 def _get_ifc():
     try:
@@ -110,29 +116,14 @@ class StingAutoDetectZoneOperator(bpy.types.Operator):
             return {"CANCELLED"}
 
         try:
-            import ifcopenshell.util.element as ifc_util
+            import ifcopenshell  # noqa: F401 — availability guard
         except ImportError as exc:
             self.report({"ERROR"}, f"ifcopenshell unavailable: {exc}")
             return {"CANCELLED"}
 
-        # Enumerate zones and assign codes
-        zones = ifc.by_type("IfcZone")
-        zone_code: dict[int, str] = {}
-        for idx, zone in enumerate(zones, start=1):
-            zone_code[zone.id()] = f"Z{idx:02d}"
-
-        # Map elements → zone via IfcRelAssignsToGroup
-        element_to_zone: dict[int, str] = {}
-        for rel in ifc.by_type("IfcRelAssignsToGroup"):
-            group = rel.RelatingGroup
-            if not group.is_a("IfcZone"):
-                continue
-            code = zone_code.get(group.id())
-            if code is None:
-                continue
-            for obj in (rel.RelatedObjects or []):
-                if obj.is_a("IfcElement"):
-                    element_to_zone[obj.id()] = code
+        # Zone membership (the IfcZone group walk) is core inference — delegate
+        # so that logic lives in stingtools_core, not this adapter (Phase A6).
+        element_to_zone, zone_count = _inf.zone_codes_for_model(ifc)
 
         stamped = 0
         for el in ifc.by_type("IfcElement"):
@@ -140,49 +131,13 @@ class StingAutoDetectZoneOperator(bpy.types.Operator):
             _write_stag(ifc, el, {"Zone": code})
             stamped += 1
 
-        self.report({"INFO"}, f"Zone stamped on {stamped} element(s) ({len(zones)} zone(s) found)")
+        self.report({"INFO"}, f"Zone stamped on {stamped} element(s) ({zone_count} zone(s) found)")
         return {"FINISHED"}
 
 
 # ---------------------------------------------------------------------------
 # Auto-detect Function
 # ---------------------------------------------------------------------------
-
-# IFC class prefix → STING Function code mapping
-_CLASS_TO_FUNC: dict[str, str] = {
-    "IfcAirTerminal":            "SUP",
-    "IfcAirTerminalBox":         "SUP",
-    "IfcFan":                    "SUP",
-    "IfcDuctSegment":            "SUP",
-    "IfcDuctFitting":            "SUP",
-    "IfcDuctSilencer":           "SUP",
-    "IfcFilter":                 "RET",
-    "IfcSanitaryTerminal":       "SAN",
-    "IfcSanitaryTerminalType":   "SAN",
-    "IfcFlowTerminal":           "SAN",
-    "IfcPipeSegment":            "SUP",
-    "IfcPipeFitting":            "SUP",
-    "IfcValve":                  "SUP",
-    "IfcPump":                   "SUP",
-    "IfcElectricDistributionBoard": "PWR",
-    "IfcElectricMotor":          "PWR",
-    "IfcLamp":                   "LTG",
-    "IfcLightFixture":           "LTG",
-    "IfcOutlet":                 "PWR",
-    "IfcCableCarrierSegment":    "PWR",
-    "IfcCableSegment":           "PWR",
-    "IfcProtectiveDevice":       "PWR",
-    "IfcSwitchingDevice":        "PWR",
-    "IfcFireSuppressionTerminal": "FP",
-    "IfcAlarm":                  "FP",
-    "IfcSensor":                 "FP",
-    "IfcBoiler":                 "HTG",
-    "IfcChiller":                "CLG",
-    "IfcCoolingTower":           "CLG",
-    "IfcHeatExchanger":          "HTG",
-    "IfcUnitaryEquipment":       "SUP",
-}
-
 
 class StingAutoDetectFunctionOperator(bpy.types.Operator):
     """Derive Function token from IFC element class."""
@@ -211,7 +166,7 @@ class StingAutoDetectFunctionOperator(bpy.types.Operator):
         stamped = unrecognised = 0
         for el in ifc.by_type("IfcElement"):
             ifc_class = el.is_a()
-            func = _CLASS_TO_FUNC.get(ifc_class, "GEN")
+            func = _inf.function_for_class(ifc_class)
             if func == "GEN":
                 unrecognised += 1
             _write_stag(ifc, el, {"Function": func})
@@ -220,7 +175,8 @@ class StingAutoDetectFunctionOperator(bpy.types.Operator):
         self.report(
             {"INFO"},
             f"Function stamped on {stamped} element(s) "
-            f"({unrecognised} mapped to GEN — add to _CLASS_TO_FUNC to refine)",
+            f"({unrecognised} mapped to GEN — add to stingtools_core "
+            f"FUNCTION_BY_IFC_CLASS to refine)",
         )
         return {"FINISHED"}
 
