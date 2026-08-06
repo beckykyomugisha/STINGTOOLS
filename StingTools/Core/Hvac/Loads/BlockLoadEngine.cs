@@ -88,11 +88,19 @@ namespace StingTools.Core.Hvac.Loads
             double rho = climate.AirDensityCoolingKgM3();
             if (rho <= 0) rho = AirRhoKgM3;
 
+            // Tier-2 2.4 — design-day load constants (DOY, daily range, diffuse
+            // fraction, infiltration Cp) resolved from the load-assumptions
+            // registry (corporate baseline + project override). Defaults equal
+            // the engine's prior hardcoded literals, so a doc with no override
+            // computes an identical load. docHint==null (e.g. RTS benchmark)
+            // resolves the corporate/default set.
+            var assumptions = LoadAssumptionsRegistry.Get(docHint);
+
             // 1. Per-zone hourly profiles
             var zoneResults = new List<ZoneLoadResult>();
             foreach (var z in zones)
             {
-                var r = ComputeZoneHourly(z, climate, rho, cooling, rts, docHint);
+                var r = ComputeZoneHourly(z, climate, rho, cooling, rts, docHint, assumptions);
                 zoneResults.Add(r);
             }
 
@@ -140,8 +148,10 @@ namespace StingTools.Core.Hvac.Loads
 
         private static ZoneLoadResult ComputeZoneHourly(LoadZone z, ClimateSite c, double rho, bool cooling,
             RtsConstructionClass rts = RtsConstructionClass.Reactive,
-            Autodesk.Revit.DB.Document docHint = null)
+            Autodesk.Revit.DB.Document docHint = null,
+            LoadAssumptions assumptions = null)
         {
+            assumptions ??= new LoadAssumptions();
             double tSet  = cooling ? z.CoolingSetpointC : z.HeatingSetpointC;
             double tPeak = cooling ? c.Cooling996DbC    : c.Heating996DbC;
             double wRoom = HumidityRatio(tSet, 50);                             // assume 50% RH at setpoint
@@ -197,7 +207,8 @@ namespace StingTools.Core.Hvac.Loads
                         : 0);
                 infLs = (envM2 > 0)
                     ? CibseInfiltrationLs(z.Q4PaM3PerHperM2, envM2, z.HeightM,
-                                          tSet, tPeak, c.DesignWindMs)
+                                          tSet, tPeak, c.DesignWindMs,
+                                          assumptions.InfiltrationWindwardCp)
                     : z.InfiltrationAch * z.VolumeM3 * 1000.0 / 3600.0;
             }
             else
@@ -207,7 +218,8 @@ namespace StingTools.Core.Hvac.Loads
             double mdotOa = (oaLs + infLs) * 1e-3 * rho;                          // kg/s
 
             // ASHRAE design days: cooling = July 21 (DOY 202), heating = January 21 (DOY 21).
-            int designDoy = cooling ? 202 : 21;
+            // Tier-2 2.4 — sourced from the load-assumptions registry (defaults 202/21).
+            int designDoy = cooling ? assumptions.CoolingDesignDoy : assumptions.HeatingDesignDoy;
 
             // Phase 187g — local clock → solar time conversion.
             // Two corrections layered onto the local hour:
@@ -232,9 +244,9 @@ namespace StingTools.Core.Hvac.Loads
                 while (solarH < 0)  solarH += 24;
                 while (solarH >= 24) solarH -= 24;
 
-                double tOut  = OutdoorTempC(tPeak, h, cooling);
+                double tOut  = OutdoorTempC(tPeak, h, cooling, assumptions.OutdoorDailyRangeK);
                 double iSol  = cooling ? ClearSkyDirectNormalWm2(c, solarH, designDoy) : 0;     // ignore solar for heating peak (night)
-                double iDiff = cooling ? 0.15 * iSol : 0;
+                double iDiff = cooling ? assumptions.DiffuseFraction * iSol : 0;
 
                 // 1. Conduction + solar by envelope segment, binned per
                 //    orientation (45° increments, 0 = North).
@@ -396,13 +408,17 @@ namespace StingTools.Core.Hvac.Loads
 
         /// <summary>
         /// Sinusoidal outdoor temperature over 24 h. CIBSE Guide A 2.4:
-        /// daily range = 8 K, peak at hour 15. For heating, returns a
+        /// daily range = 8 K default, peak at hour 15. For heating, returns a
         /// flat value (heating design is the cold steady state).
+        ///
+        /// <para>Tier-2 2.4 — <paramref name="dailyRangeK"/> defaults to 8 K so
+        /// existing callers are unchanged; the block-load path passes the
+        /// project-tunable value from the load-assumptions registry.</para>
         /// </summary>
-        public static double OutdoorTempC(double designC, int hour, bool cooling)
+        public static double OutdoorTempC(double designC, int hour, bool cooling, double dailyRangeK = 8.0)
         {
             if (!cooling) return designC;
-            const double range = 8.0;
+            double range = dailyRangeK;
             // peak at h=15, min at h=3 (range/2 each way)
             double phase = (hour - 15.0) / 24.0 * 2 * Math.PI;
             return designC - 0.5 * range * (1 - Math.Cos(phase));
@@ -565,14 +581,18 @@ namespace StingTools.Core.Hvac.Loads
         /// Wind pressure :  ΔP_wind  = 0.5·Cp·ρ·v²       (Cp ≈ 0.6 windward)
         /// Combined      :  ΔP       = √(ΔP_stack² + ΔP_wind²)
         /// Leakage law   :  Q = Q4Pa · A · (ΔP / 4)^n    (n = 0.65 typical)
+        ///
+        /// <para>Tier-2 2.4 — <paramref name="windwardCp"/> defaults to 0.6 so
+        /// existing callers are unchanged; the block-load path passes the
+        /// project-tunable value from the load-assumptions registry.</para>
         /// </summary>
         public static double CibseInfiltrationLs(
             double q4PaM3PerHperM2, double envAreaM2, double heightM,
-            double tIn, double tOut, double windMs)
+            double tIn, double tOut, double windMs, double windwardCp = 0.6)
         {
             const double rho = 1.20;
             const double g   = 9.81;
-            const double cp  = 0.6;             // windward wall pressure coefficient
+            double cp        = windwardCp;     // windward wall pressure coefficient
             const double n   = 0.65;            // leakage exponent
             double tInK  = tIn + 273.15;
             double dpStack = Math.Abs(rho * g * heightM * (tIn - tOut) / Math.Max(tInK, 1e-3));

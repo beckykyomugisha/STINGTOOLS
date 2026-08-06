@@ -70,12 +70,24 @@ namespace StingTools.UI
                     return;
                 }
                 var statusFilter = (statusCb.SelectedItem as ComboBoxItem)?.Tag as string;
+                // null = the load FAILED; an empty list = there are genuinely no
+                // checklists. Rendering the friendly empty-state over a failed
+                // request would be invented data.
                 List<PhotoChecklistDto> rows;
                 try { rows = await PlanscapeServerClient.Instance.ListPhotoChecklistsAsync(state.ProjectId, statusFilter); }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"ChecklistsSubTab.Load: {ex.Message}");
-                    listPanel.Children.Add(new TextBlock { Text = "Load failed.", Foreground = Brushes.Crimson, Margin = new Thickness(8) });
+                    status.Text = "load failed";
+                    listPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure("Could not load checklists.", ex.Message));
+                    return;
+                }
+                if (rows == null)
+                {
+                    status.Text = "load failed";
+                    listPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                        "Could not load checklists.",
+                        PlanscapeServerClient.Instance.LastError));
                     return;
                 }
                 status.Text = $"{rows.Count} checklist{(rows.Count == 1 ? "" : "s")}";

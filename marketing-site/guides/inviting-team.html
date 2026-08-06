@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inviting your team — Planscape</title>
+<meta name="description" content="Roles, permissions, external clients, removing users. Set up your team in 5 minutes.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/guides/inviting-team.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Inviting your team</div>
+  <h1>Inviting your team</h1>
+  <div class="meta">📖 6-minute read · Beginner · Last updated 2026-05-23</div>
+
+  <p>Planscape uses two levels of access: tenant-level (your whole firm) and project-level (per-project membership). Users can belong to your tenant but only have access to specific projects. External users — clients and contractors from other firms — can be added to a project without being part of your tenant.</p>
+
+  <h2>The role model in 60 seconds</h2>
+  <table>
+    <thead><tr><th>Role</th><th>Scope</th><th>What they can do</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Owner</strong></td><td>Tenant</td><td>Everything, including billing &amp; tenant settings</td></tr>
+      <tr><td><strong>Admin</strong></td><td>Tenant</td><td>Everything except billing</td></tr>
+      <tr><td><strong>BIM Manager</strong></td><td>Tenant</td><td>Create projects, manage standards, manage all projects they're added to</td></tr>
+      <tr><td><strong>Project Lead</strong></td><td>Project</td><td>Manage deliverables, approve transmittals, assign issues</td></tr>
+      <tr><td><strong>Coordinator</strong></td><td>Project</td><td>Raise issues, capture site data, edit (but not approve) deliverables</td></tr>
+      <tr><td><strong>Viewer</strong></td><td>Project</td><td>Read-only access to project data</td></tr>
+      <tr><td><strong>Client</strong></td><td>Project (external)</td><td>Read-only on Published documents; comment on transmittals</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Step 1 — Invite tenant users</h2>
+  <p>Tenant Dashboard &rsaquo; Team &rsaquo; <strong>+ Invite user</strong>.</p>
+  <p>For each user enter:</p>
+  <ul>
+    <li><strong>Email</strong> — they'll get an invite link with a 7-day expiry.</li>
+    <li><strong>Tenant role</strong> — Admin / BIM Manager / Member.</li>
+    <li><strong>Projects to add to</strong> — optional. You can add them to projects later.</li>
+  </ul>
+  <div class="callout">
+    <strong>Heads up:</strong> Inviting a tenant user counts against your plan's user cap immediately, even before they accept the invite. If you hit the cap, an upgrade prompt appears. Cancel pending invites to free up a slot.
+  </div>
+
+  <h2>Step 2 — Add users to a project</h2>
+  <p>Open the project &rsaquo; Team tab &rsaquo; <strong>+ Add member</strong>.</p>
+  <p>Two paths:</p>
+  <h3>Internal user (already in your tenant)</h3>
+  <p>Pick from a dropdown. Assign a project role (Project Lead / Coordinator / Viewer). They get an in-app notification, no invite email needed.</p>
+  <h3>External user (different firm or no Planscape account)</h3>
+  <p>Type their email. Pick Viewer or Client role. They'll get an invite to create a free external account — they don't count against your user cap and they don't get access to anything else in your tenant.</p>
+
+  <h2>Common permission scenarios</h2>
+
+  <h3>"Our MEP sub-consultants need to mark up issues on a shared model"</h3>
+  <p>Add them as <strong>External &rsaquo; Coordinator</strong>. They can raise and update issues but can't change project settings, approve deliverables, or see other projects in your tenant.</p>
+
+  <h3>"The client wants visibility on transmittals only"</h3>
+  <p>Add them as <strong>External &rsaquo; Client</strong>. They see Published documents and can comment on transmittals routed to them. They don't see WIP work or internal RFIs.</p>
+
+  <h3>"The contractor wants their site team on the mobile app"</h3>
+  <p>Add each site coordinator as <strong>External &rsaquo; Coordinator</strong>. They get full mobile-app access to that project — issues, photos, voice notes, QR-scan — without seeing your other projects.</p>
+
+  <h3>"A BIM consultant needs to set up project standards"</h3>
+  <p>Add them as <strong>External &rsaquo; Project Lead</strong>. They can manage the BEP, naming conventions, and view templates on that one project. They can't see anything else in your tenant.</p>
+
+  <h2>Changing someone's role</h2>
+  <p>Project Team tab → click the role badge next to their name → pick the new role. Changes are immediate; the affected user sees a brief banner next time they refresh.</p>
+  <p>To promote/demote at the tenant level (e.g. make someone an Admin), use the Tenant Dashboard Team tab instead.</p>
+
+  <h2>Removing a user</h2>
+
+  <h3>From a project</h3>
+  <p>Project Team tab → row context menu → <strong>Remove from project</strong>. Their access ends immediately. Their past contributions (issues raised, photos uploaded, comments) remain, attributed to them.</p>
+
+  <h3>From the tenant</h3>
+  <p>Tenant Dashboard Team tab → row context menu → <strong>Deactivate</strong>. The user is signed out of all sessions, their projects lose them, and their seat frees up. You can reactivate within 90 days — after that, the account is permanently removed.</p>
+  <div class="callout warn">
+    <strong>Don't delete the original Owner.</strong> Every tenant needs at least one Owner. If you want to leave, transfer ownership first (Settings → Transfer ownership).
+  </div>
+
+  <h2>Single sign-on (SSO)</h2>
+  <p>On the Large + Enterprise plans you can require SSO for all tenant users. Configure once in Settings → Security → SSO, choose your IdP (Azure AD / Google Workspace / Okta), map IdP groups to Planscape roles, and switch on enforcement. External users (Clients, Contractors) keep using email/password login since their identity sits in your tenant boundary.</p>
+  <p>See <a href="/guides/sso.html">Setting up SSO</a> for the per-IdP walk-through.</p>
+
+  <h2>Audit trail</h2>
+  <p>Every invite, role change, and removal is logged in the tenant audit log with the actor, target, and timestamp. Tenant Dashboard → Audit log to view; export to CSV from there.</p>
+
+  <div class="next-prev">
+    <a href="/guides/mobile-onboarding.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Mobile app onboarding
+    </a>
+    <a href="/guides/creating-first-project.html" class="next">
+      <span class="lbl">Next →</span>
+      Creating your first project
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

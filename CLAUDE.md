@@ -1880,7 +1880,7 @@ Sibling dockable panel to `StingElectricalPanel` and `StingPlumbingPanel` — sa
 | DUCT | Duct types + per-region standard-size table + gauge/seam breakpoints + insulation + fab defaults | `CreateDuctsCommand`, `ModelCreateDuctCommand`, `AutoDropCommand`, `GenerateLayoutCommand`, `DuctSeamAuditCommand`, `PlaceHangersCommand`, `ValidateFillsCommand` |
 | LOADS | Spaces × envelope × internal gains × ventilation × computed loads; engine + code pickers | TaskDialog stubs for `Hvac_RunLoads` / `Hvac_ExportGbxml` (Phase 181 Loads + gbXML wizard target); `MEPSpaceAnalysisCommand`, `VentilationCommand` |
 | FAB | Spool grid + Assembly / Hangers / Outputs expanders | `Fabrication_OpenWorkspace`, `ExportCutListCommand`, `ExportIsometricsCommand`, `ExportWeldMapCommand`, `HangerTakedownCommand`, `FlangeRatingCommand`, `SpoolWeightCommand`, `ExportNCCommand` |
-| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync` |
+| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync`, `Hvac_FanStaticReport` (index-run fan external static) |
 
 ### Header context strip
 
@@ -1911,7 +1911,7 @@ Edit either JSON in a text editor and click **RPRT → Reload rules** to pick up
 ### Caveats
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
-2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection (rather than the project-wide `branch` / `chw` defaults) is still pending — the data path is in place.
+2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection is **shipped**: `Core/Mep/HvacSegmentRoleDetector.cs` (Phase 182 — connector-graph walk classifying each duct as main / branch / runout, cached to `HVC_SEGMENT_ROLE_TXT`) and `Core/Mep/PipeServiceDetector.cs` (Phase 183 — `MEPSystem` abbreviation match against `STING_MEP_SERVICE_MAP.json`) replace the old project-wide `branch` / `chw` defaults and are used per-element in the auto-size pass (`DuctSizingApplyEngine.DetectRoles` → `HvacSegmentRoleDetector.DetectRolesBatch`). The old project-wide defaults survive only as fail-soft fallbacks when the connector graph is disconnected or the system carries no abbreviation.
 3. `Hvac_RunLoads` (`Commands/Hvac/HvacRunLoadsCommand`) posts `PostableCommand.AnalyzeHeatingAndCoolingLoads` after an MEP-Spaces pre-flight. `Hvac_ExportGbxml` (`Commands/Hvac/HvacExportGbxmlCommand`) calls `Document.Export` with `GBXMLExportOptions` after a 3D-view check. Both are real, no TaskDialog stubs.
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — commands push rows back into the panel singleton (`StingHvacPanel.Instance`) on completion (same pattern `StingElectricalPanel` uses).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` is stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
@@ -2454,10 +2454,37 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 
 ### Deployment
 
-1. Build to produce `StingTools.dll`
-2. Copy `StingTools.addin` to `C:\ProgramData\Autodesk\Revit\Addins\2025\` (machine) or `%APPDATA%\Autodesk\Revit\Addins\2025\` (user)
-3. Copy `StingTools.dll` + `Newtonsoft.Json.dll` + `ClosedXML.dll` + `data/` folder alongside
-4. Restart Revit
+> **Confirm where Revit is actually loading from before trusting any deploy
+> instruction, including this one.** One command settles it:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> Copying into a folder that is *not* in that manifest **fails silently** — the
+> copy succeeds, Revit loads a different DLL, and you debug code that never ran.
+
+| Script | What it does |
+|---|---|
+| `build.bat` | Compile Release + stage to **this checkout's** `CompiledPlugin/`. Does **not** touch Revit — a parallel agent can verify a build without hijacking the add-in slot. |
+| `deploy.bat` | `STING_DEPLOY=1` + `build.bat` → also rewrites the manifest to point at **this checkout's** `CompiledPlugin/`. This is "make my checkout the live plugin". |
+
+`deploy.bat` is the only script that repoints Revit. Run it from the checkout you
+want live, then restart Revit.
+
+Close Revit first — it holds `StingTools.dll` and ~17 dependencies, and the
+Planscape Companion tray app holds them too and must be stopped, or the copy
+half-fails silently.
+
+**`C:\Dev\STING_PLACEMENT_GOLD` is retired.** It was an isolated deploy folder
+with its own `deploy-gold.bat`, which re-pinned the manifest to GOLD to escape
+parallel agents rebuilding the shared `CompiledPlugin`. The two scripts were
+mutually exclusive — whichever ran last won — so the deploy target moved, and the
+loser's folder went stale unannounced. That is the root cause of a long-running
+"my change did nothing" class of bug. The script was deleted on 2026-08-06, when
+the manifest had been on `CompiledPlugin` for some time and GOLD had sat unbuilt
+for 16 days. **Older runners that name GOLD as the deploy target are wrong** —
+use the manifest.
 
 ### Branching
 

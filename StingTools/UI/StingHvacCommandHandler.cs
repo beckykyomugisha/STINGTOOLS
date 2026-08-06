@@ -278,6 +278,9 @@ namespace StingTools.UI
                     case "Hvac_CarbonReport":
                         // Phase 183 — gap C8 (HVAC plant + refrigerant carbon)
                         Run<StingTools.Commands.Hvac.HvacCarbonReportCommand>(app); break;
+                    case "Hvac_FanStaticReport":
+                        // Gap 2.3 — index-run total-static / fan external static report.
+                        Run<StingTools.Commands.Hvac.HvacFanStaticReportCommand>(app); break;
                     case "Hvac_BlockLoad":
                         // STING-design-engines (this phase): peak-pick block load
                         // with location-aware climate site + diversity factor.
@@ -348,11 +351,12 @@ namespace StingTools.UI
                         // acoustic data + climate registries together.
                         StingTools.Core.Hvac.Loads.LoadProfileRegistry.Reload();
                         StingTools.Core.Hvac.Loads.ConstructionProfileRegistry.Reload();
+                        StingTools.Core.Hvac.Loads.LoadAssumptionsRegistry.Reload();
                         StingTools.Core.Acoustic.AcousticDataRegistry.Reload();
                         StingTools.Core.Climate.ClimateRegistry.Reload();
                         StingTools.Core.Mep.MepSizingRegistry.Reload();
                         TaskDialog.Show("STING HVAC",
-                            "Reloaded: load profiles, construction profiles, acoustic data, climate, MEP sizing.");
+                            "Reloaded: load profiles, construction profiles, load assumptions, acoustic data, climate, MEP sizing.");
                         break;
 
                     // ── DUCT tab ───────────────────────────────────────────
