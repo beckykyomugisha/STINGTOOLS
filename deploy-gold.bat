@@ -1,15 +1,26 @@
 @echo off
 REM ============================================================================
-REM  deploy-gold.bat — refresh the isolated GOLD deploy folder Revit loads from.
+REM  deploy-gold.bat — build into the isolated GOLD folder and pin Revit to it.
 REM
-REM  Revit's StingTools.addin points at  C:\Dev\STING_PLACEMENT_GOLD\StingTools.dll
-REM  (a flat deploy folder, deliberately isolated from this shared working
-REM  checkout so parallel agents clobbering C:\Dev\STINGTOOLS can't break the
-REM  live plugin). The trade-off: GOLD does NOT auto-update. Run this to build
-REM  the current branch and copy the fresh DLL + data into GOLD.
+REM  GOLD (C:\Dev\STING_PLACEMENT_GOLD) is a flat deploy folder, deliberately
+REM  isolated from this shared working checkout so parallel agents clobbering
+REM  C:\Dev\STINGTOOLS can't break the live plugin. The trade-off: GOLD does NOT
+REM  auto-update. Run this to build the current branch and copy DLL + data in.
+REM
+REM  IMPORTANT — Revit does NOT necessarily load from GOLD right now.
+REM  This script PINS the manifest to GOLD (see the pin step below); deploy.bat
+REM  pins it to the shared CompiledPlugin. They are mutually exclusive and
+REM  whichever ran LAST wins, so the target moves. The loser's folder then goes
+REM  stale with no warning — on 2026-08-06 the manifest pointed at
+REM  CompiledPlugin (fresh) while GOLD was 16 days old.
+REM
+REM  Check before you trust either, and before debugging a "change that did
+REM  nothing" — a copy into the folder Revit is NOT loading fails silently:
+REM    grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin
 REM
 REM  Usage:  close Revit  ->  deploy-gold.bat  ->  reopen Revit.
-REM  (If Revit is open it may hold StingTools.dll locked and the copy fails.)
+REM  (If Revit is open it may hold StingTools.dll locked and the copy fails.
+REM   The Planscape Companion tray app holds them too — stop it as well.)
 REM ============================================================================
 setlocal
 set "SRC=%~dp0CompiledPlugin"

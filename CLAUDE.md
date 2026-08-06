@@ -2454,10 +2454,36 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 
 ### Deployment
 
-1. Build to produce `StingTools.dll`
-2. Copy `StingTools.addin` to `C:\ProgramData\Autodesk\Revit\Addins\2025\` (machine) or `%APPDATA%\Autodesk\Revit\Addins\2025\` (user)
-3. Copy `StingTools.dll` + `Newtonsoft.Json.dll` + `ClosedXML.dll` + `data/` folder alongside
-4. Restart Revit
+> **Check where Revit is actually loading from before you trust any deploy
+> instruction, including this one.** Two scripts compete to own that path (below),
+> so it changes depending on which ran last. One command settles it:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> Deploying to the folder that is *not* in that manifest **fails silently** — the
+> copy succeeds, Revit loads the other DLL, and you debug code that never ran.
+> Several older runners hardcode one target or the other and are wrong half the
+> time; the manifest is the only source of truth.
+
+| Script | What it does |
+|---|---|
+| `build.bat` | Compile Release + stage to **this checkout's** `CompiledPlugin/`. Does **not** touch Revit — a parallel agent can verify a build without hijacking the add-in slot. |
+| `deploy.bat` | `STING_DEPLOY=1` + `build.bat` → also rewrites the manifest to point at **this checkout's** `CompiledPlugin/`. This is "make my checkout the live plugin". |
+| `deploy-gold.bat` | Builds, copies into the isolated `C:\Dev\STING_PLACEMENT_GOLD`, then re-pins the manifest to **GOLD**. |
+
+**The two deploy scripts deliberately fight.** `deploy.bat` points Revit at the
+shared `CompiledPlugin`, which every checkout rebuilds — so Revit loads whoever
+built last. `deploy-gold.bat` exists to escape exactly that, by re-pinning to a
+folder no other agent writes. Both are reasonable; they are simply mutually
+exclusive, and the loser's folder goes stale without any warning. As measured on
+2026-08-06 the manifest pointed at `CompiledPlugin` (built that day) while GOLD
+was **16 days stale** — so any doc saying "deploy to GOLD" was, that day, wrong.
+
+Whichever you use: close Revit first (it holds `StingTools.dll` and ~17
+dependencies; the Planscape Companion tray app holds them too and must be
+stopped, or the copy half-fails silently), then restart Revit afterwards.
 
 ### Branching
 
