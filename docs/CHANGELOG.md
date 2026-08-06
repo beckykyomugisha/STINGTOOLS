@@ -2,6 +2,62 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Token-Depth Live E1–E5 — retroactive log; the runner is retired)
+
+Five enhancements to the "Set depth applies live" display path landed on `main`
+but were never logged, and `docs/TOKEN_DEPTH_LIVE_ENHANCEMENTS_RUNNER.md` was
+left reading as an open work order. Recorded here and the runner deleted, so the
+next reader does not re-implement finished work.
+
+All five are display-only and reversible: only `ASS_DISPLAY_TXT` is written. The
+canonical `ASS_TAG_1_TXT` — source of truth for schedules / BOQ / COBie /
+collision — is never touched, no tokens are re-derived, no SEQ renumbered.
+
+| Item | What it does | Where |
+|---|---|---|
+| **E1** Segment order live | Display honours the **Segment order** combo, not just newly built tags | `Tags/RefreshTagDisplayCommand.cs` (`ResolveSlotOrder`) |
+| **E2** Per-category overrides | Per-category `{seqPad, mask, depth}` over the panel globals (the "doors → 2-digit" case) | `Tags/TokenDepthOverrides.cs` + `Data/STING_TOKEN_DEPTH_OVERRIDES.json` |
+| **E3** Named presets | Save/recall a whole Tokens & Depth config | `TokenDepthPresets` in `Tags/TokenDepthConfig.cs` |
+| **E4** Per-view persistence | Each view remembers its own config; repopulates the panel on `ViewActivated` rather than auto-mutating tags | `Core/StingToolsApp.cs` (`OnViewActivated` → `ApplyTokenDepthConfig`) |
+| **E5** Reactive auto-apply | Opt-in `Live` checkbox, debounced, active-view scope only | `UI/StingDockPanel.xaml` (`chkLiveTokenDepth`) + `_liveTimer` |
+
+Commits: `b9ebee66e` (E1+E2) · `f4beef959` (E3+E4+E5) · `a8b7371b2` (follow-up:
+preset hang — removed modeless Revit API access). All on `main`.
+
+Both correctness requirements the runner flagged as risks were honoured, and are
+worth knowing about before editing this path:
+
+- **Masking is by token identity, not display position.** `ResolveSlotOrder()`
+  maps order names to canonical slots (DISC=0 … SEQ=7) and masks via `m[slot]`,
+  so a reorder hides the same tokens the checkboxes chose. A slot missing from a
+  partial order string is appended in canonical order — tokens are never
+  silently dropped — and an unavailable order falls back to canonical 0..7.
+- **SEQ re-pad is numeric-only.** Both `BuildMaskedDisplayFromTokens` and
+  `RepadSeqSegment` bail on a non-numeric SEQ (`!seq.All(char.IsDigit)`), so a
+  scheme-rendered / alphanumeric SEQ (`TagSchemeEngine`, Phase 188) is untouched.
+
+**Not verified in Revit.** Presence and logic were confirmed by reading `main`;
+nobody has loaded the plugin and watched these five behave. The runner's own
+gates (reorder → display reorders live; doors 2-digit vs equipment 4-digit;
+preset round-trip; no cross-view bleed; Live toggle updates within ~1s) remain
+unrun.
+
+Four facts in the deleted runner had gone stale and would have misdirected
+anyone following it — noted here because three are environmental and will bite
+other work too:
+
+1. Its base branch `claude/set-depth-live` **no longer exists**, so its first
+   instruction (`git worktree add … claude/set-depth-live`) fails outright.
+2. It said deploy to `C:\Dev\STING_PLACEMENT_GOLD`. The installed `.addin` for
+   Revit 2025/2026/2027 points at `C:\Dev\STINGTOOLS\CompiledPlugin`. Both
+   folders exist, so deploying to the wrong one **fails silently** — the build
+   copies fine and Revit loads the other DLL.
+3. It set the build baseline at "0 err / **6 warn**"; the baseline is **0/0**,
+   and a 6-warning expectation invites shipping six real ones.
+4. Its "activation blocker" (fingerprint `ADD3-E01C-3412-14C8-175E`) is the
+   known unstable-WMI fingerprint that flips between two values, since resolved
+   with a MachineGuid-only licence. Re-test before treating it as blocking.
+
 #### Completed (A6 — clean the Bonsai spatial adapter: move IFC inference back into core)
 
 `stingtools-bonsai/ops/spatial_ops.py` (added by #585) re-implemented two pieces
