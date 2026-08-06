@@ -1,4 +1,4 @@
-// StingTools v4 MVP — Phase J cable manifest (persistent cable records).
+﻿// StingTools v4 MVP — Phase J cable manifest (persistent cable records).
 //
 // StingCable is a lightweight logical cable tied to a tray / conduit
 // network by a tray-id list rather than its own Revit geometry.
@@ -91,7 +91,7 @@ namespace StingTools.Core.Electrical
         public static string PathFor(Document doc)
         {
             var dir = Path.GetDirectoryName(doc?.PathName ?? "") ?? Path.GetTempPath();
-            return Path.Combine(dir, "_BIM_COORD", "cables.json");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "cables.json");
         }
     }
 }

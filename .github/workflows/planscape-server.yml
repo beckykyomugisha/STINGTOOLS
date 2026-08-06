@@ -10,6 +10,10 @@ on:
     branches: [main]
     paths:
       - 'Planscape.Server/**'
+      # Match the push trigger: a change to this workflow (service
+      # containers, gate wiring) must be exercised on the PR that makes
+      # it, not first observed after it lands on main.
+      - '.github/workflows/planscape-server.yml'
 
 env:
   DOTNET_VERSION: '8.0.x'
@@ -40,6 +44,23 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Redis mirrors production topology (refresh-token activity, JTI
+      # blacklist, login-lockout counters, project-visibility cache).
+      # Without it every Redis call in a test burned its full 5 s timeout
+      # — ~900 of them, which is most of why the suite took 30 minutes.
+      # The code fails soft when Redis is absent, so this is about speed
+      # and about actually exercising the cache-hit paths, not about
+      # making the suite pass.
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5

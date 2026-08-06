@@ -537,11 +537,11 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.INotificationService, Pl
 // redis:// URL, which StackExchange.Redis's own parser does not understand —
 // see RedisConnectionStrings for the full failure mode this avoids.
 var redisConn = RedisConnectionStrings.Normalise(builder.Configuration["Redis:Connection"]);
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = redisConn;
-    options.InstanceName = "Planscape:";
-});
+// NOTE: the AddStackExchangeRedisCache call that used to sit here (fed the raw
+// connection string) is deliberately NOT duplicated — the distributed cache is
+// registered further down against the SHARED multiplexer via
+// ConnectionMultiplexerFactory. See the comment there for why a raw-string
+// registration is actively harmful during a Redis outage.
 // Phase 175 — single shared multiplexer reused by the SignalR
 // backplane, the cache, the permission-revocation store, AND the
 // Redis-backed rate limiter below. Avoid creating a second connection
@@ -553,6 +553,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // Add a 5s ConnectTimeout so the app doesn't hang on startup if the
 // DNS/network is slow. A blanket try/catch wraps the whole thing as a
 // last-resort guard against any other unexpected failure mode.
+// Built BEFORE the distributed cache so the cache can reuse this exact
+// multiplexer (see ConnectionMultiplexerFactory below).
 ConnectionMultiplexer redisMux;
 try
 {
@@ -583,6 +585,22 @@ catch (Exception ex)
     redisMux = ConnectionMultiplexer.Connect(fallbackOptions);
 }
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
+
+// Distributed cache MUST reuse the shared multiplexer above via
+// ConnectionMultiplexerFactory. Feeding AddStackExchangeRedisCache a raw
+// connection string instead makes RedisCache build its OWN multiplexer with
+// the library defaults (AbortOnConnectFail=true, 5s ConnectTimeout) — so
+// during a Redis outage every cache Get/Set pays its own multi-second connect
+// timeout instead of failing fast against the already-disconnected shared mux
+// (which was created with AbortOnConnectFail=false). InstanceName stays as the
+// key prefix; Configuration is intentionally omitted because it is ignored once
+// a factory is supplied.
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.InstanceName = "Planscape:";
+    options.ConnectionMultiplexerFactory =
+        () => Task.FromResult<IConnectionMultiplexer>(redisMux);
+});
 
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {
@@ -1239,6 +1257,20 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
 // CSP / Referrer-Policy / Permissions-Policy). Inserted early so even
 // short-circuit responses from the rate limiter or auth middleware
 // still carry the hardening headers. /health endpoints are skipped.
+//
+// NOT early enough to cover STATIC FILES, and that is deliberate.
+// UseStaticFiles is registered above (see the viewer's no-cache block) and
+// short-circuits the pipeline, so /viewer.html and the viewer bundles come
+// back with NONE of these headers — verified with `curl -D -` against the
+// live API. Two consequences that are easy to reason wrongly about:
+//   • X-Frame-Options: DENY / frame-ancestors 'none' do NOT apply to
+//     viewer.html, which is why planscape-web can embed it in an iframe;
+//   • Permissions-Policy: camera=(), microphone=() does NOT block the
+//     in-viewer meeting's camera. Media permission for that frame comes
+//     solely from the embedding page's iframe `allow` attribute.
+// Both were mistaken for causes while chasing a camera bug. If you move
+// UseSecurityHeaders above UseStaticFiles you will break the embed and the
+// meeting camera at once.
 app.UseSecurityHeaders();
 app.UseSerilogRequestLogging();
 // MON-02: request/response metrics (latency histogram, status codes, in-flight).
@@ -1955,6 +1987,19 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // (c) PenetrationSignoffs.ElementIfcGlobalId — K1 cross-host identity column.
         "ALTER TABLE \"PenetrationSignoffs\" ADD COLUMN IF NOT EXISTS \"ElementIfcGlobalId\" character varying(22) NULL",
         "CREATE INDEX IF NOT EXISTS \"IX_PenetrationSignoffs_ProjectId_ElementIfcGlobalId\" ON \"PenetrationSignoffs\" (\"ProjectId\", \"ElementIfcGlobalId\")",
+        // TagSync element tombstones — TaggedElements.DeletedAtUtc.
+        // Per docs/adr/0001-schema-management.md this idempotent patch, NOT a
+        // `dotnet ef migrations add`, is how a new column reaches pre-existing
+        // databases: EnsureCreated short-circuits once Tenants exists, and
+        // Database.Migrate() is a no-op against the un-attributed migration set.
+        // Fresh DBs get the column from CreateTables via the EF model.
+        //
+        // NULL means "live", and it is nullable with NO default precisely so
+        // that every pre-existing row reads as not-deleted — which is what
+        // makes older plugins (that never send isDeleted) behave exactly as
+        // they did before.
+        "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"DeletedAtUtc\" timestamp with time zone NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_DeletedAtUtc\" ON \"TaggedElements\" (\"ProjectId\", \"DeletedAtUtc\")",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)

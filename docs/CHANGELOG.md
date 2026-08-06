@@ -2,7 +2,264 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Planscape Server — the API rate limit was per-IP, not per-user; found by measuring)
+#### Completed (Token-Depth Live E1–E5 — retroactive log; the runner is retired)
+
+Five enhancements to the "Set depth applies live" display path landed on `main`
+but were never logged, and `docs/TOKEN_DEPTH_LIVE_ENHANCEMENTS_RUNNER.md` was
+left reading as an open work order. Recorded here and the runner deleted, so the
+next reader does not re-implement finished work.
+
+All five are display-only and reversible: only `ASS_DISPLAY_TXT` is written. The
+canonical `ASS_TAG_1_TXT` — source of truth for schedules / BOQ / COBie /
+collision — is never touched, no tokens are re-derived, no SEQ renumbered.
+
+| Item | What it does | Where |
+|---|---|---|
+| **E1** Segment order live | Display honours the **Segment order** combo, not just newly built tags | `Tags/RefreshTagDisplayCommand.cs` (`ResolveSlotOrder`) |
+| **E2** Per-category overrides | Per-category `{seqPad, mask, depth}` over the panel globals (the "doors → 2-digit" case) | `Tags/TokenDepthOverrides.cs` + `Data/STING_TOKEN_DEPTH_OVERRIDES.json` |
+| **E3** Named presets | Save/recall a whole Tokens & Depth config | `TokenDepthPresets` in `Tags/TokenDepthConfig.cs` |
+| **E4** Per-view persistence | Each view remembers its own config; repopulates the panel on `ViewActivated` rather than auto-mutating tags | `Core/StingToolsApp.cs` (`OnViewActivated` → `ApplyTokenDepthConfig`) |
+| **E5** Reactive auto-apply | Opt-in `Live` checkbox, debounced, active-view scope only | `UI/StingDockPanel.xaml` (`chkLiveTokenDepth`) + `_liveTimer` |
+
+Commits: `b9ebee66e` (E1+E2) · `f4beef959` (E3+E4+E5) · `a8b7371b2` (follow-up:
+preset hang — removed modeless Revit API access). All on `main`.
+
+Both correctness requirements the runner flagged as risks were honoured, and are
+worth knowing about before editing this path:
+
+- **Masking is by token identity, not display position.** `ResolveSlotOrder()`
+  maps order names to canonical slots (DISC=0 … SEQ=7) and masks via `m[slot]`,
+  so a reorder hides the same tokens the checkboxes chose. A slot missing from a
+  partial order string is appended in canonical order — tokens are never
+  silently dropped — and an unavailable order falls back to canonical 0..7.
+- **SEQ re-pad is numeric-only.** Both `BuildMaskedDisplayFromTokens` and
+  `RepadSeqSegment` bail on a non-numeric SEQ (`!seq.All(char.IsDigit)`), so a
+  scheme-rendered / alphanumeric SEQ (`TagSchemeEngine`, Phase 188) is untouched.
+
+**Not verified in Revit.** Presence and logic were confirmed by reading `main`;
+nobody has loaded the plugin and watched these five behave. The runner's own
+gates (reorder → display reorders live; doors 2-digit vs equipment 4-digit;
+preset round-trip; no cross-view bleed; Live toggle updates within ~1s) remain
+unrun.
+
+Four facts in the deleted runner had gone stale and would have misdirected
+anyone following it — noted here because three are environmental and will bite
+other work too:
+
+1. Its base branch `claude/set-depth-live` **no longer exists**, so its first
+   instruction (`git worktree add … claude/set-depth-live`) fails outright.
+2. It said deploy to `C:\Dev\STING_PLACEMENT_GOLD`. The installed `.addin` for
+   Revit 2025/2026/2027 points at `C:\Dev\STINGTOOLS\CompiledPlugin`. Both
+   folders exist, so deploying to the wrong one **fails silently** — the build
+   copies fine and Revit loads the other DLL.
+3. It set the build baseline at "0 err / **6 warn**"; the baseline is **0/0**,
+   and a 6-warning expectation invites shipping six real ones.
+4. Its "activation blocker" (fingerprint `ADD3-E01C-3412-14C8-175E`) is the
+   known unstable-WMI fingerprint that flips between two values, since resolved
+   with a MachineGuid-only licence. Re-test before treating it as blocking.
+
+#### Completed (A6 — clean the Bonsai spatial adapter: move IFC inference back into core)
+
+`stingtools-bonsai/ops/spatial_ops.py` (added by #585) re-implemented two pieces
+of core inference the Phase A6 boundary lint forbids in host adapters, so the
+`Core tests + adapter boundary` job went red on `main` (`check_adapter_boundary.py`:
+`IFC_CLASS_MAP` + `SYSTEM_GROUP_INFERENCE`). The logic now lives in
+`stingtools_core.hosts.inference` and the adapter delegates, exactly as
+`tagging_ops.py` already does:
+
+- The `_CLASS_TO_FUNC` map → `inference.FUNCTION_BY_IFC_CLASS` + `function_for_class()`
+  / `infer_function()` (unknown class → `GEN`, unchanged). All 31 mappings preserved.
+- The `IfcZone` / `IfcRelAssignsToGroup` zone group walk → `inference.zone_codes_for_model()`,
+  which returns `(element_id → zone_code, zone_count)`; the operator keeps its `ZZ` default.
+
+Verified: boundary lint + self-test exit 0; `stingtools-core` suite 100 passed / 1
+skipped (was 98 / 2 failed); both files compile; function-map parity asserted.
+
+#### Completed (Folder structure — end the sibling sprawl)
+
+Acts on [`FOLDER_STRUCTURE_REVIEW_2026-08.md`](FOLDER_STRUCTURE_REVIEW_2026-08.md),
+which re-measured the July ISO 19650 folder review. The design was already
+correct and singular — `ProjectFolderEngine` owns the tree, `StingPaths` is the
+one legal resolver, a CI gate defends it. The adoption had not happened.
+
+**124 of 140 `_BIM_COORD` path sites built on a raw model-directory base**, so
+they wrote `<rvtDir>/_BIM_COORD` — the folder `MigrateFromLegacy` had just
+retired. Consolidation was undone by the next command that ran, and reads were
+partly masked by the legacy fallback, so the store forked silently rather than
+failing. All now resolve through `StingPaths`; the path-discipline gate's Tier 2
+is a **hard zero with an empty baseline**.
+
+Two new non-destructive resolvers made that migration safe:
+
+- `StingPaths.MetaFile(doc, bucket, …)` — consolidated path if that file exists,
+  else an existing legacy sibling, else consolidated. Projects predating
+  consolidation keep working; new data is born consolidated; nothing moves.
+- `StingPaths.MetaFrom` / `MetaFileFrom` (+ `GetMetaPathForModelPath`) — the
+  path-based equivalents for callers that never hold a `Document`. Root is found
+  by discovery (scanning for a sibling `_data/project_setup.json`), never by
+  guessing a project code, which would fork a second tree.
+
+**`AutoCreateCdeFolders` now defaults false.** It was materialising ~53
+(CdeFirst) to ~60 (BIM) empty directories beside the model on every open, with
+`11_ISSUES/CVI` and `12_CLASHES/Snapshots` existing before the project had an
+issue. Every write path already creates its own directory.
+
+**The four `_data` coordination buckets collapsed onto `_data/coord`.**
+`_BIM_COORD`, `STING_BIM_MANAGER`, `_bim_manager` and `.bimmanager` are aliases
+resolved in `GetMetaPath`, so no call sites changed. Existing projects keep using
+a legacy bucket directory that already holds their data; folding it is the
+consented `MigrateFromLegacy`'s job, which now also folds alias buckets a
+previous consolidation had moved under `_data`. The breadcrumb is
+schema-versioned (v2) so already-consolidated projects are not barred from the
+new step.
+
+Two real bugs surfaced while doing this:
+
+- **Restore-from-recycle never worked.** `DeleteFile` soft-deletes into
+  `_data/recycle`, but the dialog read `<root>/_RECYCLE`, which nothing has
+  written since the bin moved. It reported "Recycle bin is empty" however many
+  files had been deleted, making every soft-delete unrecoverable through the UI.
+  It now reads `StingPaths.Recycle`, still scanning the legacy folder, and
+  delegates to `RestoreFile` (honours `recycle_index.json`, strips the timestamp
+  prefix). `StingPaths.Recycle` having zero callers was the tell.
+- **A fifth tree definition.** `GapFixEngine.GenerateCDEFolders` built 196
+  directories in a shape matching neither `BimFolderDefaults` nor
+  `CdeFirstFolderDefaults`, so scaffolding a share produced a layout disagreeing
+  with where exports land. It now builds from the document's own `ProjectSetup`.
+
+Also: `FOLDER_CODE_SUFFIX` makes the `_<CODE>` folder suffix optional (default
+**true** — flipping it would make existing projects create unsuffixed folders
+alongside their suffixed ones); `CLAUDE.md` gained a **Project Output Folder
+Layout** section (its absence is why 124 sites were written against a rule
+nobody could find); `docs/INDEX.md` added; superseded ISO-19650 folder docs
+marked.
+
+Build: 0 errors, 0 warnings (clean rebuild, Revit 2025 + .NET 8). Path-discipline
+and dispatch-parity gates green.
+
+
+#### Completed (Phase 227 — CI green again: a cache outage no longer turns 404 into 500)
+
+- **The real defect was in production code, not the workflow.** The project-visibility
+  cache in `ProjectAccessAttribute` (Phase 175 P1-13) is an optimisation over the
+  authoritative `ProjectVisibility.CanSeeProjectAsync` query, but `GetStringAsync` /
+  `SetStringAsync` were unguarded — so an unreachable Redis propagated out of the
+  filter and **every gated request 500'd**, including the cross-tenant ones the filter
+  exists to answer with 404. Both cache operations now degrade: a read failure is
+  treated as a miss, a write failure as "not cached", and the decision comes from the
+  database either way. Correctness is unchanged; only the hot-path saving is lost while
+  Redis is down.
+- **That is what broke CI.** PR #444 added a `postgres:16` service to
+  `.github/workflows/planscape-server.yml` but no Redis, while the committed baseline
+  had been captured on a machine with a docker Redis on 6379. Five tenant-isolation
+  tests then failed `Expected: NotFound / Actual: InternalServerError`
+  (`Issues_OtherTenant_Returns404`, `TenantIsolation_OtherTenantCannotAccess{Documents,
+  Meetings,Mim}`, `DeepLink_NonMember_GetsNotFound_NotForbidden`). Reproduced locally by
+  pointing `Redis:Connection` at a dead port, and fixed by the guard above — they pass
+  with Redis still unreachable.
+- **A `redis:7` service joins postgres in CI.** Not to make the suite pass (the code now
+  fails soft) but for prod parity and speed: ~900 Redis calls were each burning a full
+  5 s timeout, which is most of why the run took 30 minutes.
+- **The fix is pinned by its own test.** Adding Redis to CI would otherwise have quietly
+  stopped exercising the outage path — the five tests above only caught it because Redis
+  was absent. `ProjectAccessCacheOutageTests` injects an `IDistributedCache` that throws
+  on every operation and asserts both directions: a foreign project still 404s, and a
+  visible one is still allowed (a fail-soft that denied everything would satisfy the
+  first assertion alone). It drives the filter directly rather than standing up a second
+  `WebApplicationFactory`, which is unreliable here (ROADMAP DEP-7) — the same approach
+  Phase 222 took. Verified red without the fix, green with it.
+- **`check-new-failures.sh` could not report what it found.** Its summary precondition
+  matched only the VSTest console format (`Passed!` / `Failed!`). A solution-level
+  `dotnet test` goes through MSBuild, and when `VSTestTask` returns false that line is
+  never emitted — the only summary is `Test Run Failed.` / `Total tests: N`. So the gate
+  aborted with "no test summary in output — the run did not complete" on precisely the
+  runs whose diff was worth reading, and printed a 30-line tail that pointed at an
+  unrelated `AuthController` frame. Both formats are now accepted; replayed against the
+  real failing CI output it correctly lists the five.
+- **No baseline lines deleted.** The gate reported zero baseline entries passing in CI.
+  (Locally many appear to pass, but that is the Redis-on-6379 artefact that produced the
+  stale baseline in the first place — CI is the authority.)
+- Verified: `dotnet build Planscape.sln` 0 errors, 14 warnings (unchanged); plugin build
+  0 errors / 0 warnings; full suite 67 unique failures both with and without the change,
+  the only delta being a per-run random DEP-7 victim.
+- **Follow-up: the seed is now idempotent.** The first server-CI run that actually
+  exercised this branch's test-cache isolation failed 12 tests (16 on re-run) with
+  `An item with the same key has already been added. Key: 11111111-...` thrown from
+  `PlanscapeWebApplicationFactory.SeedTestData`, taking down whole classes
+  (`HandoffProvisioningTests`, `AuditCategoriesConfiguredTests`, `ProjectsControllerTests`).
+  Root cause is not the cache swap: seeding runs inside the `ConfigureWebHost` services
+  callback, which `HostApplicationBuilder` can replay via `HostBuilderAdapter.ApplyChanges()`,
+  and a replay reuses the same `_dbName` — so the same in-memory store is seeded twice.
+  `SeedTestData` now returns early when the fixed test tenant is already present
+  (`IgnoreQueryFilters`, because the tenant filter falls back to `Guid.Empty` here and
+  would match nothing). Deterministic fixed-GUID seed, so the presence check is a complete
+  guard. Product code — including `ProjectAccessAttribute` — is untouched. Does not
+  reproduce locally: the local full suite is byte-identical at 73 failures / 442 tests
+  before and after, so CI is the verification.
+#### Completed (N6 — DEP-7: restore the HTTP-level handoff provisioning-failure test)
+
+Phase 212 had to drop the end-to-end test for the handoff guarantee — *a
+starter-project provisioning failure must still issue a session, never deny
+login for a provisioning reason* — and settle for a SQLite mechanism test that
+calls `EnsureStarterProjectAsync` directly. The blocker was never the failure
+injection; it was that a **second** `WebApplicationFactory` could not be stood
+up. The static `RecurringJob.AddOrUpdate` registrations read the process-global
+`Hangfire.JobStorage.Current` *during host build*, disposed per factory, so an
+extra host raced a dead storage and died with `ObjectDisposedException`.
+
+That foundation is now fixed on `main` — recurring jobs register through the
+injected `IRecurringJobManager` (each host's own storage), so nothing reads the
+global during build and a second factory is safe. This restores the dropped
+test:
+
+- **`HandoffProvisioningFailureHttpTests`** exchanges a ticket through
+  `POST /api/auth/handoff/exchange` against a factory whose DbContext refuses to
+  insert a `Project` — a `SaveChangesInterceptor` throwing the exact
+  `DbUpdateException` the real `(TenantId, Code)` unique-index race produces. It
+  asserts the response is still **200** with an access token, and that the
+  recovery path **detached** the failed `Project` / `ProjectMember` (both empty
+  under `IgnoreQueryFilters`) rather than letting them poison the refresh-token
+  save. This exercises the REAL `EnsureStarterProjectAsync` catch block, not a
+  re-implementation of it.
+- **In-memory + interceptor, not SQLite**, because a `WebApplicationFactory`
+  cannot boot against SQLite (Program.cs's schema block issues Postgres-only
+  `information_schema` queries with no guard) — the interceptor is the only
+  injection that survives a full HTTP boot.
+- **Pinned to a non-parallel collection** with its own in-memory factory, the
+  "serialized collection hosting the extra factory" remedy from the DEP-7 plan.
+
+Closes ROADMAP **DEP-7**.
+
+#### Completed (N4 — unbreak the server CI gate: the suite is green, the harness couldn't read it)
+
+The `planscape-server` gate was **permanently red on `main`** even though the
+integration suite itself is **fully green** — 540 tests, `Test Run Successful.`,
+zero failures (the crash and the ~73 failures were fixed by the injected
+`IRecurringJobManager` conversion and the fixture-rot work that landed
+separately). The gate was red for one reason only: `check-new-failures.sh`
+couldn't parse the run it was handed.
+
+- **Summary detection.** It gated on a `^(Passed!|Failed!)` line that
+  `dotnet test` on a **solution** never emits — the VSTest logger prints
+  `Total tests: 540` + `Test Run Successful.` instead. So *every* completed run,
+  green or not, was declared "did not complete" and failed the gate. Now it
+  accepts the VSTest summary shapes.
+- **Failure extraction.** It matched only `Name [FAIL]` (xunit console) with a
+  space before `[FAIL]`, so a theory's `(args…)` ended the match and the VSTest
+  `Failed Name [12 ms]` form matched nothing at all — on the CI logger it would
+  have found **zero** failures even in a red run (a false pass). Now it matches
+  both loggers and both plain and theory cases, stripping the argument list.
+- **Gate timeout.** The `CI Gate` aggregator capped its wait at 30 min with a
+  stale "real builds ~3 min" note; the real-Postgres suite now runs ~45 min, so
+  the gate timed out on a job that was going to pass. Bumped to 70 min.
+
+Verified against `main`'s actual failing CI log: the fixed script detects the
+summary, extracts **0** failures, and exits **0**. The 66 stale
+`known-failing-tests.txt` entries (all now passing) surface as "FIXED" notices —
+harmless, and the intended signal to prune them; left in place here so this PR
+stays a pure harness fix that can only turn the gate green, never red.
+
+
 
 Follow-on from the connection-budget work. The tier capacity table was modelled,
 not measured, so this builds the harness to measure it — and the first real run
@@ -1175,6 +1432,7 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Legends (A-3) | Place a legend on a sheet, run Update Legend: viewport still shows content, no "(1)" view appears |
 | Sections (P-5) | Produce a section along a **north-south** grid: a vertical cut, not a plan-like box, and no throw |
 | Crops (E-2) | TightBbox on a **rotated plan** and on a **section**: crop frames the geometry rather than landing arbitrarily |
+
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
@@ -3262,6 +3520,250 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+#### Completed (HVAC gap remediation Tier 3 item 3.4 — branch `claude/hvac-impl`)
+
+Item 3.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the gbXML load import no longer overwrites Space
+loads silently; it now shows a per-zone delta and requires explicit confirmation. Built against Revit 2025
+Release: **0 errors, 4 baseline warnings**. The actual stamping logic after confirmation is unchanged.
+
+- **Pre-apply delta pass** (`Commands/Hvac/HvacImportGbxmlLoadsCommand.cs`). Before any transaction, each
+  incoming gbXML zone is joined to its Space (Number → Name → ElementId, unchanged) and the incoming
+  sensible cooling is compared against the existing STING BlockLoad value read via `ReadStingCoolingW`
+  (prefers `HVC_PEAK_SENS_W`, falls back to `HVC_LOAD_COOLING_KW` × 1000). Zones with no prior value are
+  flagged **new**; changed zones carry a Δ%.
+- **Diff surfaced two ways.** A CSV via `OutputLocationHelper.GetTimestampedPath` (`STING_gbXML_delta_<ts>.csv`
+  — ZoneId, Matched, IsNew, prior/new cooling kW, Δ%, latent, OA, SpaceId) and a TaskDialog summary listing
+  the worst-15 zones (new zones first). The result panel gains New / Changed / Diff-CSV metrics.
+- **Explicit confirmation gate.** A command-link TaskDialog (default = Cancel) requires the user to pick
+  "Apply" before the `STING gbXML Loads Import` transaction runs. Cancel keeps the CSV and changes nothing;
+  no matches short-circuits to a message with no transaction.
+- **Stamping unchanged after confirm:** the `HVC_PEAK_SENS_W` / `HVC_PEAK_LAT_W` / `HVC_OA_LS` /
+  `HVC_LOAD_SOURCE_TXT` writes inside the named transaction are byte-for-byte the previous behaviour — only
+  the review+confirm step was added in front.
+- **Honesty:** unverifiable without a live Revit model + a real simulator gbXML export — static-analysis +
+  build-verified only.
+
+#### Completed (HVAC gap remediation Tier 3 item 3.3 — branch `claude/hvac-impl`)
+
+Item 3.3 (room-model half only) from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the NC prediction receiver
+room now comes from the actual Revit `Space`/`Room` instead of the hardcoded 100 m³ / α=0.2 cube. Built
+against Revit 2025 Release: **0 errors, 4 baseline warnings**. The duct-path attenuation math is unchanged
+— only the room/receiver field was touched.
+
+- **`ResolveRoomReceiver`** (`Commands/Hvac/HvacNcPredictionCommand.cs`) builds the `RoomReceiver` from the
+  Space/Room containing the terminal: **volume** from `Space.Volume` / `Room.Volume` (ft³ → m³);
+  **surface area** = boundary perimeter × height (from `ROOM_HEIGHT`/`ROOM_UPPER_OFFSET`, else volume/area,
+  else 3 m) + 2 × floor area; **average absorption** area-weighted from per-boundary finish estimates blended
+  with floor (α=0.05) / ceiling (α=0.30) defaults, clamped to 0.05–0.60.
+- **`FindReceiverSpatial`** prefers the selected `OST_DuctTerminal` (else the last element with a location
+  point), takes its location point, and queries `Document.GetSpaceAtPoint` (phase-aware via
+  `PHASE_CREATED`), falling back to `GetRoomAtPoint`.
+- **`EstimateBoundaryAbsorption`** maps wall-type / material / category name keywords to Sabine α
+  (glazing 0.05, acoustic/perforated 0.60, carpet/fabric 0.35, plaster/gypsum 0.10, concrete/masonry/tile
+  0.03, generic wall 0.08); returns 0 (excluded from the weighted average) for non-matching boundaries.
+- **Reporting.** A new ROOM MODEL section shows the source, name, volume, surface area and avg α; the
+  subtitle and method note surface which path was used (`Revit Space (finishes → α)` /
+  `Revit Space (default α)` / `fallback cube (100 m³, α=0.20)`).
+- **No-data fallback:** when no Space/Room resolves (stripped model, no MEP spaces, unbounded point) the
+  method returns the exact legacy hardcoded cube, so behaviour is unchanged on models without spaces.
+- **Scope honesty:** only the room/receiver field changed — breakout/casing transmission, manufacturer
+  terminal-NC lookup and broadening `STING_FAN_SPECTRA.json` (the other half of prompt 3.3) were **not**
+  in this item's brief and are untouched. Unverifiable without a live Revit space model — static-analysis +
+  build-verified only.
+
+#### Completed (HVAC gap remediation Tier 3 item 3.2 — branch `claude/hvac-impl`)
+
+Item 3.2 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — true balanced-flow solve with PICV / control-valve
+authority folded into the Hardy Cross loop head loss, plus a wired (data-pending) pump-curve duty point.
+Built against Revit 2025 Release: **0 errors, 4 baseline warnings**.
+
+- **Valve resistance folded into loop head loss** (`Core/Calc/HardyCrossSolver.cs`). `NetworkPipe` gains
+  additive, zero-default valve fields (`ValveKvs`, `PicvQMaxLs`, `PicvDpMinKpa/MaxKpa`) plus post-solve
+  diagnostics (`ValveDpKpa`, `ValveHeadM`, `ValveAuthority`, `PicvInWindow`). `HeadLoss` now adds a
+  `ValveSpecificEnergy` term in the same specific-energy units (ΔP/ρ = J/kg) as the Darcy friction so it
+  stacks without a g-conversion. **Kvs path:** ΔP_Pa = 1e5·(Q_m³h/Kvs)² (EU convention). **PICV path:**
+  inside the rated band, ΔP is modelled as the authority-window mid-point (constant head that absorbs
+  surplus), reverting to Kvs behaviour out of band.
+- **Valve authority** β = ΔP_valve / (ΔP_valve + pipe friction+fitting ΔP) computed per branch in a new
+  `ComputeValveDiagnostics` pass at the end of `Solve`; branches below β<0.25 are flagged as low-authority
+  (BSRIA BG 2/2010 / CIBSE Commissioning Code W).
+- **Valve discovery** (`Core/Calc/NetworkExtractor.cs`). `AttachValves` walks each pipe's connectors to
+  adjoining `OST_PipeAccessory` instances and substring-matches the family/type/instance name against the
+  `valveCv` / `picvCurves` (brand:code) catalogue in `STING_MEP_SIZING_RULES.json` via `MepSizingRegistry`.
+  PICV wins over plain Kvs. Fully guarded — bails when the catalogue is empty, and any failure leaves the
+  pipe valve-free.
+- **Pump duty point** (`Commands/Routing/HardyCrossCommand.cs`). The existing but unused
+  `HardyCrossSolver.OperatingPoint` (system-resistance × pump-curve bisection) is now wired: the command
+  resolves a `PumpCurve` from three optional ProjectInformation params (`PRJ_PUMP_SHUTOFF_QH` /
+  `PRJ_PUMP_BEP_QH` / `PRJ_PUMP_RUNOUT_QH`, each `Q_lps,H_m`) and reports duty flow + head. **No STING data
+  file defines pump curves yet**, so absent those params the report states the intersection is pending a
+  data source — the solver is ready, only the curve data is missing.
+- **Reporting.** Result panel gains a CONTROL VALVES / PICV AUTHORITY section (per-branch ΔP, β, PICV
+  in/out of window) and a PUMP DUTY POINT section. When no valve/pump data is present the sections say so
+  explicitly and the existing convergence + RBS_PIPE_FLOW_PARAM write-back behaviour is **unchanged**.
+- **No-data fallback:** a network with no matching pipe accessories and no pump params balances byte-for-byte
+  as before (valve terms are exactly zero; duty-point section is informational only).
+- **Honesty:** unverifiable without a live looped hydronic model in Revit — logic is static-analysis +
+  build-verified only. The pump-curve intersection is code-complete but effectively dormant until a
+  pump-curve data source is added.
+
+#### Completed (HVAC gap remediation Tier 2 item 2.3 — branch `claude/hvac-impl`)
+
+Item 2.3 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — new duct static-pressure / fan-selection
+report. Built against Revit 2025 Release: **0 errors, 4 baseline warnings**.
+
+- **New `[ReadOnly]` command `HvacFanStaticReportCommand`** (tag `Hvac_FanStaticReport`, file
+  `Commands/Hvac/HvacFanStaticReportCommand.cs`). From a selected mechanical-equipment element
+  (AHU/fan carrying a duct connector) or a selected duct, it walks the duct network to the
+  **index run** (highest cumulative total-pressure-drop path) and reports fan **External Static
+  Pressure** in Pa with a per-segment breakdown.
+- **Index-run algorithm.** (1) Resolve the fan source — a selected AHU, or for a selected duct the
+  `MechanicalSystem.BaseEquipment` (else the first equipment member, else the duct itself).
+  (2) BFS outward over the duct connector graph (`Connector.AllRefs` → `Owner`; visited set; 5000-node
+  guard) from the source's HVAC connectors. Each duct segment records a **cumulative** total-pressure
+  drop = predecessor cumulative + this segment's straight Darcy-Weisbach friction
+  (`DuctFrictionSolver.Solve`, galvanised roughness, **air density from the HVAC header `Snapshot()`**
+  so altitude is respected) + fitting loss crossed on the hop in. (3) Terminal nodes are air terminals
+  (`OST_DuctTerminal` on `AllRefs`) or dead-end ducts. The index run is the terminal with the **maximum
+  cumulative drop**, recovered by backtracing a predecessor map (cycle-guarded). Falls back to the
+  single highest-ΔP duct when no terminal is reachable (surfaced as a warning).
+- **Fitting losses** are classified from `MechanicalFitting.PartType` (Elbow→`ELBOW_90_SMOOTH`,
+  Tee/Cross/Tap→`TEE_BRANCH_90`, Transition→`EXPANSION_45`; duct accessory→`DAMPER_OPEN`) → C from
+  `MepSizingRegistry` (manufacturer C via `MEP_PROD_REF_TXT` first, else the SMACNA/registry table),
+  `ΔP = C·½ρv²` with v from the connector's own flow+area.
+- **Component allowances** (coil/filter/terminal) read from a **new `duct.componentAllowancesPa`
+  block** in `STING_MEP_SIZING_RULES.json` (parsed into `MepSizingRules.DuctComponentAllowancesPa`),
+  offered via a TaskDialog (all / terminal-only / none) with hardcoded fallbacks if the block is absent.
+- **Output:** a `StingResultPanel` (fan ESP + per-segment table + method), a TaskDialog summary, a
+  `StingHvacPanel.PushRunRow` entry, and a CSV via `OutputLocationHelper.GetOutputPath`.
+- **Wiring:** dispatch case in `UI/StingHvacCommandHandler.cs`; a "Fan static" primary button on the
+  **RPRT** tab of `UI/StingHvacPanel.xaml`.
+- **Honesty:** fitting classification uses SMACNA design-point C, not full fitting curves; component
+  allowances are fixed Pa, not modelled coil/filter selections. Unverifiable without a live Revit
+  ducted model — logic is static-analysis + build-verified only.
+
+#### Completed (HVAC gap remediation Tier 2 item 2.2 — branch `claude/hvac-impl`)
+
+Item 2.2 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — auto-populate refrigerant sizing from the
+model. Built against Revit 2025 Release: **0 errors, 4 baseline warnings** (pre-existing
+`ElementId(int)` CS0618 in `Clash/ClashIssueSyncCommand.cs`).
+
+- **New `Core/Refrigerant/RefrigerantSelectionExtractor.cs`** (+ `RefrigerantSelectionResult`).
+  Given the active document and the current selection, it derives the three inputs the
+  `RefrigerantSizingDialog` previously required by hand:
+  - **Capacity** — from `HVC_CAPACITY_KW`. When a VRF ODU (mechanical-equipment `FamilyInstance`
+    with a piping-domain connector) is selected, the connector graph is walked and the served IDUs'
+    capacities are **summed**; if no IDU capacity is reachable it falls back to the ODU's own
+    stamped value; if neither is present the field keeps the manual default.
+  - **Equivalent length** — the refrigerant connector graph is walked outward from the ODU (BFS over
+    `Connector.AllRefs` → `Owner`, visited-set + 200-hop guard, mirroring
+    `HvacSegmentRoleDetector`/`PipeServiceDetector`), summing pipe straight lengths
+    (`CURVE_ELEM_LENGTH` → location-curve fallback, ft→m), then adding a **+30% fitting-equivalent
+    allowance** (documented, editable). Pipe-anchored selections grow the run through connected
+    fittings and sum that; both note when the trace is partial.
+  - **Lift** — the world-Z delta between the ODU's lowest refrigerant connector origin and the
+    farthest reachable IDU connector (`Connector.Origin.Z`, ft→m), sign-matched to the solver's
+    `+lift = ODU above IDU`. Pipe-only selections report the run's Z-span magnitude.
+- **`UI/RefrigerantSizingDialog.cs`** gained a second ctor param
+  (`RefrigerantSelectionResult prefill = null`). When supplied it seeds the capacity / equivalent-
+  length / lift / riser fields and shows a green provenance banner explaining exactly what was traced
+  vs. defaulted. **Every field stays editable** — nothing is locked.
+- **`Commands/Hvac/HvacRefrigerantSizeCommand.cs`** reads `ctx.UIDoc.Selection.GetElementIds()`
+  before showing the dialog and runs the extractor; **empty/unsuitable selection → the manual
+  dialog exactly as before**. The extractor never throws (every reader `try/catch`-guarded, failures
+  logged via `StingLog.Warn`); the command's outer catch is unchanged. Vendor-envelope checks then
+  run against whatever final (possibly user-edited) values the dialog returns.
+- **Coverage honesty:** the trace covers ODU→pipe→IDU where the model is connected in Revit's MEP
+  graph. It does *not* enumerate individual fitting equivalent-lengths (uses the flat +30% factor),
+  does not distinguish suction/liquid/discharge legs during the walk (the user still picks the leg),
+  and treats any reachable mechanical-equipment as an IDU. Unverifiable without a live Revit VRF
+  model — logic is static-analysis + build-verified only.
+
+#### Completed (HVAC gap remediation Tier 2 — branch `claude/hvac-impl`)
+
+Items 2.1 and 2.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` (they edit the same files, done
+together). Built against Revit 2025 Release: **0 errors, 4 baseline warnings** (all pre-existing
+`ElementId(int)` CS0618 in `Clash/ClashIssueSyncCommand.cs`, unrelated).
+
+- **2.1 — construction properties read from the model, not just the profile.**
+  `Core/Hvac/Loads/EnvelopeDetector.cs` previously stamped every exterior wall with the global
+  `ConstructionProfileRegistry` profile U and every window with the profile-global SHGC. Now, for
+  each exterior wall on the Space/Room boundary, `TryWallUFromModel(doc, wallType)` reads the wall
+  type's `CompoundStructure`, sums layer thermal resistances (`layer.Width` → m ÷ material thermal
+  conductivity) plus the ISO 6946 / CIBSE surface air-films (Rsi 0.13 + Rse 0.04 = 0.17 m²·K/W),
+  and returns `U = 1/ΣR`. Layer conductivity comes from `TryMaterialConductivity`:
+  `Material.ThermalAssetId` → `PropertySetElement.GetThermalAsset()` → `ThermalAsset.ThermalConductivity`,
+  converted from internal units via `UnitUtils.ConvertFromInternalUnits(k, UnitTypeId.WattsPerMeterKelvin)`.
+  The zone's single aggregated wall segment carries the **area-weighted** model U across its exterior
+  walls. Glazing SHGC and U are read per window from the family symbol via
+  `TryGlazingShgcFromSymbol` / `TryGlazingUFromSymbol` — a STING `HVC_GLAZING_SHGC_NR` /
+  `HVC_GLAZING_U_NR` shared param first, then the Revit built-in analytic parameters
+  (`ANALYTICAL_SOLAR_HEAT_GAIN_COEFFICIENT`, `ANALYTICAL_HEAT_TRANSFER_COEFFICIENT`) — area-weighted
+  across the zone's windows.
+  **Fallback is preserved and documented:** any wall whose type has no compound structure, no
+  layers, or a solid layer with missing/zero conductivity (curtain wall, generic wall, materials
+  with no thermal asset) returns `null` from `TryWallUFromModel`, and the segment keeps the profile
+  U; likewise glazing without analytic/STING data keeps the profile SHGC/U. Every fallback is logged
+  per-segment (`StingLog.Info` with the type name + the profile value used). A new
+  `EnvelopeBuildStats` accumulator counts model-derived vs fallback walls and glazing; the
+  block-load result panel (`HvacBlockLoadCommand`) now shows an **"ENVELOPE DATA SOURCE (2.1)"**
+  section with the model/profile split for walls and glazing. All new readers are `try/catch`-guarded
+  and never throw out of the envelope loop. The `AddPerimeterEnvelope` signature gained an optional
+  `EnvelopeBuildStats stats = null` (additive — the `SustainabilityEngine` callers are unchanged).
+
+- **2.4 — baked-in load constants now project overrides.** Four design-day literals in
+  `Core/Hvac/Loads/BlockLoadEngine.cs` — cooling/heating day-of-year (`202`/`21`), outdoor daily
+  range (`8.0` K), diffuse-on-horizontal fraction (`0.15`), and the CIBSE §4.6 windward infiltration
+  `Cp` (`0.6`) — moved into a new registry. `Data/STING_LOAD_ASSUMPTIONS.json` (corporate baseline)
+  + `<project>/_BIM_COORD/load_assumptions.json` (project override, any subset of keys) load through
+  `Core/Hvac/Loads/LoadAssumptionsRegistry.cs`, a per-document cache mirroring
+  `ClimateRegistry`/`ConstructionProfileRegistry`. `BlockLoadEngine.Run` resolves a `LoadAssumptions`
+  once (via the existing `docHint`) and threads it into `ComputeZoneHourly`; the two public helpers
+  `OutdoorTempC` and `CibseInfiltrationLs` gained optional `dailyRangeK = 8.0` / `windwardCp = 0.6`
+  parameters so **every prior call site (and `HvacRtsBenchmarkCommand`, which calls `Run` with no
+  doc) is byte-for-byte unchanged** — the JSON defaults equal the old literals. The block-load result
+  panel gained a **"DESIGN-DAY ASSUMPTIONS (2.4)"** section showing the active values so an override
+  is visibly in effect. `LoadAssumptionsRegistry.Reload()` is wired into the HVAC panel "Reload
+  profiles" handler (`StingHvacCommandHandler`) and the per-document reload into the document-close
+  hook (`StingToolsApp.OnDocumentClosing`), matching the sibling registries. The data file ships to
+  `bin/Release/Data/` via the existing `Data\**\*` csproj glob.
+
+#### Completed (HVAC gap remediation Tier 1 — branch `claude/hvac-impl`)
+
+Three items from `docs/HVAC_GAP_REMEDIATION_PROMPT.md`, all discovery-first (the gaps were
+flagged from static analysis). Built against Revit 2025 Release: **0 errors, 4 baseline warnings**.
+
+- **1.1 — `Routing_GenerateLayout` (no change — discovery only).** The gap analysis claimed the
+  tag dispatched to a missing `GenerateLayoutCommand.cs`. Grep proved the class is live: it is
+  `GenerateLayoutCommand` in `Commands/Routing/RoutingStubCommands.cs:30`, a production
+  `IExternalCommand` driving the A* voxel pathfinder (`RoutingPathfinder` → `VoxelGrid`/`AStarSolver`)
+  and emitting a DetailCurve preview. Both dispatch sites (`StingHvacCommandHandler.cs:372`,
+  `StingCommandHandler.cs:227`) resolve to a real type. The glob-for-a-filename in the analysis
+  missed the multi-class file. The button works; no dead dispatch removed.
+- **1.2 — stale CLAUDE.md caveat corrected.** The Phase 180/181 HVAC caveat 2 said per-element
+  segment-role / pipe-service detection was "still pending — the data path is in place." It shipped:
+  `Core/Mep/HvacSegmentRoleDetector.cs` (Phase 182, connector-graph main/branch/runout, cached to
+  `HVC_SEGMENT_ROLE_TXT`) and `Core/Mep/PipeServiceDetector.cs` (Phase 183, `MEPSystem`-abbreviation
+  match) are production and used per-element in the auto-size pass
+  (`DuctSizingApplyEngine.DetectRoles` → `DetectRolesBatch`). Caveat rewritten to say shipped; the
+  old project-wide `branch`/`chw` defaults are documented as fail-soft fallbacks only. PaneGuid,
+  grid-empty-on-open, and `Hvac_RunLoads`/`Hvac_ExportGbxml` caveats cross-checked and left intact.
+- **1.3 — friction (Pa/m) budget now governs duct sizing.** `Core/Mep/DuctSizingApplyEngine.cs`
+  previously sized on `maxVelocityMs` only, leaving `DuctRole.MaxFrictionPaPerM` (main 1.2 / branch
+  1.0 / runout 0.8) validation-only — a long main passing velocity could exceed the friction target.
+  After the velocity size is chosen, `ComputeProposals` now computes straight-run Pa/m via
+  `DuctFrictionSolver.Solve` (1 m reference length ⇒ StraightDropPa **is** Pa/m; at the duct default
+  region's air density from `MepSizingRules.DefaultAirDensityKgM3()`, new accessor) and, while it
+  exceeds the role's `MaxFrictionPaPerM`, steps up one standard size at a time — round: next
+  diameter; rectangular: next width, then re-clamp the other side to the role aspect — in a loop
+  bounded by the size-table length and guarded against running off the top of the table. When
+  friction governs, `DuctSizingChange.FrictionGoverned` is set and the audit stamp
+  `HVC_SIZE_RULE_ID_TXT` records `role|source|friction` (vs `role|source` when velocity governs).
+  Velocity-path behaviour is byte-for-byte unchanged when friction is already satisfied (loop is a
+  no-op). `DuctFrictionSolver.Solve` gained an optional `airDensityKgM3` parameter (default = the
+  existing 1.204 constant), so all prior call sites are unchanged. Worked check: Ø400 @ 500 L/s ≈
+  0.45 Pa/m (matches Ductulator); a tight-budget main at Ø400/1.63 Pa/m upsizes to Ø500/0.54 Pa/m.
+  No new shared params (reuses `HVC_SIZE_RULE_ID_TXT`). Release build: 0 errors, 4 baseline warnings.
 
 #### Completed (Phase 195 Task 3 — Per-category tag-expander schedules, branch `feature/universal-tag-system`)
 

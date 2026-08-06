@@ -6,49 +6,49 @@ AC_ELEMENT_ID_TXT,<ALL>
 AC_HOTLINK_FILE_TXT,<ALL>
 AC_HOTLINK_ID_TXT,<ALL>
 AC_REVISION_TXT,<ALL>
-ARCH_TAG_7_PARA_AREAS_TXT,<ALL>
-ARCH_TAG_7_PARA_ASSEMBLIES_TXT,<ALL>
+ARCH_TAG_7_PARA_AREAS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_ASSEMBLIES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_CASEWORK_TXT,<ALL>
 ARCH_TAG_7_PARA_CEIL_TXT,<ALL>
-ARCH_TAG_7_PARA_COLUMNS_TXT,<ALL>
-ARCH_TAG_7_PARA_CURTAIN_TXT,<ALL>
-ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT,<ALL>
+ARCH_TAG_7_PARA_COLUMNS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_CURTAIN_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_DOOR_TXT,<ALL>
-ARCH_TAG_7_PARA_ENTOURAGE_TXT,<ALL>
+ARCH_TAG_7_PARA_ENTOURAGE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_FACADE_TXT,<ALL>
 ARCH_TAG_7_PARA_FLOOR_TXT,<ALL>
-ARCH_TAG_7_PARA_FOOD_EQUIP_TXT,<ALL>
+ARCH_TAG_7_PARA_FOOD_EQUIP_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_FURNITURE_TXT,<ALL>
 ARCH_TAG_7_PARA_FURN_SYS_TXT,<ALL>
-ARCH_TAG_7_PARA_HARDSCAPE_TXT,<ALL>
-ARCH_TAG_7_PARA_MASS_TXT,<ALL>
-ARCH_TAG_7_PARA_MODEL_GROUPS_TXT,<ALL>
-ARCH_TAG_7_PARA_MULLION_TXT,<ALL>
-ARCH_TAG_7_PARA_PADS_TXT,<ALL>
+ARCH_TAG_7_PARA_HARDSCAPE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_MASS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_MODEL_GROUPS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_MULLION_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_PADS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_PARKING_TXT,<ALL>
-ARCH_TAG_7_PARA_PARTS_TXT,<ALL>
-ARCH_TAG_7_PARA_PLANTING_TXT,<ALL>
-ARCH_TAG_7_PARA_PROFILES_TXT,<ALL>
-ARCH_TAG_7_PARA_PROPERTY_LINES_TXT,<ALL>
-ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT,<ALL>
-ARCH_TAG_7_PARA_RAILING_TXT,<ALL>
+ARCH_TAG_7_PARA_PARTS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_PLANTING_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_PROFILES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_PROPERTY_LINES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_RAILING_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_RAMP_TXT,<ALL>
-ARCH_TAG_7_PARA_ROADS_TXT,<ALL>
+ARCH_TAG_7_PARA_ROADS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_ROOF_TXT,<ALL>
 ARCH_TAG_7_PARA_ROOM_TXT,<ALL>
-ARCH_TAG_7_PARA_RVT_LINKS_TXT,<ALL>
-ARCH_TAG_7_PARA_SIGNAGE_TXT,<ALL>
+ARCH_TAG_7_PARA_RVT_LINKS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_SIGNAGE_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_SITE_TXT,<ALL>
-ARCH_TAG_7_PARA_SPACES_TXT,<ALL>
+ARCH_TAG_7_PARA_SPACES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_STAIR_TXT,<ALL>
-ARCH_TAG_7_PARA_TEMP_STRUCT_TXT,<ALL>
-ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT,<ALL>
-ARCH_TAG_7_PARA_TOPOSOLID_TXT,<ALL>
-ARCH_TAG_7_PARA_VERT_CIRC_TXT,<ALL>
+ARCH_TAG_7_PARA_TEMP_STRUCT_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_TOPOSOLID_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
+ARCH_TAG_7_PARA_VERT_CIRC_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_WALL_TXT,<ALL>
-ARCH_TAG_7_PARA_WASH_TXT,<ALL>
+ARCH_TAG_7_PARA_WASH_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARCH_TAG_7_PARA_WIN_TXT,<ALL>
-ARCH_TAG_7_PARA_ZONES_TXT,<ALL>
+ARCH_TAG_7_PARA_ZONES_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows|Furniture|Casework|Stairs|Railings|Curtain Panels|Curtain Wall Mullions|Areas|Spaces|Rooms|Generic Models|Specialty Equipment|Planting|Hardscape|Property Lines|Roads|Detail Items|Parts|Assemblies|Mass|Entourage|RVT Links|Toposolid|Building Pad
 ARC_FACTORY_ORDER_REF_TXT,<ALL>
 ARC_GLAZING_SPEC_TXT,<ALL>
 AREA_SQ_M,<ALL>
@@ -109,7 +109,7 @@ ASS_DISPLAY_TXT,<ALL>
 ASS_DRIVE_TXT,<ALL>
 ASS_DUR_UNIT_TXT,<ALL>
 ASS_ELEVATION_M,<ALL>
-ASS_EQUIPMENT_TAG_TXT,<ALL>
+ASS_EQUIPMENT_TAG_TXT,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Specialty Equipment
 ASS_EXPECTED_LIFE_YEARS_YRS,<ALL>
 ASS_FAB_LOC_TXT,<ALL>
 ASS_FAB_NOTES_TXT,<ALL>
@@ -244,7 +244,7 @@ ASS_TAG_7D_TXT,<ALL>
 ASS_TAG_7E_TXT,<ALL>
 ASS_TAG_7F_TXT,<ALL>
 ASS_TAG_7_PARA_EQUIPMENT_TXT,<ALL>
-ASS_TAG_7_PARA_EQUIP_TXT,<ALL>
+ASS_TAG_7_PARA_EQUIP_TXT,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Specialty Equipment
 ASS_TAG_7_TXT,<ALL>
 ASS_TAG_MODIFIED_BY_TXT,<ALL>
 ASS_TAG_MODIFIED_DT,<ALL>
@@ -638,11 +638,11 @@ CEQ_ENDO_AER_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_ENDO_CYCLE_COUNT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_ENDO_LAST_REPRO_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_ENDO_SCOPE_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_EQP_TAG,<ALL>
+CEQ_EQP_TAG,Medical Equipment|Specialty Equipment
 CEQ_GMDN_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_INFECT_TIER_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CEQ_SFG20_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_TAG_7_PARA_TXT,<ALL>
+CEQ_TAG_7_PARA_TXT,Medical Equipment|Specialty Equipment
 CEQ_UMDNS_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLASH_COUNT_INT,<ALL>
 CLASH_LIVE_FLAG,<ALL>
@@ -660,7 +660,7 @@ CLN_DESIGN_ACH_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_DESIGN_PRESSURE_DELTA_PA_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_DESIGN_RH_PCT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_DESIGN_TEMP_C_DBL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_EQP_TAG,<ALL>
+CLN_EQP_TAG,Rooms|Spaces|MEP Spaces
 CLN_EQUIP_WEIGHT_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_FGI_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_FLOOR_LOAD_KN_M2_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
@@ -680,11 +680,11 @@ CLN_PRIVACY_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_RAD_CONTROLLED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_RF_SHIELD_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_ROOM_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_ROOM_TAG,<ALL>
+CLN_ROOM_TAG,Rooms|Spaces|MEP Spaces
 CLN_RT60_TARGET_S_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_STRUCT_SIGN_OFF_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_STRUCT_SIGN_OFF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_TAG_7_PARA_TXT,<ALL>
+CLN_TAG_7_PARA_TXT,Rooms|Spaces|MEP Spaces
 CLN_TRANSPORT_PATH_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_VIB_VM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 CLN_WASTE_BIN_BIM_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
@@ -706,9 +706,9 @@ COMM_NOTES_TXT,<ALL>
 COMM_OPERATIVE_TXT,<ALL>
 COMM_STATE_TXT,<ALL>
 COMM_WITNESS_TXT,<ALL>
-COMP_MAT_TAG_1_TXT,<ALL>
-COMP_MAT_TAG_2_TXT,Materials
-COMP_TAG_1_TXT,<ALL>
+COMP_MAT_TAG_1_TXT,Walls|Floors|Ceilings|Roofs
+COMP_MAT_TAG_2_TXT,Walls|Floors|Ceilings|Roofs
+COMP_TAG_1_TXT,Walls|Floors|Ceilings|Roofs
 COM_BACKBONE_CAPACITY_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_BMS_RANGE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_COMMISSION_DATE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
@@ -725,8 +725,8 @@ COM_C_PROTOCOL_TXT,Data Devices|Communication Devices|Telephone Devices|Security
 COM_C_PWR_SUPPLY_V,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_DAT_SPARE_01_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_DAT_SPARE_02_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-COM_DEV_TAG,<ALL>
-COM_DEV_TAG_01_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
+COM_DEV_TAG,Communication Devices|Telephone Devices
+COM_DEV_TAG_01_TXT,Communication Devices|Telephone Devices
 COM_FIBER_TYPE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_HANDOVER_STATUS_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 COM_INSTALL_DATE_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
@@ -980,7 +980,7 @@ ELC_CDT_SOFFIT_OFFSET_MM,Conduits|Conduit Fittings
 ELC_CDT_STALE_ANNOT_BOOL,Conduits|Conduit Fittings
 ELC_CDT_SUPPORT_SPACING_MM,Conduits|Conduit Fittings
 ELC_CDT_SZ_MM,Conduits|Conduit Fittings
-ELC_CDT_TAG,<ALL>
+ELC_CDT_TAG,Conduits|Conduit Fittings
 ELC_CDT_TAG_01_TXT,Conduits|Conduit Fittings
 ELC_CDT_TAG_02_TXT,Conduits|Conduit Fittings
 ELC_CIRCUIT_GROUP_TXT,Electrical Circuits
@@ -1017,7 +1017,7 @@ ELC_CTR_FILL_PCT,Cable Trays|Cable Tray Fittings
 ELC_CTR_HEIGHT_MM,Cable Trays|Cable Tray Fittings
 ELC_CTR_MAT_TXT,Cable Trays|Cable Tray Fittings
 ELC_CTR_SZ_TXT,Cable Trays|Cable Tray Fittings
-ELC_CTR_TAG,<ALL>
+ELC_CTR_TAG,Cable Trays|Cable Tray Fittings
 ELC_CTR_TAG_01_TXT,Cable Trays|Cable Tray Fittings
 ELC_CTR_WIDTH_MM,Cable Trays|Cable Tray Fittings
 ELC_DIV_FCT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -1025,15 +1025,15 @@ ELC_EES_BRANCH_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tr
 ELC_EMERG_COVERED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_ENERGY_COST_UGX_PA,Electrical Equipment|Electrical Circuits
 ELC_ENERGY_KWH_PA,Electrical Equipment|Electrical Circuits
-ELC_EQP_TAG,<ALL>
-ELC_EQP_TAG_01_TXT,Electrical Equipment|Electrical Circuits
-ELC_EQP_TAG_02_TXT,Electrical Equipment|Electrical Circuits
+ELC_EQP_TAG,Electrical Equipment
+ELC_EQP_TAG_01_TXT,Electrical Equipment
+ELC_EQP_TAG_02_TXT,Electrical Equipment
 ELC_EQUIPMENT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FACTORY_QR_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FAT_CERT_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FEEDER_CSA_MM2,Cable Trays|Conduits|Electrical Circuits
 ELC_FEEDER_RATING_A,Cable Trays|Conduits|Electrical Circuits
-ELC_FIX_TAG_1_TXT,<ALL>
+ELC_FIX_TAG_1_TXT,Electrical Fixtures
 ELC_FIX_TAG_2_TXT,Electrical Fixtures
 ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Circuits
 ELC_GEN_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
@@ -1137,13 +1137,13 @@ ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment|Electrical Circuits
 ELC_SPARE_WAYS_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_TAG_7_PARA_CABLE_TXT,<ALL>
 ELC_TAG_7_PARA_CIRCUIT_TXT,<ALL>
-ELC_TAG_7_PARA_CIRC_TXT,<ALL>
+ELC_TAG_7_PARA_CIRC_TXT,Conduits|Conduit Fittings
 ELC_TAG_7_PARA_COMM_TXT,<ALL>
 ELC_TAG_7_PARA_CONDUIT_TXT,<ALL>
 ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,<ALL>
 ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT,<ALL>
-ELC_TAG_7_PARA_FIXTURE_TXT,<ALL>
-ELC_TAG_7_PARA_LPS_TXT,<ALL>
+ELC_TAG_7_PARA_FIXTURE_TXT,Electrical Fixtures
+ELC_TAG_7_PARA_LPS_TXT,Electrical Equipment|Generic Models|Conduits|Specialty Equipment
 ELC_TAG_7_PARA_PANEL_TXT,<ALL>
 ELC_TAG_7_PARA_TIEIN_TXT,<ALL>
 ELC_TAG_7_PARA_TRAY_TXT,<ALL>
@@ -1182,12 +1182,12 @@ ELC_WIRE_PROFILE_ID_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_WIRE_SHIELDED_BOOL,Cable Trays|Conduits|Electrical Circuits
 ELC_WIRE_SIZE_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_WIRE_VD_PCT_NUM,Cable Trays|Conduits|Electrical Circuits
-ELE_FIX_TAG,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ENV_FAC_TAG_TXT,Curtain Panels|Curtain Wall Mullions|Generic Models|Walls
-ENV_ROOF_TAG_TXT,Generic Models|Roofs
-ENV_TAG_1_TXT,<ALL>
-ENV_WIN_TAG_TXT,Generic Models|Windows
-EQP_TAG_1_TXT,<ALL>
+ELE_FIX_TAG,Electrical Fixtures
+ENV_FAC_TAG_TXT,Walls|Windows|Roofs
+ENV_ROOF_TAG_TXT,Walls|Windows|Roofs
+ENV_TAG_1_TXT,Walls|Windows|Roofs
+ENV_WIN_TAG_TXT,Walls|Windows|Roofs
+EQP_TAG_1_TXT,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Specialty Equipment
 EV_CHARGER_CIRCUIT_REF,<ALL>
 EV_CHARGER_KW,<ALL>
 EV_CHARGER_TYPE_TXT,<ALL>
@@ -1199,15 +1199,15 @@ FAB_HANGER_LOAD_KN,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Ca
 FAB_HANGER_TYPE_TXT,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
 FAB_PIPE_DN_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 FAB_STIFF_TYPE_TXT,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays
-FIN_CEIL_TAG_TXT,Ceilings|Generic Models
-FIN_FLR_TAG_TXT,Floors|Generic Models
-FIN_TAG_1_TXT,<ALL>
-FIN_WALL_TAG_TXT,Curtain Panels|Generic Models|Walls
+FIN_CEIL_TAG_TXT,Walls|Floors|Ceilings
+FIN_FLR_TAG_TXT,Walls|Floors|Ceilings
+FIN_TAG_1_TXT,Walls|Floors|Ceilings
+FIN_WALL_TAG_TXT,Walls|Floors|Ceilings
 FLS_ALARM_CIRCUIT_COUNT_NR,Sprinklers|Fire Alarm Devices
 FLS_COMPARTMENT_ID_TXT,Sprinklers|Fire Alarm Devices
 FLS_DETECTION_COST_UGX,Sprinklers|Fire Alarm Devices
 FLS_DETECTOR_COUNT_NR,Sprinklers|Fire Alarm Devices
-FLS_DEV_TAG,<ALL>
+FLS_DEV_TAG,Sprinklers|Fire Alarm Devices
 FLS_DEV_TAG_01_TXT,Sprinklers|Fire Alarm Devices
 FLS_DEV_TAG_02_TXT,Sprinklers|Fire Alarm Devices
 FLS_EVACUATION_TIME_MIN,Sprinklers|Fire Alarm Devices
@@ -1248,7 +1248,7 @@ FLS_SFTY_TRAVEL_DIST_M,Sprinklers|Fire Alarm Devices
 FLS_SPRINKLER_COUNT_NR,Sprinklers|Fire Alarm Devices
 FLS_SUPPRESSION_COST_UGX,Sprinklers|Fire Alarm Devices
 FLS_SUPPRESSION_PIPE_LENGTH_M,Sprinklers|Fire Alarm Devices
-FLS_TAG_7_PARA_DEVICE_TXT,<ALL>
+FLS_TAG_7_PARA_DEVICE_TXT,Sprinklers|Fire Alarm Devices
 FLS_TAG_7_PARA_FA_TXT,<ALL>
 FLS_TAG_7_PARA_FIRE_PROT_TXT,<ALL>
 FLS_TAG_7_PARA_SPR_TXT,<ALL>
@@ -1273,7 +1273,7 @@ FOUND_SUMMARY_TXT,Structural Framing|Structural Columns|Structural Foundations|S
 GEN_HEIGHT_AT_MATURITY_M,<ALL>
 GEN_ROAD_TYPE_TXT,<ALL>
 GEN_SPECIES_TXT,<ALL>
-GEN_TAG_7_PARA_EQUIP_TXT,<ALL>
+GEN_TAG_7_PARA_EQUIP_TXT,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Specialty Equipment
 GEN_TAG_7_PARA_MISC_TXT,<ALL>
 GEN_TAG_7_PARA_SITE_TXT,<ALL>
 HANDOVER_MODE_CUSTOM_BOOL,<ALL>
@@ -1305,10 +1305,10 @@ HVC_DCT_SHOP_DRAWING_REQ_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fitt
 HVC_DCT_SOUNDLVL_DB,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_SUPPORTS_SPACING_MM,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_SZ_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_DCT_TAG,<ALL>
-HVC_DCT_TAG_01_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_DCT_TAG_02_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_DCT_TAG_03_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_DCT_TAG,Ducts|Duct Fittings|Flex Ducts|Air Terminals|Duct Accessories
+HVC_DCT_TAG_01_TXT,Ducts|Duct Fittings|Flex Ducts|Air Terminals|Duct Accessories
+HVC_DCT_TAG_02_TXT,Ducts|Duct Fittings|Flex Ducts|Air Terminals|Duct Accessories
+HVC_DCT_TAG_03_TXT,Ducts|Duct Fittings|Flex Ducts|Air Terminals|Duct Accessories
 HVC_DCT_TERMINAL_SOUND_DB_NR,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_TERMINAL_SZ_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DCT_TERMINAL_TYPE_SD_RG_EG_VAV_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
@@ -1318,15 +1318,15 @@ HVC_DUCT_CLASS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct A
 HVC_DUCT_FLOWRATE_M3H,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_DUCT_LINING_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_EFF_RATIO_NR,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_EQP_TAG,<ALL>
-HVC_EQP_TAG_01_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_EQP_TAG_02_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_EQP_TAG_03_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_EQP_TAG,Mechanical Equipment
+HVC_EQP_TAG_01_TXT,Mechanical Equipment
+HVC_EQP_TAG_02_TXT,Mechanical Equipment
+HVC_EQP_TAG_03_TXT,Mechanical Equipment
 HVC_FACTORY_FLASH_TEST_DATE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_FACTORY_QR_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_FLOW_LS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_FLX_TAG,<ALL>
-HVC_FLX_TAG_01_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_FLX_TAG,Flex Ducts
+HVC_FLX_TAG_01_TXT,Flex Ducts
 HVC_HED_M,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_HEPA_GRADE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_HEPA_LAST_TST_DT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
@@ -1363,7 +1363,7 @@ HVC_SIZE_MODIFIED_DT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct
 HVC_SIZE_PREV_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SIZE_RULE_ID_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SIZE_STALE_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_TAG_7_PARA_ANAL_DUCTS_TXT,<ALL>
+HVC_TAG_7_PARA_ANAL_DUCTS_TXT,Ducts|Duct Fittings|Flex Ducts|Air Terminals|Duct Accessories
 HVC_TAG_7_PARA_AT_TXT,<ALL>
 HVC_TAG_7_PARA_DCTACC_TXT,<ALL>
 HVC_TAG_7_PARA_DUCT_INSULATION_TXT,<ALL>
@@ -1384,8 +1384,8 @@ HVC_THROW_M,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessor
 HVC_VEL_MPS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_VLT_V,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 ICT_CAT_RATING_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
-ICT_DEV_TAG,<ALL>
-ICT_DEV_TAG_01_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
+ICT_DEV_TAG,Data Devices
+ICT_DEV_TAG_01_TXT,Data Devices
 ICT_ENDO_READER_ID_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 ICT_HEALTHIOT_ALERT_BAND_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 ICT_HEALTHIOT_DEVICE_ID_TXT,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
@@ -1408,12 +1408,12 @@ IFC_PSET_OVERRIDE_TXT,<ALL>
 INS_MATERIAL_TXT,<ALL>
 IPS_BRANCH_COMPLIANT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 LIG_AREA_OBS_LOS_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
-LIG_FIT_TAG,<ALL>
+LIG_FIT_TAG,Casework|Specialty Equipment|Generic Models
 LIG_FORCE_LIMIT_KG_NR,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_PRESSURE_REL_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_PRODUCT_RATING_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_SELF_CLOSE_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
-LIG_TAG_7_PARA_TXT,<ALL>
+LIG_TAG_7_PARA_TXT,Casework|Specialty Equipment|Generic Models
 LS_NAME_TXT,Generic Models
 LS_PATTERN_TXT,Generic Models
 LS_STATUS_TXT,Generic Models
@@ -1433,7 +1433,7 @@ LTG_EMRG_TYPE_TXT,Lighting Fixtures
 LTG_FIX_EFFICACY_LM_W,Lighting Fixtures
 LTG_FIX_LAMP_TYPE_TXT,Lighting Fixtures
 LTG_FIX_LMP_WATTAGE_W,Lighting Fixtures
-LTG_FIX_TAG,<ALL>
+LTG_FIX_TAG,Lighting Fixtures|Lighting Devices
 LTG_FIX_TAG_01_TXT,Lighting Fixtures
 LTG_FIX_TAG_02_TXT,Lighting Fixtures
 LTG_FIX_TYPE_CLASSIFICATION_TXT,Lighting Fixtures
@@ -1442,7 +1442,7 @@ LTG_HOIST_MOTOR_TXT,Lighting Fixtures
 LTG_HOIST_WEIGHT_KG,Lighting Fixtures
 LTG_ILLUMINANCE_LUX,Lighting Fixtures
 LTG_POWER_DENSITY_W_M2,Lighting Fixtures
-LTG_TAG_7_PARA_FIXTURE_TXT,<ALL>
+LTG_TAG_7_PARA_FIXTURE_TXT,Lighting Fixtures|Lighting Devices
 LTG_TAG_7_PARA_SPEC_TXT,<ALL>
 MAT_APPLICATION,Materials
 MAT_CARBON_FACTOR,Materials
@@ -1482,18 +1482,18 @@ MAT_LOCATION,Materials
 MAT_MANUFACTURER,Materials
 MAT_MEASURED_AREA_M2,Materials
 MAT_NAME,Materials
-MAT_PERF_TAG_1_TXT,<ALL>
-MAT_PERF_TAG_2_TXT,Materials
-MAT_PERF_TAG_3_TXT,Materials
+MAT_PERF_TAG_1_TXT,Walls|Floors|Ceilings|Roofs
+MAT_PERF_TAG_2_TXT,Walls|Floors|Ceilings|Roofs
+MAT_PERF_TAG_3_TXT,Walls|Floors|Ceilings|Roofs
 MAT_PROP_DICT_GUID_TXT,Materials
 MAT_SPECIFICATIONS,Materials
 MAT_STANDARD,Materials
-MAT_TAG_1_TXT,<ALL>
-MAT_TAG_2_TXT,Materials
-MAT_TAG_3_TXT,Materials
-MAT_TAG_4_TXT,Materials
-MAT_TAG_5_TXT,Materials
-MAT_TAG_6_TXT,Materials
+MAT_TAG_1_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows
+MAT_TAG_2_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows
+MAT_TAG_3_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows
+MAT_TAG_4_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows
+MAT_TAG_5_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows
+MAT_TAG_6_TXT,Walls|Floors|Ceilings|Roofs|Doors|Windows
 MAT_THICKNESS_INCH,Materials
 MAT_THICKNESS_MM,Materials
 MAT_UNIT_RATE_UGX,Materials
@@ -1537,12 +1537,12 @@ MEP_WORKING_PRESSURE_PA,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|D
 MGS_AAP_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_DESIGN_FLOW_LPM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_DIVERSITY_PCT_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_EQP_TAG,<ALL>
+MGS_EQP_TAG,Pipe Fittings|Pipes|Mechanical Equipment
 MGS_GAS_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_NOM_PRESS_KPA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_OUTLET_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_PIPE_BRAZED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_TAG_7_PARA_TXT,<ALL>
+MGS_TAG_7_PARA_TXT,Pipe Fittings|Pipes|Mechanical Equipment
 MGS_TU_BS5682_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_TU_INDEXED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 MGS_VERIFY_BY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
@@ -1573,11 +1573,11 @@ MNT_TYPE_TXT,<ALL>
 MNT_WARRANTY_EXPIRY_TXT,<ALL>
 MOUNTING_REFERENCE_TXT,<ALL>
 NCL_CALL_TYPE_TXT,Nurse Call Devices
-NCL_DEV_TAG,<ALL>
+NCL_DEV_TAG,Nurse Call Devices
 NCL_DEV_TAG_01_TXT,Nurse Call Devices
 NCL_DEV_TYPE_TXT,Nurse Call Devices
 NCL_TAG_7_PARA_NURSECALL_TXT,<ALL>
-NCL_TAG_7_PARA_TXT,<ALL>
+NCL_TAG_7_PARA_TXT,Nurse Call Devices
 NCL_ZONE_TXT,Nurse Call Devices
 NRG_ANNUAL_COOL_KWH,<ALL>
 NRG_ANNUAL_HEAT_KWH,<ALL>
@@ -1608,7 +1608,7 @@ PEN_OD_MM,Walls|Floors|Ceilings|Roofs|Generic Models
 PEN_PFV_UUID_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
 PEN_SEALANT_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
 PEN_STRUCTURAL_FLAG_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PERF_TAG_1_TXT,<ALL>
+PERF_TAG_1_TXT,Walls|Floors|Ceilings|Roofs
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,<ALL>
 PER_ACOUSTICS_IIC_RATING_TXT,<ALL>
 PER_ACOUSTICS_ISOLATION_REQ_BOOL,<ALL>
@@ -1683,7 +1683,7 @@ PER_SUST_WATER_HARVEST_L,<ALL>
 PER_SUST_WATER_RATING_TXT,<ALL>
 PER_SUST_WTR_RATING_NR,<ALL>
 PER_TAG_7_PARA_ENVIRONMENT_TXT,<ALL>
-PER_TAG_7_PARA_ENV_TXT,<ALL>
+PER_TAG_7_PARA_ENV_TXT,Walls|Windows|Roofs
 PER_THERM_CONDENSATION_RISK_TXT,<ALL>
 PER_THERM_CONDUCTIVITY_W_MK,<ALL>
 PER_THERM_DELTA_T_K,<ALL>
@@ -1750,7 +1750,7 @@ PLM_DRN_VNT_TERMINAL_HEIGHT_FT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|P
 PLM_DRN_VNT_TERMINAL_LOC_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EQP_CAPACITY_L,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EQP_PRESSURE_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_EQP_TAG,<ALL>
+PLM_EQP_TAG,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Plumbing Equipment|Pipe Insulation
 PLM_EQP_TAG_01_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EQP_TAG_02_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_EXJ_ANGULAR_MOVEMENT_DEG,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1853,7 +1853,7 @@ PLM_SYS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plum
 PLM_TAG_7_PARA_ANAL_PIPES_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_DRAIN_TXT,<ALL>
 PLM_TAG_7_PARA_EQUIPMENT_TXT,<ALL>
-PLM_TAG_7_PARA_EQUIP_TXT,<ALL>
+PLM_TAG_7_PARA_EQUIP_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Plumbing Equipment|Pipe Insulation
 PLM_TAG_7_PARA_FAB_PIPEWORK_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_FIXTURE_TXT,<ALL>
 PLM_TAG_7_PARA_PIPEACC_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2052,12 +2052,12 @@ Pset_StingCost.TotalCost,<ALL>
 Pset_StingCost.UnitRate,<ALL>
 RAD_BARRIER_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_EQP_TAG,<ALL>
+RAD_EQP_TAG,Walls|Floors|Ceilings|Rooms
 RAD_LEAD_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_OCC_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_QE_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_QE_NAME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_TAG_7_PARA_TXT,<ALL>
+RAD_TAG_7_PARA_TXT,Walls|Floors|Ceilings|Rooms
 RAD_USE_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RAD_WORKLOAD_MAWK_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 RGL_ACCESSIBILITY_COMPLIANT_TXT,<ALL>
@@ -2136,12 +2136,12 @@ RNV_NEW_CONST_SEQ_TXT,<ALL>
 RNV_STATUS_TXT,<ALL>
 SEC_CBL_NR_TXT,Security Devices
 SEC_DEV_COVERAGE_TXT,Security Devices
-SEC_DEV_TAG,<ALL>
+SEC_DEV_TAG,Security Devices
 SEC_DEV_TAG_01_TXT,Security Devices
 SEC_DEV_TYPE_TXT,Security Devices
 SEC_DEV_ZONE_TXT,Security Devices
 SEC_TAG_7_PARA_SECURITY_TXT,<ALL>
-SEC_TAG_7_PARA_TXT,<ALL>
+SEC_TAG_7_PARA_TXT,Security Devices
 SLV_ANNULAR_GAP_MM,Generic Models
 SLV_FIRESTOP_MFR_TXT,Generic Models
 SLV_FIRESTOP_PRODUCT_TXT,Generic Models
@@ -2153,8 +2153,8 @@ SLV_SEAL_TYPE_TXT,Generic Models
 SLV_SERVICE_TXT,Generic Models
 SLV_STATUS_TXT,Generic Models
 SLV_SZ_MM,Generic Models
-SLV_TAG,Walls|Floors|Ceilings|Roofs|Generic Models
-SLV_TAG_7_PARA_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
+SLV_TAG,Generic Models
+SLV_TAG_7_PARA_TXT,Generic Models
 SLV_TESTED_TO_TXT,Generic Models
 SLV_WALL_THICKNESS_MM,Generic Models
 SLV_WALL_TYPE_TXT,Generic Models
@@ -2169,8 +2169,8 @@ SPK_TAG_7_PARA_HEAD_TXT,Sprinklers|Fire Alarm Devices
 STING_4D_END_DATE_TXT,<ALL>
 STING_4D_START_DATE_TXT,<ALL>
 STING_5D_COST_RATE_NUM,<ALL>
-STING_AUTHORISED_BY_TXT,<ALL>
-STING_AUTHORISED_DATE_TXT,<ALL>
+PRJ_TB_AUTHORISED_BY_TXT,<ALL>
+PRJ_TB_AUTHORISED_DATE_TXT,<ALL>
 STING_AUTO_PLACED_BOOL,<ALL>
 STING_BOX_LOCATION_ID,<ALL>
 STING_BRIEFCASE_EXPORT_TXT,<ALL>
@@ -2189,14 +2189,14 @@ STING_DISPLAY_MODE,<ALL>
 STING_DRAWING_PACKAGE_ID_TXT,<ALL>
 STING_DRAWING_TYPE_ID_TXT,<ALL>
 STING_EMB_CARBON_NR,<ALL>
-STING_FEDERATION_STATUS_TXT,<ALL>
+PRJ_TB_FEDERATION_STATUS_TXT,<ALL>
 STING_FIRE_RATING_TXT,<ALL>
 STING_GATE_DATA_MSG_TXT,<ALL>
 STING_GATE_DATA_STATUS_INT,<ALL>
 STING_GATE_QA_MSG_TXT,<ALL>
 STING_GATE_QA_STATUS_INT,<ALL>
 STING_HOST_ELEMENT_ID,<ALL>
-STING_LOIN_LOD_TXT,<ALL>
+PRJ_DWG_LOIN_LOD_TXT,<ALL>
 STING_MASTER_SETUP_TS,<ALL>
 STING_MATCH_DIR_TXT,<ALL>
 STING_MATCH_LINE_GUID_TXT,<ALL>
@@ -2222,17 +2222,18 @@ STING_PRODUCTION_RULE_IDX_INT,<ALL>
 STING_RETROFIT_TS,<ALL>
 STING_SEED_FAMILY_TXT,<ALL>
 STING_SETUP_COMPLETE,<ALL>
-STING_SHEET_BIM_MODE_TXT,<ALL>
-STING_SHEET_FULL_REF_TXT,<ALL>
-STING_SHEET_LEVEL_TXT,<ALL>
-STING_SHEET_OF_TOTAL_TXT,<ALL>
-STING_SHEET_ORIG_TXT,<ALL>
-STING_SHEET_PROJECT_TXT,<ALL>
-STING_SHEET_ROLE_TXT,<ALL>
-STING_SHEET_SEQUENCE_INT,<ALL>
-STING_SHEET_SEQ_TXT,<ALL>
-STING_SHEET_TYPE_TXT,<ALL>
-STING_SHEET_VOLUME_TXT,<ALL>
+PRJ_SHEET_BIM_MODE_TXT,<ALL>
+PRJ_SHEET_FULL_REF_TXT,<ALL>
+PRJ_SHEET_LEVEL_TXT,<ALL>
+PRJ_SHEET_OF_TOTAL_TXT,<ALL>
+PRJ_SHEET_ORIG_TXT,<ALL>
+PRJ_SHEET_PROJECT_TXT,<ALL>
+PRJ_SHEET_ROLE_TXT,<ALL>
+PRJ_SHEET_SEQUENCE_INT,<ALL>
+PRJ_SHEET_SEQ_TXT,<ALL>
+PRJ_SHEET_SYSTEM_TXT,<ALL>
+PRJ_SHEET_TYPE_TXT,<ALL>
+PRJ_SHEET_VOLUME_TXT,<ALL>
 STING_SLAB_ROUTING_FLAG,<ALL>
 STING_SLD_ELEMENT_ID,<ALL>
 STING_SLEEVE_BORE_MM,<ALL>
@@ -2249,7 +2250,7 @@ STING_SLEEVE_WIDTH_MM,<ALL>
 STING_STALE_BOOL,<ALL>
 STING_STICKY_NOTE_TXT,<ALL>
 STING_STYLE_LOCKED_BOOL,<ALL>
-STING_SUITABILITY_DESC_TXT,<ALL>
+PRJ_DWG_SUITABILITY_DESC_TXT,<ALL>
 STING_SWAP_HISTORY_TXT,<ALL>
 STING_SYMBOL_ID,<ALL>
 STING_SYMBOL_LABEL_ID,<ALL>
@@ -2372,41 +2373,41 @@ STR_STEEL_TAG_TXT,Structural Framing|Structural Columns|Structural Foundations|S
 STR_STRUCTURAL_USAGE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SURFACE_AREA_M2_M,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SYSTEM_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_TAG_1_TXT,<ALL>
-STR_TAG_7_PARA_ANAL_LINKS_TXT,<ALL>
-STR_TAG_7_PARA_ANAL_MEMBERS_TXT,<ALL>
-STR_TAG_7_PARA_ANAL_NODES_TXT,<ALL>
-STR_TAG_7_PARA_ANAL_OPENINGS_TXT,<ALL>
-STR_TAG_7_PARA_ANAL_PANELS_TXT,<ALL>
-STR_TAG_7_PARA_ANLYT_TXT,<ALL>
-STR_TAG_7_PARA_AREA_BASED_LOADS_TXT,<ALL>
-STR_TAG_7_PARA_AREA_LOADS_TXT,<ALL>
+STR_TAG_1_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_ANAL_LINKS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_ANAL_MEMBERS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_ANAL_NODES_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_ANAL_OPENINGS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_ANAL_PANELS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_ANLYT_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_AREA_BASED_LOADS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_AREA_LOADS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
 STR_TAG_7_PARA_BEAM_TXT,<ALL>
-STR_TAG_7_PARA_BOLT_TXT,<ALL>
-STR_TAG_7_PARA_BRACE_TXT,<ALL>
+STR_TAG_7_PARA_BOLT_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_BRACE_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
 STR_TAG_7_PARA_COL_TXT,<ALL>
-STR_TAG_7_PARA_CONN_TXT,<ALL>
+STR_TAG_7_PARA_CONN_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
 STR_TAG_7_PARA_FDN_TXT,<ALL>
-STR_TAG_7_PARA_INT_AREA_LOADS_TXT,<ALL>
-STR_TAG_7_PARA_INT_LINE_LOADS_TXT,<ALL>
-STR_TAG_7_PARA_INT_POINT_LOADS_TXT,<ALL>
-STR_TAG_7_PARA_LINE_LOADS_TXT,<ALL>
-STR_TAG_7_PARA_LOAD_TXT,<ALL>
-STR_TAG_7_PARA_POINT_LOADS_TXT,<ALL>
-STR_TAG_7_PARA_REBAR_TXT,<ALL>
-STR_TAG_7_PARA_SLAB_TXT,<ALL>
-STR_TAG_7_PARA_STR_AREA_REINF_TXT,<ALL>
-STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT,<ALL>
-STR_TAG_7_PARA_STR_CONNECTIONS_TXT,<ALL>
-STR_TAG_7_PARA_STR_FABRIC_REINF_TXT,<ALL>
-STR_TAG_7_PARA_STR_PATH_REINF_TXT,<ALL>
-STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT,<ALL>
-STR_TAG_7_PARA_STR_REBAR_TXT,<ALL>
-STR_TAG_7_PARA_STR_STIFFENERS_TXT,<ALL>
-STR_TAG_7_PARA_STR_TRUSSES_TXT,<ALL>
-STR_TAG_7_PARA_WALL_TXT,<ALL>
-STR_TAG_7_PARA_WELD_TXT,<ALL>
-STR_TAG_7_PARA_WIRE_TXT,<ALL>
+STR_TAG_7_PARA_INT_AREA_LOADS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_INT_LINE_LOADS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_INT_POINT_LOADS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_LINE_LOADS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_LOAD_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_POINT_LOADS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_REBAR_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_SLAB_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_AREA_REINF_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_CONNECTIONS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_FABRIC_REINF_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_PATH_REINF_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_REBAR_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_STIFFENERS_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_STR_TRUSSES_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_WALL_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_WELD_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
+STR_TAG_7_PARA_WIRE_TXT,Structural Columns|Structural Framing|Structural Foundations|Floors|Structural Beam Systems|Structural Connections|Structural Stiffeners|Structural Trusses|Structural Rebar|Rebar|Area Based Loads|Area Loads|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Loads|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers|Analytical Members|Analytical Links|Analytical Nodes|Analytical Openings|Analytical Panels|Walls|Structural Connections
 STR_TREAD_COUNT_NR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_TREAD_DEPTH_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_WALL_COVER_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
@@ -2421,9 +2422,9 @@ STR_WIND_PRESSURE_PA,Structural Framing|Structural Columns|Structural Foundation
 STR_WIND_TERRAIN_CAT_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_WLD_STRENGTH_MPA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_WLD_THROAT_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-SUST_MAT_TAG_1_TXT,<ALL>
-SUST_MAT_TAG_2_TXT,<ALL>
-SUST_TAG_1_TXT,<ALL>
+SUST_MAT_TAG_1_TXT,Walls|Floors|Ceilings|Roofs
+SUST_MAT_TAG_2_TXT,Walls|Floors|Ceilings|Roofs
+SUST_TAG_1_TXT,Walls|Floors|Ceilings|Roofs
 SUS_EDGE_LEVEL_TXT,Project Information
 SUS_ENERGY_KWH_M2_NR,Project Information
 SUS_EPD_REF_TXT,Project Information
@@ -3005,3 +3006,14 @@ ZON_GROSS_AREA_M2,<ALL>
 ZON_NET_AREA_M2,<ALL>
 ZON_OCCUPANTS_NR,<ALL>
 ZON_VOLUME_M3,<ALL>
+SHT_DISC_TXT,Sheets
+SHT_FORM_TXT,Sheets
+SHT_LEVEL_TXT,Sheets
+SHT_NAME_TXT,Sheets
+SHT_NUMBER_TXT,Sheets
+SHT_ORIGINATOR_TXT,Sheets
+SHT_REV_DATE_TXT,Sheets
+SHT_REV_TXT,Sheets
+SHT_TAG_1_TXT,Sheets
+SHT_TAG_7_TXT,Sheets
+STING_SHEET_CONTEXT_TXT,Sheets

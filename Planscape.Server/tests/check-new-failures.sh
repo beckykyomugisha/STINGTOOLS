@@ -18,16 +18,39 @@ BASELINE="$(dirname "$0")/known-failing-tests.txt"
 # A run that produced no summary line never got as far as running tests (build
 # break, host crash). Treat that as failure — an empty failure list would
 # otherwise read as "nothing new broke".
-if ! grep -qE "^(Passed!|Failed!)" "$OUTPUT"; then
+#
+# Several summary formats have to be accepted. `dotnet test` on a single project
+# prints the CLI summary ("Passed!  - Failed: 0, ...") — but only on some SDKs.
+# On a SOLUTION it goes through MSBuild and emits the VSTest logger summary
+# instead ("Total tests: N" / "Test Run Successful." / "Test Run Failed."); when
+# VSTestTask returns false the CLI line is never emitted at all. Matching only
+# one shape made this gate abort with "the run did not complete" — either on
+# every solution-level run that had failures (precisely when its diff is worth
+# reading), or, with the old anchor, on a fully-green 540-test run. Be
+# permissive: this check only asks "did the run finish", and the real failure
+# detection happens below, so a false abort is the costly direction.
+if ! grep -qE "^[[:space:]]*(Passed!|Failed!)|Total tests: [0-9]+|Test Run (Successful|Failed)\." "$OUTPUT"; then
   echo "::error::no test summary in output — the run did not complete"
   tail -30 "$OUTPUT"
   exit 1
 fi
 
-grep -o "Planscape\.Tests\.[A-Za-z0-9_.]*\ \[FAIL\]" "$OUTPUT" \
-  | sed 's/ \[FAIL\]//' | sort -u > /tmp/actual-failures.txt
+# Extract failing test method names, tolerant of BOTH loggers this suite can emit
+# and of theory cases:
+#   * xunit console:  "Planscape.Tests.X.Method(arg: 1) [FAIL]"
+#   * VSTest normal:  "  Failed Planscape.Tests.X.Method(arg: 1) [12 ms]"
+# The old pattern required a space immediately before "[FAIL]" (so a theory's
+# "(" ended the match) and never matched the "Failed …" form at all — on the
+# VSTest logger it found nothing, which reads as a false "no failures". Strip any
+# argument list to collapse theory cases to the base method the baseline lists.
+{
+  grep -oE "Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))? \[FAIL\]" "$OUTPUT" \
+    | sed -E 's/ \[FAIL\]//'
+  grep -oE "^[[:space:]]*Failed[[:space:]]+Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))?" "$OUTPUT" \
+    | sed -E 's/^[[:space:]]*Failed[[:space:]]+//'
+} | sed -E 's/\(.*\)//' | sort -u > /tmp/actual-failures.txt
 
-grep -vE '^\s*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
+grep -vE '^[[:space:]]*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
 
 NEW=$(comm -13 /tmp/baseline-failures.txt /tmp/actual-failures.txt)
 FIXED=$(comm -23 /tmp/baseline-failures.txt /tmp/actual-failures.txt)

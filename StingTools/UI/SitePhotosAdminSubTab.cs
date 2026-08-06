@@ -129,7 +129,19 @@ namespace StingTools.UI
                     });
                     return;
                 }
+                // null = the load FAILED; an empty list = there are genuinely no
+                // groups. "No distribution groups yet." over an unreachable server
+                // is invented data — and here it is actively dangerous, because an
+                // operator could conclude nobody is on distribution and re-add
+                // recipients who are already there.
                 var groups = await PlanscapeServerClient.Instance.ListDistributionGroupsAsync(state.ProjectId);
+                if (groups == null)
+                {
+                    dgPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                        "Could not load distribution groups.",
+                        PlanscapeServerClient.Instance.LastError));
+                    return;
+                }
                 if (groups.Count == 0)
                 {
                     dgPanel.Children.Add(new TextBlock {
@@ -169,10 +181,17 @@ namespace StingTools.UI
                     {
                         var mem = await PlanscapeServerClient.Instance
                             .ListDistributionGroupMembersAsync(state.ProjectId, grp.Id);
-                        memberLine.Text = mem.Count == 0
-                            ? "No members yet."
-                            : string.Join(", ", mem.Select(m =>
-                                m.IsProjectMember ? m.Label : m.Label + " (external)"));
+                        // null is a FAILED load, not an empty group. Saying "No members
+                        // yet" here is the same fabrication #550 removed from the album
+                        // pane: an operator would conclude nobody is on distribution and
+                        // re-add recipients who are already there.
+                        memberLine.Text = mem == null
+                            ? "Could not load members — "
+                              + (PlanscapeServerClient.Instance.LastError ?? "(no detail)")
+                            : mem.Count == 0
+                                ? "No members yet."
+                                : string.Join(", ", mem.Select(m =>
+                                    m.IsProjectMember ? m.Label : m.Label + " (external)"));
                     }
 
                     var addMemberBtn = new Button {
@@ -257,6 +276,14 @@ namespace StingTools.UI
                     Autodesk.Revit.UI.TaskDialog.Show("New group",
                         PlanscapeServerClient.Instance.LastError ?? "(no detail)");
                     return;
+                }
+                // Non-null with LastError set is partial success: the group exists but
+                // some recipients did not land. No recipients are passed here today, so
+                // this cannot fire yet — it is present so that adding them later cannot
+                // make the partial failure silent.
+                if (PlanscapeServerClient.Instance.LastError is { } partial)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("New group", partial);
                 }
                 await LoadGroupsAsync();
             };

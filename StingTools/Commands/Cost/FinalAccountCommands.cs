@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  FinalAccountCommands.cs — WP4a Tool 2: Final-Account Reconciliation.
 //
 //  A true signed reconciliation statement (not just an anticipated cost):
@@ -102,7 +102,7 @@ namespace StingTools.Commands.Cost
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "final_account.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "final_account.json");
             }
             catch { return null; }
         }

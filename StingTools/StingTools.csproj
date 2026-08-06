@@ -21,9 +21,21 @@
     <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
     <!-- Silence merge-leftover noise warnings:
          CS0414/CS0649 — fields never assigned / assigned but never used (Revit IUpdater fields wired by reflection)
-         CS0472 — bool == null comparison from merged null-guarded code
-         CS8600/CS8602/CS8625 — nullable-flow analysis on stubs (Nullable is disabled project-wide anyway). -->
-    <NoWarn>$(NoWarn);CS0414;CS0649;CS0472;CS8600;CS8602;CS8625</NoWarn>
+         CS8600/CS8602/CS8625 — nullable-flow analysis on stubs (Nullable is disabled project-wide anyway).
+
+         CS0472 (always-false comparison) was in this list, described as "bool == null
+         comparison from merged null-guarded code". It was not noise. Measured on a full
+         rebuild with the suppression lifted: it has exactly ONE site in ~1,440 sources —
+         SitePhotosAdminSubTab.cs:171 — and that site is a real defect. The Site-Photos
+         Admin "New group" button guards a Task<bool> with `if (grp == null)`, which can
+         never be true, so a failed server-side create shows the user nothing and the
+         list simply refreshes. Suppressing the diagnostic is what let it ship.
+
+         Scope, stated precisely so nobody over-reads this: ONE site, not a bug class.
+         Removing the code from NoWarn therefore costs nothing today and stops the
+         pattern returning silently. The remaining codes are NOT claimed to be noise —
+         they have not been measured. Measure before removing any of them. -->
+    <NoWarn>$(NoWarn);CS0414;CS0649;CS8600;CS8602;CS8625</NoWarn>
   </PropertyGroup>
 
   <!-- Default RevitApiPath when not passed via command line (e.g. Visual Studio) -->

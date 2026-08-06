@@ -1,0 +1,32 @@
+[
+  {
+    "host": "revit",
+    "host_element_id": "1234567",
+    "expected_global_id": "0d$ex$e5fTYxLsdLtmEkOD"
+  },
+  {
+    "host": "revit",
+    "host_element_id": "9999999",
+    "expected_global_id": "1fycd$n01HTwsTKlJJYIAv"
+  },
+  {
+    "host": "bonsai",
+    "host_element_id": "#42",
+    "expected_global_id": "2trHK0rafIz8b$BPN3ZLOy"
+  },
+  {
+    "host": "bonsai",
+    "host_element_id": "BlenderObj.001",
+    "expected_global_id": "0IhfoXqsPUhw4ZUD9UKXlS"
+  },
+  {
+    "host": "archicad",
+    "host_element_id": "AC-wall-0001",
+    "expected_global_id": "23JGsENwHM7AJhaIQfQs9Z"
+  },
+  {
+    "host": "archicad",
+    "host_element_id": "AC-slab-0002",
+    "expected_global_id": "0O9iBwbWLHCuHtR31xElfV"
+  }
+]

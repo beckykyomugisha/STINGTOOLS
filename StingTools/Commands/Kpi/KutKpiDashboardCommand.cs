@@ -1,4 +1,4 @@
-// KutKpiDashboardCommand.cs — Kampala Temple KPI dashboard (proposal §4.6).
+﻿// KutKpiDashboardCommand.cs — Kampala Temple KPI dashboard (proposal §4.6).
 //
 // A real, visual KPI dashboard for the monthly BIM status report. Gathers the
 // §4.6 KPI set from the existing engines (no new metric infrastructure):
@@ -191,7 +191,7 @@ namespace StingTools.Commands.Kpi
         {
             string dir = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(dir)) return null;
-            string p = Path.Combine(dir, "_BIM_COORD", "kpi");
+            string p = StingPaths.MetaFile(doc, "_BIM_COORD", "kpi");
             Directory.CreateDirectory(p);
             return p;
         }

@@ -407,6 +407,27 @@ The Redis SignalR backplane is already wired, so horizontal scaling works —
 
 Everything below runs against a local dev stack. Budget ~20 minutes.
 
+> **Use the runner, not the individual steps.** After pinning the API (step 1),
+> `./load/run-capacity.sh --project-id <guid> --peak-rps 150` performs steps 2–4
+> and then **removes the fixture data on every exit path** — after a pass, after
+> a failed k6 run, and after Ctrl-C. If cleanup fails it exits non-zero and says
+> so.
+>
+> This matters more than it sounds. The seed creates 400 accounts, and the
+> cleanup this runbook used to recommend — `DELETE FROM "Users" WHERE "Email"
+> LIKE 'loadtest%'` — **cannot succeed**: `FK_ProjectMembers_Users_UserId` is
+> `RESTRICT`, so it aborts on a foreign-key violation and every account stays.
+> That left a demo tenant reading 426 users against a cap of 50, which was
+> mistaken for a live onboarding blocker and cost two investigations. Exceeding
+> a cap is what a capacity fixture is *for*; leaving the residue behind is the
+> defect.
+>
+> The steps below remain as reference for running a phase on its own. If you do,
+> finish with:
+> ```bash
+> docker exec -i docker-postgres-1 psql -U planscape -d planscape < load/cleanup-loadtest-data.sql
+> ```
+
 **1. Pin the API to the tier you want to measure.**
 
 ```bash
@@ -450,7 +471,16 @@ that is CPU saturation. A run that instead shows high failures with a *low* p95
 is not saturation: it is 429s, and it means either too few seeded users or the
 offered rate exceeds `users × 100 / 60`.
 
-**5. Watch the pools while it runs**, to confirm the cap holds and nothing
+**5. Clean up.** `run-capacity.sh` does this for you. If you ran step 4 by hand,
+do it now — and check it actually worked, because the failure mode is silent
+accumulation:
+
+```bash
+docker exec -i docker-postgres-1 psql -U planscape -d planscape < load/cleanup-loadtest-data.sql
+# expects: users_remaining | issues_remaining  ->  0 | 0
+```
+
+**6. Watch the pools while it runs**, to confirm the cap holds and nothing
 approaches the 97-connection ceiling:
 
 ```bash
@@ -479,3 +509,41 @@ gracefully — IFC uploads are rejected with a "convert to GLB first" message an
 heavy jobs simply don't run — and add them when you need IFC conversion / photo
 redaction. Redis is also optional (the app fails open) but recommended once you
 run more than one API instance (SignalR backplane).
+
+---
+
+## Pointing the plugin at a local server (development)
+
+The Revit plugin resolves its API base URL in `PlanscapeServerClient.Settings.cs`,
+`ResolveDefaultServerUrl()`, in this order — first hit wins:
+
+| # | Source | Scope |
+|---|---|---|
+| 1 | `STING_PLANSCAPE_URL` environment variable | Whatever the process inherits |
+| 2 | `%APPDATA%\StingTools\planscape_server.json` → `"serverUrl"` | Persists across restarts, per user |
+| 3 | `BakedDefaultServerUrl` | Compiled into the assembly |
+
+The resolved value is cached in `_cachedDefaultUrl` **for the lifetime of the process**,
+so switching targets always requires restarting Revit. There is no in-session toggle.
+
+### Use the launcher, not the settings file
+
+```powershell
+.\tools\Start-RevitLocal.ps1                      # newest Revit -> http://localhost:5000
+.\tools\Start-RevitLocal.ps1 -Revit 2025          # a specific version
+.\tools\Start-RevitLocal.ps1 -SkipHealthCheck     # launch with the API deliberately down
+.\tools\Start-RevitLocal.ps1 -Prod                # no override; use the saved pointer
+```
+
+It sets level 1 **for the launched process only**, prints the saved level-2 pointer
+alongside the override so the active target is unambiguous, and health-checks the URL
+first so a dead stack fails immediately with the `docker start docker-api-1` command
+rather than as a confusing in-app error.
+
+**Do not use `setx`, a user-level environment variable, or hand-edit
+`planscape_server.json` to switch to local.** All three persist, and a forgotten local
+override points a real session at a dev database with no visible sign. Closing Revit
+clears the launcher's override; nothing has to be remembered or undone.
+
+`-SkipHealthCheck` is what the site-photo "could not load" verification needs: it starts
+Revit pointed at an API that is deliberately down, so the failure states can be observed.

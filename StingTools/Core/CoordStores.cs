@@ -22,10 +22,19 @@
 //     OutputLocationHelper.WriteAllTextAtomic, so a crash mid-write cannot
 //     truncate a coordination store.
 //
-// Transmittals deliberately resolve to the "_BIM_COORD" bucket: that is where
+// Transmittals name the "_BIM_COORD" bucket because that is where
 // Planscape.Docs.Templates.TransmittalOrchestrator already persists, and WP1 made
 // the auto-log path delegate to it. Pointing this resolver anywhere else would
 // re-fork the store it was written to unify.
+//
+// Those two bucket names are now ALIASES of one physical directory: both resolve
+// through ProjectFolderEngine.GetMetaPath onto <root>/_data/coord (see
+// ProjectFolderEngine.CoordBucketAliases). Keeping them as separate _data folders
+// reproduced, one level down, exactly the sibling sprawl the consolidation set out
+// to remove — the split was by which subsystem historically owned the file, which
+// is not a distinction a user can see. The constants are retained because they
+// still select the correct legacy directory on a project that has one, and the
+// store filenames do not collide.
 
 using System;
 using System.Collections.Generic;

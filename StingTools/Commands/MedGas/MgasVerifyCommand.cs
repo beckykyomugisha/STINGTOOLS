@@ -70,9 +70,7 @@ namespace StingTools.Commands.MedGas
                 }
 
                 rec.OverallPass = fail == 0;
-                var doc_path = doc.PathName;
-                var root = string.IsNullOrEmpty(doc_path) ? Path.GetTempPath() : Path.GetDirectoryName(doc_path);
-                var written = MgasVerificationLog.Persist(root, rec);
+                var written = MgasVerificationLog.Persist(doc.PathName, rec);
 
                 string scopeLabel = runSingleStep
                     ? $"Step {requestedStep}/{checklist.Length}"

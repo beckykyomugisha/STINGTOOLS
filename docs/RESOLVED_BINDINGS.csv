@@ -1996,10 +1996,10 @@ PRJ_TB_REVISION_NR_TXT,13,universal-meta,<ALL>,"Revision number or code (e.g. P1
 PRJ_TB_SCALE_OVERRIDE_TXT,13,universal-meta,<ALL>,"Override scale label shown on title block (e.g. ""NTS"", ""1:100""). Empty = use view scale. [ISO 19650-1:2018]"
 PRJ_TB_SCHEMA_VERSION_TXT,13,universal-meta,<ALL>,STING title block data schema version this sheet was stamped with [ISO 19650-1:2018]
 PRJ_TB_SHEET_NR_TXT,13,universal-meta,<ALL>,Sheet number string (may differ from Revit native sheet number for custom formats) [ISO 19650-1:2018]
-PRJ_TB_SHOW_DISCBAND_BOOL,13,universal-meta,<ALL>,Show discipline colour band on title block [ISO 19650-1:2018]
-PRJ_TB_SHOW_KEYPLAN_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]
-PRJ_TB_SHOW_NORTHARROW_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]
-PRJ_TB_SHOW_SCALEBAR_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer TB_SHOW_SCALEBAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_DISCBAND_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_KEYPLAN_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_NORTHARROW_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_SCALEBAR_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_SCALE_BAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]
 PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,13,universal-meta,<ALL>,Structural consultant office address shown on title block -- paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,13,universal-meta,<ALL>,Structural engineering consultant firm name [ISO 19650-1:2018]
 PRJ_TB_TOTAL_NO_SHEETS_TXT,13,universal-meta,<ALL>,Total number of sheets in this drawing package or issue [ISO 19650-1:2018]
@@ -2259,8 +2259,8 @@ SPK_TAG_7_PARA_HEAD_TXT,8,tag-fire,Sprinklers|Fire Alarm Devices,Sprinkler head 
 STING_4D_END_DATE_TXT,17,universal-meta,<ALL>,Construction end date yyyy-MM-dd [ISO 19650-2:2018]
 STING_4D_START_DATE_TXT,17,universal-meta,<ALL>,Construction start date yyyy-MM-dd [ISO 19650-2:2018]
 STING_5D_COST_RATE_NUM,17,universal-meta,<ALL>,Estimated unit cost rate [ISO 19650-2:2018]
-STING_AUTHORISED_BY_TXT,13,universal-meta,<ALL>,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]"
-STING_AUTHORISED_DATE_TXT,13,universal-meta,<ALL>,Date of 4-eyes authorisation signature -- paired with STING_AUTHORISED_BY_TXT [ISO 19650-1:2018]
+PRJ_TB_AUTHORISED_BY_TXT,13,universal-meta,<ALL>,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]"
+PRJ_TB_AUTHORISED_DATE_TXT,13,universal-meta,<ALL>,Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]
 STING_AUTO_PLACED_BOOL,27,universal-meta,<ALL>,Flags views auto-placed onto sheets by the STING production engine [STING DT v137]
 STING_BOX_LOCATION_ID,1,universal-meta,<ALL>,Phase 139.2 -- GUID linking first-fix conduit/BESA box (Construction phase) to its second-fix device (Completion phase) for two-phase placement
 STING_BRIEFCASE_EXPORT_TXT,17,universal-meta,<ALL>,Last briefcase export timestamp [ISO 19650-2:2018]
@@ -2279,14 +2279,14 @@ STING_DISPLAY_MODE,17,universal-meta,<ALL>,"Display mode (1=SEQ, 2=PROD-SEQ, 3=D
 STING_DRAWING_PACKAGE_ID_TXT,27,universal-meta,<ALL>,Drawing package this view or sheet belongs to [STING DT v137]
 STING_DRAWING_TYPE_ID_TXT,27,universal-meta,<ALL>,DrawingType registry id stamped on views/sheets [Phase 113]
 STING_EMB_CARBON_NR,12,universal-meta,<ALL>,"Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon]"
-STING_FEDERATION_STATUS_TXT,13,universal-meta,<ALL>,"Federation status of the sheet's host model at issue time -- e.g. ""Federated v.4"", ""Discipline-isolated"", ""Coordination-pending"" [ISO 19650-2:2018]"
+PRJ_TB_FEDERATION_STATUS_TXT,13,universal-meta,<ALL>,"Federation status of the sheet's host model at issue time -- e.g. ""Federated v.4"", ""Discipline-isolated"", ""Coordination-pending"" [ISO 19650-2:2018]"
 STING_FIRE_RATING_TXT,34,universal-meta,<ALL>,Fire rating of the host wall / floor -- FR30 / FR60 / FR90 / FR120. Read by SlabPenetrationDetector to stamp the required rating on every penetration.
 STING_GATE_DATA_MSG_TXT,17,universal-meta,<ALL>,Data gate terse reason stamped by ComplianceScan (blank when green) — label next to the left status badge
 STING_GATE_DATA_STATUS_INT,17,universal-meta,<ALL>,Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge
 STING_GATE_QA_MSG_TXT,17,universal-meta,<ALL>,QA gate terse reason stamped by ComplianceScan (blank when green) — label next to the right status badge
 STING_GATE_QA_STATUS_INT,17,universal-meta,<ALL>,QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge
 STING_HOST_ELEMENT_ID,27,universal-meta,<ALL>,Element id of the host modelled element this symbol represents [STING Phase 175]
-STING_LOIN_LOD_TXT,13,universal-meta,<ALL>,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
+PRJ_DWG_LOIN_LOD_TXT,13,universal-meta,<ALL>,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
 STING_MASTER_SETUP_TS,13,universal-meta,<ALL>,Sting Master Setup Ts [STING]
 STING_MATCH_DIR_TXT,27,universal-meta,<ALL>,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]
 STING_MATCH_LINE_GUID_TXT,27,universal-meta,<ALL>,Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]
@@ -2312,17 +2312,17 @@ STING_PRODUCTION_RULE_IDX_INT,27,universal-meta,<ALL>,ProductionRule index that 
 STING_RETROFIT_TS,13,universal-meta,<ALL>,Sting Retrofit Ts [STING]
 STING_SEED_FAMILY_TXT,33,universal-meta,<ALL>,Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.
 STING_SETUP_COMPLETE,1,universal-meta,<ALL>,Timestamp of last MasterSetup completion for idempotency check
-STING_SHEET_BIM_MODE_TXT,13,universal-meta,<ALL>,"Per-sheet BIM mode marker -- ""BIM"" or ""NONBIM"" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]"
-STING_SHEET_FULL_REF_TXT,13,universal-meta,<ALL>,"ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. ""STG-PLNS-ZZ-01-DR-A-0001""). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]"
-STING_SHEET_LEVEL_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. ""01"" / ""GF"" / ""ZZ""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-STING_SHEET_OF_TOTAL_TXT,13,universal-meta,<ALL>,"""Sheet n of total"" string for the title block (e.g. ""03 / 12""). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]"
-STING_SHEET_ORIG_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. ""PLNS""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-STING_SHEET_PROJECT_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. ""STG""). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]"
-STING_SHEET_ROLE_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. ""A"" architect / ""S"" structural / ""M"" mechanical / ""E"" electrical / ""P"" plumbing / ""FP"" fire / ""LV"" landscape / ""G"" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-STING_SHEET_SEQUENCE_INT,27,universal-meta,<ALL>,Production sheet sequence number [STING DT v137]
-STING_SHEET_SEQ_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. ""0001""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-STING_SHEET_TYPE_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. ""DR"" drawing / ""M3"" model / ""SH"" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-STING_SHEET_VOLUME_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. ""ZZ"" / ""01"" / ""M01""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_BIM_MODE_TXT,13,universal-meta,<ALL>,"Per-sheet BIM mode marker -- ""BIM"" or ""NONBIM"" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]"
+PRJ_SHEET_FULL_REF_TXT,13,universal-meta,<ALL>,"ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. ""STG-PLNS-ZZ-01-DR-A-0001""). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]"
+PRJ_SHEET_LEVEL_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. ""01"" / ""GF"" / ""ZZ""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_OF_TOTAL_TXT,13,universal-meta,<ALL>,"""Sheet n of total"" string for the title block (e.g. ""03 / 12""). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]"
+PRJ_SHEET_ORIG_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. ""PLNS""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_PROJECT_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. ""STG""). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_ROLE_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. ""A"" architect / ""S"" structural / ""M"" mechanical / ""E"" electrical / ""P"" plumbing / ""FP"" fire / ""LV"" landscape / ""G"" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_SEQUENCE_INT,27,universal-meta,<ALL>,Production sheet sequence number [STING DT v137]
+PRJ_SHEET_SEQ_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. ""0001""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_TYPE_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. ""DR"" drawing / ""M3"" model / ""SH"" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_VOLUME_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. ""ZZ"" / ""01"" / ""M01""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
 STING_SLAB_ROUTING_FLAG,34,universal-meta,<ALL>,Slab counterpart of STING_WALL_ROUTING_FLAG. ALLOW lets a vertical drop pass through this floor (slab penetration). DENY treats the slab as a hard obstacle.
 STING_SLD_ELEMENT_ID,27,universal-meta,<ALL>,Source modelled element id paired with this Single Line Diagram symbol [STING Phase 175 / SLD Generator]
 STING_SLEEVE_BORE_MM,15,universal-meta,<ALL>,"Round sleeve bore in millimetres (element OD + 2× insulation + 2× clearance, clamped to rule minimum)."
@@ -2339,7 +2339,7 @@ STING_SLEEVE_WIDTH_MM,15,universal-meta,<ALL>,Rectangular sleeve clear-opening w
 STING_STALE_BOOL,17,universal-meta,<ALL>,Element stale flag (geometry/level changed since last tag)
 STING_STICKY_NOTE_TXT,17,universal-meta,<ALL>,Element sticky note text [ISO 19650-2:2018]
 STING_STYLE_LOCKED_BOOL,27,universal-meta,<ALL>,Style-locked flag: prevents SyncStyles from overwriting [Phase 113]
-STING_SUITABILITY_DESC_TXT,13,universal-meta,<ALL>,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
+PRJ_DWG_SUITABILITY_DESC_TXT,13,universal-meta,<ALL>,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
 STING_SWAP_HISTORY_TXT,33,universal-meta,<ALL>,Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.
 STING_SYMBOL_ID,27,universal-meta,<ALL>,Symbol library concept id stamped on placed instances [STING Phase 175 / IEC 60617]
 STING_SYMBOL_LABEL_ID,27,universal-meta,<ALL>,Stable id linking SLD label / annotation to its symbol family instance [STING Phase 175]
@@ -2734,13 +2734,13 @@ TB_REQUIRED_PRJ_PARAMS_TXT,26,excluded,,CSV of project params that must be non e
 TB_REQUIRED_REV_FORMAT_TXT,26,excluded,,Required revision format pattern eg P01-P02 or A-B-C [STING TB v1]
 TB_REQUIRED_SEALS_JSON_TXT,26,excluded,,JSON array of required signature seals for submission TBs [STING TB v1]
 TB_RESERVED_REGIONS_JSON_TXT,26,excluded,,"JSON array of reserved rectangles {name,x,y,w,h,kind} that engine must not overlap [STING TB v1]"
-TB_SHOW_COMPANY_STRIP_BOOL,26,excluded,,Visibility toggle for company info strip logo address contacts [STING TB v1]
-TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL,26,excluded,,Visibility toggle for discipline color strip [STING TB v1]
-TB_SHOW_KEY_PLAN_BOOL,26,excluded,,Visibility toggle for nested key plan [STING TB v1]
-TB_SHOW_NORTH_ARROW_BOOL,26,excluded,,Visibility toggle for nested north arrow [STING TB v1]
-TB_SHOW_QR_CODE_BOOL,26,excluded,,Visibility toggle for QR code stamp [STING TB v1]
-TB_SHOW_REV_TABLE_BOOL,26,excluded,,Visibility toggle for embedded revision schedule [STING TB v1]
-TB_SHOW_SCALEBAR_BOOL,26,excluded,,Visibility toggle for nested scale bar [STING TB v1]
+PRJ_TB_SHOW_COMPANY_STRIP_BOOL,26,excluded,,Visibility toggle for company info strip logo address contacts [STING TB v1]
+PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL,26,excluded,,Visibility toggle for discipline color strip [STING TB v1]
+PRJ_TB_SHOW_KEY_PLAN_BOOL,26,excluded,,Visibility toggle for nested key plan [STING TB v1]
+PRJ_TB_SHOW_NORTH_ARROW_BOOL,26,excluded,,Visibility toggle for nested north arrow [STING TB v1]
+PRJ_TB_SHOW_QR_CODE_BOOL,26,excluded,,Visibility toggle for QR code stamp [STING TB v1]
+PRJ_TB_SHOW_REV_TABLE_BOOL,26,excluded,,Visibility toggle for embedded revision schedule [STING TB v1]
+PRJ_TB_SHOW_SCALE_BAR_BOOL,26,excluded,,Visibility toggle for nested scale bar [STING TB v1]
 TB_TEMPLATE_VERSION_TXT,26,excluded,,Family template semantic version eg 1.2.0 [STING TB v1]
 TB_VIEWPORT_SLOTS_JSON_TXT,26,excluded,,"JSON array of viewport slots {label,normX,normY,normW,normH,viewType,scale} consumed by ShopDrawingComposer [STING TB v1]"
 TPL_TRACKING_SPARE_01_TXT,11,curated-fallback,Generic Models,Spare parameter 1 for TPL_TRACKING group

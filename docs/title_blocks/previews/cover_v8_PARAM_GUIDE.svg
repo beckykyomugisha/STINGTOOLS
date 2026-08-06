@@ -8,7 +8,7 @@
 <text x="15.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_COMPANY_NAME_TXT}</text>
 <line x1="250.00" y1="10.00" x2="250.00" y2="52.00" stroke="#3A3E44" stroke-width="0.5"/>
 <text x="253.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">DOCUMENT No.</text>
-<text x="253.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_FULL_REF_TXT}</text>
+<text x="253.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_SHEET_FULL_REF_TXT}</text>
 <line x1="470.00" y1="10.00" x2="470.00" y2="52.00" stroke="#3A3E44" stroke-width="0.5"/>
 <text x="473.00" y="16.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.2">ISSUE DATE</text>
 <text x="473.00" y="21.00" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_REVISION_DATE_TXT}</text>
@@ -68,10 +68,10 @@
 <text x="16.00" y="228.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DATE_DRAWN_TXT}</text>
 <text x="168.75" y="179.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">LOD</text>
 <line x1="168.75" y1="181.60" x2="254.25" y2="181.60" stroke="#9AA0A6" stroke-width="0.3"/>
-<text x="168.75" y="183.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_LOIN_LOD_TXT}</text>
+<text x="168.75" y="183.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_DWG_LOIN_LOD_TXT}</text>
 <text x="168.75" y="194.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">AUTHORISED</text>
 <line x1="168.75" y1="196.60" x2="254.25" y2="196.60" stroke="#9AA0A6" stroke-width="0.3"/>
-<text x="168.75" y="198.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_AUTHORISED_BY_TXT}</text>
+<text x="168.75" y="198.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_AUTHORISED_BY_TXT}</text>
 <text x="168.75" y="209.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CHECKED</text>
 <line x1="168.75" y1="211.60" x2="254.25" y2="211.60" stroke="#9AA0A6" stroke-width="0.3"/>
 <text x="168.75" y="213.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_CHECKED_BY_TXT}</text>
@@ -86,11 +86,11 @@
 <text x="307.00" y="150.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CDE STATE</text>
 <text x="307.00" y="154.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_DELIVERABLE_CDE_TXT}</text>
 <text x="378.40" y="150.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">FEDERATION</text>
-<text x="378.40" y="154.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_FEDERATION_STATUS_TXT}</text>
+<text x="378.40" y="154.60" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_FEDERATION_STATUS_TXT}</text>
 <text x="307.00" y="159.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">COORD SYS</text>
 <text x="307.00" y="164.10" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(coord system — manual)</text>
 <text x="378.40" y="159.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">GROUND LVL</text>
-<text x="378.40" y="164.10" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_LEVEL_TXT}</text>
+<text x="378.40" y="164.10" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_SHEET_LEVEL_TXT}</text>
 <text x="307.00" y="169.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">PROJECT N</text>
 <text x="307.00" y="173.60" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(project north — manual)</text>
 <text x="378.40" y="169.00" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">CLASS</text>
@@ -98,7 +98,7 @@
 <text x="307.00" y="178.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">REGION</text>
 <text x="307.00" y="183.10" font-family="Helvetica, Arial, sans-serif" font-size="1.75" fill="#9A6A00" font-weight="normal" text-anchor="start">(region — manual)</text>
 <text x="378.40" y="178.50" font-family="Helvetica, Arial, sans-serif" font-size="2.5" fill="#5A5F66" font-weight="normal" text-anchor="start" letter-spacing="0.2">VOLUME</text>
-<text x="378.40" y="183.10" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_VOLUME_TXT}</text>
+<text x="378.40" y="183.10" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_SHEET_VOLUME_TXT}</text>
 <line x1="306.00" y1="186.00" x2="445.00" y2="186.00" stroke="#9AA0A6" stroke-width="0.3"/>
 <text x="307.00" y="191.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Naming standard:  BS EN ISO 19650-2 : 2018</text>
 <text x="307.00" y="196.00" font-family="Helvetica, Arial, sans-serif" font-size="2.4" fill="#5A5F66" font-weight="normal" text-anchor="start">Units mm  ·  Revit 2025  ·  IFC 4</text>
@@ -295,7 +295,7 @@
 <rect x="12.00" y="546.00" width="817.00" height="6.50" fill="#C4C7CC" stroke="#3A3E44" stroke-width="0.5" />
 <text x="14.50" y="550.90" font-family="Helvetica, Arial, sans-serif" font-size="2.8" fill="#1A1A1A" font-weight="bold" text-anchor="start" letter-spacing="0.3">DELIVERABLE / ISSUE RIBBON</text>
 <text x="14.00" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">FULL REF</text>
-<text x="14.00" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_FULL_REF_TXT}</text>
+<text x="14.00" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_SHEET_FULL_REF_TXT}</text>
 <line x1="14.00" y1="568.00" x2="91.70" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
 <line x1="93.70" y1="553.00" x2="93.70" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
 <text x="95.70" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">DELIVERABLE STATUS</text>
@@ -315,15 +315,15 @@
 <line x1="340.80" y1="568.00" x2="418.50" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
 <line x1="420.50" y1="553.00" x2="420.50" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
 <text x="422.50" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">AUTHORISED BY</text>
-<text x="422.50" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_AUTHORISED_BY_TXT}</text>
+<text x="422.50" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_AUTHORISED_BY_TXT}</text>
 <line x1="422.50" y1="568.00" x2="500.20" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
 <line x1="502.20" y1="553.00" x2="502.20" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
 <text x="504.20" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">AUTH DATE</text>
-<text x="504.20" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_AUTHORISED_DATE_TXT}</text>
+<text x="504.20" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_TB_AUTHORISED_DATE_TXT}</text>
 <line x1="504.20" y1="568.00" x2="581.90" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
 <line x1="583.90" y1="553.00" x2="583.90" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
 <text x="585.90" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">SHEET x OF y</text>
-<text x="585.90" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${STING_SHEET_OF_TOTAL_TXT}</text>
+<text x="585.90" y="562.50" font-family="Consolas, 'Courier New', monospace" font-size="1.75" fill="#1565C0" font-weight="normal" text-anchor="start">${PRJ_SHEET_OF_TOTAL_TXT}</text>
 <line x1="585.90" y1="568.00" x2="663.60" y2="568.00" stroke="#9AA0A6" stroke-width="0.3"/>
 <line x1="665.60" y1="553.00" x2="665.60" y2="574.00" stroke="#3A3E44" stroke-width="0.4"/>
 <text x="667.60" y="558.00" font-family="Helvetica, Arial, sans-serif" font-size="2.1" fill="#5A5F66" font-weight="bold" text-anchor="start">PAPER · SCALE</text>

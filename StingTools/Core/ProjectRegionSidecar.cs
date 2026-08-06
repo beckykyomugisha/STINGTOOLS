@@ -1,4 +1,4 @@
-// STING Tools — Standards region sidecar.
+﻿// STING Tools — Standards region sidecar.
 //
 // Persists the active regional preset key into a per-project file
 // (<project>/_BIM_COORD/sting_region.json) so the region travels with
@@ -26,7 +26,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(rvt)) return null;
             string dir = Path.GetDirectoryName(rvt);
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", "sting_region.json");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "sting_region.json");
         }
 
         public static string Read(Document doc)

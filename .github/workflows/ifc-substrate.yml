@@ -207,5 +207,7 @@ jobs:
               stingtools-bonsai/ops/reload_substrate.py \
               stingtools-bonsai/ops/bonsai_probe.py \
               stingtools-bonsai/ui/__init__.py \
-              stingtools-bonsai/ui/panel_main.py
+              stingtools-bonsai/ui/panel_main.py \
+              stingtools-bonsai/core/category_inference.py \
+              stingtools-bonsai/core/exceptions.py
           echo "all Bonsai add-on Python files compile cleanly"

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -131,7 +131,7 @@ namespace StingTools.Commands.Hvac
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string p = Path.Combine(dir, "_BIM_COORD", "hvac_lcc.json");
+                    string p = StingPaths.MetaFile(doc, "_BIM_COORD", "hvac_lcc.json");
                     if (File.Exists(p))
                         return JsonConvert.DeserializeObject<LccDefaults>(File.ReadAllText(p)) ?? new LccDefaults();
                 }

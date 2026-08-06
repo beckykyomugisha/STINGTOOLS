@@ -1,4 +1,4 @@
-// PlumbingDocsCommands — Phase 179f DOCS tab.
+﻿// PlumbingDocsCommands — Phase 179f DOCS tab.
 //
 // Plumb_PipeSchedule    — pipe schedule grouped by system + DN.
 // Plumb_BOQ             — full plumbing BOQ via PlumbingBOQBuilder.
@@ -545,7 +545,7 @@ namespace StingTools.Commands.Plumbing
             string pack = "";
             if (!string.IsNullOrEmpty(dir))
             {
-                pack = Path.Combine(dir, "_BIM_COORD", "plumbing", "commissioning");
+                pack = StingPaths.MetaFile(ctx.Doc, "_BIM_COORD", "plumbing", "commissioning");
                 try { Directory.CreateDirectory(pack); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 

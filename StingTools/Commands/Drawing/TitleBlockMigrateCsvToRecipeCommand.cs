@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager · Phase 168
+﻿// StingTools — Drawing Template Manager · Phase 168
 //
 // TitleBlockMigrateCsvToRecipeCommand reads TITLE_BLOCK.csv and emits
 // a JSON snippet that maps every non-empty (ParameterName, Discipline)
@@ -144,7 +144,7 @@ namespace StingTools.Commands.Drawing
             try
             {
                 if (!string.IsNullOrEmpty(doc?.PathName))
-                    return Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_BIM_COORD");
+                    return StingPaths.Meta(doc, "_BIM_COORD");
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return Path.Combine(Path.GetTempPath(), "STING");

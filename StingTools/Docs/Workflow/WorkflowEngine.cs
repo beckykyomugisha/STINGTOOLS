@@ -1,4 +1,4 @@
-// WorkflowEngine.cs — template engine v1.1 (S15).
+﻿// WorkflowEngine.cs — template engine v1.1 (S15).
 //
 // Runtime engine. State persisted to _BIM_COORD/workflow_state.json.
 // Transitions validate role + allowed action against the loaded
@@ -352,7 +352,7 @@ namespace Planscape.Docs.Workflow
         private static string StorePath(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "workflow_state.json");
         }
