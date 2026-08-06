@@ -2,6 +2,14 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Button + preset wiring — after Phase 230
+
+| ID | Item | Detail |
+|---|---|---|
+| WF-5 | ~~26 dock-panel buttons dispatch to nothing~~ **NOT A DEFECT — measured 2026-08-06** | Recorded so the claim is not re-raised a third time. 26 `Cmd_Click` button tags have no `case` in any handler, but **all 26 are reachable**: 23 through `Cmd_Click` suite runners in `StingDockPanel.xaml.cs`, 3 through the `CommandRegistry` modules (`Folder_CloudSync`, `HC_HbnAutoPopulate`, `Tags_MigrateStyleCode`), which `StingCommandHandler.cs:173` consults *before* its switch. **Zero of 1,323 button tags are dead.** Any audit counting against the switch alone will over-report — this is the second time (`SILENT_BUTTONS_TODO.md` records the earlier "141" figure being ~96% false-positive). Now enforced as Tier 4 of `tools/check_workflow_wiring.ps1` with a deliberately empty baseline. |
+| WF-6 | **No gate enforces `order` against array position** | The Phase 230 brief assumed the wiring gate had a Tier 3 failing any preset whose `order` values disagree with array order. It does not — the gate has Tiers 1, 2 and 4. `order` is an unbound key (WF-4) used 40 times across existing presets, so adding such a tier would fail them until each is corrected or baselined. Either delete the `order` keys and add the tier, or leave both alone; what must not happen is someone believing the check exists. New presets authored in Phase 230 omit `order` entirely. |
+| WF-7 | **`docs/UNREACHABLE_COMMANDS_TRIAGE.md`'s 126 figure predates the three-layer correction** | It counts `IExternalCommand` classes not referenced from `StingCommandHandler.cs`, ignoring the 661 `CommandRegistry` names and the 38 code-behind runners. The true number of unreachable *commands* is unknown and is probably materially lower. Re-derive it across all three dispatch layers, as the button-side audit now is, before acting on any entry in that file. |
+
 ## Workflow wiring — after Phase 229
 
 **KUT-1** (59 steps keyed `"tag"` across 11 presets, each preset entirely inert) and

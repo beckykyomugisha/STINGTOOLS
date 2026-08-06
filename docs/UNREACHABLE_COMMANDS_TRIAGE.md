@@ -3,6 +3,19 @@
 Triage of `IExternalCommand` classes that are not referenced from the dock-panel
 button-tag dispatcher in `StingTools/UI/StingCommandHandler.cs`.
 
+> **Companion doc — the other direction.** This file asks "which *commands* have no
+> button?". For "which *buttons* reach no command?", see
+> [`SILENT_BUTTONS_TODO.md`](../SILENT_BUTTONS_TODO.md) (repo root). Its 2026-08-06
+> re-audit found **zero** dead buttons: of the 26 button tags with no `case` in any
+> handler, 23 dispatch through `Cmd_Click` suite runners and 3 through the
+> `CommandRegistry` modules, which `StingCommandHandler` consults *before* its switch.
+> That check is now enforced as Tier 4 of `tools/check_workflow_wiring.ps1`.
+>
+> **Both directions have the same trap:** counting against the `StingCommandHandler`
+> switch alone ignores `UI/Modules/*CommandModule.cs` (661 registered names) and the
+> code-behind runners (38), so any figure derived that way over-reports. The 126 below
+> predates that correction and has not been re-derived across all three layers.
+
 - **Total IExternalCommand classes**: 1,288
 - **Wired in `StingCommandHandler.cs`**: 1,162
 - **Not in dock-panel dispatcher**: **126**

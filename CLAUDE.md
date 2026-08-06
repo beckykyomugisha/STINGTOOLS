@@ -190,8 +190,13 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   without a Revit UI thread. **Extracting a pure "compute → result record" layer from a thin
   "present" layer is the single highest-leverage refactor available.**
 - **Command sprawl.** ~1,580 command classes is a lot of surface to keep discoverable; dead/silent
-  commands are already tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
-  and `SILENT_BUTTONS_TODO.md`.
+  commands are tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
+  (commands with no button) and [`SILENT_BUTTONS_TODO.md`](SILENT_BUTTONS_TODO.md) — **repo root, not
+  `docs/`** (buttons with no command). As of 2026-08-06 there are **no** silent buttons: all 1,323
+  `Cmd_Click` button tags dispatch, and Tier 4 of `tools/check_workflow_wiring.ps1` keeps it that way.
+  Beware any count derived from the `StingCommandHandler` switch alone — dispatch is three layers
+  (`CommandRegistry` modules → `Cmd_Click` suite runners → handler `case` labels), and one-layer
+  audits have twice produced large false-positive figures.
 
 ### 6. Stubs & "for-now" scaffolding
 

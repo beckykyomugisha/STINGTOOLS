@@ -2,6 +2,101 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 231 — KUT gate presets, and the "26 dead buttons" that were not dead)
+
+**1. Six wired commands were in no preset.** `Program_Audit`, `OwnerStandards_Audit`,
+`CSI_Assign`, `Fohlio_ExportFinishes`, `Fohlio_ImportFinishes` and `DeviceCoord_Audit`
+each had a button, a handler case and a `ResolveCommand` case — and appeared in zero
+workflow files. A1 requires a program audit at Deliverables **A, B and C** (Owner's shared
+Excel + pdf + deficiency log) and carries a DEVICE COORDINATION clause at B and C; none
+had automated coverage. All six are now placed where the contract puts them.
+
+**2. Four missing presets authored.** Only Deliverable D existed, though the matrix defines
+six milestones. Deliverable B — the first real gate the team meets, 4-5 months in — had
+nothing to run.
+
+| Preset | LOD | Steps | Shape |
+|---|---|---|---|
+| `WORKFLOW_KUT_DeliverableA.json` | 200 | 8 | Light: tokens, tags, LOD, program audit |
+| `WORKFLOW_KUT_DeliverableB.json` | 300 | 15 | Fullest gate: program + owner-standards + CSI + device coordination + Fohlio finishes + clash |
+| `WORKFLOW_KUT_DeliverableC.json` | 350 | 18 | B's shape + `CSI_Assign` → `SpecLink_Reconcile` + sheet register/compliance for the bidding set |
+| `WORKFLOW_KUT_GateAudit.json` | any | 8 | **Read-only pre-gate check**, milestone-agnostic |
+
+**Ordering defect closed.** `SpecLink_Reconcile` ran in Deliverable D with nothing
+assigning CSI sections first, so every spec section reported as a gap or over-spec.
+`CSI_Assign` now precedes it everywhere it appears.
+
+**Gate Audit is read-only by construction**, and proving that changed its contents: the
+obvious choice `ValidateTags` is a **writer** — it builds a "STING Validation Legend"
+inside a transaction — as are `CompletenessDashboard` and `DiscComplianceReport`
+("STING Compliance Legend"). All three were excluded; tag validation there is
+`PreTagAudit` + `TokenConfidenceAudit`. Every one of its 8 steps is verified
+`[Transaction(TransactionMode.ReadOnly)]`.
+
+**3. The README promised a preset that did not exist.** Deployment step 7 told the team to
+run **KUT Gate Audit**; no such file. It exists now, the §2B table lists all nine presets
+with their picker `name`, and the checklist and the files are verified to agree in **four**
+directions (file→table, table→file, cited name→preset `name`, preset `name`→cited).
+
+**4. Fohlio → LOD 500 ordering dependency.** Rung 500 for Furniture / Furniture Systems
+requires `FOHLIO_REF_TXT`, which only `Fohlio_Import` writes. Deliverable D ran no Fohlio
+step, so the D gate failed all furniture unless someone remembered to run FF&E Sync first.
+The Fohlio steps now run **before** `LOD_Verify`, and both the step label and the preset
+description record why, so it does not get reordered back.
+
+**5. The "26 dead buttons" are not dead — zero buttons are.** The brief listed 26 button
+tags with no `case` in any handler and concluded clicking them does nothing. The count is
+right; the conclusion was wrong. Dock-panel dispatch has **three** layers, and
+`StingCommandHandler.cs:173` consults the first one *before* its switch:
+
+| Layer | Source | Names |
+|---|---|---|
+| L1 `CommandRegistry` | `UI/Modules/*CommandModule.cs` | 661 |
+| L2 `Cmd_Click` suite runners | `StingDockPanel.xaml.cs` | 38 |
+| L3 handler `case` labels | six command handlers | 2,276 |
+
+Of the 26, **23 dispatch through L2 runners and 3 through the L1 registry**
+(`Folder_CloudSync`, `HC_HbnAutoPopulate`, `Tags_MigrateStyleCode`). **All 1,323
+`Cmd_Click` button tags are reachable.** `SILENT_BUTTONS_TODO.md` records the same
+correction being needed once before — the earlier "141 silent buttons" figure was ~96%
+false-positive for exactly this reason — so this is the second time a switch-only audit
+has produced a large wrong number. Nothing was "fixed" because nothing was broken; the
+finding is recorded and now enforced.
+
+**Gate Tier 4.** `tools/check_workflow_wiring.ps1` gained a tier that fails when a
+`Cmd_Click` button's `Tag` reaches none of the three layers. It lives in the same script
+because it is the same failure class and needs the same C#-source parsing; splitting it
+would duplicate that logic for one idea. `tools/button_wiring_baseline.txt` is deliberately
+**empty**. The scan is restricted to `<Button>` elements with `Click="Cmd_Click"` — a naive
+`Tag="..."` scan over the XAML over-reports by 177, because `Tag` also carries filter
+values and picker options on controls that never dispatch.
+
+**Documentation.** `SILENT_BUTTONS_TODO.md` exists at the **repo root**, not `docs/`;
+CLAUDE.md's bare reference made it look missing, and now links it explicitly and warns
+against switch-only counts. `docs/UNREACHABLE_COMMANDS_TRIAGE.md` gained a companion note
+pointing at it, and flags that its own 126 figure predates the three-layer correction.
+
+**Verification.** Build `-t:Rebuild` **0 errors / 0 warnings**; `StingTools.Tags.Tests`
+**243/243**; `check_workflow_wiring.ps1` green across all four tiers. Every step object in
+the five touched presets was audited against `WorkflowStep`'s `[JsonProperty]` names —
+only `commandTag`, `label` and `optional` are used, **no unbound key, no `tag`, no
+`order`** — and every `commandTag` verified against `ResolveCommand`. The gate was proved
+**to fail**, not merely to pass: Tier 1 on a `"tag"`-keyed step in a new preset, Tier 2 on
+a bogus `commandTag`, Tier 4 on a re-pointed button tag, each exiting 1, then restored and
+re-run green. **Nothing was executed in Revit** — the presets are composed from existing
+verified commands, and no workflow was run.
+
+**Correction to the brief's premise:** it also referenced a *Tier 3* enforcing `order`
+against array position. No such tier exists in the script. The rule is still honoured —
+none of the new presets uses `order` — but no Tier 3 failure could be demonstrated because
+there is nothing to demonstrate. Adding one would fail existing presets (40 `order` uses)
+and is logged as a ROADMAP item rather than done silently.
+
+Files: 4 new `WORKFLOW_KUT_*.json` · `WORKFLOW_KUT_DeliverableD.json` ·
+`project-templates/KUT/README.md` · `tools/check_workflow_wiring.ps1` +
+`tools/button_wiring_baseline.txt` (new) · `SILENT_BUTTONS_TODO.md` ·
+`docs/UNREACHABLE_COMMANDS_TRIAGE.md` · `CLAUDE.md`.
+
 #### Completed (Phase 230 — KUT review follow-ups: rung-500 consistency, FF&E, Division 02 handover, order drift)
 
 Four items raised reviewing PR #623 and PR #630 after they merged. Small, all verified.

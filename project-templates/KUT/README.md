@@ -52,13 +52,33 @@ wins** — so you are activating/localising, never forking.
 ### B. Workflow presets (in `StingTools/Data/`, auto-loaded)
 | Preset | Proposal ref | Rhythm |
 |---|---|---|
-| `WORKFLOW_KUT_Mobilisation.json` | §4.1 | Once at kick-off — params, worksets, filters, BEP, CDE register |
-| `WORKFLOW_KUT_CoordinationCycle.json` | §4.2 | Fortnightly — federate, clash, BCF→ACC Issues, model health, completeness |
-| `WORKFLOW_KUT_DeliverableD.json` | §4.4 | Close-out — LOD 400 verify/stamp, SpecLink reconcile, audit, sign-off |
-| `WORKFLOW_KUT_MonthlyReport.json` | §4.6 | Monthly — read-only KPI chain for the status report |
-| `WORKFLOW_KUT_FFESync.json` | A1 Fohlio | FF&E round-trip — Fohlio export → import → currency audit |
+The **Preset** column is the file; the **name** shown in the Workflows picker is the
+preset's `name` field, given in bold. The two must stay in step — the deployment
+checklist in §5 refers to presets by their picker name.
+
+| Preset | name | Proposal ref | Rhythm |
+|---|---|---|---|
+| `WORKFLOW_KUT_Mobilisation.json` | **KUT Mobilisation** | §4.1 | Once at kick-off — params, worksets, filters, BEP, CDE register |
+| `WORKFLOW_KUT_CoordinationCycle.json` | **KUT Coordination Cycle** | §4.2 | Fortnightly — federate, clash, BCF→ACC Issues, model health, completeness |
+| `WORKFLOW_KUT_GateAudit.json` | **KUT Gate Audit** | A1 gates | **Read-only pre-gate check, any milestone** — run before declaring a deliverable ready. Writes nothing |
+| `WORKFLOW_KUT_DeliverableA.json` | **KUT Deliverable A** | A1 Phase 1 | Gate — LOD 200 schematic; tokens, tags, program audit |
+| `WORKFLOW_KUT_DeliverableB.json` | **KUT Deliverable B** | A1 Phase 2 | Gate — LOD 300 50% docs. The fullest gate: program + owner-standards + CSI + device coordination + Fohlio finishes + clash |
+| `WORKFLOW_KUT_DeliverableC.json` | **KUT Deliverable C** | A1 Phase 2 | Gate — LOD 350 100% docs; adds CSI → SpecLink reconcile and the sheet register for the bidding set |
+| `WORKFLOW_KUT_DeliverableD.json` | **KUT Deliverable D** | §4.4 | Close-out — Fohlio refresh, LOD 500 verify/stamp, CSI → SpecLink reconcile, audit, sign-off |
+| `WORKFLOW_KUT_MonthlyReport.json` | **KUT Monthly Report** | §4.6 | Monthly — read-only KPI chain for the status report |
+| `WORKFLOW_KUT_FFESync.json` | **KUT FF&E Sync** | A1 Fohlio | FF&E round-trip — Fohlio export → import → currency audit |
 
 Run from **STING panel → Workflows**, or `WorkflowPreset`.
+
+**Two orderings inside these presets are load-bearing — do not reorder them:**
+
+- **`CSI_Assign` before `SpecLink_Reconcile`.** Reconciliation compares the model's CSI
+  sections against the issued SpecLink TOC. With nothing assigning them first, every spec
+  section reports as a gap and every model section as over-spec, and the report is worthless.
+- **The Fohlio steps before `LOD_Verify` in Deliverable D.** LOD 500 requires
+  `FOHLIO_REF_TXT` on Furniture and Furniture Systems, and `Fohlio_Import` is the only
+  thing that writes it. Run the gate first and every piece of furniture fails for a
+  data-linkage reason unrelated to as-built accuracy.
 
 ---
 
@@ -182,8 +202,13 @@ needs no code change.
    "Demolition (CSI Division 02) is a manual step" below. Assign the owner of this
    task at the Phase 2 kick-off, not at the Deliverable B review.
 6. Run **KUT Mobilisation** once on the federation host.
-7. Run **KUT Coordination Cycle** fortnightly; **KUT Monthly Report** monthly;
-   **KUT Gate Audit** + **KUT Deliverable D** at the contractual gates.
+7. Run **KUT Coordination Cycle** fortnightly and **KUT Monthly Report** monthly.
+8. At each contractual gate, run **KUT Gate Audit** first — it is read-only and tells you
+   what the gate would say without changing anything — then the gate itself:
+   **KUT Deliverable A** (LOD 200) · **KUT Deliverable B** (LOD 300) ·
+   **KUT Deliverable C** (LOD 350) · **KUT Deliverable D** (LOD 500).
+   **KUT FF&E Sync** runs whenever the Fohlio register moves; Deliverable D refreshes the
+   link itself, so it does not depend on you having remembered.
 
 ### Demolition (CSI Division 02) is a manual step
 
