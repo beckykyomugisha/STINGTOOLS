@@ -77,6 +77,17 @@ namespace StingTools.Core
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();
 
+                // Report which licence this machine is running. Fire-and-forget
+                // and entirely advisory — the licence is verified offline above
+                // and does not depend on this call succeeding, or happening at
+                // all. Opt out with STING_LICENSE_PRESENT=0.
+                try
+                {
+                    StingTools.Core.Licensing.LicensePresenter.PresentInBackground(
+                        application.ControlledApplication.VersionNumber);
+                }
+                catch (Exception pex) { StingLog.Warn("License presentation: " + pex.Message); }
+
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
                 // StingOfflineConfig.RealtimeCascadesEnabled at callback time.
