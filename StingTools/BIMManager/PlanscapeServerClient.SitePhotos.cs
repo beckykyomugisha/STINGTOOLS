@@ -544,7 +544,18 @@ namespace StingTools.BIMManager
             if (!await EnsureAuthenticatedAsync()) { LastError = "Not connected."; return false; }
 
             var ids = photoIds?.Distinct().ToArray();
-            var ext  = string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase) ? "pdf" : "zip";
+            var isPdfExport = string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
+
+            // Validate the SELECTION before touching the environment. Resolving an
+            // output directory can fail for reasons that have nothing to do with the
+            // request (no Revit document context, no writable folder), and when it
+            // did run first, a user who selected 201 photos for a PDF was told
+            // "Could not resolve an output folder" instead of that the cap is 200.
+            // Cheap, deterministic validation belongs ahead of environment-dependent
+            // validation regardless of what it does for testability.
+            if (ExportSelectionRejected(null, ids, isPdfExport)) return false;
+
+            var ext  = isPdfExport ? "pdf" : "zip";
             var name = $"photos-{DateTime.Now:yyyyMMdd-HHmmss}.{ext}";
 
             string dir;
@@ -565,20 +576,11 @@ namespace StingTools.BIMManager
         {
             var isPdf = string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
 
-            if (albumId == null && (photoIds == null || photoIds.Length == 0))
-            {
-                // Mirrors the server's ids_or_album_required 400, but without a round trip.
-                LastError = "Select photos or an album to export.";
-                return null;
-            }
-
-            var cap = isPdf ? MaxPhotosPerPdfExport : MaxPhotosPerZipExport;
-            if (photoIds != null && photoIds.Length > cap)
-            {
-                LastError = $"{photoIds.Length} photos selected; the server caps a "
-                          + $"{(isPdf ? "PDF" : "ZIP")} export at {cap}. Export in batches or use an album.";
-                return null;
-            }
+            // Both cheap guards now live in ExportSelectionRejected so the public
+            // overload can run them BEFORE it resolves an output directory. Kept
+            // here too: this is the last gate for the album overload, which does
+            // not go through that path.
+            if (ExportSelectionRejected(albumId, photoIds, isPdf)) return null;
 
             var http = SnapshotHttpClient();
             if (http == null) { LastError = "Not connected."; return null; }
@@ -887,6 +889,35 @@ namespace StingTools.BIMManager
         // Server-side caps, mirrored so the client can refuse before a round trip.
         // PhotoExportController.MaxPhotosPerExport / MaxPhotosPerPdf; the album and
         // bulk routes each hard-code 500.
+        /// <summary>
+        /// The two export guards that need no I/O and no network: a selection must
+        /// name photos or an album, and it must sit under the server's per-format
+        /// cap. Sets <see cref="LastError"/> and returns true when the selection is
+        /// rejected.
+        ///
+        /// Shared so the wording exists once. The messages mirror the server's
+        /// ids_or_album_required and batch_too_large[_for_pdf] responses, but are
+        /// raised without a round trip.
+        /// </summary>
+        private bool ExportSelectionRejected(Guid? albumId, Guid[]? photoIds, bool isPdf)
+        {
+            if (albumId == null && (photoIds == null || photoIds.Length == 0))
+            {
+                LastError = "Select photos or an album to export.";
+                return true;
+            }
+
+            var cap = isPdf ? MaxPhotosPerPdfExport : MaxPhotosPerZipExport;
+            if (photoIds != null && photoIds.Length > cap)
+            {
+                LastError = $"{photoIds.Length} photos selected; the server caps a "
+                          + $"{(isPdf ? "PDF" : "ZIP")} export at {cap}. Export in batches or use an album.";
+                return true;
+            }
+
+            return false;
+        }
+
         private const int MaxPhotosPerZipExport  = 500;
         private const int MaxPhotosPerPdfExport  = 200;
         private const int MaxPhotosPerAlbumAdd   = 500;
