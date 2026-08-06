@@ -4758,7 +4758,7 @@ namespace StingTools.UI
                             // link file in case the in-memory CurrentProjectId
                             // wasn't restored this session.
                             var link = BIMManager.PlanscapeProjectLink.Load(
-                                BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                                BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                             if (link.IsLinked)
                             {
                                 projectGuid = link.ProjectId;
@@ -4864,7 +4864,7 @@ namespace StingTools.UI
                     if (projectGuid == Guid.Empty)
                     {
                         var link = BIMManager.PlanscapeProjectLink.Load(
-                            BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                            BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                         if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
                     }
                     if (projectGuid == Guid.Empty)
@@ -5071,7 +5071,7 @@ namespace StingTools.UI
                     Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
                 });
                 {
-                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath);
+                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath);
                     var curLink = BIMManager.PlanscapeProjectLink.Load(linkCfgPath);
                     // Keep the in-memory CurrentProjectId in step with the active
                     // document whenever this tab is shown (covers project switches
@@ -10983,7 +10983,7 @@ namespace StingTools.UI
                 try
                 {
                     var lk = BIMManager.PlanscapeProjectLink.Load(
-                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                        BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                     if (lk.IsLinked) { attPid = lk.ProjectId; attClient.CurrentProjectId = attPid; }
                 }
                 catch (Exception lex) { StingLog.Warn($"[attendees] project-link resolve failed: {lex.Message}"); }
@@ -11270,7 +11270,7 @@ namespace StingTools.UI
                 try
                 {
                     var lk = BIMManager.PlanscapeProjectLink.Load(
-                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                        BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                     if (lk.IsLinked) { recPid = lk.ProjectId; recClient.CurrentProjectId = recPid; }
                 }
                 catch (Exception lex) { StingLog.Warn($"[recordings] project-link resolve failed: {lex.Message}"); }
