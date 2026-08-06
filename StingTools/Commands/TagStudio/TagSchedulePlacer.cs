@@ -6,18 +6,31 @@
 // sheet is not a deliverable — it is a table nobody sees. With ~204 spec
 // entries carrying sheet_columns, hand-dragging is not a workable answer.
 //
-// This placer packs schedules onto as many sheets as it takes:
+// MEASURE, THEN ARRANGE
+// ---------------------
+// Revit will not tell you how big a schedule renders until it exists, and
+// ScheduleSheetInstance.get_BoundingBox returns nothing usable while the
+// creating transaction is still open — regenerating is not enough. Packing
+// against that during the build therefore degrades to a guessed row height
+// and the tables land on top of each other.
 //
-//   • a cursor walks DOWN a column from the top-left of the drawable zone
-//   • when the next schedule would overflow the column, the cursor moves
-//     RIGHT by the widest table in that column (+ gap) and returns to the top
-//   • when a column would overflow the zone's right edge, a new sheet is minted
+// So this runs in three transactions:
 //
-// Revit gives no way to ask how big a schedule will render before it is
-// placed, so each ScheduleSheetInstance is created at the cursor, the document
-// is regenerated, and its bounding box is measured. A table that does not fit
-// even on an empty sheet is placed anyway (top-left of a fresh sheet) and
-// reported — dropping it silently would be worse than an oversized sheet.
+//   1. MEASURE   every schedule is dropped on one scratch sheet at the same
+//                point. Overlap is irrelevant — a bounding box is per element.
+//   2. (commit)  sizes become readable.
+//   3. ARRANGE   the scratch sheet is deleted and each schedule is re-placed
+//                with its true width and height into a packed column layout.
+//
+// The cost is that build+place is no longer a single undo step. Correct
+// output beats a tidy undo stack.
+//
+// ANCHORING
+// ---------
+// ScheduleSheetInstance.Point is not necessarily the table's visual top-left,
+// so the measure pass also records each instance's Point→bounding-box offset.
+// Placement subtracts it, which is what makes every table in a column share
+// an exact left edge instead of being within a few millimetres of one.
 // ============================================================================
 
 using System;
@@ -43,14 +56,25 @@ namespace StingTools.Commands.TagStudio
     internal static class TagSchedulePlacer
     {
         private const string SheetNamePrefix = "STING Tag Schedules";
-        private const double GapMm = 8.0;
+        private const double GapMm = 10.0;
+
+        /// <summary>Measured geometry for one schedule, in feet, sheet space.</summary>
+        private sealed class Measured
+        {
+            public ViewSchedule Schedule;
+            public double Width;
+            public double Height;
+            /// <summary>bbox.Min.X - Point.X — subtracted so left edges line up exactly.</summary>
+            public double AnchorDx;
+            /// <summary>bbox.Max.Y - Point.Y — subtracted so top edges line up exactly.</summary>
+            public double AnchorDy;
+        }
 
         private static double MmToFt(double mm) => UnitUtils.ConvertToInternalUnits(mm, UnitTypeId.Millimeters);
 
         /// <summary>
-        /// Place the given schedules onto newly-created sheets. Must be called
-        /// inside an open Transaction — the caller owns the transaction so a
-        /// build+place run commits as one undo step.
+        /// Place the given schedules onto new sheets. Opens its own transactions,
+        /// so the caller must NOT have one open.
         /// </summary>
         internal static TagSchedulePlacementResult Place(Document doc, IList<ViewSchedule> schedules)
         {
@@ -58,92 +82,17 @@ namespace StingTools.Commands.TagStudio
             if (doc == null || schedules == null || schedules.Count == 0) return result;
 
             ElementId titleBlockId = ResolveTitleBlock(doc);
-            if (titleBlockId == null || titleBlockId == ElementId.InvalidElementId)
+            if (titleBlockId == ElementId.InvalidElementId)
             {
                 result.Warnings.Add("No title block family is loaded — cannot create sheets to place schedules on.");
                 StingLog.Warn("TagSchedulePlacer: no title block type found; placement skipped.");
                 return result;
             }
 
-            double gap = MmToFt(GapMm);
+            var measured = Measure(doc, schedules, titleBlockId, result);
+            if (measured.Count == 0) return result;
 
-            ViewSheet sheet = null;
-            DrawableZone zone = null;
-            double cursorX = 0, cursorY = 0, columnWidth = 0;
-
-            // Start a fresh sheet and reset the packing cursor to its top-left.
-            bool NewSheet()
-            {
-                sheet = CreateSheet(doc, titleBlockId, result);
-                if (sheet == null) return false;
-                zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
-                if (zone == null || zone.Width <= 0 || zone.Height <= 0)
-                {
-                    result.Warnings.Add($"Sheet '{sheet.SheetNumber}' has no usable drawable zone.");
-                    return false;
-                }
-                cursorX = zone.Min.X;
-                cursorY = zone.Max.Y;
-                columnWidth = 0;
-                result.SheetIds.Add(sheet.Id);
-                return true;
-            }
-
-            if (!NewSheet()) return result;
-
-            foreach (var sched in schedules)
-            {
-                if (sched == null) continue;
-
-                ScheduleSheetInstance ssi = TryCreate(doc, sheet, sched, new XYZ(cursorX, cursorY, 0), result);
-                if (ssi == null) { result.Failed++; continue; }
-
-                // Revit only knows the rendered extents once the instance exists.
-                doc.Regenerate();
-                var size = MeasureSize(ssi, sheet);
-                double w = size.Width, h = size.Height;
-
-                bool fitsColumn = h <= 0 || (cursorY - h) >= zone.Min.Y;
-                if (!fitsColumn)
-                {
-                    // Try the next column on this sheet.
-                    double nextX = cursorX + Math.Max(columnWidth, w) + gap;
-                    if (nextX + w <= zone.Max.X)
-                    {
-                        cursorX = nextX;
-                        cursorY = zone.Max.Y;
-                        columnWidth = 0;
-                        MoveTo(doc, ssi, new XYZ(cursorX, cursorY, 0), result, sched.Name);
-                    }
-                    else
-                    {
-                        // Column and sheet are both full — start a new sheet.
-                        // Delete the probe instance first so it does not linger
-                        // half-off the old sheet.
-                        try { doc.Delete(ssi.Id); }
-                        catch (Exception ex) { StingLog.Warn($"TagSchedulePlacer: could not remove probe instance for '{sched.Name}' — {ex.Message}"); }
-
-                        if (!NewSheet()) { result.Failed++; break; }
-
-                        ssi = TryCreate(doc, sheet, sched, new XYZ(cursorX, cursorY, 0), result);
-                        if (ssi == null) { result.Failed++; continue; }
-                        doc.Regenerate();
-                        size = MeasureSize(ssi, sheet);
-                        w = size.Width; h = size.Height;
-
-                        // Still too tall for an empty sheet: keep it, flag it.
-                        if (h > 0 && h > zone.Height)
-                        {
-                            result.Oversized++;
-                            result.Warnings.Add($"'{sched.Name}' is taller than the sheet and overruns its border.");
-                        }
-                    }
-                }
-
-                result.Placed++;
-                columnWidth = Math.Max(columnWidth, w);
-                cursorY -= (h > 0 ? h : MmToFt(40)) + gap;
-            }
+            Arrange(doc, measured, titleBlockId, result);
 
             StingLog.Info($"TagSchedulePlacer: placed={result.Placed}, sheets={result.SheetsCreated}, " +
                           $"oversized={result.Oversized}, failed={result.Failed}");
@@ -151,51 +100,236 @@ namespace StingTools.Commands.TagStudio
         }
 
         // ──────────────────────────────────────────────────────────────────
+        //  Pass 1 — measure on a scratch sheet
+        // ──────────────────────────────────────────────────────────────────
 
-        private static ScheduleSheetInstance TryCreate(Document doc, ViewSheet sheet,
-            ViewSchedule sched, XYZ pt, TagSchedulePlacementResult result)
+        private static List<Measured> Measure(Document doc, IList<ViewSchedule> schedules,
+            ElementId titleBlockId, TagSchedulePlacementResult result)
         {
+            var measured = new List<Measured>();
+            ViewSheet scratch = null;
+            var probes = new List<(ScheduleSheetInstance Ssi, ViewSchedule Sched)>();
+
+            using (var tx = new Transaction(doc, "STING Measure Tag Schedules"))
+            {
+                tx.Start();
+                try
+                {
+                    scratch = ViewSheet.Create(doc, titleBlockId);
+                    if (scratch == null)
+                    {
+                        result.Warnings.Add("Could not create the scratch sheet used to measure schedule sizes.");
+                        tx.RollBack();
+                        return measured;
+                    }
+                    try { scratch.Name = "STING ~ measuring"; } catch { /* name clash is harmless here */ }
+
+                    foreach (var sched in schedules)
+                    {
+                        if (sched == null) continue;
+                        try
+                        {
+                            var ssi = ScheduleSheetInstance.Create(doc, scratch.Id, sched.Id, XYZ.Zero);
+                            if (ssi != null) probes.Add((ssi, sched));
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"TagSchedulePlacer: measure probe for '{sched.Name}' — {ex.Message}");
+                            result.Warnings.Add($"Could not measure '{sched.Name}': {ex.Message}");
+                            result.Failed++;
+                        }
+                    }
+                    tx.Commit();   // sizes only become readable once committed
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSchedulePlacer: measure pass failed — {ex.Message}");
+                    result.Warnings.Add($"Measuring schedule sizes failed: {ex.Message}");
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    return measured;
+                }
+            }
+
+            foreach (var (ssi, sched) in probes)
+            {
+                double w = 0, h = 0, adx = 0, ady = 0;
+                try
+                {
+                    var bb = ssi.get_BoundingBox(scratch);
+                    if (bb != null)
+                    {
+                        w = Math.Abs(bb.Max.X - bb.Min.X);
+                        h = Math.Abs(bb.Max.Y - bb.Min.Y);
+                        adx = bb.Min.X - ssi.Point.X;
+                        ady = bb.Max.Y - ssi.Point.Y;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSchedulePlacer: bounding box for '{sched.Name}' — {ex.Message}");
+                }
+
+                if (w <= 0 || h <= 0)
+                {
+                    // Never silently pack against a zero size — that is exactly
+                    // what produces a pile of overlapping tables. Fall back to a
+                    // row-count estimate and say so.
+                    (w, h) = EstimateSize(doc, sched, w, h);
+                    result.Warnings.Add($"'{sched.Name}' could not be measured; used an estimated size.");
+                    StingLog.Warn($"TagSchedulePlacer: '{sched.Name}' unmeasurable, estimated {w:F2}x{h:F2} ft.");
+                }
+
+                measured.Add(new Measured
+                {
+                    Schedule = sched, Width = w, Height = h, AnchorDx = adx, AnchorDy = ady
+                });
+            }
+
+            // Drop the scratch sheet — deleting the sheet takes its instances too.
+            using (var tx = new Transaction(doc, "STING Clear Measuring Sheet"))
+            {
+                tx.Start();
+                try { doc.Delete(scratch.Id); tx.Commit(); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSchedulePlacer: could not delete scratch sheet — {ex.Message}");
+                    result.Warnings.Add("The temporary measuring sheet could not be removed; delete 'STING ~ measuring' by hand.");
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                }
+            }
+
+            return measured;
+        }
+
+        /// <summary>
+        /// Last-resort size when the bounding box is unreadable: derive height
+        /// from the schedule's actual row count and width from its column count.
+        /// </summary>
+        private static (double Width, double Height) EstimateSize(Document doc, ViewSchedule sched,
+            double knownW, double knownH)
+        {
+            const double RowMm = 8.0;      // default Revit schedule row
+            const double ColMm = 38.0;     // default column width
+            int rows = 8, cols = 6;
             try
             {
-                return ScheduleSheetInstance.Create(doc, sheet.Id, sched.Id, pt);
+                var body = sched.GetTableData().GetSectionData(SectionType.Body);
+                if (body != null)
+                {
+                    rows = Math.Max(rows, body.NumberOfRows + 2);   // + header rows
+                    cols = Math.Max(1, body.NumberOfColumns);
+                }
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"TagSchedulePlacer: ScheduleSheetInstance.Create('{sched.Name}') — {ex.Message}");
-                result.Warnings.Add($"Could not place '{sched.Name}': {ex.Message}");
-                return null;
+                StingLog.Warn($"TagSchedulePlacer: row count for '{sched.Name}' — {ex.Message}");
+            }
+            double w = knownW > 0 ? knownW : MmToFt(ColMm * cols);
+            double h = knownH > 0 ? knownH : MmToFt(RowMm * rows);
+            return (w, h);
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        //  Pass 2 — arrange onto real sheets
+        // ──────────────────────────────────────────────────────────────────
+
+        private static void Arrange(Document doc, List<Measured> measured,
+            ElementId titleBlockId, TagSchedulePlacementResult result)
+        {
+            double gap = MmToFt(GapMm);
+
+            using (var tx = new Transaction(doc, "STING Place Tag Schedules On Sheets"))
+            {
+                tx.Start();
+                try
+                {
+                    ViewSheet sheet = null;
+                    DrawableZone zone = null;
+                    double colLeft = 0, cursorTop = 0, colWidth = 0;
+
+                    bool NewSheet()
+                    {
+                        sheet = CreateSheet(doc, titleBlockId, result);
+                        if (sheet == null) return false;
+                        zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
+                        if (zone == null || zone.Width <= 0 || zone.Height <= 0)
+                        {
+                            result.Warnings.Add($"Sheet '{sheet.SheetNumber}' has no usable drawable zone.");
+                            return false;
+                        }
+                        colLeft = zone.Min.X;
+                        cursorTop = zone.Max.Y;
+                        colWidth = 0;
+                        result.SheetIds.Add(sheet.Id);
+                        return true;
+                    }
+
+                    if (!NewSheet()) { tx.RollBack(); return; }
+
+                    // Tallest first packs columns far more tightly than name order,
+                    // and keeps a column's left edge stable once it is set.
+                    foreach (var m in measured.OrderByDescending(x => x.Height)
+                                              .ThenBy(x => x.Schedule.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        bool fitsInColumn = (cursorTop - m.Height) >= zone.Min.Y - 1e-9;
+
+                        if (!fitsInColumn)
+                        {
+                            double nextLeft = colLeft + colWidth + gap;
+                            bool fitsNextColumn = (nextLeft + m.Width) <= zone.Max.X + 1e-9
+                                                  && m.Height <= zone.Height + 1e-9;
+
+                            if (fitsNextColumn)
+                            {
+                                colLeft = nextLeft;
+                                cursorTop = zone.Max.Y;
+                                colWidth = 0;
+                            }
+                            else
+                            {
+                                if (!NewSheet()) { result.Failed++; break; }
+                                if (m.Height > zone.Height + 1e-9)
+                                {
+                                    // Taller than any sheet we can make. Place it
+                                    // rather than drop it, and flag it.
+                                    result.Oversized++;
+                                    result.Warnings.Add(
+                                        $"'{m.Schedule.Name}' is taller than the sheet and overruns its border.");
+                                }
+                            }
+                        }
+
+                        var point = new XYZ(colLeft - m.AnchorDx, cursorTop - m.AnchorDy, 0);
+                        try
+                        {
+                            var ssi = ScheduleSheetInstance.Create(doc, sheet.Id, m.Schedule.Id, point);
+                            if (ssi == null) { result.Failed++; continue; }
+                            result.Placed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"TagSchedulePlacer: place '{m.Schedule.Name}' — {ex.Message}");
+                            result.Warnings.Add($"Could not place '{m.Schedule.Name}': {ex.Message}");
+                            result.Failed++;
+                            continue;
+                        }
+
+                        colWidth = Math.Max(colWidth, m.Width);
+                        cursorTop -= m.Height + gap;
+                    }
+
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSchedulePlacer: arrange pass failed — {ex.Message}");
+                    result.Warnings.Add($"Placing schedules failed: {ex.Message}");
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                }
             }
         }
 
-        private static void MoveTo(Document doc, ScheduleSheetInstance ssi, XYZ target,
-            TagSchedulePlacementResult result, string schedName)
-        {
-            try
-            {
-                var delta = target - ssi.Point;
-                if (!delta.IsZeroLength()) ElementTransformUtils.MoveElement(doc, ssi.Id, delta);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"TagSchedulePlacer: move '{schedName}' — {ex.Message}");
-                result.Warnings.Add($"Could not reposition '{schedName}': {ex.Message}");
-            }
-        }
-
-        private static (double Width, double Height) MeasureSize(ScheduleSheetInstance ssi, ViewSheet sheet)
-        {
-            try
-            {
-                var bb = ssi.get_BoundingBox(sheet);
-                if (bb != null)
-                    return (Math.Abs(bb.Max.X - bb.Min.X), Math.Abs(bb.Max.Y - bb.Min.Y));
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"TagSchedulePlacer: bounding box unavailable — {ex.Message}");
-            }
-            return (0, 0);
-        }
+        // ──────────────────────────────────────────────────────────────────
 
         private static ViewSheet CreateSheet(Document doc, ElementId titleBlockId, TagSchedulePlacementResult result)
         {

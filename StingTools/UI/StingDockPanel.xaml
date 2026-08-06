@@ -162,6 +162,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="28"/>
+                    <ColumnDefinition Width="34"/>
                 </Grid.ColumnDefinitions>
                 <Grid>
                     <TextBox x:Name="txtCommandBar"
@@ -234,6 +235,16 @@
                         Cursor="Hand"
                         ToolTip="Ask AI — design briefs, BIM knowledge, draft documents"
                         Click="AskAI_Click"/>
+                <!-- Schedules are needed from every tab, so the Scheduler lives
+                     in the header rather than inside one of them. -->
+                <Button x:Name="btnScheduler" Grid.Column="2"
+                        Content="SCH" Width="32" Height="23"
+                        Margin="2,0,0,0" FontSize="9" FontWeight="Bold"
+                        Background="#4CAF50" Foreground="White"
+                        BorderBrush="#388E3C" BorderThickness="1"
+                        Cursor="Hand"
+                        ToolTip="STING Scheduler — every view-schedule function in one dialog: create &amp; populate, audit, manage, export, format, corporate/MEP, and the per-category tag schedules with automatic sheet placement"
+                        Tag="Scheduler" Click="Cmd_Click"/>
             </Grid>
             </StackPanel>
         </Border>

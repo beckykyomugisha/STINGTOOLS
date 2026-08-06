@@ -227,26 +227,29 @@ namespace StingTools.Commands.TagStudio
                         }
                     }
 
-                    // Placement runs inside the same transaction so "build + place"
-                    // is a single undo step — a half-placed set is never left behind.
-                    if (placeOnSheets)
-                    {
-                        // Re-running after everything already exists builds nothing,
-                        // but the user still asked for sheets — fall back to the
-                        // tag-expander schedules already in the project so the
-                        // option is never a silent no-op.
-                        var toPlace = builtSchedules.Count > 0
-                            ? builtSchedules
-                            : CollectUnplacedExpanderSchedules(doc, byCategory.Keys, doSheet, doFull);
-
-                        if (toPlace.Count > 0)
-                        {
-                            progress.Increment($"Placing {toPlace.Count} schedule(s) on sheets…");
-                            placement = TagSchedulePlacer.Place(doc, toPlace);
-                        }
-                    }
-
                     tx.Commit();
+                }
+
+                // Placement must run AFTER this commit: a schedule's rendered
+                // size is not readable while the creating transaction is open,
+                // and packing against an unreadable size piles the tables on
+                // top of each other. TagSchedulePlacer owns its own
+                // transactions, so build and place are separate undo steps.
+                if (placeOnSheets)
+                {
+                    // Re-running after everything already exists builds nothing,
+                    // but the user still asked for sheets — fall back to the
+                    // tag-expander schedules already in the project so the
+                    // option is never a silent no-op.
+                    var toPlace = builtSchedules.Count > 0
+                        ? builtSchedules
+                        : CollectUnplacedExpanderSchedules(doc, byCategory.Keys, doSheet, doFull);
+
+                    if (toPlace.Count > 0)
+                    {
+                        progress.Increment($"Measuring and placing {toPlace.Count} schedule(s)…");
+                        placement = TagSchedulePlacer.Place(doc, toPlace);
+                    }
                 }
             }
             finally { progress.Close(); }
