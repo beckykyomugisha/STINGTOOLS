@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 230 — KUT gate presets, and the "26 dead buttons" that were not dead)
+#### Completed (Phase 231 — KUT gate presets, and the "26 dead buttons" that were not dead)
 
 **1. Six wired commands were in no preset.** `Program_Audit`, `OwnerStandards_Audit`,
 `CSI_Assign`, `Fohlio_ExportFinishes`, `Fohlio_ImportFinishes` and `DeviceCoord_Audit`
@@ -96,6 +96,53 @@ Files: 4 new `WORKFLOW_KUT_*.json` · `WORKFLOW_KUT_DeliverableD.json` ·
 `project-templates/KUT/README.md` · `tools/check_workflow_wiring.ps1` +
 `tools/button_wiring_baseline.txt` (new) · `SILENT_BUTTONS_TODO.md` ·
 `docs/UNREACHABLE_COMMANDS_TRIAGE.md` · `CLAUDE.md`.
+
+#### Completed (Phase 230 — KUT review follow-ups: rung-500 consistency, FF&E, Division 02 handover, order drift)
+
+Four items raised reviewing PR #623 and PR #630 after they merged. Small, all verified.
+
+**1. `Cable Trays` was the odd one out at rung 500.** It carried `+ASS_INSTALLATION_DATE_TXT`
+while `Ducts`, `Pipes` and `Conduits` — same distribution class — were a bare `inherit: 400`,
+and the matrix `description` already listed Cable Trays in the fabric/distribution group. Data
+contradicted its own stated intent, so this was a miss rather than a decision. Now a bare
+inherit, consistent with its siblings.
+
+**2. `Furniture` / `Furniture Systems` now sit in their own FF&E group at rung 500.** They were
+inheriting the fabric default, which put the LOD gate and `Fohlio_Audit` at odds: the two
+categories are Fohlio-tracked, `Fohlio_Audit` measures their link currency, and `LOD_Verify`
+asked nothing of them at handover. Rung 500 now adds `+ASS_INSTALLATION_DATE_TXT` and
+`+FOHLIO_REF_TXT` — a dated install and a live Fohlio link are what handover actually carries
+for a furniture item — but **not** a serial number, which it does not. Both parameters verified
+present in `MR_PARAMETERS.txt` with GUIDs and bound `<ALL>` in `RESOLVED_BINDINGS.csv`. The
+matrix `description` now documents three groups, not two.
+
+**3. Division 02 is now documented as a manual step where the project team will read it.**
+Phase 228 withdrew the naming-based demolition rows for good reason (`CsiMasterFormat.Resolve`
+never sees `Phase Demolished`), but A1 Deliverable B still requires an Existing Conditions &
+Removals Plan, and the gap lived only in `docs/ROADMAP.md`. Added to
+`project-templates/KUT/README.md` as deployment step 5 with two concrete methods, and to
+`GUIDES/KUT_BEP_TEMPLATE.md` as a new §10.3 with a `[FILL: owner]` slot and a QA-table row.
+Both state the timing constraint: classify demolition **before** `SpecLink_Reconcile`, or the
+Owner's Division 02 spec sections report as over-specification and the reconciliation reads
+clean when it is not.
+
+**4. `tools/check_workflow_wiring.ps1` gains Tier 3 — `order` vs array position.** `WorkflowStep`
+does not bind `order` any more than it bound `tag`; 40 steps carry it and the engine ignores
+every one, executing in array position. All 44 presets agree today, so nothing runs out of
+sequence — the tier exists to keep it that way, because the failure is silent: sort a preset by
+`order` in an editor and the file states one sequence while the engine runs another. Proved in
+both directions — swapping two steps in `WORKFLOW_ElectricalDesignReview.json` without touching
+their `order` values fails Tier 3 and exits 1; the restored tree passes.
+
+**Also corrected:** `GUIDES/KUT_BEP_TEMPLATE.md` §4.1 still named Uniclass 2015 as the primary
+classification with CSI as "a secondary cross-reference". The Owner mandates RIB SpecLink across
+every discipline (A2) and Phase 228 set `sting_classification.json` to `CSI`, so the BEP
+contradicted both the contract and the shipped config. CSI is now stated as primary.
+
+Verified: `dotnet build -t:Rebuild` 0 errors / 0 warnings; `StingTools.Tags.Tests` 243/243;
+`STING_LOD_MATRIX.json` parses; wiring gate green (44 presets, 328 steps, 655 case labels).
+Not exercised in a live Revit session — the rung-500 changes are data and the checks that read
+them are unchanged, but no `LOD_Verify` run against real elements was performed.
 
 #### Completed (Phase 229 — eleven workflow presets executed nothing and reported success)
 

@@ -198,14 +198,45 @@ needs no code change.
    valid and are wrong for the code the design is reviewed against.
 4. Confirm the LOC→volume map and the originator/volume/level/type number table
    against the Owner's week-1 BEP register; edit `_BIM_COORD/*.json` to match.
-5. Run **KUT Mobilisation** once on the federation host.
-6. Run **KUT Coordination Cycle** fortnightly and **KUT Monthly Report** monthly.
-7. At each contractual gate, run **KUT Gate Audit** first — it is read-only and tells you
+5. **Classify demolition by hand — `CSI_Assign` cannot do it.** See
+   "Demolition (CSI Division 02) is a manual step" below. Assign the owner of this
+   task at the Phase 2 kick-off, not at the Deliverable B review.
+6. Run **KUT Mobilisation** once on the federation host.
+7. Run **KUT Coordination Cycle** fortnightly and **KUT Monthly Report** monthly.
+8. At each contractual gate, run **KUT Gate Audit** first — it is read-only and tells you
    what the gate would say without changing anything — then the gate itself:
    **KUT Deliverable A** (LOD 200) · **KUT Deliverable B** (LOD 300) ·
    **KUT Deliverable C** (LOD 350) · **KUT Deliverable D** (LOD 500).
    **KUT FF&E Sync** runs whenever the Fohlio register moves; Deliverable D refreshes the
    link itself, so it does not depend on you having remembered.
+
+### Demolition (CSI Division 02) is a manual step
+
+A1 Deliverable B requires an **Existing Conditions & Removals Plan**, and Deliverable C
+carries the removals scope through to the tender documents. **`CSI_Assign` cannot classify
+demolition**, so nothing in the automated pipeline will produce Division 02 sections.
+
+`CsiMasterFormat.Resolve` matches on **category / family / type / system** only. Revit
+expresses demolition through the **`Phase Demolished`** property, which the resolver never
+receives. Naming-based rules (`(?i)existing|demolition|clearance`) were drafted and then
+**withdrawn deliberately** — they would have read as coverage in a review while matching
+nothing, because nobody names a toposolid "demolition". Honest absence beats a rule that
+looks like it works. Tracked as ROADMAP **KUT-5**; the fix is phase-awareness in the
+resolver, which is a schema change to the map CSV and is not scheduled.
+
+Until then, one of:
+
+- **Project overlay.** Add explicit Division 02 rows to `_BIM_COORD/csi_map.csv` keyed on a
+  naming convention the team actually applies (e.g. a `DEMO_` type-name prefix agreed at
+  kick-off, matched in the **TypeRegex** column — *not* FamilyRegex, which returns empty for
+  system elements such as Topography and Toposolid). The overlay loads before the corporate
+  map, so overlay rows win.
+- **Write `CSI_SECTION_TXT` / `CSI_TITLE_TXT` directly** on the demolition scope from a
+  schedule or a filtered selection, before running `SpecLink_Reconcile`.
+
+Either way, do it **before** `SpecLink_Reconcile` — otherwise the Division 02 sections in the
+Owner's SpecLink book report as over-specification (spec with no model backing) and the
+reconciliation reads clean when it is not.
 
 ### Owner-standard settings summary
 
@@ -215,6 +246,7 @@ needs no code change.
 | Plumbing code | **`IPC-US`** (not BS EN 12056) | `PLM_PRJ_PLUMBING_CODE_TXT` on **Project Information** — step 3 above |
 | Specifications | RIB SpecLink | reconciled by `SpecLink_Reconcile` |
 | FF&E / finishes / O&M | Fohlio | `_BIM_COORD/fohlio_map.json` + `Fohlio_*` commands |
+| Demolition (Division 02) | **manual — not automated** | `_BIM_COORD/csi_map.csv` overlay or direct parameter write — step 5 above |
 
 > **Not required by this contract:** ISO 19650 naming on Owner deliverables, COBie,
 > or IFC. STING's ISO 19650 machinery remains our *internal* method for tagging and

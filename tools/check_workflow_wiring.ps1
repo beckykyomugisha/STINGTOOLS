@@ -32,6 +32,15 @@
       shrink, never grow -- adding to it requires deciding, in review, that a tag genuinely
       has no command behind it.
 
+    TIER 3 -- "order" DISAGREEING WITH ARRAY POSITION (hard zero, no baseline).
+      WorkflowStep does not bind "order" either, so it is documentation that reads like
+      configuration: 40 steps carry it and the engine ignores every one, executing in array
+      position. Today all presets agree, so nothing runs out of sequence -- this tier exists
+      to keep it that way. The failure it prevents is quiet and expensive: someone sorts a
+      preset by "order" in an editor, or inserts a step and renumbers, and the file then
+      states one sequence while the engine runs another with no error anywhere. Fix by
+      reordering the array, renumbering "order", or deleting the key.
+
     TIER 4 -- DOCK-PANEL BUTTONS THAT DISPATCH TO NOTHING (hard zero + explicit baseline).
       A <Button Tag="X" Click="Cmd_Click"> in StingDockPanel.xaml sends X to the dispatcher.
       If nothing handles X the click is a no-op, with no error and no log line.
@@ -117,6 +126,7 @@ if (Test-Path $baselineFile) {
 
 $tierOne   = @()   # steps keyed "tag"
 $tierTwo   = @()   # commandTag with no case label
+$tierThree = @()   # "order" disagreeing with array position
 $usedBase  = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
 $stepCount = 0
 $files     = Get-ChildItem -Path $dataDir -Filter 'WORKFLOW_*.json' -File
@@ -127,9 +137,11 @@ foreach ($f in $files) {
 
     if ($null -eq $json.steps) { continue }
     $i = 0
+    $orderVals = @()
     foreach ($step in $json.steps) {
         $i++; $stepCount++
         $names = @($step.PSObject.Properties.Name)
+        if ($names -contains 'order') { $orderVals += [int]$step.order }
         if (($names -contains 'tag') -and -not ($names -contains 'commandTag')) {
             $tierOne += "$($f.Name) step $i : {""tag"": ""$($step.tag)""} -- WorkflowStep binds ""commandTag"""
             continue
@@ -142,6 +154,14 @@ foreach ($f in $files) {
         if (-not $resolvable.Contains($tag)) {
             if ($baseline.Contains($tag)) { [void]$usedBase.Add($tag) }
             else { $tierTwo += "$($f.Name) step $i : '$tag' has no case in WorkflowEngine.ResolveCommand" }
+        }
+    }
+
+    # TIER 3 -- "order" disagreeing with array position.
+    if ($orderVals.Count -gt 1) {
+        $sorted = @($orderVals | Sort-Object)
+        if ("$orderVals" -ne "$sorted") {
+            $tierThree += "$($f.Name) : order values $($orderVals -join ', ') are not in array sequence"
         }
     }
 }
@@ -240,6 +260,18 @@ if ($tierTwo.Count -gt 0) {
     Write-Host 'label, add the tag to tools/workflow_wiring_baseline.txt and log it in docs/ROADMAP.md.'
 }
 
+if ($tierThree.Count -gt 0) {
+    $failed = $true
+    Write-Host ""
+    Write-Host "Workflow-wiring FAILED -- Tier 3: $($tierThree.Count) preset(s) whose ""order"" contradicts execution:" -ForegroundColor Red
+    $tierThree | Sort-Object | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host ""
+    Write-Host 'WorkflowStep does NOT bind "order" -- steps execute in ARRAY position, so "order" is'
+    Write-Host 'documentation that reads like configuration. While the two agree it is harmless; once'
+    Write-Host 'they disagree the file says one sequence and the engine runs another, silently.'
+    Write-Host 'Reorder the array to match, renumber "order" to match the array, or delete the key.'
+}
+
 if ($tierFour.Count -gt 0) {
     $failed = $true
     Write-Host ""
@@ -261,6 +293,7 @@ Write-Host "  Steps scanned                                   : $stepCount"
 Write-Host "  ResolveCommand case labels                      : $($resolvable.Count)"
 Write-Host "  Tier 1 steps keyed ""tag"" (must be 0)            : 0"
 Write-Host "  Tier 2 unresolvable outside the baseline        : 0"
+Write-Host "  Tier 3 presets whose ""order"" contradicts array  : 0"
 Write-Host "  Baselined 'no command exists' tags in use       : $($usedBase.Count)"
 Write-Host "  Cmd_Click buttons scanned                       : $($btnTags.Count)"
 Write-Host "  Dispatchable names (registry + runners + cases) : $($dispatch.Count)"
