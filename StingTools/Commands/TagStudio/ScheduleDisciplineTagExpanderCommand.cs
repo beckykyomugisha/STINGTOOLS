@@ -54,6 +54,13 @@ namespace StingTools.Commands.TagStudio
         internal const string ParamBundles = "TagSched_Bundles";  // CSV of ARCH,GEN,HEALTH,MEP,STR
         internal const string ParamPlace   = "TagSched_Place";    // "1" = place on sheets
 
+        /// <summary>
+        /// Sent when the caller ticked no bundles at all. An empty filter means
+        /// "build everything", so "build nothing" needs its own value — otherwise
+        /// clearing every checkbox would create the entire ~200-schedule set.
+        /// </summary>
+        internal const string NoBundlesSentinel = "__NONE__";
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -158,6 +165,14 @@ namespace StingTools.Commands.TagStudio
 
             if (byCategory.Count == 0)
             {
+                if (bundleFilter.Contains(NoBundlesSentinel))
+                {
+                    TaskDialog.Show("Schedule Tag Expander",
+                        "No discipline bundles are ticked, so there is nothing to build.\n\n" +
+                        "Tick at least one bundle under SCHEDULER → TAG SCHEDULES → DISCIPLINE BUNDLES.");
+                    return Result.Cancelled;
+                }
+
                 TaskDialog.Show("Schedule Tag Expander",
                     $"No schedulable categories resolved from the spec.\n" +
                     $"Skipped empty entries: {emptySkipped}, unmatched families: {unmatchedFamilies.Count}" +
@@ -222,7 +237,7 @@ namespace StingTools.Commands.TagStudio
                         // option is never a silent no-op.
                         var toPlace = builtSchedules.Count > 0
                             ? builtSchedules
-                            : CollectUnplacedExpanderSchedules(doc);
+                            : CollectUnplacedExpanderSchedules(doc, byCategory.Keys, doSheet, doFull);
 
                         if (toPlace.Count > 0)
                         {
@@ -276,8 +291,22 @@ namespace StingTools.Commands.TagStudio
         /// Tag-expander schedules that are not yet on any sheet. Used when a
         /// re-run creates nothing new but the caller still asked for placement.
         /// </summary>
-        private static List<ViewSchedule> CollectUnplacedExpanderSchedules(Document doc)
+        private static List<ViewSchedule> CollectUnplacedExpanderSchedules(
+            Document doc, IEnumerable<string> categoryDisplays, bool doSheet, bool doFull)
         {
+            // Scope the fallback to exactly what this run asked for. Schedule
+            // names are deterministic, so the in-scope categories plus the
+            // chosen column set name the precise set — otherwise a "sheet
+            // columns, MEP only" re-run would place the wide (Full) tables and
+            // every other discipline alongside them.
+            var wanted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string cat in categoryDisplays)
+            {
+                if (doSheet) wanted.Add(SchedulePrefix + cat);
+                if (doFull)  wanted.Add(SchedulePrefix + cat + " (Full)");
+            }
+            if (wanted.Count == 0) return new List<ViewSchedule>();
+
             var placedIds = new HashSet<ElementId>(
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(ScheduleSheetInstance))
@@ -288,7 +317,7 @@ namespace StingTools.Commands.TagStudio
                 .OfClass(typeof(ViewSchedule))
                 .Cast<ViewSchedule>()
                 .Where(v => !v.IsTemplate
-                         && (v.Name ?? "").StartsWith(SchedulePrefix, StringComparison.OrdinalIgnoreCase)
+                         && wanted.Contains(v.Name ?? "")
                          && !placedIds.Contains(v.Id))
                 .OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();

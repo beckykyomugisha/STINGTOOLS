@@ -1122,7 +1122,9 @@ namespace StingTools.UI
                         // so an empty selection builds nothing rather than everything.
                         opts["TagSched_Bundles"] =
                             bundles.Count == 5 ? "" :
-                            bundles.Count == 0 ? "__NONE__" : string.Join(",", bundles);
+                            bundles.Count == 0
+                                ? Commands.TagStudio.ScheduleDisciplineTagExpanderCommand.NoBundlesSentinel
+                                : string.Join(",", bundles);
                         opts["TagSched_Place"]   = (ts.ChkPlace?.IsChecked == true) ? "1" : "0";
                     }
                     break;
