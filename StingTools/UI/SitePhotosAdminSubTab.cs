@@ -129,7 +129,19 @@ namespace StingTools.UI
                     });
                     return;
                 }
+                // null = the load FAILED; an empty list = there are genuinely no
+                // groups. "No distribution groups yet." over an unreachable server
+                // is invented data — and here it is actively dangerous, because an
+                // operator could conclude nobody is on distribution and re-add
+                // recipients who are already there.
                 var groups = await PlanscapeServerClient.Instance.ListDistributionGroupsAsync(state.ProjectId);
+                if (groups == null)
+                {
+                    dgPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                        "Could not load distribution groups.",
+                        PlanscapeServerClient.Instance.LastError));
+                    return;
+                }
                 if (groups.Count == 0)
                 {
                     dgPanel.Children.Add(new TextBlock {
