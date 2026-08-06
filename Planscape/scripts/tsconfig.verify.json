@@ -1,0 +1,13 @@
+{
+  "//": "#625 — minimal transpile of the RN-free failure-classification module so scripts/verify-issue-create-messages.cjs can exercise the REAL code rather than a hand-copied transcription. Output is gitignored.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "rootDir": "../src",
+    "outDir": "../.verify-out",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "files": ["../src/utils/issueCreateMessage.ts"]
+}
