@@ -407,6 +407,27 @@ The Redis SignalR backplane is already wired, so horizontal scaling works —
 
 Everything below runs against a local dev stack. Budget ~20 minutes.
 
+> **Use the runner, not the individual steps.** After pinning the API (step 1),
+> `./load/run-capacity.sh --project-id <guid> --peak-rps 150` performs steps 2–4
+> and then **removes the fixture data on every exit path** — after a pass, after
+> a failed k6 run, and after Ctrl-C. If cleanup fails it exits non-zero and says
+> so.
+>
+> This matters more than it sounds. The seed creates 400 accounts, and the
+> cleanup this runbook used to recommend — `DELETE FROM "Users" WHERE "Email"
+> LIKE 'loadtest%'` — **cannot succeed**: `FK_ProjectMembers_Users_UserId` is
+> `RESTRICT`, so it aborts on a foreign-key violation and every account stays.
+> That left a demo tenant reading 426 users against a cap of 50, which was
+> mistaken for a live onboarding blocker and cost two investigations. Exceeding
+> a cap is what a capacity fixture is *for*; leaving the residue behind is the
+> defect.
+>
+> The steps below remain as reference for running a phase on its own. If you do,
+> finish with:
+> ```bash
+> docker exec -i docker-postgres-1 psql -U planscape -d planscape < load/cleanup-loadtest-data.sql
+> ```
+
 **1. Pin the API to the tier you want to measure.**
 
 ```bash
@@ -450,7 +471,16 @@ that is CPU saturation. A run that instead shows high failures with a *low* p95
 is not saturation: it is 429s, and it means either too few seeded users or the
 offered rate exceeds `users × 100 / 60`.
 
-**5. Watch the pools while it runs**, to confirm the cap holds and nothing
+**5. Clean up.** `run-capacity.sh` does this for you. If you ran step 4 by hand,
+do it now — and check it actually worked, because the failure mode is silent
+accumulation:
+
+```bash
+docker exec -i docker-postgres-1 psql -U planscape -d planscape < load/cleanup-loadtest-data.sql
+# expects: users_remaining | issues_remaining  ->  0 | 0
+```
+
+**6. Watch the pools while it runs**, to confirm the cap holds and nothing
 approaches the 97-connection ceiling:
 
 ```bash
