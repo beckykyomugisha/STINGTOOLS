@@ -589,6 +589,8 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 | `PlacementCentreCommands.cs` (32) | `Placement_OpenCenter` — opens the modeless window |
 | `PlacementExcelCommands.cs` | `Placement_ExportRules`, `Placement_ImportRules` — Excel round-trip for placement rules |
 
+The **Family Converter** tab (after "Library") changes a family's host / placement type — P1 lossless checkbox toggle (Unhosted→Face-based) + P2 template rebuild — via `Core/Placement/FamilyHostConverter.cs` + `Data/Placement/STING_FAMILY_HOST_TEMPLATES.json`. See CHANGELOG "Family Converter".
+
 ---
 
 ## ExLink (External Data Link)
