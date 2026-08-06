@@ -17,13 +17,39 @@ public class AdminController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly Planscape.Infrastructure.Authorization.IPermissionRevocationStore _revocations;
+    private readonly Planscape.Infrastructure.Services.IQuotaGuardService _quota;
 
     public AdminController(
         PlanscapeDbContext db,
-        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations)
+        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations,
+        Planscape.Infrastructure.Services.IQuotaGuardService quota)
     {
         _db = db;
         _revocations = revocations;
+        _quota = quota;
+    }
+
+    /// <summary>
+    /// Seats are AUTHOR seats. Read-only accounts are unlimited and free, so
+    /// only an account that can author information is checked against the cap.
+    ///
+    /// <para>Asks <see cref="Planscape.Infrastructure.Services.IQuotaGuardService"/>
+    /// rather than counting here: it is the same implementation the invite paths
+    /// and the tenant dashboard use, so the cap a user is refused by is the cap
+    /// they were shown. This controller previously compared total active
+    /// accounts against <c>tenant.MaxUsers</c>, which capped a Studio tenant at
+    /// 6 accounts of ANY kind — a seventh read-only account was refused.</para>
+    /// </summary>
+    private async Task<string?> AuthorSeatRefusalAsync(UserRole role, CancellationToken ct = default)
+    {
+        if (!ProjectRoles.CanAuthorInformation(role)) return null;   // viewers are free
+
+        var seats = await _quota.CheckCanAddUserAsync("Author", ct);
+        return seats.Allowed
+            ? null
+            : $"Author seat limit reached ({seats.Current} of {seats.Max}). "
+            + "Read-only accounts are unlimited — create this user as a Viewer, "
+            + "or free a seat by changing an existing author to Viewer.";
     }
 
     // ── Organization Management ──
@@ -74,9 +100,10 @@ public class AdminController : ControllerBase
         var tenant = await _db.Tenants.FindAsync(tenantId);
         if (tenant == null) return NotFound("Tenant not found");
 
-        var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-        if (userCount >= tenant.MaxUsers)
-            return BadRequest($"User limit ({tenant.MaxUsers}) reached for {tenant.Tier} tier");
+        var newRole = Enum.TryParse<UserRole>(req.Role, true, out var r) ? r : UserRole.Contributor;
+
+        // Only authoring accounts consume a seat; viewers are unlimited.
+        if (await AuthorSeatRefusalAsync(newRole) is { } refusal) return BadRequest(refusal);
 
         if (await _db.Users.AnyAsync(u => u.Email == req.Email))
             return Conflict($"Email {req.Email} already exists");
@@ -87,7 +114,7 @@ public class AdminController : ControllerBase
             Email = req.Email,
             DisplayName = req.DisplayName,
             PasswordHash = HashPassword(req.Password),
-            Role = Enum.TryParse<UserRole>(req.Role, true, out var r) ? r : UserRole.Contributor,
+            Role = newRole,
             Iso19650Role = req.Iso19650Role ?? "M"
         };
 
@@ -113,6 +140,20 @@ public class AdminController : ControllerBase
         if (req.DisplayName != null) user.DisplayName = req.DisplayName;
         if (req.Role != null && Enum.TryParse<UserRole>(req.Role, true, out var r) && user.Role != r)
         {
+            // PROMOTION IS A PURCHASE. Without this check "viewers are free"
+            // is simply a bypass: mint unlimited free viewers, then promote
+            // them into authoring roles that nothing counted.
+            //
+            // Only a NON-author becoming an author is charged. Demotion is
+            // always allowed and frees the seat immediately — seat
+            // reassignment has no lock-in, which is the point for a practice
+            // that rotates staff.
+            if (!ProjectRoles.CanAuthorInformation(user.Role) &&
+                await AuthorSeatRefusalAsync(r) is { } refusal)
+            {
+                return BadRequest(refusal);
+            }
+
             user.Role = r; permissionChanged = true;
         }
         if (req.Iso19650Role != null && user.Iso19650Role != req.Iso19650Role)

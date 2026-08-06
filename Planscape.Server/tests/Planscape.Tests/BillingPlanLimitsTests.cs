@@ -31,8 +31,11 @@ public class BillingPlanLimitsTests
         // Price-neutrality, asserted rather than asserted-in-prose. If someone
         // later edits MaxAuthors, this fails and forces the pricing question to
         // be answered on purpose.
+        //
+        // The paid number is MaxAuthors, NOT TotalSeats: with read-only seats
+        // unlimited there is no total-account cap, so TotalSeats is int.MaxValue
+        // on every plan (see Unlimited_plans_saturate_rather_than_summing).
         Assert.Equal(previousTotal, BillingPlanLimits.For(plan).MaxAuthors);
-        Assert.Equal(previousTotal, BillingPlanLimits.For(plan).TotalSeats);
     }
 
     [Theory]
@@ -59,12 +62,17 @@ public class BillingPlanLimitsTests
     [Fact]
     public void Unlimited_plans_saturate_rather_than_summing()
     {
-        Assert.Equal(int.MaxValue, BillingPlanLimits.For(BillingPlan.Enterprise).TotalSeats);
-        Assert.Equal(int.MaxValue, BillingPlanLimits.For(BillingPlan.Studio).MaxCoordinators);
+        // Every plan has unlimited read-only seats, so there is no total-account
+        // cap anywhere and TotalSeats saturates rather than wrapping. The
+        // saturation is the whole point: written as MaxAuthors + MaxCoordinators
+        // this is 6 + int.MaxValue = -2147483643 for Studio, and Tenant.MaxUsers
+        // is consumed as `userCount >= MaxUsers`, so that would deny the
+        // tenant's first user.
+        foreach (BillingPlan plan in Enum.GetValues<BillingPlan>())
+            Assert.Equal(int.MaxValue, BillingPlanLimits.For(plan).TotalSeats);
 
-        // Studio: 6 authoring + unlimited viewers must report the PAID number,
-        // not int.MaxValue — the authoring cap is what is actually sold.
-        Assert.Equal(6, BillingPlanLimits.For(BillingPlan.Studio).TotalSeats);
+        // The paid number lives on MaxAuthors and is unaffected.
+        Assert.Equal(6, BillingPlanLimits.For(BillingPlan.Studio).MaxAuthors);
     }
 
     [Fact]

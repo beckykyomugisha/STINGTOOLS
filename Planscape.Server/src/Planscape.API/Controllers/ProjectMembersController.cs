@@ -29,17 +29,21 @@ public class ProjectMembersController : ControllerBase
     private readonly IConfiguration _config;
     private readonly ILogger<ProjectMembersController> _logger;
 
+    private readonly Planscape.Infrastructure.Services.IQuotaGuardService _quota;
+
     public ProjectMembersController(PlanscapeDbContext db,
                                     IEmailService emailService,
                                     IProjectMembershipNotifier membershipNotifier,
                                     IConfiguration config,
-                                    ILogger<ProjectMembersController> logger)
+                                    ILogger<ProjectMembersController> logger,
+                                    Planscape.Infrastructure.Services.IQuotaGuardService quota)
     {
         _db = db;
         _emailService = emailService;
         _membershipNotifier = membershipNotifier;
         _config = config;
         _logger = logger;
+        _quota = quota;
     }
 
     // ── GET all members for a project ─────────────────────────────────────────
@@ -251,10 +255,20 @@ public class ProjectMembersController : ControllerBase
         if (user == null)
         {
             // User doesn't exist in this org — create a pending account
-            var tenant = await _db.Tenants.FindAsync(tenantId);
-            var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-            if (tenant != null && userCount >= tenant.MaxUsers)
-                return BadRequest($"User limit ({tenant.MaxUsers}) reached. Upgrade your plan to add more users.");
+            // Seats are AUTHOR seats. This invite mints a Contributor (see
+            // below), which can author, so it consumes one.
+            //
+            // This used to compare TOTAL active accounts against
+            // tenant.MaxUsers, which capped a Studio tenant at 6 accounts of any
+            // kind — a seventh read-only account was refused even though
+            // read-only accounts are free. The count now comes from the shared
+            // quota guard, so the cap that refuses a user here is the same
+            // number the tenant dashboard shows them.
+            var seats = await _quota.CheckCanAddUserAsync("Author");
+            if (!seats.Allowed)
+                return BadRequest(
+                    $"Author seat limit reached ({seats.Current} of {seats.Max}). "
+                  + "Free a seat by changing an existing author to Viewer, or upgrade your plan.");
 
             user = new AppUser
             {

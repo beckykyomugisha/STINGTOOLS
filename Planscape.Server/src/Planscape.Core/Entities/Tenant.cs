@@ -184,24 +184,24 @@ public static class BillingPlanLimits
         /// tenant's very first user. Enterprise already wrapped to -2 this way;
         /// it was latent only because registration assigns Trial.</para>
         ///
-        /// <para>When read-only seats are unlimited this reports the PAID
-        /// headcount (<see cref="MaxAuthors"/>) rather than infinity. That is a
-        /// deliberate no-giveaway choice: <c>MaxUsers</c> is the only cap
-        /// <c>AdminController</c> and <c>ProjectMembersController</c> enforce,
-        /// and neither of them consults the quota guard, so returning infinity
-        /// here would leave both paths able to add unlimited AUTHORING accounts
-        /// with nothing counting them. The cost of this choice is that free
-        /// viewers are not yet free in practice — a Studio tenant is still
-        /// capped at 6 accounts in total. Lifting that safely means teaching
-        /// those two paths the authoring-capability check; until then, erring
-        /// toward charging correctly beats erring toward giving seats away.</para>
+        /// <para>With read-only seats unlimited this is <c>int.MaxValue</c> on
+        /// every plan, and that is now the honest answer: there is no total-
+        /// account cap. <c>AdminController</c> and <c>ProjectMembersController</c>
+        /// — the only two paths that ever enforced <c>MaxUsers</c> — now check
+        /// AUTHOR seats via the quota guard instead, so nothing is given away by
+        /// reporting the total as unbounded.</para>
+        ///
+        /// <para>An earlier revision returned <see cref="MaxAuthors"/> here
+        /// precisely because those two paths had not yet been converted;
+        /// returning infinity then would have left both able to add unlimited
+        /// authoring accounts with nothing counting them. That is no longer the
+        /// case. The PAID number is <see cref="MaxAuthors"/> and should be read
+        /// from there — not from this.</para>
         /// </summary>
         public int TotalSeats =>
-            MaxCoordinators == int.MaxValue
-                ? MaxAuthors                                   // paid headcount; also int.MaxValue for Enterprise
-                : MaxAuthors == int.MaxValue
-                    ? int.MaxValue
-                    : MaxAuthors + MaxCoordinators;
+            MaxAuthors == int.MaxValue || MaxCoordinators == int.MaxValue
+                ? int.MaxValue
+                : MaxAuthors + MaxCoordinators;
     }
 
     // MaxAuthors is the AUTHORING-seat cap — accounts that can create or change
