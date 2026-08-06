@@ -255,7 +255,7 @@ namespace StingTools.Commands.TagStudio
             finally { progress.Close(); }
 
             var td = new TaskDialog("Schedule Tag Expander — done");
-            td.MainInstruction = $"Created {created} schedule(s)";
+            td.MainInstruction = $"Created {created} schedule(s)   [{BuildStamp()}]";
             td.MainContent =
                 $"Categories planned:      {byCategory.Count}\n" +
                 $"Schedules created:       {created}\n" +
@@ -293,6 +293,27 @@ namespace StingTools.Commands.TagStudio
             if (unmatchedFamilies.Count > 0)
                 StingLog.Info("ScheduleTagExpander unmatched families: " + string.Join(" | ", unmatchedFamilies));
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Which build of the plugin is actually loaded, taken from the running
+        /// assembly's file time.
+        ///
+        /// Deploying a fix and being told the behaviour is unchanged is
+        /// ambiguous: the fix may be wrong, or Revit may still be running an
+        /// older DLL. Stamping the build into the report removes the guesswork —
+        /// the result identifies the code that produced it.
+        /// </summary>
+        private static string BuildStamp()
+        {
+            try
+            {
+                string path = typeof(ScheduleDisciplineTagExpanderCommand).Assembly.Location;
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    return "build " + File.GetLastWriteTime(path).ToString("MMM dd HH:mm");
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildStamp: {ex.Message}"); }
+            return "build unknown";
         }
 
         /// <summary>
