@@ -35,13 +35,20 @@ class StingMainPanel(bpy.types.Panel):
 
         bonsai_ok = False
         try:
+            # core/__init__ re-exports `bonsai` as the BonsaiBridge INSTANCE, so
+            # _bridge IS the bridge — read .capabilities directly. (The old
+            # `_bridge.bonsai.capabilities` accessed a nonexistent attribute and
+            # the bare except below hid the AttributeError, so the panel showed
+            # "Bonsai is required" even when detection succeeded.)
             from ..core import bonsai as _bridge
-            caps = _bridge.bonsai.capabilities
+            caps = _bridge.capabilities
             bonsai_ok = caps.installed
             if bonsai_ok:
                 box.label(text=f"Bonsai v{caps.version}", icon="CHECKMARK")
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001 — surface, don't swallow: a hidden
+            # coding error here cost real debugging time. A panel draw shouldn't
+            # crash Blender, but it should show what went wrong.
+            box.label(text=f"Bonsai probe error: {exc}", icon="ERROR")
 
         # Phase A1 — StingTools requires Bonsai (it provides ifcopenshell + the
         # undo-aware IFC layer). There is no in-Blender standalone mode: surface a

@@ -21,6 +21,7 @@ references are resolved lazily.
 
 from __future__ import annotations
 
+import importlib
 import logging
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -28,6 +29,49 @@ from typing import Any, Optional
 from .category_inference import infer_disc_sys
 
 logger = logging.getLogger("stingtools_bonsai.core.bonsai")
+
+
+def _bonsai_prefixes() -> list[str]:
+    """Base package names under which Bonsai may be importable, best first.
+
+    Covers the legacy top-level names (``bonsai`` / ``bonsai_bim`` /
+    ``blenderbim``) AND the Blender 4.2+ extension namespace
+    ``bl_ext.<repo>.bonsai``. The ``<repo>`` segment (``user_default``,
+    ``blender_org``, …) is DISCOVERED from the enabled add-ons rather than
+    hardcoded — that discovery is the fix for "Bonsai is required" showing even
+    though Bonsai is installed, because as an extension Bonsai is NOT importable
+    as top-level ``bonsai``; it lives under ``bl_ext.user_default.bonsai``.
+    """
+    prefixes = ["bonsai", "bonsai_bim", "blenderbim"]
+    try:
+        import bpy  # noqa: PLC0415 — lazy: keeps the module importable headless
+        for key in bpy.context.preferences.addons.keys():
+            if key.startswith("bl_ext.") and key.rsplit(".", 1)[-1] in ("bonsai", "bonsai_bim"):
+                if key not in prefixes:
+                    prefixes.insert(0, key)  # the extension form is the real one on 4.2 — try first
+    except Exception:  # noqa: BLE001 — no bpy / restricted context → legacy names only
+        pass
+    return prefixes
+
+
+def _version_from_manifest(module: Any) -> Optional[str]:
+    """Read the version from the extension's blender_manifest.toml.
+
+    A Blender 4.2 extension carries its version in the manifest, not in a
+    module ``__version__`` — so without this the panel shows "Bonsai vunknown".
+    Returns None on any failure so the caller falls back to "unknown".
+    """
+    try:
+        import pathlib
+        import tomllib  # stdlib on 3.11+, which Blender 4.2 ships
+        path = pathlib.Path(getattr(module, "__file__", "")).parent / "blender_manifest.toml"
+        if path.is_file():
+            with open(path, "rb") as fh:
+                version = tomllib.load(fh).get("version")
+                return str(version) if version else None
+    except Exception:  # noqa: BLE001 — version display is cosmetic; never raise
+        pass
+    return None
 
 
 @dataclass(frozen=True)
@@ -81,22 +125,19 @@ class BonsaiBridge:
         return self.capabilities.installed
 
     def _probe(self) -> BonsaiCapabilities:
-        # Look for any of the known Bonsai module identifiers. The add-on
-        # has gone through several renamings: blenderbim → bonsai →
-        # bonsai-bim (extension form). Check them in order.
-        candidates = [
-            "bonsai",          # 2024+ standalone module name
-            "bonsai_bim",      # extensions-form module name
-            "blenderbim",      # pre-rename
-        ]
+        # Resolve Bonsai across its several packaging forms — legacy top-level
+        # names AND the Blender 4.2 extension namespace bl_ext.<repo>.bonsai
+        # (see _bonsai_prefixes). importlib.import_module (not __import__) is
+        # used so a DOTTED extension name resolves to the actual package rather
+        # than to the top-level `bl_ext`.
         bonsai_mod = None
         api_path: Optional[str] = None
-        for name in candidates:
+        for name in _bonsai_prefixes():
             try:
-                bonsai_mod = __import__(name)
+                bonsai_mod = importlib.import_module(name)
                 api_path = getattr(bonsai_mod, "__file__", None) or name
                 break
-            except ImportError:
+            except Exception:  # noqa: BLE001 — try the next candidate form
                 continue
 
         if bonsai_mod is None:
@@ -111,9 +152,13 @@ class BonsaiBridge:
 
         # Probe individual capabilities behind try/except so a renamed
         # internal sub-module doesn't tank detection of the parent.
+        # As a Blender 4.2 extension Bonsai exposes no __version__, so the raw
+        # module attributes fall through to "unknown". Read the version from the
+        # extension's blender_manifest.toml sitting next to the package instead.
         version = (
             getattr(bonsai_mod, "__version__", None)
             or getattr(bonsai_mod, "VERSION", None)
+            or _version_from_manifest(bonsai_mod)
             or "unknown"
         )
 
@@ -128,20 +173,16 @@ class BonsaiBridge:
             pass
 
         has_context = False
-        try:
-            # Bonsai exposes an IfcStore with a .get_file() class method
-            from bonsai.bim.ifc import IfcStore  # type: ignore
-            has_context = IfcStore is not None
-        except ImportError:
+        # Bonsai exposes an IfcStore with a .get_file() class method. Resolve it
+        # under whichever prefix Bonsai actually lives at (extension or legacy).
+        for prefix in _bonsai_prefixes():
             try:
-                from bonsai_bim.bim.ifc import IfcStore  # type: ignore
-                has_context = IfcStore is not None
-            except ImportError:
-                try:
-                    from blenderbim.bim.ifc import IfcStore  # type: ignore
-                    has_context = IfcStore is not None
-                except ImportError:
-                    pass
+                mod = importlib.import_module(f"{prefix}.bim.ifc")
+                if getattr(mod, "IfcStore", None) is not None:
+                    has_context = True
+                    break
+            except Exception:  # noqa: BLE001 — renamed submodule must not tank detection
+                continue
 
         return BonsaiCapabilities(
             installed=True,
@@ -177,13 +218,9 @@ class BonsaiBridge:
         """
         if not self.installed:
             return None
-        for store_path in (
-            "bonsai.bim.ifc",
-            "bonsai_bim.bim.ifc",
-            "blenderbim.bim.ifc",
-        ):
+        for prefix in _bonsai_prefixes():
             try:
-                mod = __import__(store_path, fromlist=["IfcStore"])
+                mod = importlib.import_module(f"{prefix}.bim.ifc")
                 store = getattr(mod, "IfcStore", None)
                 if store is None:
                     continue
@@ -207,9 +244,9 @@ class BonsaiBridge:
         Stays defensive: any Bonsai API drift falls through to the IFC
         attribute fallbacks rather than raising.
         """
-        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+        for _prefix in _bonsai_prefixes():
             try:
-                mod = __import__(tool_path, fromlist=["Ifc"])
+                mod = importlib.import_module(f"{_prefix}.tool")
                 ifc_tool = getattr(mod, "Ifc", None)
                 getter = getattr(ifc_tool, "get_object", None) if ifc_tool else None
                 if getter is None:
@@ -239,9 +276,9 @@ class BonsaiBridge:
         """
         if obj is None:
             return None
-        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+        for _prefix in _bonsai_prefixes():
             try:
-                mod = __import__(tool_path, fromlist=["Ifc"])
+                mod = importlib.import_module(f"{_prefix}.tool")
                 ifc_tool = getattr(mod, "Ifc", None)
                 getter = getattr(ifc_tool, "get_entity", None) if ifc_tool else None
                 if getter is None:
@@ -266,9 +303,9 @@ class BonsaiBridge:
         """
         if not self.installed:
             return None
-        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+        for _prefix in _bonsai_prefixes():
             try:
-                mod = __import__(tool_path, fromlist=["Ifc"])
+                mod = importlib.import_module(f"{_prefix}.tool")
                 ifc_tool = getattr(mod, "Ifc", None)
                 if ifc_tool is not None and hasattr(ifc_tool, "run"):
                     return ifc_tool
