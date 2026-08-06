@@ -18,6 +18,14 @@ public class AdminController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly Planscape.Infrastructure.Authorization.IPermissionRevocationStore _revocations;
 
+    /// <summary>
+    /// Can this account reach the admin surfaces? Mirrors
+    /// <c>[Authorize(Roles = "Admin,Owner")]</c>, and an inactive account cannot
+    /// sign in, so it does not count.
+    /// </summary>
+    private static bool IsAdministrator(UserRole role, bool isActive)
+        => isActive && (role == UserRole.Owner || role == UserRole.Admin);
+
     public AdminController(
         PlanscapeDbContext db,
         Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations)
@@ -109,6 +117,37 @@ public class AdminController : ControllerBase
         // can't pivot through policy-gated endpoints. Display-name
         // changes don't trigger revocation — they're not security-
         // relevant.
+        // ── Last-administrator guard ────────────────────────────────────────
+        //
+        // Every admin surface is [Authorize(Roles = "Admin,Owner")]. Demote or
+        // deactivate the last account holding one of those roles and NOBODY can
+        // administer the tenant again — including undoing the change that caused
+        // it. There is no self-service recovery; it takes a manual database edit
+        // by the platform operator.
+        //
+        // Both routes are checked because they are the same lockout: a role
+        // change away from Owner/Admin, and IsActive = false, are equally final.
+        var intendedRole = req.Role != null
+                        && Enum.TryParse<UserRole>(req.Role, true, out var parsedRole)
+            ? parsedRole
+            : user.Role;
+        var intendedActive = req.IsActive ?? user.IsActive;
+
+        if (IsAdministrator(user.Role, user.IsActive) &&
+            !IsAdministrator(intendedRole, intendedActive))
+        {
+            var otherAdministrators = await _db.Users.CountAsync(u =>
+                u.TenantId == tenantId && u.Id != user.Id && !u.IsDeleted && u.IsActive &&
+                (u.Role == UserRole.Owner || u.Role == UserRole.Admin));
+
+            if (otherAdministrators == 0)
+                return BadRequest(
+                    "This is the tenant's last active Owner or Admin. Demoting or "
+                  + "deactivating them would leave nobody able to administer the "
+                  + "tenant, and the change could not be undone from the app. "
+                  + "Promote another user to Admin first.");
+        }
+
         var permissionChanged = false;
         if (req.DisplayName != null) user.DisplayName = req.DisplayName;
         if (req.Role != null && Enum.TryParse<UserRole>(req.Role, true, out var r) && user.Role != r)
