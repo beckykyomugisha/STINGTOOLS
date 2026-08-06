@@ -1209,6 +1209,18 @@ THREE.ColorManagement.enabled = false;
     // way. OrbitControls enforces this through _clampDistance, including on the
     // zoomToCursor path. No clamp until a model is loaded (bounds empty).
     controls.maxDistance = box ? radius * 40 : Infinity;
+    // ZOOMCLAMP (ortho) — maxDistance does NOTHING in orthographic: the eye never
+    // moves, camera.zoom does the work. With OrbitControls' default minZoom of 0 the
+    // zoom-out is unbounded — measured on a 25 m model, 100 notches already widen the
+    // view to 600 m and 200 notches to 24 km, where the model is 0.05% of the frame,
+    // i.e. sub-pixel and effectively gone. It is recoverable (scrolling back in
+    // multiplies zoom straight back up) but the user has to scroll all the way home
+    // to find the model again. Floor it so the widest ortho view shows ~20× the model
+    // radius, which is the same framing maxDistance allows in perspective.
+    if (camera.isOrthographicCamera) {
+      const halfH = (camera.top - camera.bottom) / 2;
+      controls.minZoom = (box && halfH > 0) ? halfH / (radius * 20) : 0;
+    }
     // Far must clear the BACK of the model from wherever the eye now is, with slack
     // for pins, section box and the sky/ground helpers.
     const far = Math.max(dist + radius * 3, radius * 8, 1);
