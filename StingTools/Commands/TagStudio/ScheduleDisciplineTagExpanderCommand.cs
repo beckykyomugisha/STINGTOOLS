@@ -49,6 +49,11 @@ namespace StingTools.Commands.TagStudio
         // Keep schedules SIMPLE — cap the union of discipline columns per category.
         private const int MaxColumns = 24;
 
+        // ExtraParam keys the Scheduler dashboard sets before dispatching here.
+        internal const string ParamMode    = "TagSched_Mode";     // Sheet | Full | Both
+        internal const string ParamBundles = "TagSched_Bundles";  // CSV of ARCH,GEN,HEALTH,MEP,STR
+        internal const string ParamPlace   = "TagSched_Place";    // "1" = place on sheets
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -72,31 +77,56 @@ namespace StingTools.Commands.TagStudio
             }
 
             // ── Mode: sheet columns / full as-built / both ──
-            var modeDlg = new TaskDialog("Schedule Tag Expander");
-            modeDlg.MainInstruction = "Which schedules to build?";
-            modeDlg.MainContent =
-                "One ViewSchedule per model category. Column 1 = ASS_TAG_1_TXT (the tag), " +
-                "then the discipline columns, then Comments.";
-            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Sheet columns (compact — recommended)",
-                "The curated discipline columns dropped from the universal tag (sheet_columns).");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Full as-built columns",
-                "The wider full_columns set (all discipline + fabrication params).");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Both (sheet + full)",
-                "Two schedules per category: a compact sheet schedule and a wide as-built schedule.");
-            var mode = modeDlg.Show();
-            if (mode == TaskDialogResult.Cancel) return Result.Cancelled;
-            bool doSheet = mode == TaskDialogResult.CommandLink1 || mode == TaskDialogResult.CommandLink3;
-            bool doFull  = mode == TaskDialogResult.CommandLink2 || mode == TaskDialogResult.CommandLink3;
+            // The Scheduler dashboard pre-sets these via ExtraParams so the run
+            // is unattended; launched directly from a button, we still ask.
+            bool doSheet, doFull;
+            string presetMode = UI.StingCommandHandler.GetExtraParam(ParamMode);
+            if (!string.IsNullOrEmpty(presetMode))
+            {
+                doSheet = presetMode.Equals("Sheet", StringComparison.OrdinalIgnoreCase)
+                       || presetMode.Equals("Both", StringComparison.OrdinalIgnoreCase);
+                doFull  = presetMode.Equals("Full", StringComparison.OrdinalIgnoreCase)
+                       || presetMode.Equals("Both", StringComparison.OrdinalIgnoreCase);
+                if (!doSheet && !doFull)
+                {
+                    StingLog.Warn($"ScheduleTagExpander: unrecognised mode '{presetMode}' — defaulting to sheet columns.");
+                    doSheet = true;
+                }
+            }
+            else
+            {
+                var modeDlg = new TaskDialog("Schedule Tag Expander");
+                modeDlg.MainInstruction = "Which schedules to build?";
+                modeDlg.MainContent =
+                    "One ViewSchedule per model category. Column 1 = ASS_TAG_1_TXT (the tag), " +
+                    "then the discipline columns, then Comments.";
+                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Sheet columns (compact — recommended)",
+                    "The curated discipline columns dropped from the universal tag (sheet_columns).");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Full as-built columns",
+                    "The wider full_columns set (all discipline + fabrication params).");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Both (sheet + full)",
+                    "Two schedules per category: a compact sheet schedule and a wide as-built schedule.");
+                var mode = modeDlg.Show();
+                if (mode == TaskDialogResult.Cancel) return Result.Cancelled;
+                doSheet = mode == TaskDialogResult.CommandLink1 || mode == TaskDialogResult.CommandLink3;
+                doFull  = mode == TaskDialogResult.CommandLink2 || mode == TaskDialogResult.CommandLink3;
+            }
+
+            // ── Bundle filter (ARCH / GEN / HEALTH / MEP / STR) ──
+            // Empty = no filter, i.e. every bundle in the spec.
+            var bundleFilter = ParseBundles(UI.StingCommandHandler.GetExtraParam(ParamBundles));
+            bool placeOnSheets = UI.StingCommandHandler.GetExtraParam(ParamPlace) == "1";
 
             // ── Group entries by resolved category display name ──
             // categoryDisplay → (sheetCols union, fullCols union)
             var byCategory = new Dictionary<string, CategoryPlan>(StringComparer.OrdinalIgnoreCase);
             var unmatchedFamilies = new List<string>();
             int emptySkipped = 0;
+            int bundleSkipped = 0;
 
             foreach (var prop in spec.Properties())
             {
@@ -105,6 +135,12 @@ namespace StingTools.Commands.TagStudio
                 string family = e.Value<string>("family") ?? "";
                 var sheetCols = ReadStrArray(e, "sheet_columns");
                 var fullCols  = ReadStrArray(e, "full_columns");
+
+                if (bundleFilter.Count > 0)
+                {
+                    string bundle = e.Value<string>("bundle") ?? "";
+                    if (!bundleFilter.Contains(bundle)) { bundleSkipped++; continue; }
+                }
 
                 if (sheetCols.Count == 0 && fullCols.Count == 0) { emptySkipped++; continue; }
 
@@ -124,7 +160,8 @@ namespace StingTools.Commands.TagStudio
             {
                 TaskDialog.Show("Schedule Tag Expander",
                     $"No schedulable categories resolved from the spec.\n" +
-                    $"Skipped empty entries: {emptySkipped}, unmatched families: {unmatchedFamilies.Count}.");
+                    $"Skipped empty entries: {emptySkipped}, unmatched families: {unmatchedFamilies.Count}" +
+                    (bundleSkipped > 0 ? $", filtered out by bundle: {bundleSkipped}" : "") + ".");
                 return Result.Cancelled;
             }
 
@@ -138,6 +175,9 @@ namespace StingTools.Commands.TagStudio
             int created = 0, skippedExisting = 0, unresolvedCat = 0, notSchedulable = 0;
             int truncatedCols = 0;
             var unresolvedNames = new List<string>();
+
+            var builtSchedules = new List<ViewSchedule>();
+            TagSchedulePlacementResult placement = null;
 
             var progress = StingProgressDialog.Show("Schedule Tag Expander", byCategory.Count);
             try
@@ -161,14 +201,36 @@ namespace StingTools.Commands.TagStudio
                             var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.SheetColumns,
                                 existing, isFull: false);
                             Tally(r, ref created, ref skippedExisting, ref notSchedulable, ref truncatedCols);
+                            if (r?.Schedule != null) builtSchedules.Add(r.Schedule);
                         }
                         if (doFull)
                         {
                             var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.FullColumns,
                                 existing, isFull: true);
                             Tally(r, ref created, ref skippedExisting, ref notSchedulable, ref truncatedCols);
+                            if (r?.Schedule != null) builtSchedules.Add(r.Schedule);
                         }
                     }
+
+                    // Placement runs inside the same transaction so "build + place"
+                    // is a single undo step — a half-placed set is never left behind.
+                    if (placeOnSheets)
+                    {
+                        // Re-running after everything already exists builds nothing,
+                        // but the user still asked for sheets — fall back to the
+                        // tag-expander schedules already in the project so the
+                        // option is never a silent no-op.
+                        var toPlace = builtSchedules.Count > 0
+                            ? builtSchedules
+                            : CollectUnplacedExpanderSchedules(doc);
+
+                        if (toPlace.Count > 0)
+                        {
+                            progress.Increment($"Placing {toPlace.Count} schedule(s) on sheets…");
+                            placement = TagSchedulePlacer.Place(doc, toPlace);
+                        }
+                    }
+
                     tx.Commit();
                 }
             }
@@ -184,7 +246,18 @@ namespace StingTools.Commands.TagStudio
                 $"Not schedulable:         {notSchedulable}\n" +
                 $"Empty entries skipped:   {emptySkipped}\n" +
                 $"Unmatched families:      {unmatchedFamilies.Count}\n" +
+                (bundleSkipped > 0 ? $"Filtered out by bundle:  {bundleSkipped}\n" : "") +
                 (truncatedCols > 0 ? $"Column-capped categories: {truncatedCols} (>{MaxColumns} cols)\n" : "") +
+                (placement != null
+                    ? $"\nPlaced on sheets:        {placement.Placed}\n" +
+                      $"Sheets created:          {placement.SheetsCreated}\n" +
+                      (placement.Oversized > 0 ? $"Overrunning sheet border: {placement.Oversized}\n" : "") +
+                      (placement.Failed > 0 ? $"Placement failures:      {placement.Failed}\n" : "") +
+                      (placement.Warnings.Count > 0
+                          ? "\n" + string.Join("\n", placement.Warnings.Take(6)) +
+                            (placement.Warnings.Count > 6 ? $"\n… and {placement.Warnings.Count - 6} more (see log)" : "")
+                          : "")
+                    : "") +
                 (unresolvedNames.Count > 0
                     ? "\nNot in project: " + string.Join(", ", unresolvedNames.Take(12)) +
                       (unresolvedNames.Count > 12 ? " …" : "")
@@ -199,11 +272,54 @@ namespace StingTools.Commands.TagStudio
             return Result.Succeeded;
         }
 
+        /// <summary>
+        /// Tag-expander schedules that are not yet on any sheet. Used when a
+        /// re-run creates nothing new but the caller still asked for placement.
+        /// </summary>
+        private static List<ViewSchedule> CollectUnplacedExpanderSchedules(Document doc)
+        {
+            var placedIds = new HashSet<ElementId>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(ScheduleSheetInstance))
+                    .Cast<ScheduleSheetInstance>()
+                    .Select(s => s.ScheduleId));
+
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .Where(v => !v.IsTemplate
+                         && (v.Name ?? "").StartsWith(SchedulePrefix, StringComparison.OrdinalIgnoreCase)
+                         && !placedIds.Contains(v.Id))
+                .OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Parse the comma-separated bundle filter. An empty or whitespace value
+        /// means "no filter" — every bundle in the spec is built.
+        /// </summary>
+        private static HashSet<string> ParseBundles(string csv)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(csv)) return set;
+            foreach (var part in csv.Split(','))
+            {
+                string t = part.Trim();
+                if (t.Length > 0) set.Add(t);
+            }
+            return set;
+        }
+
         // ──────────────────────────────────────────────────────────────────
         //  Schedule construction
         // ──────────────────────────────────────────────────────────────────
 
-        private class BuildOutcome { public bool Created; public bool SkippedExisting; public bool NotSchedulable; public bool Truncated; }
+        private class BuildOutcome
+        {
+            public bool Created; public bool SkippedExisting; public bool NotSchedulable; public bool Truncated;
+            /// <summary>The schedule just created — null unless Created is true.</summary>
+            public ViewSchedule Schedule;
+        }
 
         private static void Tally(BuildOutcome r, ref int created, ref int skippedExisting,
             ref int notSchedulable, ref int truncated)
@@ -284,6 +400,7 @@ namespace StingTools.Commands.TagStudio
 
             existingNames.Add(name);
             outcome.Created = true;
+            outcome.Schedule = sched;
             StingLog.Info($"ScheduleTagExpander: '{name}' created with {added} fields ({cat.Name})");
             return outcome;
         }
