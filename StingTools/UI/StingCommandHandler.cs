@@ -3448,7 +3448,13 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var dlgResult = UI.IssueTrackerDashboard.Show();
+                                // Show() has always taken a member list; nobody ever
+                                // passed one, so it fell back to generic job titles
+                                // ("Design Lead", "MEP Engineer") that name no actual
+                                // person. Feed it the canonical project roster.
+                                var itdDoc = app?.ActiveUIDocument?.Document;
+                                var dlgResult = UI.IssueTrackerDashboard.Show(
+                                    StingTools.Core.ProjectRoster.Names(itdDoc));
                                 if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
                                     break;
                                 SetCommand(dlgResult.Operation);

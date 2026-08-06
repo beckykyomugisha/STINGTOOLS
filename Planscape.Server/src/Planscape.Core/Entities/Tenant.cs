@@ -170,7 +170,31 @@ public enum BillingCycle
 /// </summary>
 public static class BillingPlanLimits
 {
-    public record Limits(int MaxAuthors, int MaxCoordinators, int MaxProjects, long StorageMb, decimal MonthlyUsd);
+    public record Limits(int MaxAuthors, int MaxCoordinators, int MaxProjects, long StorageMb, decimal MonthlyUsd)
+    {
+        /// <summary>
+        /// Total billable headcount — the number <see cref="Tenant.MaxUsers"/> is
+        /// derived from at tenant creation.
+        ///
+        /// <para>SATURATES, and must never be rewritten as
+        /// <c>MaxAuthors + MaxCoordinators</c>. C# arithmetic is unchecked by
+        /// default, so that sum wraps NEGATIVE once either side is
+        /// <c>int.MaxValue</c> — <c>int.MaxValue + int.MaxValue = -2</c>, which
+        /// is what Enterprise produces today. <c>MaxUsers</c> is consumed as
+        /// <c>userCount &gt;= tenant.MaxUsers</c>, so a negative cap is true at
+        /// zero users and denies the tenant its FIRST user, reporting
+        /// "User limit (-2) reached".</para>
+        ///
+        /// <para>Reachable on main now; latent only because both creation paths
+        /// assign <c>BillingPlan.Trial</c> (1 + 0). It goes live the moment any
+        /// plan with an unlimited axis is assigned at creation. Guarded by
+        /// <c>BillingPlanSeatTotalTests</c>. See #616.</para>
+        /// </summary>
+        public int TotalSeats =>
+            MaxAuthors == int.MaxValue || MaxCoordinators == int.MaxValue
+                ? int.MaxValue
+                : MaxAuthors + MaxCoordinators;
+    }
 
     public static Limits For(BillingPlan plan) => plan switch
     {

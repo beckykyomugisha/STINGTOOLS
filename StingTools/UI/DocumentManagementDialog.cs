@@ -1800,22 +1800,150 @@ namespace StingTools.UI
             {
                 AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                ToolTip = "One recipient per line. Use + buttons to pick from team registry."
+                ToolTip = "One recipient per line. + Member picks from the project roster; + Group from distribution groups."
             };
             stack.Children.Add(recipientBox);
 
             addRecipientBtn.Click += (s, e) =>
             {
-                string picked = ProjectTeamRegistry.PickMember("Add Recipient", "Select transmittal recipient:");
+                // Source the roster from the server, not project_team.json.
+                // ProjectTeamRegistry is a hand-edited local file that nobody
+                // reconciles against who is actually on the project, so a
+                // transmittal — a formal record of issuing documents — could be
+                // addressed to someone who left months ago, or to a name spelled
+                // three different ways across three transmittals.
+                var roster = StingTools.Core.ProjectRoster.Load(doc);
+                const string externalOpt = "[External recipient — not a project member]";
+
+                var picks = roster
+                    .Select(m => string.IsNullOrWhiteSpace(m.Email)
+                        ? m.Display
+                        : $"{m.Display} — {m.Email}")
+                    .ToList();
+                picks.Add(externalOpt);
+
+                string prompt = roster.Count > 0
+                    ? "Select transmittal recipient:"
+                    : "No project members found — the model may not be linked to a Planscape\n" +
+                      "project, or the server is unreachable.";
+
+                string picked = StingListPicker.Show("Add Recipient", prompt, picks);
+                if (string.IsNullOrEmpty(picked)) return;
+
+                if (picked == externalOpt)
+                {
+                    // Kept deliberately: issuing to a client contact or a
+                    // subcontractor outside the project is normal. It is labelled
+                    // so it reads as a choice rather than a gap in the list.
+                    picked = PromptForText("External Recipient",
+                        "Name or email of the external recipient:", "");
+                    if (string.IsNullOrWhiteSpace(picked)) return;
+                }
+                else
+                {
+                    // Store the name only — the "— email" suffix is display sugar.
+                    int dash = picked.IndexOf(" — ", StringComparison.Ordinal);
+                    if (dash > 0) picked = picked.Substring(0, dash);
+                }
+
+                picked = picked.Trim();
                 if (!string.IsNullOrEmpty(picked) && !recipientBox.Text.Contains(picked))
                     recipientBox.AppendText(picked + "\n");
             };
             addGroupBtn.Click += (s, e) =>
             {
-                var recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group", doc);
+                // Server-backed distribution groups are the source of truth.
+                // There were three competing stores — project_team.json,
+                // _BIM_COORD/distribution_groups.json, and the server — and this
+                // button read the first of them, so a group curated on the server
+                // (or in the web app) was invisible here.
+                var recipients = new List<string>();
+                Guid pid = StingTools.Core.ProjectRoster.ResolveProjectId(doc);
+                var client = BIMManager.PlanscapeServerClient.Instance;
+
+                if (client.IsConnected && pid != Guid.Empty)
+                {
+                    var groups = System.Threading.Tasks.Task
+                        .Run(() => client.ListDistributionGroupsAsync(pid))
+                        .GetAwaiter().GetResult();
+
+                    // null is a FAILED load. It must not fall through to the "no groups
+                    // yet" branch below, and above all must not reach the local-registry
+                    // fallback further down — silently substituting a local list for a
+                    // server list the user cannot see failed is the exact drift the
+                    // server-canonical groups replaced.
+                    if (groups == null)
+                    {
+                        MessageBox.Show(
+                            "Could not load distribution groups.\n\n" +
+                            (client.LastError ?? "(no detail)") +
+                            "\n\nThis is not an empty result — the list could not be retrieved.",
+                            "Distribution groups");
+                        return;
+                    }
+
+                    if (groups.Count > 0)
+                    {
+                        var labels = groups
+                            .Select(g => $"{g.Name} ({g.MemberCount} member{(g.MemberCount == 1 ? "" : "s")})")
+                            .ToList();
+                        string pick = StingListPicker.Show("Add Distribution Group",
+                            "Select a distribution group:", labels);
+                        if (string.IsNullOrEmpty(pick)) return;
+
+                        int idx = labels.IndexOf(pick);
+                        if (idx >= 0)
+                        {
+                            // Resolve by id, not by name — we already have the id,
+                            // and two groups can legitimately share a display label
+                            // once the member count is stripped back off.
+                            var grpMembers = System.Threading.Tasks.Task
+                                .Run(() => client.ListDistributionGroupMembersAsync(pid, groups[idx].Id))
+                                .GetAwaiter().GetResult();
+                            // Same rule one level down: a failed member load must not
+                            // read as "has no members yet", which would send a
+                            // transmittal to nobody and look deliberate.
+                            if (grpMembers == null)
+                            {
+                                MessageBox.Show(
+                                    $"Could not load members of \"{groups[idx].Name}\".\n\n" +
+                                    (client.LastError ?? "(no detail)") +
+                                    "\n\nThis is not an empty group — the members could not be retrieved.",
+                                    "Distribution group");
+                                return;
+                            }
+                            recipients = grpMembers
+                                .Select(m => m.Display ?? m.Email ?? m.ExternalEmail ?? "")
+                                .Where(n => !string.IsNullOrWhiteSpace(n))
+                                .Select(n => n.Trim())
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+                            if (recipients.Count == 0)
+                                MessageBox.Show($"\"{groups[idx].Name}\" has no members yet.",
+                                    "Distribution group");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "No distribution groups on the server for this project yet.\n\n" +
+                            "Create them in the Site Photos → Admin tab, or in the web app.",
+                            "Distribution groups");
+                        return;
+                    }
+                }
+                else
+                {
+                    // DEPRECATED read-only fallback — the local registry, used only
+                    // when the server is unreachable or the model is unlinked, so a
+                    // disconnected user is not blocked mid-transmittal.
+                    StingLog.Info("Transmittal +Group: server unreachable/unlinked — using local group registry.");
+                    recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group (offline)", doc);
+                }
+
                 foreach (string name in recipients)
-                    if (!recipientBox.Text.Contains(name))
-                        recipientBox.AppendText(name + "\n");
+                    if (!string.IsNullOrWhiteSpace(name) && !recipientBox.Text.Contains(name))
+                        recipientBox.AppendText(name.Trim() + "\n");
             };
 
             // Suitability code

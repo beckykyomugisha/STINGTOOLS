@@ -118,6 +118,26 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
         if (disposing && UsingPostgres) DropPgDatabase();
     }
 
+    /// <summary>
+    /// True for a service descriptor registered through an implementation FACTORY
+    /// that lives in a Hangfire assembly — the case a name check on
+    /// <c>ServiceType</c> / <c>ImplementationType</c> cannot see, because a
+    /// factory registration leaves <c>ImplementationType</c> null.
+    ///
+    /// The one that matters is <c>AddHangfireServer</c>'s
+    /// <c>Hangfire.BackgroundJobServerHostedService</c> (assembly
+    /// <c>Hangfire.NetCore</c>), registered as <c>IHostedService</c>. See #494.
+    ///
+    /// Matches on the assembly rather than the type name so a rename inside
+    /// Hangfire does not silently re-open the hole this closes.
+    /// </summary>
+    private static bool IsHangfireFactoryRegistration(ServiceDescriptor d)
+    {
+        var declaringAssembly = d.ImplementationFactory?.Method.DeclaringType?.Assembly;
+        var name = declaringAssembly?.GetName().Name;
+        return name != null && name.StartsWith("Hangfire", StringComparison.Ordinal);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -181,11 +201,37 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             // executed — exactly what a controller test wants.
             var hangfireDescriptors = services
                 .Where(d => d.ServiceType.FullName?.Contains("Hangfire") == true
-                         || d.ImplementationType?.FullName?.Contains("Hangfire") == true)
+                         || d.ImplementationType?.FullName?.Contains("Hangfire") == true
+                         // DEP-7 residue (#494). AddHangfireServer registers its
+                         // background server as IHostedService through an
+                         // implementation FACTORY, so ServiceType is
+                         // Microsoft.Extensions.Hosting.IHostedService and
+                         // ImplementationType is NULL — neither of the two clauses
+                         // above can see it. The server therefore survived this
+                         // removal and really did start, despite the comment below
+                         // saying none does.
+                         //
+                         // Consequence: every host ran a BackgroundServerProcess,
+                         // and each one raced the others' in-memory storage on
+                         // teardown, logging 13 warnings per suite run:
+                         //
+                         //   [WRN] Server ... there was an exception, server may not be removed
+                         //   System.ObjectDisposedException: ... Hangfire.InMemory.State.Dispatcher`1
+                         //     at InMemoryConnection`1.RemoveServer(String serverId)
+                         //     at BackgroundServerProcess.ServerDelete(...)
+                         //
+                         // Benign today — Hangfire catches it and no test fails —
+                         // but it is the same shared-state-at-teardown class of bug
+                         // DEP-7 was, still live, and still able to grow teeth.
+                         || IsHangfireFactoryRegistration(d))
                 .ToList();
             foreach (var d in hangfireDescriptors) services.Remove(d);
 
             services.AddHangfire(cfg => cfg.UseInMemoryStorage());
+            // Note: AddHangfire alone registers no server, so nothing re-adds the
+            // hosted service removed above. Jobs are registered but never executed
+            // — exactly what a controller test wants.
+            //
             // Deliberately does NOT assign Hangfire.JobStorage.Current.
             //
             // Program.cs now registers its recurring jobs through the

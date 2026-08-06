@@ -544,7 +544,18 @@ namespace StingTools.BIMManager
             if (!await EnsureAuthenticatedAsync()) { LastError = "Not connected."; return false; }
 
             var ids = photoIds?.Distinct().ToArray();
-            var ext  = string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase) ? "pdf" : "zip";
+            var isPdfExport = string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
+
+            // Validate the SELECTION before touching the environment. Resolving an
+            // output directory can fail for reasons that have nothing to do with the
+            // request (no Revit document context, no writable folder), and when it
+            // did run first, a user who selected 201 photos for a PDF was told
+            // "Could not resolve an output folder" instead of that the cap is 200.
+            // Cheap, deterministic validation belongs ahead of environment-dependent
+            // validation regardless of what it does for testability.
+            if (ExportSelectionRejected(null, ids, isPdfExport)) return false;
+
+            var ext  = isPdfExport ? "pdf" : "zip";
             var name = $"photos-{DateTime.Now:yyyyMMdd-HHmmss}.{ext}";
 
             string dir;
@@ -565,20 +576,11 @@ namespace StingTools.BIMManager
         {
             var isPdf = string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
 
-            if (albumId == null && (photoIds == null || photoIds.Length == 0))
-            {
-                // Mirrors the server's ids_or_album_required 400, but without a round trip.
-                LastError = "Select photos or an album to export.";
-                return null;
-            }
-
-            var cap = isPdf ? MaxPhotosPerPdfExport : MaxPhotosPerZipExport;
-            if (photoIds != null && photoIds.Length > cap)
-            {
-                LastError = $"{photoIds.Length} photos selected; the server caps a "
-                          + $"{(isPdf ? "PDF" : "ZIP")} export at {cap}. Export in batches or use an album.";
-                return null;
-            }
+            // Both cheap guards now live in ExportSelectionRejected so the public
+            // overload can run them BEFORE it resolves an output directory. Kept
+            // here too: this is the last gate for the album overload, which does
+            // not go through that path.
+            if (ExportSelectionRejected(albumId, photoIds, isPdf)) return null;
 
             var http = SnapshotHttpClient();
             if (http == null) { LastError = "Not connected."; return null; }
@@ -772,121 +774,45 @@ namespace StingTools.BIMManager
         }
 
         // ── Distribution groups ───────────────────────────────────────────
-
-        /// <summary>
-        /// <c>GET /api/projects/{projectId}/distribution-groups</c>
-        /// (DistributionGroupsController.List). Null on failure, empty when none.
-        /// </summary>
-        public async Task<List<DistributionGroupDto>?> ListDistributionGroupsAsync(Guid projectId)
-        {
-            if (!await EnsureAuthenticatedAsync()) { LastError = "Not connected."; return null; }
-            try
-            {
-                var resp = await GetAsync($"/api/projects/{projectId}/distribution-groups")
-                    .ConfigureAwait(false);
-                if (!resp.ok)
-                {
-                    LastError = $"Distribution group load failed ({resp.status}): {Trim(resp.body)}";
-                    return null;
-                }
-                var list = new List<DistributionGroupDto>();
-                foreach (var t in JArray.Parse(resp.body))
-                {
-                    var j = (JObject)t;
-                    list.Add(new DistributionGroupDto
-                    {
-                        Id          = GuidOf(j, "id"),
-                        Name        = Str(j, "name") ?? "",
-                        Kind        = Str(j, "kind"),
-                        MemberCount = Int(j, "memberCount"),
-                    });
-                }
-                LastError = null;
-                return list;
-            }
-            catch (Exception ex)
-            {
-                LastError = $"Distribution group load failed: {ex.Message}";
-                StingLog.Error("ListDistributionGroupsAsync failed", ex);
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// <c>POST /api/projects/{projectId}/distribution-groups</c>, then one
-        /// <c>POST {groupId}/members</c> per recipient — members are a separate
-        /// route (AddDistributionMemberRequest), not a field on create.
-        /// </summary>
-        /// <param name="kind">
-        /// One of <c>Client | Internal | Mixed</c> (DistributionGroup.ValidKinds);
-        /// defaults to <c>Internal</c>, matching the server.
-        /// </param>
-        public async Task<bool> CreateDistributionGroupAsync(
-            Guid projectId, string name, IEnumerable<string>? recipients = null, string? kind = null)
-        {
-            if (!await EnsureAuthenticatedAsync()) { LastError = "Not connected."; return false; }
-            if (string.IsNullOrWhiteSpace(name)) { LastError = "Group name is required."; return false; }
-
-            var groupKind = string.IsNullOrWhiteSpace(kind) ? "Internal" : kind!;
-            if (!ValidDistributionKinds.Contains(groupKind))
-            {
-                LastError = $"Invalid distribution group kind '{groupKind}'. "
-                          + $"Allowed: {string.Join(", ", ValidDistributionKinds)}.";
-                return false;
-            }
-
-            try
-            {
-                var resp = await PostJsonAsync($"/api/projects/{projectId}/distribution-groups",
-                    new { name, kind = groupKind }).ConfigureAwait(false);
-                if (!resp.ok)
-                {
-                    // 409 name_in_use is the common one and is worth naming plainly.
-                    LastError = resp.status == 409
-                        ? $"A distribution group named '{name}' already exists."
-                        : $"Distribution group create failed ({resp.status}): {Trim(resp.body)}";
-                    return false;
-                }
-
-                var groupId = GuidOf(JObject.Parse(resp.body), "id");
-                var emails  = recipients?.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToArray()
-                              ?? Array.Empty<string>();
-                if (groupId == System.Guid.Empty || emails.Length == 0) { LastError = null; return true; }
-
-                var failed = new List<string>();
-                foreach (var email in emails)
-                {
-                    var m = await PostJsonAsync(
-                        $"/api/projects/{projectId}/distribution-groups/{groupId}/members",
-                        new { externalEmail = email }).ConfigureAwait(false);
-                    if (!m.ok) failed.Add(email);
-                }
-
-                if (failed.Count > 0)
-                {
-                    // The group exists; say so, and say which recipients did not land.
-                    LastError = $"Group '{name}' was created, but {failed.Count} of {emails.Length} "
-                              + $"recipients could not be added: {string.Join(", ", failed.Take(5))}"
-                              + (failed.Count > 5 ? ", …" : "");
-                    return false;
-                }
-
-                LastError = null;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LastError = $"Distribution group create failed: {ex.Message}";
-                StingLog.Error("CreateDistributionGroupAsync failed", ex);
-                return false;
-            }
-        }
+        // Moved to PlanscapeServerClient.DistributionGroups.cs so ONE partial-class
+        // file owns that surface. Leaving them here alongside a second file that
+        // also implemented them is what produced duplicate members on the same
+        // partial class (#517).
 
         // ── Shared helpers ────────────────────────────────────────────────
 
         // Server-side caps, mirrored so the client can refuse before a round trip.
         // PhotoExportController.MaxPhotosPerExport / MaxPhotosPerPdf; the album and
         // bulk routes each hard-code 500.
+        /// <summary>
+        /// The two export guards that need no I/O and no network: a selection must
+        /// name photos or an album, and it must sit under the server's per-format
+        /// cap. Sets <see cref="LastError"/> and returns true when the selection is
+        /// rejected.
+        ///
+        /// Shared so the wording exists once. The messages mirror the server's
+        /// ids_or_album_required and batch_too_large[_for_pdf] responses, but are
+        /// raised without a round trip.
+        /// </summary>
+        private bool ExportSelectionRejected(Guid? albumId, Guid[]? photoIds, bool isPdf)
+        {
+            if (albumId == null && (photoIds == null || photoIds.Length == 0))
+            {
+                LastError = "Select photos or an album to export.";
+                return true;
+            }
+
+            var cap = isPdf ? MaxPhotosPerPdfExport : MaxPhotosPerZipExport;
+            if (photoIds != null && photoIds.Length > cap)
+            {
+                LastError = $"{photoIds.Length} photos selected; the server caps a "
+                          + $"{(isPdf ? "PDF" : "ZIP")} export at {cap}. Export in batches or use an album.";
+                return true;
+            }
+
+            return false;
+        }
+
         private const int MaxPhotosPerZipExport  = 500;
         private const int MaxPhotosPerPdfExport  = 200;
         private const int MaxPhotosPerAlbumAdd   = 500;
@@ -895,10 +821,6 @@ namespace StingTools.BIMManager
         /// <summary>PhotoAlbum.ValidVisibilities — kept in step with the entity.</summary>
         private static readonly string[] ValidAlbumVisibilities =
             { "Internal", "Members", "Client", "Distribution" };
-
-        /// <summary>DistributionGroup.ValidKinds — kept in step with the entity.</summary>
-        private static readonly string[] ValidDistributionKinds =
-            { "Client", "Internal", "Mixed" };
 
         /// <summary>
         /// Map a FLAT album object — the shape returned by List, Create and
