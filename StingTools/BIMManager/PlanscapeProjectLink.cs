@@ -82,6 +82,9 @@ namespace StingTools.BIMManager
         public static string ConfigPathForModel(string? modelPath)
         {
             if (string.IsNullOrEmpty(modelPath)) return "";
+            // path-discipline: legacy-fallback -- a bare model path carries no project
+            // root, so this cannot resolve the canonical bucket. Callers holding a
+            // Document must use ConfigPathFor(doc) or ResolveConfigPath(modelPath).
             string dir = Path.Combine(Path.GetDirectoryName(modelPath) ?? "", "STING_BIM_MANAGER");
             return Path.Combine(dir, ConfigFileName);
         }
