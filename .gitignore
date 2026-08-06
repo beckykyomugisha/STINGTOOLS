@@ -128,3 +128,6 @@ TestResults/
 # Playwright
 planscape-web/test-results/
 planscape-web/playwright-report/
+
+# Test bundle emitted by tests/run.mjs
+marketing-site/tests/.bundle.test.mjs
