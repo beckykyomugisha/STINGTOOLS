@@ -1,6 +1,6 @@
 {
   "version": "1.1",
-  "description": "STING LOD verification matrix. Corporate baseline; merged by id over a project overlay at <project>/_BIM_COORD/lod_matrix.json (project milestones/categoryRules win by id/category). Checks are a PARAMETER + NAMING + GEOMETRY-PRESENCE maturity proxy, NOT a geometric survey — STING cannot verify that geometry is dimensionally correct, only that it exists, is not a placeholder family, and carries the parameters expected at that LOD. Per-LOD check fields: requireGeometry (non-degenerate bbox), forbidPlaceholderFamilies (family/type name must not match placeholderFamilyPatterns), requiredParams (shared param present + non-empty; '+name' adds to the inherited list, a plain name replaces it), requiredDims (numeric shared param resolves > 0), requireTypeNotGeneric (type/family name must not contain 'generic'), requireManufacturerType (type+family name must not match a placeholder pattern — manufacturer-specified proxy), requireNoUnresolvedClash (NOT API-verifiable — reported as an INFO limitation, never a hard fail), inherit (LOD key to inherit checks from). LADDER: the full standard 100/200/300/350/400/500 ladder is defined for every category. LOD 100 is the conceptual rung — the element is modelled and categorised, nothing more — so its check block is deliberately empty and every in-scope element passes it; it exists so the ladder is complete and a project overlay can bind a milestone to it. LOD 500 is field-verified as-built: it inherits 400 and adds the record/handover data the model must carry at handover (installation date always; serial number and maintenance type on serialised, serviceable plant). Every parameter named below exists in MR_PARAMETERS.txt with a GUID and is bound <ALL> in RESOLVED_BINDINGS.csv — a required param that is not in the shared-parameter file would make the check permanently unsatisfiable. NOTE: ASS_INSTALLATION_DATE_TXT is the canonical install-date parameter; ASS_INSTALL_DATE_TXT is marked DEPRECATED in MR_PARAMETERS.txt and must not be used here. No milestone is bound to LOD 100 because no contract deliverable sits there; add one in a project overlay if a project needs it.",
+  "description": "STING LOD verification matrix. Corporate baseline; merged by id over a project overlay at <project>/_BIM_COORD/lod_matrix.json (project milestones/categoryRules win by id/category). Checks are a PARAMETER + NAMING + GEOMETRY-PRESENCE maturity proxy, NOT a geometric survey — STING cannot verify that geometry is dimensionally correct, only that it exists, is not a placeholder family, and carries the parameters expected at that LOD. Per-LOD check fields: requireGeometry (non-degenerate bbox), forbidPlaceholderFamilies (family/type name must not match placeholderFamilyPatterns), requiredParams (shared param present + non-empty; '+name' adds to the inherited list, a plain name replaces it), requiredDims (numeric shared param resolves > 0), requireTypeNotGeneric (type/family name must not contain 'generic'), requireManufacturerType (type+family name must not match a placeholder pattern — manufacturer-specified proxy), requireNoUnresolvedClash (NOT API-verifiable — reported as an INFO limitation, never a hard fail), inherit (LOD key to inherit checks from). LADDER: the full standard 100/200/300/350/400/500 ladder is defined for every category. LOD 100 is the conceptual rung — the element is modelled and categorised, nothing more — so its check block is deliberately empty and every in-scope element passes it; it exists so the ladder is complete and a project overlay can bind a milestone to it.  Every parameter named below exists in MR_PARAMETERS.txt with a GUID and is bound <ALL> in RESOLVED_BINDINGS.csv — a required param that is not in the shared-parameter file would make the check permanently unsatisfiable. NOTE: ASS_INSTALLATION_DATE_TXT is the canonical install-date parameter; ASS_INSTALL_DATE_TXT is marked DEPRECATED in MR_PARAMETERS.txt and must not be used here. No milestone is bound to LOD 100 because no contract deliverable sits there; add one in a project overlay if a project needs it. RUNG 500 DIFFERS BY CATEGORY, DELIBERATELY. LOD 500 is field-verified as-built. On SERIALISED, SERVICEABLE PLANT — Mechanical Equipment, Electrical Equipment, Plumbing Fixtures, Lighting Fixtures, Air Terminals, Sprinklers, Fire Alarm Devices, Specialty Equipment — it inherits 400 and adds +ASS_SERIAL_NR_TXT and +ASS_INSTALLATION_DATE_TXT, because that is the O&M/commissioning record the Owner actually receives and what Fohlio publishes. On BUILDING FABRIC AND DISTRIBUTION — Walls, Floors, Doors, Windows, Roofs, Ceilings, Stairs, Railings, Ramps, Curtain Panels, Curtain Wall Mullions, Ducts, Pipes, Duct/Pipe Fittings, Conduits, Cable Trays, Structural Framing/Columns/Foundations, Casework, Furniture, Furniture Systems, Electrical Fixtures, Rooms, and the \"*\" fallback — rung 500 is a bare inherit of 400 and adds NO required parameters. An installation date on every wall, duct run and pipe segment is not something a general contractor's as-built delivers; demanding it would make the first deliverable-d run report near-total failure on fabric and train the team to ignore the report. The rung still means something on fabric — it carries 400's manufacturer/model requirements — it just stops demanding data nobody produces. Doors and Windows are deliberately in the FABRIC group: they carry manufacturer and model at 400 and are schedule-tracked, but they are not serialised plant. SCOPE: project-wide LOD_Verify collects every taggable model category (LodScope.Collect), so the \"*\" rule is genuinely reachable, and the run DISCLOSES the categories it did not scan in the TaskDialog, the CSV header and the JSON gate report.",
   "milestones": [
     { "id": "deliverable-a", "name": "Deliverable A (Basis of Design)", "lod": 200 },
     { "id": "deliverable-b", "name": "Deliverable B (50% documentation)", "lod": 300 },
@@ -25,7 +25,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT"], "requireManufacturerType": true },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -36,7 +36,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350" },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -47,7 +47,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350" },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -58,7 +58,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -69,7 +69,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -124,7 +124,7 @@
         "300": { "requireGeometry": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
         "350": { "inherit": "300" },
         "400": { "inherit": "350" },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -135,7 +135,7 @@
         "300": { "requireGeometry": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
         "350": { "inherit": "300" },
         "400": { "inherit": "350" },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -146,7 +146,7 @@
         "300": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
         "350": { "inherit": "300" },
         "400": { "inherit": "350" },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -201,7 +201,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350" },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -212,7 +212,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350" },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -223,7 +223,7 @@
         "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_INSTALLATION_DATE_TXT"] }
+        "500": { "inherit": "400" }
       }
     },
     {
@@ -235,6 +235,160 @@
         "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
         "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT", "+MNT_TYPE_TXT"], "requireManufacturerType": true },
         "500": { "inherit": "400", "requiredParams": ["+ASS_SERIAL_NR_TXT", "+ASS_INSTALLATION_DATE_TXT"] }
+      }
+    },
+    {
+      "category": "Roofs",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350" },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Ceilings",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Stairs",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350" },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Railings",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Ramps",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Furniture",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Furniture Systems",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Structural Foundations",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350" },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Curtain Panels",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Curtain Wall Mullions",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Electrical Fixtures",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
+        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Duct Fittings",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350" },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Pipe Fittings",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350" },
+        "500": { "inherit": "400" }
+      }
+    },
+    {
+      "category": "Rooms",
+      "checks": {
+        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
+        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "300": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
+        "350": { "inherit": "300" },
+        "400": { "inherit": "350" },
+        "500": { "inherit": "400" }
       }
     }
   ]

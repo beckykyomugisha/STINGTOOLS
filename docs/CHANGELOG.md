@@ -31,14 +31,23 @@ all 20 `categoryRules` including `"*"`. This mattered structurally:
 `Verify` then does `continue`, so a milestone at a missing rung would have
 **silently skipped every element** rather than failing loudly.
 
-- **LOD 500** inherits 400 and adds the record/handover data — `ASS_INSTALLATION_DATE_TXT`
-  everywhere, plus `ASS_SERIAL_NR_TXT` on serialised/serviceable plant. Parameter
-  names were taken from `MR_PARAMETERS.txt`, **not invented**: the obvious guesses
-  `ASS_SERIAL_NUM_TXT` and `ASS_INSTALL_DATE` do not exist, and `ASS_INSTALL_DATE_TXT`
-  is explicitly marked `DEPRECATED` in favour of `ASS_INSTALLATION_DATE_TXT`. All
-  nine referenced parameters are declared with a GUID and bound `<ALL>` in
-  `RESOLVED_BINDINGS.csv` — a required param absent from the shared-parameter file
-  makes the check permanently unsatisfiable.
+- **LOD 500 is scoped by category, deliberately.** On **serialised, serviceable
+  plant** (Mechanical/Electrical Equipment, Plumbing/Lighting Fixtures, Air Terminals,
+  Sprinklers, Fire Alarm Devices, Specialty Equipment) it inherits 400 and adds
+  `+ASS_SERIAL_NR_TXT` + `+ASS_INSTALLATION_DATE_TXT` — the O&M/commissioning record
+  the Owner receives and what Fohlio publishes. On **fabric and distribution**
+  (Walls, Floors, Doors, Windows, Ducts, Pipes, Conduits, Cable Trays, Structural
+  Framing/Columns/Foundations, Casework, Furniture, Rooms and the `"*"` fallback) it is
+  a bare `inherit: 400` adding no parameters. An installation date on every wall, duct
+  run and pipe segment is not something a general contractor's as-built delivers;
+  demanding it would report near-total failure on fabric at the first `deliverable-d`
+  run and train the team to ignore the report. Doors and Windows sit in the **fabric**
+  group — manufacturer and model at 400, schedule-tracked, but not serialised plant.
+  Parameter names were taken from `MR_PARAMETERS.txt`, **not invented**: the obvious
+  guesses `ASS_SERIAL_NUM_TXT` and `ASS_INSTALL_DATE` do not exist, and
+  `ASS_INSTALL_DATE_TXT` is explicitly marked `DEPRECATED` in favour of
+  `ASS_INSTALLATION_DATE_TXT`. All nine referenced parameters are declared with a GUID
+  and bound `<ALL>` in `RESOLVED_BINDINGS.csv`.
 - **LOD 100** is the conceptual rung: an empty check block that every in-scope
   element passes. Deliberate — the engine has no "is named / is on a level" check
   and inventing one was out of scope. It completes the ladder and gives a project
@@ -57,14 +66,53 @@ and a new `<[^>]*>` remain. `requireTypeNotGeneric` is untouched — it is the
 deliberate, separate check, so a "Generic - 200mm" wall still fails LOD 300, once,
 for the right reason, instead of twice.
 
-**2. CSI MasterFormat map — six missing divisions, and the reason half of it never fired.**
+**1b. Project-wide LOD verification no longer narrows its own scope silently.**
 
-Added **02 Existing Conditions · 05 Metals · 14 Conveying Equipment · 31 Earthwork ·
-32 Exterior Improvements · 33 Utilities** (86 → 148 rules, 20 divisions). Without
-them `CSI_Assign` left every civil, structural-steel and elevator element
-unresolved and `SpecLink_Reconcile` could never reconcile those books. Real
-MasterFormat 2020 numbers; SYS tokens taken from the shipped vocabulary
-(`BGD`, `SWD`, `SDS`, `IRR`) rather than invented.
+`LodScope.Collect` built project scope from `ExplicitCategories`, which filters out
+`"*"` — so the fallback rule the matrix defines precisely so nothing escapes **never
+applied outside a manual selection**. Roofs, Ceilings, Stairs, Railings, Ramps,
+Furniture, Furniture Systems, Structural Foundations, Electrical Fixtures, Duct/Pipe
+Fittings, Curtain Panels/Mullions and Rooms were never scanned, and the run reported a
+confident per-category percentage without disclosing what it had declined to look at.
+Ceilings, stair finishes, railings and millwork are exactly what the Owner's review
+panel scrutinises; Furniture and Furniture Systems are two of the six Fohlio FF&E
+categories, so Deliverable D could show a green LOD gate over a furniture register
+nothing had verified.
+
+Three changes: (a) project scope now collects every **taggable model category** —
+`CategoryType.Model` ∩ `TagConfig.DiscMap` (the tagging pipeline's own definition, so
+LOD scope and tag scope agree) minus a documented `NonPhysicalCategories` set
+(Materials, RVT Links, Model Groups, Analytical\*, Loads, Parts…) and the project's
+`TagConfig.CategorySkipList`; `Resolve` already falls through to `"*"`, so no engine
+change was needed. (b) **14 new explicit category rules** for the categories this
+project is judged on, so they get a real ladder rather than leaning on `"*"`. (c) a
+**scope-disclosure block** in all three output forms — TaskDialog, CSV (`#` header
+lines) and the JSON gate report now state how many elements were verified, which
+categories rode the `"*"` rule, and which model categories were present but **NOT
+SCANNED**. "Not scanned" is now stated, never inferred from absence.
+
+Measured on a synthetic 3,314-element model: **879 → 2,789 elements in scope
+(+1,910)**, all 14 previously-invisible categories covered, 525 non-physical elements
+disclosed rather than dropped, and 1,420 annotation elements correctly never collected.
+
+**2. CSI MasterFormat map — five missing divisions, and the reason half of it never fired.**
+
+Added **05 Metals · 14 Conveying Equipment · 31 Earthwork · 32 Exterior Improvements ·
+33 Utilities** (86 → 144 rules, 19 divisions). Without them `CSI_Assign` left every
+civil, structural-steel and elevator element unresolved and `SpecLink_Reconcile` could
+never reconcile those books. Real MasterFormat 2020 numbers; SYS tokens taken from the
+shipped vocabulary (`BGD`, `SWD`, `SDS`, `IRR`) rather than invented.
+
+**Division 02 was drafted and then withdrawn.** Revit expresses demolition through the
+**phase** system, and `CsiMasterFormat.Resolve` is never handed the element's phase
+state — it matches on category/family/type/SYS only. Nobody names a toposolid
+"demolition", so a naming-keyed rule could not fire on a real model: it would have read
+as Division 02 coverage in a review while delivering nothing. Supporting it properly
+means a `Phase` qualifier column, which widens every row from 6 fields to 7 — and
+`ParseCsvLines` drops short rows, so **every project's existing `_BIM_COORD/csi_map.csv`
+overlay would silently stop loading**. That needs its own change with its own
+verification pass; tracked as ROADMAP KUT-5, and the CSV says so where the rows would
+have been.
 
 While testing, a **pre-existing defect** surfaced that would have made much of
 this dead on arrival: `ParameterHelpers.GetFamilyName` / `GetFamilySymbolName`
@@ -76,6 +124,16 @@ treats an empty candidate as no-match. Every family/type discriminator on a
 default. Fixed locally with `CsiMap.TypeName` (falls back to the element type's
 name; a no-op for loadable families), and the affected discriminators — including
 those two shipped rows — moved to the `TypeRegex` column where they belong.
+
+The **family** side was deliberately left alone rather than given a matching
+`CsiMap.FamilyName` fallback: for a system element that would return the system-family
+name ("Basic Wall", "Pipe Types"), which re-scores **every** system-category rule in
+the map for no current benefit — no rule needs it once the discriminators are on
+`TypeRegex`. Instead the constraint is now documented in the CSV header, and an audit
+of all 144 rows confirms **zero** FamilyRegex rows remain on a system category. Three
+sit on `Structural Foundations`, which is genuinely mixed (isolated footings are
+`FamilyInstance`, wall footings are `ContinuousFooting`); they target piles, which are
+`FamilyInstance`, and the bare category default catches continuous footings.
 
 **3. Owner defaults.** KUT classification standard flipped **Uniclass → CSI**
 (verified `"CSI"` parses: `Enum.TryParse<ClassStandard>` is case-insensitive, with
@@ -104,14 +162,19 @@ the 239/2 the brief expected. No change made.
 
 **Verification.** `dotnet build -t:Rebuild` → **0 errors / 0 warnings**;
 `StingTools.Tags.Tests` → **243/243**. The LOD matrix was validated field-by-field
-against the `LodCheck`/`LodMatrix` C# classes, and its inheritance and `"+param"`
-merge were simulated to confirm every milestone resolves for every category with
-no silent skips. The CSI map was replayed through a port of `ParseCsvLines`/`Score`/
-`Resolve` over 44 cases — including system elements passed with an empty family
-exactly as the real code does. Workflow wiring was diffed against `origin/main`:
-**66 unresolved `commandTag`s and 59 malformed steps exist on both** (pre-existing,
-now in `ROADMAP.md`); all 5 `WORKFLOW_KUT_*` presets are clean on both. **Nothing
-was exercised in a live Revit session** — no runtime verification was performed.
+against the `LodCheck`/`LodMatrix` C# classes (34 categoryRules, full 6-rung ladder
+each, all 9 parameters declared + bound), and its inheritance and `"+param"` merge
+were simulated to confirm every milestone resolves for every category with no silent
+skips — including that rung 500 now resolves to a bare inherit on fabric and to
+serial + install date on plant. The scope fix was proved with a before/after harness
+over a synthetic 3,314-element model (879 → 2,789 in scope). The CSI map was replayed
+through a port of `ParseCsvLines`/`Score`/`Resolve` over 50 cases — including system
+elements passed with an empty family exactly as the real code does — plus a row audit
+for the FamilyRegex-on-system-category defect. Workflow wiring was diffed against
+`origin/main`: **66 unresolved `commandTag`s and 59 malformed steps exist on both**
+(pre-existing, tracked as KUT-1/KUT-2); all 5 `WORKFLOW_KUT_*` presets are clean on
+both. **Nothing was exercised in a live Revit session** — no runtime verification was
+performed.
 
 Files: `StingTools/Data/STING_LOD_MATRIX.json` · `StingTools/Data/LOD_REQUIREMENTS.json` (deleted) ·
 `StingTools/Core/LODValidationCommand.cs` · `StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv` ·

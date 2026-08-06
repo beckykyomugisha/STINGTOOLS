@@ -2,7 +2,15 @@
 # MasterFormat section + title for SpecLink reconciliation. Columns:
 #   Category    Revit category name (exact, case-insensitive). "*" = any.
 #   FamilyRegex optional regex tested against the family name (case-insensitive).
-#   TypeRegex   optional regex tested against the type/symbol name.
+#               ONLY USABLE ON LOADABLE-FAMILY CATEGORIES. ParameterHelpers.GetFamilyName
+#               returns "" for anything that is not a FamilyInstance, and Score treats an
+#               empty candidate as no-match — so a FamilyRegex on a SYSTEM category (Walls,
+#               Floors, Roofs, Ceilings, Pipes, Ducts, Conduits, Cable Trays, Stairs,
+#               Railings, Ramps, Topography, Toposolid, Pads) can NEVER fire. Put those
+#               discriminators in TypeRegex instead. Mixed categories exist: Structural
+#               Foundations isolated footings are FamilyInstance, wall footings are not.
+#   TypeRegex   optional regex tested against the type/symbol name. Safe on every category —
+#               CsiMap.TypeName falls back to the element type's name for system elements.
 #   Sys         optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.
 #   Section     CSI MasterFormat number (e.g. 23 31 00).
 #   Title       CSI section title.
@@ -101,16 +109,21 @@ Security Devices,(?i)cctv|camera,,,28 23 00,Video Surveillance
 Security Devices,(?i)access control|card reader,,,28 13 00,Access Control and Intrusion Detection
 Nurse Call Devices,,,,28 17 00,Nurse Call Systems
 #
-# ── Division 02 — Existing Conditions ────────────────────────────────────────
-# LIMITATION: Revit expresses demolition through PHASE (Phase Demolished), which
-# this resolver cannot see — it matches on category/family/type/SYS only. These
-# rows therefore catch only elements NAMED as removals, plus the Parts category
-# that removal take-off actually uses. Phase-aware Division 02 assignment needs
-# an engine change; logged in docs/ROADMAP.md.
-Parts,,,,02 41 19,Selective Demolition
-Generic Models,(?i)demolition|demolish|removal|strip.?out,,,02 41 19,Selective Demolition
-Specialty Equipment,(?i)demolition|demolish|removal,,,02 41 19,Selective Demolition
-Topography,(?i)existing|demolition|clearance,,,02 41 13,Selective Site Demolition
+# ── Division 02 — Existing Conditions — DELIBERATELY ABSENT ──────────────────
+# Naming-based Division 02 rows were drafted and then WITHDRAWN. Revit expresses
+# demolition through the PHASE system (Phase Created / Phase Demolished), and this
+# resolver matches on category / family / type / SYS only — it is never handed the
+# element's phase state. Nobody names a toposolid "demolition", so a rule keyed on
+# naming could not fire on a real model. It would have read as Division 02 coverage
+# in a review while delivering nothing, which is worse than the gap it papered over.
+#
+# Supporting it properly means passing phase state into CsiMasterFormat.Resolve and
+# adding an optional Phase qualifier column. That is a rule-shape change: it widens
+# every row from 6 fields to 7, and ParseCsvLines drops any row with fewer fields
+# than it expects — so every project's existing _BIM_COORD/csi_map.csv overlay would
+# silently stop loading. That needs its own change with its own verification pass.
+# Tracked as KUT-5 in docs/ROADMAP.md. Until then, Division 02 is UNSUPPORTED and
+# A1 Deliverable B's Existing Conditions & Removals Plan is classified by hand.
 #
 # ── Division 05 — Metals ─────────────────────────────────────────────────────
 # A2 Structural is full-service (floor/roof framing, columns, shear walls,

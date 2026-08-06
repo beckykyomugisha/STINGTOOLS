@@ -53,7 +53,7 @@ namespace StingTools.Core
                 var ms = LodScope.PickMilestone(doc, "Check");
                 if (ms == null) return Result.Cancelled;
 
-                var scope = LodScope.Collect(ctx.UIDoc, doc, out string scopeLabel);
+                var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
                 var r = LodVerificationEngine.Verify(doc, ms.Id, scope);
 
                 // Type-level pass auditing the LOD visibility switches the Automation
@@ -84,11 +84,14 @@ namespace StingTools.Core
                 }
 
                 var rp = StingResultPanel.Create("LOD Check")
-                    .SetSubtitle($"{r.MilestoneName} → LOD {r.Lod}   ({scopeLabel})")
+                    .SetSubtitle($"{r.MilestoneName} → LOD {r.Lod}   ({scopeReport.Label})")
                     .AddSection("COVERAGE")
                     .Metric("Passed", r.Passed.ToString())
                     .Metric("Failed", r.Failed.ToString())
                     .Metric("Pass rate", $"{r.OverallPct:F1}%");
+
+                rp.AddSection("SCOPE");
+                foreach (var line in scopeReport.DisclosureLines()) rp.Text(line);
 
                 rp.Text("Parameter / naming / geometry-presence maturity proxy — not a geometric");
                 rp.Text("survey. STING does not verify dimensional accuracy.");
@@ -130,7 +133,7 @@ namespace StingTools.Core
                 }
 
                 rp.Show();
-                StingLog.Info($"LODValidation: {r.MilestoneId} {r.Passed}/{r.Total} pass ({scopeLabel}), " +
+                StingLog.Info($"LODValidation: {r.MilestoneId} {r.Passed}/{r.Total} pass ({scopeReport.Label}), " +
                               $"{switchBearingTypes} switch-bearing type(s)");
                 return r.Failed == 0 ? Result.Succeeded : Result.Failed;
             }
