@@ -35,9 +35,12 @@ DISCIPLINE_BY_IFC_CLASS: dict[str, str] = {
     # Architectural
     "IfcWall": "A", "IfcWallStandardCase": "A", "IfcWindow": "A", "IfcDoor": "A",
     "IfcSlab": "A", "IfcRoof": "A", "IfcCovering": "A", "IfcCurtainWall": "A",
+    "IfcRailing": "A", "IfcStair": "A", "IfcStairFlight": "A", "IfcRamp": "A",
+    "IfcRampFlight": "A", "IfcFurnishingElement": "A", "IfcFurniture": "A",
+    "IfcShadingDevice": "A", "IfcGeographicElement": "A",
     # Structural
     "IfcColumn": "S", "IfcBeam": "S", "IfcMember": "S", "IfcPile": "S",
-    "IfcFooting": "S",
+    "IfcFooting": "S", "IfcPlate": "S", "IfcReinforcingBar": "S",
     # Fire protection
     "IfcFireSuppressionTerminal": "FP", "IfcAlarm": "FP",
 }
@@ -64,6 +67,57 @@ FUNCTION_BY_IFC_CLASS: dict[str, str] = {
     "IfcUnitaryEquipment": "SUP",
 }
 
+# Element Name / ObjectType keyword → discipline. The fallback for elements
+# whose IFC class is unclassified — chiefly IfcBuildingElementProxy, which CAD
+# exporters (Revit especially) emit for any family without a standard IFC class.
+# The real semantic is in the family name ("M_Trim-Window", "Wardrobe",
+# "Shower Door", "gate", "Toposolid"). First matching rule wins, so the specific
+# MEP/structural buckets are tried before the broad architectural one.
+_DISCIPLINE_BY_NAME_KEYWORD: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("SHOWER", "SINK", "BASIN", "TOILET", "URINAL", "BATH", "TAP", "FAUCET",
+      "SANITARY", "LAVATORY", "CISTERN", "BIDET", "PIPE", "VALVE", "DRAIN",
+      "GULLY", "MANHOLE", "GUTTER"), "P"),
+    (("DUCT", "DIFFUSER", "GRILLE", "VAV", "AHU", "FCU", "HVAC", "RADIATOR",
+      "CHILLER", "BOILER", "EXTRACT", "VENTIL"), "M"),
+    (("CABLE", "CONDUIT", "SOCKET", "SWITCH", "LUMINAIRE", "LIGHT FIXTURE",
+      "DISTRIBUTION BOARD", "TRANSFORMER", "BUSBAR"), "E"),
+    (("SPRINKLER", "HYDRANT", "EXTINGUISHER", "FIRE ALARM"), "FP"),
+    (("COLUMN", "FOOTING", "FOUNDATION", "PILE", "TRUSS", "RAFTER", "PURLIN",
+      "REBAR", "REINFORC"), "S"),
+    # Architectural / joinery / FF&E — the large residual, matched last.
+    (("WINDOW", "TRIM", "MUNTIN", "SILL", "GLAZING", "MULLION", "DOOR", "GATE",
+      "FENCE", "RAILING", "BALUSTRADE", "HANDRAIL", "WALL", "WARDROBE",
+      "CABINET", "CUPBOARD", "SHELF", "DESK", "TABLE", "CHAIR", "BED", "SOFA",
+      "FURNITURE", "COUNTER", "WORKTOP", "STAIR", "RAMP", "ROOF", "SLAB",
+      "FLOOR", "CEILING", "COVERING", "TOPO", "SITE", "LANDSCAPE", "CURTAIN",
+      "PARTITION", "SKIRTING", "CORNICE"), "A"),
+)
+
+
+def discipline_for_name(name: str | None) -> str:
+    """Fallback: element Name / ObjectType keyword → discipline. Case-insensitive
+    substring match, first rule wins; ``XX`` when nothing matches."""
+    up = (name or "").upper()
+    for keywords, code in _DISCIPLINE_BY_NAME_KEYWORD:
+        if any(k in up for k in keywords):
+            return code
+    return SENTINEL
+
+
+# When an element belongs to no IfcSystem — the norm for architectural and
+# structural elements — fall back to a discipline-appropriate system bucket so
+# the tag can still complete instead of stalling on System = XX.
+_SYSTEM_BY_DISCIPLINE: dict[str, str] = {
+    "A": "ARC", "S": "STR", "M": "HVAC", "E": "ELC",
+    "P": "PHE", "FP": "FP", "RP": "RAD", "MG": "MGS",
+}
+
+
+def system_default_for_discipline(discipline: str) -> str:
+    """Sensible System code for a discipline when there is no IfcSystem group."""
+    return _SYSTEM_BY_DISCIPLINE.get(discipline, SENTINEL)
+
+
 # IfcSystem name keyword → STING system code, evaluated in order.
 _SYSTEM_KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("HVAC", "AIR", "VENT", "DUCT"), "HVAC"),
@@ -87,9 +141,19 @@ def function_for_class(ifc_class: str) -> str:
 
 
 def infer_discipline(element: Any) -> str:
-    """Discipline code for an ifcopenshell element via its ``is_a()`` class."""
+    """Discipline code for an element. IFC class first; when the class is
+    unclassified (e.g. IfcBuildingElementProxy), fall back to keyword-matching
+    the element's Name then ObjectType — CAD exporters put the real semantic
+    there. ``XX`` only when nothing resolves."""
     try:
-        return discipline_for_class(element.is_a())
+        code = discipline_for_class(element.is_a())
+        if code != SENTINEL:
+            return code
+        for attr in ("Name", "ObjectType"):
+            code = discipline_for_name(getattr(element, attr, None))
+            if code != SENTINEL:
+                return code
+        return SENTINEL
     except Exception:  # pragma: no cover - defensive
         return SENTINEL
 
@@ -174,7 +238,9 @@ def infer_level(element: Any) -> str:
 
 
 def infer_system(element: Any) -> str:
-    """System code from ``IfcRelAssignsToGroup`` → ``IfcSystem`` membership."""
+    """System code from ``IfcSystem`` membership; falls back to a
+    discipline-derived default (A→ARC, S→STR, …) when the element belongs to no
+    system, so non-MEP elements can still reach a complete tag."""
     try:
         model = element.wrapped_data.file
         for rel in model.get_inverse(element):
@@ -184,7 +250,9 @@ def infer_system(element: Any) -> str:
                     code = system_for_name(grp.Name)
                     if code != SENTINEL:
                         return code
-        return SENTINEL
+        # No IfcSystem membership (normal for architectural / structural
+        # elements) → a discipline-appropriate default so the tag can complete.
+        return system_default_for_discipline(infer_discipline(element))
     except Exception:
         return SENTINEL
 
@@ -238,6 +306,12 @@ def infer_product(element: Any) -> str:
                     code = product_for_type_name(type_obj.Name)
                     if code != SENTINEL:
                         return code
+        # Fallback: the element's own ObjectType / Name — proxies carry the
+        # Revit family name there when there is no IfcTypeObject relationship.
+        for attr in ("ObjectType", "Name"):
+            code = product_for_type_name(getattr(element, attr, None))
+            if code != SENTINEL:
+                return code
         return SENTINEL
     except Exception:
         return SENTINEL

@@ -25,8 +25,54 @@ def test_discipline_for_class_known_codes():
 
 
 def test_discipline_for_unknown_class_is_sentinel():
-    assert inference.discipline_for_class("IfcFurniture") == "XX"
+    # IfcBuildingElementProxy has no class-level discipline (name fallback in
+    # infer_discipline handles it separately — see below).
+    assert inference.discipline_for_class("IfcBuildingElementProxy") == "XX"
     assert inference.discipline_for_class("") == "XX"
+
+
+class _FakeEl:
+    """Minimal ifcopenshell-element stand-in for inference: class + Name."""
+    def __init__(self, ifc_class, name=None, object_type=None):
+        self._c = ifc_class
+        self.Name = name
+        self.ObjectType = object_type
+
+    def is_a(self):
+        return self._c
+
+
+def test_discipline_name_fallback_rescues_revit_proxies():
+    """Real IfcBuildingElementProxy family names from the MBALWA as-built must
+    classify by name instead of going XX."""
+    cases = {
+        "M_Trim-Window-Exterior-Flat:with Sill": "A",
+        "M_Muntin Pattern_2x2": "A",
+        "Wardrobe__Guarda_roupas_12865": "A",
+        "gate_16438:gate": "A",
+        "PARAMETRIC_POST_amp_DWARF_WALL_FENCE": "A",
+        "RD_Shower Door 05:Black": "P",
+        "Toposolid:Generic - 1000mm": "A",
+    }
+    for name, expected in cases.items():
+        el = _FakeEl("IfcBuildingElementProxy", name=name)
+        assert inference.infer_discipline(el) == expected, (name, inference.infer_discipline(el))
+
+
+def test_discipline_class_still_wins_over_name():
+    # A real IfcWall stays A even if its name mentions something else.
+    assert inference.infer_discipline(_FakeEl("IfcWall", name="Pipe Chase")) == "A"
+    # Newly-mapped classes.
+    assert inference.discipline_for_class("IfcRailing") == "A"
+    assert inference.discipline_for_class("IfcStair") == "A"
+    assert inference.discipline_for_class("IfcPlate") == "S"
+
+
+def test_system_defaults_by_discipline_when_no_ifcsystem():
+    assert inference.system_default_for_discipline("A") == "ARC"
+    assert inference.system_default_for_discipline("S") == "STR"
+    assert inference.system_default_for_discipline("E") == "ELC"
+    assert inference.system_default_for_discipline("XX") == "XX"
 
 
 def test_level_for_storey_name():
