@@ -107,6 +107,25 @@ def test_reexported_bonsai_is_the_bridge_instance_not_a_wrapper():
     )
 
 
+def test_version_resolves_from_extension_manifest(tmp_path=None):
+    """As an extension Bonsai has no __version__ — the version must come from
+    blender_manifest.toml so the panel shows a real number, not 'vunknown'."""
+    import tempfile
+    import types as _t
+    from core.bonsai import _version_from_manifest
+
+    with tempfile.TemporaryDirectory() as d:
+        import pathlib
+        (pathlib.Path(d) / "blender_manifest.toml").write_text(
+            'id = "bonsai"\nversion = "0.8.4"\nname = "Bonsai"\n', encoding="utf-8")
+        fake_mod = _t.ModuleType("bl_ext.user_default.bonsai")
+        fake_mod.__file__ = str(pathlib.Path(d) / "__init__.py")
+        assert _version_from_manifest(fake_mod) == "0.8.4"
+
+    # No manifest / bad module → None (caller falls back to "unknown"), never raises.
+    assert _version_from_manifest(_t.ModuleType("x")) is None
+
+
 if __name__ == "__main__":
     import traceback
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

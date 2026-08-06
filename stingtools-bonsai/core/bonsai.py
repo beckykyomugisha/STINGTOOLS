@@ -54,6 +54,26 @@ def _bonsai_prefixes() -> list[str]:
     return prefixes
 
 
+def _version_from_manifest(module: Any) -> Optional[str]:
+    """Read the version from the extension's blender_manifest.toml.
+
+    A Blender 4.2 extension carries its version in the manifest, not in a
+    module ``__version__`` — so without this the panel shows "Bonsai vunknown".
+    Returns None on any failure so the caller falls back to "unknown".
+    """
+    try:
+        import pathlib
+        import tomllib  # stdlib on 3.11+, which Blender 4.2 ships
+        path = pathlib.Path(getattr(module, "__file__", "")).parent / "blender_manifest.toml"
+        if path.is_file():
+            with open(path, "rb") as fh:
+                version = tomllib.load(fh).get("version")
+                return str(version) if version else None
+    except Exception:  # noqa: BLE001 — version display is cosmetic; never raise
+        pass
+    return None
+
+
 @dataclass(frozen=True)
 class BonsaiCapabilities:
     """What Bonsai offers in the running Blender session."""
@@ -132,9 +152,13 @@ class BonsaiBridge:
 
         # Probe individual capabilities behind try/except so a renamed
         # internal sub-module doesn't tank detection of the parent.
+        # As a Blender 4.2 extension Bonsai exposes no __version__, so the raw
+        # module attributes fall through to "unknown". Read the version from the
+        # extension's blender_manifest.toml sitting next to the package instead.
         version = (
             getattr(bonsai_mod, "__version__", None)
             or getattr(bonsai_mod, "VERSION", None)
+            or _version_from_manifest(bonsai_mod)
             or "unknown"
         )
 
