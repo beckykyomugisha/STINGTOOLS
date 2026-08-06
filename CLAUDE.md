@@ -2111,11 +2111,13 @@ The Cost Management module extends the BOQ system into a full construction cost 
 
 ### Phase 192B1 — LOD Verification Engine
 
-`Core/LODValidationCommand.cs` + validation rules in `Core/Validation/`. Per-element LOD (Level of Detail / Level of Development) audit:
-- Reads `STING_LOD_VERIFICATION_RULES.json`
-- Commands: `LOD_Verify`, `LOD_SetTarget`, `LOD_Report`, `LOD_Colorize`
-- Writes `LOD_TARGET_TXT` + `LOD_ACTUAL_TXT` + `LOD_PASS_BOOL` per element
-- Integrates with `ComplianceScan` as an additional compliance dimension
+`Core/Validation/LodVerificationEngine.cs` + `Commands/Validation/LodVerifyCommand.cs`. Per-element LOD (Level of Development) audit:
+- Reads `Data/STING_LOD_MATRIX.json` (corporate baseline) layered with a project overlay at `<project>/_BIM_COORD/lod_matrix.json`, merged by milestone `id` / rule `category`
+- Milestones are **deliverable-keyed**, not RIBA-keyed, and the matrix defines the full standard ladder **100 / 200 / 300 / 350 / 400 / 500** for every category
+- Commands: `LOD_Verify` (ReadOnly — summary TaskDialog + CSV + JSON gate report under `_BIM_COORD/lod_reports/`), `LOD_Stamp` (Manual), and `LODValidation` ("LOD Check" — same engine, `StingResultPanel` output, plus the `STING_LOD_*_VISIBLE` family-switch audit)
+- **Read-only by default.** Only `LOD_Stamp` writes, and it writes exactly one parameter: `ASS_LOD_VERIFIED_TXT` (the milestone id) on passing elements. There is no `LOD_TARGET_TXT` / `LOD_ACTUAL_TXT` / `LOD_PASS_BOOL`
+- Checks are a **parameter + naming + geometry-presence maturity proxy, not a geometric survey** — STING cannot verify dimensional accuracy
+- Not wired into `ComplianceScan`; LOD is reported separately
 
 ### Phase 192C1 — Fohlio Room Finishes Integration
 

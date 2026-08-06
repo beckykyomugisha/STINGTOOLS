@@ -3694,7 +3694,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="FOHLIO FF&amp;E"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
                             <StackPanel>
-                                <TextBlock Text="Owner FF&amp;E single source of truth — link, never duplicate (FOHLIO_REF_TXT)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="Owner FF&amp;E single source of truth — link, never duplicate (FOHLIO_REF_TXT). FF&amp;E objects match by tag; room finishes match by Room Number." FontSize="9" Foreground="#888" Margin="0,0,0,4" TextWrapping="Wrap"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="Fohlio Export" Tag="Fohlio_Export" Click="Cmd_Click"
                                             ToolTip="Export the FF&amp;E register in Fohlio import shape (CSV)"/>
@@ -3702,6 +3702,10 @@
                                             ToolTip="Import a Fohlio export — preview the diff, then write FOHLIO_REF_TXT + selected fields back"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Fohlio Audit" Tag="Fohlio_Audit" Click="Cmd_Click"
                                             ToolTip="FF&amp;E missing FOHLIO_REF_TXT + stale rows (model ≠ last Fohlio snapshot); per-category currency KPI"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Finishes Export" Tag="Fohlio_ExportFinishes" Click="Cmd_Click"
+                                            ToolTip="Export room floor / wall / ceiling / base finishes in Fohlio shape (CSV) — one row per placed room, keyed by ROOM NUMBER (not by tag), with area in m²"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Finishes Import" Tag="Fohlio_ImportFinishes" Click="Cmd_Click"
+                                            ToolTip="Import a Fohlio finishes export — preview the diff, then write the four built-in room finish parameters + FOHLIO_REF_TXT back. Rows are matched by ROOM NUMBER, so a renumbered room will not match"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

@@ -2,6 +2,123 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 228 — KUT project-readiness: one LOD ladder, the missing CSI divisions, Owner defaults)
+
+Kampala Uganda Temple (KUT) readiness pass. The contracted role is **information
+management, coordination and verification — not authoring**, and the Owner's
+environment is **CSI MasterFormat + RIB SpecLink + Fohlio**. Nothing in the
+contract requires ISO 19650 naming on Owner deliverables, COBie, or IFC, and none
+was added.
+
+**1. The LOD matrix is now a standard LOD matrix, and there is only one of them.**
+
+Two competing LOD systems existed. The deliverable-keyed
+`Data/STING_LOD_MATRIX.json` + `Core/Validation/LodVerificationEngine.cs` is
+correct and was kept; the RIBA-keyed `Data/LOD_REQUIREMENTS.json` +
+`Core/LODValidationCommand.cs` scored the same elements by its own
+parameter-presence heuristic and gave a second answer to "is this at LOD 300?".
+
+`LODValidationCommand` was **not** unreachable — `StingDockPanel.xaml:2573` has a
+live "LOD Check" button (`Tag="LODValidation"`) — so per the brief it was **not
+deleted**. It now delegates to `LodVerificationEngine`, keeping its distinct
+`StingResultPanel` output and the one thing the matrix does not cover: the
+`STING_LOD_*_VISIBLE` family-switch audit (a visibility concern, not a maturity
+one). `LOD_REQUIREMENTS.json` had no other reader and was deleted.
+
+The ladder is now the full standard **100 / 200 / 300 / 350 / 400 / 500** across
+all 20 `categoryRules` including `"*"`. This mattered structurally:
+`LodVerificationEngine.Resolve` returns null when a rung key is absent and
+`Verify` then does `continue`, so a milestone at a missing rung would have
+**silently skipped every element** rather than failing loudly.
+
+- **LOD 500** inherits 400 and adds the record/handover data — `ASS_INSTALLATION_DATE_TXT`
+  everywhere, plus `ASS_SERIAL_NR_TXT` on serialised/serviceable plant. Parameter
+  names were taken from `MR_PARAMETERS.txt`, **not invented**: the obvious guesses
+  `ASS_SERIAL_NUM_TXT` and `ASS_INSTALL_DATE` do not exist, and `ASS_INSTALL_DATE_TXT`
+  is explicitly marked `DEPRECATED` in favour of `ASS_INSTALLATION_DATE_TXT`. All
+  nine referenced parameters are declared with a GUID and bound `<ALL>` in
+  `RESOLVED_BINDINGS.csv` — a required param absent from the shared-parameter file
+  makes the check permanently unsatisfiable.
+- **LOD 100** is the conceptual rung: an empty check block that every in-scope
+  element passes. Deliberate — the engine has no "is named / is on a level" check
+  and inventing one was out of scope. It completes the ladder and gives a project
+  overlay something to bind a milestone to.
+- **`deliverable-d` moved 400 → 500** and is renamed *"Deliverable D (record /
+  as-built model)"*. **LOD 400 was not lost**: a new `construction` milestone
+  carries it, covering Work Program 3.1 *Supervise the Building Construction
+  Contract*. See the PR and `project-templates/KUT/README.md` §4c for the record
+  of this decision — the client's A1 document says 400 and is read as an error.
+
+**Fewer false positives at LOD 300.** `placeholderFamilyPatterns` contained
+`(?i)generic` and `(?i)\bdefault\b`, which match Revit's own stock naming
+("Generic - 200mm", "Default"), so the first Deliverable-B run would have drowned
+in noise. Those two are gone; `placeholder`, `^STING_SEED_`, `\bTBD\b`, `\bdummy\b`
+and a new `<[^>]*>` remain. `requireTypeNotGeneric` is untouched — it is the
+deliberate, separate check, so a "Generic - 200mm" wall still fails LOD 300, once,
+for the right reason, instead of twice.
+
+**2. CSI MasterFormat map — six missing divisions, and the reason half of it never fired.**
+
+Added **02 Existing Conditions · 05 Metals · 14 Conveying Equipment · 31 Earthwork ·
+32 Exterior Improvements · 33 Utilities** (86 → 148 rules, 20 divisions). Without
+them `CSI_Assign` left every civil, structural-steel and elevator element
+unresolved and `SpecLink_Reconcile` could never reconcile those books. Real
+MasterFormat 2020 numbers; SYS tokens taken from the shipped vocabulary
+(`BGD`, `SWD`, `SDS`, `IRR`) rather than invented.
+
+While testing, a **pre-existing defect** surfaced that would have made much of
+this dead on arrival: `ParameterHelpers.GetFamilyName` / `GetFamilySymbolName`
+return `""` for anything that is not a `FamilyInstance`, and `CsiRule.Score`
+treats an empty candidate as no-match. Every family/type discriminator on a
+**system** category was therefore unmatchable — the shipped
+`Walls (?i)masonry|block|brick → 04 20 00` and `(?i)concrete → 03 30 00` rows had
+**never once fired**, and every wall silently took the 09 29 00 Gypsum Board
+default. Fixed locally with `CsiMap.TypeName` (falls back to the element type's
+name; a no-op for loadable families), and the affected discriminators — including
+those two shipped rows — moved to the `TypeRegex` column where they belong.
+
+**3. Owner defaults.** KUT classification standard flipped **Uniclass → CSI**
+(verified `"CSI"` parses: `Enum.TryParse<ClassStandard>` is case-insensitive, with
+a substring fallback). The IPC plumbing code is a **Revit Project Information
+value that no repo file can set**, so it is documented as a week-1 step in
+`project-templates/KUT/README.md`: `DrainageSizer.ResolveCode` and `VentDesigner`
+route any value starting `IPC` to `IPCSiAdapter`, and **anything else — including
+blank — silently falls back to BS EN 12056**, producing UK drainage and vent sizes
+that look valid and are wrong.
+
+**4. Two orphaned Fohlio commands surfaced.** `Fohlio_ExportFinishes` /
+`Fohlio_ImportFinishes` were wired in `StingCommandHandler` and
+`WorkflowEngine.ResolveCommand` but had no button and appeared in no workflow —
+unreachable, despite A1 Deliverables B and C both requiring room finishes to be
+maintained in Fohlio. Added as "Finishes Export" / "Finishes Import" beside the
+existing Fohlio trio, with tooltips stating that finishes match by **Room Number,
+not by tag**. Also added to `_allKnownCommandTags` so the workflow "did you mean"
+suggester knows them.
+
+**Not done — already fixed upstream.** The brief asked for a
+`CsiMasterFormat.FormatSection` display formatter and a fix for 2 failing
+`CsiMasterFormatTests`. Both had already landed on `main` (PR #554): `FormatSection`
+exists, `Reconcile` emits it, the XLSX writer and TaskDialog consume it, and the
+tests were already reconciled. Baseline measured at **243 passed / 0 failed**, not
+the 239/2 the brief expected. No change made.
+
+**Verification.** `dotnet build -t:Rebuild` → **0 errors / 0 warnings**;
+`StingTools.Tags.Tests` → **243/243**. The LOD matrix was validated field-by-field
+against the `LodCheck`/`LodMatrix` C# classes, and its inheritance and `"+param"`
+merge were simulated to confirm every milestone resolves for every category with
+no silent skips. The CSI map was replayed through a port of `ParseCsvLines`/`Score`/
+`Resolve` over 44 cases — including system elements passed with an empty family
+exactly as the real code does. Workflow wiring was diffed against `origin/main`:
+**66 unresolved `commandTag`s and 59 malformed steps exist on both** (pre-existing,
+now in `ROADMAP.md`); all 5 `WORKFLOW_KUT_*` presets are clean on both. **Nothing
+was exercised in a live Revit session** — no runtime verification was performed.
+
+Files: `StingTools/Data/STING_LOD_MATRIX.json` · `StingTools/Data/LOD_REQUIREMENTS.json` (deleted) ·
+`StingTools/Core/LODValidationCommand.cs` · `StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv` ·
+`StingTools/Commands/Classification/CsiCommands.cs` · `StingTools/UI/StingDockPanel.xaml` ·
+`StingTools/Core/WorkflowEngine.cs` · `StingTools/Data/WORKFLOW_KUT_DeliverableD.json` ·
+`project-templates/KUT/**` · `CLAUDE.md` (LOD section corrected).
+
 #### Completed (Token-Depth Live E1–E5 — retroactive log; the runner is retired)
 
 Five enhancements to the "Set depth applies live" display path landed on `main`
