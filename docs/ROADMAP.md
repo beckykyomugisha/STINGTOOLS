@@ -2,6 +2,21 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Workflow wiring — after Phase 229
+
+**KUT-1** (59 steps keyed `"tag"` across 11 presets, each preset entirely inert) and
+**KUT-2** (66 unresolved `commandTag`s, 96 once KUT-1 exposed the inert presets' tags) are
+**CLOSED — Phase 229**. Both were raised during the KUT readiness review (PR #623) and
+closed here. A CI gate (`tools/check_workflow_wiring.ps1`) now blocks both regressions.
+What remains:
+
+| ID | Item | Detail |
+|---|---|---|
+| WF-1 | **`WORKFLOW_DailyFieldWalk.json` is a manual checklist, not a workflow** | All 7 steps are BIM Coordination Center **SITE PHOTOS tab** interactions (`UI/SitePhotosTab.cs`) — `OpenSitePhotos`, `RefreshPhotos`, `PhotoChecklistAudit`, `BulkApprovePending`, `DigestPreview`, `PushDeliverableRegister`, `WorkflowComplete`. None is an `IExternalCommand`, so none can ever run from `WorkflowEngine`. They are marked `optional` with `(MANUAL - ...)` labels and baselined, so the preset no longer claims to have done the work. Decide: either promote the tab actions to real commands, or move this out of `WORKFLOW_*.json` into documentation, because a "workflow" that skips every step is theatre. |
+| WF-2 | **`BOQ_DriftCheck` and `BOQ_ExportErp` were never written** | `WORKFLOW_BOQ_CostLifecycle.json` describes a drift check against the latest snapshot and an "ERP-ready CSV + P6 XML" export. No source in the tree implements either. Both steps are marked `optional` with `(NOT IMPLEMENTED - ...)` labels and baselined. `BOQSnapshotSave` already computes the snapshot checksum, so the drift check is the smaller of the two. |
+| WF-3 | **`Hvac_AutoSizeDuct` cannot be resolved from a workflow** | The handler case is a strategy dispatcher: it snapshots the STING HVAC panel's header radio and runs a different command per strategy (velocity / equal-friction / static-regain, with constant-pressure deliberately reporting "not implemented"). There is no single `IExternalCommand` to return, and resolving it would silently pick one strategy and hide that choice. Marked `optional` with a `(MANUAL - ...)` label. Fix would be a `WorkflowStep` parameter block so a preset can name the strategy explicitly. |
+| WF-4 | **Nine more step keys are silently dropped by `WorkflowStep`** | Phase 229 fixed the five that mattered (`tag`→`commandTag`, `description`/`name`→`label`, `continueOnFail`/`allowSkip`→`optional`). Still unbound and therefore ignored: `order` (40 uses), `id` (33), `_notes` (23), plus `skipIfFamilyLoaded`, `scheduleNameFilter`, `drawingTypeId`, `sheetNumberFilter`. `order`/`id`/`_notes` are harmless documentation. The last four express real filtering intent the engine has no support for — either implement them or delete them, because as written they read as configuration and do nothing. The new gate does **not** catch these; extending it to warn on unbound step keys is the cheap follow-up. |
+
 ## ISO information-management spine — open after Phase 200 remediation
 
 | ID | Item | Detail |
