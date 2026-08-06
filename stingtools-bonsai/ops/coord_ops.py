@@ -25,6 +25,9 @@ HOST = "bonsai"
 # Session mirror keys (panel status only; the source of truth is prefs).
 _TOKEN_KEY = "sting_planscape_token"
 _EMAIL_KEY = "sting_planscape_email"
+# Refresh token, kept in the scene (not the on-disk prefs) so an expired access
+# token self-heals mid-session without a manual re-login. See _client / login.
+_REFRESH_KEY = "sting_planscape_refresh"
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +42,11 @@ def _prefs(context):
 def _client(context, token=None):
     from ..planscape.client import PlanscapeClient
     p = _prefs(context)
-    return PlanscapeClient(p.server_url, token=token if token is not None else (p.api_token or None))
+    return PlanscapeClient(
+        p.server_url,
+        token=token if token is not None else (p.api_token or None),
+        refresh_token=context.scene.get(_REFRESH_KEY, "") or None,
+    )
 
 
 def _active_ifc():
@@ -95,6 +102,9 @@ class StingPlanscapeLoginOperator(bpy.types.Operator):
         p.password = ""
         context.scene[_TOKEN_KEY] = token
         context.scene[_EMAIL_KEY] = p.email
+        # Stash the refresh token so a later push whose access token has expired
+        # self-heals instead of failing with a bare 401.
+        context.scene[_REFRESH_KEY] = client.refresh_token or ""
         self.report({"INFO"}, f"Logged in as {resp.get('userName') or p.email}")
 
         # Phase A4 — substrate drift-check. Warn (never block) if this host
