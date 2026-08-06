@@ -129,7 +129,19 @@ namespace StingTools.UI
                     });
                     return;
                 }
+                // null = the load FAILED; an empty list = there are genuinely no
+                // groups. "No distribution groups yet." over an unreachable server
+                // is invented data — and here it is actively dangerous, because an
+                // operator could conclude nobody is on distribution and re-add
+                // recipients who are already there.
                 var groups = await PlanscapeServerClient.Instance.ListDistributionGroupsAsync(state.ProjectId);
+                if (groups == null)
+                {
+                    dgPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                        "Could not load distribution groups.",
+                        PlanscapeServerClient.Instance.LastError));
+                    return;
+                }
                 if (groups.Count == 0)
                 {
                     dgPanel.Children.Add(new TextBlock {
@@ -155,8 +167,99 @@ namespace StingTools.UI
                                $"{(g.IncludeInDailyDigest ? " · digest" : "")}{(g.ForceRedacted ? " · redacted" : "")}",
                         FontSize = 10, Foreground = Brushes.Gray
                     });
+
+                    // Members were only ever counted, never listed or editable —
+                    // so a group could be created but never populated from here.
+                    var memberLine = new TextBlock {
+                        FontSize = 10, Foreground = Brushes.Gray,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0)
+                    };
+                    sp.Children.Add(memberLine);
+
+                    var grp = g;
+                    async Task LoadMembersAsync()
+                    {
+                        var mem = await PlanscapeServerClient.Instance
+                            .ListDistributionGroupMembersAsync(state.ProjectId, grp.Id);
+                        // null is a FAILED load, not an empty group. Saying "No members
+                        // yet" here is the same fabrication #550 removed from the album
+                        // pane: an operator would conclude nobody is on distribution and
+                        // re-add recipients who are already there.
+                        memberLine.Text = mem == null
+                            ? "Could not load members — "
+                              + (PlanscapeServerClient.Instance.LastError ?? "(no detail)")
+                            : mem.Count == 0
+                                ? "No members yet."
+                                : string.Join(", ", mem.Select(m =>
+                                    m.IsProjectMember ? m.Label : m.Label + " (external)"));
+                    }
+
+                    var addMemberBtn = new Button {
+                        Content = "＋ Add member", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                        Background = Brushes.WhiteSmoke, BorderBrush = Brushes.Gainsboro,
+                        BorderThickness = new Thickness(1), FontSize = 10, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0),
+                    };
+                    addMemberBtn.Click += async (_, _) =>
+                    {
+                        // Members come from the canonical project roster; the
+                        // server's ExternalEmail column is the escape hatch for
+                        // people outside the project (a client contact on a
+                        // distribution list who has no Planscape account).
+                        var roster = StingTools.Core.ProjectRoster.LoadForProject(state.ProjectId);
+                        const string externalOpt = "[External — not a project member]";
+                        var picks = roster
+                            .Select(m => string.IsNullOrWhiteSpace(m.Email) ? m.Display : $"{m.Display} — {m.Email}")
+                            .ToList();
+                        picks.Add(externalOpt);
+
+                        string pick = StingTools.Select.StingListPicker.Show($"Add to {grp.Name}",
+                            roster.Count > 0
+                                ? "Select a project member:"
+                                : "No project members found — add an external address instead.",
+                            picks);
+                        if (string.IsNullOrEmpty(pick)) return;
+
+                        bool ok;
+                        if (pick == externalOpt)
+                        {
+                            var email = SitePhotosTabHelpers.PromptForString(owner,
+                                "External recipient", "Email address:", "");
+                            if (string.IsNullOrWhiteSpace(email)) return;
+                            ok = await PlanscapeServerClient.Instance.AddDistributionGroupMemberAsync(
+                                state.ProjectId, grp.Id, externalEmail: email.Trim());
+                        }
+                        else
+                        {
+                            int dash = pick.IndexOf(" — ", StringComparison.Ordinal);
+                            string nm = dash > 0 ? pick.Substring(0, dash) : pick;
+                            var member = roster.FirstOrDefault(m =>
+                                string.Equals(m.Display, nm, StringComparison.OrdinalIgnoreCase));
+                            if (member?.ServerUserId == null)
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Add member",
+                                    $"\"{nm}\" has no server account, so they cannot be added as a " +
+                                    "project member. Add them as an external recipient instead.");
+                                return;
+                            }
+                            ok = await PlanscapeServerClient.Instance.AddDistributionGroupMemberAsync(
+                                state.ProjectId, grp.Id, userId: member.ServerUserId,
+                                displayName: member.Display);
+                        }
+
+                        if (!ok)
+                        {
+                            Autodesk.Revit.UI.TaskDialog.Show("Add member",
+                                PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                            return;
+                        }
+                        await LoadMembersAsync();
+                    };
+                    sp.Children.Add(addMemberBtn);
+
                     b.Child = sp;
                     dgPanel.Children.Add(b);
+                    _ = LoadMembersAsync();
                 }
             }
 
@@ -173,6 +276,14 @@ namespace StingTools.UI
                     Autodesk.Revit.UI.TaskDialog.Show("New group",
                         PlanscapeServerClient.Instance.LastError ?? "(no detail)");
                     return;
+                }
+                // Non-null with LastError set is partial success: the group exists but
+                // some recipients did not land. No recipients are passed here today, so
+                // this cannot fire yet — it is present so that adding them later cannot
+                // make the partial failure silent.
+                if (PlanscapeServerClient.Instance.LastError is { } partial)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("New group", partial);
                 }
                 await LoadGroupsAsync();
             };

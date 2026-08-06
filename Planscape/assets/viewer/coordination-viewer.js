@@ -899,16 +899,32 @@
       if (carryModelId) u.searchParams.set('model', carryModelId);
       return u.toString();
     }
-    function copyToClipboard(text) {
+    // Returns whether the text actually reached the clipboard, so callers can
+    // stop claiming a copy that did not happen.
+    //
+    // navigator.clipboard.writeText rejects ASYNCHRONOUSLY when a permissions
+    // policy blocks it — which is what happens whenever an embedding page's
+    // iframe `allow` attribute omits clipboard-write (that attribute REPLACES
+    // the default policy). The old synchronous try/catch could not observe that
+    // rejection: it returned immediately, the execCommand fallback never ran,
+    // and startMeeting still toasted "join link copied" over an untouched
+    // clipboard. Awaiting it makes the failure visible and lets the fallback do
+    // its job.
+    async function copyToClipboard(text) {
       try {
-        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
       } catch (_) {}
       try {
         const ta = document.createElement('textarea');
         ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
         document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); ta.remove();
+        const ok = document.execCommand('copy'); ta.remove();
+        return !!ok;
       } catch (_) {}
+      return false;
     }
     async function startMeeting() {
       if (!projectId) return toast('No project — cannot start a meeting', 'warn');
@@ -920,8 +936,12 @@
       const id = resp && (resp.id || resp.Id);
       if (!id) return toast('Could not start meeting (check sign-in)', 'error');
       const link = meetingJoinUrl(id);
-      copyToClipboard(link);
-      toast('Meeting started — join link copied. Opening session…');
+      const copied = await copyToClipboard(link);
+      // If the clipboard was refused, don't say it worked — point at where the
+      // link can still be got, which is the address bar once we re-navigate.
+      toast(copied
+        ? 'Meeting started — join link copied. Opening session…'
+        : 'Meeting started — opening session… (copy the link from the address bar to invite others)');
       logHistory && logHistory('Started a live meeting');
       // Reload this tab INTO the meeting so meeting-sync.js activates.
       setTimeout(() => { location.href = link; }, 700);
@@ -931,11 +951,13 @@
       if (!id) return;
       location.href = meetingJoinUrl(id);
     }
-    function copyMeetingLink() {
+    async function copyMeetingLink() {
       const cur = new URLSearchParams(location.search).get('meeting');
       if (!cur) return toast('Not in a meeting yet — Start one first', 'warn');
-      copyToClipboard(meetingJoinUrl(cur));
-      toast('Join link copied to clipboard');
+      const copied = await copyToClipboard(meetingJoinUrl(cur));
+      toast(copied
+        ? 'Join link copied to clipboard'
+        : 'Clipboard blocked — copy the link from the address bar instead', 'warn');
     }
     document.addEventListener('click', () => $$('.menu.open').forEach(m => m.classList.remove('open')));
 
@@ -4487,7 +4509,7 @@
           '-',
           { glyph: 'ℹ', label: 'Properties',           run: () => { $('.tab-bar .tab[data-tab=properties]')?.click(); renderProperties(state.selectedElementGuid); } },
           { glyph: '🚩', label: 'Create issue',         run: () => openIssueModal({ guid, meta }) },
-          tag ? { glyph: '🏷', label: 'Copy STING tag', run: () => { copyToClipboard(String(tag)); toast('Tag copied'); } } : null,
+          tag ? { glyph: '🏷', label: 'Copy STING tag', run: async () => { const ok = await copyToClipboard(String(tag)); toast(ok ? 'Tag copied' : 'Clipboard blocked — could not copy the tag', ok ? undefined : 'warn'); } } : null,
           '-',
           { glyph: '✕', label: 'Deselect',             run: () => selectElementByGuid(null) },   // B2
         ].filter(Boolean), x, y);
@@ -7585,7 +7607,7 @@
     }
 
     // ── Connectivity heartbeat (U6) ────────────────────────────────────
-    // Lightweight: ping /health every 15s and toggle the session pill.
+    // Lightweight: ping /health/live every 15s and toggle the session pill.
     // SignalR proper would need the full @microsoft/signalr browser bundle;
     // this gives the coordinator a real "Live / Offline" signal without
     // pulling in 100KB of dependencies. Browser online/offline events
@@ -7609,14 +7631,20 @@
       let alive = true;
       async function ping() {
         try {
-          const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
-          // ANY http response means the API answered us, which is all this
-          // pill claims. /health is deliberately locked down in production
-          // (private-range client IP + X-Health-Token, Program.cs), so a
-          // browser ALWAYS gets 403 — `res.ok` left the pill stuck on
-          // "Offline" against a perfectly healthy server, and spammed a 403
-          // into the console every 15 seconds. Only a network-level failure
-          // (the catch below) actually means offline.
+          // /health/live, NOT /health. The full diagnostic at /health is
+          // deliberately locked down in production (private-range client IP +
+          // X-Health-Token, Program.cs), so a browser ALWAYS got 403 from it.
+          // The pill coped — see below — but the browser still logged a failed
+          // request every 15 seconds, and that noise buried real errors: a
+          // console captured while investigating a meeting bug showed 17
+          // errors, almost all of them this poll. /health/live is
+          // AllowAnonymous, returns 200 {status:"alive"}, exposes no topology,
+          // and answers precisely the question the pill asks.
+          await fetch(`${apiBase}/health/live`, { method: 'GET', cache: 'no-store' });
+          // ANY http response still means the API answered us, which is all
+          // this pill claims — checking `res.ok` would put it back on "Offline"
+          // against a healthy server the moment this endpoint's contract
+          // changed. Only a network-level failure (the catch below) is offline.
           setOnline(true);
           alive = true;
         } catch (_) {

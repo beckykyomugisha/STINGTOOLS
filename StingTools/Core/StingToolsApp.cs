@@ -570,6 +570,8 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"Classification standard cache invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.LoadProfileRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.LoadAssumptionsRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Load assumptions cache invalidate: {cEx.Message}"); }
                 try { Commands.Hvac.HvacGenerateCxChecklistCommand.InvalidateTaskCache(); }
                 catch (Exception cEx) { StingLog.Warn($"Cx task cache invalidate: {cEx.Message}"); }
                 try { Core.Refrigerant.RefrigerantVendorRegistry.Reload(e.Document); }

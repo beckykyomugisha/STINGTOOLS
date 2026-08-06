@@ -74,6 +74,21 @@
       "EGGCRATE":              0.80,
       "FLEX_PER_METRE":        1.00
     },
+    "componentAllowancesPa": {
+      "_notes": [
+        "Fixed external-static allowances (Pa) added to the index-run friction",
+        "total by Hvac_FanStaticReport to estimate fan External Static Pressure.",
+        "Typical AHU internal components. Projects override per equipment.",
+        "Sources: CIBSE Guide B3, ASHRAE Handbook — Systems & Equipment."
+      ],
+      "coil_cooling":  120.0,
+      "coil_heating":   40.0,
+      "filter_panel":   60.0,
+      "filter_bag":    150.0,
+      "terminal":       30.0,
+      "attenuator":     50.0,
+      "louvre":         25.0
+    },
     "manufacturerFittings": {
       "_notes": [
         "Manufacturer-specific loss coefficients. Looked up by the",

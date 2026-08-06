@@ -30,6 +30,27 @@ public class ApprovalChain : ITenantScoped
 
     public DateTime? CompletedAt { get; set; }
 
+    /// <summary>
+    /// The document's revision at the moment this chain was OPENED — i.e. what the
+    /// approvers were actually looking at when the round began. Mirrors
+    /// <see cref="DocumentApproval.RevisionSnapshot"/> so both approval paths can be
+    /// scoped by the same predicate.
+    ///
+    /// Stamped at creation, deliberately not at completion: the point of the field is
+    /// to record the content that was sanctioned, and that is fixed when the round
+    /// opens, not when the last approver clicks.
+    ///
+    /// <para><b>NULL means "pre-dates this field, matches any revision".</b> Issue #552
+    /// left the backfill policy open with three options; this is the compatible one, and
+    /// it is chosen on purpose. Treating NULL as stale would close every historical hole
+    /// at once but would also stop every already-COMPLETED chain from satisfying its gate
+    /// the day it shipped — blocking real publishes on live projects with no warning.
+    /// That is a migration event, not a bug fix, and it is the owner's call. The residual
+    /// exposure is therefore known rather than assumed to be zero: chains completed
+    /// before this field existed keep their permanent pass.</para>
+    /// </summary>
+    public string? RevisionSnapshot { get; set; }
+
     /// <summary>Optional human-readable description of the chain rules.</summary>
     public string? Description { get; set; }
 

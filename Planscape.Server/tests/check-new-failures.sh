@@ -19,12 +19,17 @@ BASELINE="$(dirname "$0")/known-failing-tests.txt"
 # break, host crash). Treat that as failure — an empty failure list would
 # otherwise read as "nothing new broke".
 #
-# `dotnet test` on a SOLUTION prints the VSTest logger summary ("Total tests: N",
-# "Test Run Successful./Failed.") — NOT the CLI's "Passed!/Failed!" line, which
-# only appears for a single project on some SDKs. The old anchor matched neither,
-# so a fully-green 540-test run was reported as "did not complete" and the gate
-# was permanently red. Accept any shape that only appears once the run finished.
-if ! grep -qE "^(Passed!|Failed!)|Total tests: [0-9]+|Test Run (Successful|Failed)\." "$OUTPUT"; then
+# Several summary formats have to be accepted. `dotnet test` on a single project
+# prints the CLI summary ("Passed!  - Failed: 0, ...") — but only on some SDKs.
+# On a SOLUTION it goes through MSBuild and emits the VSTest logger summary
+# instead ("Total tests: N" / "Test Run Successful." / "Test Run Failed."); when
+# VSTestTask returns false the CLI line is never emitted at all. Matching only
+# one shape made this gate abort with "the run did not complete" — either on
+# every solution-level run that had failures (precisely when its diff is worth
+# reading), or, with the old anchor, on a fully-green 540-test run. Be
+# permissive: this check only asks "did the run finish", and the real failure
+# detection happens below, so a false abort is the costly direction.
+if ! grep -qE "^[[:space:]]*(Passed!|Failed!)|Total tests: [0-9]+|Test Run (Successful|Failed)\." "$OUTPUT"; then
   echo "::error::no test summary in output — the run did not complete"
   tail -30 "$OUTPUT"
   exit 1
@@ -45,7 +50,7 @@ fi
     | sed -E 's/^[[:space:]]*Failed[[:space:]]+//'
 } | sed -E 's/\(.*\)//' | sort -u > /tmp/actual-failures.txt
 
-grep -vE '^\s*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
+grep -vE '^[[:space:]]*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
 
 NEW=$(comm -13 /tmp/baseline-failures.txt /tmp/actual-failures.txt)
 FIXED=$(comm -23 /tmp/baseline-failures.txt /tmp/actual-failures.txt)

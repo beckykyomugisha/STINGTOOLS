@@ -77,7 +77,10 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 
 `PARAMETER_DUPLICATES.md` · `PARAM_BINDING_DOMAIN_MAP.md` · `CATEGORY_BINDING_COVERAGE_REPORT.md` ·
 `TAGGING_WORKFLOW_ANALYSIS.md` · `UNIVERSAL_TAG_*.md` (build sheets and runners) ·
-`TOKEN_DEPTH_LIVE_ENHANCEMENTS_RUNNER.md` · `tagstudio-family-stage-tests.md`
+`tagstudio-family-stage-tests.md`
+
+*(`TOKEN_DEPTH_LIVE_ENHANCEMENTS_RUNNER.md` retired — E1–E5 all shipped; see the
+Token-Depth Live entry in [`CHANGELOG.md`](CHANGELOG.md).)*
 
 ## Audits, findings & triage
 

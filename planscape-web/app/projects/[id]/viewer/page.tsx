@@ -285,7 +285,13 @@ export default function ViewerPage() {
             onLoad={() => setReady((n) => n + 1)}
             // camera/microphone/display-capture are what let the embedded
             // meeting actually publish media from this cross-origin frame.
-            allow="fullscreen; camera; microphone; display-capture"
+            // clipboard-write is needed too: an `allow` attribute REPLACES the
+            // default permissions policy for the frame, so omitting it denied
+            // navigator.clipboard.writeText — which is how "Start a live
+            // meeting" copies the join link. It failed silently (the rejection
+            // is async, so the viewer's try/catch never saw it) while still
+            // telling the user the link was copied.
+            allow="fullscreen; camera; microphone; display-capture; clipboard-write"
           />
         )}
       </div>

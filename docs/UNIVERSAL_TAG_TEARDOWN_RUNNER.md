@@ -8,6 +8,14 @@
 
 # Universal Tag — Legacy Teardown Runner (Phase 2)
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 **Repo:** `C:\Dev\STINGTOOLS` · **Branch:** create `claude/universal-tag-teardown` **off `claude/universal-tag-finalize`** (phase-1 tasks A–D live there: `735ea7aaa`, `aa67afc25`, `561e9b052`). If that branch isn't present, STOP and report — do not start from an older base.
 **Build:** `dotnet build StingTools/StingTools.csproj -c Release -p:RevitApiPath="C:\Program Files\Autodesk\Revit 2025"` — 0 errors / **4** baseline CS0618 warnings (`Clash/ClashIssueSyncCommand.cs`). Any new warning is yours.
 **Tests:** `StingTools.Tags.Tests` — 134 pass / 2 baseline `CsiMasterFormat` fails.

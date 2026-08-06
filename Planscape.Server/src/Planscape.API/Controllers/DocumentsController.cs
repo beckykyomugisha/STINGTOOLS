@@ -1551,8 +1551,20 @@ public class DocumentsController : ControllerBase
             var hasLegacyApproval = await _db.DocumentApprovals
                 .AnyAsync(a => a.DocumentId == docId && a.Transition == transitionKey && a.Status == "APPROVED"
                     && (a.RevisionSnapshot == null || a.RevisionSnapshot == currentRevision));
+            // #552 — scope the CHAIN path exactly as the legacy path above. Until
+            // ApprovalChain carried a RevisionSnapshot there was no field to filter on,
+            // so this branch matched on (DocumentId, Transition) alone. The two are
+            // OR'd, which meant the UNSCOPED branch won: a chain completed against P01
+            // satisfied the gate for P02, P03 and every revision after, while the
+            // scoped legacy check beside it correctly refused. The bypass left a
+            // COMPLETED chain in the audit trail, so it was invisible after the fact.
+            //
+            // NULL still matches, mirroring the legacy predicate — see the field's own
+            // remarks on ApprovalChain for why that compatible choice is deliberate and
+            // what exposure it leaves.
             var hasCompletedChain = await _db.ApprovalChains
-                .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED");
+                .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED"
+                    && (c.RevisionSnapshot == null || c.RevisionSnapshot == currentRevision));
             if (!hasLegacyApproval && !hasCompletedChain)
                 return BadRequest(new
                 {

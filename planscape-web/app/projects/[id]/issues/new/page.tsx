@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { MemberPicker } from '@/components/MemberPicker';
 import { createIssue } from '@/lib/data';
 import type { IssuePriority } from '@/lib/types';
 
@@ -20,6 +21,7 @@ export default function NewIssuePage() {
   const [type, setType] = useState('CLASH');
   const [priority, setPriority] = useState<IssuePriority>('MEDIUM');
   const [discipline, setDiscipline] = useState('');
+  const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +36,9 @@ export default function NewIssuePage() {
         type,
         priority,
         discipline: discipline.trim(),
+        // Optional at creation — an issue raised before anyone owns it is a
+        // normal state, so this stays unset rather than defaulting to self.
+        ...(assigneeUserId ? { assigneeUserId } : {}),
       });
       router.replace(`/projects/${projectId}/issues/${issue.id}`);
     } catch (err) {
@@ -103,6 +108,15 @@ export default function NewIssuePage() {
             className="w-full rounded border border-border-strong px-3 py-2 outline-none focus:border-accent"
           />
         </label>
+
+        <div className="block">
+          <span className="mb-1 block text-sm font-medium">Assignee (optional)</span>
+          <MemberPicker
+            projectId={projectId}
+            value={assigneeUserId}
+            onChange={(v) => setAssigneeUserId(v as string | null)}
+          />
+        </div>
 
         {error && <p className="rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
 

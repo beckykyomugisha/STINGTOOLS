@@ -460,7 +460,7 @@ public class AuthController : ControllerBase
             Plan          = BillingPlan.Trial,
             Currency      = currency,
             BillingCycle  = BillingCycle.Monthly,
-            MaxUsers      = planLimits.MaxAuthors + planLimits.MaxCoordinators,
+            MaxUsers      = planLimits.TotalSeats,
             MaxProjects   = planLimits.MaxProjects,
             MimEnabled    = false,
             TrialExpiresAt = DateTime.UtcNow.AddDays(30)
@@ -1095,7 +1095,7 @@ public class AuthController : ControllerBase
                     Plan           = BillingPlan.Trial,
                     Currency       = "USD",
                     BillingCycle   = BillingCycle.Monthly,
-                    MaxUsers       = limits.MaxAuthors + limits.MaxCoordinators,
+                    MaxUsers       = limits.TotalSeats,
                     MaxProjects    = limits.MaxProjects,
                     MimEnabled     = false,
                     TrialExpiresAt = DateTime.UtcNow.AddDays(365)

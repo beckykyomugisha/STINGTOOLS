@@ -87,12 +87,22 @@ namespace StingTools.UI
                     });
                     return;
                 }
+                // null = the load FAILED. An empty list = the project genuinely has
+                // no albums. These must never render the same: "No albums yet" over
+                // a failed request is invented data.
                 List<PhotoAlbumDto> albums;
                 try { albums = await PlanscapeServerClient.Instance.ListPhotoAlbumsAsync(state.ProjectId); }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"AlbumsSubTab.Load: {ex.Message}");
-                    listPanel.Children.Add(new TextBlock { Text = "Load failed.", Foreground = Brushes.Crimson, Margin = new Thickness(6) });
+                    listPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure("Could not load albums.", ex.Message));
+                    return;
+                }
+                if (albums == null)
+                {
+                    listPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                        "Could not load albums.",
+                        PlanscapeServerClient.Instance.LastError));
                     return;
                 }
                 if (albums.Count == 0)
@@ -236,7 +246,16 @@ namespace StingTools.UI
 
                 // Photo strip — load detail + render thumbnails.
                 var detail = await PlanscapeServerClient.Instance.GetPhotoAlbumAsync(state.ProjectId, selected.Id);
-                if (detail?.Photos == null || detail.Photos.Count == 0)
+                if (detail == null)
+                {
+                    // Failed to load — NOT an empty album. Saying "Album is empty"
+                    // here would invite someone to re-add photos that are already in it.
+                    rightPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                        "Could not load this album's photos.",
+                        PlanscapeServerClient.Instance.LastError));
+                    return;
+                }
+                if (detail.Photos == null || detail.Photos.Count == 0)
                 {
                     rightPanel.Children.Add(new TextBlock
                     {
@@ -353,6 +372,49 @@ namespace StingTools.UI
     /// PromptForString modal without re-implementing it.</summary>
     internal static class SitePhotosTabHelpers
     {
+        /// <summary>
+        /// Render a load FAILURE — visibly different from an empty result.
+        ///
+        /// The site-photo client returns <c>null</c> from a list call when the
+        /// request failed and an empty list only when the project genuinely has
+        /// nothing. Before this existed the sub-tabs collapsed both into the
+        /// friendly "No albums yet" empty-state, so an unreachable server rendered
+        /// as a confident, wrong, empty answer. Anything that could not be loaded
+        /// says so, in red, with the server's own reason.
+        /// </summary>
+        public static UIElement BuildLoadFailure(string headline, string? detail)
+        {
+            var sp = new StackPanel { Margin = new Thickness(6) };
+            sp.Children.Add(new TextBlock
+            {
+                Text = "⚠ " + headline,
+                Foreground = Brushes.Crimson,
+                FontWeight = FontWeights.SemiBold,
+                TextWrapping = TextWrapping.Wrap
+            });
+            if (!string.IsNullOrWhiteSpace(detail))
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = detail,
+                    Foreground = Brushes.Crimson,
+                    Opacity = 0.85,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+            }
+            sp.Children.Add(new TextBlock
+            {
+                // Say plainly that the pane is not authoritative right now.
+                Text = "This is not an empty result — the list could not be retrieved.",
+                FontStyle = FontStyles.Italic,
+                Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            return sp;
+        }
+
         public static string? PromptForString(Window owner, string title, string prompt, string initialValue)
         {
             var dlg = new Window

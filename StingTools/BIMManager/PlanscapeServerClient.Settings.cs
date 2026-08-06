@@ -101,8 +101,20 @@ public sealed partial class PlanscapeServerClient
 
     /// <summary>
     /// Persist the default server URL to the machine settings file so it sticks
-    /// across documents and Revit restarts. Called after a successful connect so
-    /// the user only types the cloud URL once. No-ops on a blank/whitespace URL.
+    /// across documents and Revit restarts. No-ops on a blank/whitespace URL.
+    ///
+    /// <para><b>Call this only for a DELIBERATE user choice</b> — in practice, only
+    /// through <see cref="PlanscapeServerTargets.SetActiveTarget"/>, which the server
+    /// picker calls after the user confirms a switch. It used to be called after every
+    /// successful connect, which meant connecting to a local stack once silently
+    /// repointed the machine (#563). This file holds the production pointer and is the
+    /// fallback the launcher script relies on; writing it as a side effect of anything
+    /// is how a user ends up on a dev database without having chosen to be.</para>
+    ///
+    /// <para>Refreshes <c>_cachedDefaultUrl</c> so a subsequent resolve in THIS process
+    /// sees the new value — but note that objects already built against the old base
+    /// (<c>PlanscapeServerClient.Instance</c>, its SignalR hub, the live session) are not
+    /// rebuilt. Switching genuinely requires a Revit restart, and callers must say so.</para>
     /// </summary>
     public static void SaveDefaultServerUrl(string? serverUrl)
     {
