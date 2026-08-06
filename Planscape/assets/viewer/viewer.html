@@ -1202,6 +1202,13 @@ THREE.ColorManagement.enabled = false;
       radius = Math.max(controls.target.distanceTo(camera.position), 1);
       dist = radius;
     }
+    // ZOOMCLAMP — cap how far the eye may retreat, at 20× the model diagonal (= 40×
+    // radius). Past that the model is a speck anyway, and it is the range where the
+    // "blinks out while centred" report lives, so the clamp puts a floor under it
+    // whatever the underlying mechanism. ACC / Navisworks bound zoom-out the same
+    // way. OrbitControls enforces this through _clampDistance, including on the
+    // zoomToCursor path. No clamp until a model is loaded (bounds empty).
+    controls.maxDistance = box ? radius * 40 : Infinity;
     // Far must clear the BACK of the model from wherever the eye now is, with slack
     // for pins, section box and the sky/ground helpers.
     const far = Math.max(dist + radius * 3, radius * 8, 1);
