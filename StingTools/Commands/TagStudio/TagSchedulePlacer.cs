@@ -6,22 +6,31 @@
 // sheet is not a deliverable — it is a table nobody sees. With ~204 spec
 // entries carrying sheet_columns, hand-dragging is not a workable answer.
 //
-// SIZING
-// ------
-// Packing needs each table's size on paper. Two earlier attempts measured a
-// placed ScheduleSheetInstance's bounding box — inside the creating
-// transaction, then after committing it. Neither is reliable, and packing
-// against an unreliable size is what piled the tables on top of each other.
+// WHY THIS IS SHAPED THE WAY IT IS
+// --------------------------------
+// Packing several schedules onto one sheet needs each table's size on paper.
+// Three sources were tried and none proved dependable:
 //
-// The dependable source is the schedule's own table data: TableSectionData
-// reports GetColumnWidth and GetRowHeight in sheet space (feet) directly,
-// with nothing placed and no transaction needed. Width is the widest
-// section's summed column widths; height is every section's summed row
-// heights. That is what this uses.
+//   1. ScheduleSheetInstance.get_BoundingBox inside the creating transaction
+//      — returns nothing usable; Regenerate does not help.
+//   2. The same bounding box measured on a scratch sheet after committing.
+//   3. TableSectionData.GetColumnWidth / GetRowHeight — reported ~0 for these
+//      schedules, so packing ran on zero heights.
 //
-// A schedule whose table data cannot be read is placed on a sheet of its own
-// rather than packed on a guess — an isolated sheet is easy to spot and fix,
-// a silent overlap is not.
+// Each attempt packed against a size that was really unknown, and each one
+// piled the tables on top of each other.
+//
+// So correctness no longer depends on knowing the size:
+//
+//   PASS 1  every schedule goes on its OWN sheet, top-left. This cannot
+//           overlap, whatever the API reports. Commit.
+//   PASS 2  measure the now-placed, committed instances.
+//   PASS 3  ONLY if those measurements look sane, delete the one-per-sheet
+//           layout and re-place packed. If they do not, the one-per-sheet
+//           result stands.
+//
+// The worst case is therefore more sheets than strictly necessary — never
+// schedules on top of each other. The result says which layout you got.
 // ============================================================================
 
 using System;
@@ -40,11 +49,13 @@ namespace StingTools.Commands.TagStudio
         public int SheetsCreated;
         public int Oversized;
         public int Failed;
-        /// <summary>Schedules whose table data could not be read, so given their own sheet.</summary>
-        public int Unsized;
+        /// <summary>True when pass 3 ran and schedules share sheets.</summary>
+        public bool Compacted;
+        /// <summary>How many instances returned a usable measurement in pass 2.</summary>
+        public int Measurable;
         public readonly List<string> Warnings = new List<string>();
         public readonly List<ElementId> SheetIds = new List<ElementId>();
-        /// <summary>Smallest and largest measured height, in mm — a sanity read-out for the report.</summary>
+        /// <summary>Measured height range in mm — 0–0 means measurement failed.</summary>
         public double MinHeightMm, MaxHeightMm;
     }
 
@@ -53,27 +64,37 @@ namespace StingTools.Commands.TagStudio
         private const string SheetNamePrefix = "STING Tag Schedules";
         private const double GapMm = 10.0;
 
-        /// <summary>Paper-space size of one schedule, in feet.</summary>
+        /// <summary>Fraction of schedules that must measure sanely before packing is trusted.</summary>
+        private const double CompactionThreshold = 0.9;
+
         private sealed class Sized
         {
             public ViewSchedule Schedule;
             public double Width;
             public double Height;
-            /// <summary>True when the table data was unreadable — gets its own sheet.</summary>
-            public bool Unknown;
+            /// <summary>bbox.Min.X - Point.X, so left edges line up exactly.</summary>
+            public double AnchorDx;
+            /// <summary>bbox.Max.Y - Point.Y, so top edges line up exactly.</summary>
+            public double AnchorDy;
+            public bool Usable => Width > 0 && Height > 0;
         }
 
         private static double MmToFt(double mm) => UnitUtils.ConvertToInternalUnits(mm, UnitTypeId.Millimeters);
         private static double FtToMm(double ft) => UnitUtils.ConvertFromInternalUnits(ft, UnitTypeId.Millimeters);
 
         /// <summary>
-        /// Place the given schedules onto new sheets. Opens its own transaction,
+        /// Place the given schedules onto new sheets. Opens its own transactions,
         /// so the caller must NOT have one open.
         /// </summary>
         internal static TagSchedulePlacementResult Place(Document doc, IList<ViewSchedule> schedules)
         {
             var result = new TagSchedulePlacementResult();
             if (doc == null || schedules == null || schedules.Count == 0) return result;
+
+            var list = schedules.Where(s => s != null)
+                                .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+            if (list.Count == 0) return result;
 
             ElementId titleBlockId = ResolveTitleBlock(doc);
             if (titleBlockId == ElementId.InvalidElementId)
@@ -83,91 +104,154 @@ namespace StingTools.Commands.TagStudio
                 return result;
             }
 
-            var sized = schedules.Where(s => s != null).Select(s => MeasureFromTableData(s, result)).ToList();
-            if (sized.Count == 0) return result;
+            // ── PASS 1 — one per sheet. Cannot overlap. ──
+            var instances = PlaceOnePerSheet(doc, list, titleBlockId, result);
+            if (instances.Count == 0) return result;
 
-            var real = sized.Where(s => !s.Unknown).ToList();
-            result.MinHeightMm = real.Count > 0 ? FtToMm(real.Min(s => s.Height)) : 0;
-            result.MaxHeightMm = real.Count > 0 ? FtToMm(real.Max(s => s.Height)) : 0;
-            result.Unsized = sized.Count - real.Count;
+            // ── PASS 2 — measure what is now placed and committed ──
+            var sized = MeasurePlaced(doc, instances, result);
+            var usable = sized.Where(s => s.Usable).ToList();
+            result.Measurable = usable.Count;
+            result.MinHeightMm = usable.Count > 0 ? FtToMm(usable.Min(s => s.Height)) : 0;
+            result.MaxHeightMm = usable.Count > 0 ? FtToMm(usable.Max(s => s.Height)) : 0;
 
-            StingLog.Info($"TagSchedulePlacer: sizing {sized.Count} schedule(s) — " +
-                          $"heights {result.MinHeightMm:F0}..{result.MaxHeightMm:F0} mm, unsized={result.Unsized}");
+            StingLog.Info($"TagSchedulePlacer: measured {usable.Count}/{sized.Count} — " +
+                          $"heights {result.MinHeightMm:F0}..{result.MaxHeightMm:F0} mm");
 
-            Arrange(doc, sized, titleBlockId, result);
+            // ── PASS 3 — pack, but only on trustworthy measurements ──
+            bool trustworthy = sized.Count > 0
+                            && usable.Count >= (int)Math.Ceiling(sized.Count * CompactionThreshold)
+                            && result.MaxHeightMm > 1.0;
 
-            StingLog.Info($"TagSchedulePlacer: placed={result.Placed}, sheets={result.SheetsCreated}, " +
-                          $"oversized={result.Oversized}, unsized={result.Unsized}, failed={result.Failed}");
+            if (!trustworthy)
+            {
+                result.Warnings.Add(
+                    $"Revit reported a usable size for only {usable.Count} of {sized.Count} schedules, " +
+                    "so they were left one per sheet rather than packed — packing on unknown sizes is what " +
+                    "makes them overlap.");
+                StingLog.Warn("TagSchedulePlacer: measurements untrustworthy; keeping one-per-sheet layout.");
+                return result;
+            }
+
+            Compact(doc, sized, titleBlockId, result);
             return result;
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Sizing — straight from the schedule's table data
+        //  Pass 1 — one schedule per sheet
         // ──────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Width and height on paper, in feet, summed from the schedule's own
-        /// column widths and row heights. No placement, no transaction.
-        /// </summary>
-        private static Sized MeasureFromTableData(ViewSchedule sched, TagSchedulePlacementResult result)
+        private static List<(ScheduleSheetInstance Ssi, ViewSheet Sheet, ViewSchedule Sched)> PlaceOnePerSheet(
+            Document doc, List<ViewSchedule> list, ElementId titleBlockId, TagSchedulePlacementResult result)
         {
-            double width = 0, height = 0;
-            bool readAnything = false;
-
-            // Header carries the title and column-heading rows; Body the data.
-            // Both contribute height; width is the widest of them.
-            foreach (SectionType st in new[] { SectionType.Header, SectionType.Body, SectionType.Summary, SectionType.Footer })
-            {
-                TableSectionData sd;
-                try { sd = sched.GetTableData()?.GetSectionData(st); }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"TagSchedulePlacer: section {st} of '{sched.Name}' — {ex.Message}");
-                    continue;
-                }
-                if (sd == null) continue;
-
-                try
-                {
-                    double sectionWidth = 0;
-                    for (int c = 0; c < sd.NumberOfColumns; c++) sectionWidth += sd.GetColumnWidth(c);
-                    for (int r = 0; r < sd.NumberOfRows; r++) height += sd.GetRowHeight(r);
-                    width = Math.Max(width, sectionWidth);
-                    readAnything = true;
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"TagSchedulePlacer: sizing section {st} of '{sched.Name}' — {ex.Message}");
-                }
-            }
-
-            if (!readAnything || width <= 0 || height <= 0)
-            {
-                StingLog.Warn($"TagSchedulePlacer: '{sched.Name}' has no readable table size — giving it its own sheet.");
-                result.Warnings.Add($"'{sched.Name}' could not be sized; placed on a sheet of its own.");
-                return new Sized { Schedule = sched, Width = 0, Height = 0, Unknown = true };
-            }
-
-            return new Sized { Schedule = sched, Width = width, Height = height };
-        }
-
-        // ──────────────────────────────────────────────────────────────────
-        //  Arrange onto sheets
-        // ──────────────────────────────────────────────────────────────────
-
-        private static void Arrange(Document doc, List<Sized> sized,
-            ElementId titleBlockId, TagSchedulePlacementResult result)
-        {
-            double gap = MmToFt(GapMm);
+            var placed = new List<(ScheduleSheetInstance, ViewSheet, ViewSchedule)>();
 
             using (var tx = new Transaction(doc, "STING Place Tag Schedules On Sheets"))
             {
                 tx.Start();
                 try
                 {
+                    foreach (var sched in list)
+                    {
+                        var sheet = CreateSheet(doc, titleBlockId, result);
+                        if (sheet == null) { result.Failed++; continue; }
+
+                        var zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
+                        XYZ pt = zone != null ? new XYZ(zone.Min.X, zone.Max.Y, 0) : XYZ.Zero;
+
+                        try
+                        {
+                            var ssi = ScheduleSheetInstance.Create(doc, sheet.Id, sched.Id, pt);
+                            if (ssi == null) { result.Failed++; continue; }
+                            placed.Add((ssi, sheet, sched));
+                            result.SheetIds.Add(sheet.Id);
+                            result.Placed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"TagSchedulePlacer: place '{sched.Name}' — {ex.Message}");
+                            result.Warnings.Add($"Could not place '{sched.Name}': {ex.Message}");
+                            result.Failed++;
+                        }
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSchedulePlacer: pass 1 failed — {ex.Message}");
+                    result.Warnings.Add($"Placing schedules failed: {ex.Message}");
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    placed.Clear();
+                }
+            }
+
+            return placed;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        //  Pass 2 — measure the committed instances
+        // ──────────────────────────────────────────────────────────────────
+
+        private static List<Sized> MeasurePlaced(Document doc,
+            List<(ScheduleSheetInstance Ssi, ViewSheet Sheet, ViewSchedule Sched)> instances,
+            TagSchedulePlacementResult result)
+        {
+            var sized = new List<Sized>();
+
+            foreach (var (ssi, sheet, sched) in instances)
+            {
+                var s = new Sized { Schedule = sched };
+                try
+                {
+                    var bb = ssi.get_BoundingBox(sheet);
+                    if (bb != null)
+                    {
+                        s.Width  = Math.Abs(bb.Max.X - bb.Min.X);
+                        s.Height = Math.Abs(bb.Max.Y - bb.Min.Y);
+                        s.AnchorDx = bb.Min.X - ssi.Point.X;
+                        s.AnchorDy = bb.Max.Y - ssi.Point.Y;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSchedulePlacer: measuring '{sched.Name}' — {ex.Message}");
+                }
+                sized.Add(s);
+            }
+
+            return sized;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        //  Pass 3 — re-place packed, replacing the one-per-sheet layout
+        // ──────────────────────────────────────────────────────────────────
+
+        private static void Compact(Document doc, List<Sized> sized,
+            ElementId titleBlockId, TagSchedulePlacementResult result)
+        {
+            double gap = MmToFt(GapMm);
+            var oldSheetIds = new List<ElementId>(result.SheetIds);
+
+            using (var tx = new Transaction(doc, "STING Pack Tag Schedules"))
+            {
+                tx.Start();
+                try
+                {
+                    // Drop the one-per-sheet layout; deleting a sheet takes its
+                    // schedule instances with it.
+                    foreach (var id in oldSheetIds)
+                    {
+                        try { doc.Delete(id); }
+                        catch (Exception ex) { StingLog.Warn($"TagSchedulePlacer: delete sheet — {ex.Message}"); }
+                    }
+                    result.SheetIds.Clear();
+                    result.SheetsCreated = 0;
+                    result.Placed = 0;
+
                     ViewSheet sheet = null;
                     DrawableZone zone = null;
                     double colLeft = 0, cursorTop = 0, colWidth = 0;
+                    bool sheetIsFresh = true;
 
                     bool NewSheet()
                     {
@@ -182,45 +266,38 @@ namespace StingTools.Commands.TagStudio
                         colLeft = zone.Min.X;
                         cursorTop = zone.Max.Y;
                         colWidth = 0;
+                        sheetIsFresh = true;
                         result.SheetIds.Add(sheet.Id);
                         return true;
                     }
 
                     if (!NewSheet()) { tx.RollBack(); return; }
 
-                    // Tallest first packs columns far more tightly than name order
-                    // and keeps a column's left edge stable once it is set.
-                    // Unsized ones go last so they do not disturb the packed run.
-                    var order = sized.Where(s => !s.Unknown)
+                    // Tallest first packs columns tightly and keeps a column's
+                    // left edge stable once set. Anything that failed to measure
+                    // goes last, on a sheet of its own.
+                    var order = sized.Where(s => s.Usable)
                                      .OrderByDescending(s => s.Height)
                                      .ThenBy(s => s.Schedule.Name, StringComparer.OrdinalIgnoreCase)
-                                     .Concat(sized.Where(s => s.Unknown)
+                                     .Concat(sized.Where(s => !s.Usable)
                                                   .OrderBy(s => s.Schedule.Name, StringComparer.OrdinalIgnoreCase))
                                      .ToList();
 
-                    bool sheetIsFresh = true;   // nothing placed on the current sheet yet
-
                     foreach (var s in order)
                     {
-                        if (s.Unknown)
+                        if (!s.Usable)
                         {
-                            // Unknown size: give it a sheet to itself rather than
-                            // pack it against a guess and risk landing on a neighbour.
                             if (!sheetIsFresh && !NewSheet()) { result.Failed++; break; }
                             if (PlaceOne(doc, sheet, s.Schedule, new XYZ(zone.Min.X, zone.Max.Y, 0), result))
                                 result.Placed++;
                             if (!NewSheet()) { result.Failed++; break; }
-                            sheetIsFresh = true;
                             continue;
                         }
 
-                        bool fitsInColumn = (cursorTop - s.Height) >= zone.Min.Y - 1e-9;
-                        if (!fitsInColumn)
+                        if ((cursorTop - s.Height) < zone.Min.Y - 1e-9)
                         {
                             double nextLeft = colLeft + colWidth + gap;
-                            bool fitsNextColumn = (nextLeft + s.Width) <= zone.Max.X + 1e-9
-                                                  && s.Height <= zone.Height + 1e-9;
-                            if (fitsNextColumn)
+                            if ((nextLeft + s.Width) <= zone.Max.X + 1e-9 && s.Height <= zone.Height + 1e-9)
                             {
                                 colLeft = nextLeft;
                                 cursorTop = zone.Max.Y;
@@ -228,23 +305,16 @@ namespace StingTools.Commands.TagStudio
                             }
                             else if (sheetIsFresh)
                             {
-                                // Does not fit even on an empty sheet — place it
-                                // anyway and flag it rather than drop it.
+                                // Bigger than any sheet we can make: place it and
+                                // flag it rather than drop it.
                                 result.Oversized++;
                                 result.Warnings.Add($"'{s.Schedule.Name}' is larger than the sheet and overruns its border.");
                             }
-                            else
-                            {
-                                if (!NewSheet()) { result.Failed++; break; }
-                                sheetIsFresh = true;
-                            }
+                            else if (!NewSheet()) { result.Failed++; break; }
                         }
 
-                        if (!PlaceOne(doc, sheet, s.Schedule, new XYZ(colLeft, cursorTop, 0), result))
-                        {
-                            result.Failed++;
-                            continue;
-                        }
+                        var pt = new XYZ(colLeft - s.AnchorDx, cursorTop - s.AnchorDy, 0);
+                        if (!PlaceOne(doc, sheet, s.Schedule, pt, result)) { result.Failed++; continue; }
 
                         result.Placed++;
                         sheetIsFresh = false;
@@ -253,15 +323,25 @@ namespace StingTools.Commands.TagStudio
                     }
 
                     tx.Commit();
+                    result.Compacted = true;
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"TagSchedulePlacer: arrange failed — {ex.Message}");
-                    result.Warnings.Add($"Placing schedules failed: {ex.Message}");
+                    // Rolling back restores the one-per-sheet layout, which is
+                    // correct if verbose — far better than a half-packed pile.
+                    StingLog.Warn($"TagSchedulePlacer: packing failed, keeping one-per-sheet — {ex.Message}");
+                    result.Warnings.Add($"Packing failed; schedules left one per sheet: {ex.Message}");
                     if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    result.SheetIds.Clear();
+                    result.SheetIds.AddRange(oldSheetIds);
+                    result.SheetsCreated = oldSheetIds.Count;
+                    result.Placed = oldSheetIds.Count;
+                    result.Compacted = false;
                 }
             }
         }
+
+        // ──────────────────────────────────────────────────────────────────
 
         private static bool PlaceOne(Document doc, ViewSheet sheet, ViewSchedule sched,
             XYZ point, TagSchedulePlacementResult result)
@@ -277,8 +357,6 @@ namespace StingTools.Commands.TagStudio
                 return false;
             }
         }
-
-        // ──────────────────────────────────────────────────────────────────
 
         private static ViewSheet CreateSheet(Document doc, ElementId titleBlockId, TagSchedulePlacementResult result)
         {

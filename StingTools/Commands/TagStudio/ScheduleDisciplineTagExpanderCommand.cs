@@ -269,10 +269,9 @@ namespace StingTools.Commands.TagStudio
                 (placement != null
                     ? $"\nPlaced on sheets:        {placement.Placed}\n" +
                       $"Sheets created:          {placement.SheetsCreated}\n" +
-                      // Sizing read-out: if these heights are 0 or all identical,
-                      // the packing is running blind and tables will overlap.
+                      $"Layout:                  {(placement.Compacted ? "packed (several per sheet)" : "one schedule per sheet")}\n" +
+                      $"Measurable:              {placement.Measurable}\n" +
                       $"Table heights:           {placement.MinHeightMm:F0}–{placement.MaxHeightMm:F0} mm\n" +
-                      (placement.Unsized > 0 ? $"Unsized (own sheet):     {placement.Unsized}\n" : "") +
                       (placement.Oversized > 0 ? $"Overrunning sheet border: {placement.Oversized}\n" : "") +
                       (placement.Failed > 0 ? $"Placement failures:      {placement.Failed}\n" : "") +
                       (placement.Warnings.Count > 0
