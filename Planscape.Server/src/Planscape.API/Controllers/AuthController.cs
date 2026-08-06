@@ -935,8 +935,22 @@ public class AuthController : ControllerBase
 
     // ── Reset Password (confirm reset) ────────────────────────────────────────
 
-    /// <summary>Reset password using a token from the forgot-password email.</summary>
-    /// <response code="200">Password reset — user can log in with new password.</response>
+    /// <summary>
+    /// Reset password using a token from the forgot-password / invite email.
+    ///
+    /// Returns a SESSION as well as a confirmation. The caller has just proved
+    /// possession of a single-use, short-lived token delivered to the address on
+    /// the account — the same proof <c>/login</c> would demand a password for —
+    /// so issuing a session here grants no capability the caller didn't already
+    /// have (they could simply log in with the password they just chose). What
+    /// it does buy is the invite flow working at all: the accept-invite page is
+    /// served by the API but the product lives on a DIFFERENT origin, so it has
+    /// no way to hand the invitee a signed-in browser without this.
+    ///
+    /// <c>webAppUrl</c> tells that page where the product actually is, instead
+    /// of it guessing from its own hostname (see <see cref="WebAppUrl"/>).
+    /// </summary>
+    /// <response code="200">Password reset — response carries a live session.</response>
     /// <response code="400">Invalid/expired token or password too short.</response>
     [EnableRateLimiting("auth")]
     [HttpPost("reset-password")]
@@ -952,6 +966,7 @@ public class AuthController : ControllerBase
         // ACTIVATES them (below), so the invite link is a complete onboarding step.
         // IgnoreQueryFilters: anonymous endpoint, so bypass the tenant filter.
         var user = await _db.Users.IgnoreQueryFilters()
+            .Include(u => u.Tenant)   // Tier, for the session payload below
             .FirstOrDefaultAsync(u => u.RefreshToken == hashed
                 && u.RefreshTokenExpiresAt > DateTime.UtcNow);
 
@@ -970,9 +985,54 @@ public class AuthController : ControllerBase
         // S6 / S5 — bump the iat-floor so any access token issued before
         // the reset (including ones the attacker may have minted while
         // they had the password) is rejected immediately.
+        //
+        // ORDER MATTERS: the floor is "now" in whole seconds and the policy
+        // handler rejects on `iat < floor`, so the session below — minted after
+        // this call — survives it. Minting first would race the floor.
         await _revocations.RevokeAllPriorTokensAsync(user.Id);
 
-        return Ok(new { message = "Password has been reset. Please log in." });
+        // Issue a live session so the accept-invite page can land the recipient
+        // IN the product instead of at a second sign-in they have no context
+        // for. Mirrors the tail of Login: JWT + hashed refresh token + activity
+        // key. The RESET: marker occupied RefreshToken and was cleared above, so
+        // this column is free to hold the real refresh-token hash now.
+        var accessToken = GenerateJwt(user);
+        var refreshToken = Guid.NewGuid().ToString("N");
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // SEC-EA-08 — seed the sliding-inactivity clock, as Login does. Best
+        // effort: a Redis outage must not fail a password reset that has
+        // already been committed.
+        try
+        {
+            await _redis.GetDatabase().StringSetAsync(
+                RefreshActivityKey(refreshToken),
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                TimeSpan.FromDays(7));
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex,
+                "Redis unavailable while seeding refresh-token activity key after password reset; "
+              + "SEC-EA-08 inactivity expiry degraded for this session.");
+        }
+
+        return Ok(new
+        {
+            message      = "Password has been set.",
+            accessToken,
+            refreshToken,
+            expiresAt    = DateTime.UtcNow.Add(AccessTokenLifetime),
+            userName     = user.DisplayName,
+            role         = user.Role.ToString(),
+            tier         = user.Tenant?.Tier.ToString() ?? "Starter",
+            // Where the browser app lives. Null when the server can't determine
+            // it — the page then shows a result instead of navigating nowhere.
+            webAppUrl    = Planscape.API.WebAppUrl.Resolve(_config, Request)
+        });
     }
 
     // ── Cloud handoff (planscape.build → this API) ──────────────────────────

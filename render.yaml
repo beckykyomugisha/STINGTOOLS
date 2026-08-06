@@ -343,6 +343,14 @@ envVarGroups:
       - key: Cors__Origins__1
         value: https://app.planscape.build
 
+      # ── Where the BROWSER app lives ──
+      # Read by WebAppUrl.Resolve. The accept-invite page (served by this API)
+      # must send a freshly-activated invitee to the product, which is a
+      # different origin — without this it can only infer the pairing from the
+      # API hostname, and infers nothing at all behind a tunnel or custom host.
+      - key: Planscape__WebAppUrl
+        value: https://app.planscape.build
+
       # ── Serilog ──
       - key: Serilog__MinimumLevel__Default
         value: Warning
