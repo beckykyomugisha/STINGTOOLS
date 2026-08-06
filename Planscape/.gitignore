@@ -6,3 +6,6 @@ web-build/
 .DS_Store
 ios/Pods/
 android/.gradle/
+
+# #625 — transpiler output for scripts/verify-issue-create-messages.cjs
+.verify-out/
