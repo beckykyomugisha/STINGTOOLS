@@ -1,0 +1,22 @@
+# Button-wiring baseline -- dock-panel button Tags accepted as dispatching to nothing.
+#
+# Read the Tier 4 section of tools/check_workflow_wiring.ps1 before editing this file.
+#
+# THIS FILE IS DELIBERATELY EMPTY. As measured on 2026-08-06, all 1,323 <Button>
+# elements carrying Click="Cmd_Click" in StingDockPanel.xaml reach a real command
+# through one of the three dispatch layers, so there is nothing to baseline:
+#
+#   L1  CommandRegistry  (StingTools/UI/Modules/*CommandModule.cs)   661 names
+#   L2  Cmd_Click suite runners (StingDockPanel.xaml.cs)              38 names
+#   L3  case labels across the six command handlers                2,276 names
+#
+# 26 button tags have no L3 `case`, which is what a switch-only audit reports as
+# "silent". All 26 are reachable: 23 via L2 runners, 3 via L1 registry
+# (Folder_CloudSync, HC_HbnAutoPopulate, Tags_MigrateStyleCode). See
+# SILENT_BUTTONS_TODO.md, which records the same correction being needed once
+# before -- the earlier "141 silent buttons" figure was ~96% false-positive for
+# exactly this reason.
+#
+# Adding an entry here means review has agreed a button should stay dead. That is
+# almost never the right answer: wire it, or delete the button. This list may
+# SHRINK, never grow.

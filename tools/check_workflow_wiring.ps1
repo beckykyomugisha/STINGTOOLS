@@ -1,11 +1,17 @@
 <#
 .SYNOPSIS
-    Workflow-wiring gate -- every workflow step must name a command the engine can resolve.
+    Wiring gate -- data that names a command must name one that exists.
+    Tiers 1-3 cover workflow presets; Tier 4 covers dock-panel buttons.
 
 .DESCRIPTION
-    A workflow preset is data. Newtonsoft binds what it recognises and silently leaves the
-    rest at its default, so a mis-keyed or mis-named step does not fail loudly -- it does
-    nothing, and the run still reports success. This gate closes both ways that happened.
+    A workflow preset is data, and so is a XAML button's Tag. Both name a command by
+    string. Nothing checks that the string resolves, so a mis-keyed or mis-named entry
+    does not fail loudly -- it does nothing. This gate closes every way that happened.
+
+    Tier 4 lives here rather than in a sibling script because it is the same failure
+    class and needs the same parsing: both tiers read `case "..."` labels out of C#
+    source to learn which command names exist. Splitting them would duplicate that
+    logic and add a second CI step for one idea.
 
     TIER 1 -- STEPS KEYED "tag" INSTEAD OF "commandTag" (hard zero, no baseline).
       WorkflowStep binds [JsonProperty("commandTag")]. A step written {"tag": "..."} therefore
@@ -25,6 +31,29 @@
       label saying what is missing, and each is tracked in docs/ROADMAP.md. The baseline may
       shrink, never grow -- adding to it requires deciding, in review, that a tag genuinely
       has no command behind it.
+
+    TIER 4 -- DOCK-PANEL BUTTONS THAT DISPATCH TO NOTHING (hard zero + explicit baseline).
+      A <Button Tag="X" Click="Cmd_Click"> in StingDockPanel.xaml sends X to the dispatcher.
+      If nothing handles X the click is a no-op, with no error and no log line.
+
+      DISPATCH HAS THREE LAYERS and a check that knows about only one over-reports badly:
+        L1  CommandRegistry -- StingTools/UI/Modules/*CommandModule.cs `registry.Register("X", ...)`,
+            consulted FIRST by StingCommandHandler (`CommandRegistry.Instance.TryHandle`).
+        L2  Code-behind suite runners -- StingDockPanel.xaml.cs Cmd_Click intercepts certain
+            tags (`cmdTag == "X"`) and dispatches concrete tags itself, returning before the
+            ExternalEvent path.
+        L3  The `case "X":` switches in the six command handlers.
+      Measured 2026-08-06: 26 button tags have no L3 case, and ALL 26 are reachable --
+      23 via L2 runners, 3 via L1 registry. ZERO dock-panel buttons are dead. A one-layer
+      check would report all 26 as broken; SILENT_BUTTONS_TODO.md records the same
+      correction being needed once before (the "141 silent buttons" figure was ~96%
+      false-positive for exactly this reason).
+
+      SCOPE: only <Button> elements carrying Click="Cmd_Click". A naive scan of every
+      Tag="..." in the XAML over-reports by ~177, because Tag also carries filter values,
+      numerics and picker options on ComboBoxItem / TabItem controls that never dispatch.
+
+      tools/button_wiring_baseline.txt is EMPTY and should stay that way.
 
     WHY THIS PARSES C# SOURCE TEXT
       The natural implementation -- reflect over ResolveCommand -- is not available. The test
@@ -117,6 +146,76 @@ foreach ($f in $files) {
     }
 }
 
+# ── Tier 4: dock-panel buttons. See .DESCRIPTION for why all three dispatch layers
+#    must be consulted and why the scan is restricted to Cmd_Click <Button> elements.
+$tierFour   = @()
+$btnBaseFile = Join-Path $scriptDir 'button_wiring_baseline.txt'
+$btnBaseline = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+if (Test-Path $btnBaseFile) {
+    foreach ($line in Get-Content $btnBaseFile) {
+        $t = $line.Trim()
+        if ($t.Length -eq 0 -or $t.StartsWith('#')) { continue }
+        [void]$btnBaseline.Add(($t -split '\s')[0])
+    }
+}
+
+$xamlPath = Join-Path $RepoRoot 'StingTools/UI/StingDockPanel.xaml'
+$cbPath   = Join-Path $RepoRoot 'StingTools/UI/StingDockPanel.xaml.cs'
+$btnTags  = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+$dispatch = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+$btnUsedBase = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+
+if ((Test-Path $xamlPath) -and (Test-Path $cbPath)) {
+    $xaml = Get-Content -Raw -Path $xamlPath
+    foreach ($m in [regex]::Matches($xaml, '(?s)<Button\b[^>]*?>')) {
+        $el = $m.Value
+        if ($el -notmatch 'Cmd_Click') { continue }
+        $t = [regex]::Match($el, 'Tag="([^"]+)"')
+        if ($t.Success) { [void]$btnTags.Add($t.Groups[1].Value) }
+    }
+    # L3 -- switch cases in every command handler
+    foreach ($h in @(
+        'StingTools/UI/StingCommandHandler.cs',
+        'StingTools/UI/StingElectricalCommandHandler.cs',
+        'StingTools/UI/StingHvacCommandHandler.cs',
+        'StingTools/UI/Plumbing/StingPlumbingCommandHandler.cs',
+        'StingTools/UI/StingLpsCommandHandler.cs',
+        'StingTools/UI/Sustainability/StingSustainabilityCommandHandler.cs')) {
+        $hp = Join-Path $RepoRoot $h
+        if (-not (Test-Path $hp)) { continue }
+        foreach ($m in [regex]::Matches((Get-Content -Raw -Path $hp), 'case\s+"([^"]+)"\s*:')) {
+            [void]$dispatch.Add($m.Groups[1].Value)
+        }
+    }
+    # L1 -- CommandRegistry modules
+    $modDir = Join-Path $RepoRoot 'StingTools/UI/Modules'
+    if (Test-Path $modDir) {
+        foreach ($mf in Get-ChildItem -Path $modDir -Filter '*CommandModule.cs' -File) {
+            foreach ($m in [regex]::Matches((Get-Content -Raw -Path $mf.FullName), 'registry\.Register\(\s*"([^"]+)"')) {
+                [void]$dispatch.Add($m.Groups[1].Value)
+            }
+        }
+    }
+    # L2 -- code-behind suite runners intercepted in Cmd_Click
+    $cb = Get-Content -Raw -Path $cbPath
+    $ci = $cb.IndexOf('private void Cmd_Click')
+    if ($ci -ge 0) {
+        $cj = $cb.IndexOf("`n        private ", $ci + 10)
+        if ($cj -lt 0) { $cj = $cb.Length }
+        foreach ($m in [regex]::Matches($cb.Substring($ci, $cj - $ci), 'cmdTag\s*==\s*"([^"]+)"')) {
+            [void]$dispatch.Add($m.Groups[1].Value)
+        }
+    }
+    foreach ($t in $btnTags) {
+        if ($dispatch.Contains($t)) { continue }
+        if ($btnBaseline.Contains($t)) { [void]$btnUsedBase.Add($t); continue }
+        $tierFour += "StingDockPanel.xaml button Tag=""$t"" reaches no registry entry, no Cmd_Click runner and no handler case"
+    }
+} else {
+    Write-Host "Workflow-wiring FAILED -- StingDockPanel.xaml/.xaml.cs not found; Tier 4 cannot run." -ForegroundColor Red
+    exit 1
+}
+
 $failed = $false
 
 if ($tierOne.Count -gt 0) {
@@ -141,6 +240,18 @@ if ($tierTwo.Count -gt 0) {
     Write-Host 'label, add the tag to tools/workflow_wiring_baseline.txt and log it in docs/ROADMAP.md.'
 }
 
+if ($tierFour.Count -gt 0) {
+    $failed = $true
+    Write-Host ""
+    Write-Host "Workflow-wiring FAILED -- Tier 4: $($tierFour.Count) dock-panel button(s) dispatch to nothing:" -ForegroundColor Red
+    $tierFour | Sort-Object | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host ""
+    Write-Host 'Wire the tag in one of the three dispatch layers -- a CommandRegistry module'
+    Write-Host '(StingTools/UI/Modules/*CommandModule.cs), a Cmd_Click suite runner, or a case in'
+    Write-Host 'a command handler -- or remove the button. Do NOT add it to'
+    Write-Host 'tools/button_wiring_baseline.txt unless review agrees the button should stay dead.'
+}
+
 if ($failed) { exit 1 }
 
 $stale = @($baseline | Where-Object { -not $usedBase.Contains($_) })
@@ -151,6 +262,12 @@ Write-Host "  ResolveCommand case labels                      : $($resolvable.Co
 Write-Host "  Tier 1 steps keyed ""tag"" (must be 0)            : 0"
 Write-Host "  Tier 2 unresolvable outside the baseline        : 0"
 Write-Host "  Baselined 'no command exists' tags in use       : $($usedBase.Count)"
+Write-Host "  Cmd_Click buttons scanned                       : $($btnTags.Count)"
+Write-Host "  Dispatchable names (registry + runners + cases) : $($dispatch.Count)"
+Write-Host "  Tier 4 buttons dispatching to nothing           : 0"
+if ($btnUsedBase.Count -gt 0) {
+    Write-Host "  Baselined dead buttons in use                   : $($btnUsedBase.Count)"
+}
 if ($stale.Count -gt 0) {
     Write-Host ""
     Write-Host "Note: $($stale.Count) baseline entry/ies are no longer referenced by any preset:"
