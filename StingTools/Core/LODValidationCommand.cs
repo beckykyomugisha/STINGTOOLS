@@ -1,12 +1,30 @@
-// Phase 108m — LOD validation against RIBA stage + category minimum LOD.
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 108m — LOD validation.  Phase 195 — delegated to the one LOD engine.
+//
+// This command used to run a SECOND, competing LOD system: it scored elements
+// with its own parameter-presence heuristic against RIBA-stage minimums in
+// LOD_REQUIREMENTS.json, while Commands/Validation/LodVerifyCommand scored the
+// same elements against deliverable milestones in STING_LOD_MATRIX.json. Two
+// matrices, two scoring rules, two answers to "is this model at LOD 300?".
+//
+// The button ("LOD Check", StingDockPanel.xaml → Tag="LODValidation") is live,
+// so the command stays — but the LOD judgement now comes from
+// LodVerificationEngine, the single source of truth. LOD_REQUIREMENTS.json and
+// the ScoreElementLOD heuristic are gone.
+//
+// What this command still owns that LOD_Verify does not: the STING_LOD_*_VISIBLE
+// switch audit. That is a family-visibility concern (the Automation Presentation
+// Pack writes those three type parameters), not a maturity concern, so it has no
+// place in the matrix and is kept here.
+// ─────────────────────────────────────────────────────────────────────────────
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Newtonsoft.Json.Linq;
+using StingTools.Commands.Validation;
+using StingTools.Core.Validation;
 using StingTools.UI;
 
 namespace StingTools.Core
@@ -23,61 +41,27 @@ namespace StingTools.Core
                 if (ctx?.Doc == null) return Result.Failed;
                 var doc = ctx.Doc;
 
-                string path = Path.Combine(StingToolsApp.DataPath ?? "", "LOD_REQUIREMENTS.json");
-                if (!File.Exists(path))
+                var matrix = LodMatrixRegistry.Get(doc);
+                if (matrix.Milestones == null || matrix.Milestones.Count == 0)
                 {
-                    TaskDialog.Show("LOD Validation", "LOD_REQUIREMENTS.json not found.");
-                    return Result.Failed;
+                    TaskDialog.Show("LOD Check",
+                        "No LOD matrix found.\n\nShip STING_LOD_MATRIX.json in data/ or add a project " +
+                        "overlay at <project>/_BIM_COORD/lod_matrix.json.");
+                    return Result.Succeeded;
                 }
 
-                var root = JObject.Parse(File.ReadAllText(path));
-                string stage = TagConfig.GetConfigValue("BOQ_TENDER_WORK_STAGE")
-                             ?? "RIBA Stage 4 — Technical Design";
-                int targetLod = 300;
-                if (root["stage_to_target_lod"]?[stage] != null)
-                    int.TryParse(root["stage_to_target_lod"][stage].ToString(), out targetLod);
-                var catMinMap = root["category_minimum_lod"] as JObject;
+                var ms = LodScope.PickMilestone(doc, "Check");
+                if (ms == null) return Result.Cancelled;
 
-                int failed = 0, passed = 0, unknown = 0;
-                var perCategoryFail = new Dictionary<string, int>();
-                var failList = new List<string>();
+                var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
+                var r = LodVerificationEngine.Verify(doc, ms.Id, scope);
 
-                // Pack 1 — LOD-switch consumer state (STING_LOD_*_VISIBLE).
-                int switchBearingTypes = 0;
-                int switchMismatchTypes = 0;
-                int switchAllOff = 0;
+                // Type-level pass auditing the LOD visibility switches the Automation
+                // Presentation Pack injects. Reported once per family type because
+                // InjectAutomationPresentationPack writes the three params at type level.
+                int switchBearingTypes = 0, switchMismatchTypes = 0, switchAllOff = 0;
                 var switchIssues = new List<string>();
-
-                // Heuristic LOD scoring per element — parameter-presence based.
-                var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-                foreach (var el in collector)
-                {
-                    var cat = el.Category?.Name ?? "";
-                    if (string.IsNullOrEmpty(cat)) continue;
-                    JObject rule = catMinMap?[cat] as JObject;
-                    if (rule == null) { unknown++; continue; }
-                    int minLod = rule["any"]?.Value<int?>() ?? rule["shell"]?.Value<int?>() ?? rule["structural"]?.Value<int?>() ?? 300;
-                    int effectiveMin = Math.Min(minLod, targetLod);
-
-                    int score = ScoreElementLOD(el);
-                    if (score >= effectiveMin) passed++;
-                    else
-                    {
-                        failed++;
-                        if (!perCategoryFail.ContainsKey(cat)) perCategoryFail[cat] = 0;
-                        perCategoryFail[cat]++;
-                        if (failList.Count < 20)
-                            failList.Add($"• {cat} [{el.Id}] scored LOD {score} vs required {effectiveMin} — {MissingFor(el)}");
-                    }
-                }
-
-                // Pack 1 — separate scan over family types to audit the LOD
-                // visibility switches the Automation Presentation Pack injects.
-                // Done as a type-level pass so we report once per family type
-                // instead of once per instance (InjectAutomationPresentationPack
-                // writes the three params at the type level).
-                var typePass = new FilteredElementCollector(doc).WhereElementIsElementType();
-                foreach (var t in typePass)
+                foreach (var t in new FilteredElementCollector(doc).WhereElementIsElementType())
                 {
                     int? c = ReadLodSwitch(t, "STING_LOD_COARSE_VISIBLE");
                     int? m = ReadLodSwitch(t, "STING_LOD_MEDIUM_VISIBLE");
@@ -85,8 +69,7 @@ namespace StingTools.Core
                     if (c == null && m == null && f == null) continue;
                     switchBearingTypes++;
 
-                    int c0 = c ?? 0, m0 = m ?? 0, f0 = f ?? 0;
-                    if (c0 == 0 && m0 == 0 && f0 == 0)
+                    if ((c ?? 0) == 0 && (m ?? 0) == 0 && (f ?? 0) == 0)
                     {
                         switchAllOff++;
                         if (switchIssues.Count < 10)
@@ -100,83 +83,65 @@ namespace StingTools.Core
                     }
                 }
 
-                var rp = StingResultPanel.Create("LOD Validation")
-                    .SetSubtitle($"Stage: {stage} → target LOD {targetLod}")
+                var rp = StingResultPanel.Create("LOD Check")
+                    .SetSubtitle($"{r.MilestoneName} → LOD {r.Lod}   ({scopeReport.Label})")
                     .AddSection("COVERAGE")
-                    .Metric("Passed",  passed.ToString())
-                    .Metric("Failed",  failed.ToString())
-                    .Metric("Uncategorised", unknown.ToString())
-                    .Metric("Pass rate", $"{(passed + failed > 0 ? 100.0 * passed / (passed + failed) : 0):F1}%");
-                if (perCategoryFail.Count > 0)
+                    .Metric("Passed", r.Passed.ToString())
+                    .Metric("Failed", r.Failed.ToString())
+                    .Metric("Pass rate", $"{r.OverallPct:F1}%");
+
+                rp.AddSection("SCOPE");
+                foreach (var line in scopeReport.DisclosureLines()) rp.Text(line);
+
+                rp.Text("Parameter / naming / geometry-presence maturity proxy — not a geometric");
+                rp.Text("survey. STING does not verify dimensional accuracy.");
+                if (r.ClashCheckRequestedButNotVerifiable)
+                    rp.Text("A rule requested clash verification — not API-verifiable here; run the clash kernel separately.");
+
+                if (r.ByDiscipline.Count > 0)
                 {
-                    rp.AddSection("FAILURES BY CATEGORY");
-                    foreach (var kv in perCategoryFail.OrderByDescending(x => x.Value))
-                        rp.Metric(kv.Key, kv.Value.ToString());
-                }
-                if (failList.Count > 0)
-                {
-                    rp.AddSection("FAILURES (first 20)");
-                    foreach (var f in failList) rp.Text(f);
+                    rp.AddSection("BY DISCIPLINE");
+                    foreach (var kv in r.ByDiscipline.OrderBy(k => k.Key))
+                        rp.Metric(kv.Key, $"{kv.Value.pass}/{kv.Value.total}");
                 }
 
-                // Pack 1 — LOD-switch audit (STING_LOD_*_VISIBLE consumer).
+                var worst = r.ByCategory.Where(kv => kv.Value.pass < kv.Value.total)
+                                        .OrderBy(kv => kv.Value.total > 0 ? (double)kv.Value.pass / kv.Value.total : 1.0)
+                                        .ToList();
+                if (worst.Count > 0)
+                {
+                    rp.AddSection("FAILURES BY CATEGORY (worst first)");
+                    foreach (var kv in worst.Take(15))
+                        rp.Metric(kv.Key, $"{kv.Value.total - kv.Value.pass} of {kv.Value.total}");
+                }
+
+                var fails = r.Elements.Where(e => !e.Pass).Take(20).ToList();
+                if (fails.Count > 0)
+                {
+                    rp.AddSection("FAILURES (first 20)");
+                    foreach (var f in fails)
+                        rp.Text($"• {f.Category} [{f.ElementId}] — {string.Join("; ", f.Reasons)}");
+                }
+
                 if (switchBearingTypes > 0)
                 {
                     rp.AddSection("LOD SWITCHES (STING_LOD_*_VISIBLE)")
-                      .Metric("Types carrying switches",  switchBearingTypes.ToString())
-                      .Metric("All-off (invisible)",      switchAllOff.ToString())
+                      .Metric("Types carrying switches", switchBearingTypes.ToString())
+                      .Metric("All-off (invisible)", switchAllOff.ToString())
                       .Metric("Partial (incomplete set)", switchMismatchTypes.ToString());
                     foreach (var msg in switchIssues) rp.Text(msg);
                 }
+
                 rp.Show();
-                return failed == 0 ? Result.Succeeded : Result.Failed;
+                StingLog.Info($"LODValidation: {r.MilestoneId} {r.Passed}/{r.Total} pass ({scopeReport.Label}), " +
+                              $"{switchBearingTypes} switch-bearing type(s)");
+                return r.Failed == 0 ? Result.Succeeded : Result.Failed;
             }
             catch (Exception ex) { StingLog.Error("LODValidationCommand", ex); message = ex.Message; return Result.Failed; }
         }
 
-        // Simple LOD scoring — presence of parameters drives the band.
-        private static int ScoreElementLOD(Element el)
-        {
-            int s = 100;
-            try
-            {
-                if (!string.IsNullOrEmpty(el.Name)) s = 200;
-                if (el.LevelId != null && el.LevelId != ElementId.InvalidElementId) s = Math.Max(s, 250);
-                try
-                {
-                    var matIds = el.GetMaterialIds(false);
-                    if (matIds != null && matIds.Count > 0) s = Math.Max(s, 300);
-                }
-                catch { /* not all categories have materials */ }
-                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                string loc  = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(loc)) s = Math.Max(s, 350);
-                string mfr  = ParameterHelpers.GetString(el, "Manufacturer");
-                string model = ParameterHelpers.GetString(el, "Model");
-                if (!string.IsNullOrEmpty(mfr) && !string.IsNullOrEmpty(model)) s = Math.Max(s, 400);
-                string serial = ParameterHelpers.GetString(el, "Serial Number");
-                if (!string.IsNullOrEmpty(serial)) s = Math.Max(s, 500);
-            }
-            catch (Exception ex) { StingLog.Warn($"ScoreElementLOD: {ex.Message}"); }
-            return s;
-        }
-
-        private static string MissingFor(Element el)
-        {
-            var missing = new List<string>();
-            try
-            {
-                var matIds = el.GetMaterialIds(false);
-                if (matIds == null || matIds.Count == 0) missing.Add("material");
-            }
-            catch (Exception ex) { StingLog.Warn($"LOD.MissingFor.GetMaterialIds {el?.Id}: {ex.Message}"); }
-            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.DISC))) missing.Add("DISC");
-            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC))) missing.Add("LOC");
-            return missing.Count == 0 ? "(unknown)" : "missing " + string.Join(", ", missing);
-        }
-
         /// <summary>
-        /// Pack 1 — reads one of the STING_LOD_*_VISIBLE YesNo type parameters.
+        /// Reads one of the STING_LOD_*_VISIBLE YesNo type parameters.
         /// Returns null when the parameter is absent (family was never processed
         /// by InjectAutomationPresentationPack), 0/1 otherwise.
         /// </summary>
