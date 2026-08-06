@@ -66,6 +66,14 @@ namespace StingTools.Commands.TagStudio
         private const string SheetNamePrefix = "STING Tag Schedules";
         private const double GapMm = 10.0;
 
+        /// <summary>
+        /// Schedule-name prefix minted by ScheduleDisciplineTagExpanderCommand.
+        /// Cleanup keys off this rather than the sheet name, because schedule
+        /// names are set on creation and known good, whereas sheet renaming is
+        /// best-effort.
+        /// </summary>
+        private const string ExpanderSchedulePrefix = "STING Tag Expander - ";
+
         /// <summary>Fraction of schedules that must measure sanely before packing is trusted.</summary>
         private const double CompactionThreshold = 0.9;
 
@@ -149,22 +157,50 @@ namespace StingTools.Commands.TagStudio
         // ──────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Delete sheets this placer created on an earlier run, identified by
-        /// the sheet-name prefix. Only sheets carrying nothing but schedule
-        /// instances are removed, so a sheet someone has since put drawings on
-        /// is left alone.
+        /// Delete sheets this placer created on an earlier run.
+        ///
+        /// Identified by their CONTENTS, not their name. Sheet naming is
+        /// best-effort — ViewSheet.Name assignment is wrapped in a catch, so a
+        /// failed rename would leave a sheet that a name-based scan could never
+        /// find again, and a bad layout would survive every re-run. What is
+        /// reliable is what sits on the sheet: a sheet holding nothing but
+        /// tag-expander schedule instances is ours.
+        ///
+        /// A sheet carrying viewports, or any schedule that is not a
+        /// tag-expander one, belongs to somebody else and is left alone.
         /// </summary>
         private static int ClearPreviousSheets(Document doc, TagSchedulePlacementResult result)
         {
             List<ViewSheet> mine;
             try
             {
-                mine = new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewSheet))
-                    .Cast<ViewSheet>()
-                    .Where(s => !s.IsTemplate
-                             && (s.Name ?? "").StartsWith(SheetNamePrefix, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                // Group placed schedule instances by the sheet they sit on.
+                var bySheet = new Dictionary<ElementId, List<ScheduleSheetInstance>>();
+                foreach (var ssi in new FilteredElementCollector(doc)
+                             .OfClass(typeof(ScheduleSheetInstance))
+                             .Cast<ScheduleSheetInstance>())
+                {
+                    ElementId owner = ssi.OwnerViewId;
+                    if (owner == null || owner == ElementId.InvalidElementId) continue;
+                    if (!bySheet.TryGetValue(owner, out var list))
+                        bySheet[owner] = list = new List<ScheduleSheetInstance>();
+                    list.Add(ssi);
+                }
+
+                mine = new List<ViewSheet>();
+                foreach (var kv in bySheet)
+                {
+                    if (!(doc.GetElement(kv.Key) is ViewSheet sheet) || sheet.IsTemplate) continue;
+
+                    bool allOurs = kv.Value.Count > 0 && kv.Value.All(ssi =>
+                    {
+                        var sched = doc.GetElement(ssi.ScheduleId) as ViewSchedule;
+                        return sched != null
+                            && (sched.Name ?? "").StartsWith(ExpanderSchedulePrefix, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                    if (allOurs) mine.Add(sheet);
+                }
             }
             catch (Exception ex)
             {
@@ -445,7 +481,14 @@ namespace StingTools.Commands.TagStudio
 
                 int index = result.SheetsCreated + 1;
                 try { sheet.Name = $"{SheetNamePrefix} {index:D2}"; }
-                catch (Exception ex) { StingLog.Warn($"TagSchedulePlacer: sheet name — {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    // Not fatal — cleanup identifies our sheets by contents, not
+                    // name — but worth saying out loud, because an unnamed sheet
+                    // is confusing in the browser.
+                    StingLog.Warn($"TagSchedulePlacer: sheet name — {ex.Message}");
+                    result.Warnings.Add($"Could not name a sheet ('{SheetNamePrefix} {index:D2}'): {ex.Message}");
+                }
 
                 try
                 {
