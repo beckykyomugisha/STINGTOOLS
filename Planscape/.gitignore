@@ -6,3 +6,6 @@ web-build/
 .DS_Store
 ios/Pods/
 android/.gradle/
+
+# #624 — transpiler output for scripts/verify-cde-transition-messages.cjs
+.verify-out/
