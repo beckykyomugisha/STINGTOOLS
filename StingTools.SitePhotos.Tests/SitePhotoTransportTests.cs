@@ -259,4 +259,60 @@ public class SitePhotoTransportTests
         Assert.True(Math.Abs((link.ExpiresAt.ToUniversalTime() - expected).TotalMinutes) < 5,
             $"expiry drifted from the wire value: got {link.ExpiresAt:o}, wire said {expected:o}");
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // #517 — the SAME rule, extended to the distribution-group calls that PR
+    // adds. Its first draft returned `new List<T>()` on failure for three of
+    // them and said so in its own doc comments ("Empty list on any failure").
+    // That is the albums defect (#550 / #605) reintroduced in a different pane:
+    // an empty member list renders as "No members yet", and a transmittal sent
+    // to a group whose members failed to load goes to nobody, deliberately.
+    // ─────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Server_down_group_members_returns_null_not_an_empty_member_list()
+    {
+        var srv = await AuthedServerAsync();
+        srv.Kill();
+
+        var members = await Client.ListDistributionGroupMembersAsync(Guid.NewGuid(), Guid.NewGuid());
+        var err = Client.LastError;
+
+        Assert.Null(members);
+        Assert.False(string.IsNullOrWhiteSpace(err),
+            "ListDistributionGroupMembersAsync failed without setting LastError");
+    }
+
+    [Fact]
+    public async Task Server_down_resolve_recipients_returns_null_not_an_empty_recipient_list()
+    {
+        var srv = await AuthedServerAsync();
+        srv.Kill();
+
+        var recipients = await Client.ResolveDistributionGroupRecipientsAsync(Guid.NewGuid(), "Client Team");
+        var err = Client.LastError;
+
+        // The worst of the three to get wrong: an empty recipient list is a
+        // perfectly plausible transmittal that reaches no one.
+        Assert.Null(recipients);
+        Assert.False(string.IsNullOrWhiteSpace(err),
+            "ResolveDistributionGroupRecipientsAsync failed without setting LastError");
+    }
+
+    [Fact]
+    public async Task Server_down_create_group_returns_null_and_is_not_mistakable_for_success()
+    {
+        var srv = await AuthedServerAsync();
+        srv.Kill();
+
+        var created = await Client.CreateDistributionGroupAsync(Guid.NewGuid(), "Client Team");
+        var err = Client.LastError;
+
+        // Create used to return bool, and its caller guarded with `if (grp == null)` —
+        // always false against a bool, so a failed create showed the user nothing and
+        // the list simply refreshed. main still emits CS0472 at that call site.
+        Assert.Null(created);
+        Assert.False(string.IsNullOrWhiteSpace(err),
+            "CreateDistributionGroupAsync failed without setting LastError");
+    }
 }

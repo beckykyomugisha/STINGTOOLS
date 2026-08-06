@@ -774,115 +774,10 @@ namespace StingTools.BIMManager
         }
 
         // ── Distribution groups ───────────────────────────────────────────
-
-        /// <summary>
-        /// <c>GET /api/projects/{projectId}/distribution-groups</c>
-        /// (DistributionGroupsController.List). Null on failure, empty when none.
-        /// </summary>
-        public async Task<List<DistributionGroupDto>?> ListDistributionGroupsAsync(Guid projectId)
-        {
-            if (!await EnsureAuthenticatedAsync()) { LastError = "Not connected."; return null; }
-            try
-            {
-                var resp = await GetAsync($"/api/projects/{projectId}/distribution-groups")
-                    .ConfigureAwait(false);
-                if (!resp.ok)
-                {
-                    LastError = $"Distribution group load failed ({resp.status}): {Trim(resp.body)}";
-                    return null;
-                }
-                var list = new List<DistributionGroupDto>();
-                foreach (var t in JArray.Parse(resp.body))
-                {
-                    var j = (JObject)t;
-                    list.Add(new DistributionGroupDto
-                    {
-                        Id          = GuidOf(j, "id"),
-                        Name        = Str(j, "name") ?? "",
-                        Kind        = Str(j, "kind"),
-                        MemberCount = Int(j, "memberCount"),
-                    });
-                }
-                LastError = null;
-                return list;
-            }
-            catch (Exception ex)
-            {
-                LastError = $"Distribution group load failed: {ex.Message}";
-                StingLog.Error("ListDistributionGroupsAsync failed", ex);
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// <c>POST /api/projects/{projectId}/distribution-groups</c>, then one
-        /// <c>POST {groupId}/members</c> per recipient — members are a separate
-        /// route (AddDistributionMemberRequest), not a field on create.
-        /// </summary>
-        /// <param name="kind">
-        /// One of <c>Client | Internal | Mixed</c> (DistributionGroup.ValidKinds);
-        /// defaults to <c>Internal</c>, matching the server.
-        /// </param>
-        public async Task<bool> CreateDistributionGroupAsync(
-            Guid projectId, string name, IEnumerable<string>? recipients = null, string? kind = null)
-        {
-            if (!await EnsureAuthenticatedAsync()) { LastError = "Not connected."; return false; }
-            if (string.IsNullOrWhiteSpace(name)) { LastError = "Group name is required."; return false; }
-
-            var groupKind = string.IsNullOrWhiteSpace(kind) ? "Internal" : kind!;
-            if (!ValidDistributionKinds.Contains(groupKind))
-            {
-                LastError = $"Invalid distribution group kind '{groupKind}'. "
-                          + $"Allowed: {string.Join(", ", ValidDistributionKinds)}.";
-                return false;
-            }
-
-            try
-            {
-                var resp = await PostJsonAsync($"/api/projects/{projectId}/distribution-groups",
-                    new { name, kind = groupKind }).ConfigureAwait(false);
-                if (!resp.ok)
-                {
-                    // 409 name_in_use is the common one and is worth naming plainly.
-                    LastError = resp.status == 409
-                        ? $"A distribution group named '{name}' already exists."
-                        : $"Distribution group create failed ({resp.status}): {Trim(resp.body)}";
-                    return false;
-                }
-
-                var groupId = GuidOf(JObject.Parse(resp.body), "id");
-                var emails  = recipients?.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToArray()
-                              ?? Array.Empty<string>();
-                if (groupId == System.Guid.Empty || emails.Length == 0) { LastError = null; return true; }
-
-                var failed = new List<string>();
-                foreach (var email in emails)
-                {
-                    var m = await PostJsonAsync(
-                        $"/api/projects/{projectId}/distribution-groups/{groupId}/members",
-                        new { externalEmail = email }).ConfigureAwait(false);
-                    if (!m.ok) failed.Add(email);
-                }
-
-                if (failed.Count > 0)
-                {
-                    // The group exists; say so, and say which recipients did not land.
-                    LastError = $"Group '{name}' was created, but {failed.Count} of {emails.Length} "
-                              + $"recipients could not be added: {string.Join(", ", failed.Take(5))}"
-                              + (failed.Count > 5 ? ", …" : "");
-                    return false;
-                }
-
-                LastError = null;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LastError = $"Distribution group create failed: {ex.Message}";
-                StingLog.Error("CreateDistributionGroupAsync failed", ex);
-                return false;
-            }
-        }
+        // Moved to PlanscapeServerClient.DistributionGroups.cs so ONE partial-class
+        // file owns that surface. Leaving them here alongside a second file that
+        // also implemented them is what produced duplicate members on the same
+        // partial class (#517).
 
         // ── Shared helpers ────────────────────────────────────────────────
 
@@ -926,10 +821,6 @@ namespace StingTools.BIMManager
         /// <summary>PhotoAlbum.ValidVisibilities — kept in step with the entity.</summary>
         private static readonly string[] ValidAlbumVisibilities =
             { "Internal", "Members", "Client", "Distribution" };
-
-        /// <summary>DistributionGroup.ValidKinds — kept in step with the entity.</summary>
-        private static readonly string[] ValidDistributionKinds =
-            { "Client", "Internal", "Mixed" };
 
         /// <summary>
         /// Map a FLAT album object — the shape returned by List, Create and

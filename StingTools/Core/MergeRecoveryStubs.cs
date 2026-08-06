@@ -322,17 +322,11 @@ namespace StingTools.BIMManager
         // match the wire (visibility "Project" is not a valid value; the bulk
         // reclassify field is `toReason`, not `newClass`; album lock/unlock are two
         // routes, not a boolean).
-    }
-
-    /// <summary>Stub — distribution group DTO mirroring the server contract.</summary>
-    public sealed class DistributionGroupDto
-    {
-        public Guid   Id   { get; set; }
-        public string Name { get; set; } = "";
-        public string Kind { get; set; }
-        public int    MemberCount { get; set; }
-        public bool   IncludeInDailyDigest { get; set; }
-        public bool   ForceRedacted { get; set; }
+        //
+        // Distribution groups are likewise no longer stubs. Their real
+        // implementations AND DistributionGroupDto live in
+        // BIMManager/PlanscapeServerClient.DistributionGroups.cs — one file owns
+        // that surface, rather than a DTO here and the calls somewhere else.
     }
 }
 
