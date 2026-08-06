@@ -243,7 +243,7 @@ namespace StingTools.Commands.TagStudio
                     // option is never a silent no-op.
                     var toPlace = builtSchedules.Count > 0
                         ? builtSchedules
-                        : CollectUnplacedExpanderSchedules(doc, byCategory.Keys, doSheet, doFull);
+                        : CollectExpanderSchedules(doc, byCategory.Keys, doSheet, doFull);
 
                     if (toPlace.Count > 0)
                     {
@@ -269,6 +269,8 @@ namespace StingTools.Commands.TagStudio
                 (placement != null
                     ? $"\nPlaced on sheets:        {placement.Placed}\n" +
                       $"Sheets created:          {placement.SheetsCreated}\n" +
+                      (placement.ClearedSheets > 0
+                          ? $"Old sheets cleared:      {placement.ClearedSheets}\n" : "") +
                       $"Layout:                  {(placement.Compacted ? "packed (several per sheet)" : "one schedule per sheet")}\n" +
                       $"Measurable:              {placement.Measurable}\n" +
                       $"Table heights:           {placement.MinHeightMm:F0}–{placement.MaxHeightMm:F0} mm\n" +
@@ -294,10 +296,19 @@ namespace StingTools.Commands.TagStudio
         }
 
         /// <summary>
-        /// Tag-expander schedules that are not yet on any sheet. Used when a
-        /// re-run creates nothing new but the caller still asked for placement.
+        /// Every in-scope tag-expander schedule, whether or not it is already on
+        /// a sheet. Used when a re-run creates nothing new but the caller still
+        /// asked for placement.
+        ///
+        /// This deliberately does NOT skip schedules that are already placed.
+        /// It used to, and that made re-runs a no-op: the first run placed
+        /// everything, so every later run found nothing to do and left the
+        /// original sheets untouched — including a bad layout the user was
+        /// re-running specifically to fix. The placer clears its own previous
+        /// sheets first, so returning placed schedules is what makes a re-run
+        /// actually redo the layout.
         /// </summary>
-        private static List<ViewSchedule> CollectUnplacedExpanderSchedules(
+        private static List<ViewSchedule> CollectExpanderSchedules(
             Document doc, IEnumerable<string> categoryDisplays, bool doSheet, bool doFull)
         {
             // Scope the fallback to exactly what this run asked for. Schedule
@@ -313,18 +324,11 @@ namespace StingTools.Commands.TagStudio
             }
             if (wanted.Count == 0) return new List<ViewSchedule>();
 
-            var placedIds = new HashSet<ElementId>(
-                new FilteredElementCollector(doc)
-                    .OfClass(typeof(ScheduleSheetInstance))
-                    .Cast<ScheduleSheetInstance>()
-                    .Select(s => s.ScheduleId));
-
             return new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
                 .Cast<ViewSchedule>()
                 .Where(v => !v.IsTemplate
-                         && wanted.Contains(v.Name ?? "")
-                         && !placedIds.Contains(v.Id))
+                         && wanted.Contains(v.Name ?? ""))
                 .OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }

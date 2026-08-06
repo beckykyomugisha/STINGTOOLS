@@ -53,6 +53,8 @@ namespace StingTools.Commands.TagStudio
         public bool Compacted;
         /// <summary>How many instances returned a usable measurement in pass 2.</summary>
         public int Measurable;
+        /// <summary>Sheets from a previous run that were removed before placing.</summary>
+        public int ClearedSheets;
         public readonly List<string> Warnings = new List<string>();
         public readonly List<ElementId> SheetIds = new List<ElementId>();
         /// <summary>Measured height range in mm — 0–0 means measurement failed.</summary>
@@ -104,6 +106,11 @@ namespace StingTools.Commands.TagStudio
                 return result;
             }
 
+            // ── PASS 0 — clear this tool's own previous sheets ──
+            // Without this a re-run stacks a second layout on top of the first,
+            // and any earlier bad layout survives every attempt to fix it.
+            result.ClearedSheets = ClearPreviousSheets(doc, result);
+
             // ── PASS 1 — one per sheet. Cannot overlap. ──
             var instances = PlaceOnePerSheet(doc, list, titleBlockId, result);
             if (instances.Count == 0) return result;
@@ -135,6 +142,77 @@ namespace StingTools.Commands.TagStudio
 
             Compact(doc, sized, titleBlockId, result);
             return result;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        //  Pass 0 — clear this tool's own previous sheets
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Delete sheets this placer created on an earlier run, identified by
+        /// the sheet-name prefix. Only sheets carrying nothing but schedule
+        /// instances are removed, so a sheet someone has since put drawings on
+        /// is left alone.
+        /// </summary>
+        private static int ClearPreviousSheets(Document doc, TagSchedulePlacementResult result)
+        {
+            List<ViewSheet> mine;
+            try
+            {
+                mine = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Where(s => !s.IsTemplate
+                             && (s.Name ?? "").StartsWith(SheetNamePrefix, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagSchedulePlacer: could not scan for previous sheets — {ex.Message}");
+                return 0;
+            }
+
+            if (mine.Count == 0) return 0;
+
+            int cleared = 0;
+            using (var tx = new Transaction(doc, "STING Clear Previous Tag Schedule Sheets"))
+            {
+                tx.Start();
+                try
+                {
+                    foreach (var sheet in mine)
+                    {
+                        // A sheet holding real viewports is somebody's drawing now,
+                        // whatever its name — never delete that.
+                        bool hasViewports;
+                        try { hasViewports = sheet.GetAllViewports().Count > 0; }
+                        catch { hasViewports = true; }   // unknown → treat as occupied
+
+                        if (hasViewports)
+                        {
+                            result.Warnings.Add(
+                                $"Sheet '{sheet.SheetNumber} {sheet.Name}' has viewports on it and was left alone.");
+                            continue;
+                        }
+
+                        try { doc.Delete(sheet.Id); cleared++; }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"TagSchedulePlacer: delete previous sheet '{sheet.Name}' — {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSchedulePlacer: clearing previous sheets failed — {ex.Message}");
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    return 0;
+                }
+            }
+
+            StingLog.Info($"TagSchedulePlacer: cleared {cleared} sheet(s) from a previous run.");
+            return cleared;
         }
 
         // ──────────────────────────────────────────────────────────────────
