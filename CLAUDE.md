@@ -79,7 +79,7 @@ prototype.
 | Server (`Planscape.Server/`) | 583 C# files · 119,867 lines |
 | Workspace | 23 `.csproj`, 9 test projects, **140 markdown docs** (23 root + 117 `docs/`) |
 | Build | `dotnet build` → **0 errors, 0 warnings** (Windows + Revit 2025 + .NET 8 SDK) |
-| Tests | **774 test methods; 0 exercise `StingTools.csproj`** |
+| Tests | **856 declared test methods across 10 projects, all now runnable** (was 759 runnable / 97 counted-but-dead until 2026-08-06 — see §3); 1 project exercises `StingTools.dll` |
 | Empty `catch` blocks | 683 · `TaskDialog` sites 7,650 · `StingLog` sites 9,530 |
 | Stub/placeholder markers | 646 · `NotImplementedException` 10 · `TODO/FIXME/HACK` 51 |
 | EF migrations | 83 (present & applied — see §9) |
@@ -121,12 +121,41 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
 
 ### 3. Testing — the biggest structural gap
 
-- **774 test methods across 9 projects, but none reference `StingTools.csproj`.** Every test targets
-  a Revit-free side library (`Sustainability` 365 · `Boq` 121 · `Tags` 84 · `Cost` 63 · `Clash` 56 ·
-  `Routing` 41 · `Scheduling` 30 · `Licensing` 14). `StingTools.Connectivity.Tests` is **empty (0)**.
+- **856 declared test methods across 10 projects** (`[Fact]`/`[Theory]` count — the metric this file
+  has always used). Re-measured 2026-08-06:
+
+  | Project | Declared | Runs |
+  |---|---|---|
+  | Sustainability | 365 | ✅ 438 cases, 0 failing |
+  | Tags | 158 | ✅ 241 cases, **2 failing** (#554) |
+  | Boq | 121 | ✅ 196 cases, 0 failing |
+  | Cost | 63 | ✅ 90 cases, 0 failing |
+  | Clash | 56 | ✅ 64 cases, **1 failing** (#596) |
+  | Routing | 41 | ✅ 45 cases, **1 failing** (#597) |
+  | Scheduling | 30 | ✅ 38 cases, 0 failing |
+  | Licensing | 14 | ✅ 14 cases, 0 failing |
+  | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
+  | Connectivity | 0 | empty project |
+
+  Declared methods and *executed cases* are different metrics and get conflated: one `[Theory]`
+  with `InlineData` expands into many cases, which is why the totals above do not match.
+
+- **The 774 in this table until 2026-08-06 was overstated by 97 and understated by 82.** `Clash` (56)
+  and `Routing` (41) **had not compiled since mid-May 2026** — from `c98500b5a` and `3e43f16e1`
+  respectively — and a test project that does not compile reports *nothing*: no red, no count, no
+  signal. Their 97 methods were still being counted. Meanwhile `Tags` had grown 84 → 158 and two new
+  projects had appeared, so the figure was stale in both directions at once. Both projects were
+  repaired in #553 and are now runnable; `.github/workflows/stingtools-unit-tests.yml` builds every
+  project and fails on any that will not compile, so this cannot go silent again.
+  **A coverage number that counts tests which cannot execute is worse than a smaller honest one** —
+  it is the same failure mode as an empty list standing in for an error.
+- **Only `StingTools.SitePhotos.Tests` references the built plugin.** The other nine target Revit-free
+  side libraries or `<Compile Include>` selected plugin sources behind hand-written Revit stubs.
 - Consequence: the ~656k-line plugin — every command, the auto-tagger `IUpdater`, the dispatch layer,
-  the placement/routing/fabrication engines — has **zero direct automated coverage**. Regressions are
-  only caught by a human loading Revit.
+  the placement/routing/fabrication engines — has **effectively no direct automated coverage**. The
+  clash and routing projects reach real plugin *source* through `<Compile Include>`, and SitePhotos
+  reaches the built *assembly*, but that is a handful of engines out of ~1,580 command classes.
+  Regressions are still caught by a human loading Revit.
 - Root cause is architectural (§5): command logic is fused to the Revit API and `TaskDialog`, so it
   can't run headlessly. The fix is **extraction, not more test files**.
 
