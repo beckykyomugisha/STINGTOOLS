@@ -54,6 +54,14 @@ jobs:
         shell: pwsh
         run: ./tools/check_path_discipline.ps1
 
+      # Workflow wiring: every WORKFLOW_*.json step must name a command the engine
+      # can resolve. Two silent no-ops used to get through here — steps keyed "tag"
+      # instead of "commandTag" (11 presets, every step, so each ran ZERO steps and
+      # still reported success), and commandTags with no ResolveCommand case.
+      - name: Check workflow wiring
+        shell: pwsh
+        run: ./tools/check_workflow_wiring.ps1
+
       - name: Check for duplicate parameter GUIDs
         run: |
           python3 - <<'EOF'

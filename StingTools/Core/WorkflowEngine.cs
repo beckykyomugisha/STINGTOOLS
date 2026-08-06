@@ -1599,6 +1599,94 @@ namespace StingTools.Core
                 case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
                 case "PrototypeDrift_Report": return new BIMManager.PrototypeDriftCommand();
+
+                // ── KUT-2: commands that existed in a panel handler but had no
+                // ResolveCommand case, so every workflow step naming them resolved to
+                // nothing and was skipped while the run still reported success. The
+                // command classes below are the ones the dock-panel handlers already
+                // dispatch (StingCommandHandler / Electrical / Hvac / Plumbing / Lps);
+                // nothing new was written, the tags were simply never wired here.
+                // WORKFLOW_DuctSpoolProduction.json
+                case "Fabrication_OpenWorkspace": return new Commands.Fabrication.FabricationWorkspaceCommand();
+                case "Hvac_DuctSeamAudit": return new Commands.FabricationExt.DuctSeamAuditCommand();
+                case "Hvac_FlangeRating": return new Commands.FabricationExt.FlangeRatingCommand();
+                case "Hvac_HangerTakedown": return new Commands.FabricationExt.HangerTakedownCommand();
+                case "Hvac_SpoolWeight": return new Commands.FabricationExt.SpoolWeightCommand();
+                case "Hvac_ExportCutList": return new Commands.Fabrication.ExportCutListCommand();
+                case "Hvac_ExportIsometrics": return new Commands.Fabrication.ExportIsometricsCommand();
+                case "Hvac_ExportNC": return new Commands.FabricationExt.ExportNCCommand();
+                // WORKFLOW_ElectricalDesignReview.json
+                case "Photo_Preflight": return new Commands.Electrical.Photometric.PhotometricPreflightCommand();
+                case "Elec_ExportDIALux": return new Commands.Electrical.Export.DIALuxExportCommand();
+                case "Photo_IfcImport": return new Commands.Electrical.IfcResults.IfcResultsImportCommand();
+                case "Photo_Aggregator": return new Commands.Electrical.IfcResults.MultiEngineAggregatorCommand();
+                case "Photo_DesignReview": return new Commands.Electrical.Photometric.PhotometricDesignReviewCommand();
+                case "Lite_LPD": return new Commands.Electrical.Lighting.LightingPowerDensityCommand();
+                case "Lite_EmergAudit": return new Commands.Electrical.Lighting.EmergencyLightingAuditCommand();
+                // WORKFLOW_ElectricalPostFitOut.json
+                case "Panel_SyncParams": return new Commands.Electrical.ElecPanelParamSyncCommand();
+                case "Calc_FaultCurrent": return new Commands.Electrical.FaultCurrent.FaultCurrentCommand();
+                case "Elec_ArcFlash": return new Commands.Electrical.ArcFlash.ArcFlashCommand();
+                case "Elec_ArcFlashLabels": return new Commands.Electrical.ArcFlash.ArcFlashLabelSheetCommand();
+                case "Rprt_DemandFactors": return new Commands.Electrical.Reports.DemandFactorReportCommand();
+                case "Rprt_PDF": return new Commands.Electrical.Reports.ElecPdfReportCommand();
+                // WORKFLOW_ElectricalSubmission.json
+                case "Panel_WriteParams": return new Commands.Electrical.ElecPanelWriteParamsCommand();
+                case "Calc_AicStamp": return new Commands.Electrical.FaultCurrent.AicRatingCommand();
+                case "Calc_FeederSize": return new Commands.Electrical.FeederSizing.FeederSizerCommand();
+                case "Cable_ValidateConduitFill": return new Commands.Electrical.ConduitFillValidateCommand();
+                case "Elec_SelectCoord": return new Commands.Electrical.Coordination.SelectiveCoordCommand();
+                case "Rprt_FaultSchedule": return new Commands.Electrical.Reports.FaultCurrentScheduleCommand();
+                case "Rprt_VDSchedule": return new Commands.Electrical.Reports.VoltageDropScheduleCommand();
+                case "Elec_ExportEasyPower": return new Commands.Electrical.Export.EasyPowerExportCommand();
+                // WORKFLOW_HVACCommissioning.json
+                case "Hvac_SystemAudit": return new Temp.MEPSystemAuditCommand();
+                case "Hvac_HardyCross": return new Commands.Routing.HardyCrossCommand();
+                case "Hvac_ValidateFills": return new Commands.Routing.ValidateFillsCommand();
+                case "Hvac_NcPredict": return new Commands.Hvac.HvacNcPredictionCommand();
+                case "Hvac_PressureClassAudit": return new Commands.Hvac.HvacPressureClassAuditCommand();
+                case "Hvac_Ventilation": return new Commands.StandardsExt.VentilationCommand();
+                case "Hvac_AutoFireDamper": return new Commands.RoutingExt.AutoFireDamperCommand();
+                case "Hvac_RunAllValidators": return new Commands.Validation.RunAllValidatorsCommand();
+                // WORKFLOW_HVACDesign.json
+                case "Hvac_BlockLoad": return new Commands.Hvac.HvacBlockLoadCommand();
+                case "Hvac_PropagateLoads": return new Commands.Hvac.HvacPropagateLoadsCommand();
+                case "Hvac_ConnectionAudit": return new Temp.MEPConnectionAuditCommand();
+                case "Hvac_DetectStaleSizes": return new Commands.Hvac.HvacDetectStaleSizesCommand();
+                case "Hvac_EquipmentSchedule": return new Temp.MechanicalEquipmentScheduleCommand();
+                // WORKFLOW_LpsCommissioning.json
+                case "Lps_LoadModel": return new Commands.Lightning.LpsLoadFromModelCommand();
+                case "Lps_RunRiskInline": return new Commands.Lightning.LpsRiskAssessmentInlineCommand();
+                case "Lps_ClassSetup": return new Commands.Lightning.LpsClassSetupCommand();
+                case "Lps_MarkTypes": return new Commands.Lightning.LpsMarkElementTypesCommand();
+                case "Lps_DownConductor": return new Commands.Lightning.LpsDownConductorCheckerCommand();
+                case "Lps_RecalcKc": return new Commands.Lightning.LpsRecalcKcFactorCommand();
+                case "Lps_SepDistance": return new Commands.Lightning.LpsSeparationDistanceCheckerCommand();
+                case "Lps_EarthCheck": return new Commands.Lightning.LpsEarthResistanceValidatorCommand();
+                case "Lps_Bonding": return new Commands.Lightning.LpsBondingInventoryCommand();
+                case "Lps_ZoneTagRooms": return new Commands.Lightning.LpsRoomZoneTagCommand();
+                case "Lps_ColourZones": return new Commands.Lightning.LpsColourZonesCommand();
+                case "Lps_SpdRecommend": return new Commands.Lightning.SpdRecommendCommand();
+                case "Lps_SpdCoordinate": return new Commands.Lightning.SpdCoordinationCheckCommand();
+                case "Lps_PlanVisualise": return new Commands.Lightning.LpsPlanViewVisualizerCommand();
+                case "Lps_3DCoverage": return new Commands.Lightning.LpsRollingSphere3DCommand();
+                case "Lps_Compliance": return new Commands.Lightning.LpsComplianceCheckCommand();
+                case "Lps_InspectionSchedule": return new Commands.Lightning.LpsInspectionSchedulerCommand();
+                case "Lps_CreateSchedules": return new Commands.Lightning.LpsCreateRevitScheduleCommand();
+                case "Lps_FullReport": return new Commands.Lightning.LpsFullReportCommand();
+                case "Lps_SyncToServer": return new Commands.Lightning.LpsSyncToServerCommand();
+                // WORKFLOW_PlumbingDesign.json
+                case "Plumb_BuildNetwork": return new Commands.Plumbing.PlumbBuildNetworkCommand();
+                case "Plumb_SlopeAutomation": return new Commands.Plumbing.PlumbSlopeAutomationCommand();
+                case "Plumb_CreateVents": return new Commands.Plumbing.PlumbCreateVentsCommand();
+                case "Plumb_NetworkPressure": return new Commands.Plumbing.PlumbNetworkPressureCommand();
+                case "Plumb_PumpSelect": return new Commands.Plumbing.PlumbPumpSelectCommand();
+                case "Plumb_TMVEngine": return new Commands.Plumbing.PlumbTMVEngineCommand();
+                case "Plumb_LegionellaReport": return new Commands.Plumbing.PlumbLegionellaReportCommand();
+                case "Plumb_DrainageSchematic": return new Commands.Plumbing.PlumbDrainageSchematicCommand();
+                // WORKFLOW_TierConversionHandover.json
+                case "ApplyParagraphPreset": return new Tags.ApplyParagraphPresetCommand();
+                case "SetParagraphDepth": return new Tags.SetParagraphDepthCommand();
                 case "ReviewComments_Import": return new Docs.ReviewCommentsImportCommand();
                 case "ReviewComments_Dashboard": return new Docs.ReviewCommentsDashboardCommand();
                 case "ReviewComments_Export": return new Docs.ReviewCommentsExportCommand();

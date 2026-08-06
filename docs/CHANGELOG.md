@@ -2,6 +2,71 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 229 — eleven workflow presets executed nothing and reported success)
+
+Closes ROADMAP **KUT-1** and **KUT-2**. Pre-existing debt, not introduced by any recent
+phase — measured identically on `main` before this work started.
+
+**The defect.** `WorkflowStep` binds only `[JsonProperty("commandTag")]`. A step written
+`{"tag": "..."}` deserialises with `CommandTag == null`, resolves to nothing and is
+skipped — **the run completes and reports success having executed zero steps.** The trap
+is easy to fall into because `WorkflowStepResult`, the *output* record, legitimately
+serialises its tag as `"tag"`.
+
+**KUT-1 — 59 steps across 11 presets, every step in each file, so each preset was
+entirely inert:** `WORKFLOW_ElectricalSubmission` (19), `ElectricalPostFitOut` (11),
+`ElectricalDesignReview` (10), `HealthcareCommissioning` (5), `RdsIssue` (3),
+`AntiLigatureAudit` · `HTM-01-06-EndoReprocess` · `HTM-04-01-Annual` · `MgasVerification` ·
+`PressureRegimeAudit` (2 each), `NFPA110-GeneratorTest` (1). Anyone who demoed one of
+these to a client watched it report success while doing nothing.
+
+**Three more silently-dropped keys found in the same files** and fixed with it: 39
+`description` + 20 `name` → `label` (display only), and **40 `continueOnFail` + 20
+`allowSkip` → `optional`, which changes execution** — `Optional` is what stops a failed
+step aborting the run, so a step its author marked non-fatal was fatal.
+
+**KUT-2 — sequencing mattered.** Renaming the field exposed the 11 inert presets' tags to
+resolution for the first time, so unresolved rose **66 → 96** (82 distinct) before falling.
+Triage, by grepping **all six** command handlers (`StingCommandHandler` plus the
+Electrical / Hvac / Plumbing / Lps / Sustainability panels — the first pass only searched
+the main one and badly over-reported "no command exists"):
+
+| Disposition | Count |
+|---|---|
+| Command existed in a handler → **added a `ResolveCommand` case** | **72** |
+| No command exists → step marked `optional` + explanatory label + baselined | 10 |
+
+Nothing new was written: all 72 are command classes the dock panels already dispatch,
+never wired into `ResolveCommand`. The 10 are `WORKFLOW_DailyFieldWalk`'s seven steps
+(BIM Coordination Center **SITE PHOTOS tab** interactions, not `IExternalCommand`s — the
+preset is a manual checklist, not an executable workflow), `BOQ_DriftCheck` /
+`BOQ_ExportErp` (aspirational; no source anywhere), and `Hvac_AutoSizeDuct` (a strategy
+dispatcher reading the HVAC panel's header radio — resolving it from a workflow would
+silently pick one strategy and hide that from the user).
+
+**KUT-3(b) — a gate so it cannot regress.** `tools/check_workflow_wiring.ps1`, mirroring
+`check_path_discipline.ps1` in shape, exit-code convention and output style. Tier 1 fails
+on any step keyed `"tag"` without `"commandTag"` (hard zero, no baseline); Tier 2 fails on
+any `commandTag` with no `case` label, allowing only the explicit commented baseline in
+`tools/workflow_wiring_baseline.txt`. It parses `case "..."` labels out of
+`WorkflowEngine.cs` **source text** — the test projects cannot reference
+`StingTools.csproj` because it needs the Revit API, so a source scan is the honest
+mechanism, and the script says so in a comment to stop someone "improving" it into a
+compile-time reference that cannot work. Wired into the existing
+`.github/workflows/stingtools-plugin.yml` beside the path-discipline gate.
+
+**Verification.** Build `-t:Rebuild` **0 errors / 0 warnings**; `StingTools.Tags.Tests`
+**243/243**. All 44 presets parse; steps keyed `"tag"`: **59 → 0**; unresolved
+`commandTag`s: **96 → 10, all baselined**. Every rename was applied scoped to the `steps[]`
+array and re-parsed, asserting the preset root and every non-step key was untouched and
+that no step's value drifted — an earlier unscoped pass clobbered six presets' root
+`description` and was reverted. The gate was proved **in both directions**: it fails on a
+deliberately `"tag"`-keyed step (Tier 1) and on an invented tag (Tier 2), and passes on the
+restored tree. **Nothing was exercised in a live Revit session** — no workflow was run.
+
+Files: `StingTools/Core/WorkflowEngine.cs` (+72 cases) · 14 `StingTools/Data/WORKFLOW_*.json` ·
+`tools/check_workflow_wiring.ps1` + `tools/workflow_wiring_baseline.txt` (new) ·
+`.github/workflows/stingtools-plugin.yml`.
 #### Completed (Phase 228 — KUT project-readiness: one LOD ladder, the missing CSI divisions, Owner defaults)
 
 Kampala Uganda Temple (KUT) readiness pass. The contracted role is **information

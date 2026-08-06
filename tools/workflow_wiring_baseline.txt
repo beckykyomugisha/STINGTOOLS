@@ -1,0 +1,38 @@
+# Workflow-wiring baseline -- commandTags with NO command behind them.
+#
+# Read tools/check_workflow_wiring.ps1 before editing this file.
+#
+# These are NOT an accepted state. Every tag below names a workflow step that cannot
+# run because no IExternalCommand implements it. Each corresponding step is marked
+# "optional": true with a label saying what is missing, so the workflow no longer
+# claims to have done the work, and each is tracked in docs/ROADMAP.md (KUT-12/KUT-13).
+#
+# This list may SHRINK, never grow. Adding an entry means deciding in review that a tag
+# genuinely has no command behind it -- the common case is the opposite: the command
+# exists and is reachable from a dock-panel button, and only the ResolveCommand case is
+# missing. Check StingCommandHandler.cs and the Electrical / Hvac / Plumbing / Lps
+# handlers before you add anything here.
+
+# --- WORKFLOW_DailyFieldWalk.json -------------------------------------------------
+# Every step is a BIM Coordination Center SITE PHOTOS *tab* interaction (UI/SitePhotosTab.cs),
+# not an IExternalCommand. The preset is a manual checklist, not an executable workflow.
+OpenSitePhotos
+RefreshPhotos
+PhotoChecklistAudit
+BulkApprovePending
+DigestPreview
+PushDeliverableRegister
+WorkflowComplete
+
+# --- WORKFLOW_BOQ_CostLifecycle.json ----------------------------------------------
+# Aspirational: the preset describes a drift check and an ERP/P6 export that were never
+# written. No source anywhere in the tree implements either.
+BOQ_DriftCheck
+BOQ_ExportErp
+
+# --- WORKFLOW_HVACDesign.json -----------------------------------------------------
+# The handler case IS wired, but it is a strategy dispatcher that reads the STING HVAC
+# panel's header radio (velocity / equal-friction / static-regain) and picks a different
+# command per strategy. There is no single IExternalCommand to return, so resolving it
+# from a workflow would silently pick one strategy and hide that choice from the user.
+Hvac_AutoSizeDuct
