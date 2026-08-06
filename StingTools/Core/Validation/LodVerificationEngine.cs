@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -112,7 +112,7 @@ namespace StingTools.Core.Validation
         {
             string dir = DocKey(doc);
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", ProjectFileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", ProjectFileName);
         }
 
         public static LodMatrix Get(Document doc) => _cache.GetOrAdd(DocKey(doc), _ => Load(doc));

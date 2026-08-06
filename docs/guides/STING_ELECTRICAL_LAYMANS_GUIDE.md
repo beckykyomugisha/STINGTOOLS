@@ -1367,7 +1367,7 @@ For electrical risers and panel-internal sections, set `farClipMm` short
 
 ### 11.16 Browser Organizer + drift kinds
 
-`DrawingTypes_BrowserOrganize` creates `'STING - by Drawing Type'`
+`Drawing_BrowserOrganize` creates `'STING - by Drawing Type'`
 organisations for views *and* sheets, keyed off `STING_DRAWING_TYPE_ID_TXT`.
 Worth its weight in gold once you exceed 50 sheets.
 

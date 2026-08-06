@@ -641,6 +641,42 @@ namespace StingTools.Core.Drawing
 
         // ── Presentation-mode preset (matches the existing modes) ───────
 
+        /// <summary>
+        /// V-5: ElementTypes that can actually carry the paragraph-state and
+        /// warning-visibility parameters — the STING tagged categories. Falls
+        /// back to the unfiltered walk if the multi-category filter cannot be
+        /// built, so a Revit version that rejects one of the categories
+        /// degrades to the old behaviour rather than writing nothing.
+        /// </summary>
+        private static List<Element> CollectPresetTargetTypes(Document doc)
+        {
+            try
+            {
+                var cats = new List<ElementId>();
+                foreach (var bic in SharedParamGuids.AllCategoryEnums)
+                {
+                    try
+                    {
+                        var cat = Category.GetCategory(doc, bic);
+                        if (cat != null && cat.AllowsBoundParameters) cats.Add(cat.Id);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"CollectPresetTargetTypes({bic}): {ex.Message}"); }
+                }
+                if (cats.Count > 0)
+                {
+                    return new FilteredElementCollector(doc)
+                        .WhereElementIsElementType()
+                        .WherePasses(new ElementMulticategoryFilter(cats))
+                        .ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CollectPresetTargetTypes: {ex.Message} — falling back to all element types.");
+            }
+            return new FilteredElementCollector(doc).WhereElementIsElementType().ToList();
+        }
+
         private static bool ApplyPresentationPreset(Document doc, string mode)
         {
             bool s1, s2, s3, warn;
@@ -662,9 +698,14 @@ namespace StingTools.Core.Drawing
                     return false;
             }
 
-            var allTypes = new FilteredElementCollector(doc)
-                .WhereElementIsElementType()
-                .ToList();
+            // V-5: this walked EVERY ElementType in the document — 10k+ on a
+            // real model, including materials, line styles, text styles and
+            // every system type — writing 4 parameters to each, once per view
+            // the preset was applied to. Only the tagged categories carry
+            // PARA_STATE_* / WARN_VISIBLE, so restrict to them. That is the
+            // same pre-filter ApplyTagStylePreset already received; this
+            // sibling never got it.
+            var allTypes = CollectPresetTargetTypes(doc);
             foreach (Element typeEl in allTypes)
             {
                 ParameterHelpers.SetYesNo(typeEl, ParamRegistry.PARA_STATE_1, s1, overwrite: true);

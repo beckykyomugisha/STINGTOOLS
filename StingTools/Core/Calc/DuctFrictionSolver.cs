@@ -65,6 +65,12 @@ namespace StingTools.Core.Calc
         /// <summary>
         /// Compute the pressure drop across a straight duct section
         /// plus an optional set of fittings.
+        ///
+        /// <paramref name="airDensityKgM3"/> defaults to the sea-level
+        /// 20 °C value (<see cref="AirDensityKgM3"/>); pass a location /
+        /// elevation-corrected density (from the climate registry / header
+        /// snapshot) for altitude-aware friction. When &lt;= 0 the default
+        /// constant is used, so every existing call site is unchanged.
         /// </summary>
         public static DuctFrictionResult Solve(
             DuctShape shape,
@@ -73,10 +79,13 @@ namespace StingTools.Core.Calc
             double lengthM,
             double flowM3S,
             IEnumerable<DuctFittingLoss> fittings,
-            double roughnessM = GalvRoughnessM)
+            double roughnessM = GalvRoughnessM,
+            double airDensityKgM3 = AirDensityKgM3)
         {
             var r = new DuctFrictionResult();
             if (lengthM <= 0 || flowM3S <= 0 || sideAMm <= 0) return r;
+
+            double rho = airDensityKgM3 > 0 ? airDensityKgM3 : AirDensityKgM3;
 
             double dhM;
             double areaM2;
@@ -98,7 +107,7 @@ namespace StingTools.Core.Calc
             double v = flowM3S / areaM2;
             r.VelocityMs = v;
 
-            double re = (AirDensityKgM3 * v * dhM) / AirViscosityPaS;
+            double re = (rho * v * dhM) / AirViscosityPaS;
             r.ReynoldsNumber = re;
 
             double f;
@@ -120,7 +129,7 @@ namespace StingTools.Core.Calc
             }
             r.FrictionFactor = f;
 
-            double dynPa = 0.5 * AirDensityKgM3 * v * v;
+            double dynPa = 0.5 * rho * v * v;
             r.StraightDropPa = f * (lengthM / dhM) * dynPa;
 
             if (fittings != null)

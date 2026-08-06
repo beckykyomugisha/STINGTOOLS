@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -574,6 +574,11 @@ namespace StingTools.UI
                             }
                             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         });
+                        // Also refresh on plugin-initiated file operations (recycle,
+                        // restore, move, CDE transition). ProjectFolderEngine raises
+                        // FileChanged from 13 sites but had no subscriber, so those
+                        // never refreshed the list — only OS-level changes did.
+                        SubscribeFileChangedOnce();
                         MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
                             "External file changes will auto-refresh the document list.",
                             "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1278,7 +1283,7 @@ namespace StingTools.UI
                     note["modified"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm");
                     // M-03: Atomic file write to prevent corruption on crash
                     string tmp = stickyPath + ".tmp";
-                    File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     File.Replace(tmp, stickyPath, stickyPath + ".bak");
                     ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
                     item.Title = newText;
@@ -1740,7 +1745,7 @@ namespace StingTools.UI
                         $"\"{it.Size}\",\"{it.Date}\",\"{it.Priority}\",\"{it.Aging}\",\"{it.ElementCount}\"," +
                         $"\"{it.AssignedTo}\",\"{it.SLADeadline}\",\"{it.IsOverdue}\",\"{it.CreatedBy}\"");
             }
-            File.WriteAllText(dlg.FileName, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(dlg.FileName, sb.ToString());
             if (_doc != null) ProjectFolderEngine.LogActivity(_doc, "EXPORT_CSV", Path.GetFileName(dlg.FileName), $"{_view.Count} rows");
             MessageBox.Show($"Exported {_view.Count} rows to:\n{dlg.FileName}", "STING Export", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -1795,22 +1800,150 @@ namespace StingTools.UI
             {
                 AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                ToolTip = "One recipient per line. Use + buttons to pick from team registry."
+                ToolTip = "One recipient per line. + Member picks from the project roster; + Group from distribution groups."
             };
             stack.Children.Add(recipientBox);
 
             addRecipientBtn.Click += (s, e) =>
             {
-                string picked = ProjectTeamRegistry.PickMember("Add Recipient", "Select transmittal recipient:");
+                // Source the roster from the server, not project_team.json.
+                // ProjectTeamRegistry is a hand-edited local file that nobody
+                // reconciles against who is actually on the project, so a
+                // transmittal — a formal record of issuing documents — could be
+                // addressed to someone who left months ago, or to a name spelled
+                // three different ways across three transmittals.
+                var roster = StingTools.Core.ProjectRoster.Load(doc);
+                const string externalOpt = "[External recipient — not a project member]";
+
+                var picks = roster
+                    .Select(m => string.IsNullOrWhiteSpace(m.Email)
+                        ? m.Display
+                        : $"{m.Display} — {m.Email}")
+                    .ToList();
+                picks.Add(externalOpt);
+
+                string prompt = roster.Count > 0
+                    ? "Select transmittal recipient:"
+                    : "No project members found — the model may not be linked to a Planscape\n" +
+                      "project, or the server is unreachable.";
+
+                string picked = StingListPicker.Show("Add Recipient", prompt, picks);
+                if (string.IsNullOrEmpty(picked)) return;
+
+                if (picked == externalOpt)
+                {
+                    // Kept deliberately: issuing to a client contact or a
+                    // subcontractor outside the project is normal. It is labelled
+                    // so it reads as a choice rather than a gap in the list.
+                    picked = PromptForText("External Recipient",
+                        "Name or email of the external recipient:", "");
+                    if (string.IsNullOrWhiteSpace(picked)) return;
+                }
+                else
+                {
+                    // Store the name only — the "— email" suffix is display sugar.
+                    int dash = picked.IndexOf(" — ", StringComparison.Ordinal);
+                    if (dash > 0) picked = picked.Substring(0, dash);
+                }
+
+                picked = picked.Trim();
                 if (!string.IsNullOrEmpty(picked) && !recipientBox.Text.Contains(picked))
                     recipientBox.AppendText(picked + "\n");
             };
             addGroupBtn.Click += (s, e) =>
             {
-                var recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group", doc);
+                // Server-backed distribution groups are the source of truth.
+                // There were three competing stores — project_team.json,
+                // _BIM_COORD/distribution_groups.json, and the server — and this
+                // button read the first of them, so a group curated on the server
+                // (or in the web app) was invisible here.
+                var recipients = new List<string>();
+                Guid pid = StingTools.Core.ProjectRoster.ResolveProjectId(doc);
+                var client = BIMManager.PlanscapeServerClient.Instance;
+
+                if (client.IsConnected && pid != Guid.Empty)
+                {
+                    var groups = System.Threading.Tasks.Task
+                        .Run(() => client.ListDistributionGroupsAsync(pid))
+                        .GetAwaiter().GetResult();
+
+                    // null is a FAILED load. It must not fall through to the "no groups
+                    // yet" branch below, and above all must not reach the local-registry
+                    // fallback further down — silently substituting a local list for a
+                    // server list the user cannot see failed is the exact drift the
+                    // server-canonical groups replaced.
+                    if (groups == null)
+                    {
+                        MessageBox.Show(
+                            "Could not load distribution groups.\n\n" +
+                            (client.LastError ?? "(no detail)") +
+                            "\n\nThis is not an empty result — the list could not be retrieved.",
+                            "Distribution groups");
+                        return;
+                    }
+
+                    if (groups.Count > 0)
+                    {
+                        var labels = groups
+                            .Select(g => $"{g.Name} ({g.MemberCount} member{(g.MemberCount == 1 ? "" : "s")})")
+                            .ToList();
+                        string pick = StingListPicker.Show("Add Distribution Group",
+                            "Select a distribution group:", labels);
+                        if (string.IsNullOrEmpty(pick)) return;
+
+                        int idx = labels.IndexOf(pick);
+                        if (idx >= 0)
+                        {
+                            // Resolve by id, not by name — we already have the id,
+                            // and two groups can legitimately share a display label
+                            // once the member count is stripped back off.
+                            var grpMembers = System.Threading.Tasks.Task
+                                .Run(() => client.ListDistributionGroupMembersAsync(pid, groups[idx].Id))
+                                .GetAwaiter().GetResult();
+                            // Same rule one level down: a failed member load must not
+                            // read as "has no members yet", which would send a
+                            // transmittal to nobody and look deliberate.
+                            if (grpMembers == null)
+                            {
+                                MessageBox.Show(
+                                    $"Could not load members of \"{groups[idx].Name}\".\n\n" +
+                                    (client.LastError ?? "(no detail)") +
+                                    "\n\nThis is not an empty group — the members could not be retrieved.",
+                                    "Distribution group");
+                                return;
+                            }
+                            recipients = grpMembers
+                                .Select(m => m.Display ?? m.Email ?? m.ExternalEmail ?? "")
+                                .Where(n => !string.IsNullOrWhiteSpace(n))
+                                .Select(n => n.Trim())
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+                            if (recipients.Count == 0)
+                                MessageBox.Show($"\"{groups[idx].Name}\" has no members yet.",
+                                    "Distribution group");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "No distribution groups on the server for this project yet.\n\n" +
+                            "Create them in the Site Photos → Admin tab, or in the web app.",
+                            "Distribution groups");
+                        return;
+                    }
+                }
+                else
+                {
+                    // DEPRECATED read-only fallback — the local registry, used only
+                    // when the server is unreachable or the model is unlinked, so a
+                    // disconnected user is not blocked mid-transmittal.
+                    StingLog.Info("Transmittal +Group: server unreachable/unlinked — using local group registry.");
+                    recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group (offline)", doc);
+                }
+
                 foreach (string name in recipients)
-                    if (!recipientBox.Text.Contains(name))
-                        recipientBox.AppendText(name + "\n");
+                    if (!string.IsNullOrWhiteSpace(name) && !recipientBox.Text.Contains(name))
+                        recipientBox.AppendText(name.Trim() + "\n");
             };
 
             // Suitability code
@@ -1851,8 +1984,7 @@ namespace StingTools.UI
 
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = CoordStores.Transmittals(doc);
                 JArray arr;
                 try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
                 catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
@@ -1901,7 +2033,7 @@ namespace StingTools.UI
                         (trackCheck.IsChecked == true ? $"\n{DateTime.Now:yyyy-MM-dd HH:mm} SENT to {recipientNames.Count} recipients" : "")
                 };
                 arr.Add(trans);
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "CREATE_TRANSMITTAL", transId,
                     $"{selected.Count} docs to {recipientNames.Count} recipients ({string.Join(", ", recipientNames)})");
 
@@ -1940,7 +2072,7 @@ namespace StingTools.UI
                         trans["template_id"]         = templateId;
                         trans["rendered_file_path"]  = renderedPath;
                         trans["workflow_instance_id"]= workflowInst;
-                        File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                        OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     }
                     else
                     {
@@ -2009,56 +2141,68 @@ namespace StingTools.UI
 
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string issuePath = Path.Combine(bimDir, "issues.json");
-                JArray arr;
-                try { arr = File.Exists(issuePath) ? JArray.Parse(File.ReadAllText(issuePath)) : new JArray(); }
-                catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
-
-                // Phase 85 BUG-5: Use max-suffix pattern to prevent ID collisions after deletions
-                int maxIssueNum = 0;
-                foreach (var iss in arr)
-                {
-                    if (iss["type"]?.ToString() != issueType) continue;
-                    string idStr = iss["id"]?.ToString()?.Replace($"{issueType}-", "");
-                    if (int.TryParse(idStr, out int n) && n > maxIssueNum) maxIssueNum = n;
-                }
-                string issueId = $"{issueType}-{maxIssueNum + 1:D4}";
+                // Phase 2 (IM-4): this wrote the identifier as "issue_id" but computed the
+                // next number by scanning "id" — a field it never wrote — so maxIssueNum was
+                // always 0 and EVERY quick issue was minted as {TYPE}-0001. A register could
+                // therefore hold a dozen rows all called RFI-0001, and any lookup by id
+                // resolved to whichever came first. It also used a hand-rolled path that
+                // bypassed the CoordStores legacy merge.
                 DateTime now = DateTime.Now;
-
-                // Calculate SLA deadline
                 DateTime? slaDeadline = ProjectTeamRegistry.CalculateSLADeadline(priority, now);
 
-                var issue = new JObject
-                {
-                    ["issue_id"] = issueId,
-                    ["type"] = issueType,
-                    ["title"] = title,
-                    ["status"] = "OPEN",
-                    ["priority"] = priority,
-                    ["date"] = now.ToString("yyyy-MM-dd"),
-                    ["assigned_to"] = assignedTo,
-                    ["discipline"] = disc,
-                    ["description"] = title,
-                    ["created_by"] = Environment.UserName,
-                    ["linked_elements"] = new JArray(),
-                    ["sla_deadline"] = slaDeadline?.ToString("yyyy-MM-dd HH:mm") ?? "",
-                    ["escalation_level"] = 0,
-                    ["status_history"] = $"{now:yyyy-MM-dd HH:mm} OPEN — created by {Environment.UserName}" +
-                        (!string.IsNullOrEmpty(assignedTo) ? $" — assigned to {assignedTo}" : "") +
-                        (slaDeadline.HasValue ? $" — SLA: {slaDeadline:yyyy-MM-dd HH:mm}" : "")
-                };
-
-                // Auto-detect revision
-                try
-                {
-                    string rev = PhaseAutoDetect.DetectProjectRevision(doc);
-                    if (!string.IsNullOrEmpty(rev)) issue["revision"] = rev;
-                }
+                string rev = "";
+                try { rev = PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
                 catch (Exception ex2) { StingLog.Warn($"QuickIssue rev detect: {ex2.Message}"); }
 
-                arr.Add(issue);
-                File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                string issuePath = IssueStore.PathFor(doc);
+                JObject issue;
+                using (var batch = IssueStore.Begin(doc))
+                {
+                    if (!batch.Ok)
+                    {
+                        MessageBox.Show("The issue register could not be read, so the issue was not saved — " +
+                                        "writing now would overwrite live rows.",
+                                        "STING Issues", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    issue = batch.Create(new IssueSpec
+                    {
+                        Type        = issueType,
+                        Title       = title,
+                        Description = title,
+                        Priority    = priority,
+                        AssignedTo  = assignedTo,
+                        Discipline  = disc,
+                        Revision    = rev,
+                        Source      = IssueSource.Manual,
+                        Extra       = new JObject
+                        {
+                            ["sla_deadline"]     = slaDeadline?.ToString("yyyy-MM-dd HH:mm") ?? "",
+                            ["escalation_level"] = 0,
+                            ["status_history"]   = new JArray
+                            {
+                                new JObject
+                                {
+                                    ["from"] = "",
+                                    ["to"]   = "OPEN",
+                                    ["by"]   = Environment.UserName,
+                                    ["at"]   = now.ToString("o"),
+                                    ["note"] = (!string.IsNullOrEmpty(assignedTo) ? $"assigned to {assignedTo}" : "created") +
+                                               (slaDeadline.HasValue ? $" — SLA: {slaDeadline:yyyy-MM-dd HH:mm}" : ""),
+                                },
+                            },
+                        },
+                    });
+                    if (issue == null)
+                    {
+                        MessageBox.Show("Issue could not be created.", "STING Issues",
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    batch.Commit();
+                }
+                string issueId = IssueSchema.IdOf(issue);
+                var arr = IssueStore.Load(doc);
                 ProjectFolderEngine.LogActivity(doc, "CREATE_ISSUE", issueId, $"{issueType}: {title} → {assignedTo}");
 
                 // Generate notification for critical/high priority issues
@@ -2156,7 +2300,7 @@ namespace StingTools.UI
                 try
                 {
                     _teamData["last_updated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    File.WriteAllText(_teamPath, _teamData.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(_teamPath, _teamData.ToString(Newtonsoft.Json.Formatting.Indented));
                 }
                 catch (Exception ex) { StingLog.Warn($"TeamRegistry save: {ex.Message}"); }
             }
@@ -2949,7 +3093,7 @@ namespace StingTools.UI
             }
 
             meetings.Add(meeting);
-            File.WriteAllText(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
             ProjectFolderEngine.LogActivity(doc, "MEETING_CREATED", meeting["id"].ToString(),
                 $"{meetingType} #{seriesNum}, {attendees.Count} attendees" +
                 (carryForwardActions > 0 ? $", {carryForwardActions} actions carried forward" : ""));
@@ -3032,7 +3176,7 @@ namespace StingTools.UI
             }
 
             // 3. Pending transmittals
-            string txPath = Path.Combine(bimDir, "transmittals.json");
+            string txPath = CoordStores.Transmittals(doc);
             if (File.Exists(txPath))
             {
                 try
@@ -3105,7 +3249,7 @@ namespace StingTools.UI
 
             target["agenda"] = agenda;
             int totalMin = agenda.Sum(a => a["duration_min"]?.Value<int>() ?? 5);
-            File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
 
             // Show agenda in result panel, grouped by section
             var panel = StingResultPanel.Create("Meeting Agenda")
@@ -3182,7 +3326,7 @@ namespace StingTools.UI
             {
                 target["minutes"] = tb.Text;
                 target["status"] = "IN_PROGRESS";
-                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_LOGGED", meetId, $"{tb.Text.Length} chars");
                 inputWin.DialogResult = true;
                 inputWin.Close();
@@ -3276,7 +3420,7 @@ namespace StingTools.UI
                     ["created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm")
                 });
                 target["actions"] = actions;
-                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "ACTION_ADDED", meetId, descBox.Text);
                 inputWin.DialogResult = true;
                 inputWin.Close();
@@ -3434,7 +3578,7 @@ namespace StingTools.UI
             try
             {
                 string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
-                File.WriteAllText(exportPath, sb.ToString());
+                OutputLocationHelper.WriteAllTextAtomic(exportPath, sb.ToString());
                 Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true })?.Dispose();
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
             }
@@ -3484,7 +3628,7 @@ namespace StingTools.UI
                     ["status"] = "PENDING"
                 });
 
-                File.WriteAllText(notifyPath, queue.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(notifyPath, queue.ToString(Newtonsoft.Json.Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"LogNotification: {ex.Message}"); }
         }
@@ -3531,7 +3675,7 @@ namespace StingTools.UI
                 }
             }
 
-            File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
 
             var panel = StingResultPanel.Create("SLA Compliance Check")
                 .SetSubtitle($"{issues.Count(i => i["status"]?.ToString() != "CLOSED")} open issues scanned")
@@ -3737,7 +3881,7 @@ namespace StingTools.UI
                 // Pending transmittals
                 try
                 {
-                    string txPath = Path.Combine(bimDir, "transmittals.json");
+                    string txPath = CoordStores.Transmittals(doc);
                     if (File.Exists(txPath))
                     {
                         var txs = JArray.Parse(File.ReadAllText(txPath));
@@ -3972,42 +4116,88 @@ namespace StingTools.UI
             return style;
         }
 
-        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        /// <summary>
+        /// Restore a file from the project recycle bin.
+        /// <para>
+        /// Reads the SAME bin that <see cref="ProjectFolderEngine.DeleteFile"/> writes:
+        /// &lt;root&gt;/_data/recycle/, via <see cref="StingPaths.Recycle"/>. It previously read
+        /// &lt;root&gt;/_RECYCLE — a folder nothing has written since the recycle bin moved under
+        /// _data — so Restore reported "Recycle bin is empty" however many files had been
+        /// deleted, and every soft-delete was unrecoverable through the UI. The legacy
+        /// location is still scanned so files recycled before that move can be restored.
+        /// </para>
+        /// </summary>
         private static void RestoreFromRecycle(Document doc)
         {
+            // Canonical bin first, then the legacy sibling for anything recycled before
+            // the bin moved under _data.
+            var bins = new List<string>();
+            try { bins.Add(StingPaths.Recycle(doc)); } catch (Exception ex) { StingLog.Warn($"Restore bin: {ex.Message}"); }
             string rootPath = ProjectFolderEngine.GetRootPath(doc);
-            string recyclePath = string.IsNullOrEmpty(rootPath) ? "" : Path.Combine(rootPath, "_RECYCLE");
-            if (!Directory.Exists(recyclePath) || Directory.GetFiles(recyclePath).Length == 0)
+            if (!string.IsNullOrEmpty(rootPath))
+                bins.Add(Path.Combine(rootPath, "_RECYCLE"));   // path-discipline: legacy-fallback -- pre-_data recycle bin
+
+            // Map display name -> full path so a pick from either bin resolves correctly.
+            var entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string bin in bins)
+            {
+                if (string.IsNullOrEmpty(bin) || !Directory.Exists(bin)) continue;
+                try
+                {
+                    foreach (string f in Directory.GetFiles(bin))
+                    {
+                        string name = Path.GetFileName(f);
+                        // Bookkeeping sidecar, not a recycled deliverable.
+                        if (string.Equals(name, "recycle_index.json", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!entries.ContainsKey(name)) entries[name] = f;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Restore scan {bin}: {ex.Message}"); }
+            }
+
+            if (entries.Count == 0)
             {
                 MessageBox.Show("Recycle bin is empty.", "STING Restore");
                 return;
             }
-            var files = Directory.GetFiles(recyclePath)
-                .Select(f => Path.GetFileName(f)).OrderByDescending(f => f).ToList();
-            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
-            if (string.IsNullOrEmpty(pick)) return;
 
-            string srcPath = Path.Combine(recyclePath, pick);
-            // Let user choose destination folder
-            var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}").ToList();
+            var files = entries.Keys.OrderByDescending(f => f).ToList();
+            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
+            if (string.IsNullOrEmpty(pick) || !entries.TryGetValue(pick, out string srcPath)) return;
+
+            // Default to the location the file was deleted from — DeleteFile records it in
+            // recycle_index.json, and RestoreFile also strips the yyyyMMdd_HHmmss_ prefix
+            // that the raw File.Move here used to leave baked into the restored filename.
+            const string OriginalChoice = "(original location)";
+            var folders = new List<string> { OriginalChoice };
+            folders.AddRange(ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}"));
             string destPick = StingListPicker.Show("Restore To", "Restore to which folder?", folders);
             if (string.IsNullOrEmpty(destPick)) return;
 
-            string folderId = destPick.Split(':')[0].Trim();
-            string destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
-            if (!string.IsNullOrEmpty(destDir))
+            string folderId = null;
+            string destDir = null;
+            if (!string.Equals(destPick, OriginalChoice, StringComparison.OrdinalIgnoreCase))
             {
-                try
-                {
-                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
-                    string destPath = Path.Combine(destDir, pick);
-                    File.Move(srcPath, destPath);
-                    ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {folderId}");
-                    MessageBox.Show($"Restored: {pick}\nTo: {folderId}", "STING Restore", MessageBoxButton.OK, MessageBoxImage.Information);
-                    RefreshData();
-                }
-                catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+                folderId = destPick.Split(':')[0].Trim();
+                destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
+                if (string.IsNullOrEmpty(destDir)) return;
             }
+
+            try
+            {
+                if (!ProjectFolderEngine.RestoreFile(srcPath, destDir))
+                {
+                    MessageBox.Show($"Could not restore {pick}.", "STING Restore",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                string where = folderId ?? "original location";
+                ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {where}");
+                MessageBox.Show($"Restored: {pick}\nTo: {where}", "STING Restore",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                RefreshData();
+            }
+            catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
         }
 
         // ── File operation implementations ──
@@ -4147,7 +4337,7 @@ namespace StingTools.UI
                             closed++;
                         }
                     }
-                    File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     MessageBox.Show($"Closed {closed} issues.");
                     RefreshData();
                 }
@@ -4284,7 +4474,7 @@ namespace StingTools.UI
                         }
                     }
                     if (synced > 0)
-                        File.WriteAllText(regPath, regArr.ToString(Newtonsoft.Json.Formatting.Indented));
+                        OutputLocationHelper.WriteAllTextAtomic(regPath, regArr.ToString(Newtonsoft.Json.Formatting.Indented));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BulkUpdateCDE register sync: {ex.Message}"); }
@@ -4314,7 +4504,7 @@ namespace StingTools.UI
                     var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
                     if (note != null) { arr.Remove(note); deleted++; _allItems.Remove(item); }
                 }
-                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "BULK_DELETE_NOTES", $"{deleted}", $"Deleted {deleted} notes");
                 MessageBox.Show($"Deleted {deleted} sticky notes.");
                 UpdateCounts();
@@ -4334,8 +4524,7 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(newStatus)) return;
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = CoordStores.Transmittals(doc);
                 if (!File.Exists(transPath)) return;
                 var arr = JArray.Parse(File.ReadAllText(transPath));
                 int updated = 0;
@@ -4351,7 +4540,7 @@ namespace StingTools.UI
                         updated++;
                     }
                 }
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "TRANS_STATUS", $"{updated}", $"→ {newStatus}");
                 MessageBox.Show($"Updated {updated} transmittal(s) to {newStatus}.");
                 RefreshData();
@@ -4392,7 +4581,7 @@ namespace StingTools.UI
                     ["user"] = user,
                     ["element_ids"] = new JArray()
                 });
-                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "CREATE_NOTE", noteId, $"{category}: {text.Substring(0, Math.Min(50, text.Length))}");
                 RefreshData();
             }
@@ -4521,6 +4710,21 @@ namespace StingTools.UI
         {
             try
             {
+                // Once the user has consolidated (canonical _data/register.json exists), show
+                // the LIVE unified register — both stores merged fresh via DocumentRegister —
+                // so the Document Manager and the BIM Coordination Center see one register.
+                // Reads only: edits to register-sourced rows still persist to
+                // document_register.json, and deliverable-sourced rows are display-only here.
+                string canonical = ProjectFolderEngine.GetDataPath(doc, DocumentRegister.CanonicalFileName);
+                if (!string.IsNullOrEmpty(canonical) && File.Exists(canonical))
+                {
+                    // Fall THROUGH to the legacy loader when the unified build yields nothing:
+                    // a merge failure (unreadable store, parse error) must not present the user
+                    // with an empty register when document_register.json is sitting right there.
+                    if (LoadUnifiedRegister(doc)) return;
+                    StingLog.Warn("DocMgr.LoadDocReg: unified register empty — falling back to document_register.json.");
+                }
+
                 string bimDir = GetBimManagerDir(doc);
                 string regPath = Path.Combine(bimDir, "document_register.json");
                 if (!File.Exists(regPath)) return;
@@ -4554,6 +4758,61 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadDocReg: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Load the live unified register (document_register.json + deliverables.json merged
+        /// by <see cref="DocumentRegister"/>) into the shared item list. Read-only view.
+        /// Returns false when nothing was loaded, so the caller can fall back to the legacy
+        /// single-store loader rather than showing an empty register.
+        /// </summary>
+        private static bool LoadUnifiedRegister(Document doc)
+        {
+            int built = 0;
+            try
+            {
+                // "Did the merge produce anything" is the question, NOT "did we add anything":
+                // counting only newly-added rows reports failure when every row is already in
+                // the list, and the caller then appends the legacy store on top of them.
+                var rows = DocumentRegister.BuildUnified(doc, out bool storeFailed);
+                built = rows.Count;
+                if (storeFailed)
+                {
+                    // One store was unreadable. Its rows are missing from `rows`, so a
+                    // non-empty result here is NOT a complete register — fall back rather than
+                    // present a register that is quietly missing every deliverable.
+                    StingLog.Warn("DocMgr.LoadUnifiedRegister: a source store failed to read; using the legacy loader.");
+                    return false;
+                }
+
+                foreach (var r in rows)
+                {
+                    if (string.IsNullOrEmpty(r.Id) || _allItems.Any(i => i.Id == r.Id)) continue;
+                    string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(r.Type ?? "", out string td) ? td : r.Type;
+                    // Resolve the ISO 19650 status code to its description exactly as the legacy
+                    // loader does — otherwise the unified view shows the bare code ("S2") where
+                    // the old view showed "Shared — suitable for information".
+                    string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(r.Status ?? "", out string sd) ? sd : r.Status;
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = r.Id,
+                        Title = string.IsNullOrEmpty(r.Title) ? r.Id : r.Title,
+                        Type = r.Type, TypeDesc = typeDesc,
+                        Status = r.Status, StatusDesc = statusDesc,
+                        CDE = string.IsNullOrEmpty(r.CdeStatus) ? "WIP" : r.CdeStatus,
+                        Revision = r.Revision,
+                        Date = r.DateCreated,
+                        Direction = string.IsNullOrEmpty(r.Direction) ? "OUT" : r.Direction,
+                        FilePath = r.FilePath,
+                        FileFormat = r.FileFormat,
+                        CreatedBy = r.CreatedBy,
+                        Suitability = r.Suitability,
+                        Category = "DOCUMENT", Folder = "15_REGISTERS"
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); return false; }
+            return built > 0;
         }
 
         private static void LoadIssues(Document doc)
@@ -4733,8 +4992,7 @@ namespace StingTools.UI
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = CoordStores.Transmittals(doc);
                 if (!File.Exists(transPath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(transPath));
@@ -5187,6 +5445,26 @@ namespace StingTools.UI
         //  HELPERS
         // ══════════════════════════════════════════════════════════════════
 
+        // Guard so repeated StartWatch presses do not stack handlers on the
+        // static ProjectFolderEngine.FileChanged event.
+        private static bool _fileChangedSubscribed;
+
+        /// <summary>Subscribe the document list to plugin-initiated file operations.</summary>
+        private static void SubscribeFileChangedOnce()
+        {
+            if (_fileChangedSubscribed) return;
+            try
+            {
+                ProjectFolderEngine.FileChanged += (action, fileName, path) =>
+                {
+                    try { _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData())); }
+                    catch (Exception ex) { StingLog.Warn($"FileChanged refresh: {ex.Message}"); }
+                };
+                _fileChangedSubscribed = true;
+            }
+            catch (Exception ex) { StingLog.Warn($"SubscribeFileChangedOnce: {ex.Message}"); }
+        }
+
         private static void RefreshData()
         {
             if (_doc == null) return;
@@ -5215,10 +5493,25 @@ namespace StingTools.UI
 
         private static string GetBimManagerDir(Document doc)
         {
+            // Consolidated metadata root (<root>/_data/STING_BIM_MANAGER) — the SAME
+            // directory BIMManagerEngine.GetBIMManagerDir resolves, so the Document
+            // Manager and the BIM Coordination Center share ONE physical store for
+            // issues / document_register / meetings / revisions instead of the two
+            // diverging folders they used before consolidation. Only unsaved documents
+            // fall back to a sibling of the .rvt. Transmittals do NOT come through here
+            // — those route to CoordStores.Transmittals (the _BIM_COORD bucket the
+            // TransmittalOrchestrator owns).
+            string bimDir = null;
+            try { bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr dir: {ex.Message}"); }
+            if (!string.IsNullOrEmpty(bimDir)) return bimDir;
+
             string projDir = "";
             if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-            string bimDir = Path.Combine(projDir, "STING_BIM_MANAGER");
+            // path-discipline: legacy-fallback -- only reached when GetMetaPath above
+            // could not resolve a root at all (unsaved / detached model).
+            bimDir = Path.Combine(projDir, "STING_BIM_MANAGER");
             if (!Directory.Exists(bimDir))
             {
                 try { Directory.CreateDirectory(bimDir); }
@@ -5500,7 +5793,7 @@ namespace StingTools.UI
                             {
                                 string hist = issue["status_history"]?.ToString() ?? "";
                                 issue["status_history"] = hist + $"\n{DateTime.Now:yyyy-MM-dd HH:mm} REASSIGNED to {name} by {Environment.UserName}";
-                                File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+                                OutputLocationHelper.WriteAllTextAtomic(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
                             }
                         }
                     }
@@ -5581,7 +5874,7 @@ namespace StingTools.UI
                 if (entry != null)
                 {
                     entry[field] = value;
-                    File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     ProjectFolderEngine.LogActivity(doc, "UPDATE_DOC", docId, $"{field}={value}");
                 }
             }
@@ -5603,7 +5896,7 @@ namespace StingTools.UI
                     entry[field] = value;
                     entry["status_history"] = (entry["status_history"]?.ToString() ?? "")
                         + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {field}: {old}->{value}";
-                    File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     ProjectFolderEngine.LogActivity(doc, "UPDATE_ISSUE", issueId, $"{field}={value}");
                 }
             }

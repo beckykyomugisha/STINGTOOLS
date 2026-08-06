@@ -126,8 +126,16 @@ class ArchiCadHostAdapter(HostAdapter):
 
     # ── write ────────────────────────────────────────────────────────────────
 
-    def write_tag(self, element: Any, tag: Tag) -> bool:
-        """Write the tag back as STING User-Defined properties."""
+    def write_tag(self, element: Any, tag: Tag, status: str | None = None) -> bool:
+        """Write the tag back as STING User-Defined properties.
+
+        ``status`` is passed separately because it is NOT a tag segment — `Tag`
+        is a strict eight-segment grammar. `PropertyWriter._TOKEN_PROPS` already
+        maps it to `ASS_STATUS_TXT`; this method simply never supplied it, so a
+        status-only remote change could not be persisted and would re-apply on
+        every pull once SB-5a wires the loop. Empty/None values are skipped by
+        the writer, so existing callers that omit it are unaffected.
+        """
         if self._writer is None:
             log.warning("No PropertyWriter - cannot write back to ArchiCAD")
             return False
@@ -137,6 +145,8 @@ class ArchiCadHostAdapter(HostAdapter):
             "prod": tag.product, "seq": tag.sequence,
             "tag1": tag.to_full_tag(),
         }
+        if status:
+            tokens["status"] = str(status)
         try:
             self._writer.write_tokens([(str(element), tokens)])
             return True
@@ -174,7 +184,7 @@ class ArchiCadHostAdapter(HostAdapter):
             product=payload.get("prod") or payload.get("product") or "XX",
             sequence=payload.get("seq") or payload.get("sequence") or "0000",
         )
-        return self.write_tag(guid, tag)
+        return self.write_tag(guid, tag, status=payload.get("status"))
 
     def georef_descriptor(self) -> GeorefDescriptor:
         """Coordinate evidence for the Federation Placement Resolver.

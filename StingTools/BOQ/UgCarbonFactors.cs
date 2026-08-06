@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  UgCarbonFactors.cs — WP3. The Uganda/EDGE default embodied-carbon basis.
 //
 //  Corporate baseline: StingTools/Data/STING_CARBON_FACTORS_UG.json
@@ -51,7 +51,7 @@ namespace StingTools.BOQ
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "carbon_factors_ug.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "carbon_factors_ug.json");
             }
             catch { return null; }
         }

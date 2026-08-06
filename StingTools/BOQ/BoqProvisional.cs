@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BoqProvisional.cs (QS gap G2) — provisional-sum reconciliation trail.
 //
 //  Until now a provisional sum (PS) was just a number you overwrote, so the
@@ -49,7 +49,7 @@ namespace StingTools.BOQ
             {
                 string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_provisionals.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "boq_provisionals.json");
             }
             catch { return null; }
         }

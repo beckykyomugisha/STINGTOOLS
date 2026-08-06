@@ -1081,6 +1081,11 @@
                                     <CheckBox x:Name="chkSLDShowFault" Content="Fault kA" Margin="0,2,8,2"/>
                                     <CheckBox x:Name="chkSLDShowWires" Content="Wire sizes" Margin="0,2"/>
                                 </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox x:Name="chkSLDScanLinks" Content="Include linked models"
+                                              Margin="0,2"
+                                              ToolTip="Also draw distribution boards found in loaded Revit links. Linked equipment is read-only and its circuits cannot join this model's, so each link appears as its own independent hierarchy — reference content, not editable."/>
+                                </StackPanel>
                                 <TextBlock Text="Scale" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox x:Name="cmbSLDScale" FontSize="10">
                                     <ComboBoxItem Content="Auto-fit to page" IsSelected="True"/>

@@ -8,9 +8,24 @@ using Planscape.Infrastructure.SignalR;
 namespace Planscape.API.Controllers;
 
 /// <summary>
-/// Pillar B (5A) — device-twin query + binding. Powers the mobile Live tab
-/// (RAG list) and the viewer's twin overlay (K3). Binding records the K1 iot
+/// Pillar B (5A) — device-twin query + binding. Binding records the K1 iot
 /// mapping so telemetry resolves to the model element.
+///
+/// NO CLIENT CALLS THIS. An earlier version of this docstring claimed it "powers
+/// the mobile Live tab (RAG list) and the viewer's twin overlay (K3)". Measured
+/// 2026-08-02: there is no Live tab — <c>Planscape/app/(tabs)/</c> contains
+/// index, issues, issue-detail, documents, models, ifc, schedule, cost-dashboard,
+/// myactions, scanner and settings, and nothing else. The two <c>live.tsx</c>
+/// files in the app (<c>meetings/live.tsx</c>, <c>healthcare/pressure-live.tsx</c>)
+/// are a LiveKit meeting screen and a healthcare pressure view respectively;
+/// neither touches this controller. A repo-wide grep for <c>device-twins</c> /
+/// <c>DeviceTwins</c> across <c>Planscape/</c> and <c>planscape-web/</c> returns
+/// zero hits.
+///
+/// The endpoints are real — routable, DI resolves, tenant-scoped, backed by tables
+/// the schema patcher creates unconditionally. This is a **product** gap (no client
+/// has been built), not a broken endpoint. Do not delete it on "no caller" grounds;
+/// see docs/PHASE6_CLIENTLESS_CONTROLLER_TRIAGE.md.
 /// </summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/twins")]

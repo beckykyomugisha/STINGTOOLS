@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BoqDriftStatus.cs — Phase 2C. Persisted drift state for the passive banner.
 //
 //  Records whether the live bill has drifted from the last saved snapshot
@@ -59,7 +59,7 @@ namespace StingTools.BOQ
         {
             string parent = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(parent)) return null;
-            return Path.Combine(parent, "_BIM_COORD", FileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
         }
     }
 }

@@ -191,7 +191,7 @@ namespace StingTools.Tags
             (@"\b(remove\s+leader)\b", "RemoveLeaders", "RemoveLeaders", "Remove leaders from tags"),
 
             // Legends
-            (@"\b(create\s+legend|legend|color\s+legend)\b", "CreateMasterLegend", "Legend", "Create legend"),
+            (@"\b(create\s+legend|legend|color\s+legend)\b", "CreateColorLegend", "Legend", "Create legend"),
 
             // Export
             (@"\b(export\s+csv|csv\s+export|export\s+data)\b", "ExportCSV", "ExportCSV", "Export to CSV"),
@@ -296,7 +296,7 @@ namespace StingTools.Tags
             (@"\b(from\s*scope\s*box|scope\s*box\s*view|generate\s*from\s*scope)\b",
                 "DrawingTypes_FromScopeBoxes", "DrawingTypes", "Generate views from STING scope box naming convention"),
             (@"\b(browser\s*organ|view\s*browser\s*org|drawing\s*browser)\b",
-                "DrawingTypes_BrowserOrganize", "DrawingTypes", "Create browser organizer by drawing type"),
+                "Drawing_BrowserOrganize", "DrawingTypes", "Create browser organizer by drawing type"),
             (@"\b(inspect\s*drawing\s*type|drawing\s*type\s*inspect|list\s*drawing\s*type)\b",
                 "DrawingTypes_Inspect", "DrawingTypes", "Inspect all drawing types and routing rules"),
             (@"\b(reload\s*drawing\s*type|refresh\s*drawing|drawing\s*type\s*reload)\b",
@@ -492,25 +492,25 @@ namespace StingTools.Tags
 
             // ── Legends Extended ──────────────────────────────────────────────────
             (@"\b(discipline\s+legend|legend\s+disc|disc\s+legend)\b",
-                "CreateDisciplineLegend", "DisciplineLegend", "Create discipline colour-coded legend"),
+                "CreateColorLegend", "DisciplineLegend", "Create discipline colour-coded legend"),
             (@"\b(system\s+legend|legend\s+system|sys\s+legend)\b",
-                "CreateSystemLegend", "SystemLegend", "Create system type colour legend"),
+                "MepSystemLegend", "SystemLegend", "Create system type colour legend"),
             (@"\b(material\s+legend|legend\s+material|material\s+color\s+key)\b",
-                "CreateMaterialLegend", "MaterialLegend", "Create material legend from model"),
+                "MaterialLegend", "MaterialLegend", "Create material legend from model"),
             (@"\b(equipment\s+legend|legend\s+equip|equip\s+key)\b",
-                "CreateEquipmentLegend", "EquipmentLegend", "Create equipment type legend"),
+                "EquipmentLegend", "EquipmentLegend", "Create equipment type legend"),
             (@"\b(fire\s+rating\s+legend|fire\s+legend|fire\s+rating\s+key)\b",
-                "CreateFireRatingLegend", "FireRatingLegend", "Create fire rating key/legend"),
+                "FireRatingLegend", "FireRatingLegend", "Create fire rating key/legend"),
             (@"\b(tag\s+legend|legend\s+tag|iso\s+tag\s+legend)\b",
                 "CreateTagLegend", "TagLegend", "Create ISO 19650 tag format legend"),
             (@"\b(status\s+legend|legend\s+status|state\s+legend)\b",
-                "CreateStatusLegend", "StatusLegend", "Create element status legend (new/existing/demolished)"),
+                "StatusLegend", "StatusLegend", "Create element status legend (new/existing/demolished)"),
             (@"\b(phase\s+legend|legend\s+phase|demolition\s+legend)\b",
-                "CreatePhaseLegend", "PhaseLegend", "Create phase legend for demolition and new work"),
+                "StatusLegend", "PhaseLegend", "Create phase legend for demolition and new work"),
             (@"\b(symbol\s+legend|legend\s+symbol|drawing\s+key)\b",
-                "CreateSymbolLegend", "SymbolLegend", "Create symbol/notation key for drawings"),
+                "ComponentTypeLegend", "SymbolLegend", "Create symbol/notation key for drawings"),
             (@"\b(sync\s+legend|update\s+legend|refresh\s+legend)\b",
-                "SyncLegend", "SyncLegend", "Synchronize legend with current element data"),
+                "UpdateLegend", "SyncLegend", "Synchronize legend with current element data"),
             (@"\b(color\s+swatch|colour\s+swatch|swatch\s+legend)\b",
                 "CreateColorLegend", "ColorLegend", "Create colour swatch legend from current scheme"),
 

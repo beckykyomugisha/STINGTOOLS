@@ -29,7 +29,7 @@
 <article class="doc">
   <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; StingBridge setup</div>
   <h1>StingBridge setup — ArchiCAD &amp; IFC to Planscape</h1>
-  <div class="meta">📖 6-minute read · Beginner · Last updated 2026-07-19 · v0.1.0-beta.1</div>
+  <div class="meta">📖 6-minute read · Beginner · Last updated 2026-07-20 · v0.1.0-beta.3</div>
 
   <p>StingBridge connects <strong>ArchiCAD</strong> — or <em>any</em> tool that can export IFC — to your Planscape project. It reads the model, derives STING ISO 19650 tokens (<code>DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ</code>), pushes them to Planscape, and writes them back into the model so the tags live in the file too.</p>
 
@@ -74,6 +74,13 @@ ifc_drop_dir         = "C:/Projects/IFC_DROP"</code></pre>
   <p>The token is shown <strong>once</strong> — copy it straight into <code>planscape_token</code>. It is stored hashed, so it cannot be shown again; if you lose it, revoke that one and mint another.</p>
   <p><strong>If you signed up on planscape.build, a token is your only option.</strong> Accounts created by clicking through from the website are linked to your planscape.build sign-in and have no separate server password, so email and password login will always be refused for them.</p>
   <p>If your account does have a password, you can use <code>planscape_email</code> and <code>planscape_password</code> instead. Either way StingBridge trades your credential for a short-lived session and refreshes it automatically.</p>
+
+  <h3>Token expiry</h3>
+  <p>Tokens now expire after <strong>90 days</strong> by default. Pass <code>"expiresInDays": 365</code> for the longest allowed life, or a smaller number for a short-lived one — a value of zero, a negative number, or anything above 365 is rejected. Tokens minted before this change carry no expiry and keep working until you revoke them.</p>
+
+  <h3>Advisory — revoke and re-mint tokens created before 20 July 2026</h3>
+  <p>Tokens minted before that date have a display prefix that included the first seven characters <em>of the token itself</em>. The prefix is stored unhashed and is shown when you list your tokens, so those seven characters were visible to anyone who could read the token list or the database — which is exactly what storing a hash is meant to prevent.</p>
+  <p>The rest of the token was never exposed and no misuse is known; seven characters is a long way from guessable. Even so, the safe move is a minute of work: <strong>list your tokens, mint a replacement, update the config, then revoke the old one.</strong> Tokens created from 20 July 2026 onward use a random display prefix that reveals nothing.</p>
 
   <h2>Step 3 — Pick your workflow</h2>
 

@@ -1,5 +1,13 @@
 # MEP Drawing-Type Print-Readiness Runner
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 **Autonomous-agent runner.** Mission: make every MEP drawing type in STING truly
 *"ready to print"* — a user drops in a view and the sheet is fully rendered and
 correctly annotated — **and** make the DrawingType-configured *token depth,

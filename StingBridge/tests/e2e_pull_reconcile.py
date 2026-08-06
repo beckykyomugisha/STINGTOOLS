@@ -8,7 +8,7 @@ Proves against a REAL server and REAL database that:
      including across rows written in the same instant;
   3. a newer remote edit is applied to the host;
   4. a newer local edit is kept and the remote one is surfaced, not applied;
-  5. a tie resolves deterministically (local preferred);
+  5. a tie resolves deterministically AND converges from both perspectives;
   6. an identical payload is a no-op regardless of timestamps.
 
 The unit tests prove the decision table against fakes. This proves the server
@@ -221,20 +221,38 @@ def main() -> int:
         fail("the losing remote edit was not surfaced")
     ok(f"local kept, conflict reported ({res2.summary()})")
 
-    # ── 6. tie ⇒ local wins, deterministically ──────────────────────────────
-    step("Equal timestamps -> local preferred, deterministically")
+    # ── 6. tie ⇒ content digest, and it CONVERGES ───────────────────────────
+    step("Equal timestamps -> content tiebreak, converging from both sides")
     remote_ts = deltas[0].last_modified_utc
-    tie = {gid_a: {
-        "tokens": {"disc": "M", "loc": "BLD1", "zone": "Z01", "lvl": "L02",
-                   "sys": "HVAC", "func": "SUP", "prod": "AHU", "seq": "0555"},
-        "modified_utc": remote_ts,
-    }}
+    local_tokens = {"disc": "M", "loc": "BLD1", "zone": "Z01", "lvl": "L02",
+                    "sys": "HVAC", "func": "SUP", "prod": "AHU", "seq": "0555"}
+    remote_tokens = dict(deltas[0].payload or {})
+
+    def _settle(local_side, remote_side):
+        """Run one host's reconcile and report the value it ends up holding."""
+        adapter = _RecordingAdapter()
+        d = ChangeDelta(kind="tag", global_id=gid_a, payload=remote_side,
+                        last_modified_utc=remote_ts)
+        r = ReconcileEngine(adapter).reconcile(
+            [d], {gid_a: {"tokens": local_side, "modified_utc": remote_ts}})
+        return (remote_side if adapter.applied else local_side), r
+
+    # Stability: same inputs, same answer, every time.
+    first, _ = _settle(local_tokens, remote_tokens)
     for _ in range(3):
-        a = _RecordingAdapter()
-        r = ReconcileEngine(a).reconcile(deltas, tie)
-        if a.applied or r.kept_local != 1:
-            fail(f"tie did not resolve to local: {r.summary()}")
-    ok("tie resolved to local on every run")
+        again, r = _settle(local_tokens, remote_tokens)
+        if again != first:
+            fail(f"tie-break is not stable: {r.summary()}")
+
+    # Convergence: swap the perspectives. This is the assertion the previous
+    # version of this E2E lacked — it re-ran ONE side three times and asserted
+    # it kept saying "local", which the non-converging rule satisfied perfectly.
+    host_a, _ = _settle(local_tokens, remote_tokens)
+    host_b, _ = _settle(remote_tokens, local_tokens)
+    if host_a != host_b:
+        fail(f"hosts diverged and will never reconcile: "
+             f"A={host_a.get('seq')} B={host_b.get('seq')}")
+    ok(f"tie stable and convergent (both hosts settled on seq={host_a.get('seq')})")
 
     # ── 7. identical payload ⇒ no-op ────────────────────────────────────────
     step("Identical payload -> no host write at all")

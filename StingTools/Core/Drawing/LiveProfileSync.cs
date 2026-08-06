@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager · Phase 183
+﻿// StingTools — Drawing Template Manager · Phase 183
 //
 // LiveProfileSync tracks, per-document, which DrawingType and
 // ViewStylePack ids have changed between successive
@@ -321,7 +321,7 @@ namespace StingTools.Core.Drawing
             {
                 var projPath = doc.PathName;
                 if (string.IsNullOrEmpty(projPath)) return null;
-                var dir = Path.Combine(Path.GetDirectoryName(projPath), "_BIM_COORD");
+                var dir = StingPaths.Meta(doc, "_BIM_COORD");
                 return Path.Combine(dir, SnapshotFileName);
             }
             catch (Exception ex)

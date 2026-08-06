@@ -1,4 +1,4 @@
-// KutKpiDashboardCommand.cs — Kampala Temple KPI dashboard (proposal §4.6).
+﻿// KutKpiDashboardCommand.cs — Kampala Temple KPI dashboard (proposal §4.6).
 //
 // A real, visual KPI dashboard for the monthly BIM status report. Gathers the
 // §4.6 KPI set from the existing engines (no new metric infrastructure):
@@ -85,7 +85,7 @@ namespace StingTools.Commands.Kpi
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc);
                 if (!string.IsNullOrEmpty(outDir))
                 {
-                    var run = ClashPersistence.Load(Path.Combine(outDir, "clashes.json"));
+                    var run = ClashPersistence.Load(ClashPersistence.CanonicalPath(doc));
                     if (run?.Clashes != null)
                     {
                         foreach (var c in run.Clashes)
@@ -191,7 +191,7 @@ namespace StingTools.Commands.Kpi
         {
             string dir = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(dir)) return null;
-            string p = Path.Combine(dir, "_BIM_COORD", "kpi");
+            string p = StingPaths.MetaFile(doc, "_BIM_COORD", "kpi");
             Directory.CreateDirectory(p);
             return p;
         }
@@ -254,7 +254,8 @@ namespace StingTools.Commands.Kpi
                     string projDir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                     var edge = string.IsNullOrEmpty(projDir)
                         ? null
-                        : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(projDir);
+                        : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(
+                            StingPaths.Meta(doc, "_BIM_COORD", "sustainability"));
                     if (edge != null)
                     {
                         sb.Append("<h3>EDGE / sustainability (latest snapshot)</h3>");
@@ -403,7 +404,7 @@ namespace StingTools.Commands.Kpi
                 {
                     string projDir2 = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                     string delivJson = string.IsNullOrEmpty(projDir2) ? null
-                        : System.IO.Path.Combine(projDir2, "_BIM_COORD", "deliverables.json");
+                        : System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "deliverables.json");
                     int delivCount = 0;
                     if (!string.IsNullOrEmpty(delivJson) && System.IO.File.Exists(delivJson))
                     {

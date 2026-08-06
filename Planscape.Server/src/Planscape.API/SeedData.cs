@@ -431,7 +431,57 @@ public static class SeedData
             catch { /* non-critical — viewer just shows "no models yet" */ }
         }
 
+        AssertSeedFitsUserCap(db, tenant);
+
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// The seeder sets <c>MaxUsers</c> on the demo tenant and then adds users to
+    /// it. Nothing tied those two numbers together, so growing the seed past the
+    /// cap it had just written would have gone unnoticed until a human hit
+    /// "add user" and got a 400 with no clue why.
+    ///
+    /// <para>It does not currently breach: the seed adds 13 users (1 admin + one
+    /// per lead role + one per project) against <c>MaxUsers = 50</c>. This is an
+    /// invariant made explicit, not a repair — it fires only if someone grows
+    /// <c>leadRoles</c> or the project list past the headroom, which is exactly
+    /// the moment it is useful.</para>
+    ///
+    /// <para>Throwing is deliberate. The seeder is development-only (it refuses
+    /// to run in Production unless <c>PLANSCAPE_ALLOW_DEMO_SEED</c> is set), and
+    /// a dev database that silently starts over its own cap is the failure this
+    /// guards — a loud startup failure naming both numbers is cheaper to
+    /// diagnose than a 400 from an unrelated endpoint days later.</para>
+    ///
+    /// <para>Counts the pending inserts in the change tracker plus rows already
+    /// persisted for this tenant, so it is correct whether the tenant is being
+    /// created now or was already minted by <c>DemoSandboxJob</c>.</para>
+    /// </summary>
+    private static void AssertSeedFitsUserCap(PlanscapeDbContext db, Tenant tenant)
+    {
+        var pending = db.ChangeTracker.Entries<AppUser>()
+            .Count(e => e.State == EntityState.Added && e.Entity.TenantId == tenant.Id);
+
+        // Already-persisted rows for this tenant. Uses the same BypassTenantFilter
+        // the rest of the seeder relies on (TenantContext.TenantId is Guid.Empty
+        // at startup), so this sees the real rows rather than none.
+        var existing = db.Users.Count(u => u.TenantId == tenant.Id && !u.IsDeleted);
+
+        var total = existing + pending;
+        if (total <= tenant.MaxUsers) return;
+
+        throw new InvalidOperationException(
+            $"SeedData would leave the '{tenant.Slug}' tenant over its own user cap: " +
+            $"{total} users ({existing} existing + {pending} being seeded) against " +
+            $"MaxUsers = {tenant.MaxUsers}. Nothing would have reported this at seed " +
+            "time — it surfaces later as a 400 from POST /api/admin/users and the " +
+            "project-member invite path, both of which refuse once the tenant is at " +
+            "cap. Fix by raising MaxUsers on the demo tenant in SeedData, or by " +
+            "seeding fewer users. NOTE: load/seed-loadtest-data.sql inserts 400 " +
+            "loadtest*@planscape.demo users straight into Postgres and is NOT " +
+            "counted by any application guard; if that is the cause, run its " +
+            "documented cleanup: DELETE FROM \"Users\" WHERE \"Email\" LIKE 'loadtest%';");
     }
 
     // ── Minimal GLB builder ────────────────────────────────────────────────

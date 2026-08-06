@@ -23,7 +23,7 @@ ASS_SPOOL_DRAWING_REF_TXT (Text, Instance)
 DISCIPLINE             (Text, Instance) — Pipe / Duct / Electrical / Hanger
 
 LAYOUT NOTES
-- A1 landscape (594mm x 841mm)
+- A1 landscape (841mm x 594mm)
 - Right-hand strip 200mm wide reserved for BOM schedule
 - Title block at bottom 80mm
 - 5 viewport slots laid out by ShopDrawingComposer (PLAN, ISO, ELEV0, ELEV90, 3D)

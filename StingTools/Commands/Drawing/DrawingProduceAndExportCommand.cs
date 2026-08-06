@@ -19,12 +19,11 @@
 //     TitleBlockRevisionSyncer.SyncAll writes the newest Revit Revision's
 //     number / date / description onto every stamped sheet (SHT_REV_TXT,
 //     SHT_REV_DATE_TXT) and its title-block instances
-//     (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT /
-//     PRJ_TB_ISSUE_SUMMARY_TXT).
+//     (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT).
 //
 //   Phase D — PDF export
 //     Every STING-stamped sheet is exported to PDF via doc.Export, ordered
-//     by STING_SHEET_SEQUENCE_INT then SheetNumber.  Output goes to the
+//     by PRJ_SHEET_SEQUENCE_INT then SheetNumber.  Output goes to the
 //     project output folder (OutputLocationHelper).
 //
 //   Phase E — Sheet register CSV
@@ -55,7 +54,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 // ── Scope dialog ────────────────────────────────────────────────
@@ -170,7 +169,13 @@ namespace StingTools.Commands.Drawing
                     {
                         try
                         {
-                            var ctx = new DrawingContext { Level = level, Tag = level.Name };
+                            // P-9: ctx.Tag must stay null here. ProduceViewsPerLevelCommand leaves
+                            // it null, and BuildContextTag folds Tag into the view
+                            // idempotency key — so setting it to the level name gave the
+                            // two per-level paths different keys and running both
+                            // DUPLICATED every per-level view, despite both claiming
+                            // idempotency. The level is already in the key via ctx.Level.
+                            var ctx = new DrawingContext { Level = level };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
 
                             stats.ViewsProduced   += res.ViewIds.Count;

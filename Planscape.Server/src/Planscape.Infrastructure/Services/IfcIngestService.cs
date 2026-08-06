@@ -141,6 +141,13 @@ public sealed class IfcIngestService : IIfcIngestService
                     t.IsComplete = el.IsComplete; t.IsFullyResolved = el.IsFullyResolved; t.IsStale = el.IsStale;
                     t.ValidationErrors = el.ValidationErrors;
                     t.LastModifiedUtc = elLastMod ?? nowUtc;
+                    // This path only carries LIVE elements (IFC ingest has no
+                    // delete channel), so re-ingesting a tombstoned element is
+                    // an undelete. The existing-row load above already uses
+                    // IgnoreQueryFilters, so a tombstoned row IS found here —
+                    // without clearing the stamp it would be updated yet stay
+                    // hidden behind the global soft-delete filter.
+                    t.DeletedAtUtc = null;
                     updElements++;
                 }
                 else

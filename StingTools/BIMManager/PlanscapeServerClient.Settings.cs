@@ -101,8 +101,20 @@ public sealed partial class PlanscapeServerClient
 
     /// <summary>
     /// Persist the default server URL to the machine settings file so it sticks
-    /// across documents and Revit restarts. Called after a successful connect so
-    /// the user only types the cloud URL once. No-ops on a blank/whitespace URL.
+    /// across documents and Revit restarts. No-ops on a blank/whitespace URL.
+    ///
+    /// <para><b>Call this only for a DELIBERATE user choice</b> — in practice, only
+    /// through <see cref="PlanscapeServerTargets.SetActiveTarget"/>, which the server
+    /// picker calls after the user confirms a switch. It used to be called after every
+    /// successful connect, which meant connecting to a local stack once silently
+    /// repointed the machine (#563). This file holds the production pointer and is the
+    /// fallback the launcher script relies on; writing it as a side effect of anything
+    /// is how a user ends up on a dev database without having chosen to be.</para>
+    ///
+    /// <para>Refreshes <c>_cachedDefaultUrl</c> so a subsequent resolve in THIS process
+    /// sees the new value — but note that objects already built against the old base
+    /// (<c>PlanscapeServerClient.Instance</c>, its SignalR hub, the live session) are not
+    /// rebuilt. Switching genuinely requires a Revit restart, and callers must say so.</para>
     /// </summary>
     public static void SaveDefaultServerUrl(string? serverUrl)
     {
@@ -128,6 +140,65 @@ public sealed partial class PlanscapeServerClient
     public static void InvalidateDefaultServerUrlCache()
     {
         lock (_defaultUrlLock) { _cachedDefaultUrl = null; }
+    }
+
+    /// <summary>Env var name to override the derived web-app (SPA) URL directly,
+    /// bypassing <see cref="FormatWebAppUrl"/>'s api.&lt;domain&gt;→app.&lt;domain&gt;
+    /// / same-origin-&lt;base&gt;/app/ derivation. Needed for deployments where the
+    /// API and the web app are independently-named hosts (e.g. two Render free-tier
+    /// services, <c>planscape-api-free.onrender.com</c> +
+    /// <c>planscape-web-free.onrender.com</c>) that fit neither convention.</summary>
+    public const string WebAppUrlEnvVar = "STING_PLANSCAPE_WEB_URL";
+
+    /// <summary>
+    /// Resolve an explicit web-app URL override, if one is configured: env var →
+    /// machine settings file (key <c>webAppUrl</c>). Returns null when neither is
+    /// set, meaning callers should fall back to <see cref="FormatWebAppUrl"/>'s
+    /// derivation from the API base.
+    /// </summary>
+    public static string? ResolveWebAppUrlOverride()
+    {
+        try
+        {
+            var env = Environment.GetEnvironmentVariable(WebAppUrlEnvVar);
+            if (!string.IsNullOrWhiteSpace(env)) return NormalizeServerUrl(env);
+        }
+        catch (Exception ex) { StingLog.Warn($"ResolveWebAppUrlOverride(env): {ex.Message}"); }
+
+        try
+        {
+            string path = MachineSettingsPath;
+            if (File.Exists(path))
+            {
+                var o = JObject.Parse(File.ReadAllText(path));
+                var url = o["webAppUrl"]?.Value<string>();
+                if (!string.IsNullOrWhiteSpace(url)) return NormalizeServerUrl(url);
+            }
+        }
+        catch (Exception ex) { StingLog.Warn($"ResolveWebAppUrlOverride(file): {ex.Message}"); }
+
+        return null;
+    }
+
+    /// <summary>Persist an explicit web-app URL override to the machine settings
+    /// file, alongside <c>serverUrl</c>. Pass null/blank to clear it (the "Open
+    /// Planscape" buttons then fall back to deriving the URL from the API base).</summary>
+    public static void SaveWebAppUrlOverride(string? webAppUrl)
+    {
+        try
+        {
+            string path = MachineSettingsPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var o = File.Exists(path)
+                ? JObject.Parse(File.ReadAllText(path))
+                : new JObject();
+            if (string.IsNullOrWhiteSpace(webAppUrl)) o.Remove("webAppUrl");
+            else o["webAppUrl"] = NormalizeServerUrl(webAppUrl);
+            o["updatedUtc"] = DateTime.UtcNow.ToString("o");
+            File.WriteAllText(path, o.ToString(Newtonsoft.Json.Formatting.Indented));
+            StingLog.Info($"Planscape: web-app URL override saved to machine settings ({webAppUrl}).");
+        }
+        catch (Exception ex) { StingLog.Warn($"SaveWebAppUrlOverride: {ex.Message}"); }
     }
 
     /// <summary>

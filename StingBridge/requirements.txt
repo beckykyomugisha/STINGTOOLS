@@ -6,6 +6,17 @@ watchdog>=4.0.0
 # coordinate engine (Phase C) relies on landed in 0.8 and shift across majors.
 # Bump this ceiling deliberately, in lockstep with the Bonsai range pinned in
 # stingtools-bonsai/blender_manifest.toml.
+#
+# PACKAGING: ifcopenshell is NOT pure Python. It ships JSON schema tables next
+# to its modules (notably util/entity_to_type_map_2x3.json) that are opened by
+# path at runtime, so PyInstaller's module graph cannot see them. A frozen build
+# MUST pull them in with collect_data_files("ifcopenshell") — see
+# StingBridge/StingBridge.spec, which encodes this.
+#
+# Omitting it produces an EXE that passes the obvious smoke test and fails
+# later: the map is only consulted when a STING_TOKENS pset already exists, so
+# a fresh IFC works and a RE-DROP of the written-back file fails write-back.
+# That shipped once, in the first 0.1.0-beta.3 build.
 ifcopenshell>=0.8.0,<0.9
 
 # Shared STING core — single source of the Planscape /ifc/data wire contract
@@ -18,7 +29,11 @@ ifcopenshell>=0.8.0,<0.9
 #   * release zips ship the built wheel next to stingbridge's, and the
 #     documented install is `pip install wheels/*.whl` — self-contained, no
 #     monorepo and no network needed (QUICKSTART.md §1);
-#   * the PyInstaller EXE bundles it like any other dependency;
+#   * the PyInstaller EXE bundles it like any other dependency — true here
+#     because it IS pure Python, unlike ifcopenshell above. Note the build must
+#     install it non-editable: an editable install resolves through a path hook
+#     PyInstaller does not follow, and the EXE then dies with
+#     ModuleNotFoundError at startup;
 #   * in this monorepo checkout it resolves either from an editable install
 #     or, failing that, via the sys.path fallback in planscape/client.py.
 #

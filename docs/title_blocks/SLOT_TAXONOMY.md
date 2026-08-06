@@ -33,7 +33,7 @@ The colour palette in `tools/generate_title_block_previews.py` (`PURPOSE_PALETTE
 
 | Tag | Colour | Use | TB_SHOW_*_BOOL toggle |
 |---|---|---|---|
-| `key-plan` | `#4CAF50` green | Small location overview | `TB_SHOW_KEY_PLAN_BOOL` |
+| `key-plan` | `#4CAF50` green | Small location overview | `PRJ_TB_SHOW_KEY_PLAN_BOOL` |
 | `aerial-key` | `#8BC34A` light green | Site-wide aerial context |  |
 | `notes` | `#607D8B` slate | General notes legend |  |
 | `discipline-legend` | `#FF9800` orange | Discipline-specific symbol key |  |
@@ -45,19 +45,19 @@ The colour palette in `tools/generate_title_block_previews.py` (`PURPOSE_PALETTE
 | `schedule` | `#9C27B0` deep purple | Generic Revit schedule view |  |
 | `bom` | `#9C27B0` deep purple | Bill of Materials | (alias of `schedule`) |
 | `cut-list` | `#AD1457` dark pink | Lengths / cut summary for fab |  |
-| `revision-history` | `#F44336` red | Revit revision schedule | `TB_SHOW_REV_TABLE_BOOL` |
+| `revision-history` | `#F44336` red | Revit revision schedule | `PRJ_TB_SHOW_REV_TABLE_BOOL` |
 | `caption` | `#795548` brown | Drawing-title caption (presentation) |  |
 | `recipient-to` / `recipient-from` | `#607D8B` slate | Transmittal recipient blocks |  |
 | `regulator-stamp` | `#795548` brown | Authority seal placeholder |  |
-| `discipline-band` | `#FF9800` orange | Discipline-coloured banner | `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` |
+| `discipline-band` | `#FF9800` orange | Discipline-coloured banner | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` |
 
 ### Symbol
 
 | Tag | Colour | Use | TB_SHOW_*_BOOL toggle |
 |---|---|---|---|
-| `north-arrow` | `#009688` teal | North-arrow nested family | `TB_SHOW_NORTH_ARROW_BOOL` |
-| `scale-bar` | `#009688` teal | Scale-bar nested family | `TB_SHOW_SCALEBAR_BOOL` |
-| `qr-code` | `#37474F` dark grey | QR-code post-export stamp | `TB_SHOW_QR_CODE_BOOL` |
+| `north-arrow` | `#009688` teal | North-arrow nested family | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` |
+| `scale-bar` | `#009688` teal | Scale-bar nested family | `PRJ_TB_SHOW_SCALE_BAR_BOOL` |
+| `qr-code` | `#37474F` dark grey | QR-code post-export stamp | `PRJ_TB_SHOW_QR_CODE_BOOL` |
 
 ### Overlay / specialty
 
@@ -178,12 +178,12 @@ When `respectShowToggle: true`, the auto-placer reads the corresponding `TB_SHOW
 
 | purposeTag | TB_SHOW_*_BOOL parameter |
 |---|---|
-| `key-plan` | `TB_SHOW_KEY_PLAN_BOOL` |
-| `north-arrow` | `TB_SHOW_NORTH_ARROW_BOOL` |
-| `scale-bar` | `TB_SHOW_SCALEBAR_BOOL` |
-| `revision-history` | `TB_SHOW_REV_TABLE_BOOL` |
-| `qr-code` | `TB_SHOW_QR_CODE_BOOL` |
-| `discipline-band` | `TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL` |
+| `key-plan` | `PRJ_TB_SHOW_KEY_PLAN_BOOL` |
+| `north-arrow` | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` |
+| `scale-bar` | `PRJ_TB_SHOW_SCALE_BAR_BOOL` |
+| `revision-history` | `PRJ_TB_SHOW_REV_TABLE_BOOL` |
+| `qr-code` | `PRJ_TB_SHOW_QR_CODE_BOOL` |
+| `discipline-band` | `PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL` |
 
 ## 4. Portrait vs landscape — convention
 

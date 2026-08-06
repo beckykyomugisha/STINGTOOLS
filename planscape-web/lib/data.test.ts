@@ -182,3 +182,36 @@ describe('members + search + transmittals + photos', () => {
     expect(calls()[2].url).toContain('/photos/ph/reject');
   });
 });
+
+describe('archiveProject', () => {
+  it('DELETEs with the confirm code on the query string', async () => {
+    await data.archiveProject('p1', 'ABC-123');
+    const c = calls()[0];
+    expect(c.init.method).toBe('DELETE');
+    expect(c.url).toContain('/api/projects/p1?confirmCode=ABC-123');
+  });
+
+  it('URL-encodes a code containing reserved characters', async () => {
+    // A code is user-supplied at project creation; "A&B/1" must not truncate
+    // the query string or invent a second parameter.
+    await data.archiveProject('p1', 'A&B/1');
+    expect(calls()[0].url).toContain('confirmCode=A%26B%2F1');
+  });
+});
+
+describe('tenant admin', () => {
+  it('inviteTenantMember POSTs to the tenant route, not a project route', async () => {
+    await data.inviteTenantMember({ email: 'a@b.com', displayName: 'A B', role: 'Author' });
+    const c = calls()[0];
+    expect(c.init.method).toBe('POST');
+    expect(c.url).toContain('/api/tenant/invite');
+    expect(c.url).not.toContain('/projects/');
+    expect(bodyOf(c.init)).toEqual({ email: 'a@b.com', displayName: 'A B', role: 'Author' });
+  });
+
+  it('getTenantDashboard has no tenant id in the path — the token resolves it', async () => {
+    lastBody = { tenant: { id: 't' }, usage: {}, users: [] };
+    await data.getTenantDashboard();
+    expect(calls()[0].url).toMatch(/\/api\/tenant\/dashboard$/);
+  });
+});

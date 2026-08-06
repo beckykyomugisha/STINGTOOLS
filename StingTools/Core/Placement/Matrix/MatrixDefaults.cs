@@ -1,4 +1,4 @@
-// StingTools — Matrix defaults: category -> anchor heuristic, area auto-suggest,
+﻿// StingTools — Matrix defaults: category -> anchor heuristic, area auto-suggest,
 // and the indicative load table (M7). Single small helper so the dialog and the
 // placement/load engines agree on sensible per-category starting points.
 //
@@ -145,7 +145,7 @@ namespace StingTools.Core.Placement.Matrix
                 try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
                 catch { }
                 if (string.IsNullOrEmpty(baseDir)) return;
-                string ovr = Path.Combine(baseDir, "_BIM_COORD", "category_load_defaults.json");
+                string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "category_load_defaults.json");
                 if (File.Exists(ovr)) ParseInto(File.ReadAllText(ovr), data);
             }
             catch (Exception ex) { StingLog.Warn($"MatrixDefaults.MergeOverride: {ex.Message}"); }

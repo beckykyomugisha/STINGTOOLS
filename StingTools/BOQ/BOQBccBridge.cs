@@ -526,9 +526,11 @@ namespace StingTools.BOQ
             }
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                if (string.IsNullOrEmpty(bimDir)) return null;
-                string cdeBase = Path.Combine(Path.GetDirectoryName(bimDir) ?? "", "_CDE", cdeFolder, "BOQ");
+                // Route into the unified CDE state folder (01_WIP … 04_ARCHIVE) rather
+                // than a second "_CDE" tree beside the .rvt.
+                string stateDir = StingTools.Core.ProjectFolderEngine.GetFolderPath(doc, cdeFolder);
+                if (string.IsNullOrEmpty(stateDir)) return null;
+                string cdeBase = Path.Combine(stateDir, "BOQ");
                 Directory.CreateDirectory(cdeBase);
                 string target = Path.Combine(cdeBase, Path.GetFileName(xlsxPath));
                 File.Copy(xlsxPath, target, overwrite: true);
@@ -557,13 +559,15 @@ namespace StingTools.BOQ
             return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, fileName);
         }
 
+        /// <summary>
+        /// Thin shim over the canonical atomic writer. This used to be a private
+        /// re-implementation of temp-file + File.Replace; it now delegates so there
+        /// is a single atomic-write implementation (which also carries the
+        /// cross-volume copy fallback this copy lacked).
+        /// </summary>
         private static void AtomicJsonWrite(string path, JToken content)
-        {
-            string tmp = path + ".tmp";
-            File.WriteAllText(tmp, content.ToString(Formatting.Indented));
-            if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
-            else File.Move(tmp, path);
-        }
+            => StingTools.Core.OutputLocationHelper.WriteAllTextAtomic(
+                   path, (content ?? new JObject()).ToString(Formatting.Indented));
     }
     // ══════════════════════════════════════════════════════════════════════
     //  BOQBccRefreshCommand — Phase 108k on-demand trigger

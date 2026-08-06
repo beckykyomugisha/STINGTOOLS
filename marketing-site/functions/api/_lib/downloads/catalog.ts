@@ -130,59 +130,43 @@ export const DOWNLOAD_CATALOG: Tool[] = [
     docsUrl: "/guides/stingbridge-setup.html",
     versions: [
       {
-        version: "0.1.0-beta.2",
+        version: "0.1.0-beta.3",
         releasedAt: "2026-07-20",
         notes:
-          "Adds sequence numbers to ArchiCAD tags so they match Revit's 8-segment format, and files processed IFCs into done/ and failed/ folders so you can see at a glance what is still outstanding. Sign in with an access token instead of a password — the only option if you signed up on planscape.build.",
+          "Fixes re-processing the same IFC: sequence numbers are now kept instead of being handed out again, so re-exporting a corrected model no longer renumbers everything. Viewer files (.glb) are filed into done/ with their IFC instead of being left behind, and re-running a conversion over an existing file no longer hangs.",
         artifacts: [
           {
             label: "win64",
             platform: "Windows 64-bit",
-            objectKey: "sting-bridge/0.1.0-beta.2/StingBridge_0.1.0-beta.2_win64.zip",
-            sizeMb: 57,
-            sha256: "1b7eada10cff762e4c0a74503fbc7321301117766f6882a5d0da91aa15bc81ca",
+            objectKey: "sting-bridge/0.1.0-beta.3/StingBridge_0.1.0-beta.3_win64.zip",
+            sizeMb: 55,
+            sha256: "e0d0fa8c361603445751a9838717d11a7d0c4d57cffb25517cc36249f983bab7",
           },
           {
             label: "any",
             platform: "Any OS (Python 3.11+)",
-            objectKey: "sting-bridge/0.1.0-beta.2/StingBridge_0.1.0-beta.2_any.zip",
+            objectKey: "sting-bridge/0.1.0-beta.3/StingBridge_0.1.0-beta.3_any.zip",
             sizeMb: 1,
-            sha256: "7353a062fdec8057942bb98c98320f79e3b1efecc91ac55f0aeaa931aaeb572c",
+            sha256: "dfa645b7263bbdbe46ab545c7382e00313ebe98ff8bdabc346d5bed6a8a8d055",
           },
         ],
       },
-      {
-        version: "0.1.0-beta.1",
-        releasedAt: "2026-07-19",
-        notes:
-          "First public beta. The IFC drop-folder and single-file workflows are verified end-to-end; live ArchiCAD JSON-API sync ships but is still maturing — tell us how it goes.",
-        artifacts: [
-          {
-            label: "win64",
-            platform: "Windows 64-bit",
-            objectKey: "sting-bridge/0.1.0-beta.1/StingBridge_0.1.0-beta.1_win64.zip",
-            sizeMb: 51,
-            sha256: "976401ecce06c9c3231c1d92477c1fe3185ba167232ee3bf8ce4a857e0bc6d26",
-          },
-          {
-            label: "any",
-            platform: "Any OS (Python 3.11+)",
-            objectKey: "sting-bridge/0.1.0-beta.1/StingBridge_0.1.0-beta.1_any.zip",
-            sizeMb: 1,
-            sha256: "22f1ed6805f79e5fa2b64dc91a6b0a8c5a7475dd640dd68cbf48fc34ac425cc2",
-          },
-        ],
-      },
+      // 0.1.0-beta.1 and 0.1.0-beta.2 retired 2026-07-31 — superseded by
+      // beta.3, which fixes the re-processing/renumbering bug both of them
+      // had. Their R2 objects are untouched (in case a support case needs
+      // them); only the catalogue listing was pruned.
     ],
   },
   {
     id: "planscape-cloud",
     name: "Planscape cloud",
     tagline:
-      "Shared project workspace, document register and issue tracking, with the mobile site app.",
+      "Shared project workspace, meetings with live video and collaborative markup, document " +
+      "register and issue tracking, with a corporate coordination UI. Open it from your account page " +
+      "— there is nothing to download here.",
     kind: "cloud",
-    status: "in-development",
-    platform: "Web · iOS · Android",
+    status: "beta",
+    platform: "Web (mobile app in progress)",
     requiresProduct: null,
     versions: [],
   },

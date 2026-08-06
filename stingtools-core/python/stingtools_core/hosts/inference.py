@@ -42,6 +42,28 @@ DISCIPLINE_BY_IFC_CLASS: dict[str, str] = {
     "IfcFireSuppressionTerminal": "FP", "IfcAlarm": "FP",
 }
 
+# IFC class → STING Function code. Single source of truth (was inline as
+# ``_CLASS_TO_FUNC`` in the Bonsai spatial operator). Unknown class → ``GEN``,
+# never ``XX``: "generic" is a real function bucket, not a missing-value sentinel.
+FUNCTION_SENTINEL = "GEN"
+FUNCTION_BY_IFC_CLASS: dict[str, str] = {
+    "IfcAirTerminal": "SUP", "IfcAirTerminalBox": "SUP", "IfcFan": "SUP",
+    "IfcDuctSegment": "SUP", "IfcDuctFitting": "SUP", "IfcDuctSilencer": "SUP",
+    "IfcFilter": "RET",
+    "IfcSanitaryTerminal": "SAN", "IfcSanitaryTerminalType": "SAN",
+    "IfcFlowTerminal": "SAN",
+    "IfcPipeSegment": "SUP", "IfcPipeFitting": "SUP", "IfcValve": "SUP",
+    "IfcPump": "SUP",
+    "IfcElectricDistributionBoard": "PWR", "IfcElectricMotor": "PWR",
+    "IfcOutlet": "PWR", "IfcCableCarrierSegment": "PWR", "IfcCableSegment": "PWR",
+    "IfcProtectiveDevice": "PWR", "IfcSwitchingDevice": "PWR",
+    "IfcLamp": "LTG", "IfcLightFixture": "LTG",
+    "IfcFireSuppressionTerminal": "FP", "IfcAlarm": "FP", "IfcSensor": "FP",
+    "IfcBoiler": "HTG", "IfcHeatExchanger": "HTG",
+    "IfcChiller": "CLG", "IfcCoolingTower": "CLG",
+    "IfcUnitaryEquipment": "SUP",
+}
+
 # IfcSystem name keyword → STING system code, evaluated in order.
 _SYSTEM_KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("HVAC", "AIR", "VENT", "DUCT"), "HVAC"),
@@ -57,6 +79,11 @@ _SYSTEM_KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
 def discipline_for_class(ifc_class: str) -> str:
     """Pure lookup: IFC class string → discipline code. ``XX`` when unknown."""
     return DISCIPLINE_BY_IFC_CLASS.get(ifc_class, SENTINEL)
+
+
+def function_for_class(ifc_class: str) -> str:
+    """Pure lookup: IFC class string → STING Function code. ``GEN`` when unknown."""
+    return FUNCTION_BY_IFC_CLASS.get(ifc_class, FUNCTION_SENTINEL)
 
 
 def infer_discipline(element: Any) -> str:
@@ -160,6 +187,39 @@ def infer_system(element: Any) -> str:
         return SENTINEL
     except Exception:
         return SENTINEL
+
+
+def infer_function(element: Any) -> str:
+    """Function code for an ifcopenshell element via its ``is_a()`` class."""
+    try:
+        return function_for_class(element.is_a())
+    except Exception:  # pragma: no cover - defensive
+        return FUNCTION_SENTINEL
+
+
+def zone_codes_for_model(model: Any) -> tuple[dict[int, str], int]:
+    """Map element id → zone code (``Z01``, ``Z02`` …) via ``IfcZone`` +
+    ``IfcRelAssignsToGroup``. Returns ``(element_id_to_zone, zone_count)``;
+    elements with no zone are absent, so the caller supplies the ``ZZ`` default.
+
+    Lives here, not in the adapters: the ``IfcRelAssignsToGroup`` group walk is
+    exactly the core-inference logic the Phase A6 boundary lint keeps out of
+    host adapter files.
+    """
+    zones = model.by_type("IfcZone")
+    zone_code = {z.id(): f"Z{i:02d}" for i, z in enumerate(zones, start=1)}
+    element_to_zone: dict[int, str] = {}
+    for rel in model.by_type("IfcRelAssignsToGroup"):
+        group = rel.RelatingGroup
+        if not group.is_a("IfcZone"):
+            continue
+        code = zone_code.get(group.id())
+        if code is None:
+            continue
+        for obj in (rel.RelatedObjects or []):
+            if obj.is_a("IfcElement"):
+                element_to_zone[obj.id()] = code
+    return element_to_zone, len(zones)
 
 
 def product_for_type_name(type_name: str | None) -> str:

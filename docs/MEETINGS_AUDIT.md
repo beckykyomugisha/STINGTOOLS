@@ -614,3 +614,282 @@ Local `dotnet build` → 0 errors.
 - **No 2-tab live A/V proof in this build pass:** every slice was SERVED-proven (container serves the
   exact bundle) but the live camera/mic/screen behaviour was **not** machine-verified — it requires
   two real browser tabs against the running LiveKit + Postgres stack. That is what this matrix is for.
+
+## S1 — server-ENFORCED mute / remove (LiveKit RoomService) · marker `s1-enforce` (meeting-sync) · SERVED + unit-tested
+
+Closes the first "needs new code" row of §2b in `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`.
+M3's mute-all / remove were host-gated **signals** the target client self-applied — host
+authority over the *signal* was enforced (`HubTenantGuard.IsSessionHostAsync`), but a modified
+client could simply ignore them. The media is now cut off at the SFU.
+
+**Server — new `Planscape.Infrastructure/SignalR/LiveKitRoomService.cs`.** Twirp client for
+`livekit.RoomService` (`ListParticipants` / `MutePublishedTrack` / `RemoveParticipant`),
+deliberately the same transport + raw-HMAC-HS256 auth as the existing `LiveKitEgressClient`
+(no new transport). It lives in Infrastructure, not API, because the caller is `MeetingHub`
+and Infrastructure cannot reference API. One real difference from the egress client: room-scoped
+admin APIs need **both** `video.roomAdmin` **and** `video.room` naming the room, so the JWT is
+minted per room — a `roomAdmin`-only grant is silently 401'd.
+
+**`MeetingHub` now does two things per moderation action, not one:**
+- `MuteAll` → `MuteAllMicrophonesAsync(room = sessionId, except = the host's identity)`: lists the
+  room and mutes every remote **microphone** track. Screen-share audio is deliberately spared
+  (source `SCREEN_SHARE_AUDIO`), already-muted tracks are skipped (idempotent). Then the existing
+  `Moderation` broadcast still fires so each client's mic button paints "off".
+- `RemoveParticipant(sessionId, targetConnectionId, targetUserId)` → `RemoveParticipant` on the SFU,
+  then the existing group-scoped signal so the target also leaves the co-presence plane (roster,
+  markup, SignalR group). **New third arg** `targetUserId` = the LiveKit identity; the connection id
+  can't be used (SignalR exposes no connection→user map, and behind the Redis backplane the target's
+  connection may be on another instance). It is **not trusted**: the server re-checks the user is a
+  participant of *that* session before evicting, so a host can't aim it at a room they don't own.
+- The broadcast now carries **`enforced`**. When LiveKit is unconfigured, moderation degrades to the
+  old advisory behaviour rather than failing the meeting, and the client toast says
+  "Host **asked** everyone to mute" instead of "Host muted everyone" — the UI never claims more
+  than actually happened.
+
+**Proof (this is a server-side change; SERVED-grep alone would not cover it):**
+- `dotnet build Planscape.API` → **0 errors** (7 pre-existing warnings).
+- **17 new tests, all passing, 0 skipped** (`LiveKitRoomServiceTests`): config gate, unconfigured
+  no-op, server-URL normalisation, mic-vs-screen-share-audio classification, camelCase +
+  snake_case response parsing, degenerate/identity-less/sid-less payloads, and the room-scoped
+  HS256 grant. Plus a `[SkippableFact]` that hits the **real docker-compose LiveKit on :7880**
+  and asserts on the RAW Twirp response — `ListParticipantsAsync` swallows a 401 as "empty", so
+  only the raw status distinguishes "authenticated, room empty" from "grant rejected". It **ran**
+  (0 skipped) and LiveKit accepted the grant.
+- SERVED: `docker compose build --no-cache api && up -d --force-recreate api`;
+  `curl /meeting-sync.js` → 200, `STING_MEETINGSYNC_BUILD = "s1-enforce"`, plus
+  `removeParticipant(cid, p.userId)` and the `m.enforced` toast, in the served bundle.
+
+**Trap worth recording:** `Planscape/assets/viewer/*.js` is the CANONICAL viewer source —
+the API build (`SyncCoordinationViewer`) and the Docker image (minified `dist/` overlay) both copy
+it *onto* `wwwroot/`. Editing only `wwwroot/` builds green and serves the OLD file. Both copies must
+move together. (Also: `docker compose build … | tail` masks the exit code — two "successful" builds
+here had actually failed on a missing `JWT_KEY` and the served marker never changed.)
+
+**2-tab test — PENDING-HUMAN-VERIFY** (needs two real webcam tabs; cannot be machine-verified here):
+- [ ] **Mute is real, not advisory:** both tabs Join A/V with mics live. Host clicks 🔇. Tab 2's mic
+      mutes AND the host still hears nothing **after tab 2 un-mutes itself from its own UI** without
+      the host re-muting — i.e. the SFU dropped the track, it wasn't just a client-side toggle.
+      (Pre-S1 the peer could un-mute and be heard again immediately.)
+- [ ] **Toast wording matches reality:** with LiveKit configured the toast reads "Host muted everyone
+      🔇"; with `LiveKit__ServerUrl` unset it reads "Host **asked** everyone to mute 🔇".
+- [ ] **Screen-share audio survives a mute-all:** presenter shares a tab WITH audio, host clicks 🔇 →
+      mics mute, the shared tab's audio keeps playing.
+- [ ] **Mute-all doesn't mute the host** (they're exempted by identity).
+- [ ] **Remove really evicts:** host clicks ✖ on tab 2 → tab 2's LiveKit connection drops (video/audio
+      gone for everyone) *and* it leaves the roster. Tab 2 clicking "Join A/V" again re-joins (removal
+      is an eviction, not a ban — note whether a ban is wanted).
+- [ ] **Remove is idempotent / safe:** ✖ on someone who never joined A/V → they still drop from the
+      co-presence roster, no error toast, no hub exception.
+- [ ] **Non-host can't:** a non-host tab has no 🔇/✖ buttons, and invoking `MuteAll` from its console
+      does nothing (host gate).
+
+## S2 — late-join state replay · markers `s2-latejoin` (livekit-av + meeting-sync) · SERVED
+
+Closes the second "needs new code" row of §2b. `MeetingHub` mirrors live ops, so a tab that
+joined mid-session saw a **blank markup canvas**, missed every **raised hand**, and — less
+obviously — had an **empty roster**, because `ParticipantJoined` only fires at the *other*
+clients when someone new arrives. Nothing told the newcomer who was already there.
+
+**Fixed with a peer round-trip, not a server buffer.** On join (and on every SignalR
+*reconnect* — a reconnect is a late join) the client invokes `RequestState`; the hub relays
+`StateRequested` to the rest of the room; peers answer with `SendState`, which the hub relays
+back as `StateReplay`.
+
+Why peers rather than a server-side buffer: the hub stays a wire and holds no meeting state, so
+there is nothing to bound, evict, or lose on an instance restart, and it works unchanged behind
+the Redis backplane — a buffer would live on one instance and be invisible to the others. The
+clients already hold the authoritative copy of exactly what needs replaying.
+
+**Who answers what:**
+- **Every peer** answers with its own roster row + hand state — small, and only that peer knows it.
+- **One peer** answers with the markup canvas, so the joiner doesn't receive N copies of the same
+  strokes. Normally the **host** (it owns the shared surface). When the host is the one *rejoining*,
+  no host is left to answer, so any peer holding strokes answers instead; the joiner applies only
+  the **first** snapshot it receives, making duplicates harmless.
+- The markup snapshot carries `{strokes, granted, surface?, documentId?}`. The surface is included
+  when the room is on a document, so a late joiner lands on the **right document** instead of sitting
+  on the 3D model while everyone else annotates a drawing.
+
+**Two deliberate design calls, written down because they look like bugs otherwise:**
+- `SendState` relays to the **group** with a `to` field the client filters on, NOT to
+  `Clients.Client(targetConnectionId)`. A connection id is not a session-scoped capability, so
+  relaying to an arbitrary one would let a caller push a payload at any connection whose id they
+  learned. Group-scoped keeps the blast radius inside the session, and the extra recipients learn
+  nothing — they already receive every one of these ops live.
+- The replying peer's identity (`fromConnectionId` / `fromUserId`) is **stamped server-side**, so a
+  replay cannot claim to come from someone else.
+- Replay **replaces** the local stroke list rather than appending: the snapshot IS the current
+  canvas, and a joiner that already received some strokes live would otherwise double-draw.
+
+**Proof:** `dotnet build` → 0 errors; both viewer bundles `node --check` clean;
+`docker compose build --no-cache api && up -d --force-recreate api`; `curl /livekit-av.js` and
+`curl /meeting-sync.js` → 200 with `STING_MEETING_BUILD = "s2-latejoin"` /
+`STING_MEETINGSYNC_BUILD = "s2-latejoin"`, plus `RequestState` / `StateRequested` / `StateReplay` /
+`markupSnapshot` present in the served bundles.
+
+**2-tab test — PENDING-HUMAN-VERIFY** (this is a timing/ordering feature; it cannot be
+machine-verified without two real browser sessions):
+- [ ] **Strokes replay:** tab 1 (host) shares a document and draws 3–4 strokes. THEN open tab 2 on the
+      same `?meeting=`. Tab 2 lands on the **same document** and shows **all** the earlier strokes,
+      with a "Caught up — N markup strokes" toast. (Pre-S2 it showed a blank canvas.)
+- [ ] **No double-draw:** tab 2 then watches tab 1 draw one more stroke → it appears **once**, and the
+      earlier strokes are not duplicated.
+- [ ] **Clear then join:** host clicks 🗑 Clear, then a 3rd tab joins → it shows an empty canvas (not
+      the pre-clear strokes).
+- [ ] **Hands replay:** tab 2 raises ✋ *before* tab 3 joins → tab 3's roster shows tab 2 with ✋
+      immediately, without waiting for a toggle.
+- [ ] **Roster replay:** tab 3 joining shows **both** existing participants in its roster right away
+      (this was broken before S2 too — the roster only filled as people arrived *after* you).
+- [ ] **Grant replays:** host turns 👥 Grant on, then a new tab joins → that tab's markup toolbar is
+      enabled without the host re-toggling.
+- [ ] **Reconnect is a late join:** kill tab 2's network ~15 s while tab 1 keeps drawing, then restore →
+      on reconnect tab 2 catches up to the full canvas rather than being permanently short the strokes
+      it missed.
+- [ ] **Host rejoin:** the HOST closes and reopens the tab while a peer holds strokes → the host still
+      catches up (the "requester is host → any peer answers" path), and only one snapshot is applied.
+- [ ] **No storm:** with 4+ tabs, one more joining produces one `StateRequested` and one reply per peer —
+      check the console/network panel shows no repeated request loop.
+
+## S3 — clash focus fails LOUDLY (element-guid miss) · marker `s3-clashguid` (meeting-sync) · SERVED
+
+Partial close of the fifth §2b row. M4's clash stepper calls `selectAndZoom` with the clash's
+`elementAGuid`, which **is not guaranteed to be a federated IfcGuid** (it can be a clash-row
+identity, per the clash-job follow-up) — and even a real guid may belong to a model this viewer
+hasn't loaded. `selectAndZoomByGuid` did `if (!found) return;`, so the camera simply didn't move.
+To a user stepping clashes that is indistinguishable from a broken ▶ button.
+
+**Scope is deliberately narrow: make it visible, don't fix federation matching.**
+- `viewer.html` `selectAndZoomByGuid` now returns a boolean, `console.warn`s the unmatched guid,
+  and dispatches `sting:selectAndZoomResult {guid, found}` (same-window CustomEvent —
+  `meeting-sync.js` shares the document).
+- `focusClash` **tries element A, then falls back to element B** before giving up. A clash has two
+  sides; if only one is in the loaded model, framing that one is still a useful review.
+- If neither resolves: a toast plus a **persistent amber line in the clash panel**
+  ("⚠ element not in the loaded model — camera not moved"), so the reason stays on screen after the
+  toast fades. It clears when you step to a clash that does resolve.
+- A clash carrying no element guid at all now says so instead of doing nothing.
+
+Still out of scope (unchanged, still a real gap): actually resolving a clash-row identity to a
+federated IfcGuid. Camera-follow and promote-to-issue continue to work regardless — only the
+zoom depends on the guid matching.
+
+**Proof:** `node --check` clean; `curl /meeting-sync.js` → `STING_MEETINGSYNC_BUILD = "s3-clashguid"`
+plus `selectAndZoomResult` / `focusNextClashGuid` / `meetClashNote`; `curl /viewer.html` →
+`sting:selectAndZoomResult` present.
+
+**2-tab test — PENDING-HUMAN-VERIFY** (needs a project with clashes):
+- [ ] **Resolvable clash:** ⧉ → ▶ on a clash whose element IS in the loaded model → camera flies to
+      it, no warning line, follower tab's camera follows (M4 behaviour unchanged).
+- [ ] **Unresolvable clash:** step to a clash whose guid isn't in the model → a toast fires AND the
+      amber "⚠ element not in the loaded model — camera not moved" line appears under "Clash N/M".
+      Console shows `[viewer] selectAndZoom: no loaded mesh with elementGuid …`.
+- [ ] **B-side fallback:** on a clash where A is missing but B is present → the camera frames the
+      **B** element and NO warning appears.
+- [ ] **Warning clears:** step from an unresolvable clash to a resolvable one → the amber line
+      disappears.
+- [ ] **Promote still works** on a clash whose element didn't resolve (⚑→ is independent of zoom).
+
+## B1 — two-firm tenancy: G1 recording keys + G2 LiveKit room names · server-only · 493 tests green
+
+Closes gaps **G1** and **G2** from `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md` §4b. Both were
+"defence-in-depth, not an active leak" — worth doing *now*, while no real recording exists, because
+both get harder once there is production data.
+
+**One source of truth: `Planscape.Infrastructure/SignalR/LiveKitRoom.cs`.** The room name is
+addressed by four independent features — participant tokens (`MeetingRoomController`), egress
+recording (`LiveKitEgressClient`), and the S1 moderation admin calls (`LiveKitRoomService`
+mute/remove) — and **a mismatch is silent**: nothing throws, the mute just mutes an empty room and
+the egress records one. So it is built in exactly one place and never re-derived inline.
+
+**G2 — room name is now `t{tenantId:N}-{sessionId:N}`** (was the bare `sessionId.ToString()`).
+Call sites updated: token minting (uses `session.TenantId`, authoritative because the row was
+fetched under the tenant filter, so it cannot disagree with the caller's claim), egress
+`EnsureRoomAsync` + `StartAsync`, and `MeetingHub.MuteAll` / `RemoveParticipant` (tenant from the
+connection's claim via a new `HubTenantGuard.TenantIdOf`; when the claim is missing, moderation
+falls back to signal-only rather than guessing a room name — a *wrong* name would silently act on
+nothing, which is worse than not acting).
+
+Two deviations from the findings doc, both deliberate:
+- The doc wrote `t{tenantId}-{sessionId}`; **dashless ("N") GUIDs** are used so the single hyphen
+  unambiguously separates the halves. With dashed GUIDs neither a human nor `TryParse` can tell
+  where the tenant ends. 66 chars, well inside LiveKit's limit.
+- **SignalR group names were deliberately NOT changed.** `meeting:{sessionId}` is a different
+  namespace, already tenant-guarded by `HubTenantGuard`, and renaming it is a much larger, riskier
+  change that G2 does not ask for. Conflating the two is the obvious mistake here.
+
+**G1 — recording key is now `t_{tenantId}/{sessionId}/{ts}.{ext}`** (was `{sessionId}/{ts}.{ext}` at
+the bucket root, while every other stored file lands under `t_{tenantId}/…` per
+`LocalFileStorageService.SaveScopedAsync`). The key is built by `LiveKitRoom.RecordingKey`, and
+`StartAsync` now takes `tenantId` + `sessionId` alongside the room because the object store is a
+**different namespace** from the room name. The findings doc said `t_{tenantId}/{room}/…`, but with
+G2 applied the room already embeds the tenant, so that would render
+`t_{tenant}/t{tenant}-{session}/…`; the session GUID is used instead, keeping the historical
+`{sessionId}/{yyyyMMddHHmmss}.{ext}` tail that the N2 write-up documents.
+
+**Read paths needed no change, and this was verified rather than assumed:** `MeetingRecording
+.StorageKey` is stored verbatim and handed straight back to `GetPresignedGetUrl`, the egress webhook
+matches on `EgressId` (never the room or key), and **nothing anywhere parses the room name back**
+(grepped `sessionId.ToString()`, `room`, `RoomName`, `StorageKey`, `GetPresignedGetUrl` across
+`Planscape.Server`, plus the viewer/mobile clients — the JS `state.room` is the LiveKit SDK Room
+object, not a name string).
+
+**Proof:** `dotnet build` 0 errors · **full suite 493 passed / 0 failed / 9 skipped** (476
+pre-existing + 17 `LiveKitRoomServiceTests`; the 17 new `LiveKitRoomTenancyTests` bring the total to
+502). The length assertion in those new tests **caught a real off-by-one** in `TryParse` (66, not
+65) before it shipped. Functional REST proof of the live endpoint is recorded below.
+
+**PENDING-HUMAN-VERIFY:**
+- [ ] **Recording lands under the tenant prefix:** record a session → MinIO `recordings` bucket shows
+      `t_<tenantId>/<sessionId>/<ts>.mp4`, not `<sessionId>/<ts>.mp4`. Playback from the meeting's
+      Recordings list still works (the presigned URL is built from the stored key, so it should).
+- [ ] **Old recordings still play:** any recording made *before* this change has a legacy
+      un-prefixed key. It must still presign and play — keys are stored, not recomputed. (If a legacy
+      row fails, that is the one real migration risk here.)
+- [ ] **Two tabs still meet:** both tabs join the same session and see each other. This is the
+      regression check for G2 — if the token's room and the client's expectation disagree, each tab
+      lands in its own empty room and sees no one.
+- [ ] **Moderation still enforces after the rename:** host mute-all/remove still actually cuts the
+      SFU (S1's checklist), proving the hub builds the same room name the token did.
+- [ ] **Sessions in flight across a deploy:** a session that was live *before* this deploy has tokens
+      naming the old room. Expect those clients to need a rejoin; confirm the failure is a clean
+      "rejoin to continue" rather than a silent one-way mute.
+
+## Cloud demo unblock — free-tier deployment (2026-07-31)
+
+Full research + cost analysis: `docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md`. Summary:
+
+- **Confirmed live** (curled 2026-07-31): `https://planscape-api-free.onrender.com` (`/health/live`
+  → `{"status":"alive"}`, `/health` → 403 as designed) and `https://planscape-web-free.onrender.com`.
+  Neither URL had a Render collision suffix.
+- **Neither deployment has LiveKit configured** — `render.free.yaml` declared no LiveKit keys at all
+  until this pass added `LiveKit__Url` / `LiveKit__ApiKey` / `LiveKit__ApiSecret` as `sync: false`
+  placeholders (mirroring `render.yaml`). Every SERVED item in M1–M5/N1/N3/N4 above is blocked on
+  these three values, not on any missing code.
+- **What's still a human step, and why:** signing up for LiveKit Cloud creates an account, and
+  pasting the resulting secret into Render's dashboard means typing a credential into a field —
+  both are actions an agent should not take on the user's behalf even with permission. Free tier
+  needs no card; total time is a few minutes:
+  1. https://cloud.livekit.io → sign up (free) → create a project.
+  2. Project Settings → Keys → copy API Key, API Secret, WSS URL.
+  3. Render dashboard → `planscape-api-free` → Environment tab → paste into `LiveKit__Url` (the
+     `wss://…` value), `LiveKit__ApiKey`, `LiveKit__ApiSecret` → save (service restarts
+     automatically, no redeploy needed for env-var-only changes).
+- **A real identity collision to expect during the test, not a bug to chase:** `planscape-web`'s
+  own live page and the embedded viewer's `livekit-av.js` both authenticate to LiveKit as
+  `identity = userId` (`MeetingRoomController.cs:355`). LiveKit disconnects the older connection on
+  a duplicate identity. Only the iframe not passing `?autojoin=1` currently prevents a collision. If
+  a tab's video drops the instant someone clicks "Join A/V" *inside the embedded viewer*, this is
+  why — not a regression.
+
+**2-tab test — PENDING-HUMAN-VERIFY** (once the 3 env vars above are set on Render):
+1. Two browser profiles (or one InPrivate + one normal), both signed in as different users on
+   `https://planscape-web-free.onrender.com`, same project, same meeting.
+2. Tab 1: start/join the meeting from the `planscape-web` live page (not the embedded viewer) and
+   grant camera/mic. Confirm local tile renders.
+3. Tab 2: join the same meeting the same way. Confirm tab 1 sees tab 2's remote tile within a few
+   seconds, and vice versa (audio optional to check, video is the real signal).
+4. Only then, in Tab 1, open the embedded viewer surface and click "Join A/V" there. Expect Tab 1's
+   `planscape-web` video to drop per the identity-collision note above — confirm it's this, not a
+   crash, then note whether that's an acceptable UX or worth a follow-up fix (route the iframe
+   client to a distinct identity, e.g. `{userId}-viewer`).
+5. Leave/rejoin, then close one tab entirely — confirm the other participant sees the leave.

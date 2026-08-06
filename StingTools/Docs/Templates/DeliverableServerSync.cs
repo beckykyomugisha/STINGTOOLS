@@ -1,4 +1,4 @@
-// DeliverableServerSync.cs — Phase 177 (document manager review).
+﻿// DeliverableServerSync.cs — Phase 177 (document manager review).
 //
 // Thin glue between the plugin's DeliverableLifecycle (template-engine v1.1)
 // and the Planscape server's DocumentRecord state machine. Called fire-and-
@@ -254,14 +254,14 @@ namespace Planscape.Docs.Templates
             {
                 string consolidated = StingTools.Core.ProjectFolderEngine.GetDataPath(doc);
                 if (!string.IsNullOrEmpty(consolidated))
-                    return Path.Combine(consolidated, "_BIM_COORD", "deliverables.json");
+                    return StingPaths.MetaFile(doc, "_BIM_COORD", "deliverables.json");
             }
             catch { /* ignored */ }
             try
             {
                 string p = doc?.PathName;
                 if (!string.IsNullOrEmpty(p))
-                    return Path.Combine(Path.GetDirectoryName(p) ?? "", "_BIM_COORD", "deliverables.json");
+                    return StingPaths.MetaFile(doc, "_BIM_COORD", "deliverables.json");
             }
             catch { /* ignored */ }
             return Path.Combine(Path.GetTempPath(), "Planscape", "BIMCoord", "deliverables.json");

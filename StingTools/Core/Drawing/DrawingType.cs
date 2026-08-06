@@ -92,6 +92,12 @@ namespace StingTools.Core.Drawing
         public const string Coordination = "Coordination";
         public const string Legend       = "Legend";
         public const string ThreeD       = "3D";
+        /// <summary>Riser / single-line / distribution schematic. Not to scale —
+        /// the shipped types carry <c>"scale": "NA"</c>, which the tolerant
+        /// converter reads as 0 and the validator exempts from DT-095.</summary>
+        public const string Schematic    = "Schematic";
+        /// <summary>Client clarification / RFI sketch.</summary>
+        public const string Clarification = "Clarification";
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -519,6 +525,16 @@ namespace StingTools.Core.Drawing
         [JsonProperty("kind")]        public string Kind { get; set; } = "ScopeBoxOrBbox";
         [JsonProperty("scopeBoxName")] public string ScopeBoxName { get; set; }
         [JsonProperty("marginMm")]    public double MarginMm { get; set; } = 150.0;
+
+        /// <summary>
+        /// Whether the crop BOUNDARY is drawn on the sheet. Every crop path
+        /// used to force this on, so production drawings shipped with a visible
+        /// crop rectangle around each viewport. Defaults to false — a produced
+        /// drawing should show its content, not its cropping frame. Set true
+        /// per drawing type when the boundary is wanted (coordination or
+        /// check prints, where the extent of the crop is the point).
+        /// </summary>
+        [JsonProperty("cropBoxVisible")] public bool CropBoxVisible { get; set; } = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────

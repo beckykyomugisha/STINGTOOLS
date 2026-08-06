@@ -40,6 +40,7 @@ namespace StingTools.Commands.Symbols
             var issues = new List<string>();
             int catalogueOk = 0, catalogueBad = 0, symbolTotal = 0, coordViolations = 0;
             int blindSpots = 0, connectorlessSeeds = 0, connectorDefects = 0;
+            int emptyGeometry = 0, extentViolations = 0, paramlessAnnotations = 0;
             int refTotal = 0, danglingTotal = 0, danglingPrefix = 0, danglingViewCtx = 0, danglingAbsent = 0;
 
             try
@@ -82,6 +83,47 @@ namespace StingTools.Commands.Symbols
                         // at build by the creator's ValidateGeometryCoord.
                         foreach (var s in lib.Symbols)
                             coordViolations += ScanCoordViolations(s, Path.GetFileName(path), issues);
+
+                        // 1f — symbols that would build as EMPTY families. The creator
+                        // draws nothing and warns nothing, so these ship as blank glyphs.
+                        foreach (var s in lib.Symbols)
+                        {
+                            if (GeometryPrimitiveCount(s) == 0)
+                            {
+                                emptyGeometry++;
+                                issues.Add($"[empty-geometry] {Path.GetFileName(path)}: {s.Id} has no drawable " +
+                                           "geometry — would build as an empty family.");
+                            }
+                        }
+
+                        // 1g — normalisation contract. Bodies normalise to -0.5..+0.5;
+                        // symbols that legitimately draw beyond it (SLD terminal leads,
+                        // LPS earth stems) must declare overallExtent. Anything past its
+                        // declared extent is an authoring error.
+                        foreach (var s in lib.Symbols)
+                        {
+                            double declared = s.OverallExtent > 0 ? s.OverallExtent : 0.5;
+                            double actual = MaxAbsCoord(s);
+                            if (actual > declared + 1e-4)
+                            {
+                                extentViolations++;
+                                issues.Add($"[extent] {Path.GetFileName(path)}: {s.Id} reaches {actual:F2} " +
+                                           $"but declares overallExtent {declared:F2}.");
+                            }
+                        }
+
+                        // 1h — annotation symbols with no parameters cannot be tagged,
+                        // scheduled, or reported to a Note Block schedule.
+                        foreach (var s in lib.Symbols)
+                        {
+                            if (string.Equals(s.FamilyType, "GenericAnnotation", StringComparison.OrdinalIgnoreCase)
+                                && (s.Parameters == null || s.Parameters.Count == 0))
+                            {
+                                paramlessAnnotations++;
+                                issues.Add($"[no-params] {Path.GetFileName(path)}: {s.Id} is a GenericAnnotation " +
+                                           "with zero parameters — cannot be tagged, scheduled or Note-Blocked.");
+                            }
+                        }
                     }
                 }
 
@@ -119,6 +161,9 @@ namespace StingTools.Commands.Symbols
             sb.AppendLine($"  Catalogues BAD       : {catalogueBad}");
             sb.AppendLine($"  Catalogue blind spots: {blindSpots} (symbol libs not in AllBatches)");
             sb.AppendLine($"  Coord violations     : {coordViolations} (|value| > 2.0, dropped at build)");
+            sb.AppendLine($"  Empty geometry       : {emptyGeometry} (would build as blank families)");
+            sb.AppendLine($"  Extent violations    : {extentViolations} (geometry past declared overallExtent)");
+            sb.AppendLine($"  Param-less annotations: {paramlessAnnotations} (untaggable / unschedulable)");
             sb.AppendLine($"  Connector-less seeds : {connectorlessSeeds} (MEP-category, 0 connectors)");
             sb.AppendLine($"  Connector defects    : {connectorDefects} (malformed/unbound connector fields)");
             sb.AppendLine($"  Concept refs         : {refTotal}, dangling {danglingTotal} " +
@@ -244,6 +289,56 @@ namespace StingTools.Commands.Symbols
         }
 
         private static readonly string[] StdPrefixes = { "IEC_", "IEEE_", "BS_", "NFPA_", "CIBSE_" };
+
+        // ── 1f) drawable primitive count ──────────────────────────────────────
+        /// <summary>
+        /// Number of primitives the creator would actually draw. Zero means the
+        /// family builds blank — the creator emits no warning for this.
+        /// </summary>
+        private static int GeometryPrimitiveCount(SymbolDefinition s)
+        {
+            var g = s?.Geometry;
+            if (g == null) return 0;
+            return (g.Lines?.Count ?? 0)
+                 + (g.ConnectionLines?.Count ?? 0)
+                 + (g.Arcs?.Count ?? 0)
+                 + (g.FilledRegions?.Count ?? 0)
+                 + (g.Text?.Count ?? 0);
+        }
+
+        // ── 1g) largest absolute normalised coordinate ────────────────────────
+        /// <summary>
+        /// Furthest reach of the symbol's geometry from the origin, in normalised
+        /// units. Arcs contribute centre + radius so a large arc is not missed.
+        /// </summary>
+        private static double MaxAbsCoord(SymbolDefinition s)
+        {
+            var g = s?.Geometry;
+            if (g == null) return 0;
+            double m = 0;
+            void Bump(double v) { double a = Math.Abs(v); if (a > m) m = a; }
+
+            void ChkLines(List<LineDefinition> lines)
+            {
+                if (lines == null) return;
+                foreach (var l in lines) { Bump(l.X1); Bump(l.Y1); Bump(l.X2); Bump(l.Y2); }
+            }
+            ChkLines(g.Lines);
+            ChkLines(g.ConnectionLines);
+
+            if (g.Arcs != null)
+                foreach (var a in g.Arcs) { Bump(Math.Abs(a.Cx) + a.R); Bump(Math.Abs(a.Cy) + a.R); }
+
+            if (g.FilledRegions != null)
+                foreach (var fr in g.FilledRegions)
+                    if (fr.Boundary != null)
+                        foreach (var p in fr.Boundary) { Bump(p.X); Bump(p.Y); }
+
+            if (g.Text != null)
+                foreach (var t in g.Text) { Bump(t.X); Bump(t.Y); }
+
+            return m;
+        }
 
         // ── 1d) geometry coordinate range ─────────────────────────────────────
         private static int ScanCoordViolations(SymbolDefinition s, string file, List<string> issues)

@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager
+﻿// StingTools — Drawing Template Manager
 //
 // DrawingTypeEditorDialog is the Graitec-style corporate editor for
 // the registry: left-panel list of all Drawing Types with search,
@@ -2931,8 +2931,18 @@ namespace StingTools.UI
             DockPanel.SetDock(right, Dock.Right);
             var btnClose = MakeBigBtn("Close", CardBg, false);
             var btnSave  = MakeBigBtn("Save",  AccentColor, true);
-            btnClose.Click += (s, e) => { DialogResult = false; };
-            btnSave.Click  += (s, e) => { if (SaveToProjectOverride()) { DialogResult = true; } };
+            // DialogResult may only be set on a window shown with ShowDialog().
+            // DrawingTypeEditorCommand launches this editor MODELESS (Show()) on
+            // purpose — a modal window blocks Revit's ExternalEvent queue, so the
+            // action buttons inside would never fire. Setting DialogResult here
+            // therefore threw InvalidOperationException and the window refused to
+            // close at all. Close() works in both modes.
+            btnClose.Click += (s, e) => { try { Close(); } catch (Exception ex) { StingLog.Warn($"Editor close: {ex.Message}"); } };
+            btnSave.Click  += (s, e) =>
+            {
+                if (!SaveToProjectOverride()) return;
+                try { Close(); } catch (Exception ex) { StingLog.Warn($"Editor close after save: {ex.Message}"); }
+            };
             right.Children.Add(btnClose);
             right.Children.Add(btnSave);
             row.Children.Add(right);
@@ -3012,7 +3022,7 @@ namespace StingTools.UI
             }
             try
             {
-                var dir = Path.Combine(Path.GetDirectoryName(_doc.PathName), "_BIM_COORD");
+                var dir = StingPaths.Meta(_doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, "drawing_types.json");
 

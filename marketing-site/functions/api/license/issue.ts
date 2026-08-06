@@ -11,8 +11,7 @@
 //   2. Expiry has to be chosen up front. A trial licence dies with the trial; a
 //      paid one runs a year, matching the existing hand-issued licences.
 //
-// Wire format, byte-for-byte compatible with LicenseCrypto.VerifyAndExtract:
-//   base64(utf8(payloadJson)) + "." + base64(RSASSA-PKCS1-v1_5(SHA-256, jsonBytes))
+// Wire format lives in _lib/crypto.ts, shared with present.ts.
 
 import { withHandler, readJson } from "../auth/_lib/handler";
 import { handlePreflight } from "../auth/_lib/cors";
@@ -22,6 +21,8 @@ import { getTenantById, audit } from "../auth/_lib/db";
 import { uuid } from "../auth/_lib/tokens";
 import { resolveCap } from "../auth/_lib/limits";
 import { DOWNLOAD_CATALOG, entitlementFor } from "../_lib/downloads/catalog";
+import { signLicense } from "./_lib/crypto";
+import { countLicensedSeats } from "./_lib/seats";
 import type { Env } from "../auth/_lib/types";
 
 interface LicenseEnv extends Env {
@@ -40,38 +41,6 @@ const PAID_LICENCE_DAYS = 365;
 // A little past the trial so a licence issued on the last day still works while
 // the customer is deciding.
 const TRIAL_GRACE_DAYS = 2;
-
-function pemToBinary(pem: string): ArrayBuffer {
-  const body = pem
-    .replace(/-----BEGIN [A-Z ]+-----/g, "")
-    .replace(/-----END [A-Z ]+-----/g, "")
-    .replace(/\s+/g, "");
-  const raw = atob(body);
-  const buf = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-  return buf.buffer;
-}
-
-function b64(bytes: Uint8Array): string {
-  let s = "";
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s);
-}
-
-async function signLicense(pem: string, payloadJson: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToBinary(pem),
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const data = new TextEncoder().encode(payloadJson);
-  const sig = new Uint8Array(
-    await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data)
-  );
-  return `${b64(data)}.${b64(sig)}`;
-}
 
 export const onRequestOptions: PagesFunction = async ({ request }) =>
   handlePreflight(request);
@@ -118,14 +87,9 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
   if (!existing) {
     const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
     if (cap !== Infinity) {
-      const row = await db
-        .prepare(
-          `SELECT COUNT(*) AS n FROM licenses
-            WHERE tenant_id = ? AND revoked_at IS NULL AND expires_at > ?`
-        )
-        .bind(tenant.id, now.toISOString())
-        .first<{ n: number }>();
-      const used = row?.n ?? 0;
+      // Same helper present.ts reports from — see _lib/seats.ts for why this is
+      // one function and not one query per caller.
+      const used = await countLicensedSeats(db, tenant.id, now.toISOString());
       if (used >= cap) {
         throw forbidden(
           `Your plan covers ${cap} machine${cap === 1 ? "" : "s"} and ${used} ${

@@ -382,9 +382,33 @@ CREATE TABLE IF NOT EXISTS licenses (
   expires_at    TEXT    NOT NULL,               -- ISO 8601 UTC
   revoked_at    TEXT,                           -- set to stop it counting against seats
   created_at    TEXT    NOT NULL,
-  updated_at    TEXT
+  updated_at    TEXT,
+
+  -- Licence presentation (functions/api/license/present.ts). The plugin reports
+  -- its licence on startup so we can see which of the machines we licensed are
+  -- actually running, on what. REPORTING ONLY — never read to gate anything.
+  -- A licence that has never been presented is exactly as valid as one that
+  -- has; the plugin verifies offline and cannot be made to depend on us.
+  --
+  -- Note these are NOT covered by updated_at: being observed is not a change to
+  -- the licence, so updated_at keeps meaning "when the record last changed".
+  last_seen_at             TEXT,  -- ISO 8601 UTC of the most recent presentation
+  last_seen_plugin_version TEXT,  -- e.g. "2.2.0"
+  last_seen_revit_version  TEXT   -- e.g. "2025"
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_tenant_machine
   ON licenses(tenant_id, machine_code);
 CREATE INDEX IF NOT EXISTS idx_licenses_tenant ON licenses(tenant_id);
+
+-- ---------------------------------------------------------------------------
+-- One-time migration for databases created before licence presentation existed.
+-- SQLite can't guard ADD COLUMN with IF NOT EXISTS — run these ONCE and ignore
+-- "duplicate column name" errors. Fresh databases get the columns above.
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE licenses ADD COLUMN last_seen_at TEXT;"
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE licenses ADD COLUMN last_seen_plugin_version TEXT;"
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE licenses ADD COLUMN last_seen_revit_version TEXT;"
+-- ---------------------------------------------------------------------------

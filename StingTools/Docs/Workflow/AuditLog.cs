@@ -1,4 +1,4 @@
-// AuditLog.cs — template engine v1.1 (S16).
+﻿// AuditLog.cs — template engine v1.1 (S16).
 //
 // Append-only monthly JSONL audit log with SHA-256 tamper-evidence chain.
 // Every entry hashes {ts, user, action, doc_id, payload, prev_hash} — the
@@ -179,7 +179,7 @@ namespace Planscape.Docs.Workflow
         private static string LogPath(Document doc, DateTime ts)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, $"audit_log_{ts:yyyy}_{ts:MM}.jsonl");
         }

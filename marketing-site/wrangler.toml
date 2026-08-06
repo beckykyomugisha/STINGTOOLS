@@ -30,6 +30,25 @@ SITE_URL = "https://planscape.build"
 #                   Default: "Planscape <noreply@planscape.build>"
 # The auth Functions reuse the WAITLIST_DB D1 binding below — no new binding needed.
 
+# Cloud handoff (functions/api/cloud/handoff.ts) — where "sign in" hands a
+# logged-in planscape.build user off to the coordinator app.
+#   CLOUD_APP_ORIGIN  Plain var, not actually secret (just a URL) — set as a
+#                     Pages secret only because this project deploys via
+#                     `wrangler pages deploy`, not git, so wrangler.toml [vars]
+#                     changes never reach it without a manual redeploy.
+#                     Falls back to https://app.planscape.build if unset.
+#                     CURRENT VALUE (set 2026-07-31): https://app.planscape.build
+#                     — verified as a Render custom domain on planscape-web-free
+#                     and confirmed serving over HTTPS the same day. Briefly
+#                     pointed at the bare Render URL as an interim value while
+#                     the custom domain was being verified; no longer needed.
+#                     To change it later:
+#                       echo "<new origin>" | \
+#                         wrangler pages secret put CLOUD_APP_ORIGIN \
+#                         --project-name planscape-marketing
+#                     No redeploy required either way — Pages secrets are
+#                     runtime bindings.
+
 # D1 binding for the waitlist Function (functions/api/waitlist.ts)
 # Created via: wrangler d1 create planscape-waitlist
 [[d1_databases]]

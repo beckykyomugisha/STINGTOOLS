@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQCostManagerPanel.cs — Phase 5 of the BOQ & Cost Manager.
 //  WPF UserControl hosted inside the BIM Coordination Center 4D/5D tab.
 //  No XAML file — layout built in C# following the StingResultPanel pattern.
@@ -130,7 +130,7 @@ namespace StingTools.UI
             {
                 string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — no persistence
-                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_ui_state.json");
+                return StingPaths.MetaFile(Doc, "_BIM_COORD", "boq_ui_state.json");
             }
             catch { return null; }
         }
@@ -1309,6 +1309,8 @@ namespace StingTools.UI
                      "Roll the risk register up — RAG counts on the residual (post-mitigation) score, open-red exposure and the top risks. CSV out.", true),
                     ("MIDP Drift", "Midp_DriftReport",
                      "Load a MIDP/TIDP CSV (Code, Title, Discipline, Milestone, PlannedDate, RequiredSuitability), join it to the live deliverables lifecycle and classify each as on-track / at-risk / overdue / suitability-short. CSV out.", false),
+                    ("Import MIDP", "Midp_Import",
+                     "Bulk-import a MIDP/TIDP CSV into the deliverables register so the Coordination Center's DELIVERABLES tab is populated for a new project. Add-only: codes already in the register are left untouched, so re-running never overwrites lifecycle state.", false),
                 }));
 
             sp.Children.Add(BuildActionGroup("Measurement Standard",
@@ -2436,7 +2438,7 @@ namespace StingTools.UI
             {
                 string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(parent))
-                    return System.IO.Path.Combine(parent, "_BIM_COORD", "exports");
+                    return StingPaths.MetaFile(Doc, "_BIM_COORD", "exports");
             }
             catch (Exception ex) { StingLog.Warn($"ResolveExportDir: {ex.Message}"); }
             return System.IO.Path.Combine(System.IO.Path.GetTempPath(), "STING_BOQ_exports");
