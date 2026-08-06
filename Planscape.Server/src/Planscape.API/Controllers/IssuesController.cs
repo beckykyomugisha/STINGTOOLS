@@ -34,7 +34,17 @@ public class IssuesController : ControllerBase
     private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
     private readonly IBackgroundJobClient _backgroundJobs;
 
-    private static readonly Dictionary<string, int> SLAHours = new()
+    // #551 - OrdinalIgnoreCase is load-bearing, not tidiness. The default
+    // comparer is case-SENSITIVE, so a client sending "critical" missed every
+    // key here and ComputeSLADeadline's GetValueOrDefault(priority, 168) served
+    // the MEDIUM fallback: a 4-hour SLA silently became one week, with nothing
+    // logged and nothing failed.
+    //
+    // Fixed in the CONTAINER rather than by normalising at the call site -
+    // ComputeSLADeadline is not the only way in, and a caller-side .ToUpper()
+    // leaves the next caller free to reintroduce exactly this. Guarded by
+    // IssueSlaLookupTests, which asserts the comparer directly.
+    internal static readonly Dictionary<string, int> SLAHours = new(StringComparer.OrdinalIgnoreCase)
     {
         ["CRITICAL"] = 4, ["HIGH"] = 24, ["MEDIUM"] = 168, ["LOW"] = 336
     };
