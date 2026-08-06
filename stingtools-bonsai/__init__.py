@@ -34,21 +34,27 @@ bl_info = {
 }
 
 
-# Make `stingtools_core` resolvable when it lives in the repo's
-# stingtools-core/python/ folder during dev. In a packaged extension
-# it'll be vendored under _vendor/.
-import sys
-from pathlib import Path
+# Resolve `stingtools_core`. When packaged, it is provided by the wheel declared
+# in blender_manifest.toml (`wheels = [...]`), which Blender installs into the
+# extension's isolated environment — so a plain import works and NO sys.path
+# manipulation happens. That is what keeps Blender's extension-policy check clean
+# (the old _vendor/sys.path approach raised "top level module" + "sys.path"
+# policy violations). The fallback below runs ONLY in a monorepo dev checkout,
+# where the wheel isn't installed and core lives at ../stingtools-core/python.
+try:
+    import stingtools_core  # noqa: F401 — provided by the bundled wheel when packaged
+except ImportError:
+    import sys
+    from pathlib import Path
 
-_THIS = Path(__file__).resolve()
-_REPO_ROOT_CANDIDATES = [_THIS.parent.parent, _THIS.parent / "_vendor"]
-for _cand in _REPO_ROOT_CANDIDATES:
-    _core = _cand / "stingtools-core" / "python"
-    if _core.exists() and str(_core) not in sys.path:
-        sys.path.insert(0, str(_core))
-    _vendored = _cand / "stingtools_core"
-    if _vendored.exists() and str(_cand) not in sys.path:
-        sys.path.insert(0, str(_cand))
+    _THIS = Path(__file__).resolve()
+    for _cand in (_THIS.parent.parent, _THIS.parent / "_vendor"):
+        _core = _cand / "stingtools-core" / "python"
+        if _core.exists() and str(_core) not in sys.path:
+            sys.path.insert(0, str(_core))
+        _vendored = _cand / "stingtools_core"
+        if _vendored.exists() and str(_cand) not in sys.path:
+            sys.path.insert(0, str(_cand))
 
 
 def register():

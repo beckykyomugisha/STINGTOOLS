@@ -131,3 +131,6 @@ planscape-web/playwright-report/
 
 # wrangler local build cache (marketing-site / Pages Functions)
 .wrangler/
+
+# Bonsai extension: core wheel is built at package time (see BUILD.md)
+stingtools-bonsai/wheels/*.whl
