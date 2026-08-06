@@ -1177,6 +1177,52 @@ THREE.ColorManagement.enabled = false;
     if (camera.isOrthographicCamera && typeof updateOrthoFrustum === 'function') updateOrthoFrustum(radius);
     camera.updateProjectionMatrix();
     controls.update();
+    updateClipPlanes(true);
+  }
+
+  // ZOOMFIX — near/far used to be set ONCE, by fitCamera, from the framed bounds.
+  // Dollying out (especially with zoomToCursor, which retreats along the pointer ray
+  // and can leave the model off-axis) pushes the camera past that static far plane,
+  // so the model vanished after a modest scroll-out. Recompute both planes every
+  // frame from the camera's CURRENT distance to the model instead. The renderer runs
+  // a logarithmic depth buffer, so a wide near..far span costs no z-precision.
+  const _clipCentre = new THREE.Vector3();
+  const _clipSize   = new THREE.Vector3();
+  function updateClipPlanes(force) {
+    if (!camera) return;
+    const box = (modelBounds && !modelBounds.isEmpty()) ? modelBounds : null;
+    let radius, dist;
+    if (box) {
+      box.getCenter(_clipCentre);
+      box.getSize(_clipSize);
+      radius = 0.5 * (_clipSize.length() || 1);
+      dist = camera.position.distanceTo(_clipCentre);
+    } else {
+      // No model yet — fall back to the orbit distance so gizmos/pins stay visible.
+      radius = Math.max(controls.target.distanceTo(camera.position), 1);
+      dist = radius;
+    }
+    // Far must clear the BACK of the model from wherever the eye now is, with slack
+    // for pins, section box and the sky/ground helpers.
+    const far = Math.max(dist + radius * 3, radius * 8, 1);
+    // Near must stay in front of the FRONT of the model — (dist - radius) is the
+    // closest geometry can be — and stay small enough to walk inside the building.
+    const near = Math.max(Math.min(radius / 1000, Math.max(dist - radius, 0) * 0.05) || radius / 1000, far * 1e-7, 1e-4);
+    if (camera.isOrthographicCamera) {
+      // Ortho spans symmetrically so geometry behind the eye plane still draws.
+      if (force || Math.abs(camera.far - far) > camera.far * 0.01) {
+        camera.near = -far; camera.far = far;
+        camera.updateProjectionMatrix();
+      }
+      return;
+    }
+    // Only touch the projection matrix on a meaningful change (avoids per-frame churn).
+    if (force || Math.abs(camera.far - far) > camera.far * 0.01
+              || Math.abs(camera.near - near) > camera.near * 0.25) {
+      camera.near = near;
+      camera.far  = far;
+      camera.updateProjectionMatrix();
+    }
   }
 
   // ── Picking + interactions ──────────────────────────────────────────
@@ -1673,6 +1719,7 @@ THREE.ColorManagement.enabled = false;
   (function animate() {
     requestAnimationFrame(animate);
     controls.update();
+    updateClipPlanes();          // ZOOMFIX — keep the far plane behind the model as we dolly out
     renderer.render(scene, camera);
     if (_afterRenderCb) { try { _afterRenderCb(renderer); } catch (_) {} }
   })();
