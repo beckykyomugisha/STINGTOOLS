@@ -127,12 +127,34 @@ public class ProjectMembersController : ControllerBase
     /// exactly how the eleven dead <c>ProjectRole == "PM"</c> gates happened.
     /// The server owns the rule; clients render what it returns.
     ///
-    /// CLIENT CONTRACT — 404 MEANS ALL CAPABILITIES ARE FALSE.
-    /// A 404 says the caller cannot see this project at all. Treat every
-    /// capability as false. Never "unknown, so proceed" — a fail-open default
-    /// here would undo the gate on all three surfaces at once. The same
-    /// applies to a network error, a timeout, or a body you cannot parse:
-    /// absence of an explicit <c>true</c> is <c>false</c>.
+    /// CLIENT CONTRACT — THREE STATES, NOT TWO.
+    ///
+    /// <list type="bullet">
+    /// <item><b>allowed</b> — an explicit <c>true</c>. Offer the control.</item>
+    /// <item><b>denied</b> — an explicit <c>false</c>, or a <b>404</b>. Disable the
+    /// control and name the capability. A 404 is authoritative: it says the caller
+    /// cannot see this project at all.</item>
+    /// <item><b>unknown</b> — a network error, a timeout, or a body you cannot
+    /// parse. <b>Leave the control enabled</b> and let the attempt report honestly.
+    /// A dropped connection says nothing about permissions.</item>
+    /// </list>
+    ///
+    /// The distinction matters because capabilities drive AFFORDANCE, not
+    /// enforcement. The server is the only gate; a client's snapshot can be stale,
+    /// so every action still attempts and reports its refusal. Rendering
+    /// <i>unknown</i> as <i>denied</i> would disable a legitimate user's controls on
+    /// a network blip, and would look identical to a permissions problem — the exact
+    /// confusion issue #558 exists to remove. It is also the house anti-pattern in a
+    /// new costume: an absent answer displayed as a definite one, the same mistake as
+    /// an empty list standing in for a failed load.
+    ///
+    /// This paragraph previously said the opposite — that absence of an explicit
+    /// <c>true</c> is <c>false</c>, network errors included. That is recorded here
+    /// rather than quietly replaced, because two mobile call sites already fail
+    /// closed on unknown (<c>site-photos/review.tsx</c>,
+    /// <c>issue-detail.tsx</c>) and #558 corrects them; a reader who finds one of
+    /// those and this docstring disagreeing should know which way the correction
+    /// runs.
     ///
     /// Deliberately two booleans, matching the two predicates that actually
     /// exist on <see cref="ProjectRoles"/>. A third does not get added inline
