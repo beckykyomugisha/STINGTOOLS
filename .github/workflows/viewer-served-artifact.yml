@@ -1,0 +1,256 @@
+name: Viewer served-artifact gate
+
+# Why this workflow exists (#309)
+# ===============================
+# Nothing in CI has ever touched the artifact that actually gets SERVED.
+#
+#   coordination-viewer-drift.yml  diffs Planscape/assets/viewer/* against wwwroot/*
+#                                  — raw sources, byte-equal, on the runner's disk
+#   (various)                      run `node --check` on raw sources
+#
+# Neither builds the container. Neither starts it. Neither requests a URL. So
+# "CI green" did NOT imply the deployed viewer was current: a stale or cached
+# image could ship — or an asset could be added to wwwroot/ that the viewer build
+# never emits — while every check passed.
+#
+# That is not hypothetical. It bit PR #306: `livekit-av.js` was added to wwwroot/
+# but is not part of build.mjs's dist/ output, and it 404'd from a stale
+# container. The mitigation shipped as a HUMAN step — `docs/PR306_MANUAL_QA.md`
+# Step 0, "docker compose build --no-cache then curl the asset" — which is
+# exactly the kind of check that gets skipped on the busy day it matters.
+#
+# This workflow enforces it: build the image, run it, and assert every viewer
+# asset is served with HTTP 200 AND that its bytes match what the build just
+# produced.
+#
+# Kept SEPARATE from the fast contract gate on purpose. Building a container and
+# standing up Postgres costs minutes; coordination-viewer-drift.yml stays a
+# seconds-long byte diff and keeps giving fast feedback on the common mistake.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Planscape/assets/viewer/**'
+      - 'Planscape.Server/src/Planscape.API/wwwroot/**'
+      - 'Planscape.Server/docker/**'
+      - '.github/workflows/viewer-served-artifact.yml'
+  pull_request:
+    paths:
+      - 'Planscape/assets/viewer/**'
+      - 'Planscape.Server/src/Planscape.API/wwwroot/**'
+      - 'Planscape.Server/docker/**'
+      - '.github/workflows/viewer-served-artifact.yml'
+  # Buildable on demand — useful when only the base image has moved.
+  workflow_dispatch:
+
+jobs:
+  served-artifact:
+    name: Build the image, serve it, verify what comes back
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── 1. Build dist/ on the runner: the reference bytes ─────────────────
+      # Same build.mjs the Dockerfile's viewer stage runs. Whatever the container
+      # serves for a dist-emitted file must equal what this produces — that is
+      # what makes "the deployed viewer is current" a measurement rather than an
+      # assumption.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the viewer bundle (reference copy)
+        working-directory: Planscape/assets/viewer
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund
+          else npm install --no-audit --no-fund; fi
+          npm run build
+          ls -la dist/
+
+      # ── 2. Build the actual image ────────────────────────────────────────
+      # --no-cache on the viewer stage is the point of the exercise: a cached
+      # layer is precisely how a stale bundle ships. #306's asset 404'd from a
+      # cached image, so reusing cache here would reproduce the blind spot this
+      # workflow exists to remove.
+      - name: Build the API image (no cache)
+        run: |
+          set -euo pipefail
+          docker build \
+            --no-cache \
+            --build-arg IFCCONVERT_URL=skip \
+            -f Planscape.Server/docker/Dockerfile \
+            -t planscape-api:ci \
+            .
+
+      # ── 3. Run it ────────────────────────────────────────────────────────
+      - name: Start Postgres
+        run: |
+          set -euo pipefail
+          docker network create planscape-ci
+          docker run -d --name pg --network planscape-ci \
+            -e POSTGRES_DB=planscape \
+            -e POSTGRES_USER=planscape \
+            -e POSTGRES_PASSWORD=CiOnly2026! \
+            postgres:16-alpine
+          for i in $(seq 1 60); do
+            if docker exec pg pg_isready -U planscape -d planscape >/dev/null 2>&1; then
+              echo "postgres ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Postgres never became ready"; docker logs pg; exit 1
+
+      - name: Start the API container
+        run: |
+          set -euo pipefail
+          # CI-only JWT key. Never leaves this job, signs nothing that outlives
+          # it, and must still clear Program.cs's guards (32+ chars, 4+ distinct
+          # characters, not in the banned list).
+          docker run -d --name api --network planscape-ci -p 5000:8080 \
+            -e ASPNETCORE_ENVIRONMENT=Development \
+            -e ASPNETCORE_URLS=http://+:8080 \
+            -e 'ConnectionStrings__Default=Host=pg;Port=5432;Database=planscape;Username=planscape;Password=CiOnly2026!' \
+            -e "Jwt__Key=$(openssl rand -base64 48)" \
+            -e Jwt__Issuer=Planscape \
+            -e Jwt__Audience=Planscape.Client \
+            -e RateLimiting__Enabled=false \
+            planscape-api:ci
+
+      - name: Wait for /health/live
+        run: |
+          set -uo pipefail
+          # /health/live, NOT /health. /health is the full diagnostic and is
+          # authenticated — it answers 403 to an anonymous caller, which would
+          # read here as "never came up". /health/live is AllowAnonymous by
+          # design and is the liveness contract (see render.yaml).
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:5000/health/live >/dev/null 2>&1; then
+              echo "api is live after ~$((i*2))s"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error title=API never became live::/health/live did not answer within 180s"
+          docker logs api | tail -100
+          exit 1
+
+      # ── 4. The actual assertion ──────────────────────────────────────────
+      - name: Every viewer asset is SERVED, and matches what was just built
+        run: |
+          set -uo pipefail
+          fail=0
+          src=Planscape/assets/viewer
+          dist=$src/dist
+          www=Planscape.Server/src/Planscape.API/wwwroot
+
+          # Emitted into dist/ by build.mjs, then overlaid onto wwwroot/ by the
+          # Dockerfile. Served bytes must equal the freshly-built dist bytes —
+          # this is the check that a stale image cannot survive.
+          #
+          # three.min.js is included as a STALENESS CANARY, not because
+          # viewer.html loads it — the page pulls three through an importmap
+          # pointing at vendor/three/three.module.js. three.min.js is still a
+          # build.mjs output copied by the Dockerfile, so if the image is stale
+          # its bytes drift, which is exactly the signal wanted. Said plainly so
+          # nobody later "fixes" this by deleting a line that looks unused.
+          DIST_ASSETS="coordination-viewer.js signalr-shim.js viewer-extras.js coordination-viewer.css three.min.js"
+
+          # NOT emitted by build.mjs. They ship from the repo's wwwroot/ and
+          # survive the dist overlay. They are exactly the class of file #306
+          # tripped over, so they are asserted explicitly rather than assumed.
+          RAW_ASSETS="viewer.html meeting-sync.js livekit-av.js"
+
+          # Vendored third-party, copied wholesale. Every one of these is
+          # referenced by viewer.html or by livekit-av.js — verified against the
+          # source, not guessed:
+          #   es-module-shims.js        <script> in viewer.html
+          #   three/three.module.js     importmap target for bare "three"
+          #   livekit-client.umd.min.js loaded by livekit-av.js (the #306 chain)
+          VENDOR_ASSETS="vendor/es-module-shims.js vendor/three/three.module.js vendor/livekit-client.umd.min.js vendor/signalr.min.js"
+
+          check_200 () {
+            local path="$1"
+            local code
+            code=$(curl -s -o /tmp/served.bin -w '%{http_code}' "http://localhost:5000/$path")
+            if [ "$code" != "200" ]; then
+              echo "::error title=Viewer asset not served::$path returned HTTP $code — a stale image or an asset the build never emits"
+              return 1
+            fi
+            # A 200 carrying zero bytes is not a served asset. Guard it, so an
+            # empty response can never stand in for a working one.
+            if [ ! -s /tmp/served.bin ]; then
+              echo "::error title=Viewer asset served EMPTY::$path returned 200 with a zero-byte body"
+              return 1
+            fi
+            return 0
+          }
+
+          echo "── dist-emitted assets: served bytes must equal freshly-built dist ──"
+          for f in $DIST_ASSETS; do
+            if ! check_200 "$f"; then fail=1; continue; fi
+            if [ ! -f "$dist/$f" ]; then
+              echo "::error title=Build did not emit $f::expected $dist/$f from build.mjs"
+              fail=1; continue
+            fi
+            if ! cmp -s /tmp/served.bin "$dist/$f"; then
+              echo "::error title=Served bytes are STALE::$f differs from the build just run. Served $(wc -c </tmp/served.bin) bytes, built $(wc -c <"$dist/$f") bytes."
+              fail=1
+            else
+              echo "  OK  $f  ($(wc -c <"$dist/$f") bytes, hash-identical to fresh build)"
+            fi
+          done
+
+          echo "── raw-served assets: served bytes must equal the repo's wwwroot ──"
+          for f in $RAW_ASSETS; do
+            if ! check_200 "$f"; then fail=1; continue; fi
+            if ! cmp -s /tmp/served.bin "$www/$f"; then
+              echo "::error title=Served bytes differ from wwwroot::$f"
+              fail=1
+            else
+              echo "  OK  $f  ($(wc -c <"$www/$f") bytes)"
+            fi
+          done
+
+          echo "── vendored assets: served and non-empty ──"
+          for f in $VENDOR_ASSETS; do
+            if check_200 "$f"; then echo "  OK  $f"; else fail=1; fi
+          done
+
+          # ── Coverage: nothing the drift gate protects may go unserved ──
+          # coordination-viewer-drift.yml keeps 7 files in sync between source
+          # and wwwroot. Syncing them is worthless if one is never actually
+          # served. This asserts the two gates cover the same surface, so adding
+          # a file to the drift list without serving it fails HERE rather than
+          # in production.
+          echo "── drift-gate coverage ──"
+          for f in viewer.html coordination-viewer.js coordination-viewer.css \
+                   viewer-extras.js signalr-shim.js meeting-sync.js livekit-av.js; do
+            case " $DIST_ASSETS $RAW_ASSETS " in
+              *" $f "*) echo "  covered: $f" ;;
+              *) echo "::error title=Drift-gate file is never served-checked::$f is kept in sync by coordination-viewer-drift.yml but this workflow never requests it. Add it to DIST_ASSETS or RAW_ASSETS."
+                 fail=1 ;;
+            esac
+          done
+
+          if [ "$fail" != "0" ]; then
+            echo ""
+            echo "The served viewer does not match the build. Usual causes:"
+            echo "  * a new asset added to wwwroot/ that build.mjs never emits"
+            echo "  * an asset removed from build.mjs but still referenced by viewer.html"
+            echo "  * a Dockerfile change to the COPY --from=viewer overlay"
+            docker logs api | tail -50
+          fi
+          exit $fail
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs api | tail -200
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f api pg >/dev/null 2>&1 || true
+          docker network rm planscape-ci >/dev/null 2>&1 || true
