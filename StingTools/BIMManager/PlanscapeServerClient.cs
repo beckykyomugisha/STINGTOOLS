@@ -66,6 +66,27 @@ public sealed partial class PlanscapeServerClient : IDisposable
     public bool   MimEnabled    { get; private set; }
     public string? LastError    { get; private set; }
 
+    /// <summary>
+    /// HTTP status of the most recent request, or <c>null</c> when the request
+    /// never produced one (transport failure, timeout, client not initialised).
+    ///
+    /// WHY THIS EXISTS. The UI needs to tell a REFUSAL (403) apart from a
+    /// FAILURE (unreachable server, 500), because those warrant different
+    /// actions — "ask your PM" vs "call IT". Before this, the only signal was
+    /// <see cref="LastError"/>, a human string. Substring-matching a status out
+    /// of a message is how mobile ended up reporting "HTTP 403" for an empty
+    /// body (#624); the status is carried as a number so nobody has to.
+    ///
+    /// Set in the three HTTP helpers, so every call site gets it without
+    /// touching ninety failure branches. Same lifetime and same caveat as
+    /// <see cref="LastError"/>: it describes the LAST request on this shared
+    /// singleton, so read it immediately after the await that set it.
+    ///
+    /// <c>null</c> is deliberately NOT "denied". It is "we do not know" — the
+    /// three-state rule this surface is built on.
+    /// </summary>
+    public int? LastStatus { get; private set; }
+
     /// <summary>C2 — tenant + user IDs parsed from the login response's JWT payload
     /// so the real-time client can join the right SignalR groups.</summary>
     public Guid TenantId { get; private set; }
@@ -1623,7 +1644,21 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// paginated envelope: { items, total, page, pageSize }. We surface the
     /// items list directly; callers can re-paginate by passing page/pageSize.
     /// </summary>
-    public async Task<List<SitePhotoDto>> ListSitePhotosAsync(
+    /// <returns>
+    /// The photos, an EMPTY list when the project genuinely has none, or
+    /// <c>null</c> when the request FAILED.
+    ///
+    /// This method used to return an empty list on every failure path — HTTP
+    /// error, exception, missing envelope. Both callers then rendered "✓ No
+    /// photos awaiting review." over an unreachable server or a refusal: a
+    /// confident, wrong, empty answer. That is the same fabrication #550
+    /// removed from the album and distribution-group panes, still live in the
+    /// review queue and the grid, and it is why neither surface could show a
+    /// forbidden state — nothing reached them saying anything had gone wrong.
+    /// Null is the failure channel; <see cref="LastError"/> and
+    /// <see cref="LastStatus"/> carry the reason.
+    /// </returns>
+    public async Task<List<SitePhotoDto>?> ListSitePhotosAsync(
         Guid projectId,
         string? reason     = null,
         string? audience   = null,
@@ -1634,8 +1669,11 @@ public sealed partial class PlanscapeServerClient : IDisposable
         int page           = 1,
         int pageSize       = 50)
     {
-        var empty = new List<SitePhotoDto>();
-        if (!await EnsureAuthenticatedAsync()) return empty;
+        if (!await EnsureAuthenticatedAsync())
+        {
+            LastError = "Not connected to Planscape.";
+            return null;
+        }
         try
         {
             var qs = new List<string>();
@@ -1650,12 +1688,19 @@ public sealed partial class PlanscapeServerClient : IDisposable
             var path = $"/api/projects/{projectId}/photos?{string.Join("&", qs)}";
 
             var resp = await GetAsync(path);
-            if (!resp.ok) { LastError = $"ListSitePhotos: HTTP {resp.status}"; return empty; }
+            if (!resp.ok) { LastError = $"ListSitePhotos: HTTP {resp.status}"; return null; }
 
             // Envelope: { items: [...], total, page, pageSize }
             var json = JObject.Parse(resp.body);
             var items = json["items"] as JArray;
-            if (items == null) return empty;
+            // A 200 with no `items` array is a contract mismatch, not an empty
+            // project. Returning [] here would have re-introduced the same
+            // fabrication one layer down.
+            if (items == null)
+            {
+                LastError = "ListSitePhotos: response had no 'items' array.";
+                return null;
+            }
             var list = items.ToObject<List<SitePhotoDto>>();
             // Phase 180 — surface ndaRequiredIds so callers can render
             // a 🔒 lock badge on photos awaiting NDA acceptance.
@@ -1671,9 +1716,9 @@ public sealed partial class PlanscapeServerClient : IDisposable
             else
             {
             }
-            return list ?? empty;
+            return list ?? new List<SitePhotoDto>();
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return empty; }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return null; }
     }
 
 
@@ -1817,10 +1862,14 @@ public sealed partial class PlanscapeServerClient : IDisposable
             Encoding.UTF8, "application/json");
 
         var http = SnapshotHttpClient();
+        // Cleared FIRST so a throw below leaves LastStatus null — "no status",
+        // which the capability layer reads as unknown rather than as denied.
+        LastStatus = null;
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.PostAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        LastStatus = (int)resp.StatusCode;
         if (ok) TouchActivity(); // SEC-EA-08
         return (ok, (int)resp.StatusCode, body);
     }
@@ -1838,10 +1887,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
             Encoding.UTF8, "application/json");
 
         var http = SnapshotHttpClient();
+        LastStatus = null;
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.PutAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        LastStatus = (int)resp.StatusCode;
         if (ok) TouchActivity(); // SEC-EA-08
         return (ok, (int)resp.StatusCode, body);
     }
@@ -1849,10 +1900,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
     private async Task<(bool ok, int status, string body)> GetAsync(string path)
     {
         var http = SnapshotHttpClient();
+        LastStatus = null;
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.GetAsync(path).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        LastStatus = (int)resp.StatusCode;
         if (ok) TouchActivity(); // SEC-EA-08
         return (ok, (int)resp.StatusCode, body);
     }
