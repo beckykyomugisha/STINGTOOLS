@@ -55,7 +55,7 @@ mistake as an empty list standing in for a failed load.
 |---|---|
 | **BCC** (#642) | `PlanscapeServerClient.Capabilities.cs` (tri-state, never throws) · `PlanscapeForbidden.cs` — one treatment, amber + lock, not the crimson error state · `LastStatus` on the client, set in the three HTTP helpers **and** the streaming export path, carrying the status as a **number** so nobody substring-matches it out of a message · capability-driven affordance across all five site-photo sub-tabs |
 | **planscape-web** (#643) | `ForbiddenNote` / `ForbiddenPanel` / a `forbidden` toast tone · `isForbidden()` + `describeFailure()` · `ApiError.serverMessage` · `lib/capabilities.ts` + `useProjectCapabilities()` · seven sites migrated, wording preserved verbatim on the three that already had it |
-| **Planscape mobile** (#644) | `src/api/capabilities.ts` (tri-state) · `src/utils/forbidden.ts` — `isForbidden` reads `.status`, **not** `message.includes('HTTP 403')` · five sites migrated, two of them behaviour corrections |
+| **Planscape mobile** (#645) | `src/api/capabilities.ts` (tri-state) · `src/utils/forbidden.ts` — `isForbidden` reads `.status`, **not** `message.includes('HTTP 403')` · five sites migrated, two of them behaviour corrections |
 
 **`msg.includes('HTTP 403')` was never a status test.** Mobile's `ApiError` is built as
 ``new ApiError(res.status, body || `HTTP ${res.status}`)``, so the message is the response
