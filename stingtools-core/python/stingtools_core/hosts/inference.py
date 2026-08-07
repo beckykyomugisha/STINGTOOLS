@@ -76,7 +76,7 @@ FUNCTION_BY_IFC_CLASS: dict[str, str] = {
 _DISCIPLINE_BY_NAME_KEYWORD: tuple[tuple[tuple[str, ...], str], ...] = (
     (("SHOWER", "SINK", "BASIN", "TOILET", "URINAL", "BATH", "TAP", "FAUCET",
       "SANITARY", "LAVATORY", "CISTERN", "BIDET", "PIPE", "VALVE", "DRAIN",
-      "GULLY", "MANHOLE", "GUTTER"), "P"),
+      "GULLY", "MANHOLE", "GUTTER", "DWV", "WASTE", "SOIL", "FOUL"), "P"),
     (("DUCT", "DIFFUSER", "GRILLE", "VAV", "AHU", "FCU", "HVAC", "RADIATOR",
       "CHILLER", "BOILER", "EXTRACT", "VENTIL"), "M"),
     (("CABLE", "CONDUIT", "SOCKET", "SWITCH", "LUMINAIRE", "LIGHT FIXTURE",
@@ -90,7 +90,13 @@ _DISCIPLINE_BY_NAME_KEYWORD: tuple[tuple[tuple[str, ...], str], ...] = (
       "CABINET", "CUPBOARD", "SHELF", "DESK", "TABLE", "CHAIR", "BED", "SOFA",
       "FURNITURE", "COUNTER", "WORKTOP", "STAIR", "RAMP", "ROOF", "SLAB",
       "FLOOR", "CEILING", "COVERING", "TOPO", "SITE", "LANDSCAPE", "CURTAIN",
-      "PARTITION", "SKIRTING", "CORNICE"), "A"),
+      "PARTITION", "SKIRTING", "CORNICE",
+      # Domestic FF&E / appliances — decorative and kitchen/laundry equipment
+      # that CAD exports drop as proxies. Specific terms only (e.g. "HANGING
+      # PLANT" not bare "PLANT", which would collide with mechanical plant).
+      "RANGE", "COOK TOP", "COOKTOP", "COOKER", "HOB", "OVEN", "DISHWASHER",
+      "WASHING MACHINE", "DRYER", "FRIDGE", "REFRIGERAT", "MICROWAVE",
+      "HANGING PLANT", "VACUUM", "IRONING"), "A"),
 )
 
 
@@ -225,14 +231,77 @@ def system_for_name(name: str | None) -> str:
     return SENTINEL
 
 
+def _unit_scale_m(element: Any) -> float:
+    """Metres per file length-unit (1.0 if unknown). ``level_for_storey_name``
+    expects elevation in METRES (its 3 m/floor rule), but IFC elevations are in
+    the file unit — millimetres for a Revit IFC2X3 export. Without this scale a
+    2850 mm storey became ``L950`` instead of ``L01``."""
+    try:
+        import ifcopenshell.util.unit as ifc_unit  # type: ignore
+        f = getattr(element, "file", None)
+        return float(ifc_unit.calculate_unit_scale(f)) if f is not None else 1.0
+    except Exception:
+        return 1.0
+
+
+def _element_world_z_m(element: Any, scale: float) -> float | None:
+    """Absolute Z of the element's placement, in metres — or None if it has no
+    resolvable placement."""
+    try:
+        import ifcopenshell.util.placement as ifc_place  # type: ignore
+        placement = getattr(element, "ObjectPlacement", None)
+        if placement is None:
+            return None
+        return float(ifc_place.get_local_placement(placement)[2][3]) * scale
+    except Exception:
+        return None
+
+
+def _nearest_storey_at_or_below(element: Any, z_m: float, scale: float) -> Any:
+    """The IfcBuildingStorey whose elevation is closest at or below ``z_m``
+    (metres); falls back to the lowest storey when the element sits below them
+    all. Used to give an orphaned element (no spatial container) a level."""
+    f = getattr(element, "file", None)
+    if f is None:
+        return None
+    best = best_e = None
+    lowest = lowest_e = None
+    for s in f.by_type("IfcBuildingStorey"):
+        e = getattr(s, "Elevation", None)
+        if e is None:
+            continue
+        em = float(e) * scale
+        if lowest_e is None or em < lowest_e:
+            lowest, lowest_e = s, em
+        if em <= z_m + 1e-6 and (best_e is None or em > best_e):
+            best, best_e = s, em
+    return best if best is not None else lowest
+
+
 def infer_level(element: Any) -> str:
-    """Level code from the element's containing ``IfcBuildingStorey``."""
+    """Level code for an element.
+
+    Primary: its containing ``IfcBuildingStorey`` (elevation normalised to
+    metres). Fallback for elements Revit never placed in a storey — furniture,
+    fixtures, CAD proxies — match the element's world Z to the nearest storey
+    at or below it, so they no longer stall the tag at ``Level = XX``."""
     try:
         import ifcopenshell.util.element as ifc_util  # type: ignore
+        scale = _unit_scale_m(element)
         container = ifc_util.get_container(element)
-        if container is None or not container.is_a("IfcBuildingStorey"):
+        if container is not None and container.is_a("IfcBuildingStorey"):
+            elev = getattr(container, "Elevation", None)
+            elev_m = float(elev) * scale if elev is not None else None
+            return level_for_storey_name(container.Name, elev_m)
+        z_m = _element_world_z_m(element, scale)
+        if z_m is None:
             return SENTINEL
-        return level_for_storey_name(container.Name, getattr(container, "Elevation", None))
+        storey = _nearest_storey_at_or_below(element, z_m, scale)
+        if storey is not None:
+            selev = getattr(storey, "Elevation", None)
+            selev_m = float(selev) * scale if selev is not None else z_m
+            return level_for_storey_name(storey.Name, selev_m)
+        return level_for_storey_name(None, z_m)
     except Exception:
         return SENTINEL
 
