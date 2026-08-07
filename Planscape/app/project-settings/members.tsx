@@ -29,6 +29,7 @@ import {
   type MyProjectAccess,
   type UpdateProjectMemberArgs,
 } from '@/api/endpoints';
+import { CAPABILITY_COPY, alertFailure } from '@/utils/forbidden';
 import { useProjectStore } from '@/stores/projectStore';
 
 // Canonical option lists. Allow-list null/empty on the server means "all";
@@ -170,12 +171,13 @@ function MemberCard({
       await updateProjectMember(projectId, member.id, body);
       await onSaved();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('HTTP 403')) {
-        Alert.alert('Permission denied', 'You do not have permission to edit project members.');
-      } else {
-        Alert.alert('Save failed', msg);
-      }
+      // Was a message substring test that only matched an EMPTY body, and a
+      // sentence that did not say who CAN. Both from the shared helper now.
+      alertFailure(err, {
+        title: 'Save failed',
+        forbidden: CAPABILITY_COPY.manageMembers,
+        fallback: 'Save failed',
+      });
     } finally {
       setSaving(false);
     }
