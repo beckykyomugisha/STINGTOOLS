@@ -3268,7 +3268,8 @@ namespace StingTools.UI
                         }
                         break;
                     }
-                    case "ScheduleWizard":
+                    case "Scheduler":        // current name
+                    case "ScheduleWizard":   // legacy tag — kept so saved workflows and MCP calls keep working
                     {
                         // Load CSV definitions and existing schedule names for the wizard
                         var doc = app.ActiveUIDocument?.Document;

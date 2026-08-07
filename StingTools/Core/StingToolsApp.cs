@@ -2688,7 +2688,11 @@ namespace StingTools.Core
                 ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,    typeof(HubFabricationCommand).FullName),
                 ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
                 ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
-                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+                // Replaces the old "Scheduling" button, which opened the 4D/5D
+                // cost dashboard. That is programme management, not drawing
+                // schedules, and it stays reachable from the dock panel's BIM
+                // tab. The hub slot now opens the Scheduler.
+                ("Scheduler",            "Scheduler",     "SC", DrawingColor.ForestGreen,  typeof(HubSchedulerCommand).FullName),
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,      typeof(HubAutoTagCommand).FullName),
@@ -3216,6 +3220,19 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "SchedulingCostDashboard", ref message);
+    }
+
+    /// <summary>
+    /// STING Hub → Scheduler. A ribbon button rather than a dock-panel one so
+    /// it can be right-clicked onto the Quick Access Toolbar — the QAT only
+    /// accepts ribbon items.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSchedulerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "Scheduler", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

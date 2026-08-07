@@ -162,6 +162,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="28"/>
+                    <ColumnDefinition Width="34"/>
                 </Grid.ColumnDefinitions>
                 <Grid>
                     <TextBox x:Name="txtCommandBar"
@@ -234,6 +235,16 @@
                         Cursor="Hand"
                         ToolTip="Ask AI — design briefs, BIM knowledge, draft documents"
                         Click="AskAI_Click"/>
+                <!-- Schedules are needed from every tab, so the Scheduler lives
+                     in the header rather than inside one of them. -->
+                <Button x:Name="btnScheduler" Grid.Column="2"
+                        Content="SCH" Width="32" Height="23"
+                        Margin="2,0,0,0" FontSize="9" FontWeight="Bold"
+                        Background="#4CAF50" Foreground="White"
+                        BorderBrush="#388E3C" BorderThickness="1"
+                        Cursor="Hand"
+                        ToolTip="STING Scheduler — every view-schedule function in one dialog: create &amp; populate, audit, manage, export, format, corporate/MEP, and the per-category tag schedules with automatic sheet placement"
+                        Tag="Scheduler" Click="Cmd_Click"/>
             </Grid>
             </StackPanel>
         </Border>
@@ -1581,6 +1592,7 @@
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="SCHEDULE MANAGEMENT"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ SCHEDULER" Tag="Scheduler" Click="Cmd_Click" ToolTip="STING Scheduler — every view-schedule function in one dialog. The buttons below are shortcuts into it." FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="ScheduleAudit" Click="Cmd_Click" ToolTip="Audit all schedules for issues and CSV coverage"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="ScheduleRefresh" Click="Cmd_Click" ToolTip="Re-apply formatting from CSV definitions"/>
                                 </WrapPanel>
@@ -2026,7 +2038,7 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Wizard" Tag="ScheduleWizard" Click="Cmd_Click" ToolTip="Schedule Wizard — unified schedule wizard: create, populate, audit, export in one dialog" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ SCHEDULER" Tag="Scheduler" Click="Cmd_Click" ToolTip="STING Scheduler — every view-schedule function in one dialog: create &amp; populate, audit, manage, export, format, corporate/MEP, and the per-category tag schedules with sheet placement" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Full AutoPopulate — zero-input full pipeline" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click" ToolTip="Excel Link — ExLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
                                 </WrapPanel>
@@ -2333,7 +2345,7 @@
                                             <Button Style="{StaticResource PurpleBtn}" Content="Propagate Universal" Tag="Propagate_UniversalTag" Click="Cmd_Click" ToolTip="Universal-tag pivot: clone the hand-built universal master label to loaded STING tag families — EditFamily → recategorise → rename → re-create type variants → SaveAs/LoadFamily. Re-run = safe re-sync. Smoke-test on Duct first."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Stamp Gates" Tag="Gate_StampStatus" Click="Cmd_Click" ToolTip="Compute + stamp STING_GATE_DATA_STATUS_INT / STING_GATE_QA_STATUS_INT (0=red/1=amber/2=green) on every taggable element. Binds the params first if needed."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Status Register" Tag="Status_Register" Click="Cmd_Click" ToolTip="Export a colour-coded data/QA status register to Excel (Register + Summary sheets) to share with modellers. Read-only — computes each element's data + QA gate fresh, reds sorted to top, auto-filtered."/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Schedules" Tag="Schedule_DisciplineTagExpander" Click="Cmd_Click" ToolTip="Build one ViewSchedule per model category from SCHEDULE_SPEC_all_disciplines.json — col1 ASS_TAG_1_TXT + the discipline columns dropped from the universal tag + Comments. Sheet / Full as-built / Both. Skips empty entries + unresolved categories."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Schedules" Tag="Schedule_DisciplineTagExpander" Click="Cmd_Click" ToolTip="Build one ViewSchedule per model category from SCHEDULE_SPEC_all_disciplines.json — col1 ASS_TAG_1_TXT + the discipline columns dropped from the universal tag + Comments. Sheet / Full as-built / Both. For bundle filtering and automatic sheet placement, use SETUP → ★ SCHEDULER → TAG SCHEDULES."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Style Audit"  Tag="StyleAudit"               Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
                                         </WrapPanel>
                                     </StackPanel>
@@ -2938,7 +2950,7 @@
                             <StackPanel>
                                 <TextBlock Text="WORKFLOW &amp; COORDINATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Scheduler" Tag="WorkflowScheduler" Click="Cmd_Click" ToolTip="Manage scheduled workflow triggers (on-open, compliance-fall, SLA, periodic)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Workflow Triggers" Tag="WorkflowScheduler" Click="Cmd_Click" ToolTip="Manage scheduled workflow triggers (on-open, compliance-fall, SLA, periodic). Not related to view schedules — for those use SETUP → ★ SCHEDULER."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Mid-Day" Tag="MidDayCoordination" Click="Cmd_Click" ToolTip="Mid-Day Check — quick coordination checkpoint before meetings (2-3 min)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Review Prep" Tag="DesignReviewPrep" Click="Cmd_Click" ToolTip="Prepare model for design review (retag, fix, validate, report)"/>
                                 </WrapPanel>
