@@ -26,7 +26,7 @@ drafting:
 | `StingTools/Data/STING_TAG_SCHEMES.json` | Tag-scheme library incl. a disabled `kut-temple-example` |
 | `StingTools/Data/STING_CLIMATE_DATA.json` | Kampala already present (`id: kampala`, elev 1155 m) |
 | `STING_UGANDA_REGIONAL_LOADS.json`, `Core/UgandaRegionalDefaults.cs`, `StingTools.Standards/{UNBS,SSBS,CIBSE}` | Uganda localisation |
-| `WORKFLOW_GateAudit.json` | Per-gate audit chain (KUT) |
+| `WORKFLOW_KUT_GateAudit.json` | Per-gate audit chain (KUT). Superseded `WORKFLOW_GateAudit.json`, which shipped alongside it until it was deleted — the old one contained `ValidateTags` and `CompletenessDashboard`, both `[Transaction(TransactionMode.Manual)]` writers that build legends, so it was not the read-only pre-gate check its successor's description argues for |
 | Commands: `LOD_Verify`, `LOD_Stamp`, `TokenConfidenceAudit`, `TagScheme_Audit`, `Program_Audit`, `CSI_Assign`, `SpecLink_Reconcile`, `ReviewComments_Import` | Phase 192 KUT commands |
 
 **This pack adds only the missing pieces:** an *activated* project overlay
