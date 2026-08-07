@@ -15,12 +15,19 @@ import {
   useToast,
   type Column,
 } from '@/components/ui';
+import { describeFailure } from '@/lib/api';
 import { inviteMember, listMembers, listProjectRoles, removeMember, updateMemberRole } from '@/lib/data';
 import type { Iso19650Role, ProjectMember } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 const PROJECT_ROLES = ['Viewer', 'Contributor', 'Coordinator', 'Manager', 'Owner', 'Admin'];
+
+// Invite and remove share one server gate (ProjectMembersController.
+// AuthorizeManageAsync), so they share one sentence. Two hand-typed copies of
+// the same rule is how these drift.
+const MEMBER_MANAGE_FORBIDDEN =
+  "Only a project Manager/Owner/Admin, the project's author, or a tenant Owner/Admin can manage this project's members.";
 
 /**
  * U4 — Members grid. Editable columns are `projectRole` + `iso19650Role`, which
@@ -74,7 +81,11 @@ export default function MembersPage() {
       setInviteOpen(false);
       load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Invite failed', 'error');
+      const d = describeFailure(e, {
+        forbidden: MEMBER_MANAGE_FORBIDDEN,
+        fallback: 'Invite failed',
+      });
+      toast(d.message, d.tone);
     } finally {
       setBusy(false);
     }
@@ -87,7 +98,11 @@ export default function MembersPage() {
       toast(`${m.displayName || m.email} removed`, 'success');
       load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Remove failed', 'error');
+      const d = describeFailure(e, {
+        forbidden: MEMBER_MANAGE_FORBIDDEN,
+        fallback: 'Remove failed',
+      });
+      toast(d.message, d.tone);
     }
   }
 

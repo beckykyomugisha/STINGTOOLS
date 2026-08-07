@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Input, Modal } from '@/components/ui';
-import { ApiError } from '@/lib/api';
+import { Button, ErrorNote, ForbiddenNote, Input, Modal } from '@/components/ui';
+import { ApiError, isForbidden } from '@/lib/api';
 import { archiveProject } from '@/lib/data';
 
 /**
@@ -36,6 +36,8 @@ export function ArchiveProjectDialog({
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tracked next to the message, not sniffed back out of it (#624).
+  const [forbidden, setForbidden] = useState(false);
 
   // Re-opening the dialog must not inherit the previous attempt's typed code or
   // its error banner.
@@ -43,6 +45,7 @@ export function ArchiveProjectDialog({
     if (open) {
       setTyped('');
       setError(null);
+      setForbidden(false);
     }
   }, [open]);
 
@@ -54,6 +57,7 @@ export function ArchiveProjectDialog({
     if (!matches) return;
     setBusy(true);
     setError(null);
+    setForbidden(false);
     try {
       await archiveProject(projectId, typed.trim());
       onOpenChange(false);
@@ -61,7 +65,11 @@ export function ArchiveProjectDialog({
     } catch (e) {
       // 403 is a real, expected answer — the caller is neither the project author
       // nor a tenant admin. Name that instead of dropping a generic toast.
-      if (e instanceof ApiError && e.status === 403) {
+      if (isForbidden(e)) {
+        // Wording unchanged (#558) — it already named who can. What changed is
+        // that it now renders in the forbidden treatment instead of the danger
+        // one, so it does not read as "the archive failed".
+        setForbidden(true);
         setError(
           'You do not have permission to archive this project. Only the person who created it, or a tenant Owner/Admin, can.',
         );
@@ -111,11 +119,7 @@ export function ArchiveProjectDialog({
             autoComplete="off"
           />
         </label>
-        {error && (
-          <p role="alert" className="rounded bg-danger-subtle px-3 py-2 text-sm text-danger">
-            {error}
-          </p>
-        )}
+        {error && (forbidden ? <ForbiddenNote>{error}</ForbiddenNote> : <ErrorNote>{error}</ErrorNote>)}
       </div>
     </Modal>
   );
