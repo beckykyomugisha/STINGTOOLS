@@ -1,4 +1,4 @@
-<Page x:Class="StingTools.UI.StingDockPanel"
+﻿<Page x:Class="StingTools.UI.StingDockPanel"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="STING Tools"
@@ -3748,8 +3748,10 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- KUT KPI DASHBOARD (proposal §4.6) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="KUT KPI DASHBOARD"/>
+                        <!-- OWNER KPI DASHBOARD. Shaped by the KUT proposal §4.6 KPI set,
+                             but the command derives its code from PRJ_ORG_PROJECT_CODE_TXT,
+                             so the section is not named after one client. -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="OWNER KPI DASHBOARD"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1A237E">
                             <StackPanel>
                                 <TextBlock Text="§4.6 monthly KPI dashboard — compliance, clash burn-down, model health, Owner-system coverage" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>

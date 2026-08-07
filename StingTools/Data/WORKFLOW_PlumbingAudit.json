@@ -1,7 +1,7 @@
 {
   "name": "PlumbingAudit",
   "displayName": "Plumbing Audit (Phase 179)",
-  "description": "Read-only audit pipeline: scan fixtures → audit Supply / Drainage / Backflow / HTM 04-01 → export RAG dashboard.",
+  "description": "Audit pipeline: scan fixtures → audit Supply / Drainage / Backflow / HTM 04-01 → export RAG dashboard. NOT read-only, despite the name: step 1 Plumb_ScanFixtures calls FixtureUnitScanner.Scan with writeBack:true and stamps PLM_DRN_DU / PLM_SUP_LU / PLM_SUP_WSFU onto every fixture inside a transaction, and the backflow, dead-leg and material audits are [Transaction(TransactionMode.Manual)] too. The description said read-only until 2026-08-08 and was simply wrong; run it on a state you are willing to have written to. For a genuinely read-only pre-gate look, use WORKFLOW_KUT_GateAudit.",
   "version": "179",
   "steps": [
     { "label": "1. Scan Fixtures",           "commandTag": "Plumb_ScanFixtures" },

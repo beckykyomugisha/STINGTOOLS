@@ -1,0 +1,80 @@
+name: Smoke-Test Source Gate
+
+# A manual Revit smoke test is data that names commands, buttons, files and
+# parameters by string. Nothing checked that those strings resolved, so the KUT
+# checklist told a tester to press a "Build Seeds" button that did not exist, to
+# expect a STING_SEED_BaptismalFont.json that was never a file, and to run a
+# WORKFLOW_GateAudit.json that had been superseded. Each of those costs a Revit
+# session to discover. The checklist also existed as three hand-maintained copies
+# (markdown on main, a Word document on a dead branch, a Python pre-flight), which
+# had already drifted apart.
+#
+# This gate makes the checklist a projection of ONE machine-readable source and
+# holds that source to the code it describes:
+#
+#   docs/examples/<OWNER>/smoke_test.json   the source
+#   tools/build_smoke_test.py               source -> .md + .docx
+#   tools/check_smoke_test.py               source -> validated vs the codebase
+#   docs/examples/_smoke_test_schema.md     the contract
+#
+# Owner-agnostic — it globs docs/examples/*/smoke_test.json, so a second client
+# engagement is a new folder, not a fork of the tooling.
+#
+# NO PYTHON DEPENDENCIES. The checker is stdlib-only on purpose: it must run on a
+# bare runner. The .docx generator uses python-docx, but the gate never builds the
+# .docx — it asserts markdown freshness only, so a runner without python-docx
+# still gates the thing that matters.
+#
+# WHAT THIS GATE CANNOT PROVE: everything about real Revit geometry. It proves the
+# checklist's wiring — the tag resolves, the button is there, the fixture exists,
+# the parameter binds. It cannot open a model. A green run here is NOT a tested
+# pack; it only stops the Revit session being wasted on a checklist that was wrong
+# before it started.
+
+on:
+  push:
+    paths:
+      - 'docs/examples/**'
+      - 'StingTools/UI/**'
+      - 'StingTools/Data/**'
+      - 'StingTools/Core/WorkflowEngine.cs'
+      - 'tools/build_smoke_test.py'
+      - 'tools/check_smoke_test.py'
+      - 'tools/smoke_test_lib.py'
+      - '.github/workflows/smoke-test-gate.yml'
+  pull_request:
+    paths:
+      - 'docs/examples/**'
+      - 'StingTools/UI/**'
+      - 'StingTools/Data/**'
+      - 'StingTools/Core/WorkflowEngine.cs'
+      - 'tools/build_smoke_test.py'
+      - 'tools/check_smoke_test.py'
+      - 'tools/smoke_test_lib.py'
+      - '.github/workflows/smoke-test-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke-test-source:
+    name: Smoke-test source vs codebase
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check the smoke-test source against the codebase
+        run: python tools/check_smoke_test.py --verbose
+
+      - name: Confirm regeneration is a no-op
+        # Belt and braces: the checker already compares the committed markdown to
+        # a fresh render in-memory. This proves the generator on disk agrees, so a
+        # generator change that silently alters output cannot land unnoticed.
+        run: |
+          python tools/build_smoke_test.py --no-docx
+          git diff --exit-code -- 'docs/examples/*/REVIT_SMOKE_TEST.md'
