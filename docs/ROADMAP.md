@@ -2,6 +2,13 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Coordination viewer — after the zoom fixes (2026-08-06)
+
+| ID | Item | Detail |
+|---|---|---|
+| VIEW-1 | **The original "model blinks out on zoom-out" is bounded, not explained** | [#618](https://github.com/beckykyomugisha/STINGTOOLS/pull/618) made near/far track the camera every frame and is provably live (served bytes byte-identical to `main`, `Cache-Control: no-store`) — yet the model still vanished **while staying centred**, which rules out both far-plane clipping and the `zoomToCursor` drift theory. [#622](https://github.com/beckykyomugisha/STINGTOOLS/pull/622) / [#627](https://github.com/beckykyomugisha/STINGTOOLS/pull/627) then capped perspective and ortho zoom-out so the camera cannot reach the range where it happened. **The mechanism is still unknown.** Ruled out by reading the served file: no `scene.fog`, no LOD, no distance- or zoom-driven `visible = false`, no camera-dependent clipping (every `renderer.clippingPlanes` writer — section box, clash section, section plane — is user-invoked), and ortho never clips on zoom-out (span stays symmetric, `near -98.6` / `far 98.6`). What is left is GPU/driver-level and only observable live: most plausibly depth-buffer behaviour under `logarithmicDepthBuffer: true`. **Diagnose only if it recurs** — the signal is the model vanishing *inside* the new bounds. The probe, run in the `viewer.html` frame (the viewer is an iframe; switch the DevTools console context), logs `STING_VIEWER.camera.near/far` against `position.length()` and `modelBounds` size while scrolling out; `far` frozen means the loop is not running, `far` growing with the model gone means the camera was never the cause, empty bounds means the fallback branch is sizing the frustum off the orbit distance. |
+| VIEW-2 | **The viewer cannot be exercised headlessly** | Unauthenticated hits on `/viewer.html` bounce to `/index.html` after ~1.5 s (`coordination-viewer.js` on the 401), so no CI or agent can drive the real viewer. Diagnosis of VIEW-1 needed a mirror of the deployed assets served locally — workable but manual, and it silently fails until every runtime-fetched vendor file is present (`vendor/three/addons/utils/BufferGeometryUtils.js` is fetched lazily and is easy to miss). Worth a token-gated or `?diag=1` boot path that skips the redirect, so viewer regressions can be caught by something other than a person scrolling. |
+
 ## Button + preset wiring — after Phase 230
 
 | ID | Item | Detail |

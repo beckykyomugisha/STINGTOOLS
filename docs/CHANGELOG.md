@@ -2,6 +2,48 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Viewer zoom — the far plane, then both zoom-out bounds)
+
+Reported symptom: in the coordination viewer (`wwwroot/viewer.html`), the model
+disappeared after a modest scroll-out. Three PRs, of which only the first was a
+correctness fix; the other two bound the range.
+
+| PR | Change | Where |
+|---|---|---|
+| [#618](https://github.com/beckykyomugisha/STINGTOOLS/pull/618) | `updateClipPlanes()` recomputes near/far **every frame** from the camera's current distance to `modelBounds` | `viewer.html` (new fn + call in the animate loop) |
+| [#622](https://github.com/beckykyomugisha/STINGTOOLS/pull/622) | `controls.maxDistance = radius * 40` — perspective zoom-out capped at 20× the model diagonal | same fn |
+| [#627](https://github.com/beckykyomugisha/STINGTOOLS/pull/627) | `controls.minZoom` — ortho zoom-out floored to a view ~20× the model radius | same fn |
+
+**The original defect.** near/far were set **once**, by `fitCamera`, from the
+framing distance at load; the animate loop only ran `controls.update()`. For a
+~25 m building fit at ~32 m that froze `far` at ≈568 m, so the model crossed the
+far plane and vanished. `zoomToCursor` reaches that sooner than a plain dolly: a
+wheel-out retreats along the pointer ray and re-seats the orbit target ahead of
+the camera. Verified with three.js `Frustum.setFromProjectionMatrix` against the
+vendored `three.module.js` — the box leaves the frustum from 600 m under the old
+frozen plane and stays inside it at 600 m / 5 km / 100 km after.
+
+**Why two more PRs.** #618 is provably live (served bytes byte-identical to
+`main`, `Cache-Control: no-store`) and the symptom still reproduced *while the
+model stayed centred* — so the far plane was not the whole story. #622 and #627
+therefore bound the reachable range rather than explain it. Ortho needed its own
+bound because `maxDistance` does nothing there: the eye never moves, `camera.zoom`
+does the work, and OrbitControls' `minZoom` defaults to 0. Measured before the
+floor, on a 25.3 m box: 100 notches → 601 m view half-height, 200 → 24 km, model
+0.05% of frame. After: pinned at 246.6 m, model a steady 5%.
+
+**What is NOT explained** — see ROADMAP `VIEW-1`. Ortho is ruled out as the
+culprit (its span stays symmetric, `near -98.6` / `far 98.6`, so it never clips
+on zoom-out), and no code in the viewer or the overlay layers hides geometry by
+distance or zoom — no `scene.fog`, no LOD, no distance-driven `visible = false`,
+and every `renderer.clippingPlanes` writer is user-invoked (section box, clash
+section, section plane).
+
+Both `viewer.html` copies stay byte-identical (`Planscape/assets/viewer/` source
+and the committed `wwwroot/` copy); CI gates this with **Source ↔ wwwroot
+byte-equal** plus a container gate that builds the image, serves it, and diffs
+what comes back.
+
 #### Completed (Phase 231 — KUT gate presets, and the "26 dead buttons" that were not dead)
 
 **1. Six wired commands were in no preset.** `Program_Audit`, `OwnerStandards_Audit`,
