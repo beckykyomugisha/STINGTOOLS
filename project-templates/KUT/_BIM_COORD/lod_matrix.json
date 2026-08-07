@@ -9,28 +9,7 @@
     { "id": "construction", "name": "Construction stage (fabrication/installation)", "lod": 400 },
     { "id": "deliverable-d", "name": "Deliverable D (record / as-built model)", "lod": 500 }
   ],
+  "_categoryRulesNote": "DELIBERATELY EMPTY. This overlay used to restate the corporate Lighting Fixtures and Plumbing Fixtures rules. Because LodVerificationEngine REPLACES a category rule wholesale (LodVerificationEngine.cs), an overlay copy silently discards every future corporate improvement to that category -- and the two copies had already paid that cost: the Lighting Fixtures rule was byte-identical to corporate (pure loss, no gain), and the Plumbing Fixtures rule had quietly dropped +MNT_TYPE_TXT from rung 400, which corporate has carried since Phase 192 B1 -- BEFORE this overlay was written. That is drift, not a decision: this file's own description claims the rules are 'restated' from corporate. Both are removed, so KUT now inherits the corporate rules for these two categories. BEHAVIOUR CHANGE TO EXPECT: Plumbing Fixtures at LOD 400 (the 'construction' milestone) now require MNT_TYPE_TXT again. Re-add a rule here ONLY to state a genuine temple-specific difference, and when you do, say in this note what the difference is and why.",
   "categoryRules": [
-    {
-      "category": "Lighting Fixtures",
-      "checks": {
-        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
-        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
-        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
-        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
-        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_SERIAL_NR_TXT", "+ASS_INSTALLATION_DATE_TXT"] }
-      }
-    },
-    {
-      "category": "Plumbing Fixtures",
-      "checks": {
-        "100": { "requireGeometry": false, "forbidPlaceholderFamilies": false },
-        "200": { "requireGeometry": true, "requiredParams": ["ASS_TAG_1_TXT"] },
-        "300": { "requireGeometry": true, "forbidPlaceholderFamilies": true, "requireTypeNotGeneric": true, "requiredParams": ["ASS_TAG_1_TXT", "ASS_SYSTEM_TYPE_TXT"] },
-        "350": { "inherit": "300", "requiredParams": ["+ASS_PRODCT_COD_TXT"] },
-        "400": { "inherit": "350", "requiredParams": ["+ASS_MODEL_REF_TXT", "+ASS_MANUFACTURER_TXT"], "requireManufacturerType": true },
-        "500": { "inherit": "400", "requiredParams": ["+ASS_SERIAL_NR_TXT", "+ASS_INSTALLATION_DATE_TXT"] }
-      }
-    }
   ]
 }

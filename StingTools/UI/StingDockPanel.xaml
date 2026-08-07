@@ -3754,8 +3754,8 @@
                             <StackPanel>
                                 <TextBlock Text="§4.6 monthly KPI dashboard — compliance, clash burn-down, model health, Owner-system coverage" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="KUT_KpiDashboard" Click="Cmd_Click"
-                                            ToolTip="Kampala Temple KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="Owner_KpiDashboard" Click="Cmd_Click"
+                                            ToolTip="Owner KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV. Reports under PRJ_ORG_PROJECT_CODE_TXT (falls back to STING)."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

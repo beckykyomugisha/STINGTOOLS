@@ -51,7 +51,7 @@ that reads it — start there when building a pack for a different owner.
 |---|---|
 | `_BIM_COORD/manifest.json` | Not deployed data — the index of this pack (what each file overlays, its merge key, its reader) |
 | `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); enables the `ffe-fohlio-ref` FF&E link check at severity **WARN** (non-blocking — it reports FF&E not yet linked to Fohlio, it does not fail a gate) |
-| `_BIM_COORD/lod_matrix.json` | Restates the confirmed 6-milestone matrix as the client-facing record |
+| `_BIM_COORD/lod_matrix.json` | Restates the confirmed 6-milestone matrix as the client-facing record. **`categoryRules` is deliberately empty** — see below |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
 | `_BIM_COORD/project_config.json` | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack |
 | `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
@@ -192,6 +192,27 @@ deliverable. The A1 figure is read as a drafting error in the client document.
 **LOD 400 has not been discarded** — it is reachable as the `construction`
 milestone, covering Work Program item *3.1 Supervise the Building Construction
 Contract*. Nothing that was verifiable before became unverifiable.
+
+### The LOD overlay pins no categories, on purpose
+
+`_BIM_COORD/lod_matrix.json` used to restate the corporate `Lighting Fixtures`
+and `Plumbing Fixtures` category rules. `LodVerificationEngine` **replaces a
+category rule wholesale**, so an overlay copy silently discards every future
+corporate improvement to that category — and both copies had already paid for
+that:
+
+- `Lighting Fixtures` was byte-identical to corporate. Pure loss of future
+  improvements, in exchange for nothing.
+- `Plumbing Fixtures` had quietly dropped `+MNT_TYPE_TXT` from rung **400**,
+  which corporate has carried since Phase 192 B1 — *before* this overlay was
+  written. That is drift, not a decision: this file's own description says the
+  rules are "restated" from corporate, and they were not.
+
+Both are removed and KUT now inherits corporate for those categories.
+**Behaviour change to expect:** Plumbing Fixtures at LOD 400 (the `construction`
+milestone) require `MNT_TYPE_TXT` again. Add a rule back only to state a genuine
+temple-specific difference, and say in the file's `_categoryRulesNote` what the
+difference is and why.
 
 **Raise this with the Owner** at the next BEP review so the contract record and
 the verification gate agree. If the Owner confirms 400 is intended, change

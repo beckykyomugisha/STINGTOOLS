@@ -3784,7 +3784,12 @@ namespace StingTools.UI
                     case "Fohlio_ImportFinishes": RunCommand<ExLink.FohlioImportFinishesCommand>(app); break;
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
-                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.KutKpiDashboardCommand>(app); break;
+                    // Owner_KpiDashboard is the name; KUT_KpiDashboard is kept as an
+                    // alias so the existing button, WORKFLOW_KUT_MonthlyReport and any
+                    // muscle memory keep working. The command derives its code from
+                    // PRJ_ORG_PROJECT_CODE_TXT either way.
+                    case "Owner_KpiDashboard":
+                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.OwnerKpiDashboardCommand>(app); break;
 
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
                     case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;
