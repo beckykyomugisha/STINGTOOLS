@@ -2553,6 +2553,7 @@
                                             ToolTip="Unified DWG Wizard — auto-detect whether the imported DWG is structural / architectural / MEP and dispatch to the right wizard."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Auto Rooms" Tag="AutoCreateRooms" Click="Cmd_Click" ToolTip="Auto-place Rooms into every enclosed boundary on the active plan view's level. Skips circuits that already have a room; numbers new ones sequentially after the existing count."/>
                                 </WrapPanel>
                                 <Expander Header="Multi-building site (§B1-B6)" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
