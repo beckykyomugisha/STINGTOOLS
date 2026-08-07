@@ -2106,12 +2106,13 @@ The Cost Management module extends the BOQ system into a full construction cost 
 | `GUIDES/KUT_BIM_MANAGER_PLAYBOOK.md` | BIM Manager self-guide playbook for the KUT project — step-by-step checklist for weekly / monthly / milestone BIM management tasks |
 | `GUIDES/KUT_MIDP_TEMPLATE.csv` | Master Information Delivery Plan CSV template pre-seeded with KUT deliverable codes |
 
-#### KUT KPI Dashboard
+#### Owner KPI Dashboard (was KUT KPI Dashboard)
 
-`Commands/Kpi/KutKpiDashboardCommand.cs` — tag `KUT_KpiDashboard`. Read-only command generating a monthly BIM status report for the KUT project:
+`Commands/Kpi/OwnerKpiDashboardCommand.cs` — tag `Owner_KpiDashboard`, with `KUT_KpiDashboard` retained as a dispatch alias in both `StingCommandHandler` and `WorkflowEngine.ResolveCommand`. Read-only command generating a monthly BIM status report:
 - Gathers: tag/naming compliance %, per-discipline breakdown
-- Persists `KutKpiSnapshot` records to `<project>/_BIM_COORD/kpi/kut_kpi_log.jsonl`
-- Exports HTML + CSV for monthly status report attachment
+- Derives the reporting code from `PRJ_ORG_PROJECT_CODE_TXT` on Project Information, falling back to `STING` — nothing in the 471 lines was ever temple-specific, only the surface was
+- Persists `OwnerKpiSnapshot` records to `<project>/_BIM_COORD/kpi/<CODE>_kpi_log.jsonl`; an existing `kut_kpi_log.jsonl` is read and appended to rather than orphaned
+- Exports HTML + CSV (`STING_<CODE>_KPI_*`) for monthly status report attachment
 - Snapshot fields: `CompliancePct`, `StrictPct`, `RevisionPct`
 
 ### Phase 192B1 — LOD Verification Engine
@@ -2123,6 +2124,8 @@ The Cost Management module extends the BOQ system into a full construction cost 
 - **Read-only by default.** Only `LOD_Stamp` writes, and it writes exactly one parameter: `ASS_LOD_VERIFIED_TXT` (the milestone id) on passing elements. There is no `LOD_TARGET_TXT` / `LOD_ACTUAL_TXT` / `LOD_PASS_BOOL`
 - Checks are a **parameter + naming + geometry-presence maturity proxy, not a geometric survey** — STING cannot verify dimensional accuracy
 - Not wired into `ComplianceScan`; LOD is reported separately
+- **An empty scope is not a pass.** An element whose category resolves to no check (no rule and no `*` fallback) is *skipped*, not counted, so it leaves the denominator. `OverallPct` returns `100.0` when `Total == 0`, which is why `LodTally.NoElementsInScope` exists and why every caller branches on it first. Skips are counted per category and surfaced in the TaskDialog, the CSV header and the JSON gate report (`skippedNoRule` / `skippedByCategory`); a run with nothing in scope reports "NO ELEMENTS IN SCOPE" and the gate report's `overallPct` is `null`
+- The Revit-free half — the matrix model, `*`-fallback resolution (`LodRuleResolver`) and the pass/fail/skip tally (`LodTally`) — lives in `Core/Validation/LodMatrixModel.cs` and is `<Compile Include>`d by `StingTools.Tags.Tests`. `LodVerificationEngine.Resolve` delegates to `LodRuleResolver`, so the plugin and the tests exercise one copy of the resolution code
 
 ### Phase 192C1 — Fohlio Room Finishes Integration
 
