@@ -41,9 +41,16 @@
       states one sequence while the engine runs another with no error anywhere. Fix by
       reordering the array, renumbering "order", or deleting the key.
 
-    TIER 4 -- DOCK-PANEL BUTTONS THAT DISPATCH TO NOTHING (hard zero + explicit baseline).
-      A <Button Tag="X" Click="Cmd_Click"> in StingDockPanel.xaml sends X to the dispatcher.
+    TIER 4 -- PANEL BUTTONS THAT DISPATCH TO NOTHING (hard zero + explicit baseline).
+      A <Button Tag="X" Click="Cmd_Click"> in a panel XAML sends X to the dispatcher.
       If nothing handles X the click is a no-op, with no error and no log line.
+
+      SCANS ALL SIX DOCKABLE PANELS: StingDockPanel, StingElectricalPanel, StingHvacPanel,
+      Plumbing/StingPlumbingPanel, StingLpsPanel and Sustainability/StingSustainabilityPanel.
+      Until 2026-08-08 only StingDockPanel.xaml was scanned, so ~377 buttons across the other
+      five panels were ungated on the XAML side even though the handler side already read all
+      six handlers. A panel in the list whose XAML or code-behind is missing FAILS the gate
+      rather than being skipped -- a rename must be noticed, not absorbed.
 
       DISPATCH HAS THREE LAYERS and a check that knows about only one over-reports badly:
         L1  CommandRegistry -- StingTools/UI/Modules/*CommandModule.cs `registry.Register("X", ...)`,
@@ -179,44 +186,50 @@ if (Test-Path $btnBaseFile) {
     }
 }
 
-$xamlPath = Join-Path $RepoRoot 'StingTools/UI/StingDockPanel.xaml'
-$cbPath   = Join-Path $RepoRoot 'StingTools/UI/StingDockPanel.xaml.cs'
-$btnTags  = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
-$dispatch = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
-$btnUsedBase = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+# EVERY dockable panel, not just the main one. Until 2026-08-08 this scanned
+# StingDockPanel.xaml alone, so the Electrical / HVAC / Plumbing / LPS /
+# Sustainability panel buttons were ungated -- and two KUT smoke-test steps
+# (Lite_ComCheck on Electrical, Hvac_LifeCycleCompare on HVAC) live exactly
+# there. The handler side already scanned all six handlers; only the XAML side
+# was narrow. A panel listed here must have both files present or the gate
+# fails loudly rather than silently skipping that panel.
+$panels = @(
+    @{ Xaml = 'StingTools/UI/StingDockPanel.xaml';                          Cb = 'StingTools/UI/StingDockPanel.xaml.cs' },
+    @{ Xaml = 'StingTools/UI/StingElectricalPanel.xaml';                    Cb = 'StingTools/UI/StingElectricalPanel.xaml.cs' },
+    @{ Xaml = 'StingTools/UI/StingHvacPanel.xaml';                          Cb = 'StingTools/UI/StingHvacPanel.xaml.cs' },
+    @{ Xaml = 'StingTools/UI/Plumbing/StingPlumbingPanel.xaml';             Cb = 'StingTools/UI/Plumbing/StingPlumbingPanel.xaml.cs' },
+    @{ Xaml = 'StingTools/UI/StingLpsPanel.xaml';                           Cb = 'StingTools/UI/StingLpsPanel.xaml.cs' },
+    @{ Xaml = 'StingTools/UI/Sustainability/StingSustainabilityPanel.xaml'; Cb = 'StingTools/UI/Sustainability/StingSustainabilityPanel.xaml.cs' }
+)
 
-if ((Test-Path $xamlPath) -and (Test-Path $cbPath)) {
+$btnTags     = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+$btnOrigin   = @{}   # tag -> the panel XAML that first declared it, for the failure message
+$dispatch    = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+$btnUsedBase = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+$panelsScanned = 0
+
+foreach ($p in $panels) {
+    $xamlPath = Join-Path $RepoRoot $p.Xaml
+    $cbPath   = Join-Path $RepoRoot $p.Cb
+    if (-not (Test-Path $xamlPath) -or -not (Test-Path $cbPath)) {
+        Write-Host "Workflow-wiring FAILED -- $($p.Xaml) / $($p.Cb) not found; Tier 4 cannot run." -ForegroundColor Red
+        Write-Host 'If a panel was renamed or removed, update the $panels list in this script.'
+        exit 1
+    }
+    $panelsScanned++
+
     $xaml = Get-Content -Raw -Path $xamlPath
     foreach ($m in [regex]::Matches($xaml, '(?s)<Button\b[^>]*?>')) {
         $el = $m.Value
         if ($el -notmatch 'Cmd_Click') { continue }
         $t = [regex]::Match($el, 'Tag="([^"]+)"')
-        if ($t.Success) { [void]$btnTags.Add($t.Groups[1].Value) }
+        if (-not $t.Success) { continue }
+        $tag = $t.Groups[1].Value
+        [void]$btnTags.Add($tag)
+        if (-not $btnOrigin.ContainsKey($tag)) { $btnOrigin[$tag] = (Split-Path -Leaf $p.Xaml) }
     }
-    # L3 -- switch cases in every command handler
-    foreach ($h in @(
-        'StingTools/UI/StingCommandHandler.cs',
-        'StingTools/UI/StingElectricalCommandHandler.cs',
-        'StingTools/UI/StingHvacCommandHandler.cs',
-        'StingTools/UI/Plumbing/StingPlumbingCommandHandler.cs',
-        'StingTools/UI/StingLpsCommandHandler.cs',
-        'StingTools/UI/Sustainability/StingSustainabilityCommandHandler.cs')) {
-        $hp = Join-Path $RepoRoot $h
-        if (-not (Test-Path $hp)) { continue }
-        foreach ($m in [regex]::Matches((Get-Content -Raw -Path $hp), 'case\s+"([^"]+)"\s*:')) {
-            [void]$dispatch.Add($m.Groups[1].Value)
-        }
-    }
-    # L1 -- CommandRegistry modules
-    $modDir = Join-Path $RepoRoot 'StingTools/UI/Modules'
-    if (Test-Path $modDir) {
-        foreach ($mf in Get-ChildItem -Path $modDir -Filter '*CommandModule.cs' -File) {
-            foreach ($m in [regex]::Matches((Get-Content -Raw -Path $mf.FullName), 'registry\.Register\(\s*"([^"]+)"')) {
-                [void]$dispatch.Add($m.Groups[1].Value)
-            }
-        }
-    }
-    # L2 -- code-behind suite runners intercepted in Cmd_Click
+
+    # L2 -- code-behind suite runners intercepted in this panel's Cmd_Click
     $cb = Get-Content -Raw -Path $cbPath
     $ci = $cb.IndexOf('private void Cmd_Click')
     if ($ci -ge 0) {
@@ -226,14 +239,39 @@ if ((Test-Path $xamlPath) -and (Test-Path $cbPath)) {
             [void]$dispatch.Add($m.Groups[1].Value)
         }
     }
-    foreach ($t in $btnTags) {
-        if ($dispatch.Contains($t)) { continue }
-        if ($btnBaseline.Contains($t)) { [void]$btnUsedBase.Add($t); continue }
-        $tierFour += "StingDockPanel.xaml button Tag=""$t"" reaches no registry entry, no Cmd_Click runner and no handler case"
+}
+
+# L3 -- switch cases in every command handler. The union is correct, not sloppy:
+# the satellite handlers fall through to StingCommandHandler for tags they do not
+# recognise, so a tag handled anywhere is reachable from any panel.
+foreach ($h in @(
+    'StingTools/UI/StingCommandHandler.cs',
+    'StingTools/UI/StingElectricalCommandHandler.cs',
+    'StingTools/UI/StingHvacCommandHandler.cs',
+    'StingTools/UI/Plumbing/StingPlumbingCommandHandler.cs',
+    'StingTools/UI/StingLpsCommandHandler.cs',
+    'StingTools/UI/Sustainability/StingSustainabilityCommandHandler.cs')) {
+    $hp = Join-Path $RepoRoot $h
+    if (-not (Test-Path $hp)) { continue }
+    foreach ($m in [regex]::Matches((Get-Content -Raw -Path $hp), 'case\s+"([^"]+)"\s*:')) {
+        [void]$dispatch.Add($m.Groups[1].Value)
     }
-} else {
-    Write-Host "Workflow-wiring FAILED -- StingDockPanel.xaml/.xaml.cs not found; Tier 4 cannot run." -ForegroundColor Red
-    exit 1
+}
+
+# L1 -- CommandRegistry modules
+$modDir = Join-Path $RepoRoot 'StingTools/UI/Modules'
+if (Test-Path $modDir) {
+    foreach ($mf in Get-ChildItem -Path $modDir -Filter '*CommandModule.cs' -File) {
+        foreach ($m in [regex]::Matches((Get-Content -Raw -Path $mf.FullName), 'registry\.Register\(\s*"([^"]+)"')) {
+            [void]$dispatch.Add($m.Groups[1].Value)
+        }
+    }
+}
+
+foreach ($t in $btnTags) {
+    if ($dispatch.Contains($t)) { continue }
+    if ($btnBaseline.Contains($t)) { [void]$btnUsedBase.Add($t); continue }
+    $tierFour += "$($btnOrigin[$t]) button Tag=""$t"" reaches no registry entry, no Cmd_Click runner and no handler case"
 }
 
 $failed = $false
@@ -295,6 +333,7 @@ Write-Host "  Tier 1 steps keyed ""tag"" (must be 0)            : 0"
 Write-Host "  Tier 2 unresolvable outside the baseline        : 0"
 Write-Host "  Tier 3 presets whose ""order"" contradicts array  : 0"
 Write-Host "  Baselined 'no command exists' tags in use       : $($usedBase.Count)"
+Write-Host "  Panel XAMLs scanned                             : $panelsScanned"
 Write-Host "  Cmd_Click buttons scanned                       : $($btnTags.Count)"
 Write-Host "  Dispatchable names (registry + runners + cases) : $($dispatch.Count)"
 Write-Host "  Tier 4 buttons dispatching to nothing           : 0"
