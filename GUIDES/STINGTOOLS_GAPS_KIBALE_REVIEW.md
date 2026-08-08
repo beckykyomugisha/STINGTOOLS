@@ -508,6 +508,66 @@ This is why the two block families price at UGX 2,220 and UGX 96,200 — one is 
 
 **A rate without a unit is not a rate.** Add `MAT_COST_UNIT_OF_MEASURE` to the schema and populate it before anyone relies on library pricing.
 
+## E-14 · 🟠 P1 · `MAT_ISO_19650_ID` has no fixed grammar — it is not a schema, it is a habit
+
+Measured across all 1,279 rows. The field is presented as a structured identifier, and it is the value stamped into Revit's **Keynote**. It has **between 4 and 9 hyphen-separated segments**:
+
+| Segments | Count (BLE) | Example |
+|---|---|---|
+| 4 | 20 | `A-FIN-WALL-SK1` |
+| 5 | 171 | `A-FIN-TILE-ADHESIVE-001` |
+| 6 | 112 | `A-FLR-GRANOLITHIC-40MM-INT-SC04` |
+| 7 | **304** | `A-CLG-GYPSUM-STANDARD-9.5MM-INT-GB01` |
+| 8 | 206 | `A-CLG-GYPSUM-FIRE-RATED-12.5MM-INT-GB04` |
+| 9 | 2 | `A-RF-PURLIN-STEEL-C-SECTION-75MM-EXT-B06` |
+
+MEP is the same story: 5 to 8 segments.
+
+The variance is not random — it comes from the *type* segment being free-text that may itself contain hyphens (`FIRE-RATED`, `C-SECTION`). So no parser can split this field reliably, and no downstream code does: it is written straight to Keynote and never read back.
+
+**Last-segment style is three different conventions:**
+
+| Style | BLE | MEP |
+|---|---|---|
+| Code + digits (`GB01`, `SC04`) | 472 | 344 |
+| Digits only (`001`) | 300 | 116 |
+| Letters only | 33 | 4 |
+| Outliers (`UGEXT01`, `UGEXT02`, `UGEXT03`) | 3 | 0 |
+
+**Fix:** either commit to a fixed grammar — `<DISC>-<ELEMENT>-<TYPE>-<SIZE>-<INT|EXT|GEN>-<SEQ>`, six segments, type segment sanitised of hyphens — and regenerate all 1,279 values from the columns that already exist; or stop calling it an ISO identifier and treat it as a free-text keynote. The current state promises structure it does not have.
+
+## E-15 · 🟠 P1 · Material-name inconsistencies that break the substring matching
+
+`MAT_NAME` is the join key for carbon, waste and rate resolution, all by **substring, first-hit**. Inconsistent naming therefore silently changes results.
+
+Measured:
+
+| Defect | Count | Evidence |
+|---|---|---|
+| Names not ALL-CAPS | **12** | `BRICK CORE Common Brick Single Skin`, `BRICK CORE Facing Brick Single Skin`, `BRICK CORE Engineering Brick Single Skin`, `BRICK CORE Reclaimed Brick Single Skin` — the whole `BRICK CORE` family |
+| Dimension separator: `NNNxNNN` | 27 BLE + 35 MEP | `CERAMIC TILES 300X300MM` |
+| Dimension separator: `NNN X NNN` | 2 BLE + 7 MEP | `LADDER CABLE TRAY 300MM X 1.5MM` |
+| Names **not** ending in a size token | 289 of 815 (35 %) BLE, 366 of 464 (79 %) MEP | `TILE ADHESIVE STANDARD CEMENTITIOUS`, `FIRE ALARM SOUNDER` |
+| Empty `MAT_ELEMENT_TYPE` | 5 (MEP) | `M-ELC-CABLE-TRAY-POWDER-COATED-WHITE`, `M-ELC-CABLE-TRAY-STAINLESS-304`, `M-HVC-DUCT-PAINTED-WHITE` |
+
+Two things are **sound** and should be preserved by any fix: `MAT_NAME` is unique across all 1,279 rows, and `MAT_CODE` has **zero duplicates**.
+
+**The rule to enforce:** `<MATERIAL/TYPE> <QUALIFIER> <DIMENSION>`, ALL-CAPS, dimensions as `NNNxNNN` with no spaces, thickness last with a unit suffix. Then a *name* alone tells you the carbon keyword, the waste keyword and the bill description qualifier — which is what the matching already assumes and the data does not yet deliver.
+
+## E-16 · 🟠 P1 · The full data-alignment fix, in the order it must be done
+
+Materials, model elements and the bill are three views of one dataset. Fixing one without the others just moves the mismatch. Do it in this order — each step depends on the one above.
+
+1. **Normalise `BLE_APP-IDENTITY-CLASS`** to the twelve valid values. This is the largest single win: it fixes 373 `Generic` rows (29 %), removes the *"Supply and fix generic walls"* bill text, and gives 302 rows a real carbon class instead of the flat 200 default. Apply `STING_MATERIAL_CLASS_NORMALISER.csv` — it already exists and is already wired for other purposes.
+2. **Normalise `MAT_NAME`** per E-15 — case, separators, dimension position. Do it *after* step 1, because the class fixes some of what the keyword matching was compensating for.
+3. **Populate `byMaterial`** in `STING_CARBON_FACTORS_UG.json` for the ~300 materials a real project actually uses. Exact-match beats substring, and the tier is already supported and completely empty.
+4. **Add `MAT_COST_UNIT_OF_MEASURE`** and populate it (E-13). Until then no library rate is safe at any currency.
+5. **Fix the 438 rows with zero density and zero carbon** (E-12), or mark them explicitly as "no data" so they can be reported rather than silently defaulting.
+6. **Regenerate or retire `MAT_ISO_19650_ID`** (E-14).
+7. **Then** align model element type naming to it, so a wall type name and its material name agree on how they describe the same product.
+
+Steps 1, 2 and 4 are pure data edits with no code change and can be scripted against the CSVs. Step 3 is data. Steps 6 and 7 need a convention decision first.
+
 ## E-9 · 🟡 P2 · East African materials that do not exist in the library
 
 Zero hits anywhere in `StingTools/Data/`: **murram · makuti · thatch · eucalyptus · maxpan · sisal · papyrus**. `hardcore` exists as a waste keyword (`WasteTable.cs:77`) and two parameters (`CST_S_EAR_HARDCORE_*`) but has **no material row and no rate**. `mvule` appears exactly once, in a `MAT_SPECIFICATIONS` free-text field (`BLE_MATERIALS.csv:406`), not as a material.
@@ -653,6 +713,137 @@ Also: `TagPipelineHelper._cachedFormulas` is TTL-based and **does not check file
 - Every tile / grout / adhesive / plaster quantity is either `lookup()`-based (zero, G-1) or a hardcoded constant.
 
 For a lodge whose floor finishes are the product being sold, this is the gap that matters most.
+
+## G-13 · ✅ The `lookup()` fix is far cheaper than it looks — **implement it, do not delete the formulas**
+
+You asked whether `CST_S_*` and `BLE_FINISH_*` can be made usable rather than deleted. **Yes — and the missing piece is only the parser function. All the data already exists.**
+
+I enumerated every `lookup()` call in the 27 formulas and checked each against `MATERIAL_LOOKUP.csv`:
+
+```
+Tables referenced by formulas but ABSENT from MATERIAL_LOOKUP.csv:  none
+Columns absent within an existing table:                            none
+```
+
+Every one of the 27 tables/columns resolves. The full set needed:
+
+| Table | Columns the formulas ask for |
+|---|---|
+| `CONCRETE` | `CEMENT_BAGS_PER_M3`, `SAND_RATIO`, `AGGREGATE_RATIO`, `WATER_PER_BAG`, `STEEL_KG_PER_M3`, `CARBON_KG_PER_M3` |
+| `MORTAR` | `CEMENT_BAGS_PER_M3`, `SAND_RATIO` |
+| `BLOCK` | `BLOCKS_PER_M2` |
+| `BRICK_BOND` | `BRICKS_PER_M2`, `MORTAR_RATIO`, `WASTE_PCT` |
+| `TILE` | `ADHESIVE_KG_PER_M2`, `WASTE_PCT` |
+| `GROUT` | `GROUT_KG_PER_M2` |
+| `PLASTER` | `THICKNESS_M`, `WASTE_PCT` |
+| `PAINT` | `COVERAGE_M2_PER_L` |
+| `PUTTY` | `KG_PER_M2` |
+| `PLYWOOD` | `AREA_M2` |
+| `FORMWORK` | `PROPS_PER_M2`, `RELEASE_AGENT_M2_PER_L`, `TIMBER_THICKNESS_M` |
+| `ROOF_SHEET` | `COVERAGE_M2`, `FASTENERS_PER_M2` |
+| `PURLIN` | `SPACING_M` |
+| `REBAR_LAP` | `TENSION_LAP_FACTOR` |
+
+And the accessor already exists — `UI/MaterialLookupCsv.cs:88`:
+
+```csharp
+public static double GetProperty(string name, string property)
+```
+
+backed by `MaterialLookupRow.Properties` (`UI/MaterialLookupParser.cs:258`), a `Dictionary<string,double>` holding **every** property in the row. The registry indexes each group under `"CATEGORY TypeKey"`, `"CATEGORY:TypeKey"`, bare `TypeKey` when globally unique, and bare `Category` for the `DEFAULT` row.
+
+### The implementation, in full
+
+In `ExpressionParser.ParsePrimary`, alongside the existing `if` and `log` handlers:
+
+```csharp
+if (ident.Equals("lookup", StringComparison.OrdinalIgnoreCase))
+    return ParseLookup();
+```
+
+```csharp
+// lookup(TABLE, KEY_PARAM, COLUMN) — TABLE and COLUMN are literals;
+// KEY_PARAM is a parameter name whose VALUE is the row key.
+private double ParseLookup()
+{
+    _pos++;                                   // past '('
+    string table  = ReadBareToken();          // e.g. CONCRETE
+    ExpectComma();
+    string keyRef = ReadBareToken();          // e.g. CST_CONCRETE_GRADE_TXT
+    ExpectComma();
+    string column = ReadBareToken();          // e.g. CEMENT_BAGS_PER_M3
+    SkipWhitespace();
+    if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+
+    // The key may be a parameter holding "C25", or a literal, or absent.
+    string key = null;
+    if (_ctx.TryGetValue(keyRef, out object kv)) key = kv as string ?? kv?.ToString();
+    if (string.IsNullOrWhiteSpace(key)) key = "DEFAULT";
+
+    double v = MaterialLookupCsv.GetProperty($"{table} {key}", column);
+    if (v == 0) v = MaterialLookupCsv.GetProperty(table, column);   // DEFAULT row
+    if (v == 0) { Fail($"lookup({table},{key},{column}) found no value"); return 0; }
+    return v;
+}
+```
+
+`Fail()` already exists on the parser (added in the G-5 fix), so an unresolvable lookup now **skips the formula** rather than writing a zero — the two fixes compose.
+
+### What this turns back on
+
+27 formulas, and they are exactly the ones a BOQ needs:
+
+- **`CST_S_CON_*`** — cement bags, sand, aggregate, water per m³ of concrete
+- **`CST_S_MAS_BLOCKS_NR`**, `CST_CALC_BLOCKS_NR` — block counts
+- **`CST_S_FRM_*`** — plywood sheets, props, release agent, timber
+- **`CST_S_REI_*`** — rebar lap lengths
+- **`BLE_FINISH_TILE_QUANTITY_NR`**, `BLE_FINISH_ADHESIVE_WEIGHT_KG`, `BLE_FINISH_GROUT_WEIGHT_KG`
+- paint, primer and putty litres
+- `PER_SUST_CARBON_FOOTPRINT_KG`
+
+### The sustainable answer
+
+**Implement `lookup()`.** Deleting the formulas would throw away a complete, curated dataset and the parametric material take-off it drives — and you would have to rebuild both later. The cost is roughly forty lines against data that is already loaded, already indexed and already correct.
+
+Two follow-ons once it is live, both small:
+
+1. **Fix the four formulas whose `Input_Parameters` column omits the key parameter** — `BLE_FLR_TILE_QTY_NR`, `CST_TOTAL_ROOFING_COST`, `CST_TOTAL_PLASTER_COST`, `PER_SUST_WTR_RATING_NR`. `BuildContext` only resolves names listed in that column, so the key would arrive empty and every lookup would fall to the `DEFAULT` row.
+2. **Verify `CST_S_MAS_MORTAR_VOLUME_CU_M`'s unexplained `× 12`** — it was unverifiable while `MORTAR_RATIO` was unreachable. Once `lookup()` works you can read the real value and settle whether the constant is right.
+
+## G-14 · The three BOQ-engine traps — fix specs
+
+The three failure modes documented in the playbook, with the fix for each.
+
+### Trap 1 — a failed quantity becomes a zero (gap A-1)
+
+`BOQ/Takeoff/TakeoffRule.cs:224-232` returns `1.0` for count units and **`0.0` for m, m², m³, kg**. The row survives with a description, a rate and a section, and reads as a real cheap item.
+
+**Fix, mirroring the formula-engine change that is already merged:**
+
+```csharp
+private static double? FallbackQuantity(string unit)   // was double
+{
+    switch ((unit ?? "").ToLowerInvariant())
+    {
+        case "each": case "item": case "nr": case "no": case "": return 1.0;
+        default: return null;      // measured unit with no resolvable source
+    }
+}
+```
+
+Then in `BuildLineItem`, a null quantity sets `line.QuantityResolved = false` and `line.Note += " [QUANTITY NOT RESOLVED]"`. Add a gate in `BOQPrepForExport`: *"N measured lines have no resolvable quantity"* — hard-fail, alongside the existing eight thresholds. Tint those rows in the export so they are visible on paper too.
+
+### Trap 2 — the row is named wrongly because a parameter is missing
+
+Not a code defect — a data-completeness one — but it is invisible today. `ResolveDiscipline` falls back to `"X"`, `DeriveNrm2Section` falls back to the discipline default, and `GetPrimaryMaterialName` returns empty. All three produce a plausible row.
+
+**Fix:** a pre-flight report, `BOQ_ReadinessByElement`, listing every element that will produce a row together with which of the six required fields it is missing — category, type name, material, classification, complete STING tag, resolvable rate. It is a read-only pass over the same collection `BuildBOQDocument` already makes, so it is cheap. Today the modeller finds out by reading 4,000 bill lines.
+
+### Trap 3 — unfilled `[tokens]` fall back to a generic sentence
+
+`BOQExportCommand.EnsureAllParagraphsResolved` (`:614-661`) re-resolves any paragraph still matching `\[[A-Za-z0-9_]+\]`, and failing that synthesises *"Supply, deliver and install {discipline} {category}…"*. The fallback is reasonable; the problem is it is **silent**, and `ParagraphCoveragePct < 80` only warns — and is **skipped entirely when driven from the panel** (`InlineHost=1`, `:59-74`).
+
+**Fix:** count fallback paragraphs separately from resolved ones and report both. Never skip the coverage gate for the panel path — an inline host is a reason to render the warning differently, not to drop it. And list the top ten unresolved token names, because they point straight at the parameters worth populating.
 
 ## G-12 · Priority order for fixes
 
@@ -800,6 +991,123 @@ An unloaded or missing link is skipped from **both numerator and denominator**, 
 But at `:203-206`, when a scan is already in progress, the concurrent caller does `if (_cached != null) return _cached;` with **no document check and no time bound**, bypassing the lifetime check entirely. Narrow window; needs a concurrent scan to hit.
 
 Also unguarded: `BOQ/BOQCostManager.cs:2966` divides by `boq.AllItems.Count` with no zero check, unlike every neighbouring factor in the same scoring block. On an empty BOQ that is `0.0/0` → NaN. The NaN is contained by the downstream comparisons, so this is fragility rather than a visible wrong number.
+
+---
+
+# Part K — Room finishes, BOQ exclusion, sheet numbering, marks
+
+## K-1 · 🔴 P0 · Two room-finish parameter families that never meet
+
+| Family | Written by | Read by |
+|---|---|---|
+| Revit built-ins `ROOM_FINISH_FLOOR/WALL/CEILING/BASE` | **only** `FohlioImportFinishesCommand` (`ExLink/FohlioFinishesCommands.cs:26-32`) | `ISBRoomFinishCommand`'s schedule (`ExLink/ISBAppsCommands.cs:218-236`) — fields literally `"Floor Finish"`, `"Wall Finish"`, … |
+| STING `BLE_ROOM_FINISH_*_TXT` (`MR_PARAMETERS.txt:1593-1596`) | `RoomFinishScheduler.WriteToRooms` (`PlasteringEngine.cs:996-1014`) | the covering engine, BOQ description tokens |
+
+**Run "Room Finishes", then build the ISB room finish schedule, and the schedule is empty.** The two commands ship in the same product, address the same concept, and write and read different parameters.
+
+The only bridge is one-way: `NativeParamMapper` copies **built-in → STING** with `SetIfEmpty` during tagging (`ParameterHelpers.cs:2907-2914`). Nothing goes STING → built-in.
+
+**Fix:** `WriteToRooms` should write **both** families, or the ISB schedule should be re-pointed at the STING params. Writing both is better — the built-ins are what a native Revit schedule and an IFC export can see.
+
+## K-2 · 🟠 P1 · No finish code parameter, and no finish code legend
+
+Every finish parameter in `MR_PARAMETERS.txt` is `TEXT` used as free-text prose. There is **no** `BLE_ROOM_FINISH_FLOOR_COD_TXT` or equivalent, no picklist, and no validation. `BLE_FINISH_TYPE_TXT` is the closest slot and is unvalidated.
+
+And there is no legend to code against:
+- `ROOM_TYPE_CLASSIFIER.csv` is a **lighting** classifier (`room_name_pattern, en12464_room_code, target_lux`).
+- `CODE_LEGEND.json`'s single `FIN` entry is a **4D trade code** ("Finishes — wall / floor / ceiling finishes"), sibling to `EXC`, `MOB`, `JOI`.
+- The de-facto list is `BLE_MATERIALS.csv`'s `MAT_CODE` (`PT-001`, `CLG-001`) — but **nothing links `MAT_CODE` to `BLE_ROOM_FINISH_*_TXT`**.
+
+So finishes are described in sentences that cannot be filtered, sorted, validated or joined to a material. `RoomFinishScheduler`'s own defaults are hardcoded English: `"2 coat gypsum plaster + vinyl matt emulsion"`, `"Power-floated concrete + carpet/vinyl"`.
+
+**Fix:** add a `*_COD_TXT` companion to each of the four room-finish params, and ship `Data/STING_FINISH_CODES.csv` joining code → description → `MAT_CODE`.
+
+## K-3 · 🟠 P1 · Nothing turns a room finish into a finish element
+
+No command reads `BLE_ROOM_FINISH_FLOOR_TXT` and creates the floor-finish element bounded by that room. `SmartCoveringFactory.ApplyCovering` injects finish layers into **wall compound types** and writes parameters on beams and columns; it operates on selected elements, **not from room data**, and it never creates a Floor.
+
+For a project where floor finishes are the product being sold, per-room finish floors are entirely manual. A `Finish_CreateFloorsFromRooms` command — sketch a floor per room boundary, type resolved from the room's finish code, offset 0 from level, room-bounding off — is a contained, high-value addition.
+
+## K-4 · 🔴 P0 · No per-element BOQ exclusion exists at all
+
+Confirmed absent: `CST_EXCLUDE_BOOL`, `ASS_BOQ_EXCLUDE`, `BOQ_SKIP` — none exist in code, `MR_PARAMETERS.txt`, or `PARAMETER_REGISTRY.json`. No ExtensibleStorage BOQ suppression, despite `StingValidatorSuppressionSchema` proving the pattern works for validator findings. No `Exclude` field on `BOQModelOverride` (which carries only `RateUGX/RateUSD/NRM2Paragraph/Note/RateSource`, `BOQCostManager.cs:2678-2685`). And `BOQCostManagerPanel.cs:4888-4890` hard-returns on any `BOQRowSource.Model` row:
+
+```csharp
+private void DeleteRow(BOQItemViewModel vm)
+{
+    if (vm.Underlying.Source == BOQRowSource.Model) return;
+```
+
+`CST_PROVISIONAL_SUM` **reclassifies**, it does not exclude.
+
+**Fix:** one boolean on `BOQModelOverride` plus a reason string. That sidecar already survives refresh, document re-open and Revit restart, and is already re-applied on every rebuild by `ApplyModelOverrides`. Optionally back it with a `CST_BOQ_EXCLUDE_BOOL` parameter for modellers who prefer the Properties palette.
+
+## K-5 · 🟠 P1 · `PHASE_CREATED` is not filtered — future-phase elements are billed
+
+`IsPhaseDemolished` (`BOQCostManager.cs:3382-3395`) checks `BuiltInParameter.PHASE_DEMOLISHED` only. An element created in a *later* phase is billed against the current bill. On any phased project that is a straightforward over-measure.
+
+## K-6 · 🟡 P2 · Two unrelated category-exclusion lists
+
+`TagConfig.CategorySkipList` (config key `CATEGORY_SKIP`) is enforced at exactly one place — `ParameterHelpers.cs:4098`, the tagging pipeline. `BOQCostManager` contains **zero** references to it; the bill uses its own `COST_TAKEOFF_EXCLUDE_CATEGORIES` (`:3176-3188`).
+
+So excluding a category from tagging does nothing to the bill, and vice versa, and neither list mentions the other. A modeller will reasonably assume one governs both.
+
+## K-7 · 🟠 P1 · `IsoNaming` has no Level field, so `{lvl}` can render empty and silent
+
+`DrawingType.IsoNaming` (`:427-440`) carries **Volume, Type, Role, Suitability, Revision** — and no Level, Project, Originator or Number.
+
+`vol`, `type` and `role` all fall back to the profile in `DrawingTokenContext.Build`. **`{lvl}` does not** — `:57` is `{ "lvl", levelCode ?? string.Empty }`. If the producing command passes no level, the sheet number comes out `KBL26-PLN-COT01--DR-A-1001` with an empty segment and no warning.
+
+Same shape for `{seq}`: absent entirely when the caller has no value (`:75`), leaving the literal `{seq:D4}` in the sheet number.
+
+## K-8 · 🟡 P2 · The shipped ISO pattern suggestion contradicts the shipped data
+
+`Iso19650Vocabulary.cs:350` offers:
+
+```csharp
+"{project}-{originator}-{vol}-{lvl}-DR-{role}-{seq:D4}",  // Full BS 1192 / ISO 19650-2
+```
+
+It **hardcodes `DR`** where the actual data file uses `{type}` (`STING_DRAWING_TYPES.json:76`) and where the doc comment on `DrawingType.cs:290` also specifies `{type}`. Three sources, two answers. Pick `{type}`.
+
+Note the same file already carries a scar from this class of bug — the comment at `:344-349` records that an earlier shipped suggestion used `{prj}`/`{orig}`, which are not tokens the context emits, so choosing it rendered literal braces on the sheet.
+
+## K-9 · 🟠 P1 · `BatchTagCommand`'s token-lock check is dead code
+
+`Tags/BatchTagCommand.cs:777-782`:
+
+```csharp
+string lockStr = ParameterHelpers.GetString(el, ParamRegistry.Ext("TOKEN_LOCK"));
+bool isLocked = !string.IsNullOrEmpty(lockStr) && …;
+if (!isLocked) ParameterHelpers.SetString(el, paramName, current, overwrite: true);
+```
+
+**`_extendedParams["TOKEN_LOCK"]` is never registered.** `ParamRegistry.Ext` (`:698-705`) logs a warning and returns `""`; `GetString(el, "")` returns empty; `isLocked` is **always false**; the token is **always overwritten**.
+
+So a user who locks `LVL,SYS,PROD` and runs **`BatchTag`** loses the lock silently, while the same lock honoured through **`TagAndCombine`** works. Two commands the user reasonably expects to be equivalent, one of which quietly ignores their instruction.
+
+That path also covers only six tokens (`LVL, LOC, ZONE, SYS, FUNC, PROD`), missing `DISC`, `STATUS`, `REV`.
+
+**Also:** there is **no UI anywhere** to set `ASS_TOKEN_LOCK_TXT` — zero hits across `UI/` and `Docs/`, `.cs` and `.xaml`. The feature exists, works through one path, and is undiscoverable.
+
+## K-10 · 🟠 P1 · Mark is mapped to two different STING parameters
+
+`ParameterHelpers.cs:2667` and `:2674` both read `BuiltInParameter.ALL_MODEL_MARK`:
+
+```csharp
+written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, ParamRegistry.ID);          // ASS_ID_TXT
+written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, "ASS_SERIAL_NR_TXT");
+```
+
+A Mark of `D-101` becomes both the asset ID and the equipment **serial number**. For COBie handover, Serial Number should be the manufacturer's serial — this is a semantic error that reaches the client's asset register.
+
+## K-11 · 🟡 P2 · Mark dedup silently drifts from the asset ID
+
+`WarningsManager.cs:1055-1062` resolves duplicate-mark warnings by appending `_2`, `_3` to the Mark. But `MapAll` writes `ASS_ID_TXT` with `SetIfEmpty`, so the STING ID keeps the **pre-dedup** value. The two diverge with no warning, and `ASS_ID_TXT` is the one the bill and the handover use.
+
+## K-12 · 🟡 P2 · `WriteToRooms` reports rooms it did not change
+
+`PlasteringEngine.cs:996-1014` increments `written++` per room regardless of whether `SetIfEmpty` changed anything. On an already-populated model it reports every room as updated. The number is not evidence.
 
 ---
 
