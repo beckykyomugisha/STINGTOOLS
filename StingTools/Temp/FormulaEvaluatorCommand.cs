@@ -9,6 +9,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;   // G-13: MaterialLookupCsv — backs lookup() in the parser
 
 namespace StingTools.Temp
 {
@@ -1232,6 +1233,8 @@ namespace StingTools.Temp
                     return ParseIf();
                 if (ident.Equals("log", StringComparison.OrdinalIgnoreCase))
                     return ParseLog();
+                if (ident.Equals("lookup", StringComparison.OrdinalIgnoreCase))
+                    return ParseLookup();
 
                 // G-5: an identifier immediately followed by '(' is a function call.
                 // Only if() and log() are implemented, so anything else — lookup()
@@ -1390,6 +1393,99 @@ namespace StingTools.Temp
                 // Not a string comparison — restore position and parse as numeric
                 _pos = savedPos;
                 return ParseComparison();
+            }
+
+            /// <summary>
+            /// G-13 — lookup(TABLE, KEY, COLUMN) against MATERIAL_LOOKUP.csv.
+            ///
+            /// TABLE and COLUMN are bare literals (CONCRETE, CEMENT_BAGS_PER_M3).
+            /// KEY is usually the NAME OF A PARAMETER whose *value* is the row key
+            /// ("C25"), but may also be a literal TypeKey (PRIMER) — so it is
+            /// resolved through the context first and used verbatim if absent.
+            ///
+            /// 27 formulas / 29 calls use this. Until now none of them worked:
+            /// 'lookup' fell through to the variable branch, evaluated to 0, and
+            /// left the unconsumed argument list to terminate the parse — so the
+            /// REST of the expression was discarded too. Every one of those wrote
+            /// a zero into a bill.
+            /// </summary>
+            private double ParseLookup()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+
+                string table  = ReadBareToken();
+                SkipArgSeparator();
+                string keyRef = ReadBareToken();
+                SkipArgSeparator();
+                string column = ReadBareToken();
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+
+                if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(column))
+                {
+                    Fail($"malformed lookup({table},{keyRef},{column})");
+                    return 0;
+                }
+
+                // The key may be a parameter holding the TypeKey, or a literal.
+                string key = keyRef;
+                if (!string.IsNullOrEmpty(keyRef) && _ctx.TryGetValue(keyRef, out object kv))
+                {
+                    string resolved = kv as string ?? kv?.ToString();
+                    // An EMPTY parameter is not a key — fall through to DEFAULT
+                    // rather than querying "CONCRETE " and silently missing.
+                    if (!string.IsNullOrWhiteSpace(resolved)) key = resolved;
+                    else key = "DEFAULT";
+                }
+
+                // TryGetProperty, not GetProperty: the latter returns 0 for both
+                // "absent" and "present and zero", and MATERIAL_LOOKUP.csv holds
+                // eight legitimate zeros in exactly these columns (unreinforced
+                // blinding steel, nailed-tile fasteners, self-standing formwork
+                // props). Treating those as a miss would fail a formula whose
+                // correct answer is 0 — inverting the G-5 fix for those rows.
+                if (MaterialLookupCsv.TryGetProperty($"{table} {key}", column, out double v))
+                    return v;
+
+                // Fall back to the table's DEFAULT row, which the registry
+                // indexes under the bare category name.
+                if (MaterialLookupCsv.TryGetProperty(table, column, out v))
+                    return v;
+
+                // G-5 composition: no value means the formula cannot be evaluated,
+                // so it is skipped rather than written as 0.
+                Fail($"lookup({table},{key},{column}) found no value");
+                return 0;
+            }
+
+            /// <summary>
+            /// Read one bare lookup argument — an unquoted identifier, optionally
+            /// quoted. Stops at ',' or ')'. Does not evaluate.
+            /// </summary>
+            private string ReadBareToken()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '"')
+                {
+                    _pos++;
+                    int qs = _pos;
+                    while (_pos < _expr.Length && _expr[_pos] != '"') _pos++;
+                    string quoted = _expr.Substring(qs, _pos - qs).Trim();
+                    if (_pos < _expr.Length) _pos++;   // closing quote
+                    return quoted;
+                }
+                int start = _pos;
+                while (_pos < _expr.Length && _expr[_pos] != ',' && _expr[_pos] != ')')
+                    _pos++;
+                return _expr.Substring(start, _pos - start).Trim();
+            }
+
+            private void SkipArgSeparator()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
             }
 
             private double ParseLog()
