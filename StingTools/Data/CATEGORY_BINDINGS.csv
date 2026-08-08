@@ -1,3 +1,4 @@
+# v3.10 | 20260808 | +2 STING_FINISH_* idempotency-stamp bindings on Floors (finish-floor creator, K-3)
 # v3.9 | 20260808 | +8 room-finish bindings (Rooms/Instance): the 4 BLE_ROOM_FINISH_*_TXT params shipped with NO binding row at all, plus the 4 new *_COD_TXT finish codes (K-2)
 # v3.8 | 20260708 | fix cross-discipline over-bindings: HVC_TERMINAL->Air Terminals; +LIG/ICT/COM/NCL/SEC/MED/MGS/RAD/CEQ/CLN discipline-scoped rows (param->category binding accuracy)
 # v3.7 | 20260630 | +5 STING_PLACER_* idempotency-stamp bindings (detail/annotation symbol categories)
@@ -16866,6 +16867,8 @@ CLASH_LIVE_FLAG,Walls,Instance,False
 CLASH_COUNT_INT,Walls,Instance,False
 STING_VIEW_TOKEN_MASK_TXT,Views,Instance,False
 STING_PLACED_BY_SYMBOL_PLACER_BOOL,Detail Items,Instance,False
+STING_FINISH_CODE_TXT,Floors,Instance,False
+STING_FINISH_SRC_ROOM_ID_TXT,Floors,Instance,False
 STING_PLACER_ASSY_ID_TXT,Detail Items,Instance,False
 STING_PLACER_MEMBER_ID_TXT,Detail Items,Instance,False
 STING_PLACER_SYMBOL_CODE_TXT,Detail Items,Instance,False

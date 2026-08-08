@@ -40,6 +40,7 @@ GROUP	34	Routing
 GROUP	35	SUS_SUSTAINABILITY
 GROUP	36	STING_VIEWPARAMS
 GROUP	37	STING_PLACER
+GROUP	38	STING_FINISH
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1	0
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1	0
@@ -3490,3 +3491,5 @@ PARAM	5e189877-e121-53f8-ac57-849685c272e6	STING_PLACER_ASSY_ID_TXT	TEXT		37	1	S
 PARAM	091ab7ea-32fc-57dd-94e4-89a0af05c31c	STING_PLACER_MEMBER_ID_TXT	TEXT		37	1	Source assembly-member element id for the placed symbol [Symbols]	1	0
 PARAM	f44c8c2c-5981-517e-91e0-2a1c2970a74d	STING_PLACER_SYMBOL_CODE_TXT	TEXT		37	1	Resolved symbol code stamped on the placed symbol [Symbols]	1	0
 PARAM	e2b1686a-8c6a-5db8-ba02-144add1cc43f	STING_PLACER_VIEW_ID_TXT	TEXT		37	1	View id where the symbol was placed (per-view idempotency) [Symbols]	1	0
+PARAM	5e4ca8e4-f098-57f8-8829-7fb8353f9536	STING_FINISH_SRC_ROOM_ID_TXT	TEXT		38	1	Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]	1	0
+PARAM	c914565f-e02b-5c67-b9b6-c086cc17d2cf	STING_FINISH_CODE_TXT	TEXT		38	1	Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]	1	0
