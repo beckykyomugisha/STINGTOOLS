@@ -351,6 +351,76 @@ Quick passes over things this batch touched indirectly.
 
 ---
 
+---
+
+# MIGRATIONS — not verification items
+
+**Everything above asks "did this run correctly?". The two below change values that are
+already sitting in delivered models.** They cannot be settled by checking one element,
+because the old value was written by a previous run and will stay wrong until the model is
+re-processed. Treat each as a data migration with a re-run step, not a test.
+
+## M-1 · G-4 — the unit conversion is gone
+
+The formula writer no longer converts results to Revit internal units. It was the only
+call site, and it could not be correct anywhere: `MR_PARAMETERS.txt` declares **no LENGTH,
+AREA or VOLUME parameters** (TEXT 2,819 / YESNO 265 / NUMBER 221 / INTEGER 93), so there is
+no target for which feet are the right storage.
+
+**What moves, and what does not** — this is the part that matters, because it is not
+uniform:
+
+| Unit tag in `FORMULAS_WITH_DEPENDENCIES.csv` | Before | After | Shift |
+|---|---|---|---|
+| `m2`, `SQ_M`, `M`, `MM`, `CM`, `IN`, `M3`, `CU_M`, `L`, `C` | converted to internal units | metric | **changes** — ×0.3048ⁿ reversed |
+| `m²`, `m³`, `%`, `nr`, `kg`, `bags`, `UGX`, `text`, blank … | passed through unchanged | metric | **no change** |
+
+The switch carried `M2`/`SQ_M`/`SQUARE_METERS` but **not `m²`**, so which parameters were
+corrupted depended on which glyph the author typed. The worked case, two rows with
+**byte-identical** expressions (`CST_S_MAS_WALL_AREA_SQ_M − CST_S_MAS_OPENING_AREA_SQ_M`):
+
+| Parameter | Unit | Before | After |
+|---|---|---|---|
+| `CST_S_MAS_NET_AREA_SQ_M` | `m²` | metric (never converted) | metric — **unchanged** |
+| `CST_S_MAS_NET_WALL_AREA_SQ_M` | `m2` | metric × **10.7639** | metric — **÷10.7639** |
+
+**Acceptance:** after this build, those two parameters must hold **identical values** on
+the same wall. They currently differ by 10.7639× for no reason but a character.
+
+**Migration steps, per affected project:**
+1. Record the current value of one `m2`-tagged parameter on a known element — this is the
+   before.
+2. Install the build.
+3. **Re-run Master Setup (or any command that runs the formula pipeline) across the whole
+   model.** Checking is not sufficient: values written by the previous run persist until
+   overwritten. A model that is opened and inspected but not re-processed will still hold
+   the old numbers.
+4. Confirm the recorded parameter has fallen by 10.7639×, and that its `m²`-tagged twin has
+   not moved.
+5. **Re-issue anything priced off an `m2`-tagged quantity.** Masonry net wall area is in
+   this set and feeds the mortar chain.
+
+**Do not** "fix" a model by re-running only the elements that look wrong — the population
+that changed is defined by the *unit tag on the formula*, not by which values look odd.
+
+## M-2 · F-2 — untagged elements move from `BLD1` to `XX`
+
+*(Pending — see item 4 in the work queue. Recorded here so the two migrations stay
+together.)*
+
+Elements whose LOC could not be derived were silently filed under whichever building code
+sorts first. They will now carry `XX`.
+
+**Expect existing models to show `XX` where they showed a building code.** That is the
+correction: those elements were never *in* that building, and on a multi-building project
+the first building was absorbing every unplaceable element — its cost and quantities wrong
+while looking entirely plausible.
+
+**Migration steps:** re-run tagging across the model; compare the per-building element
+counts and cost totals against the pre-install baseline. The first building's totals
+**should fall**. Investigate every element that lands on `XX` — each is one the tagger
+could not place, which is information that was previously being discarded.
+
 ## Sign-off
 
 | Item | Result | Who | Date |

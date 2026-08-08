@@ -103,7 +103,7 @@ a hypothesis until it has been counted.
 | G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
 | G-2 CSV reader destroys quoted literals | P0 | **closed** | `20e84ba50` — re-scoped: 98.6 % of impact is tag config |
 | G-3 TEXT path has no `if()` | P0 | **closed** | `74f8cee84` — TextExpressionParser; 65 of 112 |
-| G-4 unit conversion, one real call site | P0 | **closed** | `<pending>` — conversion deleted; migration, see verification doc |
+| G-4 unit conversion, one real call site | P0 | **closed** | `<g4>` — conversion deleted; **migration**, see verification doc |
 | G-5 nothing fails loudly | P0 | **closed** | `5ee46d27c` `5d7443105` |
 | G-6 32 rows silently dropped | P1 | **closed** | `cd1fc03a9` — guard now logs; 32 rows repaired to 12 columns |
 | G-7 `MULTI` formulas never fire | P1 | open | |

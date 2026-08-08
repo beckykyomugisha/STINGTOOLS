@@ -188,11 +188,33 @@ namespace StingTools.Temp
                                 if (result.HasValue && !double.IsNaN(result.Value)
                                     && !double.IsInfinity(result.Value))
                                 {
-                                    // DATA-03: Apply unit conversion before writing
-                                    double converted = FormulaEngine.ConvertToInternalUnits(
-                                        result.Value, formula.Unit);
+                                    // G-4 — the ConvertToInternalUnits call that stood here
+                                    // has been REMOVED. It was the only real call site of it
+                                    // in the codebase, so this single line decided whether a
+                                    // metric formula result was stored as metres or as feet.
+                                    //
+                                    // It cannot be correct anywhere: MR_PARAMETERS.txt
+                                    // declares no LENGTH, AREA or VOLUME parameters at all
+                                    // (TEXT 2,819 / YESNO 265 / NUMBER 221 / INTEGER 93), so
+                                    // there is no unit-typed target for feet to be the right
+                                    // storage FOR. Every _MM/_SQ_M/_CU_M target is TEXT
+                                    // holding metric, and nothing converts back on read.
+                                    //
+                                    // It was also applied inconsistently by accident rather
+                                    // than by design: the switch carries M2/SQ_M/
+                                    // SQUARE_METERS but not "m²", so of two rows with
+                                    // BYTE-IDENTICAL expressions —
+                                    //   CST_S_MAS_WALL_AREA_SQ_M - CST_S_MAS_OPENING_AREA_SQ_M
+                                    // — CST_S_MAS_NET_WALL_AREA_SQ_M (unit "m2") was scaled
+                                    // by 1/0.3048² = 10.7639 and CST_S_MAS_NET_AREA_SQ_M
+                                    // (unit "m²") was not. Whether a quantity was corrupted
+                                    // depended on which glyph the author typed.
+                                    //
+                                    // Applying it consistently at all eight EvaluateNumeric
+                                    // sites would make every metric target uniformly wrong;
+                                    // removing it makes them uniformly right.
                                     bool written = FormulaEngine.WriteNumericResult(
-                                        targetParam, converted);
+                                        targetParam, result.Value);
                                     if (written)
                                     {
                                         totalWritten++;
@@ -916,9 +938,24 @@ namespace StingTools.Temp
 
         /// <summary>
         /// DATA-03: Convert a value from a named display unit to Revit internal units (feet/ft2/ft3).
-        /// Call this before writing numeric results so formulas expressed in metric units are
-        /// stored correctly in the Revit model.
+        ///
+        /// <para><b>G-4 — DEAD CODE. Do not reintroduce a call to this.</b> Retained for one
+        /// release so the removal is reviewable in place, then delete.</para>
+        ///
+        /// <para>The single call site (the formula writer) was removed because the
+        /// conversion cannot be correct anywhere. <c>MR_PARAMETERS.txt</c> declares no
+        /// LENGTH, AREA or VOLUME parameters — TEXT 2,819 / YESNO 265 / NUMBER 221 /
+        /// INTEGER 93 — so no target exists for which Revit internal units are the right
+        /// storage. Every <c>_MM</c> / <c>_SQ_M</c> / <c>_CU_M</c> parameter is TEXT holding
+        /// metric, and no reader converts back.</para>
+        ///
+        /// <para>It was also silently selective: the switch below has <c>M2</c>,
+        /// <c>SQ_M</c>, <c>SQUARE_METERS</c> but no <c>m²</c>, so two parameters computed
+        /// from byte-identical expressions diverged by 10.7639× on the strength of which
+        /// glyph the author typed in the Unit column.</para>
         /// </summary>
+        [Obsolete("G-4: formula results are stored metric; there are no unit-typed targets. " +
+                  "Do not call. Retained one release for reviewability, then delete.", error: false)]
         public static double ConvertToInternalUnits(double value, string unit)
         {
             if (string.IsNullOrWhiteSpace(unit)) return value;
