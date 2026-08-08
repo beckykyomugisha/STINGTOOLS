@@ -113,6 +113,26 @@ namespace StingTools.BOQ
         public bool HasAnyIssue => ZeroRateCount > 0 || CouldNotMeasureCount > 0 || LowConfidenceCount > 0;
     }
 
+    // ── LinkUnderCount ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A-3 — one included link placed N&gt;1 times but taken off ×1.
+    /// See <see cref="BOQDocument.LinkUnderCounts"/>.
+    /// </summary>
+    public class LinkUnderCount
+    {
+        public string LinkName;
+        public int InstanceCount;
+        /// <summary>Rows this link contributed — the quantity actually at stake.</summary>
+        public int RowCount;
+        /// <summary>Σ TotalUGX of those rows, as billed (i.e. ×1).</summary>
+        public double BilledUGX;
+        /// <summary>What the bill would carry if the multiplier were on.</summary>
+        public double WouldBeUGX => BilledUGX * (InstanceCount > 0 ? InstanceCount : 1);
+        /// <summary>The money not currently in the bill if this is an error.</summary>
+        public double ShortfallUGX => WouldBeUGX - BilledUGX;
+    }
+
     // ── BoqMarkupBreakdown / BoqTotals ─────────────────────────────────────
     // Moved to BoqTotals.cs (P0-7) so the markup waterfall is Document-free and
     // linkable into the headless cost tests. Still namespace StingTools.BOQ.
@@ -380,6 +400,18 @@ namespace StingTools.BOQ
         /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
         /// </summary>
         public string MeasurementStandardId = "nrm2";
+
+        /// <summary>
+        /// A-3 — links that are INCLUDED in the bill, loaded more than once, and whose
+        /// per-link ×N multiply flag is off. Each is quantified once regardless of how
+        /// many times it is placed.
+        ///
+        /// This is legitimate for a shared reference model placed twice; it is a
+        /// six-cottages-for-free error when the link is a building. The plugin cannot
+        /// tell the two apart, so it reports rather than decides — a warning row in the
+        /// audit sheet and a CONFIRMABLE gate in BOQPrepForExport.
+        /// </summary>
+        public List<LinkUnderCount> LinkUnderCounts = new List<LinkUnderCount>();
 
         // ── G3 — optional built-up preliminaries schedule ───────────────────
         // When PrelimsItemised is true the grand total uses the itemised prelim

@@ -566,7 +566,8 @@ namespace StingTools.BOQ
             {
                 try
                 {
-                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks, measStd);
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes,
+                        grouping, includedLinks, measStd, boq.LinkUnderCounts);
                     if (linkItems.Count > 0) items.AddRange(linkItems);
                 }
                 catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
@@ -3261,7 +3262,8 @@ namespace StingTools.BOQ
             Dictionary<string, string> cobieCostCodes,
             BoqGroupingMode grouping,
             HashSet<string> includedTitles,
-            IMeasurementStandard measStd)
+            IMeasurementStandard measStd,
+            List<LinkUnderCount> underCounts = null)
         {
             var result = new List<BOQLineItem>();
             var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -3356,6 +3358,30 @@ namespace StingTools.BOQ
                 }
                 if (multiply)
                     StingLog.Info($"BOQ linked-model multiplier: '{linkName}' taken off ×{instCount} ({linkItems.Count} row(s)).");
+
+                // A-3 — included, placed more than once, multiplier OFF. The link is
+                // de-duplicated by title at the top of this loop, so it is quantified
+                // exactly once no matter how many instances exist, and the ×N flag lives
+                // behind a second picker that only appears AFTER the link has been ticked
+                // for inclusion. Miss that checkbox on a cottage placed 7× and six
+                // cottages are free, with nothing anywhere saying so.
+                //
+                // Placing a shared reference model twice is legitimate, so this reports
+                // rather than blocks — a warning row in the audit sheet and a confirmable
+                // gate in BOQPrepForExport.
+                else if (instCount > 1 && underCounts != null)
+                {
+                    underCounts.Add(new LinkUnderCount
+                    {
+                        LinkName      = linkName,
+                        InstanceCount = instCount,
+                        RowCount      = linkItems.Count,
+                        BilledUGX     = linkItems.Sum(x => x.TotalUGX),
+                    });
+                    StingLog.Warn($"BOQ link under-count: '{linkName}' is placed ×{instCount} " +
+                                  $"but is taken off ×1 ({linkItems.Count} row(s)). Enable the per-link " +
+                                  "multiplier if these are distinct buildings.");
+                }
                 result.AddRange(linkItems);
             }
             return result;

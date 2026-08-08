@@ -479,10 +479,47 @@ namespace StingTools.BOQ
         private void BuildAuditTrailSheet(IXLWorksheet ws, BOQDocument boq)
         {
             BannerRow(ws, "Audit Trail — per-item rate source, quantity basis, last-costed timestamp");
+
+            int headerRow = 3;
+
+            // A-3 — links included in the bill, placed more than once, taken off ×1.
+            // Printed ABOVE the per-item table because it is a whole-bill finding: no
+            // individual row is wrong, the bill is simply missing N−1 copies of a
+            // building. Legitimate for a shared reference model placed twice, which is
+            // why it is a visible warning rather than a correction.
+            if (boq.LinkUnderCounts != null && boq.LinkUnderCounts.Count > 0)
+            {
+                int w = 3;
+                ws.Cell(w, 1).Value = "⚠ LINK UNDER-COUNT — these links are placed more than once but taken off ×1";
+                ws.Range(w, 1, w, 12).Merge().Style
+                    .Font.SetBold().Font.SetFontColor(XLColor.White)
+                    .Fill.SetBackgroundColor(XLColor.FromArgb(0xC0, 0x39, 0x2B));
+                w++;
+                string[] uc = { "Link", "Placed", "Taken off", "Rows", "Billed UGX", "Would be UGX", "Shortfall UGX", "Action" };
+                WriteHeader(ws, w, uc);
+                w++;
+                foreach (var u in boq.LinkUnderCounts.OrderByDescending(x => x.ShortfallUGX))
+                {
+                    ws.Cell(w, 1).Value = u.LinkName;
+                    ws.Cell(w, 2).Value = $"×{u.InstanceCount}";
+                    ws.Cell(w, 3).Value = "×1";
+                    ws.Cell(w, 4).Value = u.RowCount;
+                    ws.Cell(w, 5).Value = u.BilledUGX;
+                    ws.Cell(w, 6).Value = u.WouldBeUGX;
+                    ws.Cell(w, 7).Value = u.ShortfallUGX;
+                    ws.Cell(w, 8).Value = "Enable the per-link ×N multiplier if these are distinct buildings; "
+                                        + "ignore if it is one reference model placed more than once.";
+                    ws.Range(w, 1, w, 8).Style.Fill.SetBackgroundColor(XLColor.FromArgb(0xFD, 0xEB, 0xD0));
+                    w++;
+                }
+                w++;   // spacer
+                headerRow = w;
+            }
+
             string[] cols = { "Line ref", "Element id", "UniqueId", "Category", "Family",
                 "Rate source", "Quantity basis", "Rate UGX", "Rate USD", "Last costed", "Snapshot ref", "Confidence" };
-            WriteHeader(ws, 3, cols);
-            int row = 4;
+            WriteHeader(ws, headerRow, cols);
+            int row = headerRow + 1;
             foreach (var it in boq.AllItems)
             {
                 ws.Cell(row, 1).Value = it.BOQLineRef;
@@ -499,8 +536,8 @@ namespace StingTools.BOQ
                 ws.Cell(row, 12).Value = it.RateConfidence;
                 row++;
             }
-            ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
-            ws.SheetView.FreezeRows(3);
+            ws.Range(headerRow, 1, headerRow, cols.Length).SetAutoFilter();
+            ws.SheetView.FreezeRows(headerRow);
         }
 
         private void BuildSnapshotDiffSheet(IXLWorksheet ws, BOQSnapshotDiff diff)
