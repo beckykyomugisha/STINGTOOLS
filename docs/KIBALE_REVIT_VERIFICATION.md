@@ -151,6 +151,51 @@ second still logs.
 
 ---
 
+## 3b. G-6 + G-3 — 32 formulas that never loaded, and 65 that never evaluated (**blocking**)
+
+Two changes that compound. G-6 repaired 32 truncated rows so they load at all; G-3 gave
+the TEXT path a real `if()` evaluator. Together: **formulas that load rose 270 → 302, and
+TEXT formulas containing `if()` that actually evaluate rose 0 → 65.**
+
+**Expect warnings and narrative text to appear on elements that have never shown any.
+That is two inert features coming alive, not a regression.**
+
+**Do:**
+1. **Load count.** Run the evaluator and read `StingTools.log`. The new short-row warning
+   should report **zero** dropped rows.
+2. **Narrative.** Tag a wall whose `TAG_PARA_STATE_3_BOOL` is set and inspect
+   `ARCH_TAG_7_PARA_WALL_TXT`.
+3. **Warnings.** Give a wall a `PER_THERM_U_VALUE_W_M2K` above 0.70 and check
+   `WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS`.
+4. **The empty branch.** Put a wall with `BLE_WALL_FUNCTION_TXT` **blank** through the
+   same formula.
+
+**Pass:**
+- No "DROPPED n row(s)" warning in the log.
+- The narrative parameter carries a real sentence, not a fragment and not the literal
+  `if(`.
+- The warning parameter reads ` [!U > 0.70]` when over threshold and is **empty** when
+  under it.
+- The blank-input case yields the **false branch** (empty), and the formula is *written*,
+  not skipped. This is the distinction `TryStringCondition` exists for: an empty
+  parameter is a legitimate false, not a failure.
+
+**Fail:**
+- A narrative that is truncated mid-sentence → a branch is terminating early; check the
+  nesting depth of that formula (36 of the 65 are nested).
+- A `WARN_*` that is **blank** where the threshold is exceeded → the condition failed and
+  was reported as empty rather than absent. Under G-5 semantics an uncomputable warning
+  must be *absent*; a blank one reads as "no warning", which is wrong in the unsafe
+  direction.
+- A formula skipped where the input is merely empty → `TryStringCondition` is failing on a
+  present-but-empty value instead of returning false.
+
+**Note on the 32 repaired rows:** their `Input_Parameters` were derived from their
+expressions, and their GUIDs read from `MR_PARAMETERS.txt`. Spot-check two against the
+parameters they claim to consume — if a repaired row references a parameter that is not
+bound on the element, it will now report `unknown identifier` rather than silently not
+existing, which is the intended trade.
+
 ## 4. IFC Qto — confirm it refuses, then confirm it writes
 
 **Do, in this order:**
@@ -313,6 +358,7 @@ Quick passes over things this batch touched indirectly.
 | 1 `lookup()` vs hand take-off | | QS + BIM | |
 | 2 Mortar | | QS | |
 | 2b G-2 quoted literals / tag label formulas | | BIM | |
+| 3b G-6 load count + G-3 warnings/narrative | | BIM | |
 | 10 A-3 link under-count gate | | QS | |
 | 3 G-5 skip step change | | BIM | |
 | 4 IFC Qto refuse + write | | BIM | |
@@ -322,6 +368,6 @@ Quick passes over things this batch touched indirectly.
 | 8 Sheet numbers | | Doc control | |
 | 9 Regression sweep | | BIM | |
 
-Items 1, 2 and 4 are **blocking**. Items 6 and 7 are expected to surface adjustments —
+Items 1, 2, 2b, 3b and 4 are **blocking**. Items 6 and 7 are expected to surface adjustments —
 finding one is not a reason to hold the whole batch, provided it is logged and the
 affected command is not relied on until fixed.
