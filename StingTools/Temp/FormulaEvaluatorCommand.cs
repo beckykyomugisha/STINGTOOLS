@@ -756,6 +756,33 @@ namespace StingTools.Temp
         /// </summary>
         public static string EvaluateText(string expression, Dictionary<string, object> context)
         {
+            // G-3 — route through the real recursive evaluator.
+            //
+            // The legacy path below splits on top-level '+' and emits quoted literals,
+            // format(PARAM) and context values, silently dropping anything else — which
+            // meant every if() was discarded. 65 of the 112 TEXT formulas begin with
+            // if(, 36 of them nested, so the entire conditional-narrative and WARN_*
+            // threshold surface produced nothing.
+            //
+            // TextExpressionParser handles the real grammar and delegates the CONDITION
+            // to EvaluateNumeric, so comparisons, arithmetic and lookup() reuse the path
+            // that is already exercised rather than being reimplemented here.
+            try
+            {
+                var tp = new TextExpressionParser(expression, context);
+                string parsed = tp.Parse();
+                if (tp.Failed) return null;   // G-5 semantics: a failure is absent, not blank
+                return string.IsNullOrEmpty(parsed) ? null : parsed;
+            }
+            catch (Exception ex) { StingLog.Warn($"EvaluateText: {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// Legacy concatenation-only text evaluator. Retained for reference; superseded by
+        /// <see cref="TextExpressionParser"/> (G-3). Not called.
+        /// </summary>
+        private static string EvaluateTextLegacy(string expression, Dictionary<string, object> context)
+        {
             try
             {
                 // Split on + for concatenation, handling quoted strings
@@ -853,7 +880,11 @@ namespace StingTools.Temp
         /// it and every subsequent run in that Revit session logs nothing, which
         /// is the same invisible-failure problem the G-5 work set out to remove.
         /// </summary>
-        public static void ResetWarnBudget() => ExpressionParser.ResetWarnBudget();
+        public static void ResetWarnBudget()
+        {
+            ExpressionParser.ResetWarnBudget();
+            TextExpressionParser.ResetWarnBudget();   // G-3 — the TEXT path has its own budget
+        }
 
         /// <summary>
         /// Evaluate a numeric formula using recursive descent parsing.
@@ -1033,6 +1064,272 @@ namespace StingTools.Temp
         ///   primary    = NUMBER | IDENTIFIER | '(' expr ')' | function_call
         ///   function   = 'if' '(' expr ',' expr ',' expr ')' | 'log' '(' expr ')'
         /// </summary>
+        /// <summary>
+        /// G-3 — string-valued recursive-descent evaluator for TEXT formulas.
+        ///
+        ///   textExpr := textTerm ('+' textTerm)*
+        ///   textTerm := '"' literal '"' | '(' textExpr ')' | if(...) | format(P) | IDENT
+        ///   if       := 'if' '(' &lt;condition&gt; ',' textExpr ',' textExpr ')'
+        ///
+        /// The CONDITION is handed to <see cref="EvaluateNumeric"/> rather than
+        /// re-implemented, so comparisons, arithmetic, if()/log() nesting and lookup()
+        /// all reuse the numeric path that is already exercised. Measured over the
+        /// shipped data, every TEXT condition is either a bare boolean parameter (36)
+        /// or a &lt;/&gt; comparison (29) — no string equality — so the delegation covers
+        /// the whole surface.
+        ///
+        /// Two behaviours carried over from the numeric parser deliberately:
+        ///
+        /// 1. **G-5 failure semantics.** An unresolvable branch or condition FAILS the
+        ///    formula (null) rather than yielding "". A WARN_* threshold that cannot be
+        ///    computed must be absent, not silently blank — a blank warning reads as
+        ///    "no warning", which is the wrong answer in the safe direction.
+        /// 2. **Branch laziness.** Both branches are parsed to advance the cursor, but
+        ///    only the branch actually returned may fail the formula.
+        /// </summary>
+        private class TextExpressionParser
+        {
+            private readonly string _expr;
+            private readonly Dictionary<string, object> _ctx;
+            private int _pos;
+            private string _failure;
+
+            public bool Failed => _failure != null;
+            public string FailureReason => _failure;
+
+            private static int _warnBudget = ExpressionParser.WarnBudgetPerBatch;
+            internal static void ResetWarnBudget()
+                => System.Threading.Interlocked.Exchange(ref _warnBudget, ExpressionParser.WarnBudgetPerBatch);
+
+            public TextExpressionParser(string expr, Dictionary<string, object> ctx)
+            { _expr = expr ?? ""; _ctx = ctx ?? new Dictionary<string, object>(); }
+
+            private void Fail(string reason)
+            {
+                if (_failure != null) return;
+                _failure = reason;
+                int remaining = System.Threading.Interlocked.Decrement(ref _warnBudget);
+                if (remaining >= 0)
+                {
+                    string shown = _expr.Length > 120 ? _expr.Substring(0, 120) + "…" : _expr;
+                    StingLog.Warn($"TEXT formula not evaluated ({reason}) in: {shown}");
+                    if (remaining == 0)
+                        StingLog.Warn("Further TEXT formula warnings suppressed for this batch.");
+                }
+            }
+
+            public string Parse() => ParseTextExpr();
+
+            private void SkipWs()
+            { while (_pos < _expr.Length && char.IsWhiteSpace(_expr[_pos])) _pos++; }
+
+            private string ParseTextExpr()
+            {
+                var sb = new StringBuilder();
+                sb.Append(ParseTextTerm());
+                while (true)
+                {
+                    SkipWs();
+                    if (_pos < _expr.Length && _expr[_pos] == '+') { _pos++; sb.Append(ParseTextTerm()); }
+                    else break;
+                }
+                return sb.ToString();
+            }
+
+            private string ParseTextTerm()
+            {
+                SkipWs();
+                if (_pos >= _expr.Length) return "";
+                char c = _expr[_pos];
+
+                if (c == '"') return ReadQuoted();
+
+                if (c == '(')
+                {
+                    _pos++;
+                    string inner = ParseTextExpr();
+                    SkipWs();
+                    if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                    return inner;
+                }
+
+                string ident = ReadIdent();
+                if (ident.Length == 0) { _pos++; return ""; }   // stray punctuation
+
+                SkipWs();
+                bool isCall = _pos < _expr.Length && _expr[_pos] == '(';
+
+                if (isCall && ident.Equals("if", StringComparison.OrdinalIgnoreCase))
+                    return ParseIfText();
+                if (isCall && ident.Equals("format", StringComparison.OrdinalIgnoreCase))
+                    return ParseFormatCall();
+                if (isCall)
+                {
+                    Fail($"unresolved function '{ident}()'");
+                    SkipBalancedParens();
+                    return "";
+                }
+
+                if (_ctx.TryGetValue(ident, out object val)) return val?.ToString() ?? "";
+
+                Fail($"unknown identifier '{ident}'");
+                return "";
+            }
+
+            private string ParseIfText()
+            {
+                _pos++;                                   // past '('
+                string cond = ReadRawUntilTopLevelComma();
+                if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
+
+                // A STRING condition is resolved here; everything else is delegated to
+                // the numeric parser. Measured over the shipped data, the 65 TEXT
+                // formulas contain 265 conditions:
+                //
+                //   200  PARAM <> ""          not-empty test   <- the dominant shape
+                //    36  bare boolean param
+                //    27  numeric comparison
+                //     2  param vs expression
+                //
+                // EvaluateNumeric cannot do the first: ParseComparison implements
+                // <= >= < > and a single =, but NOT <>, and the operand is a TEXT
+                // parameter that fails to parse as a number. Delegating everything
+                // would therefore have failed 200 of 265 conditions — 42 of the 65
+                // formulas — which is what the pre-commit simulation caught.
+                double? c = TryStringCondition(cond) ?? EvaluateNumeric(cond, _ctx);
+
+                string before = _failure;
+
+                string trueVal = ParseTextExpr();
+                string failTrue = _failure; _failure = before;
+
+                SkipWs();
+                if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
+
+                string falseVal = ParseTextExpr();
+                string failFalse = _failure; _failure = before;
+
+                SkipWs();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+
+                if (!c.HasValue)
+                {
+                    Fail($"if() condition could not be evaluated: {cond.Trim()}");
+                    return "";
+                }
+
+                bool takeTrue = c.Value != 0;
+                string taken = takeTrue ? failTrue : failFalse;
+                if (taken != null) _failure = taken;      // only the TAKEN branch may fail us
+                return takeTrue ? trueVal : falseVal;
+            }
+
+            /// <summary>
+            /// Resolve <c>IDENT &lt;&gt; "literal"</c> / <c>IDENT = "literal"</c> against the
+            /// context. Returns 1/0, or null when this is not a string condition (leave it
+            /// to the numeric parser).
+            ///
+            /// An identifier ABSENT from the context is a failure — the same rule the
+            /// numeric path applies — because it means the name is missing from the row's
+            /// Input_Parameters and the test can never be meaningful. An identifier that
+            /// is PRESENT but empty is not a failure: it is exactly what
+            /// <c>&lt;&gt; ""</c> exists to detect, and must yield the false branch rather
+            /// than skipping the formula.
+            /// </summary>
+            private double? TryStringCondition(string cond)
+            {
+                if (string.IsNullOrWhiteSpace(cond)) return null;
+                var m = System.Text.RegularExpressions.Regex.Match(
+                    cond.Trim(),
+                    "^([A-Za-z_][A-Za-z0-9_]*)\\s*(<>|=)\\s*\"((?:[^\"]|\"\")*)\"$");
+                if (!m.Success) return null;
+
+                string name = m.Groups[1].Value;
+                string op   = m.Groups[2].Value;
+                string lit  = m.Groups[3].Value.Replace("\"\"", "\"");
+
+                if (!_ctx.TryGetValue(name, out object raw))
+                {
+                    Fail($"unknown identifier '{name}' in condition");
+                    return null;
+                }
+
+                string actual = raw?.ToString() ?? "";
+                bool equal = string.Equals(actual, lit, StringComparison.OrdinalIgnoreCase);
+                return (op == "=" ? equal : !equal) ? 1.0 : 0.0;
+            }
+
+            private string ParseFormatCall()
+            {
+                _pos++;                                   // past '('
+                string inner = ReadRawUntilTopLevelComma().Trim();
+                SkipWs();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+                if (_ctx.TryGetValue(inner, out object v)) return FormatNumberForDisplay(v);
+                Fail($"format() on unknown identifier '{inner}'");
+                return "";
+            }
+
+            /// <summary>Raw substring up to the next top-level ',' or the closing ')'.</summary>
+            private string ReadRawUntilTopLevelComma()
+            {
+                int start = _pos, depth = 0; bool q = false;
+                while (_pos < _expr.Length)
+                {
+                    char c = _expr[_pos];
+                    if (q) { if (c == '"') q = false; }
+                    else if (c == '"') q = true;
+                    else if (c == '(') depth++;
+                    else if (c == ')') { if (depth == 0) break; depth--; }
+                    else if (c == ',' && depth == 0) break;
+                    _pos++;
+                }
+                return _expr.Substring(start, _pos - start);
+            }
+
+            private string ReadQuoted()
+            {
+                _pos++;                                   // opening quote
+                var sb = new StringBuilder();
+                while (_pos < _expr.Length)
+                {
+                    char c = _expr[_pos];
+                    if (c == '"')
+                    {
+                        // "" inside a literal is an escaped quote
+                        if (_pos + 1 < _expr.Length && _expr[_pos + 1] == '"') { sb.Append('"'); _pos += 2; continue; }
+                        _pos++; break;
+                    }
+                    sb.Append(c); _pos++;
+                }
+                return sb.ToString();
+            }
+
+            private string ReadIdent()
+            {
+                SkipWs();
+                int start = _pos;
+                while (_pos < _expr.Length &&
+                       (char.IsLetterOrDigit(_expr[_pos]) || _expr[_pos] == '_')) _pos++;
+                return _pos > start ? _expr.Substring(start, _pos - start) : "";
+            }
+
+            private void SkipBalancedParens()
+            {
+                if (_pos >= _expr.Length || _expr[_pos] != '(') return;
+                int depth = 0; bool q = false;
+                while (_pos < _expr.Length)
+                {
+                    char c = _expr[_pos];
+                    if (q) { if (c == '"') q = false; }
+                    else if (c == '"') q = true;
+                    else if (c == '(') depth++;
+                    else if (c == ')') { depth--; if (depth == 0) { _pos++; return; } }
+                    _pos++;
+                }
+            }
+        }
+
         private class ExpressionParser
         {
             private readonly string _expr;
