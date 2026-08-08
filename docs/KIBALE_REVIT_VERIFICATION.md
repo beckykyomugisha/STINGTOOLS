@@ -435,6 +435,57 @@ accepted it.
 derivation is actually running — a zero here previously meant "everything was assigned to
 BLD1", not "everything resolved".
 
+## M-3 · A-2 — five new parameters must be loaded before classification writes anything
+
+`ClassificationReader` — the resolver BOQ, COBie, handover and IFC export all use — reads
+five parameters that **did not exist anywhere in the shared parameter file**:
+
+| Parameter | Binding | Purpose |
+|---|---|---|
+| `UNICLASS_PR_TXT` | Type | Uniclass 2015 Products (`Pr_`) |
+| `UNICLASS_SS_TXT` | Type | Uniclass 2015 Systems (`Ss_`) |
+| `UNICLASS_EF_TXT` | Type | Uniclass 2015 Elements / Functions (`EF_`) |
+| `NBS_CODE_TXT` | Type | NBS specification clause |
+| `ASSET_RFI_URL_TXT` | Instance | Asset RFI / product-data URL |
+
+They were added in `316f70375` and are bound to the same 44 model categories
+`ASS_DESCRIPTION_TXT` uses. `CSI_SECTION_TXT` / `CSI_TITLE_TXT` were bound in the same
+commit — they existed but shipped with **zero** binding rows, so `CsiAssignCommand`'s writes
+were equally swallowed.
+
+**Existing models do not get these parameters by opening the file.** A shared parameter
+only appears on a category once it has been bound into *that document*.
+
+**Until `LoadSharedParams` has been re-run on a model, every classification write is a
+no-op** — `ParameterHelpers.SetString` looks the parameter up on the element, finds nothing,
+and returns `false`. Nothing throws. The old code had exactly this shape and reported
+"Uniclass codes written to N elements" while writing none.
+
+**Migration steps, per affected project:**
+1. Open the model and run **Load Shared Parameters**.
+2. Run **Uniclass Classify**. Read the report's tail:
+   - `Types written: N` — how many element types were stamped.
+   - A per-parameter breakdown (`UNICLASS_PR_TXT: n`, `UNICLASS_SS_TXT: n`, …).
+   - `⚠ N type(s) do not carry the UNICLASS_* parameters at all` — **if this is
+     non-zero, step 1 did not take on those categories.** This line is the whole point;
+     the previous version of the command could not tell you this.
+3. Spot-check one door and one wall type. A door must hold `Pr_30_59_24` in
+   `UNICLASS_PR_TXT`, **not** in `UNICLASS_SS_TXT` — the writer now routes by table
+   prefix, and a product code appearing in the systems parameter means an old build.
+4. Confirm BOQ grouping provenance now reads `via: Uniclass.Pr` / `Uniclass.Ss` rather
+   than falling through to `Native.Family` on every row.
+
+**Note on categories.** The shipped map covers 25 of the 43 categories these parameters
+bind to; the 18 without an entry are listed by name in the header of
+`StingTools/Data/STING_UNICLASS_MAP.csv`. Those elements fall through to the reader's
+CSI → OmniClass → Native tiers, which is the pre-existing behaviour, not a regression.
+Adding them is now a **data edit** (baseline CSV, or a project override at
+`<project>/_BIM_COORD/uniclass_map.csv`) followed by **Uniclass reload map** — no rebuild.
+
+**Two map rows are knowingly inert.** `OST_StructuralColumns` and `OST_StructuralFraming`
+carry correct codes but are not in the bound 44, so their writes no-op and they will be
+counted in the ⚠ line above until the binding set is extended.
+
 ## Sign-off
 
 | Item | Result | Who | Date |
