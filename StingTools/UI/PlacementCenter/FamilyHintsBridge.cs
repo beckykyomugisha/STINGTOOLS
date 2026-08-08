@@ -159,7 +159,11 @@ namespace StingTools.UI.PlacementCenter
                         // Free-text notes + standards
                         if (TrySetString(sym, "STING_PLACEMENT_NOTES_TXT", vm.Notes       ?? "")) { writes++; any = true; }
                         if (TrySetString(sym, "STING_STANDARD_REF_TXT",    vm.StandardRef ?? "")) { writes++; any = true; }
-                        if (TrySetString(sym, "STING_UNICLASS_PR_TXT",     vm.UniclassPr  ?? "")) { writes++; any = true; }
+                        // A-2: was STING_UNICLASS_PR_TXT — a name that exists in no
+                        // parameter file, so this write silently no-opped and the
+                        // Placement Center's Uniclass hint never reached the model.
+                        // UNICLASS_PR_TXT is the name ClassificationReader reads.
+                        if (TrySetString(sym, "UNICLASS_PR_TXT",           vm.UniclassPr  ?? "")) { writes++; any = true; }
 
                         // PC-11 — clearance / weight / envelope / fire separation
                         if (extras != null)

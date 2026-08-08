@@ -137,6 +137,7 @@ namespace StingTools.UI.Modules
             registry.Register("PartLCompliance",           app => StingCommandHandler.RunCommandPublic<Temp.PartLComplianceCommand>(app));
             registry.Register("StandardsDashboard",        app => StingCommandHandler.RunCommandPublic<Temp.StandardsDashboardCommand>(app));
             registry.Register("UniclassClassify",          app => StingCommandHandler.RunCommandPublic<Temp.UniclassClassifyCommand>(app));
+            registry.Register("UniclassReloadMap",         app => StingCommandHandler.RunCommandPublic<Temp.UniclassReloadMapCommand>(app));
             registry.Register("NamingAudit",               app => StingCommandHandler.RunCommandPublic<Temp.NamingConventionAuditCommand>(app));
             registry.Register("MEPClearance",              app => StingCommandHandler.RunCommandPublic<Temp.MEPClearanceValidationCommand>(app));
             registry.Register("IFCPropertyValidation",     app => StingCommandHandler.RunCommandPublic<Temp.IFCPropertyValidationCommand>(app));

@@ -1,0 +1,71 @@
+# STING_UNICLASS_MAP.csv — Uniclass 2015 category -> code map (A-2)
+#
+# Corporate baseline. Project override: <project>/_BIM_COORD/uniclass_map.csv
+# (same columns; rows matching an existing BuiltInCategory replace the
+# baseline row, new rows extend it). Edit either file and run
+# "Uniclass reload" — no rebuild needed.
+#
+# Was a 20-entry Dictionary<BuiltInCategory,(code,desc)> hard-coded in
+# Temp/StandardsEngine.cs:338-360. Moved here so the map extends as a data
+# edit, which is the whole point: 18 of the 43 categories the UNICLASS_*
+# parameters bind to had no entry.
+#
+# COLUMNS
+#   BuiltInCategory : Revit BuiltInCategory enum name (OST_*). Enum names are
+#                     NOT localised; category display names are. Rows whose
+#                     name does not parse are skipped with a logged warning.
+#   UniclassCode    : Uniclass 2015 code. The TABLE PREFIX SELECTS THE TARGET
+#                     PARAMETER — this is not cosmetic:
+#                         Pr_  -> UNICLASS_PR_TXT   (Products)
+#                         Ss_  -> UNICLASS_SS_TXT   (Systems)
+#                         EF_  -> UNICLASS_EF_TXT   (Elements / Functions)
+#                     Any other prefix is reported as unrouted and written
+#                     nowhere, rather than being guessed into the Ss column.
+#   Description     : human label, also written to ASS_CLASS_DESC_TXT.
+#   Source          : provenance, audit only.
+#                       corporate = carried verbatim from the C# dictionary
+#                       derived   = same distribution system as the corporate
+#                                   row it is derived from (a duct fitting
+#                                   classifies to the ductwork system code),
+#                                   added because the category is bound but
+#                                   had no entry
+#
+# NOT YET MAPPED — bound to UNICLASS_* but absent here, so they fall through
+# to the reader's CSI / OmniClass / Native tiers. Each needs a real Uniclass
+# lookup rather than a guess; add them here or in a project override:
+#   Casework, Columns, Communication Devices, Curtain Panels, Curtain Systems,
+#   Curtain Wall Mullions, Data Devices, Furniture Systems, Generic Models,
+#   Medical Equipment, Nurse Call Devices, Plumbing Equipment, Railings,
+#   Ramps, Rooms, Security Devices, Specialty Equipment, Telephone Devices
+#
+# Structural Columns / Structural Framing are mapped below but the UNICLASS_*
+# parameters are NOT bound to those categories (the binding set is the 44 that
+# ASS_DESCRIPTION_TXT uses). Their writes no-op until the binding is extended.
+BuiltInCategory,UniclassCode,Description,Source
+OST_Walls,Ss_25_10,Wall systems,corporate
+OST_Floors,Ss_30_10,Floor systems,corporate
+OST_Roofs,Ss_32_10,Roof systems,corporate
+OST_Ceilings,Ss_37_10,Ceiling systems,corporate
+OST_Stairs,Ss_35_10,Stair systems,corporate
+OST_Doors,Pr_30_59_24,Doors,corporate
+OST_Windows,Pr_30_59_96,Windows,corporate
+OST_DuctCurves,Ss_55_30,Ductwork distribution,corporate
+OST_PipeCurves,Ss_45_30,Pipework distribution,corporate
+OST_MechanicalEquipment,Ss_55_40,Mechanical plant,corporate
+OST_ElectricalEquipment,Ss_60_40,Electrical plant,corporate
+OST_ElectricalFixtures,Ss_60_30,Electrical outlets,corporate
+OST_LightingFixtures,Ss_65_40,Luminaires,corporate
+OST_PlumbingFixtures,Ss_45_40,Sanitary appliances,corporate
+OST_Sprinklers,Ss_80_50,Fire suppression,corporate
+OST_Furniture,Pr_40_30,Furniture,corporate
+OST_CableTray,Ss_60_20,Cable containment,corporate
+OST_Conduit,Ss_60_20,Cable containment,corporate
+OST_StructuralColumns,Ss_20_05,Structural columns,corporate
+OST_StructuralFraming,Ss_20_10,Structural framing,corporate
+OST_DuctFitting,Ss_55_30,Ductwork distribution,derived
+OST_DuctAccessory,Ss_55_30,Ductwork distribution,derived
+OST_FlexDuctCurves,Ss_55_30,Ductwork distribution,derived
+OST_DuctTerminal,Ss_55_30,Ductwork distribution,derived
+OST_PipeFitting,Ss_45_30,Pipework distribution,derived
+OST_PipeAccessory,Ss_45_30,Pipework distribution,derived
+OST_FlexPipeCurves,Ss_45_30,Pipework distribution,derived
