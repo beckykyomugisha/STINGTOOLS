@@ -33,6 +33,10 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // G-5: batch boundary — restore the formula-failure warn allowance so
+            // this run's diagnostics are not suppressed by an earlier run's.
+            FormulaEngine.ResetWarnBudget();
+
             string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
             if (csvPath == null)
             {
@@ -813,6 +817,15 @@ namespace StingTools.Temp
         }
 
         /// <summary>
+        /// G-5 — restore the per-batch allowance of formula-failure warnings.
+        /// Call at every evaluation batch boundary. Without it the budget is a
+        /// session-lifetime counter: one model full of broken formulas exhausts
+        /// it and every subsequent run in that Revit session logs nothing, which
+        /// is the same invisible-failure problem the G-5 work set out to remove.
+        /// </summary>
+        public static void ResetWarnBudget() => ExpressionParser.ResetWarnBudget();
+
+        /// <summary>
         /// Evaluate a numeric formula using recursive descent parsing.
         /// Supports: +, -, *, /, ^, (), if(), log(), comparison operators.
         /// </summary>
@@ -1010,9 +1023,20 @@ namespace StingTools.Temp
             /// <summary>Reason for the first failure, or null.</summary>
             public string FailureReason => _failure;
 
-            // Warn budget for the whole session. These fire per element per formula,
-            // so an unguarded Warn floods StingTools.log on a batch run.
-            private static int _warnBudget = 200;
+            /// <summary>Warn allowance for ONE evaluation batch — see <see cref="_warnBudget"/>.</summary>
+            internal const int WarnBudgetPerBatch = 200;
+
+            // Failures fire per element per formula, so an unguarded Warn floods
+            // StingTools.log on a batch run — hence the budget. It is reset at each
+            // batch boundary (FormulaEngine.ResetWarnBudget, called from
+            // PostTagCleanup and FormulaEvaluatorCommand.Execute) rather than being
+            // a once-per-session allowance: as a session-lifetime counter, one messy
+            // model could exhaust it and every later run — including the one someone
+            // is actually watching the log for — would be silent.
+            private static int _warnBudget = WarnBudgetPerBatch;
+
+            internal static void ResetWarnBudget()
+                => System.Threading.Interlocked.Exchange(ref _warnBudget, WarnBudgetPerBatch);
 
             private void Fail(string reason)
             {

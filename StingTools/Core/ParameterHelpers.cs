@@ -4063,6 +4063,10 @@ namespace StingTools.Core
             // Reset read-only skip counter at batch boundary so each operation
             // gets fresh diagnostic logging (first 5 warnings + every 100th).
             ParameterHelpers.ResetReadOnlySkipCount();
+            // G-5: same reasoning for the formula-failure warn budget. Session-wide
+            // it would be spent on the first messy model and every later run would
+            // log nothing — silence being the exact failure mode G-5 removed.
+            Temp.FormulaEngine.ResetWarnBudget();
             TagConfig.CheckComplianceGate(doc, commandName);
         }
 
