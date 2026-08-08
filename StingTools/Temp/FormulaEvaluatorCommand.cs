@@ -822,6 +822,15 @@ namespace StingTools.Temp
             {
                 var parser = new ExpressionParser(expression, context);
                 double result = parser.Parse();
+
+                // G-5: the parser hit a path that cannot produce a real number
+                // (division by zero, undefined power, unknown identifier, or an
+                // unresolved function such as lookup()). Returning null makes the
+                // caller SKIP the write; returning 0 would stamp a false quantity
+                // into the model and read as a real, priced figure downstream.
+                if (parser.Failed)
+                    return null;
+
                 // Guard against NaN/Infinity from Math.Pow (e.g., 0^-1, (-1)^0.5)
                 // or pathological division chains that produce Infinity
                 if (double.IsNaN(result) || double.IsInfinity(result))
@@ -987,6 +996,41 @@ namespace StingTools.Temp
             private readonly Dictionary<string, object> _ctx;
             private int _pos;
 
+            // G-5: a formula that cannot be evaluated must NOT resolve to zero.
+            // Every path that used to substitute 0 for a failure now records the
+            // reason here; EvaluateNumeric turns a non-null reason into a null
+            // result so WriteNumericResult skips the element instead of stamping
+            // a false quantity into the model. First failure wins — it is the
+            // root cause; later ones are usually its knock-on effects.
+            private string _failure;
+
+            /// <summary>Non-null when evaluation hit a path that cannot produce a real number.</summary>
+            public bool Failed => _failure != null;
+
+            /// <summary>Reason for the first failure, or null.</summary>
+            public string FailureReason => _failure;
+
+            // Warn budget for the whole session. These fire per element per formula,
+            // so an unguarded Warn floods StingTools.log on a batch run.
+            private static int _warnBudget = 200;
+
+            private void Fail(string reason)
+            {
+                if (_failure != null) return;   // keep the first (root-cause) failure
+                _failure = reason;
+
+                int remaining = System.Threading.Interlocked.Decrement(ref _warnBudget);
+                if (remaining >= 0)
+                {
+                    string shown = _expr != null && _expr.Length > 120
+                        ? _expr.Substring(0, 120) + "…"
+                        : _expr;
+                    StingLog.Warn($"Formula not evaluated ({reason}) in: {shown}");
+                    if (remaining == 0)
+                        StingLog.Warn("Further formula-evaluation warnings suppressed for this session.");
+                }
+            }
+
             public ExpressionParser(string expr, Dictionary<string, object> ctx)
             {
                 _expr = expr;
@@ -1080,7 +1124,14 @@ namespace StingTools.Temp
                     {
                         _pos++;
                         double divisor = ParsePower();
-                        result = divisor != 0 ? result / divisor : 0;
+                        if (divisor == 0)
+                        {
+                            // G-5: was `result = 0`. A division by zero means an input
+                            // was missing or zero-valued; zero is not the answer.
+                            Fail("division by zero");
+                            result = 0;
+                        }
+                        else result /= divisor;
                     }
                     else break;
                 }
@@ -1097,7 +1148,14 @@ namespace StingTools.Temp
                     double exp = ParseUnary();
                     double powered = Math.Pow(result, exp);
                     // Guard: Math.Pow(0,-1)=Infinity, Math.Pow(-1,0.5)=NaN
-                    result = (double.IsNaN(powered) || double.IsInfinity(powered)) ? 0 : powered;
+                    // G-5: was `result = 0`, which hid the undefined result from
+                    // EvaluateNumeric's own NaN/Infinity check further up.
+                    if (double.IsNaN(powered) || double.IsInfinity(powered))
+                    {
+                        Fail($"undefined power ({result}^{exp})");
+                        result = 0;
+                    }
+                    else result = powered;
                 }
                 return result;
             }
@@ -1151,6 +1209,18 @@ namespace StingTools.Temp
                 if (ident.Equals("log", StringComparison.OrdinalIgnoreCase))
                     return ParseLog();
 
+                // G-5: an identifier immediately followed by '(' is a function call.
+                // Only if() and log() are implemented, so anything else — lookup()
+                // above all — used to evaluate to 0 AND abandon the rest of the
+                // expression, because the unconsumed argument list stops the parse.
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(')
+                {
+                    Fail($"unresolved function '{ident}()'");
+                    SkipBalancedParens();   // leave the cursor somewhere sane
+                    return 0;
+                }
+
                 // Variable lookup
                 if (_ctx.TryGetValue(ident, out object val))
                 {
@@ -1158,9 +1228,15 @@ namespace StingTools.Temp
                     if (val is string s && double.TryParse(s, NumberStyles.Any,
                         CultureInfo.InvariantCulture, out double parsed))
                         return parsed;
+
+                    // Present but not a number — a TEXT parameter used in arithmetic.
+                    Fail($"non-numeric value for '{ident}'");
+                    return 0;
                 }
 
-                return 0; // unknown variable defaults to 0
+                // G-5: was `return 0` — an unresolved input is not a zero input.
+                Fail($"unknown identifier '{ident}'");
+                return 0;
             }
 
             private double ParseNumber()
@@ -1185,6 +1261,28 @@ namespace StingTools.Temp
                 return _pos > start ? _expr.Substring(start, _pos - start) : "";
             }
 
+            /// <summary>
+            /// Consume a parenthesised argument list from the opening '(' to its match,
+            /// so an unresolved function call does not strand the cursor mid-expression.
+            /// </summary>
+            private void SkipBalancedParens()
+            {
+                if (_pos >= _expr.Length || _expr[_pos] != '(') return;
+                int depth = 0;
+                while (_pos < _expr.Length)
+                {
+                    char c = _expr[_pos];
+                    if (c == '"') { SkipString(); continue; }
+                    if (c == '(') depth++;
+                    else if (c == ')')
+                    {
+                        depth--;
+                        if (depth == 0) { _pos++; return; }
+                    }
+                    _pos++;
+                }
+            }
+
             private void SkipString()
             {
                 _pos++; // skip opening quote
@@ -1205,17 +1303,31 @@ namespace StingTools.Temp
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
 
+                // G-5: both branches are parsed (the cursor has to cross them), but
+                // if() is logically lazy — only the branch actually returned may
+                // fail the formula. Without this, a divide-by-zero in the discarded
+                // branch would void a result the model is entitled to.
+                string failureBefore = _failure;
+
                 double trueVal = ParseComparison();
+                string failureTrue = _failure;
+                _failure = failureBefore;
 
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
 
                 double falseVal = ParseComparison();
+                string failureFalse = _failure;
+                _failure = failureBefore;
 
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
 
-                return condition != 0 ? trueVal : falseVal;
+                bool takeTrue = condition != 0;
+                string takenFailure = takeTrue ? failureTrue : failureFalse;
+                if (takenFailure != null) _failure = takenFailure;
+
+                return takeTrue ? trueVal : falseVal;
             }
 
             private double ParseIfCondition()
