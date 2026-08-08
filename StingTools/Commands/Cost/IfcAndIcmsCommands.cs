@@ -53,27 +53,47 @@ namespace StingTools.Commands.Cost
                     t.Commit();
                 }
 
-                // H-1 — do not promise the next export will carry quantities when
-                // not one parameter accepted a value.
-                if (tally.WroteNothing)
+                // H-1 — do not promise the next export will carry quantities unless
+                // a QUANTITY actually landed. Gating on parameters-of-any-kind would
+                // pass the commonest broken configuration: Pset_StingCost.* bound
+                // (they ship with the STING parameter load) and the IFC-standard
+                // Qto_* names not — and Pset_StingCost.Currency is a hardcoded
+                // non-empty string, so it alone satisfies a combined gate.
+                if (tally.WroteNoQuantities)
                 {
-                    StingLog.Error($"Cost_StampIfcQuantities: {tally.ElementsVisited} element(s) visited, 0 parameters written.", null);
-                    StingResultPanel.Create("Stamp IFC Qto")
-                        .AddSection("NOTHING WRITTEN")
+                    StingLog.Error($"Cost_StampIfcQuantities: {tally.ElementsVisited} element(s) visited, " +
+                                   $"{tally.ParametersWritten} parameter(s) written, 0 quantities.", null);
+
+                    var fail = StingResultPanel.Create("Stamp IFC Qto")
+                        .AddSection(tally.WroteNothing ? "NOTHING WRITTEN" : "NO QUANTITIES WRITTEN")
                         .Metric("Elements visited", tally.ElementsVisited.ToString())
-                        .Metric("Parameters written", "0")
-                        .Text("Not one Qto_*/Pset_StingCost parameter accepted a value, so an IFC exported now " +
-                              "would carry no quantities. These are shared parameters and must be bound first — " +
-                              "run the shared-parameter load (SETUP → Load shared parameters), then re-run.")
-                        .Show();
+                        .MetricError("Quantities written", "0", "Qto_*BaseQuantities — nothing landed")
+                        .Metric("Parameters written", tally.ParametersWritten.ToString(), "all families");
+
+                    if (tally.WroteNothing)
+                        fail.Text("Not one Qto_*/Pset_StingCost parameter accepted a value, so an IFC exported now " +
+                                  "would carry no quantities and no cost. These are shared parameters and must be " +
+                                  "bound first — run the shared-parameter load (SETUP → Load shared parameters), " +
+                                  "then re-run.");
+                    else
+                        fail.Text($"Cost and material data was written ({tally.ParametersWritten} parameter(s) across " +
+                                  $"{tally.ElementsWritten} element(s)) but zero Qto_*BaseQuantities values. An IFC " +
+                                  "exported now would carry cost against no measured quantities — worse than an " +
+                                  "empty file, because it looks priced. The Pset_StingCost parameters are bound; " +
+                                  "the IFC-standard Qto_* ones are not, and they are not part of the standard STING " +
+                                  "parameter load — add Qto_WallBaseQuantities.NetArea and its siblings to the " +
+                                  "shared-parameter file, bind them to the relevant categories, then re-run.");
+
+                    fail.Show();
                     return Result.Failed;
                 }
 
                 StingResultPanel.Create("Stamp IFC Qto")
                     .AddSection("RESULT")
                     .Metric("Elements visited", tally.ElementsVisited.ToString(), "BOQ rows resolved to a live element")
+                    .Metric("Quantities written", tally.QuantitiesWritten.ToString(), "IFC4 Qto_*BaseQuantities")
                     .Metric("Parameters written", $"{tally.ParametersWritten} (across {tally.ElementsWritten} element(s))",
-                            "IFC4 Qto_* + Pset_StingCost")
+                            "all families: Qto_* + Pset_StingCost + material psets")
                     .Text("The next IFC export will carry quantity + cost data so Cost-X, CostOS, " +
                           "Candy and Bluebeam Revu can ingest without re-measuring.")
                     .Show();

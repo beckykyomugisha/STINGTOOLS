@@ -92,13 +92,32 @@ namespace StingTools.BOQ
             // pre-bound; unbound, every write is a silent no-op. Exporting anyway
             // hands the QS a file that Cost-X will read as having no quantities,
             // with a success message on screen. Stop here instead.
-            if (tally.WroteNothing)
+            //
+            // The gate is QUANTITIES, not parameters-of-any-kind. Gating on the
+            // combined count would let the commonest broken configuration through:
+            // Pset_StingCost.* are STING's own shared parameters and are bound as a
+            // matter of course, while the IFC-standard Qto_* names must be added
+            // deliberately — and Pset_StingCost.Currency is a hardcoded non-empty
+            // string, so it alone would satisfy a combined gate on every element.
+            if (tally.WroteNoQuantities)
             {
-                StingLog.Error($"BOQExportIfcQtoCommand: {tally.ElementsVisited} element(s) visited, 0 parameters written — aborting export.", null);
-                message = $"No quantities were written. {tally.ElementsVisited} element(s) were visited but not one " +
-                          "Qto_*/Pset_* parameter accepted a value, so the exported IFC would carry no quantities " +
-                          "at all. The Qto_*/Pset_StingCost shared parameters are not bound in this project — run " +
-                          "the shared-parameter load (SETUP → Load shared parameters), then re-run this export.";
+                StingLog.Error($"BOQExportIfcQtoCommand: {tally.ElementsVisited} element(s) visited, " +
+                               $"{tally.ParametersWritten} parameter(s) written, 0 quantities — aborting export.", null);
+
+                message = tally.WroteNothing
+                    // Nothing bound at all — no quantities AND no cost.
+                    ? $"Nothing was written. {tally.ElementsVisited} element(s) were visited but not one " +
+                      "Qto_*/Pset_StingCost parameter accepted a value, so the exported IFC would carry no " +
+                      "quantities and no cost. Neither family is bound in this project — run the shared-parameter " +
+                      "load (SETUP → Load shared parameters), then re-run this export."
+                    // Cost bound, quantities not — a different problem, different fix.
+                    : $"No quantities were written. {tally.ParametersWritten} cost/material parameter(s) were " +
+                      $"written across {tally.ElementsWritten} element(s), but zero Qto_*BaseQuantities values — so " +
+                      "the exported IFC would carry cost data against no measured quantities, which is worse than " +
+                      "an empty file because it looks priced. The Pset_StingCost parameters are bound; the " +
+                      "IFC-standard Qto_* ones are not, and they are not part of the standard STING parameter load " +
+                      "— they must be added to the shared-parameter file and bound to the relevant categories " +
+                      "(Qto_WallBaseQuantities.NetArea and siblings). Add them, then re-run this export.";
                 return Result.Failed;
             }
 
@@ -145,12 +164,14 @@ namespace StingTools.BOQ
             rp.SetSubtitle($"IFC4 written: {path}");
             rp.AddSection("DETAILS")
                  .Metric("Schema",            "IFC4 + base quantities")
-                 // H-1 — report both. "Visited" is how many BOQ rows resolved to a
-                 // live element; "written" is how many parameters actually took a
-                 // value. They are different numbers and only the second one means
-                 // the IFC carries anything.
-                 .Metric("Elements visited",  tally.ElementsVisited.ToString())
-                 .Metric("Parameters written", $"{tally.ParametersWritten} (across {tally.ElementsWritten} element(s))")
+                 // H-1 — report all three. "Visited" is how many BOQ rows resolved to
+                 // a live element; "quantities" is the deliverable; "parameters" is
+                 // every write of any family. Only the middle one means the IFC
+                 // carries measurable quantities.
+                 .Metric("Elements visited",   tally.ElementsVisited.ToString())
+                 .Metric("Quantities written", tally.QuantitiesWritten.ToString(), "Qto_*BaseQuantities — the estimator feed")
+                 .Metric("Parameters written", $"{tally.ParametersWritten} (across {tally.ElementsWritten} element(s))",
+                         "all families: Qto_* + Pset_StingCost + material psets")
                  .Metric("Quantities",        "Qto_*BaseQuantities (Revit-computed)")
                  .Metric("Cost / class",      "Pset_StingCost (UnitRate, NRM2Section, …)");
             rp.AddSection("NEXT STEPS")

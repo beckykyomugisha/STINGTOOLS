@@ -62,11 +62,29 @@ namespace StingTools.BOQ
         /// <summary>Elements where at least one parameter actually took a value.</summary>
         public int ElementsWritten;
 
-        /// <summary>Individual parameter writes that landed.</summary>
+        /// <summary>Individual parameter writes that landed, of every kind.</summary>
         public int ParametersWritten;
 
-        /// <summary>True when the run produced no model change at all.</summary>
+        /// <summary>
+        /// Qto_*BaseQuantities writes ONLY — the actual deliverable of this command.
+        /// Counted separately because the two parameter families have very different
+        /// odds of being bound. Pset_StingCost.* are STING's own shared parameters,
+        /// bound as a matter of course by LoadSharedParams; the Qto_* names are
+        /// IFC-standard and must be added deliberately. The likeliest field
+        /// configuration is therefore "Pset bound, Qto not" — which a combined
+        /// counter reads as success while the IFC carries no quantities at all.
+        /// </summary>
+        public int QuantitiesWritten;
+
+        /// <summary>True when the run produced no model change whatsoever.</summary>
         public bool WroteNothing => ParametersWritten == 0;
+
+        /// <summary>
+        /// True when no IFC quantity landed. This — not <see cref="WroteNothing"/> —
+        /// is the export gate: an IFC with cost data and zero quantities is the
+        /// defect this whole change exists to prevent.
+        /// </summary>
+        public bool WroteNoQuantities => QuantitiesWritten == 0;
     }
 
     internal static class IfcQuantitySetWriter
@@ -88,7 +106,8 @@ namespace StingTools.BOQ
                     var el = doc.GetElement(new ElementId(item.RevitElementId));
                     if (el == null) continue;
                     tally.ElementsVisited++;
-                    int wroteHere = 0;
+                    int wroteHere = 0;   // any parameter family
+                    int qtyHere   = 0;   // Qto_* only — see IfcStampTally.QuantitiesWritten
 
                     // IFC4 Qto_*  fields per category. Only set the ones
                     // we can compute from BOQLineItem.
@@ -108,32 +127,35 @@ namespace StingTools.BOQ
                         // when no gross was captured (legacy/aggregated rows).
                         double q = item.Quantity;                                   // net
                         double g = item.GrossQuantity > 0 ? item.GrossQuantity : q;  // gross
+                        // Every StampQuantity below is an IFC quantity, so it feeds
+                        // qtyHere as well as the all-families wroteHere.
                         if (u == "m2")
                         {
-                            if (StampQuantity(el, qtoSetName, "GrossArea", g)) wroteHere++;
-                            if (StampQuantity(el, qtoSetName, "NetArea",   q)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "GrossArea", g)) qtyHere++;
+                            if (StampQuantity(el, qtoSetName, "NetArea",   q)) qtyHere++;
                         }
                         else if (u == "m3")
                         {
-                            if (StampQuantity(el, qtoSetName, "GrossVolume", g)) wroteHere++;
-                            if (StampQuantity(el, qtoSetName, "NetVolume",   q)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "GrossVolume", g)) qtyHere++;
+                            if (StampQuantity(el, qtoSetName, "NetVolume",   q)) qtyHere++;
                         }
                         else if (u == "m")
                         {
-                            if (StampQuantity(el, qtoSetName, "Length", q)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "Length", q)) qtyHere++;
                         }
                         else if (u == "kg")
                         {
-                            if (StampQuantity(el, qtoSetName, "GrossWeight", g)) wroteHere++;
-                            if (StampQuantity(el, qtoSetName, "NetWeight",   q)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "GrossWeight", g)) qtyHere++;
+                            if (StampQuantity(el, qtoSetName, "NetWeight",   q)) qtyHere++;
                         }
                         else if (u == "each")
                         {
                             // Count is integer-valued in IFC Qto sets but our
                             // params are typically Double/String — StampQuantity
                             // handles both storage types.
-                            if (StampQuantity(el, qtoSetName, "Count", q)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "Count", q)) qtyHere++;
                         }
+                        wroteHere += qtyHere;
                     }
 
                     // STING-specific cost property set.
@@ -158,17 +180,26 @@ namespace StingTools.BOQ
                         tally.ElementsWritten++;
                         tally.ParametersWritten += wroteHere;
                     }
+                    tally.QuantitiesWritten += qtyHere;
                 }
                 catch (Exception ex) { StingLog.Warn($"IfcQuantitySetWriter on {item.RevitElementId}: {ex.Message}"); }
             }
 
             if (tally.WroteNothing)
                 StingLog.Warn($"IfcQuantitySetWriter: visited {tally.ElementsVisited} element(s) and wrote NOTHING — " +
-                              "the Qto_*/Pset_* shared parameters are not bound in this project, so an IFC exported " +
-                              "now will carry no quantities. Load the shared parameters and re-run.");
+                              "neither the Qto_* nor the Pset_StingCost shared parameters are bound in this project, " +
+                              "so an IFC exported now will carry no quantities and no cost. Load the shared " +
+                              "parameters and re-run.");
+            else if (tally.WroteNoQuantities)
+                StingLog.Warn($"IfcQuantitySetWriter: visited {tally.ElementsVisited} element(s) and wrote " +
+                              $"{tally.ParametersWritten} parameter(s), but ZERO IFC quantities. The Pset_StingCost " +
+                              "parameters are bound and the Qto_*BaseQuantities ones are not, so an IFC exported now " +
+                              "would carry cost data against no measured quantities — the exact shape of deliverable " +
+                              "this command exists to prevent. Add the Qto_* shared parameters and re-run.");
             else
-                StingLog.Info($"IfcQuantitySetWriter: visited {tally.ElementsVisited} element(s); " +
-                              $"wrote {tally.ParametersWritten} parameter(s) across {tally.ElementsWritten} element(s).");
+                StingLog.Info($"IfcQuantitySetWriter: visited {tally.ElementsVisited} element(s); wrote " +
+                              $"{tally.QuantitiesWritten} quantity + {tally.ParametersWritten} total parameter(s) " +
+                              $"across {tally.ElementsWritten} element(s).");
             return tally;
         }
 
