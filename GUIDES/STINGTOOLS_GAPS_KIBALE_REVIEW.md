@@ -27,6 +27,42 @@
 > any closed entry, work through
 > [`docs/KIBALE_REVIT_VERIFICATION.md`](../docs/KIBALE_REVIT_VERIFICATION.md).
 
+## Standing practice — measure the data, do not reason from the code's assumptions about it
+
+**Every wrong call in this batch was wrong because someone described the data instead of
+counting it — and every one was caught the same way, by counting it.** Four times, in a
+single batch, on entries that had already been reviewed:
+
+| Claim | What the data said | Cost if it had shipped |
+|---|---|---|
+| G-13's draft used `GetProperty(...) == 0` as "not found" | `GetProperty` collapses *absent* and *legitimately zero*; **8 true zeros exist**, 6 reachable through the exact columns these formulas read | A C10 blinding pour's steel formula fails and — composed with G-5 — **skips a write whose correct answer is zero**, inverting G-5 on those rows |
+| G-3 was "33 formulas" | 33 is the **post-drop** count. G-6 was silently dropping 32 rows; the real surface is **65 of 112** | An evaluator built and signed off against half the surface |
+| G-4 was "one caller in eight" of 18 call sites | 15 of the 18 are Revit's own `UnitUtils`, 1 the definition, 1 a log string, 1 a doc comment — **exactly one real call site** | Time spent auditing 17 sites that were never involved |
+| **G-3's condition shapes were "0 string comparisons" — my own measurement, and it was wrong** | The regex looked for `= "` and **missed `<>` entirely**. Of 265 conditions, **200 are `PARAM <> ""`**, which `EvaluateNumeric` cannot evaluate (`ParseComparison` has `<= >= < > =`, no `<>`) | **The proposed TextExpressionParser would have failed 42 of the 65 formulas.** Caught only by simulating against the real data *before* committing |
+
+The last row is the one worth keeping. It was nobody's review failure — the design was
+agreed, the reasoning was sound, and it was wrong. Nothing but running it against the
+shipped file would have found it, and running it *after* committing would have found it in
+a Revit session with a QS waiting.
+
+### The pattern to copy: how `lookup()` (G-13) was verified
+
+Before a line was written:
+
+1. **Enumerate every call against the shipped data.** All 29 `lookup()` calls extracted
+   from `FORMULAS_WITH_DEPENDENCIES.csv` and each table/column checked against
+   `MATERIAL_LOOKUP.csv` — zero missing tables, zero missing columns.
+2. **Rebuild the registry's own key scheme**, rather than assuming it —
+   `"CAT TypeKey"`, `"CAT:TypeKey"`, bare TypeKey when globally unique, bare Category for
+   the `DEFAULT` row.
+3. **Simulate the exact resolution order under the worst cases** — key present but empty,
+   and key absent entirely. All 29 resolved; zero failures.
+4. **Only then commit.**
+
+Steps 1–3 cost minutes and are why G-13 landed without a correction while three entries
+around it needed one. Apply the same to anything data-driven: a claim about a data file is
+a hypothesis until it has been counted.
+
 ### Status index
 
 | Entry | Sev | Status | Closing commit |
@@ -66,8 +102,8 @@
 | F-9 the SpatialCodeRegistry fix | — | open | |
 | G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
 | G-2 CSV reader destroys quoted literals | P0 | **closed** | `20e84ba50` — re-scoped: 98.6 % of impact is tag config |
-| G-3 TEXT path has no `if()` | P0 | **closed** | `<pending>` — TextExpressionParser; 65 of 112 |
-| G-4 unit conversion, one caller in eight | P0 | open — **decision required** | |
+| G-3 TEXT path has no `if()` | P0 | **closed** | `74f8cee84` — TextExpressionParser; 65 of 112 |
+| G-4 unit conversion, one real call site | P0 | **closed** | `<pending>` — conversion deleted; migration, see verification doc |
 | G-5 nothing fails loudly | P0 | **closed** | `5ee46d27c` `5d7443105` |
 | G-6 32 rows silently dropped | P1 | **closed** | `cd1fc03a9` — guard now logs; 32 rows repaired to 12 columns |
 | G-7 `MULTI` formulas never fire | P1 | open | |
