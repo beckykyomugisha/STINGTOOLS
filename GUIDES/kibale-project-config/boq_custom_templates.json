@@ -1,0 +1,118 @@
+[
+  {
+    "id": "kbl-wall-block-rendered",
+    "category": "Walls",
+    "nrm2_section": "14",
+    "paragraph": "[material] walling in [element_type], bedded and jointed in cement mortar (1:4), to [location]; including all bonding, reinforcement, movement joints and [fixings]; rendered both faces in cement-sand (1:4) and finished to [standard].",
+    "placeholders": ["material", "element_type", "location", "fixings", "standard"],
+    "source": "project",
+    "version": 1,
+    "notes": "Kibale NP. Replaces the generic wall template so the bill reads as a Ugandan blockwork description rather than a UK cavity-wall one."
+  },
+  {
+    "id": "kbl-wall-retaining",
+    "category": "Walls",
+    "nrm2_section": "5",
+    "paragraph": "Reinforced concrete retaining wall, [element_type], to [location]; including formwork to both faces, reinforcement, construction joints, granular drainage layer, weepholes and tanking to the retained face; concrete [concrete_spec].",
+    "placeholders": ["element_type", "location", "concrete_spec"],
+    "source": "project",
+    "version": 1,
+    "notes": "The 27.75 m fall makes retaining a major measured item; it must not read as ordinary walling."
+  },
+  {
+    "id": "kbl-floor-slab",
+    "category": "Floors",
+    "nrm2_section": "5",
+    "paragraph": "Reinforced concrete ground slab [element_type] to [location]; laid on compacted hardcore filling blinded with sand, on 1000 gauge damp-proof membrane; including formwork to edges, reinforcement and power-float finish; concrete [concrete_spec].",
+    "placeholders": ["element_type", "location", "concrete_spec"],
+    "source": "project",
+    "version": 1
+  },
+  {
+    "id": "kbl-floor-screed",
+    "category": "Floors",
+    "nrm2_section": "21",
+    "paragraph": "Cement and sand screed (1:4), [element_type] thick, to [location]; laid on prepared concrete base, levelled and laid to falls where indicated, floated to receive [finish].",
+    "placeholders": ["element_type", "location", "finish"],
+    "source": "project",
+    "version": 1,
+    "notes": "Screed has no parameter, no formula and no corporate template anywhere in STINGTOOLS. This template and the kbl-floor-screed takeoff rule are the only route it has into the bill."
+  },
+  {
+    "id": "kbl-floor-finish-parquet",
+    "category": "Floors",
+    "nrm2_section": "21",
+    "paragraph": "[material] flooring to [location]; laid on prepared screed in approved adhesive, including all cutting, borders, thresholds and beads; sanded, sealed and finished to [standard].",
+    "placeholders": ["material", "location", "standard"],
+    "source": "project",
+    "version": 1,
+    "notes": "Covers the 'timber panquette ff' annotation on the architect's plans. Confirm the spelling with the architect — RFI-01."
+  },
+  {
+    "id": "kbl-roof-thatch",
+    "category": "Roofs",
+    "nrm2_section": "17",
+    "paragraph": "Makuti thatch roof covering, [element_type] thick, to [location]; laid to falls on treated timber purlins at centres as detailed, including ridging, eaves dressing, verge treatment, tying and all fixings; complete to [standard].",
+    "placeholders": ["element_type", "location", "standard"],
+    "source": "project",
+    "version": 1,
+    "notes": "Pending RFI-03 — the roof design does not exist in the information issued. Revise once it does."
+  },
+  {
+    "id": "kbl-roof-sheet",
+    "category": "Roofs",
+    "nrm2_section": "17",
+    "paragraph": "[material] roof sheeting to [location]; fixed to timber purlins with approved fixings and washers, including ridge, barge and eaves flashings, laps and sealants; complete to [standard].",
+    "placeholders": ["material", "location", "standard"],
+    "source": "project",
+    "version": 1,
+    "notes": "Alternative to thatch. The library names iron sheets by gauge — IRON SHEET 28 GAUGE 0.9MM — which reads correctly in a Ugandan bill."
+  },
+  {
+    "id": "kbl-ceiling-timber",
+    "category": "Ceilings",
+    "nrm2_section": "19",
+    "paragraph": "[material] ceiling to [location]; fixed to treated timber brandering at centres as detailed, including all trims, cornices and access panels; finished to [standard].",
+    "placeholders": ["material", "location", "standard"],
+    "source": "project",
+    "version": 1
+  },
+  {
+    "id": "kbl-door",
+    "category": "Doors",
+    "nrm2_section": "20",
+    "paragraph": "[door_type] door, [element_type], to [location]; including frame, architraves, ironmongery, and all fixings; hung, adjusted and finished to [standard].",
+    "placeholders": ["door_type", "element_type", "location", "standard"],
+    "source": "project",
+    "version": 1,
+    "notes": "door_type resolves from the type name, so name the types DR-D2-PVO-900x2100 and the architect's own code carries straight into the bill."
+  },
+  {
+    "id": "kbl-window",
+    "category": "Windows",
+    "nrm2_section": "20",
+    "paragraph": "[window_type] window, [element_type], to [location]; including frame, glazing [glass_spec], ironmongery, sills and all fixings; fitted, adjusted and finished to [standard].",
+    "placeholders": ["window_type", "element_type", "location", "glass_spec", "standard"],
+    "source": "project",
+    "version": 1
+  },
+  {
+    "id": "kbl-sanitary",
+    "category": "Plumbing Fixtures",
+    "nrm2_section": "32",
+    "paragraph": "[manufacturer] [model] [element_type] to [location]; including all brackets, fixings, traps, waste and supply connections; jointed to services, tested and left in working order; complete to [standard].",
+    "placeholders": ["manufacturer", "model", "element_type", "location", "standard"],
+    "source": "project",
+    "version": 1
+  },
+  {
+    "id": "kbl-earthworks",
+    "category": "Toposolid",
+    "nrm2_section": "3",
+    "paragraph": "Site formation to [location]; excavate to reduce levels, cart away surplus, and deposit, level and compact fill in layers not exceeding 225 mm to form platforms as detailed; including all trimming of slopes and temporary support.",
+    "placeholders": ["location"],
+    "source": "project",
+    "version": 1,
+    "notes": "Bulk earthworks on a 27.75 m fall. Reconcile the modelled volume against the graded-region Cut/Fill schedule before issue — nothing in STINGTOOLS reads those properties (gap B-2)."
+  }
+]

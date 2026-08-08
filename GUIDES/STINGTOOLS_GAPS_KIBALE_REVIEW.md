@@ -429,6 +429,85 @@ The library uses `Generic` for terrazzo, clay roof tiles, mineral-fibre ceiling 
 - **Two overlapping block families** price at **UGX 2,220** (`04_WALLS`, per block) and **UGX 96,200–125,800** (`09_WALL_CORES`, per m²) — and **nothing in the schema records the unit**. `MaterialNameCache` will pick whichever it finds first.
 - `SOURCE_SHEET` (col 0) is entirely unconsumed; `MAT_THICKNESS_INCH` duplicates `MAT_THICKNESS_MM`.
 
+## E-1b · 🔴 P0 · The UGX column is derived, not independent — which changes the fix
+
+Measured across all 1,279 rows:
+
+| File | Rows | UGX ÷ USD |
+|---|---|---|
+| `BLE_MATERIALS.csv` | 815 | **3700.0 on every single row** |
+| `MEP_MATERIALS.csv` | 464 | 3700.0 on 441; 3750.0 on 16; 3722.2 on 7 (rounding) |
+
+**`MAT_COST_UNIT_UGX` carries no independent information.** It is `MAT_COST_UNIT_USD × 3700`, baked in at authoring time.
+
+This overturns the fix I first recommended. Switching `MaterialCommands.cs:378` to read the UGX column would hard-wire a stale 2026 exchange rate into every material in the library, permanently, and the value would silently drift wrong as the shilling moves.
+
+**The correct fix is the other one:** the library's real price is **USD**. Label it honestly and let the FX layer convert.
+
+```csharp
+// BOQ/Rates/MaterialLibraryRateProvider.cs:54-60
+UnitRate = v,
+CurrencyCode = "USD",        // was "UGX"
+```
+
+`UGX_PER_USD` already exists as a config key (`BOQCostManager.cs:700-704`, default 3700) and the registry already rebases currencies. One word, and the whole library re-prices correctly and follows the rate.
+
+The `MAT_COST_UNIT_UGX` column then becomes a derived convenience field. Either regenerate it whenever the FX changes, or delete it — but do not let two prices that can disagree sit side by side in the same row.
+
+**Caveat that must be settled first:** the CA-1 comment is not wrong for its own case. A human editing `ALL_MODEL_COST` in Revit's material browser genuinely does type project-base currency. So the provider cannot distinguish "typed by a human in UGX" from "loaded from the CSV in USD". The clean answer is to stop overloading `ALL_MODEL_COST` and stamp a dedicated `STING_MAT_RATE_USD` + `STING_MAT_RATE_CCY` pair at material creation, leaving `ALL_MODEL_COST` to the human. See E-12.
+
+## E-10 · 🔴 P0 · A quarter of the library resolves carbon at the flat default
+
+Cross-referencing every material name and class against `STING_CARBON_FACTORS_UG.json`:
+
+- **705 of 1,279 rows (55 %) match no `byKeyword` entry at all** — they depend entirely on the class tier.
+- **302 of 1,279 (23.6 %) match neither a keyword nor a valid class**, so they resolve at `defaultPerM3 = 200`, flagged `uganda-edge:default`.
+
+By class, the 302 break down as: `Generic` 179 · `Ceiling` 46 · `Paint` 33 · `Flooring` 25 · `Fabric` 6 · `Lining` 6 · `Plaster` 4 · `Carpet` 3.
+
+## E-11 · 🔴 P0 · Seven identity-class values are not valid carbon keys — and `Generic` is the single largest class
+
+Full distribution of `BLE_APP-IDENTITY-CLASS`:
+
+| BLE (815) | | MEP (464) | |
+|---|---|---|---|
+| **Generic** | **253** | Metal | 225 |
+| Masonry | 78 | **Generic** | **120** |
+| Concrete | 76 | Plastic | 87 |
+| Wood | 72 | Glass | 14 |
+| Ceiling | 69 | Insulation | 10 |
+| Metal | 66 | **Lining** | **7** |
+| Paint | 56 | Masonry | 1 |
+| Flooring | 55 | | |
+| Plaster | 25 | | |
+| Insulation | 22 | | |
+| Plastic | 20 | | |
+| Glass | 12 | | |
+| Fabric | 6 | | |
+| Carpet | 5 | | |
+
+**`Generic` is 373 of 1,279 rows — 29 % of the whole library.** Every one of them bills as *"Supply and fix **generic** walls"* (`BOQCostManager.cs:1329-1332`) and resolves no carbon class.
+
+Nine values — `Generic`, `Ceiling`, `Paint`, `Flooring`, `Plaster`, `Fabric`, `Carpet`, `Lining` — are **not keys in `byMaterialClass`**, and several are not valid Revit `MaterialClass` values either. `Ceiling` and `Flooring` are *element types*, not materials; they belong in `MAT_ELEMENT_TYPE`, which already exists and already carries `A-CLG` / `A-FLR`.
+
+**Fix:** normalise the nine to the twelve valid classes (`Concrete, Metal, Wood, Masonry, Glass, Plastic, Insulation, Gypsum, Ceramic, Stone, Liquid, Earth`). `STING_MATERIAL_CLASS_NORMALISER.csv` already exists to do exactly this and is **not applied** on the description path.
+
+## E-12 · 🟠 P1 · A third of the library has no density and no carbon figure
+
+**438 of 1,279 rows (34 %) have `PROP_DENSITY_KG_M3 = 0` and `PROP_CARBON_KG_M3 = 0`** — 318 in BLE, 120 in MEP, the same rows in both columns.
+
+No density means no mass take-off (`BOQCostManager.cs:1821` resolves density for kg-based lines). No carbon means the value that *would* feed `STING_EMB_CARBON_NR` — once someone wires it (E-2) — is zero anyway.
+
+**Good news alongside it:** `MAT_NAME` is **unique across all 1,279 rows**, case-insensitively, with zero cross-file collisions. The primary key is sound, which is what makes the `byMaterial` exact-match tier viable.
+
+## E-13 · 🟠 P1 · Cost has no unit, and cannot be given one
+
+There is no unit column anywhere in the 72. `MAT_COST_UNIT_USD` is a number with no denominator. The 815 BLE rows span `A-FIN` (404), `A-FLR` (95), `A-RF` (89), `A-CLG` (81), `A-BLK` (54), `A-STR` (51) — which in practice means per-m², per-m³, per-block and per-item prices sitting in the same column, indistinguishable.
+
+This is why the two block families price at UGX 2,220 and UGX 96,200 — one is per block, the other per m² — and nothing records which is which.
+
+**A rate without a unit is not a rate.** Add `MAT_COST_UNIT_OF_MEASURE` to the schema and populate it before anyone relies on library pricing.
+
 ## E-9 · 🟡 P2 · East African materials that do not exist in the library
 
 Zero hits anywhere in `StingTools/Data/`: **murram · makuti · thatch · eucalyptus · maxpan · sisal · papyrus**. `hardcore` exists as a waste keyword (`WasteTable.cs:77`) and two parameters (`CST_S_EAR_HARDCORE_*`) but has **no material row and no rate**. `mvule` appears exactly once, in a `MAT_SPECIFICATIONS` free-text field (`BLE_MATERIALS.csv:406`), not as a material.
@@ -587,3 +666,220 @@ For a lodge whose floor finishes are the product being sold, this is the gap tha
 8. Settle the Type-vs-Instance binding question and make the two binders agree.
 9. Add screed and skirting parameters and formulas.
 10. Correct the stale counts in `MasterSetupCommand.cs:203-204` and the four other places (199 → the real number).
+
+---
+
+# Part H — Export, reachability, tests and metrics
+
+Findings from a second sweep over areas the first four audits did not cover.
+
+## H-1 · 🔴 P0 · The IFC quantity writer reports success having written nothing
+
+`BOQ/IfcQuantitySetWriter.cs:158-194` — all four stamp helpers share this shape:
+
+```csharp
+Parameter par = el.LookupParameter(p);
+if (par == null || par.IsReadOnly) return;   // silent
+```
+
+`Qto_WallBaseQuantities.NetArea` and its siblings are **shared parameters that must be pre-bound**. Unbound, every write is a no-op. Meanwhile at `:127`:
+
+```csharp
+StingTools.UI.IfcMaterialPsetWriter.Stamp(el, item);
+stamped++;                                    // unconditional
+```
+
+`stamped++` counts *"I visited this element"*, not *"I wrote something"* — and that count is surfaced verbatim: `BOQ/BOQExportIfcQtoCommand.cs:133` → `.Metric("Elements stamped", stamped.ToString())`.
+
+**So the command can report "Elements stamped: 4,812", the user exports IFC believing Cost-X or CostOS will read the quantities, and the file carries zero `Qto_*` values.** Nothing checks that even one parameter resolved. This is the most consequential single finding in the sweep.
+
+## H-2 · 🔴 P0 · Currency is hardcoded in the IFC and ERP exports, and can contradict the rate
+
+`BOQ/IfcQuantitySetWriter.cs:115` — `StampString(el, "Pset_StingCost", "Currency", "UGX");`
+`BOQ/BoqErpExporter.cs:79, 98` — `new XElement("Currency", "UGX")`
+
+A configurable currency exists and is honoured elsewhere (`BOQModels.cs:355`, `BOQTenderConfig.cs:71`, `BOQSupportCommands.cs:850`). These three ignore it. And `BcisHttpRateProvider.cs:98,128` returns rates defaulting to **GBP** — so a BCIS-priced bill exports an IFC whose `UnitRate` is in GBP and whose `Currency` field says **UGX**. Silently wrong figures in a machine-read cost deliverable.
+
+## H-3 · 🔴 P0 · Readiness gates report 100 % on an empty bill
+
+`BOQ/BOQSupportCommands.cs:94` and `:231`:
+
+```csharp
+double pricedPct = total > 0 ? 100.0 * pricedCount / total : 100.0;
+double epdPct    = total > 0 ? 100.0 * verifiedRows / total : 100.0;
+```
+
+The zero-denominator branch returns a **perfect score**, not "unknown". A BOQ that produced zero rows — which gap A-1 makes a live scenario — reports **"100 % priced"** and **"100 % EPD-verified"** to the QS.
+
+Same at `Core/ComplianceScan.cs:79` (`SchemeCoveragePct`), where the XML comment documents it as intent.
+
+The codebase is inconsistent about this: `ComplianceScan.cs:70,103,106,110` and `BOQModels.cs:423` all correctly return **0** on a zero denominator. The three sites that chose 100 are the three most decision-bearing.
+
+## H-4 · 🔴 P0 · A swallowed sheet-name write, next to a reported sheet-number write
+
+`Core/Mep/MepLevelViewProducer.cs:162-163`:
+
+```csharp
+try { sheet.SheetNumber = number; } catch (Exception ex) { warnings.Add($"…sheet number: {ex.Message}"); }
+try { sheet.Name = Substitute(namPat, disc, levelCode, seq); } catch { }
+```
+
+A number collision is reported. A name failure on the very next line is discarded. **The sheet ships to the CDE named `Unnamed` and the run reports success.**
+
+Nine further swallowed *writes* (not benign optional reads) — `Core/Mep/MepCircuitBuilder.cs:237-241` (four consecutive parameter writes, and it is the **sole writer of `MEP_SYS_NAME`**), `Core/Mep/MepCrossStampOrchestrator.cs:88,132`, `Core/Fabrication/ShopDrawingComposer.cs:504`, `Core/Drawing/SheetPlacementBridge.cs:437,452`, `Core/Drawing/ViewStylePackApplier.cs:129`, `Core/Drawing/AnnotationRunner.cs:1196`, `Core/FamilySymbolAuthor.cs:1741`.
+
+Of 712 `catch {}` sites, no *transaction commit* is swallowed — the exposure is partial writes inside an outer transaction, which is why the failure mode is a half-written model rather than a lost one.
+
+## H-5 · 🔴 P0 · ~232 deserialization sites, no schema, syntax-only CI
+
+`grep JsonConvert.DeserializeObject StingTools/` → **234 sites**. `MissingMemberHandling` appears **twice**, and both set `Ignore`.
+
+So the other ~232 use Newtonsoft's default: **unknown members are silently dropped, missing members leave POCO defaults**. A field-name typo in a data file is undetectable at load.
+
+CI does not close it — `.github/workflows/stingtools-plugin.yml:34-45` is `json.load()`, a pure syntax check. Well-formed JSON with a misspelled key passes. **There is no schema anywhere in the repo.**
+
+Highest-risk files for a BOQ/documentation workflow: `STING_NRM2_MEASUREMENT_RULES.json` (a typo'd deduction key silently disables a deduction), `cost_rates_5d.csv` / `STING_DEFAULT_COST_RATES.csv` (a renamed column silently yields rate 0), `BOQ_DESCRIPTIONS.json`, `COBIE_TYPE_MAP.csv`, and above all **`STING_DRAWING_TYPES.json`** — the entire P0 track in `DRAWINGS_PRODUCTION_REVIEW.md` was silent unbound-key defects in that one file, fixed one at a time. The *class* of defect is still wide open because nothing validates it.
+
+## H-6 · 🟠 P1 · `StingTools.Connectivity.Tests` passes CI while running zero of its 25 assertions
+
+It is **not empty** — 172 lines, ~25 real assertions over `PlanscapeServerClient`. But the `.csproj:16` is `<OutputType>Exe</OutputType>` with a hand-rolled `int Main` and **no `Microsoft.NET.Test.Sdk`, no xunit, no `IsTestProject`**.
+
+`dotnet test` on it discovers nothing and exits **0**, and the CI loop treats that as `OK`. The `[Fact]`/`[Theory]` census counts it as 0, so it does not even appear in the coverage headline.
+
+**This is the #553 failure mode recurring in a new shape.** The workflow's own header warns that a project which fails to build "reports nothing at all" — the same is true of one that builds but exposes no test adapter. Fix is one line: run it with `dotnet run`, or convert the 25 `Check()` calls to `[Fact]`s.
+
+Related: **`StingTools.SitePhotos.Tests` runs in no workflow at all.** `stingtools-unit-tests.yml:66-69,109` skips it, deferring to `stingtools-plugin.yml` — which has **no `dotnet test` step**. The hand-off target does not exist.
+
+And the CI exclusion filter for `#596`/`#597` is applied **globally across every project**, so any future test whose name contains those substrings is silently excluded too.
+
+## H-7 · 🟠 P1 · Reachability — the two triage docs are materially stale
+
+**Good news the docs do not record: there are zero dead buttons in `StingDockPanel.xaml`.** All 1,314 `Tag=` values resolve; the three that fail a naive handler-only scan are registered in `UI/Modules/*.cs`.
+
+**`SILENT_BUTTONS_TODO.md` is stale** — all five Healthcare buttons it parks as "genuinely silent" are now wired (`StingCommandHandler.cs:4309-4333`), including the prefix dispatcher at `:4054`. Its "Wired: 0" count misreports the repo. `Circuit_AssignAuto` and `Validation_BS7671` are also **not** silent — the Electrical `default:` arm forwards to the main handler and both resolve in `WorkflowEngine.cs:1557-1558`.
+
+**`docs/UNREACHABLE_COMMANDS_TRIAGE.md` is stale by ~390 commands and self-contradictory.** Its header says 1,288 `IExternalCommand` classes; the actual count is **1,678**. Its Counts table says Category C = 3; the Category C heading says "Genuinely dead (23)". Its Phase-177 correction claims `PluginOnboardingWizardCommand` was wired under tag `PlanscapeOnboarding` — that string appears **nowhere in the tree**; the class has zero references and is also a stub.
+
+Still genuinely unreachable: `PluginOnboardingWizardCommand` (0 refs) and **four of the five AVF heatmap commands** (`VisualiseAcoustic/Carbon/Compliance/FillHeatmapCommand` — 1 ref each, the declaration only), which the doc claims were wired in Phase 177.
+
+**One genuinely silent button:** `DocPackage` on the **HVAC panel, RPRT tab**. Its only occurrence in the tree is as a string argument at `UI/DocAutomationDialog.cs:411` — not a dispatch case. The HVAC `default:` arm falls through to the main handler, which refuses it, and the user gets **nothing** — no dialog, no toast, one log line.
+
+## H-8 · 🟠 P1 · Stubs that register successfully and do nothing
+
+- **`Clash/ClashDetectionCommands.cs:184-229`** — `LiveClashUpdater` returns `"(Phase 106 stub)"` from `GetUpdaterName()`, logs *"updater id reserved; triggers deferred"*, and `Register` appears to succeed. Live clash detection is advertised and inert. This is the same file behind CI-excluded test `#596`, which the workflow itself labels *"Product defect, not a test defect"* — so the defect is **masked by the exclusion**.
+- **`Commands/FabricationExt/FabricationExtCommands.cs:194`** — a live button whose stated purpose is to be *"a placeholder so the family-library authoring work has a stable dispatch target."*
+- **`ExLink/FohlioLink.cs:161-167`** — `List`/`Get`/`Update` all throw `NotImplementedException` with an honest message. Loud, so P1 not P0.
+- **`Model/ExcelStructuralEngine.cs:1038,1052`** — slab and foundation import throw, **and lines 568-599 catch `NotImplementedException` and continue**. An Excel structural import therefore produces a model with no slabs and no foundations. *Whether the skip is reported to the user is unconfirmed* — if it is not, this is P0.
+
+## H-9 · 🟠 P1 · The federated-compliance feature is dead code, and carries a latent defect
+
+`Core/ComplianceScan.cs:923-1017` defines `LinkedModelCompliance`, `FederatedComplianceResult` (with `FederatedCompliancePct`, `FederatedRAG`) and `FederatedComplianceScanner.ScanFederated(Document)`. **`ScanFederated` has exactly one reference in the tree — its own definition.** No command, no panel, no workflow.
+
+If it were wired, `:979` would ship with it:
+
+```csharp
+Document linkedDoc = linkInst.GetLinkDocument();
+if (linkedDoc == null) continue;
+```
+
+An unloaded or missing link is skipped from **both numerator and denominator**, with no counter and no warning — so `TotalAcrossAll` describes a subset while `FederatedRAG` presents it as coverage "across all". Directly relevant to this project's eight-link federation.
+
+## H-10 · 🟡 P2 · Roadmap entries that are already closed, and one that must be fixed in pairs
+
+- **IM-6** claims `StingTools.Clash.Tests` does not build with 14 `CS0246` errors. It builds clean — 0 warnings, 0 errors. Fixed 2026-08-06; the roadmap was never updated.
+- **IM-3** claims the BCC still calls `ConfigPathForModel` with `_data.FilePath` at six sites. `grep -c` in `UI/BIMCoordinationCenter.cs` returns **0**.
+- **IM-12** is genuinely open (`WarningsController.cs:109`), but **`Planscape.Server/src/Planscape.Infrastructure/Services/BackgroundJobs.cs:400` carries the same predicate inverted** — `s.WarningCount > 0` in the purge filter means zero-warning snapshots are **never purged**. Fixing IM-12 to `>= 0` without also fixing line 400 leaves the retention job still skipping them, and `ComplianceSnapshots` grows forever. **Must be one PR.**
+- `tools/StampDrawingTypeChecksums` is confirmed **not gated by CI** — `grep` across `.github/workflows/` returns nothing.
+
+*Not confirmed:* IM-2's "139 hand-rolled `_BIM_COORD` paths". Raw grep returns 212, but `tools/check_path_discipline.ps1:169-200` ratchets per-file against a baseline with a discriminator regex, so the two numbers are not comparable without running the gate. **Do not treat 212 as a regression.**
+
+## H-11 · 🟡 P2 · `ComplianceScan`'s concurrent path can return another document's result
+
+`Core/ComplianceScan.cs:20-22` is a process-wide static cache with a 30 s lifetime and **no document key**, while `Scan(Document doc, …)` takes a document. In normal use this is safe only because `StingToolsApp.OnViewActivated` calls `InvalidateCache()` on a document change — the safety lives in a different file, not in the cache's own contract.
+
+But at `:203-206`, when a scan is already in progress, the concurrent caller does `if (_cached != null) return _cached;` with **no document check and no time bound**, bypassing the lifetime check entirely. Narrow window; needs a concurrent scan to hit.
+
+Also unguarded: `BOQ/BOQCostManager.cs:2966` divides by `boq.AllItems.Count` with no zero check, unlike every neighbouring factor in the same scoring block. On an empty BOQ that is `0.0/0` → NaN. The NaN is contained by the downstream comparisons, so this is fragility rather than a visible wrong number.
+
+---
+
+# Part J — Proposed tool: material price book
+
+**The question this answers:** *can we not change the material library rates, and put in place a flexible way of editing and updating prices — for every future project, not just this one?*
+
+Yes. But not by editing 1,279 CSV rows, and here is why.
+
+## J-1 · Why the CSV is the wrong place for a price
+
+- **The price is entangled with everything else.** A `BLE_MATERIALS.csv` row is 72 columns defining geometry, appearance, layers, thermal, structural and carbon properties. Changing a price means editing a row that also decides what the material looks like in a rendering. Wrong granularity for a figure that changes quarterly.
+- **There is no unit column.** `MAT_COST_UNIT_USD` is a number with no denominator. Per-m², per-m³, per-block and per-item prices sit in the same column, indistinguishable (E-13).
+- **The UGX column is derived.** It is USD × 3700 on every row. Two prices that can disagree, in one row, with nothing saying which wins.
+- **No provenance.** No source, no quotation date, no validity. A QS cannot answer *"how old is this rate?"* — which is the first question they ask.
+
+## J-2 · What already exists, and why none of it is sufficient
+
+| Route | Grain | Verdict |
+|---|---|---|
+| Material library CSV | per material | wrong granularity, no unit, no provenance |
+| `rate_card.json` (priority 87) | **Revit category** | cannot distinguish 200 mm block from a glazed screen. Good backstop, useless as a price book |
+| `cost_rates_5d.csv` (90) | category | same limitation — and it is the silent fallback that absorbs every material-rate miss (E-6) |
+| `CST_UNIT_RATE_UGX` override (100) | per element | correct for a genuine one-off; does not scale, does not carry to the next project |
+| BCIS / Planscape feeds | live API | already built, lazily registered from `_BIM_COORD/rate_feeds.json`. Right answer for UK BCIS; **no equivalent published feed exists for Uganda** |
+| `BOQQsExport` / `BOQQsImport` | bill rows | an Excel round-trip already exists — the natural editing surface for a QS |
+
+**There is no material-level price book, and no price-update command.** That is the gap.
+
+## J-3 · The proposal
+
+A `STING_MATERIAL_PRICE_BOOK.json` on the corporate-baseline + project-override pattern the codebase already uses three times over, read by a new `MaterialPriceBookProvider` at **priority 93** — above the category CSV at 90, below the per-element override at 100.
+
+Authored in full at [`GUIDES/kibale-project-config/material_price_book.json`](kibale-project-config/material_price_book.json). Shape:
+
+```json
+{
+  "baseCurrency": "USD",
+  "fx": { "UGX": 3700, "KES": 129, "TZS": 2600 },
+  "prices": [
+    { "materialName": "HOLLOW CONCRETE BLOCK 8IN (200MM)",
+      "rate": 0.60, "currency": "USD", "unitOfMeasure": "each",
+      "labourFraction": 0.35, "source": "Kampala supplier quotation",
+      "quotedOn": "2026-07-15", "validUntil": "2026-12-31", "region": "UG-CENTRAL" }
+  ]
+}
+```
+
+**Why `materialName` is a safe key:** measured — `MAT_NAME` is unique across all 1,279 rows, case-insensitively, with zero cross-file collisions.
+
+**What each field buys you:**
+
+- `unitOfMeasure` — **required.** A rate without a unit is not a rate.
+- `fx` in one place — change the shilling rate once and everything follows. Nobody edits a price to chase an exchange rate, which is what the current derived UGX column forces.
+- `quotedOn` / `validUntil` — makes a rate **auditable**. The rate audit can then answer *"N materials priced from quotations older than six months"*, which nothing in the tool can do today.
+- `region` — one corporate book serving Kampala, Fort Portal, Nairobi and Dar without forking.
+- Plain JSON — it **diffs in git**, so a price change is reviewable and attributable like any other change.
+
+## J-4 · The two code changes it needs
+
+1. **`MaterialPriceBookProvider : IRateProvider`** — clone `ProjectRateCardProvider` (it is ~110 lines), key on material name instead of category, register at 93 in `RateProviderRegistry`.
+2. **Stop overloading `ALL_MODEL_COST`.** Stamp `STING_MAT_RATE_NR` + `STING_MAT_RATE_CCY_TXT` + `STING_MAT_RATE_UOM_TXT` at material creation and read those instead. `ALL_MODEL_COST` then belongs to the human editing Revit's material browser, and the provider can finally tell a library price from a hand-typed one — **which is the exact ambiguity that produced the 3,700× defect** (E-1b).
+
+Point `BOQQsExport` / `BOQQsImport` at the book and the loop closes: export to Excel, price it, import, `Cost_ReloadRules`.
+
+---
+
+# Part I — Fix order
+
+Eight things, ordered by damage-per-hour-of-work.
+
+| # | Fix | Gap | Why first |
+|---|---|---|---|
+| 1 | Return `null` instead of `0` from the formula engine's failure paths | G-5 | One change converts an entire invisible failure class into a visible one |
+| 2 | `CurrencyCode = "USD"` in `MaterialLibraryRateProvider` | E-1, E-1b | One word; un-breaks every material rate in the product |
+| 3 | Count actual writes in `IfcQuantitySetWriter`, not visits | H-1 | Stops the tool certifying a deliverable it did not produce |
+| 4 | Zero-denominator → 0 or "n/a", never 100 | H-3 | Three call sites; stops a false green light reaching the QS |
+| 5 | Fix `ParseCsvLine` to un-escape `""` | G-2 | Correct parser already exists in the test project |
+| 6 | Warn when an included link is placed *n* > 1 and not multiplied | A-3 | Cheap gate; prevents a six-cottage under-count |
+| 7 | Implement `lookup()` — or delete the 27 formulas that call it | G-1 | Either is better than writing 0 into a bill |
+| 8 | Normalise the nine invalid identity classes; apply the normaliser on the description path | E-11 | 29 % of the library currently bills as "generic" |
+
+Then the structural work: the `SpatialCodeRegistry` (F-9), schema validation for `Data/*.json` (H-5), and the Scope Box Manager (Part C).
