@@ -33,7 +33,7 @@
 |---|---|---|---|
 | A-1 failed quantity → zero | P0 | **closed** | `abeb6142c` |
 | A-2 two Uniclass parameter sets | P0 | open | |
-| A-3 repeated links taken off once | P1 | open | |
+| A-3 repeated links taken off once | P1 | **closed** | `2cf15fb6f` |
 | A-4 room-finish default invents carpet | P1 | open | |
 | B-1 no East African / AAQS method | P1 | open | |
 | B-2 no earthwork path | P1 | open | |
@@ -65,11 +65,11 @@
 | F-8 `LocPatterns` dead code | P2 | open | |
 | F-9 the SpatialCodeRegistry fix | — | open | |
 | G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
-| G-2 CSV reader destroys quoted literals | P0 | open | |
-| G-3 TEXT path has no `if()` | P0 | open | |
+| G-2 CSV reader destroys quoted literals | P0 | **closed** | `20e84ba50` — re-scoped: 98.6 % of impact is tag config |
+| G-3 TEXT path has no `if()` | P0 | open — **65 of 112**, not 33; blocked on G-6 | |
 | G-4 unit conversion, one caller in eight | P0 | open — **decision required** | |
 | G-5 nothing fails loudly | P0 | **closed** | `5ee46d27c` `5d7443105` |
-| G-6 32 rows silently dropped | P1 | open | |
+| G-6 32 rows silently dropped | P1 | open — **prerequisite for G-3** | |
 | G-7 `MULTI` formulas never fire | P1 | open | |
 | G-8 Type-vs-Instance binding ambiguity | P1 | open | |
 | G-9 federated-model cache hazard | P1 | open | |
@@ -719,7 +719,47 @@ Killed by this: **all** cement / sand / aggregate / water take-off, **all** bloc
 
 `docs/CHANGELOG.md:9351` references a `FormulaEngine.Lookup`. **No such method exists in this tree.**
 
-## G-2 · 🔴 P0 · The CSV reader destroys every quoted literal
+## G-2 · 🔴 P0 · The CSV reader destroys every quoted literal — **primarily a TAG CONFIGURATION defect, not a formula-engine one**
+
+> **Status: closed** — `20e84ba50`. Compile-verified only.
+>
+> **Re-scoped (2026-08-08).** This entry is filed under Part G, the formula engine. That is
+> where it was *found*, and it is the wrong place to file it. Measured across all 76 shipped
+> `Data/*.csv` files, the fix changes **13,399 data rows in 13 files** — and **13,212 of
+> them (98.6 %) are the eight `STING_TAG_CONFIG_v5_0_*` files.** The formula engine's 88
+> rows are secondary by two orders of magnitude.
+>
+> **What was actually broken: every Revit label formula the tag config carries.**
+>
+> ```
+>   in the CSV :  if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")
+>   as read    :  if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, )
+> ```
+>
+> A Revit family formula with an empty third argument. That single line makes the defect
+> legible: it is not "some literals lose their quotes", it is **the tag-family label layer
+> being fed malformed formulas on every load**.
+>
+> **The evidence that no caller depended on the old behaviour** — this is the part worth
+> keeping, because "53 call sites" made the change look unshippable:
+>
+> | Measure (76 CSVs) | Result |
+> |---|---|
+> | Rows compared, excluding comment lines | 64,779 |
+> | Rows where output differs | **13,399** |
+> | Rows where **field COUNT** differs | **0** |
+> | Differences that restore a quote | 13,399 |
+> | Differences that remove a quote | **0** |
+>
+> Field count unchanged on every row ⇒ **no caller's column indexing moves**, which is the
+> only way a shared parser used by 53 files could break silently. And the change is strictly
+> one-directional ⇒ nothing can depend on information the old parser produced, because it
+> only ever destroyed. Counting *including* comment lines gives 13,432; the 33-row gap is
+> comment text, not data. State the method with the number — an unqualified count here is
+> what made two independent measurements disagree.
+>
+> Every quote-manipulating call site checked: all are CSV **writers** escaping output. The
+> single reader-side `Trim('"')` is on a header and is idempotent.
 
 `Core/StingToolsApp.cs:2495-2519`:
 
@@ -738,7 +778,30 @@ It corrupts numeric formulas too. `FLS_SFTY_COVERAGE_AREA_SQ_M` compares a sprin
 
 `StingTools.Boq.Tests/FormulaSelfRefTests.cs:76-100` ships a **correct RFC-4180 parser**. The tests parse this file properly; production does not. Lift it.
 
-## G-3 · 🔴 P0 · The TEXT path has no `if()` — 33 formulas are inert
+## G-3 · 🔴 P0 · The TEXT path has no `if()` — **65 of 112 formulas are inert**
+
+> **Corrected (2026-08-08): the headline "33" counts only the post-drop set.**
+>
+> | Measure | Count |
+> |---|---|
+> | TEXT formulas in `FORMULAS_WITH_DEPENDENCIES.csv` | **112** |
+> | …containing `if(` | **65** |
+> | …that survive loading today | 80 |
+> | …loaded **and** containing `if(` — the original "33" | 33 |
+>
+> The gap is **G-6**: `FormulaEvaluatorCommand.cs:392` drops 32 rows with no log line, and
+> those rows are themselves long nested-`if()` TEXT formulas. So "33" is not the size of the
+> defect, it is the size of the part of the defect currently reachable.
+>
+> **No TEXT-formula count can be trusted until G-6 closes.** Repairing those 32 rows
+> *enlarges* this entry rather than shrinking it — anything built against 65 must be
+> re-measured afterwards, and the post-G-6 figure is the one an implementation has to
+> satisfy.
+>
+> Shape of the 65, which determines what the fix has to be: **all 65 begin with `if(`**,
+> **36 are nested**, and **all 65 use a comparison operator**. Nesting and comparison are the
+> norm here, not edge cases — so this needs a recursive string-valued evaluator, not an
+> `if()` special-case bolted onto the concatenation tokenizer.
 
 `EvaluateText` (`:723`) splits on top-level `+`, emits quoted literals and `format(PARAM)` values, and **silently drops anything it doesn't recognise** (`// else skip unknown references`, `:753`).
 
