@@ -938,9 +938,19 @@ namespace StingTools.Model
         /// <summary>
         /// Generates room finish schedule for all placed rooms.
         /// </summary>
+        /// <summary>
+        /// A-4 — count of rooms left with an unset finish by the most recent
+        /// <see cref="GenerateSchedule"/> call, per surface. Reported rather than
+        /// defaulted; callers surface these so an unspecified room is visible.
+        /// </summary>
+        public static int LastUnsetWallFinishes { get; private set; }
+        public static int LastUnsetFloorFinishes { get; private set; }
+        public static int LastUnsetCeilingFinishes { get; private set; }
+
         public static List<RoomFinish> GenerateSchedule(Document doc)
         {
             var result = new List<RoomFinish>();
+            int unsetWall = 0, unsetFloor = 0, unsetCeiling = 0;
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -976,16 +986,36 @@ namespace StingTools.Model
                 entry.CeilingFinish = ParameterHelpers.GetString(room, "BLE_ROOM_FINISH_CEILING_TXT");
                 entry.BaseFinish = ParameterHelpers.GetString(room, "BLE_ROOM_FINISH_BASE_TXT");
 
-                // Auto-populate defaults if empty
-                if (string.IsNullOrEmpty(entry.WallFinish))
-                    entry.WallFinish = "2 coat gypsum plaster + vinyl matt emulsion";
-                if (string.IsNullOrEmpty(entry.FloorFinish))
-                    entry.FloorFinish = "Power-floated concrete + carpet/vinyl";
-                if (string.IsNullOrEmpty(entry.CeilingFinish))
-                    entry.CeilingFinish = "Plasterboard + skim coat + vinyl matt emulsion";
+                // A-4 — the three "auto-populate defaults if empty" substitutions that
+                // stood here have been REMOVED. They invented a specification:
+                //
+                //   wall    "2 coat gypsum plaster + vinyl matt emulsion"
+                //   floor   "Power-floated concrete + carpet/vinyl"
+                //   ceiling "Plasterboard + skim coat + vinyl matt emulsion"
+                //
+                // A UK office spec, asserted for any room whose finish nobody had set —
+                // and asserted indistinguishably from a finish someone had chosen. It
+                // then flowed into the finish schedule, the covering engine and the BOQ
+                // description tokens as if it were a decision. A lodge in Kibale does not
+                // have carpet, and nothing downstream could tell that this was a guess.
+                //
+                // Leave it empty and COUNT it. An empty finish is a question; a plausible
+                // default is a wrong answer that nobody asks about. Same failure class as
+                // A-1, G-5 and K-1 — the register's whole subject.
+                if (string.IsNullOrWhiteSpace(entry.WallFinish))    unsetWall++;
+                if (string.IsNullOrWhiteSpace(entry.FloorFinish))   unsetFloor++;
+                if (string.IsNullOrWhiteSpace(entry.CeilingFinish)) unsetCeiling++;
 
                 result.Add(entry);
             }
+
+            LastUnsetWallFinishes    = unsetWall;
+            LastUnsetFloorFinishes   = unsetFloor;
+            LastUnsetCeilingFinishes = unsetCeiling;
+            if (unsetWall + unsetFloor + unsetCeiling > 0)
+                StingLog.Info($"Room finishes: {result.Count} room(s) scheduled; unset finishes — "
+                            + $"wall {unsetWall}, floor {unsetFloor}, ceiling {unsetCeiling}. "
+                            + "Left blank rather than defaulted (A-4); specify them or accept the gap.");
 
             return result;
         }
