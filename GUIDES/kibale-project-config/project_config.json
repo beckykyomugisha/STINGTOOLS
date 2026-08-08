@@ -1,0 +1,45 @@
+{
+  "_comment": "Kibale NP lodge — project config. Goes BESIDE the .rvt, not in the project folder. Apply BEFORE the first tag write.",
+
+  "LOC_CODES": ["COT01", "COT02", "COT03", "COT04", "COT05", "COT06", "COT07", "COT08", "STF", "KDR", "POOL", "EXT", "XX"],
+  "CUSTOM_VALID_LOC": ["COT01", "COT02", "COT03", "COT04", "COT05", "COT06", "COT07", "COT08", "STF", "KDR", "POOL", "EXT", "XX"],
+  "LOC_CODES_EXTRA": ["COT01", "COT02", "COT03", "COT04", "COT05", "COT06", "COT07", "COT08", "STF", "KDR", "POOL"],
+  "_loc_note": "All THREE keys carry the same list on purpose. LOC_CODES feeds TagConfig (tag writer, Excel import, picklists); CUSTOM_VALID_LOC is the ONLY key ISO19650Validator honours; LOC_CODES_EXTRA is read only by FederationReview and BuildingAwareCDEFolders. See gap F-1. COT01 is deliberately first: TagConfig.cs:2295 files any underivable LOC under the first non-XX code, so put the cottage you are most likely to notice at the front and audit the distribution after tagging.",
+
+  "ZONE_CODES": ["Z01", "Z02", "Z03", "Z04", "XX"],
+  "CUSTOM_VALID_ZONE": ["Z01", "Z02", "Z03", "Z04", "XX"],
+  "_zone_note": "Z01 Guest accommodation · Z02 Public/hospitality (reception, kitchen, dining, pool, camp fire) · Z03 Back-of-house (staff lodge, laundry, back space) · Z04 External works, roads, retaining, drainage. See the playbook, Part 2A.",
+
+  "VALIDATE_STRICT_MODE": true,
+  "_strict_note": "Default is lenient, which accepts ANY 1-8 alphanumeric LOC silently. Strict makes ValidateTags actually check against CUSTOM_VALID_LOC. Turn it on now, while the model is small.",
+
+  "PROJECT_TYPE": "HOSPITALITY",
+  "CDE_FIRST_LAYOUT": true,
+  "AUTO_CREATE_CDE_FOLDERS": false,
+
+  "UGX_PER_USD": 3700,
+  "_fx_note": "Read by BOQCostManager.cs:700-704. Set the rate you have actually agreed with the QS before the first export. Not in the known-keys whitelist, so it will log a warning; it still works.",
+
+  "COST_PRELIMINARIES_PCT": 12.0,
+  "COST_CONTINGENCY_PCT": 10.0,
+  "COST_OVERHEAD_PROFIT_PCT": 15.0,
+  "COST_DEFAULT_WASTE_PCT": 5.0,
+  "_waste_note": "Material-specific waste never reaches a PRICED quantity — all three cost call sites pass material=null (gap E-4). Only this project default and the category keyword apply. Build the difference into your rates.",
+
+  "WRITE_COST_ON_TAG": 0,
+  "_coststamp_note": "Leave OFF until the material rate defect (gap E-1) is fixed. With it on, every tag pass stamps CST_* parameters from a rate chain whose top provider is ~3700x low.",
+
+  "COMPLIANCE_GATE_PCT": 80,
+  "AUTO_TAGGER_ENABLED": false,
+  "AUTO_TAGGER_DISC_FILTER": ["A", "S"],
+  "_tagger_note": "Leave the live auto-tagger OFF while you build C01. Turn it on only once the cottage validates clean, or you will be fixing tags on geometry you are still moving.",
+
+  "FORMULA_CACHE_TTL_MINUTES": 5,
+  "_formula_note": "The tag pipeline's formula cache is TTL-only and does NOT check the CSV mtime (gap G-9). A short TTL limits how long a stale formula set survives if anyone edits FORMULAS_WITH_DEPENDENCIES.csv mid-session.",
+
+  "CATEGORY_SKIP": ["Cameras", "Lines", "Reference Planes", "Constraints", "Levels", "Grids", "Scope Boxes"],
+
+  "SEQ_SCHEME": "DISC_SYS_LVL",
+  "SEQ_INCLUDE_LOC": true,
+  "_seq_note": "SEQ_INCLUDE_LOC keeps sequence numbers unique per building. Without it, COT01-0001 and COT02-0001 collide across the eight cottages."
+}

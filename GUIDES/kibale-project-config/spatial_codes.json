@@ -1,0 +1,89 @@
+{
+  "_status": "PROPOSAL — nothing reads this yet. This is the corporate baseline for gap F-9: one SpatialCodeRegistry replacing the five level vocabularies and three LOC vocabularies that currently disagree. Ship it as StingTools/Data/STING_SPATIAL_CODES.json; project overrides land at <project>/_BIM_COORD/spatial_codes.json, merged by code, following the AecFilterRegistry pattern (Core/Drawing/AecFilterRegistry.cs:18-90).",
+  "schemaVersion": "1.0",
+
+  "_levelNote": "The ISO 19650 UK Annex level field is TWO characters: ZZ = many levels, XX = no level, 00 = ground/base, then 01, 02 upward. STING's tag vocabulary instead uses GF and L01. Both are in here: 'code' is the STING tag code, 'isoCode' is what belongs in an ISO 19650 file name. Today these two live in different files and nothing reconciles them (gap F-6) — one entry per level fixes that. 'aliases' is what ParameterHelpers.GetLevelCode should match a Revit level NAME against, replacing its 80-line if-chain.",
+
+  "levels": [
+    { "code": "XX",  "isoCode": "XX", "label": "No level",        "aliases": [], "sortOrder": -1000 },
+    { "code": "ZZ",  "isoCode": "ZZ", "label": "Multiple levels", "aliases": ["all levels", "multiple"], "sortOrder": -999 },
+
+    { "code": "B3",  "isoCode": "B3", "label": "Basement 3",      "aliases": ["basement 3", "basement 03", "b3", "b03"], "sortOrder": -30 },
+    { "code": "B2",  "isoCode": "B2", "label": "Basement 2",      "aliases": ["basement 2", "basement 02", "b2", "b02"], "sortOrder": -20 },
+    { "code": "B1",  "isoCode": "B1", "label": "Basement 1",      "aliases": ["basement 1", "basement 01", "basement", "b1", "b01"], "sortOrder": -10 },
+    { "code": "SB",  "isoCode": "SB", "label": "Sub-basement",    "aliases": ["sub-basement", "sub basement", "subbasement", "sb"], "sortOrder": -40 },
+
+    { "code": "LG",  "isoCode": "LG", "label": "Lower ground floor", "aliases": ["lower ground", "lower ground floor", "lg"], "sortOrder": -5 },
+    { "code": "GF",  "isoCode": "00", "label": "Ground floor",       "aliases": ["ground", "ground floor", "ground level", "gf", "level 00", "level 0"], "sortOrder": 0 },
+    { "code": "UG",  "isoCode": "UG", "label": "Upper ground floor", "aliases": ["upper ground", "upper ground floor", "ug"], "sortOrder": 5 },
+
+    { "code": "MZ",  "isoCode": "MZ", "label": "Mezzanine",   "aliases": ["mezzanine", "mezz", "mezzanine 1", "mz", "mz01"], "sortOrder": 8 },
+    { "code": "MZ2", "isoCode": "M2", "label": "Mezzanine 2", "aliases": ["mezzanine 2", "mezz 2", "mz2", "mz02"], "sortOrder": 9,
+      "_note": "The current parser returns MZ for every mezzanine, so a second one silently collides (gap F-4)." },
+
+    { "code": "L01", "isoCode": "01", "label": "Level 1",  "aliases": ["level 01", "level 1", "first floor", "first", "1st"], "sortOrder": 10 },
+    { "code": "L02", "isoCode": "02", "label": "Level 2",  "aliases": ["level 02", "level 2", "second floor", "second", "2nd"], "sortOrder": 20 },
+    { "code": "L03", "isoCode": "03", "label": "Level 3",  "aliases": ["level 03", "level 3", "third floor", "third", "3rd"], "sortOrder": 30 },
+    { "code": "L04", "isoCode": "04", "label": "Level 4",  "aliases": ["level 04", "level 4", "fourth floor", "fourth", "4th"], "sortOrder": 40 },
+    { "code": "L05", "isoCode": "05", "label": "Level 5",  "aliases": ["level 05", "level 5", "fifth floor", "fifth", "5th"], "sortOrder": 50 },
+    { "_generatorNote": "L06-L99 follow the same shape. The registry should synthesise Lnn / nn on demand rather than enumerate 99 rows — the alias rule is 'level <n>' and the ordinal words." },
+
+    { "code": "PL",  "isoCode": "PL", "label": "Plant level", "aliases": ["plant", "plant room", "plantroom", "plant level", "pl"], "sortOrder": 900,
+      "_note": "The current parser only matches when the name BOTH starts with 'plant' AND contains 'room' — so 'Plant Level' and 'Plantroom' both miss (gap F-4)." },
+    { "code": "TR",  "isoCode": "TR", "label": "Terrace",   "aliases": ["terrace", "tr"], "sortOrder": 910 },
+    { "code": "PH",  "isoCode": "PH", "label": "Penthouse", "aliases": ["penthouse", "pent", "ph"], "sortOrder": 920 },
+    { "code": "AT",  "isoCode": "AT", "label": "Attic",     "aliases": ["attic", "att", "at"], "sortOrder": 930 },
+    { "code": "RF",  "isoCode": "RF", "label": "Roof level", "aliases": ["roof", "roof level", "rf"], "sortOrder": 950 },
+    { "code": "UR",  "isoCode": "UR", "label": "Upper roof / parapet", "aliases": ["upper roof", "parapet", "ur"], "sortOrder": 960,
+      "_note": "Emitted by the wizard's ProposeIsoLevelCode but not producible by GetLevelCode — one of the five-way vocabulary splits." },
+    { "code": "POD", "isoCode": "PO", "label": "Podium",    "aliases": ["podium", "pod"], "sortOrder": 6 }
+  ],
+
+  "_locNote": "The LOC vocabulary. Today this is hard-coded as BLD1/BLD2/BLD3/EXT in TagConfig.Defaults.cs:592-595 and again, differently, in LocVocabularyOverride (MultiBuildingCommands.cs:24-42), and extended by three separate config keys that do not agree (gap F-1). 'aliases' revives the dead TagConfig.LocPatterns idea (TagConfig.cs:1253-1258) — a name-to-code inference table that currently has zero consumers.",
+
+  "locations": [
+    { "code": "XX",   "label": "No location",  "aliases": [], "kind": "sentinel" },
+    { "code": "EXT",  "label": "External works", "aliases": ["external", "site", "sitewide", "landscape"], "kind": "external" },
+    { "code": "BLD1", "label": "Building 1",   "aliases": ["building 1", "block a", "block 1"], "kind": "building" },
+    { "code": "BLD2", "label": "Building 2",   "aliases": ["building 2", "block b", "block 2"], "kind": "building" },
+    { "code": "BLD3", "label": "Building 3",   "aliases": ["building 3", "block c", "block 3"], "kind": "building" }
+  ],
+
+  "_projectTypeNote": "This is the piece that makes the vocabulary per-project-type. SectorPack (Core/SectorPackCommand.cs:17-29) currently carries Families, Presets, TagStyle, PreambleProfile, BoqDefaults and WorkflowPresets — and NO spatial key, so a hospital and a data centre get identical level vocabularies. Adding one field and one line in Apply() lets each Data/SectorPacks/*_PACK.json name a block below.",
+
+  "projectTypePresets": {
+    "HOSPITALITY": {
+      "levels": ["XX", "ZZ", "GF", "L01", "RF"],
+      "locations": ["EXT"],
+      "note": "Lodges and resorts are typically single-storey pavilions on a shared site. Building codes are project-specific and come from the project override."
+    },
+    "RESIDENTIAL": {
+      "levels": ["XX", "ZZ", "GF", "L01", "L02", "L03", "RF"],
+      "locations": ["BLD1", "BLD2", "BLD3", "EXT"]
+    },
+    "COMMERCIAL": {
+      "levels": ["XX", "ZZ", "B1", "GF", "L01", "L02", "L03", "L04", "L05", "PL", "RF"],
+      "locations": ["BLD1", "BLD2", "EXT"]
+    },
+    "HIGHRISE": {
+      "levels": ["XX", "ZZ", "B2", "B1", "LG", "GF", "UG", "MZ", "L01", "L02", "L03", "L04", "L05", "PL", "PH", "RF", "UR"],
+      "locations": ["BLD1", "EXT"]
+    },
+    "HEALTHCARE": {
+      "levels": ["XX", "ZZ", "B1", "LG", "GF", "L01", "L02", "L03", "PL", "RF"],
+      "locations": ["BLD1", "BLD2", "BLD3", "EXT"],
+      "note": "Plant levels matter disproportionately in healthcare — PL must be first-class, not a parser accident."
+    },
+    "DATACENTRE": {
+      "levels": ["XX", "ZZ", "GF", "L01", "MZ", "PL", "RF"],
+      "locations": ["BLD1", "BLD2", "EXT"],
+      "note": "Mezzanine and plant are the working levels; MZ2 is common and currently unrepresentable."
+    },
+    "EDUCATION": {
+      "levels": ["XX", "ZZ", "GF", "L01", "L02", "L03", "RF"],
+      "locations": ["BLD1", "BLD2", "BLD3", "EXT"]
+    }
+  },
+
+  "_kibaleOverride": "For Kibale the project override file would carry the eleven cottage/facility LOC codes and just XX/ZZ/GF/RF as levels — see project_config.json in this folder for the equivalent expressed through today's three-key mechanism."
+}
