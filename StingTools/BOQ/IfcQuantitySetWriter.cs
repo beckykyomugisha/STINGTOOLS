@@ -47,16 +47,39 @@ using StingTools.Core;
 
 namespace StingTools.BOQ
 {
+    /// <summary>
+    /// H-1 — the outcome of a stamp run, separating what we LOOKED AT from what
+    /// we actually WROTE. The old single "stamped" count was incremented once per
+    /// element visited, regardless of whether any parameter took a value, so a
+    /// project with the Qto_* shared params unbound reported thousands of
+    /// successful stamps and exported an IFC with no quantities in it.
+    /// </summary>
+    internal sealed class IfcStampTally
+    {
+        /// <summary>BOQ rows that resolved to a live element — visits, not writes.</summary>
+        public int ElementsVisited;
+
+        /// <summary>Elements where at least one parameter actually took a value.</summary>
+        public int ElementsWritten;
+
+        /// <summary>Individual parameter writes that landed.</summary>
+        public int ParametersWritten;
+
+        /// <summary>True when the run produced no model change at all.</summary>
+        public bool WroteNothing => ParametersWritten == 0;
+    }
+
     internal static class IfcQuantitySetWriter
     {
         /// <summary>
-        /// Stamp Qto_*.* + Pset_StingCost.* shared params on every BOQ
-        /// line. Returns the number of elements successfully stamped.
+        /// Stamp Qto_*.* + Pset_StingCost.* shared params on every BOQ line.
+        /// Returns a tally distinguishing elements visited from parameters
+        /// actually written — see <see cref="IfcStampTally"/>.
         /// </summary>
-        public static int StampAllElements(Document doc, BOQDocument boq)
+        public static IfcStampTally StampAllElements(Document doc, BOQDocument boq)
         {
-            if (doc == null || boq == null) return 0;
-            int stamped = 0;
+            var tally = new IfcStampTally();
+            if (doc == null || boq == null) return tally;
             foreach (var item in boq.AllItems)
             {
                 if (item.RevitElementId <= 0) continue;
@@ -64,6 +87,8 @@ namespace StingTools.BOQ
                 {
                     var el = doc.GetElement(new ElementId(item.RevitElementId));
                     if (el == null) continue;
+                    tally.ElementsVisited++;
+                    int wroteHere = 0;
 
                     // IFC4 Qto_*  fields per category. Only set the ones
                     // we can compute from BOQLineItem.
@@ -85,52 +110,66 @@ namespace StingTools.BOQ
                         double g = item.GrossQuantity > 0 ? item.GrossQuantity : q;  // gross
                         if (u == "m2")
                         {
-                            StampQuantity(el, qtoSetName, "GrossArea", g);
-                            StampQuantity(el, qtoSetName, "NetArea",   q);
+                            if (StampQuantity(el, qtoSetName, "GrossArea", g)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "NetArea",   q)) wroteHere++;
                         }
                         else if (u == "m3")
                         {
-                            StampQuantity(el, qtoSetName, "GrossVolume", g);
-                            StampQuantity(el, qtoSetName, "NetVolume",   q);
+                            if (StampQuantity(el, qtoSetName, "GrossVolume", g)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "NetVolume",   q)) wroteHere++;
                         }
                         else if (u == "m")
                         {
-                            StampQuantity(el, qtoSetName, "Length", q);
+                            if (StampQuantity(el, qtoSetName, "Length", q)) wroteHere++;
                         }
                         else if (u == "kg")
                         {
-                            StampQuantity(el, qtoSetName, "GrossWeight", g);
-                            StampQuantity(el, qtoSetName, "NetWeight",   q);
+                            if (StampQuantity(el, qtoSetName, "GrossWeight", g)) wroteHere++;
+                            if (StampQuantity(el, qtoSetName, "NetWeight",   q)) wroteHere++;
                         }
                         else if (u == "each")
                         {
                             // Count is integer-valued in IFC Qto sets but our
                             // params are typically Double/String — StampQuantity
                             // handles both storage types.
-                            StampQuantity(el, qtoSetName, "Count", q);
+                            if (StampQuantity(el, qtoSetName, "Count", q)) wroteHere++;
                         }
                     }
 
                     // STING-specific cost property set.
-                    StampString(el,  "Pset_StingCost", "Currency",        "UGX");
-                    StampNumber(el,  "Pset_StingCost", "UnitRate",        item.RateUGX);
-                    StampNumber(el,  "Pset_StingCost", "TotalCost",       item.TotalUGX);
-                    StampString(el,  "Pset_StingCost", "RateSource",      item.RateSource ?? "");
-                    StampString(el,  "Pset_StingCost", "NRM2Section",     item.NRM2Section ?? "");
-                    StampBoolean(el, "Pset_StingCost", "ProvisionalSum",  item.Source == BOQRowSource.ProvisionalSum);
+                    if (StampString(el,  "Pset_StingCost", "Currency",       "UGX")) wroteHere++;
+                    if (StampNumber(el,  "Pset_StingCost", "UnitRate",       item.RateUGX)) wroteHere++;
+                    if (StampNumber(el,  "Pset_StingCost", "TotalCost",      item.TotalUGX)) wroteHere++;
+                    if (StampString(el,  "Pset_StingCost", "RateSource",     item.RateSource ?? "")) wroteHere++;
+                    if (StampString(el,  "Pset_StingCost", "NRM2Section",    item.NRM2Section ?? "")) wroteHere++;
+                    if (StampBoolean(el, "Pset_StingCost", "ProvisionalSum", item.Source == BOQRowSource.ProvisionalSum)) wroteHere++;
 
                     // I-1 — Pset_EnvironmentalImpactIndicators carries the
                     // material's embodied carbon + EPD provenance + Uniclass
                     // code so external LCA tooling that reads the standard
                     // IFC4 environmental impact Pset can consume them
                     // without a STING-specific schema.
-                    StingTools.UI.IfcMaterialPsetWriter.Stamp(el, item);
-                    stamped++;
+                    wroteHere += StingTools.UI.IfcMaterialPsetWriter.Stamp(el, item);
+
+                    // H-1 — was an unconditional `stamped++` here, which counted
+                    // the visit rather than the write.
+                    if (wroteHere > 0)
+                    {
+                        tally.ElementsWritten++;
+                        tally.ParametersWritten += wroteHere;
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"IfcQuantitySetWriter on {item.RevitElementId}: {ex.Message}"); }
             }
-            StingLog.Info($"IfcQuantitySetWriter: stamped {stamped} element(s) with Qto_* + Pset_StingCost.");
-            return stamped;
+
+            if (tally.WroteNothing)
+                StingLog.Warn($"IfcQuantitySetWriter: visited {tally.ElementsVisited} element(s) and wrote NOTHING — " +
+                              "the Qto_*/Pset_* shared parameters are not bound in this project, so an IFC exported " +
+                              "now will carry no quantities. Load the shared parameters and re-run.");
+            else
+                StingLog.Info($"IfcQuantitySetWriter: visited {tally.ElementsVisited} element(s); " +
+                              $"wrote {tally.ParametersWritten} parameter(s) across {tally.ElementsWritten} element(s).");
+            return tally;
         }
 
         /// <summary>
@@ -155,49 +194,58 @@ namespace StingTools.BOQ
             return "";
         }
 
-        private static void StampNumber(Element el, string set, string field, double value)
+        // H-1 — every helper below returns TRUE only when the value actually
+        // landed on a parameter. The Qto_* and Pset_* names are shared params
+        // that must be pre-bound; unbound, LookupParameter returns null and the
+        // write is a silent no-op. Reporting those as successes is what let the
+        // command certify an IFC carrying zero quantities.
+
+        private static bool StampNumber(Element el, string set, string field, double value)
         {
             string p = $"{set}.{field}";
             try
             {
                 Parameter par = el.LookupParameter(p);
-                if (par == null || par.IsReadOnly) return;
+                if (par == null || par.IsReadOnly) return false;
                 if (par.StorageType == StorageType.Double)
-                    par.Set(value);
-                else if (par.StorageType == StorageType.String)
-                    par.Set(value.ToString("F4", CultureInfo.InvariantCulture));
+                    return par.Set(value);
+                if (par.StorageType == StorageType.String)
+                    return par.Set(value.ToString("F4", CultureInfo.InvariantCulture));
             }
             catch (Exception ex) { StingLog.Warn($"StampNumber {p}: {ex.Message}"); }
+            return false;
         }
 
-        private static void StampString(Element el, string set, string field, string value)
+        private static bool StampString(Element el, string set, string field, string value)
         {
             string p = $"{set}.{field}";
             try
             {
                 Parameter par = el.LookupParameter(p);
-                if (par == null || par.IsReadOnly) return;
-                if (par.StorageType == StorageType.String) par.Set(value ?? "");
+                if (par == null || par.IsReadOnly) return false;
+                if (par.StorageType == StorageType.String) return par.Set(value ?? "");
             }
             catch (Exception ex) { StingLog.Warn($"StampString {p}: {ex.Message}"); }
+            return false;
         }
 
-        private static void StampBoolean(Element el, string set, string field, bool value)
+        private static bool StampBoolean(Element el, string set, string field, bool value)
         {
             string p = $"{set}.{field}";
             try
             {
                 Parameter par = el.LookupParameter(p);
-                if (par == null || par.IsReadOnly) return;
-                if (par.StorageType == StorageType.Integer) par.Set(value ? 1 : 0);
+                if (par == null || par.IsReadOnly) return false;
+                if (par.StorageType == StorageType.Integer) return par.Set(value ? 1 : 0);
             }
             catch (Exception ex) { StingLog.Warn($"StampBoolean {p}: {ex.Message}"); }
+            return false;
         }
 
-        private static void StampQuantity(Element el, string set, string field, double value)
+        private static bool StampQuantity(Element el, string set, string field, double value)
         {
-            if (value <= 0) return;
-            StampNumber(el, set, field, value);
+            if (value <= 0) return false;
+            return StampNumber(el, set, field, value);
         }
     }
 }

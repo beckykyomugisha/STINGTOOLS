@@ -45,17 +45,35 @@ namespace StingTools.Commands.Cost
                     return Result.Cancelled;
                 }
 
-                int stamped;
+                IfcStampTally tally;
                 using (var t = new Transaction(doc, "STING — stamp IFC Qto + Pset_StingCost"))
                 {
                     t.Start();
-                    stamped = IfcQuantitySetWriter.StampAllElements(doc, boq);
+                    tally = IfcQuantitySetWriter.StampAllElements(doc, boq);
                     t.Commit();
+                }
+
+                // H-1 — do not promise the next export will carry quantities when
+                // not one parameter accepted a value.
+                if (tally.WroteNothing)
+                {
+                    StingLog.Error($"Cost_StampIfcQuantities: {tally.ElementsVisited} element(s) visited, 0 parameters written.", null);
+                    StingResultPanel.Create("Stamp IFC Qto")
+                        .AddSection("NOTHING WRITTEN")
+                        .Metric("Elements visited", tally.ElementsVisited.ToString())
+                        .Metric("Parameters written", "0")
+                        .Text("Not one Qto_*/Pset_StingCost parameter accepted a value, so an IFC exported now " +
+                              "would carry no quantities. These are shared parameters and must be bound first — " +
+                              "run the shared-parameter load (SETUP → Load shared parameters), then re-run.")
+                        .Show();
+                    return Result.Failed;
                 }
 
                 StingResultPanel.Create("Stamp IFC Qto")
                     .AddSection("RESULT")
-                    .Metric("Elements stamped", stamped.ToString(), "IFC4 Qto_* + Pset_StingCost")
+                    .Metric("Elements visited", tally.ElementsVisited.ToString(), "BOQ rows resolved to a live element")
+                    .Metric("Parameters written", $"{tally.ParametersWritten} (across {tally.ElementsWritten} element(s))",
+                            "IFC4 Qto_* + Pset_StingCost")
                     .Text("The next IFC export will carry quantity + cost data so Cost-X, CostOS, " +
                           "Candy and Bluebeam Revu can ingest without re-measuring.")
                     .Show();

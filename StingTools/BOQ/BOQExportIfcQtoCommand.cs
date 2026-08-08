@@ -69,14 +69,14 @@ namespace StingTools.BOQ
             //    NRM2Section + unit rate) onto every priced element, so the IFC
             //    carries quantities + cost + classification proxy. This is a real
             //    param write and MUST commit so the export below sees it.
-            int stamped;
+            IfcStampTally tally;
             try
             {
                 var boq = BOQCostManager.BuildBOQDocument(doc);
                 using (var tx = new Transaction(doc, "STING BOQ — stamp IFC Qto + cost psets"))
                 {
                     tx.Start();
-                    stamped = IfcQuantitySetWriter.StampAllElements(doc, boq);
+                    tally = IfcQuantitySetWriter.StampAllElements(doc, boq);
                     tx.Commit();
                 }
             }
@@ -84,6 +84,21 @@ namespace StingTools.BOQ
             {
                 StingLog.Error("BOQExportIfcQtoCommand: stamp", ex);
                 message = ex.Message;
+                return Result.Failed;
+            }
+
+            // H-1 — the whole point of this command is to put quantities INTO the
+            // IFC. The Qto_*/Pset_* targets are shared parameters that must be
+            // pre-bound; unbound, every write is a silent no-op. Exporting anyway
+            // hands the QS a file that Cost-X will read as having no quantities,
+            // with a success message on screen. Stop here instead.
+            if (tally.WroteNothing)
+            {
+                StingLog.Error($"BOQExportIfcQtoCommand: {tally.ElementsVisited} element(s) visited, 0 parameters written — aborting export.", null);
+                message = $"No quantities were written. {tally.ElementsVisited} element(s) were visited but not one " +
+                          "Qto_*/Pset_* parameter accepted a value, so the exported IFC would carry no quantities " +
+                          "at all. The Qto_*/Pset_StingCost shared parameters are not bound in this project — run " +
+                          "the shared-parameter load (SETUP → Load shared parameters), then re-run this export.";
                 return Result.Failed;
             }
 
@@ -130,7 +145,12 @@ namespace StingTools.BOQ
             rp.SetSubtitle($"IFC4 written: {path}");
             rp.AddSection("DETAILS")
                  .Metric("Schema",            "IFC4 + base quantities")
-                 .Metric("Elements stamped",  stamped.ToString())
+                 // H-1 — report both. "Visited" is how many BOQ rows resolved to a
+                 // live element; "written" is how many parameters actually took a
+                 // value. They are different numbers and only the second one means
+                 // the IFC carries anything.
+                 .Metric("Elements visited",  tally.ElementsVisited.ToString())
+                 .Metric("Parameters written", $"{tally.ParametersWritten} (across {tally.ElementsWritten} element(s))")
                  .Metric("Quantities",        "Qto_*BaseQuantities (Revit-computed)")
                  .Metric("Cost / class",      "Pset_StingCost (UnitRate, NRM2Section, …)");
             rp.AddSection("NEXT STEPS")
