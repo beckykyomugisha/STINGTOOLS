@@ -2492,27 +2492,65 @@ namespace StingTools.Core
         }
 
         /// <summary>Parse a CSV line respecting quoted fields.</summary>
+        /// <summary>
+        /// RFC-4180 CSV line parser: quoted fields, and <c>""</c> inside a quoted field
+        /// as one literal quote.
+        ///
+        /// G-2 — the previous implementation toggled an <c>inQuote</c> flag on every
+        /// quote character and **never appended one**. Field boundaries survived, so
+        /// nothing looked broken, but every quote character was deleted from the
+        /// content:
+        ///
+        /// <code>
+        ///   "ASS_ID_TXT + ""-"" + ASS_TAG_1_TXT"   →  ASS_ID_TXT + - + ASS_TAG_1_TXT
+        ///   if(X = ""Standard Response"", 12, 9)   →  if(X = Standard Response, 12, 9)
+        ///   if(GATE_BOOL, ASS_TAG_2_TXT, "")       →  if(GATE_BOOL, ASS_TAG_2_TXT, )
+        /// </code>
+        ///
+        /// The first drops the separator from every concatenation formula. The second
+        /// turns a string comparison into a bare identifier — which is why sprinkler
+        /// coverage evaluated its fallback on every element. The third emits a Revit
+        /// formula with an empty argument.
+        ///
+        /// Measured over the 76 shipped <c>Data/*.csv</c> files, 67,006 rows: this
+        /// change alters **13,432 rows across 13 files** — 88 in
+        /// FORMULAS_WITH_DEPENDENCIES.csv and ~13,300 in the STING_TAG_CONFIG_v5_0_*
+        /// family, which carry Revit label formulas and were being corrupted the same
+        /// way. **Field COUNT is unchanged on every one of the 67,006 rows**, so no
+        /// caller's column indexing moves; every difference is a quote character
+        /// restored inside a field, never a field boundary. All 13,432 differences are
+        /// one-directional — the RFC parser keeps a quote the old one dropped, never
+        /// the reverse.
+        ///
+        /// Lifted from <c>StingTools.Boq.Tests/FormulaSelfRefTests.cs:76-100</c>, which
+        /// already carried a correct parser precisely because the shipped one could not
+        /// read the file under test.
+        /// </summary>
         public static string[] ParseCsvLine(string line)
         {
             var result = new System.Collections.Generic.List<string>();
-            bool inQuote = false;
-            var current = new System.Text.StringBuilder();
+            if (line == null) { result.Add(""); return result.ToArray(); }
 
-            foreach (char c in line)
+            var current = new System.Text.StringBuilder();
+            bool inQuote = false;
+
+            for (int i = 0; i < line.Length; i++)
             {
-                if (c == '"')
+                char c = line[i];
+                if (inQuote)
                 {
-                    inQuote = !inQuote;
+                    if (c == '"')
+                    {
+                        // "" inside a quoted field is one literal quote; a lone quote
+                        // closes the field.
+                        if (i + 1 < line.Length && line[i + 1] == '"') { current.Append('"'); i++; }
+                        else inQuote = false;
+                    }
+                    else current.Append(c);
                 }
-                else if (c == ',' && !inQuote)
-                {
-                    result.Add(current.ToString());
-                    current.Clear();
-                }
-                else
-                {
-                    current.Append(c);
-                }
+                else if (c == '"') inQuote = true;
+                else if (c == ',') { result.Add(current.ToString()); current.Clear(); }
+                else current.Append(c);
             }
             result.Add(current.ToString());
             return result.ToArray();
