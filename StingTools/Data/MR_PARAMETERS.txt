@@ -3493,3 +3493,8 @@ PARAM	f44c8c2c-5981-517e-91e0-2a1c2970a74d	STING_PLACER_SYMBOL_CODE_TXT	TEXT		37
 PARAM	e2b1686a-8c6a-5db8-ba02-144add1cc43f	STING_PLACER_VIEW_ID_TXT	TEXT		37	1	View id where the symbol was placed (per-view idempotency) [Symbols]	1	0
 PARAM	5e4ca8e4-f098-57f8-8829-7fb8353f9536	STING_FINISH_SRC_ROOM_ID_TXT	TEXT		38	1	Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]	1	0
 PARAM	c914565f-e02b-5c67-b9b6-c086cc17d2cf	STING_FINISH_CODE_TXT	TEXT		38	1	Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]	1	0
+PARAM	8dfccc8d-fd49-5bc5-9989-e0537a632a51	UNICLASS_PR_TXT	TEXT		1	1	Uniclass 2015 Products (Pr_) classification code, e.g. Pr_30_59_24 -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]	1	0
+PARAM	56d504fd-7f0f-51bd-b1cc-1f38ed9cdfd9	UNICLASS_SS_TXT	TEXT		1	1	Uniclass 2015 Systems (Ss_) classification code, e.g. Ss_25_10 -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]	1	0
+PARAM	40adcf6e-4d27-5f38-abd8-d2a92cbef48f	UNICLASS_EF_TXT	TEXT		1	1	Uniclass 2015 Elements/Functions (EF_) classification code -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]	1	0
+PARAM	7dd1529e-886b-56b5-96fa-d023f03b6a32	NBS_CODE_TXT	TEXT		1	1	NBS specification clause reference for this type -- read by ClassificationReader as a classification fallback [NBS]	1	0
+PARAM	8c96dd6c-13ec-5f34-9caa-a0d9de7abd19	ASSET_RFI_URL_TXT	TEXT		1	1	URL to the asset's RFI / product data record -- read per instance by ClassificationReader	1	0
