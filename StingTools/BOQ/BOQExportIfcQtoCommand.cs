@@ -69,14 +69,14 @@ namespace StingTools.BOQ
             //    NRM2Section + unit rate) onto every priced element, so the IFC
             //    carries quantities + cost + classification proxy. This is a real
             //    param write and MUST commit so the export below sees it.
-            int stamped;
+            IfcStampTally tally;
             try
             {
                 var boq = BOQCostManager.BuildBOQDocument(doc);
                 using (var tx = new Transaction(doc, "STING BOQ — stamp IFC Qto + cost psets"))
                 {
                     tx.Start();
-                    stamped = IfcQuantitySetWriter.StampAllElements(doc, boq);
+                    tally = IfcQuantitySetWriter.StampAllElements(doc, boq);
                     tx.Commit();
                 }
             }
@@ -84,6 +84,40 @@ namespace StingTools.BOQ
             {
                 StingLog.Error("BOQExportIfcQtoCommand: stamp", ex);
                 message = ex.Message;
+                return Result.Failed;
+            }
+
+            // H-1 — the whole point of this command is to put quantities INTO the
+            // IFC. The Qto_*/Pset_* targets are shared parameters that must be
+            // pre-bound; unbound, every write is a silent no-op. Exporting anyway
+            // hands the QS a file that Cost-X will read as having no quantities,
+            // with a success message on screen. Stop here instead.
+            //
+            // The gate is QUANTITIES, not parameters-of-any-kind. Gating on the
+            // combined count would let the commonest broken configuration through:
+            // Pset_StingCost.* are STING's own shared parameters and are bound as a
+            // matter of course, while the IFC-standard Qto_* names must be added
+            // deliberately — and Pset_StingCost.Currency is a hardcoded non-empty
+            // string, so it alone would satisfy a combined gate on every element.
+            if (tally.WroteNoQuantities)
+            {
+                StingLog.Error($"BOQExportIfcQtoCommand: {tally.ElementsVisited} element(s) visited, " +
+                               $"{tally.ParametersWritten} parameter(s) written, 0 quantities — aborting export.", null);
+
+                message = tally.WroteNothing
+                    // Nothing bound at all — no quantities AND no cost.
+                    ? $"Nothing was written. {tally.ElementsVisited} element(s) were visited but not one " +
+                      "Qto_*/Pset_StingCost parameter accepted a value, so the exported IFC would carry no " +
+                      "quantities and no cost. Neither family is bound in this project — run the shared-parameter " +
+                      "load (SETUP → Load shared parameters), then re-run this export."
+                    // Cost bound, quantities not — a different problem, different fix.
+                    : $"No quantities were written. {tally.ParametersWritten} cost/material parameter(s) were " +
+                      $"written across {tally.ElementsWritten} element(s), but zero Qto_*BaseQuantities values — so " +
+                      "the exported IFC would carry cost data against no measured quantities, which is worse than " +
+                      "an empty file because it looks priced. The Pset_StingCost parameters are bound; the " +
+                      "IFC-standard Qto_* ones are not, and they are not part of the standard STING parameter load " +
+                      "— they must be added to the shared-parameter file and bound to the relevant categories " +
+                      "(Qto_WallBaseQuantities.NetArea and siblings). Add them, then re-run this export.";
                 return Result.Failed;
             }
 
@@ -130,7 +164,14 @@ namespace StingTools.BOQ
             rp.SetSubtitle($"IFC4 written: {path}");
             rp.AddSection("DETAILS")
                  .Metric("Schema",            "IFC4 + base quantities")
-                 .Metric("Elements stamped",  stamped.ToString())
+                 // H-1 — report all three. "Visited" is how many BOQ rows resolved to
+                 // a live element; "quantities" is the deliverable; "parameters" is
+                 // every write of any family. Only the middle one means the IFC
+                 // carries measurable quantities.
+                 .Metric("Elements visited",   tally.ElementsVisited.ToString())
+                 .Metric("Quantities written", tally.QuantitiesWritten.ToString(), "Qto_*BaseQuantities — the estimator feed")
+                 .Metric("Parameters written", $"{tally.ParametersWritten} (across {tally.ElementsWritten} element(s))",
+                         "all families: Qto_* + Pset_StingCost + material psets")
                  .Metric("Quantities",        "Qto_*BaseQuantities (Revit-computed)")
                  .Metric("Cost / class",      "Pset_StingCost (UnitRate, NRM2Section, …)");
             rp.AddSection("NEXT STEPS")
