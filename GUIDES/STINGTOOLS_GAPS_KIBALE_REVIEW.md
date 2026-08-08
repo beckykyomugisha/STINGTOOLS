@@ -1,8 +1,11 @@
 # STINGTOOLS — Gaps & Enhancement Register
 
 > Produced while planning the **Kibale NP lodge** project (see [KIBALE_NP_BIM_MODELLING_PLAYBOOK.md](KIBALE_NP_BIM_MODELLING_PLAYBOOK.md)).
-> Every entry is evidence-backed with a file:line citation. Nothing here has been fixed — this is the register.
+> Every entry is evidence-backed with a file:line citation.
 > **Date of review: 2026-08-08.** Re-verify before acting; the codebase moves.
+>
+> **The original header said "nothing here has been fixed". That is no longer true** —
+> 22 entries are closed on `claude/kibale-integration`. See the status index below.
 
 ## How to read this
 
@@ -11,6 +14,89 @@
 | **P0** | Silently produces a wrong deliverable. A user cannot tell it went wrong. |
 | **P1** | Blocks or badly degrades a real workflow; the user notices but cannot fix it. |
 | **P2** | Friction, drift, or a missing capability with a manual workaround. |
+
+| Status | Meaning |
+|---|---|
+| **closed** | Fixed, with the commit named. **Compile-verified only — see the caveat below.** |
+| **partial** | Some of the entry is fixed; the remainder is described in the entry. |
+| **open** | Untouched. |
+
+> ⚠️ **"Closed" means the code changed and the build is green. It does NOT mean it was run
+> in Revit.** Nothing in this batch has been exercised against a real model. `lookup()`
+> alone turned 29 call sites from writing `0` to writing real quantities. Before relying on
+> any closed entry, work through
+> [`docs/KIBALE_REVIT_VERIFICATION.md`](../docs/KIBALE_REVIT_VERIFICATION.md).
+
+### Status index
+
+| Entry | Sev | Status | Closing commit |
+|---|---|---|---|
+| A-1 failed quantity → zero | P0 | **closed** | `abeb6142c` |
+| A-2 two Uniclass parameter sets | P0 | open | |
+| A-3 repeated links taken off once | P1 | open | |
+| A-4 room-finish default invents carpet | P1 | open | |
+| B-1 no East African / AAQS method | P1 | open | |
+| B-2 no earthwork path | P1 | open | |
+| B-3 `ViewStylePack.Checksum` unused | P2 | open | |
+| C-1 … C-6 Scope Box Manager | — | **closed** | `15bc74155` `fd52eea1d` |
+| E-1 / E-1b material rate ~3,700× low | P0 | **closed** | `2113dfedb` |
+| E-2 three dead carbon paths | P0 | open | |
+| E-3 keyword-order landmines | P1 | open | |
+| E-4 waste never applies to priced qty | P1 | open | |
+| E-5 two "primary material" algorithms | P1 | open | |
+| E-6 a rate miss is silent | P1 | open | |
+| E-7 identity class leads the description | P2 | **partial** | `a69ae361e` normalised 580 classes; the description path still reads `MaterialClass` raw |
+| E-8 dead Tier 2, schema drift, dup blocks | P2 | **partial** | `a69ae361e` closed the 72↔73 schema drift; dead Tier 2 and duplicate block families remain |
+| E-9 missing East African materials | P2 | open | |
+| E-10 quarter of library at flat default | P0 | **partial** | `a69ae361e` |
+| E-11 seven invalid identity classes | P0 | **closed** | `a69ae361e` |
+| E-12 third of library has no density/carbon | P1 | open | |
+| E-13 cost has no unit | P1 | **closed** | `a69ae361e` (`MAT_COST_UNIT_OF_MEASURE`) |
+| E-14 `MAT_ISO_19650_ID` has no grammar | P1 | open | |
+| E-15 material-name inconsistencies | P1 | **closed** | `a69ae361e` (34 names) |
+| E-16 the full alignment fix | — | **partial** | `a69ae361e` |
+| F-1 three LOC vocabularies | P0 | open | |
+| F-2 untagged → first building | P0 | open | |
+| F-3 `BuildingCodeSeed` defeats level parser | P1 | open | |
+| F-4 five level-code vocabularies | P1 | open | |
+| F-5 `LG` renders "Level G" | P1 | open | |
+| F-6 three values called "level" | P1 | open | |
+| F-7 volume-code params dead | P2 | open | |
+| F-8 `LocPatterns` dead code | P2 | open | |
+| F-9 the SpatialCodeRegistry fix | — | open | |
+| G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
+| G-2 CSV reader destroys quoted literals | P0 | open | |
+| G-3 TEXT path has no `if()` | P0 | open | |
+| G-4 unit conversion, one caller in eight | P0 | open — **decision required** | |
+| G-5 nothing fails loudly | P0 | **closed** | `5ee46d27c` `5d7443105` |
+| G-6 32 rows silently dropped | P1 | open | |
+| G-7 `MULTI` formulas never fire | P1 | open | |
+| G-8 Type-vs-Instance binding ambiguity | P1 | open | |
+| G-9 federated-model cache hazard | P1 | open | |
+| G-10 arithmetic and modelling errors | P2 | **partial** | mortar `× 12` closed by `6433778b3`; the rest open |
+| G-11 floors, screeds, finishes uncovered | P0 | **partial** | K-2/K-3 land finish codes and floor creation; screed and skirting still absent |
+| G-12 priority order | — | — | |
+| G-14 the three BOQ-engine traps | — | **partial** | Trap 1 closed by `abeb6142c`; traps 2 and 3 open |
+| **G-15 formula take-off not material-aware** | **P0** | **open** | new — see entry |
+| H-1 IFC writer reports success writing nothing | P0 | **closed** | `60e24be6a` `ba703bb23` |
+| H-2 hardcoded currency in IFC/ERP export | P0 | open | |
+| H-3 gates report 100 % on an empty bill | P0 | **closed** | `b11289a7e` |
+| H-4 swallowed sheet-name write | P0 | open | |
+| H-5 no schema validation for data files | P0 | open | |
+| H-6 … H-11 | — | open | |
+| K-1 room finishes never written | P0 | **closed** | `daf87d34b` `9f02aa3bf` |
+| K-2 no finish code parameter or legend | P1 | **closed** | `9f02aa3bf` |
+| K-3 nothing turns a finish into an element | P1 | **closed** | `6f700cbc2` |
+| K-4 no per-element BOQ exclusion | P0 | open | |
+| K-5 `PHASE_CREATED` not filtered | P1 | open | |
+| K-6 two category-exclusion lists | P2 | open | |
+| K-7 `{lvl}` renders empty and silent | P1 | **closed** | `84a7919af` |
+| K-8 ISO pattern contradicts the data | P2 | **closed** | `84a7919af` |
+| K-9 token-lock check is dead code | P1 | open | |
+| K-10 Mark mapped to two parameters | P1 | open | |
+| K-11 Mark dedup drifts from asset ID | P2 | open | |
+| K-12 `WriteToRooms` over-reports | P2 | **closed** | `daf87d34b` |
+| J-1 … J-4 material price book | — | open | |
 
 ---
 
@@ -25,11 +111,25 @@ case "each": case "item": case "nr": case "no": case "": return 1.0;
 default: return 0.0;   // m / m² / m³ / kg
 ```
 
-When `EvaluateQuantity` cannot resolve a rule's `quantitySource`, a **measured** unit falls back to `0.0`. The row is still produced — with a description, a classification, a rate and a section — and reads as a genuine, cheap item. Nothing in the export, the rate audit or `BOQPrepForExport` flags a zero-quantity measured line.
+> **Status: closed** — `abeb6142c`. Compile-verified only.
+>
+> **Correction (2026-08-08).** This entry originally ended "…and nothing gated it." **That
+> was wrong**, and the error mattered: a reviewer who checked would have found the claim
+> false and deprioritised a real P0. `BOQModels.cs:104` `BlocksExport` already included
+> `CouldNotMeasureCount`, and `BOQProfessionalExportCommand:92` already surfaced it, so the
+> professional/tender export path **did** refuse. The framing below replaces it.
+
+When `EvaluateQuantity` cannot resolve a rule's `quantitySource`, a **measured** unit falls back to `0.0`. The row is still produced — with a description, a classification, a rate and a section — and reads as a genuine, cheap item.
 
 **Why it matters here:** eight buildings' worth of walls, floors and roofs. One bad rule or one unbound geometry parameter and a whole trade quietly prices at nil.
 
-**Suggested fix:** return `double.NaN` or set a `QuantityResolved = false` flag on the line; surface the count in `BOQPrepForExport` as a hard gate ("N measured lines have zero quantity"), and tint them in the export.
+**The defect is gate topology plus signal quality — not an absence of gating.**
+
+1. **Topology.** `BOQPrepForExport` — the one pre-flight a QS is told to trust, the command whose entire job is to answer "is this safe to export" — consulted **none** of the uncosted rollup. Its gates were compliance, containers, stale, BOQ band, warnings and placeholders. A downstream exporter caught the condition; the thing people actually run did not.
+2. **Signal quality.** `CouldNotMeasureCount` *infers* the condition from `Quantity <= 0.0001` (`BOQCostManager.cs:2924`). That cannot separate "never measured" from "measured, and genuinely zero" — a demolition line, a zero-length segment, a nil provisional item. Carrying false positives, it can only ever be advisory. **That is precisely why it sat in a rollup rather than a gate**, and why "just gate on the existing count" was never available.
+
+**Fix, on both axes** (`abeb6142c`): make the take-off report the failure *explicitly* —
+`FallbackQuantity`/`EvaluateQuantity` return `double?`, null sets `BOQLineItem.QuantityResolved = false` and appends `[QUANTITY NOT RESOLVED]` — so the signal is false-positive-free; then gate `BOQPrepForExport` on that new `QuantityUnresolvedCount`, failing closed. `QuantityResolved` defaults **true** so every existing row, snapshot and clone keeps its meaning. `CouldNotMeasureCount` is kept as-is. `CostValidators` now separates `COST.QTY.UNRESOLVED` from `COST.QTY.ZERO`.
 
 ## A-2 · P0 · Two Uniclass parameter sets that never meet
 
@@ -174,6 +274,23 @@ XAML matching the surrounding style:
 | Select in Revit | `SelectInModel(ElementId)` | `UI/PlacementCenter/StingPlacementCenter.xaml.cs:1639-1653` |
 | Drawing type list | `DrawingTypeRegistry.ListAll(doc)`; then `Get(doc, id)` for the resolved profile | `Core/Drawing/DrawingTypeRegistry.cs:223, 46` |
 | Modeless, not modal | follow `DrawingTypeEditorCommand.cs:25-33` — a modal WPF window blocks Revit's ExternalEvent queue | `Commands/Drawing/DrawingTypeEditorCommand.cs:25-33` |
+
+> **Correction (2026-08-08): C-2 and C-4 contradicted each other, and the contradiction was
+> load-bearing.** C-4 says build on `StingDataGridDialog`; the row above says it must be
+> modeless. **Those two instructions cannot both be followed as written.**
+> `StingDataGridDialog` assigns `DialogResult` on every close path — `:158`, `:218`, `:220`
+> — and setting `DialogResult` on a window that was shown with `Show()` rather than
+> `ShowDialog()` throws `InvalidOperationException`. Built as specified, **every close path
+> throws**: the OK button, the Cancel button, and the window's X.
+>
+> **Resolution as landed** (`fd52eea1d`): `StingDataGridDialog` gains an `IsModeless` flag;
+> when set, the close paths skip the `DialogResult` assignment and call `Close()` directly.
+> The dialog is still the shell, it is genuinely modeless, and the existing ~40 modal
+> callers are unaffected because the flag defaults false.
+>
+> **Generalisable point:** "reuse this dialog" and "must be modeless" is a combination worth
+> checking explicitly whenever it appears in a spec — WPF's modal/modeless split is not a
+> property you can bolt on at the call site.
 
 **Do not** add a fourth name parser. There are already three:
 - the authoritative regex (`ScopeBoxBinder.cs:51`, **private**)
@@ -780,12 +897,49 @@ private double ParseLookup()
     if (_ctx.TryGetValue(keyRef, out object kv)) key = kv as string ?? kv?.ToString();
     if (string.IsNullOrWhiteSpace(key)) key = "DEFAULT";
 
+    // ⛔ WRONG — see the correction below. Kept only to show what NOT to do.
     double v = MaterialLookupCsv.GetProperty($"{table} {key}", column);
     if (v == 0) v = MaterialLookupCsv.GetProperty(table, column);   // DEFAULT row
     if (v == 0) { Fail($"lookup({table},{key},{column}) found no value"); return 0; }
     return v;
 }
 ```
+
+> **Correction (2026-08-08): the `v == 0` test above is wrong and must not be used.**
+>
+> `GetProperty` returns `0` for **both** "property absent" and "property present and
+> legitimately zero". Treating `0` as "not found" therefore rejects real data.
+> `MATERIAL_LOOKUP.csv` contains **eight true zeros**, and **six are reachable through the
+> exact columns these 27 formulas read**:
+>
+> | Row | Column | Why 0 is correct |
+> |---|---|---|
+> | `CONCRETE C10`, `CONCRETE C7.5` | `STEEL_KG_PER_M3` | Unreinforced blinding |
+> | `ROOF_SHEET CLAY_TILE`, `ROOF_SHEET CONCRETE_TILE` | `FASTENERS_PER_M2` | Nailed, not fixed |
+> | `FORMWORK COLUMN`, `FORMWORK FOUNDATION` | `PROPS_PER_M2` | Self-standing, no props |
+>
+> Following the draft, a C10 blinding pour's steel formula would `Fail()` and — composed
+> with the G-5 change — **skip a write whose correct answer is zero**. That inverts G-5 for
+> those rows: it converts a correct zero into a missing quantity, which is the same class of
+> silent wrongness G-5 exists to remove.
+>
+> **Use `MaterialLookupCsv.TryGetProperty` instead**, added for this purpose — it
+> distinguishes absent from present-and-zero:
+>
+> ```csharp
+> if (MaterialLookupCsv.TryGetProperty($"{table} {key}", column, out double v)) return v;
+> if (MaterialLookupCsv.TryGetProperty(table, column, out v))                  return v;
+> Fail($"lookup({table},{key},{column}) found no value");
+> return 0;
+> ```
+>
+> As landed in `a9eec757f`. Also note the empty-key handling: an empty *parameter value*
+> must fall to `"DEFAULT"` rather than composing the key `"CONCRETE "`, which would miss
+> silently.
+>
+> **Verified before building, not assumed:** 27 formulas / 29 calls, zero missing tables,
+> zero missing columns, and a simulation of the exact resolution order resolves all 29 under
+> both worst cases (key present-but-empty, key absent entirely).
 
 `Fail()` already exists on the parser (added in the G-5 fix), so an unresolvable lookup now **skips the formula** rather than writing a zero — the two fixes compose.
 
@@ -844,6 +998,61 @@ Not a code defect — a data-completeness one — but it is invisible today. `Re
 `BOQExportCommand.EnsureAllParagraphsResolved` (`:614-661`) re-resolves any paragraph still matching `\[[A-Za-z0-9_]+\]`, and failing that synthesises *"Supply, deliver and install {discipline} {category}…"*. The fallback is reasonable; the problem is it is **silent**, and `ParagraphCoveragePct < 80` only warns — and is **skipped entirely when driven from the panel** (`InlineHost=1`, `:59-74`).
 
 **Fix:** count fallback paragraphs separately from resolved ones and report both. Never skip the coverage gate for the panel path — an inline host is a reason to render the warning differently, not to drop it. And list the top ten unresolved token names, because they point straight at the parameters worth populating.
+
+## G-15 · 🔴 P0 · The formula take-off is not material-aware, and disagrees with the C# take-off by ~2.3× on blockwork
+
+> **Status: open.** Found while fixing the mortar `× 12` (`6433778b3`); that commit corrected
+> the arithmetic and **did not** address this. Recommendation below is a recommendation, not
+> something done.
+
+`CST_S_MAS_MORTAR_VOLUME_CU_M` queries the **`BRICK_BOND`** table unconditionally:
+
+```
+CST_S_MAS_NET_AREA_SQ_M * lookup(BRICK_BOND, BLE_BRICK_BOND_TYPE_TXT, MORTAR_RATIO)
+```
+
+There is no test of what the wall is made of. A **blockwork** wall carries no
+`BLE_BRICK_BOND_TYPE_TXT`, so the key is empty, the lookup falls to `BRICK_BOND DEFAULT`
+= **0.025 m³/m²** — a brick figure — and the wall is billed on it.
+
+`BLOCK 400x200 MORTAR_VOLUME_FACTOR` is **0.011 m³/m²**, less than half.
+
+Meanwhile `BOQ/Takeoff/CompoundTakeoffBuilder.cs:90-99` does exactly the right thing:
+
+```csharp
+bool isBrick = material.Contains("brick");
+if (isBrick)  mortarRatio = Prop($"BRICK_BOND {bond}", "MORTAR_RATIO",         "BRICK_BOND DEFAULT");
+else          mortarRatio = Prop($"BLOCK {size}",      "MORTAR_VOLUME_FACTOR", "BLOCK DEFAULT");
+```
+
+**So one physical quantity has two owners that disagree.** For 50 m² of 200 mm blockwork:
+
+| Path | Mortar |
+|---|---|
+| `CompoundTakeoffBuilder` (C#, material-aware) | `50 × 0.011` = **0.55 m³** |
+| `CST_S_MAS_MORTAR_VOLUME_CU_M` (formula) | `50 × 0.025` = **1.25 m³** |
+
+**2.27× apart**, on a wall neither path flags, and the error propagates into
+`CST_S_MAS_CEMENT_BAGS_NR` and `CST_S_MAS_SAND_VOLUME_CU_M`.
+
+**This was latent until `a9eec757f`.** While `lookup()` was unimplemented the formula wrote
+`0` and nobody noticed. Implementing `lookup()` turned it on. That is not an argument
+against implementing `lookup()` — it is an argument for treating every one of the 27
+revived formulas as unverified until checked against a hand take-off.
+
+**Secondary fragility:** the C# path's test is `material.Contains("brick")` on the *material
+name string*. A block wall whose material is named "Brick-faced blockwork" takes the brick
+branch. Same class of defect, smaller blast radius.
+
+**Recommended fix — delete the formula and let `CompoundTakeoffBuilder` own masonry
+mortar.** Making the formula material-aware is possible (`if(material contains brick, …)`)
+but it means maintaining the same decision in two languages against the same data, which is
+how the two paths drifted in the first place. **One quantity should have one owner.** The
+formula is the one to lose: it cannot read the material name without another parameter, and
+the C# path already handles block size, brick bond, mortar mix and plaster together.
+
+If the formula is kept instead, it needs a material test *and* a second lookup against
+`BLOCK`/`MORTAR_VOLUME_FACTOR`, and both paths need a regression test asserting they agree.
 
 ## G-12 · Priority order for fixes
 
@@ -996,18 +1205,52 @@ Also unguarded: `BOQ/BOQCostManager.cs:2966` divides by `boq.AllItems.Count` wit
 
 # Part K — Room finishes, BOQ exclusion, sheet numbering, marks
 
-## K-1 · 🔴 P0 · Two room-finish parameter families that never meet
+## K-1 · 🔴 P0 · The STING room-finish parameters were never bound, so nothing was written at all
 
 | Family | Written by | Read by |
 |---|---|---|
 | Revit built-ins `ROOM_FINISH_FLOOR/WALL/CEILING/BASE` | **only** `FohlioImportFinishesCommand` (`ExLink/FohlioFinishesCommands.cs:26-32`) | `ISBRoomFinishCommand`'s schedule (`ExLink/ISBAppsCommands.cs:218-236`) — fields literally `"Floor Finish"`, `"Wall Finish"`, … |
 | STING `BLE_ROOM_FINISH_*_TXT` (`MR_PARAMETERS.txt:1593-1596`) | `RoomFinishScheduler.WriteToRooms` (`PlasteringEngine.cs:996-1014`) | the covering engine, BOQ description tokens |
 
-**Run "Room Finishes", then build the ISB room finish schedule, and the schedule is empty.** The two commands ship in the same product, address the same concept, and write and read different parameters.
+> **Status: closed** — `daf87d34b` (write both families, count honestly) + `9f02aa3bf` (the
+> bindings). Compile-verified only.
+>
+> **Correction (2026-08-08).** This entry originally read "two parameter families that never
+> meet", which is **wrong, and understates it**. "Never meet" implies both halves were
+> written and simply not joined up. They were not.
 
-The only bridge is one-way: `NativeParamMapper` copies **built-in → STING** with `SetIfEmpty` during tagging (`ParameterHelpers.cs:2907-2914`). Nothing goes STING → built-in.
+**`BLE_ROOM_FINISH_*_TXT` had ZERO rows in `CATEGORY_BINDINGS.csv`.** Verified against
+`ff054c77a`: `grep -c "BLE_ROOM_FINISH_" StingTools/Data/CATEGORY_BINDINGS.csv` → **0**.
 
-**Fix:** `WriteToRooms` should write **both** families, or the ISB schedule should be re-pointed at the STING params. Writing both is better — the built-ins are what a native Revit schedule and an IFC export can see.
+So on a stock-bound project the parameters did not exist on Rooms at all. `WriteToRooms`
+attempted the write, `Parameter` came back null or the set threw, and the failure was
+swallowed by `catch (Exception ex) { StingLog.Warn($"Param not bound: {ex.Message}"); }`
+(`PlasteringEngine.cs:1360`) — **every run, on every room, in silence apart from a log line
+nobody reads.** The STING half of the feature had never worked on any project that had not
+hand-bound the parameters.
+
+The built-in half worked, but only from `FohlioImportFinishesCommand`. So:
+
+- **Run "Room Finishes" → nothing is written anywhere.** Not "written to the wrong family".
+- **Build the ISB room finish schedule → empty**, because the built-ins were never written
+  either unless a Fohlio import had run.
+
+The only bridge is one-way and irrelevant here: `NativeParamMapper` copies **built-in →
+STING** with `SetIfEmpty` during tagging (`ParameterHelpers.cs:2907-2914`) — and it too was
+writing into unbound parameters.
+
+**Fix (as landed):** two parts, and both were necessary —
+1. **The bindings** (`9f02aa3bf`): 10 rows added to `CATEGORY_BINDINGS.csv` — the four
+   `BLE_ROOM_FINISH_*_TXT`, the four new `*_COD_TXT` code parameters (Rooms, Instance), and
+   two Floors-instance parameters for K-3.
+2. **The built-in write** (`daf87d34b`): `WriteToRooms` now writes **both** families, so a
+   native Revit schedule and an IFC export can see the values. Writing both is the right
+   answer rather than re-pointing the ISB schedule — the built-ins are what everything
+   outside STING can read.
+
+**Lesson for the register generally:** a `catch` that logs and continues turns a
+missing-binding defect into an invisible one. This is the same failure class as G-5 and
+A-1, in a different subsystem.
 
 ## K-2 · 🟠 P1 · No finish code parameter, and no finish code legend
 
@@ -1059,6 +1302,34 @@ So excluding a category from tagging does nothing to the bill, and vice versa, a
 `vol`, `type` and `role` all fall back to the profile in `DrawingTokenContext.Build`. **`{lvl}` does not** — `:57` is `{ "lvl", levelCode ?? string.Empty }`. If the producing command passes no level, the sheet number comes out `KBL26-PLN-COT01--DR-A-1001` with an empty segment and no warning.
 
 Same shape for `{seq}`: absent entirely when the caller has no value (`:75`), leaving the literal `{seq:D4}` in the sheet number.
+
+> **Status: closed** — `84a7919af`. Compile-verified only.
+>
+> **Correction (2026-08-08): the fallback is needed at BOTH ends, and this entry implied
+> one.** Adding `Level` to `IsoNaming` and falling back to it in `DrawingTokenContext.Build`
+> fixes the **title-block cells only**. The **sheet number** does not read the token
+> dictionary for `lvl` at all: `DrawingProducer.SubstituteTokens` passes it as a separate
+> caller-resolved argument into `ApplyTokenPattern`, and `{lvl}` is consumed there —
+> `p.Replace("{lvl}", SafeShort(lvl))` — *before* the extras sweep that handles the rest of
+> the ISO tokens.
+>
+> Patching only `DrawingTokenContext` would therefore have produced a drawing whose
+> title block reads `ZZ` and whose sheet number still reads `…-COT01--DR-…`: **two surfaces
+> disagreeing about one drawing**, which is worse than the original blank because it looks
+> fixed. The landed fix applies the same fallback in both places —
+> `lvl: ctx?.Level?.Name ?? dt?.IsoNaming?.Level ?? ""` at `DrawingProducer.cs`, with a
+> comment recording why.
+>
+> **This correction was filed against "C-5" in the follow-up brief. C-5 is the
+> `TryParseName` refactor** (closed by `15bc74155`) and is unrelated; the `{lvl}` claim
+> lives here in K-7. Noted so the two are not conflated later.
+>
+> **Trap this creates.** `IsoNaming.Level` carries `NullValueHandling.Ignore` and is null in
+> all 93 shipped corporate types, so drawing-type checksums are unchanged. **The first
+> corporate type that sets `"level"` in `STING_DRAWING_TYPES.json` changes that type's
+> hash** and must be re-stamped with `tools/StampDrawingTypeChecksums`, or the registry
+> demotes it to `project` origin. Since K-7 exists precisely to make people populate that
+> field, expect to hit this.
 
 ## K-8 · 🟡 P2 · The shipped ISO pattern suggestion contradicts the shipped data
 
