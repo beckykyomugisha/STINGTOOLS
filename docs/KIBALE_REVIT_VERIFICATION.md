@@ -84,6 +84,41 @@ regression.** Record both numbers.
 
 ---
 
+## 2b. G-2 — the CSV parser now keeps quote characters (**blocking**)
+
+`ParseCsvLine` was deleting every quote character from field *content*. Fixing it changes
+**13,432 rows across 13 shipped data files** — and only ~88 of those are the formula
+engine. **~13,300 are the `STING_TAG_CONFIG_v5_0_*` files, which carry the Revit label
+formulas written into tag families.** This is the widest-reaching change in the batch by
+row count.
+
+**Do:**
+1. **Tag families.** Run the tag-family creation / sync path against a test family.
+   Inspect a label formula in the Revit family editor.
+2. **Concatenation.** Tag an element whose tag uses `ELC_FIX_TAG_1_TXT`
+   (`ASS_ID_TXT + "-" + ASS_TAG_1_TXT`).
+3. **String comparison.** Put a sprinkler head with
+   `FLS_PROT_SPRINKLER_HED_TYPE_TXT = "Standard Response"` in the model and evaluate
+   `FLS_SFTY_COVERAGE_AREA_SQ_M`.
+
+**Pass:**
+- Label formulas read `if(GATE_BOOL, ASS_TAG_2_TXT, "")` — **with** the empty-string
+  argument, not `if(GATE_BOOL, ASS_TAG_2_TXT, )` which Revit rejects.
+- The concatenated tag reads `ABC-123`, **not** `ABC123` or `ABC 123` — the separator is
+  back.
+- Sprinkler coverage returns **12** for Standard Response and **9** for Quick Response,
+  not the 9 fallback on everything.
+
+**Fail:**
+- Any tag family formula that previously applied now errors on load → a formula that was
+  only valid *because* it was being mangled. Report it; do not re-break the parser.
+- Tag text gains stray `"` characters → the field was double-quoted in the source data
+  and now round-trips one level too few. Check the source row.
+
+**Why this is blocking:** it rewrites the text of every tag label formula the tag config
+produces. Field *counts* were verified unchanged on all 67,006 rows, so no column
+indexing moved — but the content did, on 13,432 of them.
+
 ## 3. G-5 — expect a step change in skipped formulas
 
 On a partly-populated model, **many more formulas will now be skipped than before.**
@@ -241,6 +276,22 @@ registry will demote the type to `project` origin.
 
 ---
 
+## 10. A-3 — the link under-count gate
+
+**Do:** link a model, place it **twice**, tick it for inclusion in the BOQ, and leave the
+per-link ×N multiplier **off**. Build the BOQ, open the Audit Trail sheet, then run
+`BOQ → Prep for export`.
+
+**Pass:** the Audit Trail carries a red banner and a row naming the link, `×2`, the rows it
+contributed and the UGX shortfall. Prep for export shows
+**"Linked models taken off at their placed count"** as `?` with `[CONFIRM]`, and — if that
+is the only failing gate — asks once whether it is intended. Answering **Yes** returns
+success; **No** fails.
+
+**Fail:** no warning anywhere (the finding is not being recorded); or the gate hard-blocks
+with no way to proceed (a shared reference model placed twice must remain exportable); or
+it blocks while a genuine hard failure is also present but unreported.
+
 ## 9. Regression sweep
 
 Quick passes over things this batch touched indirectly.
@@ -261,6 +312,8 @@ Quick passes over things this batch touched indirectly.
 |---|---|---|---|
 | 1 `lookup()` vs hand take-off | | QS + BIM | |
 | 2 Mortar | | QS | |
+| 2b G-2 quoted literals / tag label formulas | | BIM | |
+| 10 A-3 link under-count gate | | QS | |
 | 3 G-5 skip step change | | BIM | |
 | 4 IFC Qto refuse + write | | BIM | |
 | 5 Room finishes | | BIM | |
