@@ -160,6 +160,21 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.LOC)
             {
+                // F-2 — XX is the legal "location not established" placeholder, the same
+                // role it already plays for LVL at the level branch below. It is NOT a
+                // building, so it does not belong in LocCodes (BLD1/BLD2/BLD3/EXT) — that
+                // list is the set of real buildings and adding XX to it would make a
+                // placeholder selectable as a location.
+                //
+                // Without this escape, F-2's change would trade a silent defect for a
+                // loud one: elements that used to be mis-filed under the first building
+                // now carry XX, which strict mode would report as
+                // "LOC 'XX' not in valid set". Lenient mode (the default) already
+                // accepts it as 1-8 alphanumerics, so this only affects strict projects —
+                // which are exactly the ones that would notice.
+                if (string.Equals(value, "XX", StringComparison.OrdinalIgnoreCase))
+                    return null; // valid, but a placeholder — see F-2
+
                 // Accept custom LOC codes from config before strict/lenient check
                 if (CustomLocCodes.Count > 0 && CustomLocCodes.Contains(value))
                     return null; // Custom code accepted

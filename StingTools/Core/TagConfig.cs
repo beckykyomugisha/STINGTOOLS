@@ -38,6 +38,18 @@ namespace StingTools.Core
     /// </summary>
     public static partial class TagConfig
     {
+        // F-2 — elements whose LOC could not be derived and were assigned XX.
+        // Previously these were absorbed into the first building code, which made a
+        // multi-building project's first building silently over-counted.
+        private static int _unresolvedLocCount;
+
+        /// <summary>F-2: count of elements assigned LOC "XX" because it could not be derived.</summary>
+        public static int UnresolvedLocCount => System.Threading.Volatile.Read(ref _unresolvedLocCount);
+
+        /// <summary>F-2: reset at a batch boundary, alongside the other per-batch counters.</summary>
+        public static void ResetUnresolvedLocCount()
+            => System.Threading.Interlocked.Exchange(ref _unresolvedLocCount, 0);
+
         public static int NumPad => ParamRegistry.NumPad;
         public static string Separator => ParamRegistry.Separator;
         public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
@@ -2295,8 +2307,21 @@ namespace StingTools.Core
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(loc) || loc == "XX")
             {
-                // First valid non-placeholder code from LocCodes, else hardcoded default
-                loc = LocCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "BLD1";
+                // F-2 — was: first non-placeholder code from LocCodes, else "BLD1".
+                //
+                // That silently filed every element whose LOC could not be derived under
+                // whichever building sorts first. On a single-building project it is
+                // invisible and harmless. On a multi-building one — eight cottages, say —
+                // the first building absorbs every unplaceable element in the model, and
+                // its cost and quantities are wrong while reading entirely plausibly. A
+                // building that is over-counted because it is alphabetically first is not
+                // a defect anyone goes looking for.
+                //
+                // XX is already a legal LOC that ISO19650Validator accepts, and it says
+                // the true thing: location not established. Count them so the number is
+                // visible rather than absorbed.
+                loc = "XX";
+                System.Threading.Interlocked.Increment(ref _unresolvedLocCount);
             }
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
             // M-04 FIX: Also normalize "ZZ" placeholder (matching BuildTagIndexAndCounters

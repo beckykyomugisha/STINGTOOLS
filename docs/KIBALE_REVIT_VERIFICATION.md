@@ -405,21 +405,35 @@ that changed is defined by the *unit tag on the formula*, not by which values lo
 
 ## M-2 · F-2 — untagged elements move from `BLD1` to `XX`
 
-*(Pending — see item 4 in the work queue. Recorded here so the two migrations stay
-together.)*
-
 Elements whose LOC could not be derived were silently filed under whichever building code
-sorts first. They will now carry `XX`.
+sorts first (`LocCodes.FirstOrDefault(...) ?? "BLD1"`). They now carry `XX`.
 
 **Expect existing models to show `XX` where they showed a building code.** That is the
 correction: those elements were never *in* that building, and on a multi-building project
 the first building was absorbing every unplaceable element — its cost and quantities wrong
 while looking entirely plausible.
 
-**Migration steps:** re-run tagging across the model; compare the per-building element
-counts and cost totals against the pre-install baseline. The first building's totals
-**should fall**. Investigate every element that lands on `XX` — each is one the tagger
-could not place, which is information that was previously being discarded.
+**Migration steps:**
+1. Baseline the per-building element counts and cost totals **before** installing.
+2. Install, then **re-run tagging across the whole model** — existing tags are not
+   rewritten by opening the file.
+3. Compare. **The first building's element count and cost total should fall.** The
+   difference is what it was absorbing.
+4. Read the new log line: `N element(s) had no derivable LOC and were tagged XX`.
+   Investigate each — every one is an element the tagger could not place, which is
+   information that was previously being discarded rather than reported.
+
+**Strict-mode note.** `XX` is now explicitly accepted by `ISO19650Validator` for LOC, the
+same escape LVL already had. It is deliberately **not** added to `LocCodes`
+(`BLD1/BLD2/BLD3/EXT`) — that list is the set of real buildings, and a placeholder must not
+be selectable as a location. Without the escape this change would have traded a silent
+defect for a loud one on strict-mode projects: elements that used to be mis-filed would
+start failing validation as `LOC 'XX' not in valid set`. Lenient mode, the default, already
+accepted it.
+
+**Expect the count to be non-zero on any real model.** If it is zero, check that LOC
+derivation is actually running — a zero here previously meant "everything was assigned to
+BLD1", not "everything resolved".
 
 ## Sign-off
 

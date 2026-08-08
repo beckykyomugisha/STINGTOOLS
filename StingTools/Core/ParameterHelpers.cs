@@ -4067,6 +4067,15 @@ namespace StingTools.Core
             // it would be spent on the first messy model and every later run would
             // log nothing — silence being the exact failure mode G-5 removed.
             Temp.FormulaEngine.ResetWarnBudget();
+            // F-2: report, then reset, the count of elements whose LOC could not be
+            // derived. These now carry XX instead of being absorbed into the first
+            // building code — the count is the only visible trace, so it must be said.
+            int unresolvedLoc = TagConfig.UnresolvedLocCount;
+            if (unresolvedLoc > 0)
+                StingLog.Warn($"{commandName}: {unresolvedLoc} element(s) had no derivable LOC and were "
+                            + "tagged XX. Previously these were filed under the first building code, "
+                            + "inflating it. Set ASS_LOC_TXT, or accept XX as 'location not established'.");
+            TagConfig.ResetUnresolvedLocCount();
             TagConfig.CheckComplianceGate(doc, commandName);
         }
 
