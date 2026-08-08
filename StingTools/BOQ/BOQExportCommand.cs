@@ -516,6 +516,55 @@ namespace StingTools.BOQ
                 headerRow = w;
             }
 
+            // K-4 — elements a user removed from this bill. Printed ABOVE the
+            // per-item table, like the link under-count block, because it is a
+            // statement about what the bill does NOT contain: no row below is
+            // wrong, quantities are simply absent by decision. An exclusion that
+            // shows up nowhere is indistinguishable from a takeoff bug, so the
+            // reason travels with it.
+            if (boq.UserExclusions != null && boq.UserExclusions.Count > 0)
+            {
+                int w = headerRow;
+                int noReason = boq.UserExclusions.Count(x => x.Reason == "(no reason given)");
+
+                ws.Cell(w, 1).Value = $"⊘ EXCLUDED BY USER — {boq.UserExclusions.Count} element(s) removed from this bill"
+                                    + (noReason > 0 ? $"; {noReason} with no reason recorded" : "");
+                ws.Range(w, 1, w, 12).Merge().Style
+                    .Font.SetBold().Font.SetFontColor(XLColor.White)
+                    .Fill.SetBackgroundColor(XLColor.FromArgb(0x7D, 0x3C, 0x98));
+                w++;
+
+                string[] ex = { "Element id", "UniqueId", "Category", "Family", "Type",
+                                "Reason", "Excluded by", "Excluded at", "Source model" };
+                WriteHeader(ws, w, ex);
+                w++;
+                foreach (var x in boq.UserExclusions
+                                     .OrderBy(e => e.Category ?? "")
+                                     .ThenBy(e => e.FamilyName ?? ""))
+                {
+                    ws.Cell(w, 1).Value = x.ElementId;
+                    ws.Cell(w, 2).Value = x.UniqueId;
+                    ws.Cell(w, 3).Value = x.Category;
+                    ws.Cell(w, 4).Value = x.FamilyName;
+                    ws.Cell(w, 5).Value = x.TypeName;
+                    ws.Cell(w, 6).Value = x.Reason;
+                    ws.Cell(w, 7).Value = x.ExcludedBy;
+                    ws.Cell(w, 8).Value = x.ExcludedAt == default(DateTime)
+                        ? "" : x.ExcludedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                    ws.Cell(w, 9).Value = x.SourceModel;
+
+                    // An unjustified exclusion is highlighted rather than hidden —
+                    // at tender "someone removed this once" is not an answer.
+                    ws.Range(w, 1, w, ex.Length).Style.Fill.SetBackgroundColor(
+                        x.Reason == "(no reason given)"
+                            ? XLColor.FromArgb(0xF5, 0xB7, 0xB1)
+                            : XLColor.FromArgb(0xEB, 0xDE, 0xF0));
+                    w++;
+                }
+                w++;   // spacer
+                headerRow = w;
+            }
+
             string[] cols = { "Line ref", "Element id", "UniqueId", "Category", "Family",
                 "Rate source", "Quantity basis", "Rate UGX", "Rate USD", "Last costed", "Snapshot ref", "Confidence" };
             WriteHeader(ws, headerRow, cols);

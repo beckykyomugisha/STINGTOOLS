@@ -175,7 +175,8 @@ namespace StingTools.BOQ
         private static List<BOQLineItem> BuildHostRawItems(Document doc, HashSet<string> knownCats,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
-            IMeasurementStandard measStd, bool allowIncremental)
+            IMeasurementStandard measStd, bool allowIncremental,
+            BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null)
         {
             string key = doc?.PathName ?? "default";
             var st = IncrementalState(doc);
@@ -187,7 +188,8 @@ namespace StingTools.BOQ
 
             // The element collection (cheap iteration) runs in both paths; the
             // expensive BuildLineItemFromElement is what incremental skips.
-            var currentElements = CollectCandidateElements(doc, knownCats);
+            var currentElements = CollectCandidateElements(doc, knownCats, exclusions, excludedOut,
+                                                           doc?.Title ?? "");
 
             if (!incremental)
             {
@@ -537,7 +539,16 @@ namespace StingTools.BOQ
             // host item set a full walk would produce (correct by construction);
             // STEP 6 onward runs identically either way.
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
-            var items = BuildHostRawItems(doc, knownCats, csvRates, cobieCostCodes, measStd, allowIncremental);
+
+            // K-4 — user exclusions. Built once and reused for the linked-model
+            // walk below, so an exclusion keyed on UniqueId holds wherever that
+            // element appears. The excluded rows are collected, not discarded:
+            // they land on boq.UserExclusions and print on the Audit Trail sheet.
+            var exclusions = BuildExclusionIndex(doc);
+            var excludedRows = exclusions != null ? new List<BOQExcludedRow>() : null;
+
+            var items = BuildHostRawItems(doc, knownCats, csvRates, cobieCostCodes, measStd, allowIncremental,
+                                          exclusions, excludedRows);
 
             // ── STEP 6: Merge manual + PS rows ───────────────────────────
             var manualStore = LoadManualStore(doc);
@@ -567,7 +578,7 @@ namespace StingTools.BOQ
                 try
                 {
                     var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes,
-                        grouping, includedLinks, measStd, boq.LinkUnderCounts);
+                        grouping, includedLinks, measStd, boq.LinkUnderCounts, exclusions, excludedRows);
                     if (linkItems.Count > 0) items.AddRange(linkItems);
                 }
                 catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
@@ -588,6 +599,18 @@ namespace StingTools.BOQ
             // description + note survive BuildBOQDocument rebuilds regardless
             // of whether the background CST_RATE_SOURCE write completed.
             ApplyModelOverrides(doc, boq);
+
+            // ── STEP 7c (K-4): carry the user exclusions onto the document ──
+            // These rows are deliberately NOT in AllItems and add nothing to any
+            // total. They ride along so the Audit Trail sheet can state what the
+            // bill is missing on purpose and why — a quantity that disappears
+            // with no trace is indistinguishable from a takeoff bug.
+            if (excludedRows != null && excludedRows.Count > 0)
+            {
+                boq.UserExclusions = excludedRows;
+                StingLog.Info($"BOQ: {excludedRows.Count} element(s) excluded by the user; "
+                            + "listed on the Audit Trail sheet.");
+            }
 
             // ── STEP 8: Assign BOQ line refs across the whole document ───
             AssignBoqLineRefs(boq);
@@ -2714,6 +2737,22 @@ namespace StingTools.BOQ
                     if (ov.NRM2Paragraph != null) existing.NRM2Paragraph = ov.NRM2Paragraph;
                     if (ov.Note != null) existing.Note = ov.Note;
                     if (ov.RateSource != null) existing.RateSource = ov.RateSource;
+
+                    // K-4 — exclusion is a tri-state over two non-nullable fields.
+                    // Copying ov.Excluded unconditionally would silently clear an
+                    // exclusion every time the user edited a rate on the same row,
+                    // because every other caller constructs the override with
+                    // Excluded defaulting to false. So the incoming override only
+                    // touches exclusion when it actually says something about it:
+                    //   Excluded = true                  → exclude (with reason)
+                    //   Excluded = false + reason non-null → explicit un-exclude
+                    //   Excluded = false + reason null     → silent on exclusion
+                    if (ov.Excluded || ov.ExcludeReason != null)
+                    {
+                        existing.Excluded = ov.Excluded;
+                        existing.ExcludeReason = ov.Excluded ? ov.ExcludeReason : null;
+                    }
+
                     existing.Modified = DateTime.UtcNow;
                     existing.ModifiedBy = Environment.UserName ?? "";
                     if (ov.ElementId > 0) existing.ElementId = ov.ElementId; // refresh the current-session id
@@ -2726,6 +2765,40 @@ namespace StingTools.BOQ
                 }
                 SaveModelOverrides(doc, store);
             }
+        }
+
+        /// <summary>
+        /// K-4 — exclude an element from the takeoff, or restore it.
+        /// Unambiguous entry point for the tri-state described in
+        /// <see cref="UpsertModelOverride"/>: callers do not have to know the
+        /// Excluded/ExcludeReason convention.
+        ///
+        /// Refuses to record an exclusion with no reason. The reason is what
+        /// makes the audit-sheet row answerable at tender; an exclusion without
+        /// one is the defect this feature exists to prevent, not a shortcut.
+        /// </summary>
+        /// <returns>false when the exclusion was rejected for want of a reason.</returns>
+        internal static bool SetModelExclusion(Document doc, string uniqueId, long elementId,
+                                               bool excluded, string reason)
+        {
+            if (doc == null) return false;
+            if (string.IsNullOrEmpty(uniqueId) && elementId <= 0) return false;
+            if (excluded && string.IsNullOrWhiteSpace(reason))
+            {
+                StingLog.Warn($"SetModelExclusion({uniqueId}/{elementId}): refused — an exclusion needs a reason.");
+                return false;
+            }
+
+            UpsertModelOverride(doc, new BOQModelOverride
+            {
+                UniqueId      = uniqueId,
+                ElementId     = elementId,
+                Excluded      = excluded,
+                // Non-null on the un-exclude path too — that is the signal that
+                // this upsert is speaking about exclusion at all.
+                ExcludeReason = excluded ? reason.Trim() : ""
+            });
+            return true;
         }
 
         /// <summary>
@@ -3263,7 +3336,8 @@ namespace StingTools.BOQ
             BoqGroupingMode grouping,
             HashSet<string> includedTitles,
             IMeasurementStandard measStd,
-            List<LinkUnderCount> underCounts = null)
+            List<LinkUnderCount> underCounts = null,
+            BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null)
         {
             var result = new List<BOQLineItem>();
             var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -3331,6 +3405,43 @@ namespace StingTools.BOQ
                         + $"{rawItems.Count} raw row(s) from '{linkName}'.");
                 }
 
+                // K-4 — apply user exclusions to the LINK rows here, at item
+                // level, not inside CollectCandidateElements. The link takeoff is
+                // cached by link path and the cache is not invalidated when an
+                // override is saved, so an element-level filter would be skipped
+                // entirely on a cache hit and the exclusion would silently not
+                // apply. Filtering rawItems covers both paths, and must run
+                // BEFORE AggregateLineItems collapses rows and clears UniqueId.
+                if (exclusions != null && rawItems != null && rawItems.Count > 0)
+                {
+                    var kept = new List<BOQLineItem>(rawItems.Count);
+                    foreach (var li in rawItems)
+                    {
+                        BOQModelOverride ov = null;
+                        if (!string.IsNullOrEmpty(li.UniqueId)) exclusions.ByUid.TryGetValue(li.UniqueId, out ov);
+                        if (ov == null && li.RevitElementId > 0) exclusions.ByEid.TryGetValue(li.RevitElementId, out ov);
+                        if (ov == null) { kept.Add(li); continue; }
+
+                        excludedOut?.Add(new BOQExcludedRow
+                        {
+                            ElementId   = li.RevitElementId,
+                            UniqueId    = li.UniqueId ?? "",
+                            Category    = li.Category ?? "",
+                            FamilyName  = li.FamilyName ?? "",
+                            TypeName    = li.TypeName ?? "",
+                            Reason      = string.IsNullOrWhiteSpace(ov.ExcludeReason)
+                                              ? "(no reason given)" : ov.ExcludeReason.Trim(),
+                            ExcludedBy  = ov.ModifiedBy ?? "",
+                            ExcludedAt  = ov.Modified,
+                            SourceModel = linkName
+                        });
+                    }
+                    if (kept.Count != rawItems.Count)
+                        StingLog.Info($"BOQ linked-model takeoff: {rawItems.Count - kept.Count} row(s) "
+                            + $"dropped by user exclusion from '{linkName}'.");
+                    rawItems = kept;
+                }
+
                 // Aggregate + neutralise on the (cloned) raw rows every time so
                 // grouping changes stay correct without invalidating the cache.
                 var linkItems = AggregateLineItems(rawItems, grouping);
@@ -3387,11 +3498,65 @@ namespace StingTools.BOQ
             return result;
         }
 
-        private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories)
+        /// <summary>
+        /// K-4 — the user exclusions in force for a document, indexed for the
+        /// takeoff walk. Built once per build; null when nothing is excluded so
+        /// the common case costs nothing.
+        /// </summary>
+        internal class BoqExclusionIndex
+        {
+            public readonly Dictionary<string, BOQModelOverride> ByUid =
+                new Dictionary<string, BOQModelOverride>(StringComparer.Ordinal);
+            public readonly Dictionary<long, BOQModelOverride> ByEid =
+                new Dictionary<long, BOQModelOverride>();
+
+            public bool IsEmpty => ByUid.Count == 0 && ByEid.Count == 0;
+
+            public BOQModelOverride Match(Element el)
+            {
+                if (el == null) return null;
+                BOQModelOverride ov = null;
+                string uid = null;
+                try { uid = el.UniqueId; } catch { }
+                if (!string.IsNullOrEmpty(uid)) ByUid.TryGetValue(uid, out ov);
+                if (ov == null)
+                {
+                    long id = el.Id?.Value ?? -1;
+                    if (id > 0) ByEid.TryGetValue(id, out ov);
+                }
+                return ov;
+            }
+        }
+
+        /// <summary>
+        /// Build the exclusion index from the persisted model-override sidecar.
+        /// Returns null when no element is excluded.
+        /// </summary>
+        private static BoqExclusionIndex BuildExclusionIndex(Document doc)
+        {
+            if (doc == null) return null;
+            BOQModelOverridesStore store;
+            try { store = LoadModelOverrides(doc); }
+            catch (Exception ex) { StingLog.Warn($"BuildExclusionIndex load: {ex.Message}"); return null; }
+            if (store?.Overrides == null || store.Overrides.Count == 0) return null;
+
+            var idx = new BoqExclusionIndex();
+            foreach (var ov in store.Overrides)
+            {
+                if (ov == null || !ov.Excluded) continue;
+                if (!string.IsNullOrEmpty(ov.UniqueId)) idx.ByUid[ov.UniqueId] = ov;
+                if (ov.ElementId > 0) idx.ByEid[ov.ElementId] = ov;
+            }
+            return idx.IsEmpty ? null : idx;
+        }
+
+        private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories,
+            BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null,
+            string sourceModel = null)
         {
             var list = new List<Element>();
             var excludedNames = BuildExcludedCategoryNames();
-            int excluded = 0, optionAlternates = 0;
+            int excluded = 0, optionAlternates = 0, userExcluded = 0;
             // WP2 — bill the MAIN model + each set's PRIMARY design option only;
             // never the alternates (which multiply quantities by the option count).
             // Configurable: set COST_BILL_PRIMARY_OPTION_ONLY = false to bill all.
@@ -3433,6 +3598,22 @@ namespace StingTools.BOQ
                     || cat.Equals("Spaces", StringComparison.OrdinalIgnoreCase)
                     || cat.Equals("Areas", StringComparison.OrdinalIgnoreCase))
                     continue;
+
+                // K-4 — user exclusion. Tested LAST, on an element that would
+                // otherwise have been billed, so the audit list is exactly "rows
+                // a human removed from this bill" and not a dump of every
+                // annotation the walk already rejects.
+                if (exclusions != null)
+                {
+                    var ov = exclusions.Match(el);
+                    if (ov != null)
+                    {
+                        userExcluded++;
+                        excludedOut?.Add(BuildExcludedRow(el, cat, ov, sourceModel));
+                        continue;
+                    }
+                }
+
                 list.Add(el);
             }
             if (excluded > 0)
@@ -3441,7 +3622,37 @@ namespace StingTools.BOQ
             if (optionAlternates > 0)
                 StingLog.Info($"BOQ takeoff: skipped {optionAlternates} non-primary design-option " +
                               "alternate(s) (COST_BILL_PRIMARY_OPTION_ONLY).");
+            if (userExcluded > 0)
+                StingLog.Info($"BOQ takeoff: {userExcluded} element(s) dropped by user exclusion " +
+                              "(listed with reasons on the Audit Trail sheet).");
             return list;
+        }
+
+        /// <summary>K-4 — capture what an exclusion removed, for the audit sheet.</summary>
+        private static BOQExcludedRow BuildExcludedRow(Element el, string cat, BOQModelOverride ov, string sourceModel)
+        {
+            string fam = "", typeName = "", uid = "";
+            try { fam = ParameterHelpers.GetFamilyName(el) ?? ""; } catch { }
+            try { typeName = ParameterHelpers.GetFamilySymbolName(el) ?? ""; } catch { }
+            try { uid = el.UniqueId ?? ""; } catch { }
+
+            return new BOQExcludedRow
+            {
+                ElementId   = el.Id?.Value ?? 0,
+                UniqueId    = uid,
+                Category    = cat ?? "",
+                FamilyName  = fam,
+                TypeName    = typeName,
+                // An exclusion with no reason is still shown, labelled as such —
+                // hiding it would defeat the point, and a blank cell reads as a
+                // rendering bug rather than a missing justification.
+                Reason      = string.IsNullOrWhiteSpace(ov.ExcludeReason)
+                                  ? "(no reason given)"
+                                  : ov.ExcludeReason.Trim(),
+                ExcludedBy  = ov.ModifiedBy ?? "",
+                ExcludedAt  = ov.Modified,
+                SourceModel = sourceModel ?? ""
+            };
         }
 
         private static bool IsPhaseDemolished(Document doc, Element el)

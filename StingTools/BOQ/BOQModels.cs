@@ -413,6 +413,18 @@ namespace StingTools.BOQ
         /// </summary>
         public List<LinkUnderCount> LinkUnderCounts = new List<LinkUnderCount>();
 
+        /// <summary>
+        /// K-4 — elements a user explicitly excluded from the takeoff, with the
+        /// reason each was excluded. Populated by CollectCandidateElements.
+        ///
+        /// These rows are NOT in <see cref="AllItems"/> and contribute nothing to
+        /// any total; they exist so the Audit Trail sheet can print what the bill
+        /// is missing on purpose. An exclusion that leaves no trace is
+        /// indistinguishable from a takeoff bug, which is the whole reason the
+        /// flag carries a reason at all.
+        /// </summary>
+        public List<BOQExcludedRow> UserExclusions = new List<BOQExcludedRow>();
+
         // ── G3 — optional built-up preliminaries schedule ───────────────────
         // When PrelimsItemised is true the grand total uses the itemised prelim
         // total (PrelimsItemisedUGX) instead of the flat PrelimPct. Loaded by
@@ -603,8 +615,48 @@ namespace StingTools.BOQ
         public string NRM2Paragraph;
         public string Note;
         public string RateSource;           // P3 — provenance ("QS" for imported rates); null ⇒ "Override"
+
+        /// <summary>
+        /// K-4 — drop this element from the takeoff entirely. Honoured in
+        /// CollectCandidateElements, so no line item is ever built for it.
+        ///
+        /// An exclusion is never silent: every excluded element is recorded on
+        /// <see cref="BOQDocument.UserExclusions"/> and printed at the top of
+        /// the Audit Trail sheet with its reason. A quantity that vanishes from
+        /// a bill with no trace is the defect this flag would otherwise create.
+        /// </summary>
+        public bool Excluded;
+
+        /// <summary>
+        /// Why the element was excluded — mandatory in practice: an exclusion
+        /// with no reason is recorded as "(no reason given)" and flagged in the
+        /// audit sheet, because "someone removed this once" is not an
+        /// auditable answer at tender.
+        /// </summary>
+        public string ExcludeReason;
+
         public DateTime Modified = DateTime.UtcNow;
         public string ModifiedBy;
+    }
+
+    /// <summary>
+    /// K-4 — one element dropped from the takeoff by a user exclusion.
+    /// Carried on <see cref="BOQDocument.UserExclusions"/> purely so the
+    /// Audit Trail sheet can show what is NOT in the bill and why.
+    /// </summary>
+    public class BOQExcludedRow
+    {
+        public long ElementId;
+        public string UniqueId;
+        public string Category;
+        public string FamilyName;
+        public string TypeName;
+        public string Reason;
+        public string ExcludedBy;
+        public DateTime ExcludedAt;
+        /// <summary>Host model name, or the link's name when the element came
+        /// from a linked document.</summary>
+        public string SourceModel;
     }
 
     /// <summary>
