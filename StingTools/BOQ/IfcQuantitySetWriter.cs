@@ -98,6 +98,10 @@ namespace StingTools.BOQ
         {
             var tally = new IfcStampTally();
             if (doc == null || boq == null) return tally;
+
+            // H-2 — one currency for the whole stamp run, read from the document the
+            // rates were resolved against.
+            string docCurrency = string.IsNullOrWhiteSpace(boq.Currency) ? "UGX" : boq.Currency.Trim();
             foreach (var item in boq.AllItems)
             {
                 if (item.RevitElementId <= 0) continue;
@@ -159,7 +163,13 @@ namespace StingTools.BOQ
                     }
 
                     // STING-specific cost property set.
-                    if (StampString(el,  "Pset_StingCost", "Currency",       "UGX")) wroteHere++;
+                    // H-2 — was the literal "UGX". BcisHttpRateProvider returns rates
+                    // defaulting to GBP, so a BCIS-priced bill exported an IFC whose
+                    // UnitRate was GBP against a Currency field asserting UGX — silently
+                    // wrong figures in a machine-read cost deliverable, which downstream
+                    // tools have no way to detect. Use the document's currency, the same
+                    // source BOQSupportCommands already honours.
+                    if (StampString(el,  "Pset_StingCost", "Currency",       docCurrency)) wroteHere++;
                     if (StampNumber(el,  "Pset_StingCost", "UnitRate",       item.RateUGX)) wroteHere++;
                     if (StampNumber(el,  "Pset_StingCost", "TotalCost",      item.TotalUGX)) wroteHere++;
                     if (StampString(el,  "Pset_StingCost", "RateSource",     item.RateSource ?? "")) wroteHere++;
