@@ -66,10 +66,10 @@
 | F-9 the SpatialCodeRegistry fix | — | open | |
 | G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
 | G-2 CSV reader destroys quoted literals | P0 | **closed** | `20e84ba50` — re-scoped: 98.6 % of impact is tag config |
-| G-3 TEXT path has no `if()` | P0 | open — **65 of 112**, not 33; blocked on G-6 | |
+| G-3 TEXT path has no `if()` | P0 | open — **65 of 112**; G-6 closed, so 65 is now the live figure | |
 | G-4 unit conversion, one caller in eight | P0 | open — **decision required** | |
 | G-5 nothing fails loudly | P0 | **closed** | `5ee46d27c` `5d7443105` |
-| G-6 32 rows silently dropped | P1 | open — **prerequisite for G-3** | |
+| G-6 32 rows silently dropped | P1 | **closed** | `<pending>` — guard now logs; 32 rows repaired to 12 columns |
 | G-7 `MULTI` formulas never fire | P1 | open | |
 | G-8 Type-vs-Instance binding ambiguity | P1 | open | |
 | G-9 federated-model cache hazard | P1 | open | |
@@ -793,10 +793,10 @@ It corrupts numeric formulas too. `FLS_SFTY_COVERAGE_AREA_SQ_M` compares a sprin
 > those rows are themselves long nested-`if()` TEXT formulas. So "33" is not the size of the
 > defect, it is the size of the part of the defect currently reachable.
 >
-> **No TEXT-formula count can be trusted until G-6 closes.** Repairing those 32 rows
-> *enlarges* this entry rather than shrinking it — anything built against 65 must be
-> re-measured afterwards, and the post-G-6 figure is the one an implementation has to
-> satisfy.
+> **G-6 is now closed.** Re-measured after the 32 rows were repaired to 12 columns:
+> all 302 formulas load, all 112 TEXT formulas load, and **65 loaded TEXT formulas contain
+> `if(`** — up from 33. **65 is the live figure an implementation has to satisfy**, and it
+> is no longer a post-drop undercount.
 >
 > Shape of the 65, which determines what the fix has to be: **all 65 begin with `if(`**,
 > **36 are nested**, and **all 65 use a comparison operator**. Nesting and comparison are the

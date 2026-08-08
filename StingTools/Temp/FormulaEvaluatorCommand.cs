@@ -391,10 +391,26 @@ namespace StingTools.Temp
                     .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
                     .Skip(1); // skip header
 
+                int droppedShort = 0;
+                var droppedNames = new List<string>();
+
                 foreach (string line in lines)
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 10) continue;
+                    if (cols.Length < 10)
+                    {
+                        // G-6 — was a bare `continue`. A row that terminates early was
+                        // dropped with no log line at all, so the formula simply did not
+                        // exist and nothing said why. That is the same invisible-failure
+                        // class as G-5, one layer earlier: G-5 makes a formula that CANNOT
+                        // BE EVALUATED visible; this makes a formula that was never LOADED
+                        // visible.
+                        droppedShort++;
+                        droppedNames.Add(cols.Length > 1 && !string.IsNullOrWhiteSpace(cols[1])
+                            ? $"{cols[1].Trim()} ({cols.Length} cols)"
+                            : $"<unnamed> ({cols.Length} cols)");
+                        continue;
+                    }
 
                     var formula = new FormulaDefinition
                     {
@@ -436,6 +452,19 @@ namespace StingTools.Temp
                             StingLog.Warn($"Formula '{formula.ParameterName}': suspect Discipline value '{formula.Discipline}' — check CSV quoting");
                         formulas.Add(formula);
                     }
+                }
+
+                // G-6 — report the drop. A formula that never loaded is
+                // indistinguishable, from the model, from one that loaded and did
+                // nothing; naming them is the only way a user finds out the CSV is
+                // truncated rather than the feature being broken.
+                if (droppedShort > 0)
+                {
+                    StingLog.Warn($"Formula load: DROPPED {droppedShort} row(s) with fewer than 10 columns — "
+                                + "these formulas do not exist at runtime. The CSV row is truncated; "
+                                + "repair it to all 12 columns. Names: "
+                                + string.Join(", ", droppedNames.Take(40))
+                                + (droppedNames.Count > 40 ? $", …(+{droppedNames.Count - 40} more)" : ""));
                 }
             }
             catch (Exception ex)
