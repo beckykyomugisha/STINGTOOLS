@@ -47,6 +47,33 @@ namespace StingTools.UI
         /// <summary>Result tag set by action buttons.</summary>
         public string ResultAction { get; set; }
 
+        /// <summary>
+        /// Set before Show() when this dialog is opened modeless (Show(), not
+        /// ShowDialog()). WPF throws InvalidOperationException from the
+        /// DialogResult setter on a window that was not shown modally, so the
+        /// Escape handler and the Cancel/OK/Apply action tags would each take
+        /// the window down with an exception instead of closing it. With this
+        /// set, those paths Close() without touching DialogResult.
+        ///
+        /// Defaults false, so every existing modal caller is unaffected.
+        /// </summary>
+        public bool IsModeless { get; set; }
+
+        private void CloseWith(bool result)
+        {
+            if (!IsModeless)
+            {
+                try { DialogResult = result; }
+                catch (InvalidOperationException ex)
+                {
+                    // Shown modeless without the flag set — close anyway rather
+                    // than propagating out of a UI event handler.
+                    StingLog.Warn($"StingDataGridDialog.CloseWith: {ex.Message}");
+                }
+            }
+            Close();
+        }
+
         public StingDataGridDialog(string title, string subtitle, int width = 960, int height = 640)
         {
             Title = title;
@@ -155,7 +182,7 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"Set window owner: {ex.Message}"); }
 
-            KeyDown += (s, e) => { if (e.Key == Key.Escape) { DialogResult = false; Close(); } };
+            KeyDown += (s, e) => { if (e.Key == Key.Escape) CloseWith(false); };
         }
 
         // ── Column builders ──
@@ -215,9 +242,9 @@ namespace StingTools.UI
             {
                 ResultAction = tag;
                 ActionClicked?.Invoke(tag);
-                if (tag == "Cancel") { DialogResult = false; Close(); }
+                if (tag == "Cancel") CloseWith(false);
                 else if (tag == "OK" || tag == "Apply" || tag == "Export" || tag == "Import")
-                { DialogResult = true; Close(); }
+                    CloseWith(true);
             };
             _actionPanel.Children.Add(btn);
             return btn;
