@@ -1002,14 +1002,17 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Search for a pre-configured seed family (.rfa) with labels already bound.
-        /// Seed families are the gold standard — they have Label → ASS_TAG_1_TXT
-        /// already configured, so they work immediately without manual Family Editor steps.
+        /// Find an existing tag family (.rfa) with labels already bound, so Create
+        /// loads it instead of minting one the Revit API cannot give labels to.
         ///
-        /// Search order:
-        ///   1. Data/TagFamilies/Seeds/  (distributed seed files)
-        ///   2. Data/TagFamilies/        (user-configured files from previous Configure Labels run)
-        /// Seed files are identified by having a "_seed" suffix or being in the Seeds/ subdirectory.
+        /// Search order — one flat folder per root, no sub-folders:
+        ///   1. &lt;shared content library&gt;/Tags/   (firm-wide; see GetTagLibraryRoots)
+        ///   2. Data/TagFamilies/                 (plugin-local baseline)
+        ///
+        /// A "_seed"-suffixed variant of the expected file name is still accepted in
+        /// either folder. The former Data/TagFamilies/Seeds/ sub-folder is GONE —
+        /// its 137 files were the pre-tier-change tags and they shadowed the live
+        /// set for 88 categories.
         /// </summary>
         public static string FindSeedFamily(BuiltInCategory bic) => FindSeedFamily(bic, null);
 
@@ -1074,33 +1077,41 @@ namespace StingTools.Tags
                 string.Equals(e.FamilyFile, baseName, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>Search every root (Seeds/ then flat) for the first of the given
-        /// file names that exists.</summary>
+        /// <summary>
+        /// Search every root for the first of the given file names that exists.
+        ///
+        /// A "Seeds/" sub-folder is deliberately NOT probed. It used to be, and it
+        /// took precedence over the root — so the 137 obsolete families in
+        /// Data/TagFamilies/Seeds shadowed the live set for the 88 categories whose
+        /// names they shared, and the manifest checksum then mismatched on every one
+        /// of them because the manifest describes the flat file. Those 137 are
+        /// deleted; the probe is removed with them rather than left as an empty
+        /// slot, because a directory that outranks the corporate set is a trap:
+        /// anything dropped there later silently shadows a category, which is
+        /// exactly the defect being removed.
+        /// </summary>
         private static string ProbeRoots(string primary, string alternate)
         {
-            foreach (var root in GetTagLibraryRoots())
+            foreach (var dir in GetTagLibraryRoots())
             {
-                if (string.IsNullOrEmpty(root)) continue;
-                foreach (var dir in new[] { Path.Combine(root, "Seeds"), root })
+                if (string.IsNullOrEmpty(dir)) continue;
+                try
                 {
-                    try
+                    if (!Directory.Exists(dir)) continue;
+                    if (!string.IsNullOrEmpty(primary))
                     {
-                        if (!Directory.Exists(dir)) continue;
-                        if (!string.IsNullOrEmpty(primary))
-                        {
-                            string p = Path.Combine(dir, primary);
-                            if (File.Exists(p)) return p;
-                        }
-                        if (!string.IsNullOrEmpty(alternate))
-                        {
-                            string a = Path.Combine(dir, alternate);
-                            if (File.Exists(a)) return a;
-                        }
+                        string p = Path.Combine(dir, primary);
+                        if (File.Exists(p)) return p;
                     }
-                    catch (Exception ex)
+                    if (!string.IsNullOrEmpty(alternate))
                     {
-                        StingLog.WarnRateLimited("FindSeedFamily", $"probing '{dir}': {ex.Message}");
+                        string a = Path.Combine(dir, alternate);
+                        if (File.Exists(a)) return a;
                     }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.WarnRateLimited("FindSeedFamily", $"probing '{dir}': {ex.Message}");
                 }
             }
             return null;
