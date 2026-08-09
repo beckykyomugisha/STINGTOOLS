@@ -5,7 +5,13 @@
 > **Date of review: 2026-08-08.** Re-verify before acting; the codebase moves.
 >
 > **The original header said "nothing here has been fixed". That is no longer true** —
-> 22 entries are closed on `claude/kibale-integration`. See the status index below.
+> **33 of 80 entries are closed** on `claude/kibale-integration`, 7 more partial, 40 open.
+> See the status index below.
+>
+> *(Counted, not estimated: the index has 66 rows but some cover a range — `C-1 … C-6` is
+> six entries, `H-6 … H-11` six, `J-1 … J-4` four. Expanding those gives 81 identifiers, of
+> which `E-1b` is a sub-variant of `E-1` rather than a separate entry — hence 80. Re-run the
+> count after editing the index rather than incrementing the header by hand.)*
 
 ## How to read this
 
@@ -63,14 +69,42 @@ Steps 1–3 cost minutes and are why G-13 landed without a correction while thre
 around it needed one. Apply the same to anything data-driven: a claim about a data file is
 a hypothesis until it has been counted.
 
+## Standing practice — a gate wired into no workflow is worse than no gate
+
+A gate that never runs does not merely fail to catch things. **Its baseline gets trusted**,
+and a clean baseline is read as evidence the problem does not exist. So an unrun gate
+actively manufactures false confidence, which is worse than the honest ignorance of having
+no gate at all. It is the same defect as an empty result list standing in for an error.
+
+Three instances in this codebase, all found the same way — by checking whether the thing
+had ever actually executed, not whether it existed:
+
+| Gate | What it claimed | What was true |
+|---|---|---|
+| `tools/check_path_discipline.ps1` | baseline **zero** hand-rolled paths | wired into **no workflow**, so it had never run in CI — while ~9 legacy sibling sites and **139** hand-rolled `_BIM_COORD` sites were live in the tree |
+| 11 `WORKFLOW_*.json` presets | ran and **reported success** | every step keyed `tag` instead of `commandTag`, so each preset resolved **zero steps** and reported success on doing nothing |
+| `StingTools.Clash.Tests` / `.Routing.Tests` | 97 test methods counted as coverage | had not **compiled** since mid-May 2026; a test project that will not compile reports nothing — no red, no count, no signal |
+
+**This retroactively explains why IM-2's count could not be reconciled.** The number was
+not miscounted; it was produced by a gate that had never executed, so it was never a
+measurement in the first place.
+
+**The check to run** is not "does the gate exist" but "has it ever produced output". For a
+CI gate: is it named in a workflow file. For a test project: does it compile and does its
+case count appear. For a preset: does it resolve a non-zero number of steps. Any gate added
+from here must fail loudly when it cannot run — `.github/workflows/stingtools-unit-tests.yml`
+now builds every test project and fails on any that will not compile, and the H-5 data gate
+runs a `--self-test` step *before* validation that asserts it still rejects planted defects.
+A gate that cannot fail must be treated as a gate that is not there.
+
 ### Status index
 
 | Entry | Sev | Status | Closing commit |
 |---|---|---|---|
 | A-1 failed quantity → zero | P0 | **closed** | `abeb6142c` |
-| A-2 two Uniclass parameter sets | P0 | open | |
+| A-2 two Uniclass parameter sets | P0 | **closed** | `316f70375` data + `0c5573c0c` code |
 | A-3 repeated links taken off once | P1 | **closed** | `2cf15fb6f` |
-| A-4 room-finish default invents carpet | P1 | open | |
+| A-4 room-finish default invents carpet | P1 | **closed** | `d703a53a2` |
 | B-1 no East African / AAQS method | P1 | open | |
 | B-2 no earthwork path | P1 | open | |
 | B-3 `ViewStylePack.Checksum` unused | P2 | open | |
@@ -92,7 +126,7 @@ a hypothesis until it has been counted.
 | E-15 material-name inconsistencies | P1 | **closed** | `a69ae361e` (34 names) |
 | E-16 the full alignment fix | — | **partial** | `a69ae361e` |
 | F-1 three LOC vocabularies | P0 | open | |
-| F-2 untagged → first building | P0 | open | |
+| F-2 untagged → first building | P0 | **closed** | `11cbc38f8` — **migration**, see verification doc |
 | F-3 `BuildingCodeSeed` defeats level parser | P1 | open | |
 | F-4 five level-code vocabularies | P1 | open | |
 | F-5 `LG` renders "Level G" | P1 | open | |
@@ -103,7 +137,7 @@ a hypothesis until it has been counted.
 | G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
 | G-2 CSV reader destroys quoted literals | P0 | **closed** | `20e84ba50` — re-scoped: 98.6 % of impact is tag config |
 | G-3 TEXT path has no `if()` | P0 | **closed** | `74f8cee84` — TextExpressionParser; 65 of 112 |
-| G-4 unit conversion, one real call site | P0 | **closed** | `<g4>` — conversion deleted; **migration**, see verification doc |
+| G-4 unit conversion, one real call site | P0 | **closed** | `e356d0642` — conversion deleted; **migration**, see verification doc |
 | G-5 nothing fails loudly | P0 | **closed** | `5ee46d27c` `5d7443105` |
 | G-6 32 rows silently dropped | P1 | **closed** | `cd1fc03a9` — guard now logs; 32 rows repaired to 12 columns |
 | G-7 `MULTI` formulas never fire | P1 | open | |
@@ -115,15 +149,15 @@ a hypothesis until it has been counted.
 | G-14 the three BOQ-engine traps | — | **partial** | Trap 1 closed by `abeb6142c`; traps 2 and 3 open |
 | **G-15 formula take-off not material-aware** | **P0** | **open** | new — see entry |
 | H-1 IFC writer reports success writing nothing | P0 | **closed** | `60e24be6a` `ba703bb23` |
-| H-2 hardcoded currency in IFC/ERP export | P0 | open | |
+| H-2 hardcoded currency in IFC/ERP export | P0 | **closed** | `8b1cfcf19` |
 | H-3 gates report 100 % on an empty bill | P0 | **closed** | `b11289a7e` |
 | H-4 swallowed sheet-name write | P0 | open | |
-| H-5 no schema validation for data files | P0 | open | |
+| H-5 no schema validation for data files | P0 | **closed** | `8a82ba60a` — self-tested gate |
 | H-6 … H-11 | — | open | |
 | K-1 room finishes never written | P0 | **closed** | `daf87d34b` `9f02aa3bf` |
 | K-2 no finish code parameter or legend | P1 | **closed** | `9f02aa3bf` |
 | K-3 nothing turns a finish into an element | P1 | **closed** | `6f700cbc2` |
-| K-4 no per-element BOQ exclusion | P0 | open | |
+| K-4 no per-element BOQ exclusion | P0 | **closed** | `2351a47a2` |
 | K-5 `PHASE_CREATED` not filtered | P1 | open | |
 | K-6 two category-exclusion lists | P2 | open | |
 | K-7 `{lvl}` renders empty and silent | P1 | **closed** | `84a7919af` |
@@ -175,6 +209,42 @@ When `EvaluateQuantity` cannot resolve a rule's `quantitySource`, a **measured**
 **The automatic command does not populate the parameters the reader consumes.** Run "Uniclass classify", get classification data the BOQ never sees, and the fallback chain drops to `Native.Family`.
 
 **Suggested fix:** point the writer at `UNICLASS_SS_TXT` / `UNICLASS_PR_TXT`, and move the 21-entry map to `Data/STING_UNICLASS_MAP.csv` with the standard corporate-baseline + project-override loader.
+
+> **Status: closed** — `316f70375` (data) + `0c5573c0c` (code). Compile-verified only.
+>
+> The entry described one defect. There were **three**, and the other two would each have
+> kept the write path dead on their own:
+>
+> 1. **Wrong parameter** — the one described. Fixed by routing on the code's table prefix
+>    (`Pr_`→`UNICLASS_PR_TXT`, `Ss_`→`UNICLASS_SS_TXT`, `EF_`→`UNICLASS_EF_TXT`). The map is
+>    not single-table — 17 `Ss_` and 3 `Pr_` — so a blind repoint at `UNICLASS_SS_TXT` would
+>    have filed Doors, Windows and Furniture as *systems*.
+> 2. **Wrong element** — the writes targeted the instance. `UNICLASS_*` bind on **Type**, and
+>    `ParameterHelpers.CachedLookup` is `el.LookupParameter` with **no type traversal**, so a
+>    Type-bound write against an instance returns `false` on every element. This also applied
+>    to the legacy `ASS_CLASS_COD_TXT` (Type-bound, `MR_PARAMETERS.csv:2272`) — the old
+>    command's `"written to N elements"` line was reporting a write that never landed.
+> 3. **A fourth name** — `UI/PlacementCenter/FamilyHintsBridge.cs` wrote
+>    `STING_UNICLASS_PR_TXT`, a name in no parameter file, zero hits repo-wide outside that
+>    one line.
+>
+> **Measured, not assumed.** The entry says "21-entry"; the dictionary held **20**. The right
+> denominator is not the 206-category tag config but the **43 distinct categories** the
+> `UNICLASS_*` parameters bind to — the map covered **18**. Seven rows derivable from a
+> vetted corporate row by the same-system rule (duct fittings/accessories/flex/terminals →
+> `Ss_55_30`; pipe equivalents → `Ss_45_30`) took it to **25 of 43**.
+>
+> **Left open, deliberately:**
+> - **The 18 unmapped categories** (named in the header of `Data/STING_UNICLASS_MAP.csv`).
+>   Each needs a real Uniclass lookup; inventing plausible codes is worse than a documented
+>   gap. Now a data edit + `UniclassReloadMap`, no rebuild.
+> - **`OST_StructuralColumns` / `OST_StructuralFraming`** carry correct codes but are not in
+>   the bound 44, so their writes no-op. Closed under item 7 of the following round —
+>   binding extension, Type. *(See the status line for that row.)*
+> - **`ASS_CLASS_COD_TXT` retention.** Checked before deciding: **no code reads it** — the
+>   command is its only reference — and it appears in no schedule, tag config, label
+>   definition or COBie map. Kept for one release anyway, because it is a bound shared
+>   parameter that live models may schedule. Retire it once that is confirmed.
 
 ## A-3 · P1 · Repeated links are taken off once unless you find a second checkbox
 
@@ -1383,6 +1453,29 @@ private void DeleteRow(BOQItemViewModel vm)
 `CST_PROVISIONAL_SUM` **reclassifies**, it does not exclude.
 
 **Fix:** one boolean on `BOQModelOverride` plus a reason string. That sidecar already survives refresh, document re-open and Revit restart, and is already re-applied on every rebuild by `ApplyModelOverrides`. Optionally back it with a `CST_BOQ_EXCLUDE_BOOL` parameter for modellers who prefer the Properties palette.
+
+> **Status: closed** — `2351a47a2`. Compile-verified only.
+>
+> The flag was the easy half. **The audit row is the feature**: an excluded element lands on
+> `BOQDocument.UserExclusions` and prints at the top of the Audit Trail sheet with its
+> reason, who and when. A quantity that vanishes from a bill with no trace is
+> indistinguishable from a takeoff bug. An exclusion saved without a reason still appears,
+> labelled `(no reason given)` and highlighted, with the count in the banner;
+> `SetModelExclusion` refuses to record one in the first place.
+>
+> Two things decided whether it worked at all, neither visible from the entry:
+> - **Links filter at item level, not element level.** The link takeoff is cached by link
+>   path and that cache is **not** invalidated when an override is saved, so an
+>   element-level filter is skipped entirely on a cache hit and the exclusion silently fails
+>   to apply. Filtering `rawItems` covers both paths, and must run before
+>   `AggregateLineItems` collapses rows and clears `UniqueId`.
+> - **The upsert merge is tri-state.** `Excluded` is non-nullable and every existing caller
+>   defaults it to `false`, so copying it unconditionally would clear an exclusion every time
+>   someone edited a rate on the same row.
+>
+> **Left open:** no UI affordance. The flag is settable through `SetModelExclusion` or the
+> sidecar; the panel checkbox and the optional `CST_BOQ_EXCLUDE_BOOL` parameter are not built.
+> `DeleteRow`'s hard return on `BOQRowSource.Model` (`BOQCostManagerPanel.cs`) is untouched.
 
 ## K-5 · 🟠 P1 · `PHASE_CREATED` is not filtered — future-phase elements are billed
 
