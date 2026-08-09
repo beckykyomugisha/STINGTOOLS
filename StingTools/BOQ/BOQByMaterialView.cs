@@ -114,18 +114,12 @@ namespace StingTools.BOQ
                 if (item.RevitElementId < 0) return null;
                 var el = doc.GetElement(new ElementId(item.RevitElementId));
                 if (el == null) return null;
-                Parameter p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
-                if (p != null && p.StorageType == StorageType.ElementId)
-                {
-                    var mid = p.AsElementId();
-                    if (mid != null && mid.Value > 0)
-                        return doc.GetElement(mid)?.Name;
-                }
-                var mats = el.GetMaterialIds(false);
-                if (mats != null)
-                    foreach (var mid in mats)
-                        if (mid != null && mid.Value > 0)
-                            return doc.GetElement(mid)?.Name;
+                // E-5 — was Material param, else the FIRST id from
+                // GetMaterialIds(false). This drives the "by material" pivot, so a
+                // non-deterministic pick meant a compound element could land in a
+                // different bucket than the one its rate and carbon came from.
+                string n = StingTools.BOQ.PrimaryMaterial.Resolve(el);
+                if (!string.IsNullOrEmpty(n)) return n;
             }
             catch (Exception ex) { StingLog.WarnRateLimited("BOQByMat.Name", $"ResolveMaterialName: {ex.Message}"); }
             return null;

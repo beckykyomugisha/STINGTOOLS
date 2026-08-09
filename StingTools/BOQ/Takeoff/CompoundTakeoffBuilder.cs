@@ -385,18 +385,13 @@ namespace StingTools.BOQ.Takeoff
             return 0;
         }
 
+        // E-5 — was the FIRST id from GetMaterialIds(false). Now the shared
+        // dominant-by-volume resolver, so a compound element's constituent lines
+        // name the same governing material the rate, carbon and description use.
         private static string GetPrimaryMaterialName(Document doc, Element el)
         {
-            try
-            {
-                var ids = el.GetMaterialIds(false);
-                if (ids != null)
-                    foreach (var id in ids)
-                        if (id != null && id.Value > 0)
-                            return doc.GetElement(id)?.Name;
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("CompoundMat", $"GetPrimaryMaterialName: {ex.Message}"); }
-            return null;
+            string n = StingTools.BOQ.PrimaryMaterial.Resolve(el);
+            return string.IsNullOrEmpty(n) ? null : n;
         }
 
         private static string GetFamilyName(Document doc, Element el)

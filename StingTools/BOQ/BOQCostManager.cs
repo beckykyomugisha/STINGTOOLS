@@ -4163,31 +4163,12 @@ namespace StingTools.BOQ
             return string.IsNullOrEmpty(zone) ? "" : zone;
         }
 
-        private static string GetPrimaryMaterialName(Element el)
-        {
-            try
-            {
-                var ids = el.GetMaterialIds(false);
-                if (ids != null && ids.Count > 0)
-                {
-                    // WP2 — deterministic: the DOMINANT material by volume, not the
-                    // non-deterministic .First(), so a compound assembly's density /
-                    // carbon / description don't flip between sessions.
-                    ElementId best = ids.First();
-                    double bestVol = -1;
-                    foreach (var id in ids)
-                    {
-                        double v;
-                        try { v = el.GetMaterialVolume(id); } catch { v = 0; }
-                        if (v > bestVol) { bestVol = v; best = id; }
-                    }
-                    Material m = el.Document.GetElement(best) as Material;
-                    if (m != null) return m.Name ?? "";
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"GetPrimaryMaterialName: {ex.Message}"); }
-            return "";
-        }
+        // E-5 — delegates to the single shared resolver. Was one of three
+        // implementations; this was the correct one (dominant by volume) and is
+        // now the only one. It additionally gains the Material /
+        // STRUCTURAL_MATERIAL_PARAM fallbacks it previously lacked, so elements
+        // that used to resolve to "" here can now resolve to a real name.
+        private static string GetPrimaryMaterialName(Element el) => PrimaryMaterial.Resolve(el);
 
         // Z-23b — discipline detection for the opt-in measured additions.
         // Only consulted when the knobs are enabled (default 0 → never fires).

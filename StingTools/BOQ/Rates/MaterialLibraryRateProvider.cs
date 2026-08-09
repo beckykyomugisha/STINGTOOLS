@@ -116,25 +116,17 @@ namespace StingTools.BOQ.Rates
             return null;
         }
 
+        // E-5 — was the non-deterministic one: Material param, else the FIRST id
+        // out of GetMaterialIds(false). `.First()` is not a documented ordering,
+        // so a compound wall could be PRICED off its plaster skin while being
+        // carbon-counted off its blockwork core — and the same bill re-run could
+        // disagree with itself. Now the shared dominant-by-volume resolver, the
+        // same one density, carbon, waste and the description already used.
+        // Returns null rather than "" so the existing miss path is unchanged.
         private static string ResolvePrimaryMaterialName(Element el)
         {
-            try
-            {
-                Parameter p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
-                if (p != null && p.StorageType == StorageType.ElementId)
-                {
-                    var mid = p.AsElementId();
-                    if (mid != null && mid.Value > 0)
-                        return el.Document?.GetElement(mid)?.Name;
-                }
-                var mats = el.GetMaterialIds(false);
-                if (mats != null)
-                    foreach (var mid in mats)
-                        if (mid != null && mid.Value > 0)
-                            return el.Document?.GetElement(mid)?.Name;
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("MatLibRate.PrimMat", $"ResolvePrimaryMaterialName: {ex.Message}"); }
-            return null;
+            string n = StingTools.BOQ.PrimaryMaterial.Resolve(el);
+            return string.IsNullOrEmpty(n) ? null : n;
         }
     }
 }
