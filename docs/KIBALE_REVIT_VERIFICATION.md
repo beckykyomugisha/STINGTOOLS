@@ -557,6 +557,75 @@ Adding them is now a **data edit** (baseline CSV, or a project override at
 carry correct codes but are not in the bound 44, so their writes no-op and they will be
 counted in the ⚠ line above until the binding set is extended.
 
+## 11. B-2 — the earthwork path (**net-new capability — nothing here is verified**)
+
+Every other item in this document is a repair to something that already ran. `Site_CutFillTakeoff`
+is new, and **nothing about it can be checked without a real model.** Treat this section as the
+acceptance test, not a regression check.
+
+**What was established without a model, and how.** The parameter names were probed against the
+shipped `RevitAPI.dll` for Revit 2025 (25.4.30.0), 2026 (26.4.0.0) and 2027 (27.1.0.0) using a
+metadata-only load. `VOLUME_CUT`, `VOLUME_FILL`, `VOLUME_NET`, `TOTAL_EXCAVATION_VOLUME`,
+`EXCAVATION_VOLUME`, `EXCAVATION_VOLUME_ON_TOPOSOLID` and `INDIVIDUAL_EXCAVATION_VOLUME` **exist in
+all three**. The names that do *not* exist are the ones a reasonable person would guess:
+`GRADED_REGION_CUT`, `CUT_VOLUME`, `TOPOSOLID_CUT`.
+
+**What could not be established without a model:** whether a *given* toposolid actually populates
+`VOLUME_CUT`/`VOLUME_FILL`. The parameter existing in the API is not the same as it holding a value
+on an element. That is what step 2 below tests.
+
+### Steps
+
+1. **Run it on the Kibale site model.** Read the subtitle: *"N platform(s) measured, M skipped"*.
+   - **M > 0 is expected and is not a failure.** A toposolid with no graded region has no cut/fill,
+     and appears under **NOT MEASURED — named skips, not zeros** with the reason. Read those first.
+   - **N = 0 with M > 0 is the important negative result.** It means no surface in this model is
+     graded, so Revit computes no cut/fill anywhere and the command has nothing to read. Say so —
+     it changes the design, and the fallback (deriving volumes from geometry) is deliberately not
+     implemented because it would look like a measurement.
+
+2. **Verify one platform by hand.** Pick the largest platform in **PER PLATFORM**. Measure its area
+   and average depth in Revit and compare against the reported cut.
+   **Expect agreement within ~5 %.** Wider than that means one of:
+   - the toposolid type has **no variable-thickness layer** (so Revit is not grading it), or
+   - the **wrong surface was graded** (the existing-ground surface rather than the proposed).
+   Revit's own graded cut/fill is roughly **±2 %**; the 5 % allows for the hand check.
+
+3. **Check the balance block.** `Net (cut − fill)` and `Revit's own VOLUME_NET` should agree
+   closely. A wide gap means some platform reported one of the pair but not the other — that is a
+   modelling problem, not an arithmetic one, and the per-platform table names which.
+
+4. **Check the subdivision case.** On a Revit 2026 model with platform subdivisions at a negative
+   offset, each subdivision must appear as its own **Subdivision** row. If the host toposolid
+   reports the grading and the subdivisions report nothing, per-platform checking is not available
+   on that model and only the site total is trustworthy — record that.
+
+5. **Re-run it.** The four `EARTH-0n` rows must be **replaced, not duplicated** (they carry stable
+   ids prefixed `STING_EARTHWORK_`). Confirm the manual-row count does not grow, and that any
+   hand-authored QS rows are untouched.
+
+6. **Check the rates.** The four rows are seeded with **global benchmark** rates from
+   `STING_DEFAULT_COST_RATES.csv` (6 / 12 / 25 / 5 USD per m³) and each row's note says so.
+   **These are placeholders and must be overridden before tender** — on this project haulage
+   distance and tip charges dominate and the benchmarks will not be close.
+
+### Two knobs that are deliberately inert by default
+
+`SITE_CUT_REUSE_FRACTION` (default **1.0**) and `SITE_CART_BULKING_FACTOR` (default **1.0**). At
+these defaults cart-away and imported fill reduce to `max(0, cut − fill)` and `max(0, fill − cut)` —
+**pure Revit numbers with nothing added**. Set them only when the soil suitability and the
+measurement convention are actually known. A fabricated reuse percentage would move the largest cost
+item on the job while looking like a measurement.
+
+### The project stopgap is superseded
+
+`GUIDES/kibale-project-config/takeoff_rules.json` → `kbl-topo-cutfill` measures
+`quantitySource: SolidVolume` — **the whole toposolid, not the cut**. On a 500 mm-thick toposolid
+over a large site that is a big number that is not earthworks. The corporate rule
+`earthworks-cut` now measures `VOLUME_CUT`, and `Site_CutFillTakeoff` produces the full four-row
+set. **Retire `kbl-topo-cutfill`** once step 2 passes — project rules are *prepended*, so while it
+remains it wins over the corporate rule and the wrong quantity keeps being billed.
+
 ## Sign-off
 
 | Item | Result | Who | Date |

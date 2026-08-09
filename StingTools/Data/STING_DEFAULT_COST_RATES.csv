@@ -112,7 +112,11 @@ Materials,0,each,Material definitions (no direct cost)
 Profiles,0,each,Profile definitions (no direct cost)
 RVT Links,0,each,Linked models (no direct cost)
 Zones,0,each,Zone objects (no direct cost)
-Toposolid,60,m²,Topographic solid surfaces
+Toposolid,6,m³,"Excavate to reduce levels - B-2: was 60 per m2. AREA is the wrong dimension for earthworks and gave a graded site a plausible money figure that was not earthworks. Now m3, matching the earthworks-cut take-off rule."
+Earthworks Excavate,6,m³,"BENCHMARK bulk excavation to reduce levels. Override per project - haulage distance and ground conditions dominate."
+Earthworks Cart Away,12,m³,"BENCHMARK disposal off site, measured in-situ. Override per project - tip charges and haul distance dominate."
+Earthworks Imported Fill,25,m³,"BENCHMARK supply, deposit and compact imported granular fill. Override per project."
+Earthworks Compact,5,m³,"BENCHMARK deposit and compact site-won fill in layers. Override per project."
 Toposolid Links,0,each,Linked topo surfaces (no direct cost)
 Wash,15,m²,Wash/drainage surfaces
 Property Lines,0,each,Property boundary lines (no cost)
