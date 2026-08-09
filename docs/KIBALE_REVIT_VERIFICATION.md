@@ -435,6 +435,67 @@ accepted it.
 derivation is actually running — a zero here previously meant "everything was assigned to
 BLD1", not "everything resolved".
 
+## M-6 · Tag families — two libraries have diverged; pick one before this ships
+
+**Blocking. Do not deploy the tag-library wiring until the canonical library is chosen.**
+
+Until now the plugin read exactly one folder. It now reads the firm content library **first**,
+so which families a project gets will change on every machine that has one.
+
+### Measured 2026-08-09
+
+| Library | Files | Total bytes | Newest `.rfa` | Matches manifest checksums |
+|---|---|---|---|---|
+| `CompiledPlugin\data\TagFamilies` | 206 | 86,126,592 | 2026-08-06 10:48 | **206 / 206** |
+| repo `StingTools\Data\TagFamilies` | 206 | 86,126,592 | 2026-08-08 13:55 | **206 / 206** |
+| `%PROGRAMDATA%\STING\ContentLibrary\Tags` | 206 | 236,257,280 | 2026-08-08 03:32 | **0 / 206** |
+
+- The repo and `CompiledPlugin` sets are **byte-identical**, all 206 files. They are one library,
+  not two.
+- The ProgramData set is **genuine distinct work**: 206 files, **206 distinct SHA-256s**, despite
+  every file being exactly 1,146,880 bytes. It is not one family copied 206 times.
+- A third divergence sits inside the shipped set: `Data\TagFamilies\Seeds\` holds **137** files, of
+  which only **88** share a name with the flat 206 — and **0 of those 88 are byte-identical** to
+  their same-named flat file. The seed branch has been quietly serving a different family for those
+  88 categories.
+
+### What this means
+
+`STING_CONTENT_MANIFEST.json` describes the **old** set. Once the shared root wins the read order,
+**every family will report a checksum warning on first run** until the manifest is re-stamped
+against whichever library is declared canonical. That is the drift detection working, not a bug —
+but it is 206 warnings, and it is the reason the decision comes first.
+
+### The decision, and what each choice costs
+
+**If ProgramData is canonical** (the Aug-8 label work — the likely answer, but it is a judgement
+about the content, not something the file dates settle):
+1. Re-stamp `STING_CONTENT_MANIFEST.json`'s 206 `checksum` values against the ProgramData files.
+2. The 86 MB repo/CompiledPlugin set becomes unreachable. **Before that, check whether any single
+   one of them is the better version** — the two libraries were never diffed family by family, only
+   in aggregate, and "newer" is not "better" per file.
+3. Decide what happens to the 137 `Seeds\` files. They are still searched first within their root
+   and 49 of them carry names no longer in the current set.
+
+**If the shipped set is canonical:** point `STING_CONTENT_LIB` at
+`<repo>\StingTools\Data\TagFamilies`, or set `content_root` in `%APPDATA%\STING\sting_content.json`,
+so the shared tier resolves to it. No re-stamping needed.
+
+### Verification steps
+
+1. Run **Load Tag Families** on a test project. The dialog now lists every root searched with how
+   many families it supplied and how many it shadowed. **Confirm the counts match the intended
+   canonical library** — this is the fastest check that the wiring points where you think.
+2. Check `StingTools.log` for `Tag family drift:` lines. Expect **206** before re-stamping and
+   **0** after.
+3. Run **Create Tag Families** on a machine that already has a library. It must report
+   `[SEED] … loaded existing family from <path>` for every category that has one, and must **not**
+   mint. Any `[SKIP] … .rfa exists on disk` line means the seed branch missed and the file was found
+   only at the output stage — worth investigating, but it is still non-destructive.
+4. Confirm the destructive path is opt-in: the confirmation dialog must show the "Re-create the N
+   existing family/families — DESTROYS hand-authored label rows" checkbox **unticked**, and
+   cancelling or leaving it unticked must leave every existing `.rfa` untouched.
+
 ## M-5 · E-2 — carbon figures will change on 497 materials
 
 `CarbonFactorResolver`'s exact-match tier reads `STING_EMB_CARBON_NR`
