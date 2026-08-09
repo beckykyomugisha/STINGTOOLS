@@ -7,8 +7,8 @@
 #
 # Was a 20-entry Dictionary<BuiltInCategory,(code,desc)> hard-coded in
 # Temp/StandardsEngine.cs:338-360. Moved here so the map extends as a data
-# edit, which is the whole point: 18 of the 43 categories the UNICLASS_*
-# parameters bind to had no entry.
+# edit, which is the whole point: 18 of the 45 categories the UNICLASS_*
+# parameters bind to still have no entry (27 covered).
 #
 # COLUMNS
 #   BuiltInCategory : Revit BuiltInCategory enum name (OST_*). Enum names are
@@ -38,9 +38,9 @@
 #   Medical Equipment, Nurse Call Devices, Plumbing Equipment, Railings,
 #   Ramps, Rooms, Security Devices, Specialty Equipment, Telephone Devices
 #
-# Structural Columns / Structural Framing are mapped below but the UNICLASS_*
-# parameters are NOT bound to those categories (the binding set is the 44 that
-# ASS_DESCRIPTION_TXT uses). Their writes no-op until the binding is extended.
+# Structural Columns / Structural Framing were mapped below while the UNICLASS_*
+# parameters were NOT bound to them, so their writes no-opped. The binding was
+# extended (46 rows / 45 distinct categories per parameter) and both now write.
 BuiltInCategory,UniclassCode,Description,Source
 OST_Walls,Ss_25_10,Wall systems,corporate
 OST_Floors,Ss_30_10,Floor systems,corporate

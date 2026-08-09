@@ -17331,6 +17331,8 @@ UNICLASS_PR_TXT,Sprinklers,Type,True
 UNICLASS_PR_TXT,Stairs,Type,True
 UNICLASS_PR_TXT,Walls,Type,True
 UNICLASS_PR_TXT,Windows,Type,True
+UNICLASS_PR_TXT,Structural Columns,Type,True
+UNICLASS_PR_TXT,Structural Framing,Type,True
 UNICLASS_PR_TXT,Communication Devices,Type,True
 UNICLASS_PR_TXT,Telephone Devices,Type,True
 UNICLASS_PR_TXT,Data Devices,Type,True
@@ -17375,6 +17377,8 @@ UNICLASS_SS_TXT,Sprinklers,Type,True
 UNICLASS_SS_TXT,Stairs,Type,True
 UNICLASS_SS_TXT,Walls,Type,True
 UNICLASS_SS_TXT,Windows,Type,True
+UNICLASS_SS_TXT,Structural Columns,Type,True
+UNICLASS_SS_TXT,Structural Framing,Type,True
 UNICLASS_SS_TXT,Communication Devices,Type,True
 UNICLASS_SS_TXT,Telephone Devices,Type,True
 UNICLASS_SS_TXT,Data Devices,Type,True
@@ -17419,6 +17423,8 @@ UNICLASS_EF_TXT,Sprinklers,Type,True
 UNICLASS_EF_TXT,Stairs,Type,True
 UNICLASS_EF_TXT,Walls,Type,True
 UNICLASS_EF_TXT,Windows,Type,True
+UNICLASS_EF_TXT,Structural Columns,Type,True
+UNICLASS_EF_TXT,Structural Framing,Type,True
 UNICLASS_EF_TXT,Communication Devices,Type,True
 UNICLASS_EF_TXT,Telephone Devices,Type,True
 UNICLASS_EF_TXT,Data Devices,Type,True
@@ -17463,6 +17469,8 @@ NBS_CODE_TXT,Sprinklers,Type,True
 NBS_CODE_TXT,Stairs,Type,True
 NBS_CODE_TXT,Walls,Type,True
 NBS_CODE_TXT,Windows,Type,True
+NBS_CODE_TXT,Structural Columns,Type,True
+NBS_CODE_TXT,Structural Framing,Type,True
 NBS_CODE_TXT,Communication Devices,Type,True
 NBS_CODE_TXT,Telephone Devices,Type,True
 NBS_CODE_TXT,Data Devices,Type,True
@@ -17507,6 +17515,8 @@ ASSET_RFI_URL_TXT,Sprinklers,Instance,True
 ASSET_RFI_URL_TXT,Stairs,Instance,True
 ASSET_RFI_URL_TXT,Walls,Instance,True
 ASSET_RFI_URL_TXT,Windows,Instance,True
+ASSET_RFI_URL_TXT,Structural Columns,Instance,True
+ASSET_RFI_URL_TXT,Structural Framing,Instance,True
 ASSET_RFI_URL_TXT,Communication Devices,Instance,True
 ASSET_RFI_URL_TXT,Telephone Devices,Instance,True
 ASSET_RFI_URL_TXT,Data Devices,Instance,True
@@ -17551,6 +17561,8 @@ CSI_SECTION_TXT,Sprinklers,Type,True
 CSI_SECTION_TXT,Stairs,Type,True
 CSI_SECTION_TXT,Walls,Type,True
 CSI_SECTION_TXT,Windows,Type,True
+CSI_SECTION_TXT,Structural Columns,Type,True
+CSI_SECTION_TXT,Structural Framing,Type,True
 CSI_SECTION_TXT,Communication Devices,Type,True
 CSI_SECTION_TXT,Telephone Devices,Type,True
 CSI_SECTION_TXT,Data Devices,Type,True
@@ -17595,6 +17607,8 @@ CSI_TITLE_TXT,Sprinklers,Type,True
 CSI_TITLE_TXT,Stairs,Type,True
 CSI_TITLE_TXT,Walls,Type,True
 CSI_TITLE_TXT,Windows,Type,True
+CSI_TITLE_TXT,Structural Columns,Type,True
+CSI_TITLE_TXT,Structural Framing,Type,True
 CSI_TITLE_TXT,Communication Devices,Type,True
 CSI_TITLE_TXT,Telephone Devices,Type,True
 CSI_TITLE_TXT,Data Devices,Type,True
