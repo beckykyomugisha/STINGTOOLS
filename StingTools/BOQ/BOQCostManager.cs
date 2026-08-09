@@ -1031,11 +1031,16 @@ namespace StingTools.BOQ
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("DeriveQuantity.OvrWaste", $"override waste read: {exr.Message}"); }
                 // PM-5 — per-material/category waste table: override wins, else the
-                // NRM2-typical allowance for this category (rebar 2.5 / timber 10 /
-                // tiling 10 …), else the project default knob. Same table the carbon
-                // path resolves through, so quantity is grossed up identically.
+                // NRM2-typical allowance for this material, else this category,
+                // else the project default knob.
+                //
+                // E-4: the material argument was `null` here. WasteTable resolves
+                // Lookup(material) ?? Lookup(category), so passing null skipped the
+                // material tier entirely and every cost site fell straight to the
+                // category — while the carbon path passed the real name. A tiled
+                // floor was carbon-counted at 10 % and priced at 5 %.
                 double wastePct = WasteTable.ResolveWastePercent(
-                    null, el.Category?.Name, overrideWaste,
+                    GetPrimaryMaterialName(el), el.Category?.Name, overrideWaste,
                     TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 // Z-23b — discipline-specific MEASURED ADDITIONS, SEPARATE from the
@@ -1258,8 +1263,9 @@ namespace StingTools.BOQ
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Ovr", $"override waste: {exr.Message}"); }
                 // PM-5 — per-material/category waste table (catName is in scope).
+                // E-4: material was null; the material tier could never fire.
                 double wastePct = WasteTable.ResolveWastePercent(
-                    null, catName, overrideWaste,
+                    GetPrimaryMaterialName(el), catName, overrideWaste,
                     TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 string nu = (unit ?? "").ToLowerInvariant();
@@ -1637,7 +1643,9 @@ namespace StingTools.BOQ
             try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
             catch (Exception ex) { StingLog.WarnRateLimited("Carbon.OvrWaste", $"override waste read: {ex.Message}"); }
             // PM-5 — carbon path resolves the SAME per-material/category waste table.
-            return WasteTable.ResolveWastePercent(null, el.Category?.Name, overrideWaste,
+            // E-4: material was null here too, so "the SAME" was not true — the two
+            // Sustainability call sites pass the material name and this one did not.
+            return WasteTable.ResolveWastePercent(GetPrimaryMaterialName(el), el.Category?.Name, overrideWaste,
                 TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
         }
 
