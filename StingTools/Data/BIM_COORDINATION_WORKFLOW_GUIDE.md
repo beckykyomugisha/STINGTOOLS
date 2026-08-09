@@ -284,7 +284,7 @@ This one-click command:
 1. Runs full pipeline on all non-compliant elements (500-element batches)
 2. Re-derives tokens from spatial/category/family data
 3. Rebuilds tags with collision avoidance
-4. Updates all 53 containers
+4. Updates all 182 containers
 5. Rebuilds TAG7 narrative
 6. Saves SEQ counters to sidecar file
 7. Shows before/after compliance improvement
@@ -565,7 +565,7 @@ The most powerful single command — does everything:
 4. Maps 30+ native Revit parameters
 5. Evaluates 199 formulas
 6. Builds ISO 19650 tag with collision detection
-7. Writes to all 53 containers
+7. Writes to all 182 containers
 8. Generates TAG7 rich narrative (A-F sub-sections)
 9. Detects grid reference
 10. Saves sequence counters

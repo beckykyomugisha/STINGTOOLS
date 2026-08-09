@@ -582,38 +582,25 @@ When `ApplyTagStyle()` is called, it:
 
 ---
 
-## 9. Phase 7 — Seed Family Strategy (Skip Phase 2 Next Time)
+## 9. Phase 7 — RETIRED (was: Seed Family Strategy)
 
-### What Are Seed Families?
+> **⛔ This phase has been removed. Do not follow it.**
+>
+> It instructed the operator, in twelve steps, to copy configured `.rfa` files into
+> `Data/TagFamilies/Seeds/`. That folder was **deleted deliberately** in `91a22598a`:
+> `ProbeRoots` searched `<root>/Seeds` **before** `<root>`, so its 137 pre-tier-change
+> families shadowed the live set for the 88 categories whose names they shared, and the
+> manifest checksum then mismatched on every one. The probe was removed with the folder, so
+> anything placed there now is simply ignored — and re-creating the folder would restore a
+> directory that outranks the corporate set.
+>
+> **What replaces it:** there is nothing to do. Configured families belong in the shared
+> content library (`<STING_CONTENT_LIB>/Tags/`, default
+> `%PROGRAMDATA%\STING\ContentLibrary\Tags`) or in `Data/TagFamilies/`. Both are searched
+> automatically, shared first, and `Create Tag Families` loads an existing family instead of
+> re-minting it. Re-stamp the manifest afterwards with
+> `python tools/restamp_content_manifest.py --apply <library>`.
 
-Seed families are pre-configured .rfa files with labels already bound to STING parameters. They eliminate the manual Family Editor step (Phase 2) for future deployments.
-
-### Creating Seeds
-
-After configuring all labels in Phase 2:
-
-1. Navigate to `Data/TagFamilies/`
-2. Create a `Seeds/` subdirectory
-3. Copy all configured .rfa files into `Seeds/`
-4. Next time `Create Tag Families` runs, it will load seeds directly with `[SEED]` status
-
-### Seed Search Order
-
-```
-<content library>/Tags/STING - Mechanical Equipment Tag.rfa      ← Priority 1
-Data/TagFamilies/STING - Mechanical Equipment Tag.rfa            ← Priority 2
-Data/TagFamilies/STING - Mechanical Equipment Tag_seed.rfa       ← Priority 3 (alt naming)
-Data/TagFamilies/STING - Mechanical Equipment Tag.rfa            ← Priority 3 (regular output)
-```
-
-### Seed Distribution
-
-Seeds can be distributed with the plugin for zero-configuration deployments:
-- Package .rfa files in `Data/TagFamilies/` (or the shared `<STING_CONTENT_LIB>/Tags/`)
-- When the plugin is installed, `Create Tag Families` will find and load them automatically
-- No Family Editor steps required
-
----
 
 ## 10. Batch Family Parameter Binding
 

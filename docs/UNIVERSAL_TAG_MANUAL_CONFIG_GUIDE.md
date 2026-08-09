@@ -208,7 +208,11 @@ per-family logic.
    - `VIS_QA_RED   = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 0)`
 
    > If `TAG_WARN_VISIBLE_BOOL` is stored as **TEXT**, write the first argument as
-   > `(TAG_WARN_VISIBLE_BOOL = "Yes")`; if it's a real **YESNO**, use it bare.
+   > Use it **BARE**: `TAG_WARN_VISIBLE_BOOL`. It is declared YESNO in MR_PARAMETERS.txt and
+> comparing a YESNO to "Yes" makes Revit fail the formula with *Inconsistent Units*. The
+> old "if stored as TEXT" wording came from a stale line in LABEL_DEFINITIONS.json that
+> claimed TEXT; that line was corrected in 614aba59b. Measured: all 10 gates are YESNO,
+> and 36 of 36 shipped formulas use the bare form.
 
 Exactly one glyph per side is ever visible (the three `= 2 / = 1 / = 0` conditions are mutually
 exclusive), so the overlay reads as a single traffic-light.
@@ -322,7 +326,7 @@ Tick every item before running the smoke test. The master is not finished until 
 
 1. Run the **Duct smoke test** (`UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`) — the one-family gate.
 2. On PASS: `Propagate Universal` → ALL families; then **persist** the propagated `.rfa` to
-   git-tracked `StingTools/Data/TagFamilies/` **and repopulate `…/TagFamilies/Seeds/`** (see the
+   git-tracked `StingTools/Data/TagFamilies/` **(do NOT repopulate `…/TagFamilies/Seeds/` — deleted deliberately in 91a22598a; it shadowed the live set for 88 categories)** (see the
    smoke-test doc's post-pass step 2), and redeploy.
 3. Run `Stamp Gates` (fills the badge status ints) and `Tag Schedules` (builds the per-category
    engineering schedules that replace the dropped discipline tiers).

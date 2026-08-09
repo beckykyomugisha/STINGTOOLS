@@ -472,7 +472,7 @@ Checks every tagged element against ISO 19650 rules:
 Reads the 8 token values from each element and writes them to ALL applicable tag containers:
 
 **Modes:**
-- **All Containers** — Write to all 36 containers (universal + discipline-specific + material)
+- **All Containers** — Write to all 182 containers (universal + discipline-specific + material)
 - **Universal Only** — Write only to TAG1–TAG6
 - **Discipline Only** — Write only to discipline-specific containers (HVC, ELC, PLM, etc.)
 - **Pick Groups** — User selects which container groups to write
@@ -497,7 +497,7 @@ Scope Selection → Build Room Index → Detect Project LOC/REV
     2. Populate DISC/SYS/FUNC/PROD/LVL
     3. PhaseAutoDetect STATUS
     4. BuildAndWriteTag (TAG1 with collision handling)
-    5. WriteContainers (all 36 containers)
+    5. WriteContainers (all 182 containers)
     6. WriteTag7All (rich narrative)
 → Report
 ```
