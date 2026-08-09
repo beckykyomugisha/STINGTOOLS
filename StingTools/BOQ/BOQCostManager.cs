@@ -3563,6 +3563,19 @@ namespace StingTools.BOQ
             return idx.IsEmpty ? null : idx;
         }
 
+        /// <summary>
+        /// G-14 trap 2 — the exact element set BuildBOQDocument will turn into
+        /// rows, exposed so the readiness pre-flight walks the SAME collection
+        /// rather than re-deriving it. A pre-flight that walks a different set
+        /// than the builder is worse than none: it would clear elements the bill
+        /// never sees and miss the ones it does.
+        /// </summary>
+        internal static List<Element> CandidatesForReadiness(Document doc)
+        {
+            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
+            return CollectCandidateElements(doc, knownCats, BuildExclusionIndex(doc), null, doc?.Title ?? "");
+        }
+
         private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories,
             BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null,
             string sourceModel = null)

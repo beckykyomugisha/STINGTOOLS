@@ -425,6 +425,30 @@ namespace StingTools.BOQ
         /// </summary>
         public List<BOQExcludedRow> UserExclusions = new List<BOQExcludedRow>();
 
+        // ── G-14 trap 3 — paragraph fallback accounting ─────────────────────
+        //
+        // ResolvedParagraphCount counts rows that HAVE a paragraph. It does not
+        // distinguish a paragraph resolved from the element's real parameters
+        // from a generic sentence synthesised because a token could not be
+        // filled. Both read as "resolved", so a bill of 4,000 generic sentences
+        // reported 100 % coverage.
+
+        /// <summary>Rows whose NRM2 paragraph is a synthesised fallback, not a
+        /// resolved template. Counted separately because the two are not the
+        /// same deliverable.</summary>
+        public int ParagraphFallbackCount;
+
+        /// <summary>Rows re-resolved live from the element at export time.</summary>
+        public int ParagraphRehydratedCount;
+
+        /// <summary>
+        /// Token name → how many rows failed to fill it. This is the actionable
+        /// half: an unresolved token names the parameter worth populating, and
+        /// the histogram ranks them by how much of the bill they would fix.
+        /// </summary>
+        public Dictionary<string, int> UnresolvedTokenCounts =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         // ── G3 — optional built-up preliminaries schedule ───────────────────
         // When PrelimsItemised is true the grand total uses the itemised prelim
         // total (PrelimsItemisedUGX) instead of the flat PrelimPct. Loaded by

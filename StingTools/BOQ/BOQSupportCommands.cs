@@ -53,6 +53,196 @@ namespace StingTools.BOQ
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    //  BOQReadinessByElementCommand — G-14 trap 2.
+    //
+    //  Trap 2 is that a row is mis-named because a parameter is missing, and it
+    //  is invisible: the bill still has a line, still has a quantity, still has
+    //  a price. The only way to find it was to read 4,000 bill lines and notice
+    //  that one of them says the wrong thing.
+    //
+    //  This is the inverse view — per ELEMENT, before the bill exists, listing
+    //  what each one lacks. It walks the SAME collection BuildBOQDocument makes
+    //  (BOQCostManager.CandidatesForReadiness), so what it clears is exactly
+    //  what will be billed. A pre-flight that walks a different set would be
+    //  worse than none.
+    //
+    //  Six fields decide whether a row comes out right:
+    //     category · type name · material · classification · STING tag · rate
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQReadinessByElementCommand : IExternalCommand
+    {
+        private sealed class Row
+        {
+            public long Id;
+            public string Category = "", TypeName = "", Missing = "";
+            public int MissingCount;
+        }
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                // One build. The rows answer "will this price?" without
+                // re-implementing the provider chain, and the element walk
+                // answers the rest.
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+                var rowByEl = new Dictionary<long, BOQLineItem>();
+                foreach (var it in boq.AllItems)
+                    if (it != null && it.RevitElementId > 0 && !rowByEl.ContainsKey(it.RevitElementId))
+                        rowByEl[it.RevitElementId] = it;
+
+                var els = BOQCostManager.CandidatesForReadiness(doc);
+
+                var findings = new List<Row>();
+                var fieldTally = new Dictionary<string, int>(StringComparer.Ordinal)
+                {
+                    ["category"] = 0, ["type name"] = 0, ["material"] = 0,
+                    ["classification"] = 0, ["STING tag"] = 0, ["rate"] = 0, ["no row"] = 0
+                };
+
+                foreach (var el in els)
+                {
+                    var missing = new List<string>();
+
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (string.IsNullOrWhiteSpace(cat)) missing.Add("category");
+
+                    string typeName = "";
+                    try { typeName = (doc.GetElement(el.GetTypeId()) as ElementType)?.Name ?? ""; } catch { }
+                    if (string.IsNullOrWhiteSpace(typeName)) missing.Add("type name");
+
+                    if (string.IsNullOrWhiteSpace(PrimaryMaterial.Resolve(el))) missing.Add("material");
+
+                    // A classification that resolved to Native.Family is the
+                    // fallback tier, not a classification — it is category +
+                    // family + type restated. Counting it as present would make
+                    // this pre-flight agree with the bill's own blind spot.
+                    try
+                    {
+                        var cls = StingTools.Core.Classification.ClassificationReader.ResolveFallback(el);
+                        if (string.IsNullOrEmpty(cls.value) ||
+                            string.Equals(cls.source, "Native.Family", StringComparison.OrdinalIgnoreCase))
+                            missing.Add("classification");
+                    }
+                    catch { missing.Add("classification"); }
+
+                    string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "";
+                    if (!TagConfig.TagIsComplete(tag)) missing.Add("STING tag");
+
+                    long id = el.Id?.Value ?? 0;
+                    if (!rowByEl.TryGetValue(id, out var row))
+                        missing.Add("no row");
+                    else if (row.RateUGX <= 0)
+                        missing.Add("rate");
+
+                    if (missing.Count == 0) continue;
+                    foreach (var m in missing)
+                        if (fieldTally.ContainsKey(m)) fieldTally[m]++;
+
+                    findings.Add(new Row
+                    {
+                        Id = id,
+                        Category = cat ?? "",
+                        TypeName = typeName,
+                        Missing = string.Join(", ", missing),
+                        MissingCount = missing.Count
+                    });
+                }
+
+                int total = els.Count;
+                int ready = total - findings.Count;
+
+                // CSV worklist — the point is to hand this to a modeller, not to
+                // have them read it on screen.
+                string csvPath = null;
+                try
+                {
+                    string dir = StingPaths.Meta(doc, "_BIM_COORD");
+                    Directory.CreateDirectory(dir);
+                    csvPath = Path.Combine(dir, $"boq_readiness_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                    var sb = new StringBuilder();
+                    sb.AppendLine("ElementId,Category,TypeName,MissingCount,MissingFields");
+                    foreach (var f in findings.OrderByDescending(x => x.MissingCount)
+                                              .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase))
+                        sb.AppendLine(string.Join(",", f.Id.ToString(CultureInfo.InvariantCulture),
+                            Csv(f.Category), Csv(f.TypeName),
+                            f.MissingCount.ToString(CultureInfo.InvariantCulture), Csv(f.Missing)));
+                    File.WriteAllText(csvPath, sb.ToString());
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ readiness CSV: {ex.Message}"); csvPath = null; }
+
+                var panel = StingResultPanel.Create("BOQ — readiness by element");
+                if (total == 0)
+                {
+                    // Zero elements is unknown, not ready. Same rule as H-3.
+                    panel.SetSubtitle("No elements would produce a BOQ row — no readiness figure can be given");
+                    panel.AddSection("NOTHING TO CHECK")
+                         .Text("BuildBOQDocument would walk zero elements on this model. That is not a clean "
+                             + "result; check the category filters and any user exclusions before reading it as one.");
+                    panel.Show();
+                    return Result.Succeeded;
+                }
+
+                panel.SetSubtitle($"{ready} of {total} element(s) ready · {findings.Count} need attention");
+                panel.AddSection("SUMMARY")
+                     .Metric("Elements that will bill", total.ToString())
+                     .Metric("Ready", $"{ready} ({100.0 * ready / total:0.#}%)")
+                     .Metric("Incomplete", findings.Count.ToString());
+
+                panel.AddSection("WHAT IS MISSING, BY FIELD");
+                foreach (var kv in fieldTally.Where(k => k.Value > 0).OrderByDescending(k => k.Value))
+                    panel.Metric(kv.Key, $"{kv.Value} element(s)",
+                        kv.Key == "no row"
+                            ? "Passes the collection filter but produces no bill line — quantity or rule gap"
+                            : kv.Key == "classification"
+                                ? "Resolves only to category/family/type — no Uniclass, CSI or OmniClass"
+                                : null);
+
+                var worst = findings.OrderByDescending(f => f.MissingCount)
+                                    .ThenBy(f => f.Category, StringComparer.OrdinalIgnoreCase)
+                                    .Take(15).ToList();
+                if (worst.Count > 0)
+                {
+                    panel.AddSection("WORST ELEMENTS");
+                    foreach (var f in worst)
+                        panel.Metric($"{f.Category} · {(string.IsNullOrEmpty(f.TypeName) ? "(no type)" : f.TypeName)}",
+                                     $"id {f.Id}", $"missing: {f.Missing}");
+                }
+
+                if (findings.Count == 0)
+                    panel.AddSection("CLEAN").Text("Every element that will bill carries all six fields.");
+                else
+                    panel.AddSection("NEXT")
+                         .Text("Open the CSV below, select by element id in Revit, and fix in the model. "
+                             + "Every row here becomes a bill line whether or not it is fixed — the line is "
+                             + "just wrong in a way the bill cannot show you.");
+
+                if (!string.IsNullOrEmpty(csvPath)) panel.SetCsvPath(csvPath);
+                panel.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQReadinessByElementCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+
+        private static string Csv(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.IndexOfAny(new[] { ',', '"', '\n' }) >= 0
+                ? "\"" + s.Replace("\"", "\"\"") + "\""
+                : s;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  BOQRateGapReportCommand (G1) — read-only report of every modelled item
     //  that still needs a price: no rate, low confidence, or a Default rate.
     //  Renders inline (StingResultPanel auto-routes to the BOQ Actions pane)

@@ -3562,6 +3562,9 @@ namespace StingTools.UI
                     case "BOQQsExport":             RunCommand<BOQ.BOQQsExportCommand>(app); break;
                     case "BOQQsImport":             RunCommand<BOQ.BOQQsImportCommand>(app); break;
                     case "BOQ_RateGapReport":       RunCommand<BOQ.BOQRateGapReportCommand>(app); break;
+                    // G-14 trap 2 — per-element pre-flight: which of the six
+                    // required fields each billable element is missing.
+                    case "BOQ_ReadinessByElement":  RunCommand<BOQ.BOQReadinessByElementCommand>(app); break;
                     case "BOQ_SignOff":             RunCommand<BOQ.BOQSignOffCommand>(app); break;
                     case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
                     case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
