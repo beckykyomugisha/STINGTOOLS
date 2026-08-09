@@ -466,6 +466,72 @@ so which families a project gets will change on every machine that has one.
 against whichever library is declared canonical. That is the drift detection working, not a bug —
 but it is 206 warnings, and it is the reason the decision comes first.
 
+### A1–A5 landed: the 137 obsolete seeds are deleted
+
+`Data/TagFamilies/Seeds/` held the pre-tier-change tags. `ProbeRoots` searched `<root>/Seeds`
+**before** `<root>`, so for the 88 categories whose names they shared the obsolete family won and the
+manifest checksum then mismatched. Deleted, the probe removed, `ContentRoots:67` removed.
+
+**Measured before/after, by simulating the resolver over all 206 entries:**
+
+| Scenario | Before | After |
+|---|---|---|
+| No shared library (clean deploy / fresh checkout) | 206 resolved, **88 checksum warnings** | 206 resolved, **0 warnings** |
+| `%PROGRAMDATA%` library present (a set-up machine) | 206 resolved, **206 warnings** | 206 resolved, **206 warnings** |
+
+The 88 → 0 result holds **only where no firm library exists.** With one present, the shared root
+supplies all 206 first and `Seeds/` was never consulted — those 206 warnings are the
+manifest-vs-ProgramData divergence below, which this did not touch.
+
+### A6 — evidence is now mechanism-level, but the Revit check has NOT been done
+
+The `.rfa` files are OLE2 compound documents, so their streams can be enumerated without Revit. Doing
+that answers the "could the repo families store them in a stream the probe cannot read" objection
+directly — they could not, because the relevant stream is nearly empty:
+
+| Stream | repo `STING - Room Tag.rfa` | ProgramData `STING - Room Tag.rfa` |
+|---|---|---|
+| **`PartAtom`** (family parameter definitions) | **927 B** | **288,522 B** |
+| `Partitions/0` | 153,271 B | 578,541 B |
+| `Global/Latest` | 62,178 B | 72,863 B |
+| `RevitPreview4.0` | **absent** | 2,163 B |
+| stream count | 12 | 13 |
+
+- The repo `PartAtom` contains **zero** `TAG_`, `TAG_PARA_STATE_` or `ASS_` tokens. The ProgramData
+  one contains **4,320** `TAG_` occurrences resolving to **80 distinct identifiers** — the style
+  matrix (`TAG_2BOLDITALIC_BLACK_BOOL`, …, 64 style-shaped) plus tier gates.
+- **The probe is proven able to read these files.** Positive controls (`STING`, `Autodesk`, `Revit`)
+  appear at comparable counts in *both* sets, so the zeroes are absence, not unreadability.
+- `RevitPreview4.0` exists only in the ProgramData set. Revit writes that preview when a document is
+  saved from the UI — consistent with those families having been opened and saved in the Family
+  Editor, which is the hand-authoring story.
+- Ceiling Tag gives identical numbers, and every ProgramData file is exactly 1,146,880 B — consistent
+  with one style matrix injected uniformly across all 206.
+
+**This strongly supports the "repo families lack the tier gates and style matrix" branch. It is not
+the check that was asked for.** A6 gates the action on opening both files in Revit and comparing
+family types and parameters, and that has not been done — so **nothing was copied and the manifest
+was not re-stamped.**
+
+**The check, and then the action:**
+
+1. Open `STING - Room Tag.rfa` from `StingTools\Data\TagFamilies\` and from
+   `C:\ProgramData\STING\ContentLibrary\Tags\` in Revit. Compare the Family Types dialog.
+   Expect: repo has no `TAG_*` parameters and no `TAG_PARA_STATE_*` gates; ProgramData has ~82.
+2. **If confirmed** — copy the ProgramData set over `StingTools\Data\TagFamilies\`, then:
+   ```
+   python tools/restamp_content_manifest.py --check C:\ProgramData\STING\ContentLibrary\Tags   # expect 0 match / 206 differ
+   python tools/restamp_content_manifest.py --apply StingTools\Data\TagFamilies                # re-stamp
+   python tools/restamp_content_manifest.py --check StingTools\Data\TagFamilies                # expect 206 match / 0 differ
+   ```
+   Verified working in both directions today: repo currently reports **206 match / 0 differ**,
+   ProgramData **0 match / 206 differ**.
+3. **If the repo families DO carry the parameters** — stop. The size difference means something else
+   and the decision changes.
+
+Re-stamping is deliberately a separate explicit step, never part of a build: a manifest that always
+agreed with whatever was on disk would be the same as having no checksum at all.
+
 ### The decision, and what each choice costs
 
 **If ProgramData is canonical** (the Aug-8 label work — the likely answer, but it is a judgement
