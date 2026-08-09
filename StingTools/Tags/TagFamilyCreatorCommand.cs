@@ -1011,20 +1011,73 @@ namespace StingTools.Tags
         ///   2. Data/TagFamilies/        (user-configured files from previous Configure Labels run)
         /// Seed files are identified by having a "_seed" suffix or being in the Seeds/ subdirectory.
         /// </summary>
-        public static string FindSeedFamily(BuiltInCategory bic)
+        public static string FindSeedFamily(BuiltInCategory bic) => FindSeedFamily(bic, null);
+
+        /// <summary>
+        /// Manifest-directed resolution, falling back to the name-derived search.
+        ///
+        /// STING_CONTENT_MANIFEST.json already carries all 206 tag families with a
+        /// familyFile and a SHA-256 of the .rfa bytes, merged corporate-baseline +
+        /// project-override by ContentManifestRegistry — and had ZERO callers. This
+        /// is that machinery switched on: the manifest decides WHICH file serves a
+        /// category (so a project override can retarget one without touching code)
+        /// and the checksum says whether the file on disk is still the one the
+        /// manifest describes.
+        ///
+        /// A mismatch is a WARNING naming the family, never a skip and never a hard
+        /// failure. A project that has deliberately customised a tag must still
+        /// load it — refusing would make drift detection worse than useless, since
+        /// the only way to silence it would be to abandon the customisation.
+        /// </summary>
+        public static string FindSeedFamily(BuiltInCategory bic, Document doc)
         {
             string baseName = GetFamilyFileName(bic);
             string nameNoExt = GetFamilyName(bic);
 
-            // Search every library root, shared first, and within each root the
-            // Seeds/ subfolder before the flat folder. Was DataPath/TagFamilies/Seeds
-            // ONLY, so the firm library could never supply a pre-authored family.
-            //
-            // Because this branch runs BEFORE any NewFamilyDocument in the
-            // per-category loop, a populated library turns "Create" into "Load" for
-            // every category that already has a file — no change to the loop
-            // structure, and the family that cannot be re-authored by the API is
-            // simply loaded instead of re-minted.
+            try
+            {
+                var entry = ResolveManifestEntry(doc, bic, baseName);
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.FamilyFile))
+                {
+                    string hit = ProbeRoots(entry.FamilyFile, null);
+                    if (!string.IsNullOrEmpty(hit))
+                    {
+                        VerifyArtefactChecksum(entry, hit);
+                        return hit;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Manifest trouble must not cost us the family — fall through to the
+                // name-derived search below, which is what shipped before.
+                StingLog.WarnRateLimited("FindSeedFamily.Manifest", $"manifest lookup: {ex.Message}");
+            }
+
+            return ProbeRoots(baseName, nameNoExt + "_seed.rfa");
+        }
+
+        /// <summary>Manifest entry for a category: by Revit display name first (so a
+        /// project override keyed on the category wins), else by the file name this
+        /// category would produce — which covers the ~85 variant / healthcare
+        /// families that carry no BuiltInCategory display-name mapping.</summary>
+        private static StingTools.Core.Content.ContentEntry ResolveManifestEntry(
+            Document doc, BuiltInCategory bic, string baseName)
+        {
+            if (CategoryDisplayName.TryGetValue(bic, out string cat) && !string.IsNullOrWhiteSpace(cat))
+            {
+                var byCat = StingTools.Core.Content.ContentManifestRegistry.TagFor(doc, cat);
+                if (byCat != null) return byCat;
+            }
+            var all = StingTools.Core.Content.ContentManifestRegistry.Get(doc)?.TagFamilies;
+            return all?.FirstOrDefault(e =>
+                string.Equals(e.FamilyFile, baseName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Search every root (Seeds/ then flat) for the first of the given
+        /// file names that exists.</summary>
+        private static string ProbeRoots(string primary, string alternate)
+        {
             foreach (var root in GetTagLibraryRoots())
             {
                 if (string.IsNullOrEmpty(root)) continue;
@@ -1033,10 +1086,16 @@ namespace StingTools.Tags
                     try
                     {
                         if (!Directory.Exists(dir)) continue;
-                        string exact = Path.Combine(dir, baseName);
-                        if (File.Exists(exact)) return exact;
-                        string suffixed = Path.Combine(dir, nameNoExt + "_seed.rfa");
-                        if (File.Exists(suffixed)) return suffixed;
+                        if (!string.IsNullOrEmpty(primary))
+                        {
+                            string p = Path.Combine(dir, primary);
+                            if (File.Exists(p)) return p;
+                        }
+                        if (!string.IsNullOrEmpty(alternate))
+                        {
+                            string a = Path.Combine(dir, alternate);
+                            if (File.Exists(a)) return a;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1046,6 +1105,41 @@ namespace StingTools.Tags
             }
             return null;
         }
+
+        /// <summary>SHA-256 the .rfa and compare against the manifest's artefact
+        /// checksum. Warns on mismatch; always lets the load proceed.</summary>
+        private static void VerifyArtefactChecksum(
+            StingTools.Core.Content.ContentEntry entry, string path)
+        {
+            try
+            {
+                if (entry == null || string.IsNullOrWhiteSpace(entry.Checksum) || entry.Checksum.Length != 64)
+                    return;   // nothing declared — silence is correct, not a finding
+
+                string actual;
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var fs = File.OpenRead(path))
+                {
+                    var hash = sha.ComputeHash(fs);
+                    var sb = new StringBuilder(hash.Length * 2);
+                    foreach (var b in hash) sb.Append(b.ToString("x2"));
+                    actual = sb.ToString();
+                }
+
+                if (string.Equals(actual, entry.Checksum, StringComparison.OrdinalIgnoreCase)) return;
+
+                StingLog.Warn($"Tag family drift: '{entry.FamilyFile}' at '{path}' does not match the "
+                            + $"checksum in STING_CONTENT_MANIFEST.json "
+                            + $"(manifest {entry.Checksum.Substring(0, 12)}…, on disk {actual.Substring(0, 12)}…). "
+                            + "Loading it anyway — a deliberately customised tag is legitimate. "
+                            + "Re-stamp the manifest if this file is the new baseline.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("TagChecksum", $"verifying '{path}': {ex.Message}");
+            }
+        }
+
 
         /// <summary>
         /// The legacy, plugin-local tag library: &lt;DataPath&gt;/TagFamilies.
@@ -1454,7 +1548,10 @@ namespace StingTools.Tags
                     // These are .rfa files manually configured via the Family Editor and
                     // placed in Data/TagFamilies/ for distribution. They take priority
                     // because they have labels already pointing to ASS_TAG_1_TXT.
-                    string seedPath = TagFamilyConfig.FindSeedFamily(bic);
+                    // doc is passed so ContentManifestRegistry can merge this
+                    // project's _BIM_COORD/content_manifest.json over the corporate
+                    // baseline — without it the override tier is unreachable.
+                    string seedPath = TagFamilyConfig.FindSeedFamily(bic, doc);
                     if (!string.IsNullOrEmpty(seedPath))
                     {
                         if (LoadFamilyIntoProject(doc, seedPath, famName))
