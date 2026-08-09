@@ -1015,21 +1015,35 @@ namespace StingTools.Tags
         {
             string baseName = GetFamilyFileName(bic);
             string nameNoExt = GetFamilyName(bic);
-            string dataPath = StingToolsApp.DataPath;
-            if (string.IsNullOrEmpty(dataPath)) return null;
 
-            // Check Seeds/ subdirectory first (distributed with the plugin)
-            string seedDir = Path.Combine(dataPath, "TagFamilies", "Seeds");
-            if (Directory.Exists(seedDir))
+            // Search every library root, shared first, and within each root the
+            // Seeds/ subfolder before the flat folder. Was DataPath/TagFamilies/Seeds
+            // ONLY, so the firm library could never supply a pre-authored family.
+            //
+            // Because this branch runs BEFORE any NewFamilyDocument in the
+            // per-category loop, a populated library turns "Create" into "Load" for
+            // every category that already has a file — no change to the loop
+            // structure, and the family that cannot be re-authored by the API is
+            // simply loaded instead of re-minted.
+            foreach (var root in GetTagLibraryRoots())
             {
-                string seedPath = Path.Combine(seedDir, baseName);
-                if (File.Exists(seedPath)) return seedPath;
-
-                // Also check for _seed suffix variant
-                string seedSuffix = Path.Combine(seedDir, nameNoExt + "_seed.rfa");
-                if (File.Exists(seedSuffix)) return seedSuffix;
+                if (string.IsNullOrEmpty(root)) continue;
+                foreach (var dir in new[] { Path.Combine(root, "Seeds"), root })
+                {
+                    try
+                    {
+                        if (!Directory.Exists(dir)) continue;
+                        string exact = Path.Combine(dir, baseName);
+                        if (File.Exists(exact)) return exact;
+                        string suffixed = Path.Combine(dir, nameNoExt + "_seed.rfa");
+                        if (File.Exists(suffixed)) return suffixed;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.WarnRateLimited("FindSeedFamily", $"probing '{dir}': {ex.Message}");
+                    }
+                }
             }
-
             return null;
         }
 
@@ -1445,7 +1459,12 @@ namespace StingTools.Tags
                     {
                         if (LoadFamilyIntoProject(doc, seedPath, famName))
                         {
-                            report.AppendLine($"  [SEED] {catDisplay} — loaded pre-configured seed family");
+                            // Name the folder it came from. With multiple roots in
+                            // play "loaded pre-configured seed family" no longer
+                            // identifies which library actually supplied it, and
+                            // that is the question a diverged library raises.
+                            report.AppendLine($"  [SEED] {catDisplay} — loaded existing family from "
+                                            + $"{Path.GetDirectoryName(seedPath)}");
                             loaded++;
                         }
                         else
