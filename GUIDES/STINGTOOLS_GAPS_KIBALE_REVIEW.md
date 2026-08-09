@@ -5,7 +5,7 @@
 > **Date of review: 2026-08-08.** Re-verify before acting; the codebase moves.
 >
 > **The original header said "nothing here has been fixed". That is no longer true** —
-> **33 of 80 entries are closed** on `claude/kibale-integration`, 7 more partial, 40 open.
+> **40 of 80 entries are closed** on `claude/kibale-integration`, 7 more partial, 33 open.
 > See the status index below.
 >
 > *(Counted, not estimated: the index has 66 rows but some cover a range — `C-1 … C-6` is
@@ -106,15 +106,15 @@ A gate that cannot fail must be treated as a gate that is not there.
 | A-3 repeated links taken off once | P1 | **closed** | `2cf15fb6f` |
 | A-4 room-finish default invents carpet | P1 | **closed** | `d703a53a2` |
 | B-1 no East African / AAQS method | P1 | open | |
-| B-2 no earthwork path | P1 | open | |
+| B-2 no earthwork path | P1 | **closed** | `8fa0faef6` — Site_CutFillTakeoff; **migration** §11 |
 | B-3 `ViewStylePack.Checksum` unused | P2 | open | |
 | C-1 … C-6 Scope Box Manager | — | **closed** | `15bc74155` `fd52eea1d` |
 | E-1 / E-1b material rate ~3,700× low | P0 | **closed** | `2113dfedb` |
-| E-2 three dead carbon paths | P0 | open | |
+| E-2 three dead carbon paths | P0 | **closed** | `160e6d9c4` — **migration** M-5 |
 | E-3 keyword-order landmines | P1 | open | |
-| E-4 waste never applies to priced qty | P1 | open | |
-| E-5 two "primary material" algorithms | P1 | open | |
-| E-6 a rate miss is silent | P1 | open | |
+| E-4 waste never applies to priced qty | P1 | **closed** | `3ad81dd54` |
+| E-5 two "primary material" algorithms | P1 | **closed** | `92e8934b9` — there were FIVE, four non-deterministic |
+| E-6 a rate miss is silent | P1 | **closed** | `4b62cd5cb` |
 | E-7 identity class leads the description | P2 | **partial** | `a69ae361e` normalised 580 classes; the description path still reads `MaterialClass` raw |
 | E-8 dead Tier 2, schema drift, dup blocks | P2 | **partial** | `a69ae361e` closed the 72↔73 schema drift; dead Tier 2 and duplicate block families remain |
 | E-9 missing East African materials | P2 | open | |
@@ -125,7 +125,7 @@ A gate that cannot fail must be treated as a gate that is not there.
 | E-14 `MAT_ISO_19650_ID` has no grammar | P1 | open | |
 | E-15 material-name inconsistencies | P1 | **closed** | `a69ae361e` (34 names) |
 | E-16 the full alignment fix | — | **partial** | `a69ae361e` |
-| F-1 three LOC vocabularies | P0 | open | |
+| F-1 three LOC vocabularies | P0 | open | measured: ParseLocCode reaches NONE of Kibale's 11 LOC codes — see F-9 report §2 |
 | F-2 untagged → first building | P0 | **closed** | `11cbc38f8` — **migration**, see verification doc |
 | F-3 `BuildingCodeSeed` defeats level parser | P1 | open | |
 | F-4 five level-code vocabularies | P1 | open | |
@@ -133,7 +133,7 @@ A gate that cannot fail must be treated as a gate that is not there.
 | F-6 three values called "level" | P1 | open | |
 | F-7 volume-code params dead | P2 | open | |
 | F-8 `LocPatterns` dead code | P2 | open | |
-| F-9 the SpatialCodeRegistry fix | — | open | |
+| F-9 the SpatialCodeRegistry fix | — | **partial** | reconciliation report `c59f83ccd` — [docs/F9_SPATIAL_CODE_RECONCILIATION.md](../docs/F9_SPATIAL_CODE_RECONCILIATION.md). **Blocked on two owner decisions**; no behaviour changed |
 | G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
 | G-2 CSV reader destroys quoted literals | P0 | **closed** | `20e84ba50` — re-scoped: 98.6 % of impact is tag config |
 | G-3 TEXT path has no `if()` | P0 | **closed** | `74f8cee84` — TextExpressionParser; 65 of 112 |
@@ -143,15 +143,15 @@ A gate that cannot fail must be treated as a gate that is not there.
 | G-7 `MULTI` formulas never fire | P1 | open | |
 | G-8 Type-vs-Instance binding ambiguity | P1 | open | |
 | G-9 federated-model cache hazard | P1 | open | |
-| G-10 arithmetic and modelling errors | P2 | **partial** | mortar `× 12` closed by `6433778b3`; the rest open |
+| G-10 arithmetic and modelling errors | P2 | **partial** | mortar `× 12` `6433778b3`; drainage 1000× `4af14251f` (**migration** M-4); sweep of all 303 formulas found no others |
 | G-11 floors, screeds, finishes uncovered | P0 | **partial** | K-2/K-3 land finish codes and floor creation; screed and skirting still absent |
 | G-12 priority order | — | — | |
-| G-14 the three BOQ-engine traps | — | **partial** | Trap 1 closed by `abeb6142c`; traps 2 and 3 open |
+| G-14 the three BOQ-engine traps | — | **closed** | Trap 1 `abeb6142c`; traps 2 + 3 `9af15632b` |
 | **G-15 formula take-off not material-aware** | **P0** | **open** | new — see entry |
 | H-1 IFC writer reports success writing nothing | P0 | **closed** | `60e24be6a` `ba703bb23` |
 | H-2 hardcoded currency in IFC/ERP export | P0 | **closed** | `8b1cfcf19` |
 | H-3 gates report 100 % on an empty bill | P0 | **closed** | `b11289a7e` |
-| H-4 swallowed sheet-name write | P0 | open | |
+| H-4 swallowed sheet-name write | P0 | **closed** | `3a66fc285` + `1c59c8eb3` — 12 write sites, 8 files, new `Core/SafeWrite.cs` |
 | H-5 no schema validation for data files | P0 | **closed** | `8a82ba60a` — self-tested gate |
 | H-6 … H-11 | — | open | |
 | K-1 room finishes never written | P0 | **closed** | `daf87d34b` `9f02aa3bf` |
