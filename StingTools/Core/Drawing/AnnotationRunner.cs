@@ -774,12 +774,22 @@ namespace StingTools.Core.Drawing
                     // so the produce path and the per-category depth path agree.
                     if (hasDepth)
                     {
-                        try { ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth); }
-                        catch { }
+                        // H-4 — were a silent catch. These are the writes that make
+                        // paragraph depth take effect; if TAG_PARA_* are unbound the
+                        // tag renders at its default depth and the pack's
+                        // CategoryDepths appear to have been ignored. SetInt RETURNS
+                        // false when unbound and throws nothing, so the catch was
+                        // never the mechanism — SafeWrite.Set checks the return.
+                        // Reported once per parameter, not once per element.
+                        SafeWrite.Set(el, "TAG_PARA_DEPTH_INT",
+                            () => ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth),
+                            "AnnotationRunner.ParaDepth", stats?.Warnings);
                         for (int t = 1; t <= 10; t++)
                         {
-                            try { ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{t}_BOOL", t <= resolvedDepth ? 1 : 0); }
-                            catch { }
+                            int tier = t;   // capture per iteration
+                            SafeWrite.Set(el, $"TAG_PARA_STATE_{tier}_BOOL",
+                                () => ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{tier}_BOOL", tier <= resolvedDepth ? 1 : 0),
+                                "AnnotationRunner.ParaDepth", stats?.Warnings);
                         }
                     }
                 }
@@ -1193,7 +1203,17 @@ namespace StingTools.Core.Drawing
                                 : doc.Create.NewSpotElevation(view, faceRef, origin, bend, end, refPt, hasLeader);
                             if (symbolId != ElementId.InvalidElementId && sd != null)
                             {
-                                try { sd.ChangeTypeId(symbolId); } catch { }
+                                // H-4 — was a silent catch. ChangeTypeId THROWS, so the
+                                // exception is the signal here. A swallowed failure
+                                // leaves the spot dimension placed but carrying the
+                                // WRONG symbol type — and result.SpotsPlaced++ on the
+                                // next line still counts it as a success. That is the
+                                // exact shape this batch keeps finding: the count says
+                                // done, the drawing says otherwise.
+                                SafeWrite.Try(() => sd.ChangeTypeId(symbolId),
+                                    "AnnotationRunner.Spot",
+                                    $"spot {(isCoordinate ? "coordinate" : "elevation")} symbol type",
+                                    result?.Warnings);
                             }
                             result.SpotsPlaced++;
                             // Keep the index current so a later rule of the same
