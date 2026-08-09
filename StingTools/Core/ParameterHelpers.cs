@@ -885,17 +885,17 @@ namespace StingTools.Core
 
                 // Check BuildingName parameter first
                 string buildingName = info.BuildingName ?? "";
-                string locFromName = ParseLocCode(buildingName);
+                string locFromName = ParseLocCode(buildingName, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
                 // Check project name
                 string projName = info.Name ?? "";
-                locFromName = ParseLocCode(projName);
+                locFromName = ParseLocCode(projName, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
                 // Check address
                 string address = info.Address ?? "";
-                locFromName = ParseLocCode(address);
+                locFromName = ParseLocCode(address, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
             }
             catch (Exception ex)
@@ -920,12 +920,12 @@ namespace StingTools.Core
                 {
                     // Check room name for building/location patterns
                     string roomName = room.Name ?? "";
-                    string loc = ParseLocCode(roomName);
+                    string loc = ParseLocCode(roomName, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
 
                     // Check room number prefix (e.g., "B1-101" → BLD1)
                     string roomNum = room.Number ?? "";
-                    loc = ParseLocCode(roomNum);
+                    loc = ParseLocCode(roomNum, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
 
@@ -1078,10 +1078,37 @@ namespace StingTools.Core
 
         /// <summary>
         /// Parse a string for LOC code patterns.
-        /// Recognizes: BLD1/BLD2/BLD3, Building 1/2/3, Block A/B/C, EXT, External.
+        ///
+        /// F-9 / gap F-1: this used to recognise ONLY BLD1/BLD2/BLD3/EXT, hard-coded,
+        /// and never consulted the configured vocabulary. On a project declaring its
+        /// own codes that meant NO LOC auto-detection at all, silently — Kibale
+        /// declares COT01-COT08, STF, KDR, POOL, EXT, XX and not one of the first
+        /// eleven was reachable, so every element fell to XX.
+        ///
+        /// Now: the SpatialCodeRegistry vocabulary first (corporate baseline +
+        /// project override, honouring each code's wordBoundary guard), then the
+        /// original hard-coded aliases as a fallback so existing projects behave
+        /// exactly as before. Registry misses cost nothing — the fallback is the
+        /// old body, unchanged.
         /// </summary>
-        private static string ParseLocCode(string text)
+        private static string ParseLocCode(string text) => ParseLocCode(text, null);
+
+        private static string ParseLocCode(string text, Document doc)
         {
+            // Registry first. A project-declared code must win over a corporate
+            // alias, which is the whole point of the override tier.
+            try
+            {
+                var hit = SpatialCodeRegistry.MatchLoc(doc, text);
+                if (hit != null && !string.IsNullOrEmpty(hit.Code) &&
+                    !string.Equals(hit.Code, "XX", StringComparison.OrdinalIgnoreCase))
+                    return hit.Code;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("ParseLocCode.Registry", $"registry lookup: {ex.Message}");
+            }
+
             if (string.IsNullOrWhiteSpace(text)) return null;
             string upper = text.ToUpperInvariant();
 
