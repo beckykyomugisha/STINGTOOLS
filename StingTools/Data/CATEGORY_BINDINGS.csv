@@ -16832,6 +16832,8 @@ MAT_COST_SUPPLY_NR,Materials,Instance,False
 MAT_COST_INSTALL_NR,Materials,Instance,False
 MAT_VAT_PCT_NR,Materials,Instance,False
 STING_EMB_CARBON_NR,Materials,Instance,False
+STING_EMB_CARBON_FOSSIL_NR,Materials,Instance,False
+STING_EMB_CARBON_BIOGENIC_NR,Materials,Instance,False
 STING_MAT_EPD_SRC_TXT,Materials,Instance,False
 STING_MAT_EPD_DATE_TXT,Materials,Instance,False
 STING_MAT_LIFECYCLE_TXT,Materials,Instance,False

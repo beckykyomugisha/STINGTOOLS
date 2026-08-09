@@ -435,6 +435,42 @@ accepted it.
 derivation is actually running — a zero here previously meant "everything was assigned to
 BLD1", not "everything resolved".
 
+## M-5 · E-2 — carbon figures will change on 497 materials
+
+`CarbonFactorResolver`'s exact-match tier reads `STING_EMB_CARBON_NR`
+(`CarbonFactorResolver.cs:62`); its split tiers read `STING_EMB_CARBON_FOSSIL_NR` and
+`STING_EMB_CARBON_BIOGENIC_NR` (`:141`, `:150`). **Nothing wrote any of the three.** The
+material library's measured carbon (`PROP_CARBON_KG_M3`, CSV column 61) was written to a
+shared parameter of the same name that no resolver consults, so every material fell through
+to the keyword / Revit-material-class estimate — including materials carrying a real
+measured figure.
+
+`MaterialCommands.SharedParamMappings` now writes all three. `PROP_CARBON_KG_M3` is still
+written as well, so any existing schedule built on it keeps working.
+
+**Expect embodied-carbon figures to change** on materials that carry a real
+`PROP_CARBON_KG_M3` — **497 of 815 rows** in `BLE_MATERIALS.csv`, and the same columns exist
+in `MEP_MATERIALS.csv`. Materials without one keep resolving by keyword, unchanged. The
+direction of change is not predictable per material: the deterministic value replaces an
+estimate that could have been high or low.
+
+**Two parameters are new** — `STING_EMB_CARBON_FOSSIL_NR` (`ae43ffaf-…`) and
+`STING_EMB_CARBON_BIOGENIC_NR` (`6e28ba35-…`), UUIDv5 under the same namespace as A-2,
+bound `Materials` / `Instance` exactly as `STING_EMB_CARBON_NR` already was. No collision
+against the 3,403 existing GUIDs.
+
+**Migration steps, per affected project:**
+1. Baseline the embodied-carbon total **before** installing.
+2. Install, run **Load Shared Parameters** (the two new ones will not bind otherwise —
+   same mechanism as M-3), then **re-run material population**. Carbon values are written
+   at material creation; opening the file changes nothing.
+3. Re-run the carbon report and compare. **Expect movement on ~60 % of materials.**
+4. Spot-check one timber material. Biogenic carbon is allowed to be negative —
+   sequestration is the point — so a timber row moving negative is correct, not a defect.
+5. If the total does **not** move at all, step 2 did not take: check that the materials
+   actually carry `STING_EMB_CARBON_NR` with a non-zero value, because the resolver
+   requires `StorageType.Double` and silently skips anything else.
+
 ## M-4 · G-10 — drainage flow rate was 1000× too small
 
 `PLM_DRN_FLW_RATE_LPS` is declared in **L/s** but its formula produced **m³/s**: it applied

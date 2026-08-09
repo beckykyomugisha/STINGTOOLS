@@ -3451,6 +3451,8 @@ PARAM	114852b0-7002-5680-80cd-930f91e8250b	MAT_COST_SUPPLY_NR	NUMBER		12	1	Mater
 PARAM	0621af78-0fbf-540e-9e6d-61df9925ae90	MAT_COST_INSTALL_NR	NUMBER		12	1	Material install unit cost (labour and plant) [Material Manager RFQ]	1	0
 PARAM	9794f566-efc2-5622-a23f-9e65e117eb48	MAT_VAT_PCT_NR	NUMBER		12	1	Material VAT percentage applied to supply and install [Material Manager RFQ]	1	0
 PARAM	800e0d61-f88d-5071-bc87-0c4ca3e51243	STING_EMB_CARBON_NR	NUMBER		12	1	Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon]	1	0
+PARAM	ae43ffaf-3d3d-5785-b279-427012125f17	STING_EMB_CARBON_FOSSIL_NR	NUMBER		12	1	Embodied carbon kgCO2e per unit, fossil fraction, A1-A3 GWP [Sustainability Carbon]	1	0
+PARAM	6e28ba35-e0b8-505e-a029-9cdd8b088ad2	STING_EMB_CARBON_BIOGENIC_NR	NUMBER		12	1	Embodied carbon kgCO2e per unit, biogenic fraction, A1-A3 GWP [Sustainability Carbon]	1	0
 PARAM	2776ca48-33b8-57a8-b2a6-ee982e442767	STING_MAT_EPD_SRC_TXT	TEXT		12	1	EPD data source / publisher reference [Sustainability Carbon]	1	0
 PARAM	c02ad751-5de9-50cc-a018-d7469595f8cf	STING_MAT_EPD_DATE_TXT	TEXT		12	1	EPD publication / validity date ISO 8601 [Sustainability Carbon]	1	0
 PARAM	e5455edb-f4f9-5585-a65e-363aa31f0b59	STING_MAT_LIFECYCLE_TXT	TEXT		12	1	Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager]	1	0
