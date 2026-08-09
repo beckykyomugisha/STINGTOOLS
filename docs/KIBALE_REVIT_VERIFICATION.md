@@ -435,6 +435,41 @@ accepted it.
 derivation is actually running — a zero here previously meant "everything was assigned to
 BLD1", not "everything resolved".
 
+## M-4 · G-10 — drainage flow rate was 1000× too small
+
+`PLM_DRN_FLW_RATE_LPS` is declared in **L/s** but its formula produced **m³/s**: it applied
+the 50 %-full factor and omitted the m³/s → L/s conversion its two siblings both carry.
+
+```
+PLM_PPE_FLW_LPS        …  * PLM_VEL_MPS     * 1000          ← correct
+HVC_PIPE_FLOWRATE_LPS  …  * HVC_VEL_MPS     * 1000          ← correct
+PLM_DRN_FLW_RATE_LPS   …  * PLM_DRN_VEL_MPS * 0.5           ← was missing * 1000
+```
+
+**Expect drainage flow figures to increase by exactly 1000×.** A 100 mm drain at 1 m/s read
+**0.0039 L/s**; it now reads **3.93 L/s**. The old figure was not merely small, it was
+physically impossible for a 100 mm pipe, which is why nothing downstream ever flagged it —
+no gate checks a value for plausibility, only for presence.
+
+**The one derived consumer is independent confirmation.** `PLM_DRN_FILL_RATIO_NR` is
+`PLM_DRN_FLW_RATE_LPS / PLM_PPE_FLW_LPS`, described as "hydraulic fill ratio (actual/full
+bore)". For a half-full pipe it must read **0.5**. It read **0.0005**. It now reads 0.5.
+
+**Migration steps, per affected project:**
+1. Baseline any drainage sizing sign-off or schedule that quotes `PLM_DRN_FLW_RATE_LPS` or
+   `PLM_DRN_FILL_RATIO_NR` **before** installing.
+2. Install, then **re-run the formula pass** — existing parameter values are not recomputed
+   by opening the file.
+3. Confirm `PLM_DRN_FILL_RATIO_NR` now reads ~0.5 on a half-full run, not ~0.0005.
+4. **Re-check any drain sized against the old number.** A pipe sized to carry a flow
+   reported 1000× low was sized against a meaningless figure — this is a re-design trigger
+   on any project where drainage capacity was signed off from these parameters, not just a
+   re-print. Two schedule definitions display it (`MR_SCHEDULES.csv`,
+   `TPL_SCHEDULE_METADATA.csv`); both will change.
+
+**No C# reads either parameter** — the entire blast radius is the one derived formula plus
+those two schedules. Verified by grep across `--include=*.cs` and `StingTools/Data/`.
+
 ## M-3 · A-2 — five new parameters must be loaded before classification writes anything
 
 `ClassificationReader` — the resolver BOQ, COBie, handover and IFC export all use — reads
