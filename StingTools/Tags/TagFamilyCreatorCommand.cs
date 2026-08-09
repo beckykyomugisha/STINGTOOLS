@@ -1034,20 +1034,130 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Get the output directory for tag families.
-        /// Creates a TagFamilies/ subdirectory alongside the plugin data.
+        /// The legacy, plugin-local tag library: &lt;DataPath&gt;/TagFamilies.
+        /// This is what the plugin read exclusively before the content library was
+        /// wired in, and it stays in the READ list forever so an existing
+        /// deployment never loses sight of its families.
         /// </summary>
-        public static string GetOutputDirectory()
+        public static string LegacyTagDirectory()
         {
             string baseDir = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(baseDir))
                 baseDir = Path.GetDirectoryName(StingToolsApp.AssemblyPath) ?? "";
+            return Path.Combine(baseDir, "TagFamilies");
+        }
 
-            string tagFamilyDir = Path.Combine(baseDir, "TagFamilies");
-            if (!Directory.Exists(tagFamilyDir))
-                Directory.CreateDirectory(tagFamilyDir);
+        /// <summary>
+        /// The firm-wide tag library — &lt;ContentRoots.ResolveSharedRoot()&gt;/Tags —
+        /// or null when no shared root resolves. Resolution (env → %APPDATA%
+        /// sting_content.json → %PROGRAMDATA%/STING/ContentLibrary) is owned by
+        /// ContentRoots so tags and symbols cannot drift apart.
+        /// </summary>
+        public static string SharedTagDirectory()
+        {
+            try
+            {
+                string root = StingTools.Core.Content.ContentRoots.ResolveSharedRoot();
+                return string.IsNullOrWhiteSpace(root) ? null : Path.Combine(root, "Tags");
+            }
+            catch (Exception ex) { StingLog.Warn($"SharedTagDirectory: {ex.Message}"); return null; }
+        }
 
-            return tagFamilyDir;
+        /// <summary>
+        /// Ordered READ list for tag families: shared library first, then the
+        /// legacy plugin-local folder. First root that holds a given family wins.
+        ///
+        /// Split from <see cref="GetOutputDirectory"/> deliberately. Reading and
+        /// writing are different questions — a machine with an unwritable
+        /// ProgramData must still be able to READ the firm library — and conflating
+        /// them is what made the two libraries diverge unnoticed in the first place.
+        /// </summary>
+        public static IReadOnlyList<string> GetTagLibraryRoots()
+        {
+            var roots = new List<string>();
+            string shared = SharedTagDirectory();
+            if (!string.IsNullOrEmpty(shared)) roots.Add(shared);
+            string legacy = LegacyTagDirectory();
+            if (!string.IsNullOrEmpty(legacy)) roots.Add(legacy);
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var outList = new List<string>();
+            foreach (var r in roots) if (seen.Add(r)) outList.Add(r);
+            return outList;
+        }
+
+        /// <summary>Count of .rfa files directly in a folder; 0 when absent.</summary>
+        private static int RfaCount(string dir)
+        {
+            try
+            {
+                return string.IsNullOrEmpty(dir) || !Directory.Exists(dir)
+                    ? 0 : Directory.GetFiles(dir, "*.rfa", SearchOption.TopDirectoryOnly).Length;
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>
+        /// Get the output directory for tag families. Name and signature unchanged —
+        /// all six existing callers keep working untouched.
+        ///
+        /// Resolution mirrors SymbolLibraryCommands.ResolveOutputRoot, including its
+        /// "don't strand an existing library" guard:
+        ///
+        ///   1. If the LEGACY folder holds families and the SHARED one holds none,
+        ///      keep writing to legacy. Otherwise a build would move to the shared
+        ///      root while every read still found the older local copies first, the
+        ///      stale families would keep winning, and the move would silently
+        ///      accomplish nothing. Migration is a deliberate act, not a side effect
+        ///      of an upgrade.
+        ///   2. Otherwise the shared library, write-probed — an unwritable
+        ///      ProgramData must DEGRADE to local, not fail the command.
+        ///   3. Otherwise legacy.
+        /// </summary>
+        public static string GetOutputDirectory()
+        {
+            string legacy = LegacyTagDirectory();
+            string shared = SharedTagDirectory();
+
+            if (!string.IsNullOrEmpty(shared))
+            {
+                int legacyCount = RfaCount(legacy);
+                int sharedCount = RfaCount(shared);
+
+                if (legacyCount > 0 && sharedCount == 0)
+                {
+                    StingLog.Info($"Tag output stays local: {legacyCount} family/families in "
+                                + $"'{legacy}' and none in the shared library '{shared}'. "
+                                + "Move them deliberately to migrate.");
+                }
+                else if (TryPrepareWritable(shared))
+                {
+                    return shared;
+                }
+            }
+
+            try { if (!Directory.Exists(legacy)) Directory.CreateDirectory(legacy); }
+            catch (Exception ex) { StingLog.Warn($"GetOutputDirectory: cannot create '{legacy}': {ex.Message}"); }
+            return legacy;
+        }
+
+        /// <summary>Create + write-probe a folder. Same shape as
+        /// MepSymbolEngine.ProbeDefaultSharedRoot, which is private to that class.</summary>
+        private static bool TryPrepareWritable(string dir)
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                string probe = Path.Combine(dir, ".sting_write_probe");
+                File.WriteAllText(probe, "");
+                File.Delete(probe);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Shared tag library '{dir}' is not writable, using the local folder: {ex.Message}");
+                return false;
+            }
         }
     }
 
@@ -2374,23 +2484,55 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string tagFamilyDir = TagFamilyConfig.GetOutputDirectory();
-            if (!Directory.Exists(tagFamilyDir))
+            // Read across every library root, shared first, de-duplicating by family
+            // NAME with first-root-wins — so a firm-authored family shadows the
+            // plugin-local copy of the same name rather than both being offered.
+            var roots = TagFamilyConfig.GetTagLibraryRoots();
+            var byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var perRoot = new List<string>();
+            foreach (var root in roots)
             {
+                int added = 0, shadowed = 0;
+                try
+                {
+                    if (Directory.Exists(root))
+                    {
+                        foreach (var f in Directory.GetFiles(root, "STING - *.rfa"))
+                        {
+                            string n = Path.GetFileNameWithoutExtension(f);
+                            if (byName.ContainsKey(n)) { shadowed++; continue; }
+                            byName[n] = f; added++;
+                        }
+                        perRoot.Add($"  {root}\n      {added} used"
+                                  + (shadowed > 0 ? $", {shadowed} shadowed by a higher root" : ""));
+                    }
+                    else perRoot.Add($"  {root}\n      (does not exist)");
+                }
+                catch (Exception ex)
+                {
+                    perRoot.Add($"  {root}\n      unreadable: {ex.Message}");
+                    StingLog.Warn($"LoadTagFamilies: root '{root}': {ex.Message}");
+                }
+            }
+
+            string[] rfaFiles = byName.Values.ToArray();
+            if (rfaFiles.Length == 0)
+            {
+                // The old message here was "Run 'Create Tag Families' first" — which
+                // is precisely the instruction that trains a user to re-author the
+                // library per project, and on a machine whose families live in the
+                // shared root it was simply wrong. Say where we looked instead.
                 TaskDialog.Show("Load Tag Families",
-                    "Tag families directory not found.\n" +
-                    "Run 'Create Tag Families' first to generate the .rfa files.");
+                    "No STING tag family .rfa files were found.\n\n"
+                  + "Roots searched, in order:\n" + string.Join("\n", perRoot) + "\n\n"
+                  + "If the firm library is elsewhere, point STING_CONTENT_LIB at it, or set\n"
+                  + "\"content_root\" in %APPDATA%\\STING\\sting_content.json.\n\n"
+                  + "Only run 'Create Tag Families' if this machine genuinely has no library —\n"
+                  + "it mints families that still need their label rows authored by hand.");
                 return Result.Failed;
             }
 
-            string[] rfaFiles = Directory.GetFiles(tagFamilyDir, "STING - *.rfa");
-            if (rfaFiles.Length == 0)
-            {
-                TaskDialog.Show("Load Tag Families",
-                    $"No STING tag family .rfa files found in:\n{tagFamilyDir}\n\n" +
-                    "Run 'Create Tag Families' first.");
-                return Result.Failed;
-            }
+            StingLog.Info($"LoadTagFamilies: {rfaFiles.Length} family/families across {roots.Count} root(s).");
 
             // Check which are already loaded
             var loadedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
