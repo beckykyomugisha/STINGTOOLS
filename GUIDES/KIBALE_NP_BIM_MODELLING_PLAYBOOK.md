@@ -1069,6 +1069,121 @@ Then add to `<project>\_BIM_COORD\carbon_factors_ug.json` (**the project overrid
 
 ---
 
+## Part 3E — Tagging: the complete procedure
+
+### You author two of the eight segments. The rest derive.
+
+The tag is `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ`. Verified against `TagConfig.Defaults.cs`:
+
+| Segment | Where it comes from | You touch it? |
+|---|---|---|
+| **DISC** | category → `DiscMap` (124 entries). Walls/Floors/Doors → `A`, Plumbing Fixtures → `P`, Lighting → `E`, Structural Columns → `S` | no |
+| **LOC** | `SpatialAutoDetect` parses the room name/number — **but only recognises `BLD1/BLD2/BLD3/EXT`** | **YES — set it** |
+| **ZONE** | parses Department → room name → room number. Recognises `Z01`–`Z04`, `Zone 1`, `Wing A`, `North/South/East/West` | **YES — via room data** |
+| **LVL** | the Revit level name. `Ground` → `GF`, `Roof` → `RF` | no, if levels are named plainly |
+| **SYS** | category + MEP system abbreviation | no |
+| **FUNC** | derived from SYS — `HVAC→SUP`, `DCW→DCW`, `SAN→SAN`, `LV→PWR`, `ARC→FIT` | no |
+| **PROD** | category → `ProdMap` (124 entries). Rooms → `RM`, Walls → `WL`, Doors → `DR`, Windows → `WIN`, Plumbing Fixtures → `FIX`, Lighting → `LUM` | no |
+| **SEQ** | auto-incremented per `DISC_SYS_LVL` | no |
+
+**That is the whole discipline: get LOC and ZONE right and the other six look after themselves.** Everything downstream — the bill, the schedules, the COBie export — inherits from those two.
+
+### LOC — set it per model, do not rely on detection
+
+`ParseLocCode` is hard-coded to `BLD1`, `BLD2`, `BLD3`, `EXT`. It never reads your configured vocabulary. So `COT01` will **never** auto-derive, and every element silently falls to `XX`.
+
+Because each building is its own linked model, LOC is constant per file. Set it once:
+
+> Open the model → **Select All** (`Ctrl+A` in a 3D view) → dock tab **CREATE TAGS → `SetLoc`** → type the code.
+
+| Model | LOC |
+|---|---|
+| `KBL26-PLN-COT01` | `COT01` |
+| … through … | `COT07` |
+| `KBL26-PLN-COT08` (twin) | `COT08` |
+| `KBL26-PLN-STF` | `STF` |
+| `KBL26-PLN-KDR` | `KDR` |
+| `KBL26-PLN-SITE` | `EXT` |
+
+Thirty seconds per model, and more reliable than name-parsing would have been.
+
+### ZONE — carried by the room data
+
+`Z01`–`Z04` **do** auto-detect. Put the zone code in the room **Department** field and every element in that room inherits it.
+
+| Zone | Department field | Which rooms |
+|---|---|---|
+| `Z01` | `Z01 Guest Accommodation` | every room in the 8 cottages |
+| `Z02` | `Z02 Public Hospitality` | reception, kitchen, dining, back space, pool, camp fire |
+| `Z03` | `Z03 Back of House` | staff lodge rooms, laundry, janitor |
+| `Z04` | `Z04 External Works` | site, roads, retaining, drainage |
+
+The literal string `Z01` anywhere in Department, room name or room number is what triggers it. Putting it in Department keeps the room *name* clean for the drawings.
+
+### The room register — fill this before you tag
+
+One row per room. Build it as a **Revit room schedule** with these columns and type down it; do not click room by room.
+
+| Column | Revit field | Kibale value | Why it matters |
+|---|---|---|---|
+| **Number** | Number | `Z01-01`, `Z01-02` … | drives ZONE; must be unique per model |
+| **Name** | Name | `Executive Room`, `Lounge`, `Study Area`, `En-suite`, `Twin Bedroom`, `Deluxe Room` | goes on the drawing — use the architect's words |
+| **Department** | Department | `Z01 Guest Accommodation` | drives ZONE |
+| **Floor Finish** | Floor Finish | `FL-01` / `FL-02` / `FL-03` | drives the finishes schedule (Part 3A) |
+| **Wall Finish** | Wall Finish | `WL-01` / `WL-02` | " |
+| **Ceiling Finish** | Ceiling Finish | `CL-01` / `CL-02` | " |
+| **Base Finish** | Base Finish | `SK-01` / `SK-02` | " |
+| **Occupancy** | `BLE_ROOM_OCCUPANCY_NR` | 2 / 4 / 1 | tier-2 tag + fire strategy |
+
+#### The typical cottage (C01) — fill exactly this
+
+| Number | Name | Department | Floor | Wall | Ceiling | Base | Occ |
+|---|---|---|---|---|---|---|---|
+| `Z01-01` | Executive Room | `Z01 Guest Accommodation` | `FL-01` | `WL-01` | `CL-01` | `SK-01` | 2 |
+| `Z01-02` | Lounge | `Z01 Guest Accommodation` | `FL-01` | `WL-01` | `CL-01` | `SK-01` | 4 |
+| `Z01-03` | Study Area | `Z01 Guest Accommodation` | `FL-01` | `WL-01` | `CL-01` | `SK-01` | 1 |
+| `Z01-04` | En-suite 1 | `Z01 Guest Accommodation` | `FL-03` | `WL-02` | `CL-02` | `SK-02` | 1 |
+| `Z01-05` | En-suite 2 | `Z01 Guest Accommodation` | `FL-03` | `WL-02` | `CL-02` | `SK-02` | 1 |
+| `Z01-06` | Duct | `Z01 Guest Accommodation` | `FL-02` | `WL-01` | — | — | 0 |
+
+**Do this once in C01.** The other six cottages are the same file — the register comes with the link. The twin cottage adds `Twin Bedroom` and `Deluxe Room`; the staff block runs `Z03-01`…`Z03-10` plus janitor and shared WC/shower.
+
+### The sequence — and why the order is not negotiable
+
+```
+1. Draw rooms
+2. Fill the room register          ← LOC/ZONE for every element derives from here
+3. SetLoc per model
+4. PreTagAudit          (read-only — check before you write)
+5. TagAndCombine        (whole project)
+6. Spot-check one room
+7. Place tags
+```
+
+**Step 4 is the one people skip.** `PreTagAudit` is a dry run: it predicts every tag without writing anything. Reading it takes two minutes and is the difference between finding a wrong LOC on ten elements and finding it on four thousand.
+
+**Step 7 last.** A tag placed before step 5 has nothing to display — `ASS_TAG_1_TXT` does not exist yet, and Revit renders `?`. That is the whole explanation for a plan full of question marks.
+
+### Verification — three checks, five minutes
+
+1. **One element**: select a wall in the Executive Room. `ASS_TAG_1_TXT` should read `A-COT01-Z01-GF-WAL-FIT-WL-0001`. If LOC is `XX`, step 3 didn't take. If ZONE is blank, the Department field is wrong.
+2. **Distribution**: schedule `ASS_LOC_TXT` and `ASS_ZONE_TXT` grouped, with counts. Every element should carry one of your eleven LOC codes and one of `Z01`–`Z04`. **Any `XX` is a real finding** — untagged elements used to be filed silently under the first building code, and now surface as `XX`.
+3. **`ValidateTags`** — clean before you place a single tag.
+
+### Which tag family, on which view
+
+| View | Family | Type | Shows |
+|---|---|---|---|
+| Architectural plans (issued) | **Revit's native Room Tag** | — | Name · Number · Area |
+| Asset / COBie / FM views | `STING - Room Tag` | `..._T1` | the 8-segment asset tag |
+| Room data sheets | `STING - Room Tag` | `..._T2` | + Area, Dept, Occ, Height, Vent, Lux, Std |
+
+The trailing `_T1` / `_T2` / `_T3` on a tag **type name is the tier depth** — `_T3` renders tiers 1, 2 and 3 at once. That is why an unfamiliar tag type explodes into twenty lines of `?`. **Default to `_T1`** and step up deliberately.
+
+Tier 2 is a *reward* for having filled the room register, not a way to prompt for it — turn it on only once the data is there, or you get seven more `?`.
+
+---
+
 ## Part 4 — What makes a BOQ line correct
 
 A bill line is correct when **six** things are true. Any one missing and the line is wrong, or silently absent.
