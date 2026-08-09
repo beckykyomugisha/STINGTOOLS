@@ -1255,16 +1255,41 @@ namespace StingTools.Tags
                 $"Templates: {templateDir}\n" +
                 $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
                 $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
+                (onDisk > 0
+                    ? $"⚠ {onDisk} family/families already exist on disk and will be LEFT ALONE.\n" +
+                      "  Tick the box below to re-create them instead — that DELETES and re-mints\n" +
+                      "  the .rfa, and label rows cannot be re-authored by this plugin. Any label\n" +
+                      "  work done by hand in the Family Editor is lost and must be redone by hand.\n\n"
+                    : "") +
                 "Each family is created from a Revit annotation template, loaded with STING\n" +
                 "shared parameters, and given the standard depth/style type variants.\n\n" +
                 "NEXT: run 'Propagate Universal' to clone the universal label onto every\n" +
                 "family, then 'Set depth' to choose the visible tier count. Label rows are\n" +
                 "NOT authored here — the Revit API cannot author label rows.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+
+            // P0 — re-creation is now OPT-IN.
+            //
+            // skipExistingOnDisk was hard-coded false, so every run deleted and
+            // re-minted any existing .rfa that failed VerifyFamilyHasParams. Label
+            // rows cannot be authored through the Revit API — this file says so at
+            // :33-34, :1078 and :1261-1262 — so a re-mint destroys work that can
+            // only be redone by hand in the Family Editor. A destructive default on
+            // a command called "Create" is the wrong way round: creating what is
+            // missing is the safe reading of the name, and overwriting is the
+            // exceptional act that should have to be asked for.
+            if (onDisk > 0)
+                confirm.VerificationText =
+                    $"Re-create the {onDisk} existing family/families — DESTROYS hand-authored label rows";
+
             var choice = confirm.Show();
             if (choice == TaskDialogResult.Cancel)
                 return Result.Cancelled;
-            bool skipExistingOnDisk = false; // default: recreate all families
+
+            bool skipExistingOnDisk = onDisk == 0 || !confirm.WasVerificationChecked();
+            if (!skipExistingOnDisk)
+                StingLog.Warn($"CreateTagFamilies: user opted IN to re-creating {onDisk} existing "
+                            + "tag family/families — hand-authored label rows in those files are lost.");
 
             string outputDir = outputDirEarly;
             report.AppendLine($"STING Tag Family Creation Report");
