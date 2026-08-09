@@ -5,7 +5,7 @@
 > **Date of review: 2026-08-08.** Re-verify before acting; the codebase moves.
 >
 > **The original header said "nothing here has been fixed". That is no longer true** —
-> **40 of 80 entries are closed** on `claude/kibale-integration`, 7 more partial, 33 open.
+> **41 of 80 entries are closed** on `claude/kibale-integration`, 7 more partial, 32 open.
 > See the status index below.
 >
 > *(Counted, not estimated: the index has 66 rows but some cover a range — `C-1 … C-6` is
@@ -125,7 +125,7 @@ A gate that cannot fail must be treated as a gate that is not there.
 | E-14 `MAT_ISO_19650_ID` has no grammar | P1 | open | |
 | E-15 material-name inconsistencies | P1 | **closed** | `a69ae361e` (34 names) |
 | E-16 the full alignment fix | — | **partial** | `a69ae361e` |
-| F-1 three LOC vocabularies | P0 | open | measured: ParseLocCode reaches NONE of Kibale's 11 LOC codes — see F-9 report §2 |
+| F-1 three LOC vocabularies | P0 | **closed** | `e20dccbcd` — ParseLocCode reads the registry; TagConfig.LocCodes bridged so project codes work with no new file |
 | F-2 untagged → first building | P0 | **closed** | `11cbc38f8` — **migration**, see verification doc |
 | F-3 `BuildingCodeSeed` defeats level parser | P1 | open | |
 | F-4 five level-code vocabularies | P1 | open | |
@@ -133,7 +133,7 @@ A gate that cannot fail must be treated as a gate that is not there.
 | F-6 three values called "level" | P1 | open | |
 | F-7 volume-code params dead | P2 | open | |
 | F-8 `LocPatterns` dead code | P2 | open | |
-| F-9 the SpatialCodeRegistry fix | — | **partial** | reconciliation report `c59f83ccd` — [docs/F9_SPATIAL_CODE_RECONCILIATION.md](../docs/F9_SPATIAL_CODE_RECONCILIATION.md). **Blocked on two owner decisions**; no behaviour changed |
+| F-9 the SpatialCodeRegistry fix | — | **partial** | report `c59f83ccd`; registry + baseline `e20dccbcd`. Both decisions taken (MZ2, GF/00). `GetLevelCode` NOT yet rewired |
 | G-1 / G-13 `lookup()` not implemented | P0 | **closed** | `a9eec757f` `b88cc4b4c` |
 | G-2 CSV reader destroys quoted literals | P0 | **closed** | `20e84ba50` — re-scoped: 98.6 % of impact is tag config |
 | G-3 TEXT path has no `if()` | P0 | **closed** | `74f8cee84` — TextExpressionParser; 65 of 112 |
