@@ -160,8 +160,66 @@ namespace StingTools.BOQ
                             $"{i.Quantity:0.##} {i.Unit}", $"§{i.NRM2Section} · no rate");
                 }
 
-                if (flagged.Count == 0)
+                // E-6 — material-rate misses. A row that fell through the material
+                // library to CsvRateProvider's CATEGORY-keyed rate is PRICED, so it
+                // never appears in any count above — "Walls" gets one figure whether
+                // it is 200 mm hollow block or a glazed screen. Reporting what
+                // actually happened, not what was attempted (same shape as H-1).
+                {
+                    var mm = StingTools.BOQ.Rates.MaterialRateMissLog.All();
+                    int attempts = StingTools.BOQ.Rates.MaterialRateMissLog.Attempts;
+                    int hits = StingTools.BOQ.Rates.MaterialRateMissLog.Hits;
+                    int missRows = StingTools.BOQ.Rates.MaterialRateMissLog.MissRows;
+                    int noMat = StingTools.BOQ.Rates.MaterialRateMissLog.NoMaterialRows;
+
+                    var sec = panel.AddSection("MATERIAL-RATE FALL-THROUGH");
+                    if (attempts == 0)
+                    {
+                        // Distinguished from "no misses" on purpose: a zero here means
+                        // the provider never ran, which is not evidence of coverage.
+                        sec.Text("The material-rate provider did not run on this build — "
+                               + "no coverage figure can be given. This is not the same as a clean result.");
+                    }
+                    else
+                    {
+                        double hitPct = 100.0 * hits / attempts;
+                        sec.Metric("Priced on material", $"{hits} of {attempts} ({hitPct:0.#}%)",
+                                "Rows whose rate came from the material, not its category")
+                           .Metric("Fell through to category rate", missRows.ToString(),
+                                "Priced, but on the CATEGORY — a wall type's construction did not affect its rate")
+                           .Metric("No material resolved", noMat.ToString(),
+                                "A modelling gap, not a rate-library gap — counted separately")
+                           .Metric("Distinct materials unpriced",
+                                StingTools.BOQ.Rates.MaterialRateMissLog.DistinctMaterials.ToString());
+
+                        var named = mm.Where(m => m.Material != StingTools.BOQ.Rates.MaterialRateMissLog.NoMaterialKey)
+                                      .Take(10).ToList();
+                        if (named.Count > 0)
+                        {
+                            panel.AddSection("TOP UNPRICED MATERIALS");
+                            foreach (var m in named)
+                                panel.Metric(m.Material, $"{m.Rows} row(s)",
+                                    m.Categories.Count > 0
+                                        ? $"seen on: {string.Join(", ", m.Categories.OrderBy(c => c).Take(4))}"
+                                        : "");
+                        }
+                    }
+                }
+
+                int fellThrough = StingTools.BOQ.Rates.MaterialRateMissLog.MissRows;
+                if (flagged.Count == 0 && fellThrough == 0)
                     panel.AddSection("CLEAN").Text("Every modelled item is priced above the confidence floor. Ready for QS review.");
+                else if (flagged.Count == 0)
+                    // E-6 — "every item is priced" was true and still misleading:
+                    // a category-rate fall-through IS a rate, so it cleared every
+                    // check above while carrying none of the material's cost.
+                    // Saying "ready for QS review" over that is the false green
+                    // light this batch keeps finding.
+                    panel.AddSection("PRICED, BUT NOT ON MATERIAL")
+                         .Text($"Every modelled item carries a rate above the confidence floor, but {fellThrough} "
+                             + "row(s) were priced on their CATEGORY because the material had no price. Those "
+                             + "figures do not reflect what the element is built from. Price the materials listed "
+                             + "above before treating this bill as QS-ready.");
                 else
                     panel.AddSection("NEXT")
                         .Text("Open the CSV worklist below and hand it to the QS, or run Export QS Bill to price in Excel.");

@@ -520,6 +520,11 @@ namespace StingTools.BOQ
             boq.PrelimsItemised = prelims.Enabled;
             boq.PrelimLines = prelims.Lines ?? new List<BoqPrelimLine>();
 
+            // E-6 — clear the material-rate miss tally so it describes THIS build
+            // and not an accumulation across two different bills. Reset here, at
+            // the top of the only method that runs the provider chain.
+            StingTools.BOQ.Rates.MaterialRateMissLog.Reset();
+
             // ── STEP 2: Load rate tables (3-source merge) ────────────────
             //   (a) project cost_rates_5d.csv  — highest priority
             //   (b) COBie type map             — category → cost-rate code

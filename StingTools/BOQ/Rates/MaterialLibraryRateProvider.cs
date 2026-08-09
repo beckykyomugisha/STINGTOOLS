@@ -28,13 +28,25 @@ namespace StingTools.BOQ.Rates
         public RateLookup Resolve(RateRequest req)
         {
             if (req?.Element == null) return null;
+            // E-6 — every exit below is now recorded. A miss here silently drops
+            // the row to CsvRateProvider's CATEGORY-keyed rate, so "Walls" prices
+            // the same whether it is 200 mm hollow block or a glazed screen.
+            MaterialRateMissLog.RecordAttempt();
+            string cat = null;
+            try { cat = req.Element.Category?.Name; } catch { }
             try
             {
                 var doc = req.Element.Document;
                 if (doc == null) return null;
 
                 string matName = ResolvePrimaryMaterialName(req.Element);
-                if (string.IsNullOrWhiteSpace(matName)) return null;
+                if (string.IsNullOrWhiteSpace(matName))
+                {
+                    // Not a rate-library gap — a modelling gap. Counted separately
+                    // so the report does not blame the library for it.
+                    MaterialRateMissLog.RecordNoMaterial(cat);
+                    return null;
+                }
 
                 // Tier 1 — Live Material element's ALL_MODEL_COST.
                 // P-1 — Routed through MaterialNameCache (O(1) lookup) to
@@ -49,6 +61,8 @@ namespace StingTools.BOQ.Rates
                         {
                             double v = cp.AsDouble();
                             if (v > 0)
+                            {
+                                MaterialRateMissLog.RecordHit();
                                 return new RateLookup
                                 {
                                     // CA-1 — ALL_MODEL_COST holds USD, so the registry's FX
@@ -86,6 +100,7 @@ namespace StingTools.BOQ.Rates
                                     Provenance = $"Material '{mat.Name}' ALL_MODEL_COST (live, MAT panel)",
                                     MatchedKey = mat.Name,
                                 };
+                            }
                         }
                     }
                     catch (Exception ex) { StingLog.WarnRateLimited("MatLibRate.MatParam", $"MatLibRate mat param: {ex.Message}"); }
@@ -94,6 +109,8 @@ namespace StingTools.BOQ.Rates
                 // Tier 2 — Corporate MATERIAL_LOOKUP.csv.
                 double libVal = StingTools.UI.MaterialLookupCsv.GetCost(matName);
                 if (libVal > 0)
+                {
+                    MaterialRateMissLog.RecordHit();
                     return new RateLookup
                     {
                         // CA-1 — MATERIAL_LOOKUP.csv is a DIFFERENT source from the
@@ -111,6 +128,11 @@ namespace StingTools.BOQ.Rates
                         Provenance = $"Material '{matName}' MATERIAL_LOOKUP.csv (corporate)",
                         MatchedKey = matName,
                     };
+                }
+
+                // Named material, no price in any tier — the real library gap.
+                MaterialRateMissLog.RecordMiss(matName, cat);
+                return null;
             }
             catch (Exception ex) { StingLog.WarnRateLimited("MatLibRate", $"MaterialLibraryRateProvider.Resolve: {ex.Message}"); }
             return null;
