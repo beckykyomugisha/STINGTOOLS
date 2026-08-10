@@ -124,3 +124,85 @@ can sit on more than one floor element. It should read the Floor element's own a
 3. **The two broken finishes formulas** (`TILE_QUANTITY`, `GROUT_WEIGHT`) — fixable now, no
    geometry needed.
 4. Then the 14 comparisons, surface by surface.
+
+---
+
+# G-8 — ANSWERED, in Revit, on KNP26
+
+Run 2026-08-10 against `KNP26-ACE-ZZ-ZZ-M3-A-0001.rvt` after Load Shared Parameters,
+via a Dynamo CPython3 node iterating `doc.ParameterBindings`.
+
+```
+declared names in MR_PARAMETERS.csv : 3392
+bound params checked                : 3033
+bound params with no declaration    :   22
+declared BOTH Type and Instance     :    0
+MISMATCHES                          : 2654      ← 87 % of everything bound
+```
+
+**Every single mismatch runs one way: declared `Type`, actually bound `Instance`. Zero the
+other way.** The arithmetic closes exactly — 2,654 mismatched (all declared Type) + 379
+matched (all declared Instance) = 3,033 checked. There is no drift here and no partial
+state: *every declared-Type parameter in the project is bound as Instance.*
+
+## Cause — two binders that disagree
+
+| | Behaviour |
+|---|---|
+| `LoadSharedParamsCommand` — **what the operator runs** | calls `NewInstanceBinding` only. 13 call sites, no `NewTypeBinding` anywhere in the file. |
+| `DataPipelineCommands.cs:792` | honours the column — `? NewTypeBinding(catSet) : NewInstanceBinding(catSet)`, reading `Binding_Type` at `:649` |
+| `TemplateManagerCommands.cs:2813` | also creates a `TypeBinding` |
+
+So `Binding_Type` is live in one path and **decorative in the path everybody actually uses**.
+The 2,997 `Type` declarations describe a binding that the normal command has never produced.
+
+**G-8 is therefore a documentation defect, not a silent-write bug** — but a far more
+consequential one than a stale column, because of what it has already caused.
+
+## The consequence that matters: K-16's diagnosis is invalid
+
+K-16 was raised as a P0 and closed with this mechanism:
+
+> `ASS_PRODCT_COD_TXT` and `ASS_SYSTEM_TYPE_TXT` are **Type-bound** (19 rows each, all Type)
+> but were read off the **instance** via `Element.LookupParameter`, which is instance-scoped.
+> Both returned empty on every element, so the PROD-code and system-type rate passes never
+> fired and everything fell through to the single category rate — a fire door and a cupboard
+> door price identically.
+
+Measured in the live model:
+
+```
+ASS_PRODCT_COD_TXT     declared=Type      actual=Instance
+ASS_SYSTEM_TYPE_TXT    declared=Type      actual=Instance
+MAT_CODE               declared=Type      actual=Instance
+```
+
+**Both are Instance-bound.** `Element.LookupParameter` finds them perfectly well. The stated
+mechanism cannot be what made them empty — and the distinction K-16 drew against `MAT_CODE`
+("Instance-bound and already correct") is not a distinction at all: all three are Instance.
+
+The `ReadInstanceThenType` fix is harmless and more robust, but it did not address the actual
+cause. **The most likely real cause is that the values were simply empty** — the tagging
+pipeline had not populated them — which is a different defect with a different fix.
+
+**So the fire-door/cupboard-door rate defect must be treated as OPEN until re-tested against
+elements that genuinely carry a PROD code.** A P0 was diagnosed, fixed and closed from a
+declaration that is wrong for 87 % of parameters.
+
+## Which side is right
+
+Do **not** "fix" the bindings to match the declaration. Instance is almost certainly correct:
+`ASS_TAG_1_TXT` is the unique 8-segment asset tag and *must* be per-instance — Type-binding it
+would give every door of one type the same asset tag. The same holds for most of the `ASS_*`
+identity set.
+
+The declaration is the wrong side. Correct or delete the `Binding_Type` column, and reconcile
+the two binders so one behaviour is authoritative. Re-binding 2,654 parameters as Type on live
+projects would be destructive and would break the asset register.
+
+## Also worth recording
+
+- **22 bound parameters have no declaration at all** — bound by something that does not go
+  through `MR_PARAMETERS.csv`.
+- **Nothing is declared as both Type and Instance**, so the multi-category rows in the CSV are
+  at least internally consistent.
