@@ -2389,15 +2389,25 @@ namespace StingTools.Core
                 if (zone == "Z01") stats.DefaultZoneCount++;
             }
 
-            // Validate-before-write — guarantee all 7 tokens are non-empty
-            // before building the tag string. Applies hardcoded defaults as a safety net.
-            if (string.IsNullOrEmpty(disc)) disc = "A";
-            if (string.IsNullOrEmpty(loc))  loc  = "BLD1";
-            if (string.IsNullOrEmpty(zone)) zone = "Z01";
-            if (string.IsNullOrEmpty(lvl))  lvl  = "L00";
-            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
-            if (string.IsNullOrEmpty(func)) func = "GEN";
-            if (string.IsNullOrEmpty(prod)) prod = "GEN";
+            // Validate-before-write. This block GUARANTEES non-empty by substituting
+            // a hardcoded default — which is precisely the behaviour A-1/K-13/G-27
+            // forbid elsewhere: it makes an unresolved token indistinguishable from a
+            // resolved one. It is kept (removing it would emit doubled separators),
+            // but every substitution is now RECORDED so the tag can report that it was
+            // completed by assumption rather than by measurement.
+            //
+            // Which tokens may legitimately fall back, and which must never, is
+            // corporate-baseline DATA — Data/STING_TAG_TOKEN_POLICY.json, overridable
+            // per project — because sectors disagree (a hospital treats ZONE as
+            // mandatory, a single-building lodge does not).
+            bool anyFallback = false;
+            if (string.IsNullOrEmpty(disc)) { disc = "A";    anyFallback = true; }
+            if (string.IsNullOrEmpty(loc))  { loc  = "BLD1"; anyFallback = true; }
+            if (string.IsNullOrEmpty(zone)) { zone = "Z01";  anyFallback = true; }
+            if (string.IsNullOrEmpty(lvl))  { lvl  = "L00";  anyFallback = true; }
+            if (string.IsNullOrEmpty(sys))  { sys  = "GEN";  anyFallback = true; }
+            if (string.IsNullOrEmpty(func)) { func = "GEN";  anyFallback = true; }
+            if (string.IsNullOrEmpty(prod)) { prod = "GEN";  anyFallback = true; }
 
             // Always use DERIVED token values for seqKey, not stored values.
             // In non-overwrite mode, SetIfEmpty preserves existing stored values on the element,
@@ -2574,6 +2584,31 @@ namespace StingTools.Core
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
                 return false;
             }
+
+            // G-42 — completeness at WRITE time.
+            //
+            // TagIsComplete already existed and was called from eight sites
+            // (ComplianceScan:690/842/843/1013, BOQSupportCommands:135,
+            // BIMManagerCommands:4068/4909/8950). EVERY ONE IS A READER. Nothing
+            // checked at the moment of writing, which is why a tag with two blank
+            // segments reached a drawing without a word. Reusing the existing check
+            // rather than writing a second one — a parallel notion of "complete" is
+            // how the two take-off paths diverged.
+            //
+            // anyFallback carries G-27's distinction through: a tag completed by
+            // substituting GEN is complete-but-ASSUMED, which is not the same as
+            // complete, and counting them together would hide exactly what this is
+            // meant to surface.
+            try
+            {
+                bool complete = TagIsComplete(tag);
+                stats?.RecordTagCompleteness(complete, anyFallback, tag, el.Id?.Value ?? -1);
+                if (!complete)
+                    StingLog.WarnRateLimited("IncompleteTag",
+                        $"Incomplete tag written on {el.Id}: '{tag}'. A mandatory segment is blank — "
+                      + "see Data/STING_TAG_TOKEN_POLICY.json for which tokens may fall back.");
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag completeness check on {el.Id}: {ex.Message}"); }
 
             // ASS_DISPLAY_TXT is the ON-DRAWING tag: the display-mode + segment-mask
             // resolved rendering of the canonical ASS_TAG_1_TXT. Let BuildDisplayTag
