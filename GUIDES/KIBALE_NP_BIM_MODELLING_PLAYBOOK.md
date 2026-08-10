@@ -121,6 +121,44 @@ Once fixed, it appears in:
 - every file name: `KBL26-PLN-C01-ZZ-DR-A-1001`
 - every ISO 19650 asset tag written by STING
 
+#### There are TWO project-code fields, and nothing reconciles them
+
+This is the part that bites. STING reads the project code from **two different places**, for two
+different purposes, and **no code anywhere checks that they agree**.
+
+| Field | Read by | Drives |
+|---|---|---|
+| `ProjectInformation.Number` | `ProjectFolderEngine.DetectProjectCode` (`:822-836`) | the **folder tree**, the ES root stamp, folder display names |
+| `PRJ_ORG_PROJECT_CODE_TXT` | 9 files incl. `TitleBlockParamApplier`, `TemplateManifest`, `ServerPublisher`, `TagSchemeEngine` | **ISO 19650 document numbers**, transmittals, rendered file names |
+
+**Set both, to the same value.** For Kibale: **`KIBALE`** — 6 characters, within the 8-character limit,
+no punctuation. (This supersedes the `KBL26` / `KIBNP26` suggestion above; the decision is `KIBALE`.)
+
+Three measured facts you need to know before relying on either:
+
+1. **Nothing in STING writes `PRJ_ORG_PROJECT_CODE_TXT`.** All nine consumers read it; there is no
+   `SetString`/`Set` anywhere. The Project Setup wizard reads `ProjectInformation.Number` but does not
+   populate this field. **You must type it by hand** — Manage → Project Information.
+2. **If you leave it blank, one consumer silently falls back to the Number** (`TemplateManifest.cs:198`,
+   `ReadParam(ORG_PROJECT_CODE) ?? info.Number`) and the others get nothing. That is how the two drift:
+   documents numbered from one field, folders from the other.
+3. **`DrawingDispatcher.ReadProjectCode` (`:106`) is broken** — it looks up `PRJ_ORG_PROJECT_CODE`
+   without the `_TXT` suffix, which is not a declared parameter, so it always returns null. Do not rely
+   on drawing-type routing by project code until that is fixed (registered as **G-21**).
+
+#### If you see "PRJ" anywhere, stop
+
+`PRJ` is the placeholder used when Project Information has **neither** a Number nor a Name. It is not a
+valid project code. STING now warns when a tree is about to be minted under it — a log line plus one
+dialog per model. If you see it:
+
+- Do **not** carry on and rename later. The root is stamped into ExtensibleStorage on first resolve, so
+  a rename gives you a **second** tree, not a moved one.
+- Set the Number, save, close, reopen. Then check that `<rvtDir>/KIBALE/` exists and no `PRJ/` does.
+
+This matters beyond tidiness: several projects opened without a Number all resolve to the **same**
+`PRJ` folder and write over each other's coordination data.
+
 ### D2 — Project folder, and when to create it
 
 **Create the folder the moment you have a code and a first `.rvt` — before modelling, not after.** Two reasons:
@@ -1019,6 +1057,85 @@ warning visibility have been tuned, that is a visible, project-wide regression.
 reconcile against the schedule.
 
 Full procedure, including the parameter list: [`docs/UNIVERSAL_TAG_CONFORMANCE.md`](../docs/UNIVERSAL_TAG_CONFORMANCE.md) → Operator sheet.
+
+### Door and window marks — a short mark on the plan, the full tag on the instance
+
+**The rule.** A door shows a **type mark** on the drawing (`DR-01`) and carries the **full 8-segment
+tag** on the instance (`A-COT-Z01-GF-ARC-FIT-DR-0001`). The remaining segments are schedule columns,
+not label text. Nobody reads an eight-field code off a 1:100 plan.
+
+**Why the mark is per TYPE, not per instance.** Kibale has 7 identical cottages. That is roughly
+**12 door types against ~96 door instances**. A per-instance mark would put 96 unique numbers on the
+drawings to describe 12 actual products; the schedule would have 96 rows where 12 would do, and any
+change to a door type would need 8 edits. The type mark is what the contractor orders against.
+
+**The codes, measured from `TagConfig.Defaults.cs`:**
+
+| | Doors | Windows |
+|---|---|---|
+| PROD (`ASS_PRODCT_COD_TXT`) | **`DR`** | **`WIN`** |
+| SYS (`ASS_SYSTEM_TYPE_TXT`) | `ARC` | `ARC` |
+| FUNC (`ASS_FUNC_TXT`) | `FIT` | `FIT` |
+
+Note **`WIN`, not `WN`** — three characters. And note that **FUNC is `FIT` for both**, so FUNC cannot
+distinguish a door from a window. **PROD is the discriminator.** (FUNC is not `EXT`/`INT` at all —
+`EXT` is a *LOC* code, from `DefaultLocCodes`.)
+
+**The configuration.** Which tokens a container renders is set by a named **preset** in
+`Data/PARAMETER_REGISTRY.json` → `token_presets`, referenced by a container's `tokens` field
+(`ParamRegistry.cs:2092`, `ResolveTokenPreset:1733`). Token order is
+`0 DISC · 1 LOC · 2 ZONE · 3 LVL · 4 SYS · 5 FUNC · 6 PROD · 7 SEQ`.
+
+An existing container already gives a usable short mark:
+
+- **`ASS_TAG_2_TXT`** uses preset `short_id` = `[0,6,7]` = **DISC-PROD-SEQ** → `A-DR-0001`.
+
+If you want the bare `DR-0001` without the discipline letter, add a **new** preset rather than
+repurposing `short_id` (which other containers rely on):
+
+```json
+"token_presets": {
+  "all":      [0,1,2,3,4,5,6,7],
+  "short_id": [0,6,7],
+  "prod_seq": [6,7],
+  "location": [1,2,3],
+  "system":   [4,5],
+  "sys_ref":  [4,5,6],
+  "line1":    [0,1,2,3],
+  "line2":    [4,5,6,7]
+}
+```
+
+and point a container at it:
+
+```json
+{ "param_name": "ASS_TAG_4_TXT", "tokens": "prod_seq", "separator": "-" }
+```
+
+> **Correction to an in-code comment.** `TagFamilyCreatorCommand` describes `TAG4` as
+> "Short label (PROD-SEQ)". It is not — `ASS_TAG_4_TXT` currently binds preset `system` = `[4,5]` =
+> SYS-FUNC. The comment describes an intent the configuration never carried. Repointing `TAG_4` at
+> `prod_seq` as above makes the comment true, but check nothing in your project is reading SYS-FUNC
+> from `TAG_4` first.
+
+**One caveat before you rely on this.** Changing a preset changes what the container *contains*. For
+that to appear on a drawing, the tag family must have a **label bound to that container parameter**.
+The universal tag carries `ASS_TAG_1`–`ASS_TAG_7` (`TagFamilyConfig.TagParams`), so `TAG_2` and `TAG_4`
+are available — but whether a given tag *type* displays them is a family-authoring question, not a
+configuration one.
+
+**What is NOT automated — do not expect it.** Nothing in STING generates `DR-01`, `DR-02`, `WIN-01`
+sequences per type. `ASS_TYPE_MARK_TXT` is only a **one-way mirror**: `ParameterHelpers.cs:3884` copies
+an existing `ALL_MODEL_TYPE_MARK` from the type into the STING parameter. If the Type Mark is blank,
+the STING parameter stays blank. **Type marks are entered by hand** (or via a schedule, which is far
+faster — make a door type schedule with Type Mark as an editable column and fill it down). Registered
+as **G-20**.
+
+**The exception — unique assets show the full tag.** The short-mark rule applies to *repeat* items:
+doors, windows, sanitaryware, furniture. **Unique plant does the opposite** — an AHU or a distribution
+board is one-of-one, its tag *is* its identity, and it must show the full 8-segment code on the
+drawing. Rule of thumb: if you would order more than one of it from a schedule, short mark; if it
+appears once on a commissioning sheet, full tag.
 
 ### Tag depth — **not yet documented, deliberately**
 

@@ -218,17 +218,52 @@ rendering** and is a candidate for removal in its own right. Logged, not actione
 **G-8 stands but narrows**: the defect is not "nothing is bound", it is that a coverage matrix,
 three binder inputs and two writer scopes disagree about which population is authoritative.
 
+### Can `WriteCategoryDepths` reach a label row? As shipped, NO — but not for the reason you'd guess
+
+The method is **not intrinsically incapable**. It collects
+`FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType()` and groups by category name,
+which **includes `IndependentTag`s**. `el.GetTypeId()` on a tag returns its `FamilySymbol` — the very
+population the label formula reads. So if a `categoryDepths` key named a **tag** category, the existing
+code would write the gates straight onto the tag type and it would work.
+
+Measured: it never does. The only shipped `categoryDepths` live in `STING_DRAWING_TYPES.json` — **2
+blocks, 4 distinct keys, all host categories**: `Mechanical Equipment`, `Pipe Fittings`,
+`Duct Fittings`, `Air Terminals`. `STING_VIEW_STYLE_PACKS.json` has **35 packs and zero**
+`categoryDepths`.
+
+**So as configured, the writes land on host element types and cannot reach the tag** — and the cheap
+fix, if per-category depth is wanted, is a **configuration change** (key on `Air Terminal Tags` rather
+than `Air Terminals`), not code.
+
 ### The 2-minute in-Revit confirmation
 
-1. Open any project with the universal tag loaded. Place it on a **Duct**.
-2. Select the duct. In Properties, look for `TAG_PARA_STATE_3_BOOL`.
-   - **Not present** → confirms (b): the parameter is not bound to Ducts, and `AnnotationRunner` has
-     nothing to write to. Expect the SafeWrite warning in `StingTools.log`.
-   - **Present** → (b) is wrong on this model (someone bound it by hand); continue to 3.
-3. Tick it. Observe the tag. If row 3 does not appear, (a) is confirmed: the element-side value has
-   no path to family-side visibility.
-4. Now open the tag's **Type Properties** and tick `TAG_PARA_STATE_3_BOOL` there. Row 3 should
-   appear. That is the parameter that actually controls it.
+**This test settles both open questions at once** — whether host-side values reach the label (2.5a),
+and whether the family-side gates are TYPE or INSTANCE parameters, which is what §C is held on.
+
+Use an **Air Terminal**: it is in the 42 categories bound by `FAMILY_PARAMETER_BINDINGS.csv` *and* one
+of the 4 shipped `categoryDepths` keys, so both mechanisms are in play on the same element.
+
+1. Open a project that has had **Project Setup** run (that is what applies the Type binding). Place the
+   universal tag on an **Air Terminal**.
+2. Select the air terminal → **Edit Type**. Look for `TAG_PARA_STATE_3_BOOL`.
+   - **Present** → confirms the Type binding from `FAMILY_PARAMETER_BINDINGS.csv`.
+   - **Absent** → `BatchAddFamilyParams` has not run here; run Project Setup or test elsewhere.
+3. Tick it **on the type**. Watch the tag.
+   - **Row 3 does not appear** → confirms host-side gates are inert (answer to 2.3 = **no**). Expected.
+   - **Row 3 appears** → the whole §2.5(a) analysis is wrong; stop and report, that would be a
+     significant finding.
+4. Now select the **tag** itself and find `TAG_PARA_STATE_3_BOOL`. **Where it appears is the answer to
+   §C:**
+
+   | Where it appears | What it means | Consequence |
+   |---|---|---|
+   | Tag's **Edit Type** | gates are **TYPE** family parameters | `SetParagraphDepth`'s type sweep reaches them. Per-type depth works today. **Keep per-type; unhold §C as per-type.** |
+   | Tag's **instance Properties** | gates are **INSTANCE** family parameters | The type sweep never reaches them — depth is broken today, and per-instance is forced. **Convert, and write the missing per-instance writer.** |
+
+5. Tick it wherever it appeared. Row 3 should appear on the tag. That is the controlling parameter.
+
+**Report which of the two rows in step 4 you saw.** That single observation unholds §C and the
+playbook's Part 3E depth paragraph.
 
 ---
 
