@@ -5,7 +5,7 @@
 > **Date of review: 2026-08-08.** Re-verify before acting; the codebase moves.
 >
 > **The original header said "nothing here has been fixed". That is no longer true** —
-> **41 of 80 entries are closed** on `claude/kibale-integration`, 7 more partial, 32 open.
+> **43 of 84 entries are closed** on `claude/kibale-integration`, 8 more partial, 1 held, 32 open.
 > See the status index below.
 >
 > *(Counted, not estimated: the index has 66 rows but some cover a range — `C-1 … C-6` is
@@ -141,7 +141,11 @@ A gate that cannot fail must be treated as a gate that is not there.
 | G-5 nothing fails loudly | P0 | **closed** | `5ee46d27c` `5d7443105` |
 | G-6 32 rows silently dropped | P1 | **closed** | `cd1fc03a9` — guard now logs; 32 rows repaired to 12 columns |
 | G-7 `MULTI` formulas never fire | P1 | open | |
-| G-8 Type-vs-Instance binding ambiguity | P1 | open | |
+| G-8 Type-vs-Instance binding ambiguity | P1 | **partial** | **resolved as a question, open as a defect.** Gates ARE Type-bound on 42 host categories via `FAMILY_PARAMETER_BINDINGS.csv` → `BatchAddFamilyParamsCommand` (runs inside Project/Master Setup) — the earlier "bound nowhere" reading was wrong. But host-side and family-side are unconnected populations: a family visibility formula cannot read a host parameter, so those writes land and do nothing. Dead element-scoped writer removed `f5ae772d9`; finding corrected `377cdceb7`. Remaining defect: coverage matrix, 3 binder inputs and 2 writer scopes disagree on which population is authoritative |
+| G-16 depth per-type vs per-instance | P1 | **held** | new — standing decision was convert 11 gates to INSTANCE; evidence now favours per-TYPE (type path works via `SetParagraphDepth`'s FamilySymbol sweep; per-tag variation already exists via `TagStyleCatalogue` variants; conversion costs a destructive reload of 206 families + a per-instance writer that does not exist). Operator sheet §C held, playbook 3E placeholdered. **Awaiting owner re-decision** |
+| G-17 STING minted project roots outside projects | P0 | **closed** | `94ab17e9f` — two routes, both creating on resolve: the path-only overloads could not test `IsFamilyDocument`, and `GetMetaPath`/`GetDataPath` had no family guard at all. 21 artefacts in the corporate content library, 8 more elsewhere **including a third-party vendor's family folder** (`Documents\DiRoots\FamilyReviser\Families`) — the strongest single argument for the guard. Cleared; content-library manifest re-verified 207/207 |
+| G-18 conformance checker penalised a correct design | P2 | **closed** | `37074d6a2` — check (4) required the 128-BOOL style matrix from the universal tag, which expresses style as type variants instead. +10 pts. **Adjacent, still open:** `TagVisibilityFingerprint` requires `WARN_VISIBLE_BOOL`, which does not exist (real name `TAG_WARN_VISIBLE_BOOL`) — every tag family loses 4 pts to a typo |
+| G-19 25 writers target unbound parameters | P2 | open | new — sweep of 252 literal-named writes found 25 params bound in **none** of the three binder inputs; 24 are not even declared in `MR_PARAMETERS.txt`. Concentrated in `PlaceHangersCommand` (10), `RoutingSupportPlacer` (8), `FamilyHintsBridge` (7), `CircuitTopologyEngine` (5), plus `TAG_PARA_DEPTH_INT`. Enumerated, not fixed |
 | G-9 federated-model cache hazard | P1 | open | |
 | G-10 arithmetic and modelling errors | P2 | **partial** | mortar `× 12` `6433778b3`; drainage 1000× `4af14251f` (**migration** M-4); sweep of all 303 formulas found no others |
 | G-11 floors, screeds, finishes uncovered | P0 | **partial** | K-2/K-3 land finish codes and floor creation; screed and skirting still absent |
