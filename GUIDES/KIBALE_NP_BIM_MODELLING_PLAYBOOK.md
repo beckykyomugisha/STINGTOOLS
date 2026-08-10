@@ -155,12 +155,12 @@ stamp and Number is now warned about, but the warning is a safety net, not a wor
 | Field | Value for this project | Why |
 |---|---|---|
 | **Project Number** | **`KNP26`** | the source. 5 characters, inside the ≤8 limit |
-| Organization Name | **`PLANSCAPE`** | **currently reads `ACE`** — a template leftover, and it lands on every title block |
+| Organization Name | **`ACE`** — leave it | ACE are the architects. Planscape models and documents **for** them and issues on **ACE's** title block, so the organisation on the sheet is ACE. This is not a template leftover. |
+| `PRJ_ORG_ORIGINATOR_CODE_TXT` | **`PLN`** *(pending ACE confirmation)* | A different question from the one above. The ISO 19650 **originator** is whoever authored the information container — Planscape did. Organization Name is *whose drawing this is*; originator is *who produced this file*. They are allowed to differ, and here they do. One line of written confirmation from ACE settles it. |
 | Project Name | Kibale… — **`KIBALE`** spelling | not `KIBAALE` |
 | `PRJ_PROJECT_COD_TXT` | `KNP26` | derived — feeds `{project}` in sheet numbers |
 | `PRJ_ORG_PROJECT_CODE_TXT` | `KNP26` | derived — feeds the template engine / ISO doc numbers |
 | `PRJ_NR_TXT` | `KNP26` | derived — title-block label + schedules |
-| `PRJ_ORG_ORIGINATOR_CODE_TXT` | `PLN` | feeds `{originator}` |
 
 **Order:** set Project Number → save → close → reopen (so the ES root stamp lands against a saved
 document) → **Load Shared Parameters** → set the remaining fields in Manage → Project Information.

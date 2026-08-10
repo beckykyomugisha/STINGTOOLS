@@ -14,10 +14,10 @@ blocker.
 |---|---|---|---|
 | 1 | **Set Project Information → Number = `KNP26`**, then save, close, reopen | The folder root is stamped into ExtensibleStorage on first resolve. Set it later and you get a *second* tree, not a moved one. With no Number at all you land in the shared `PRJ` placeholder — now warned about, but still wrong. | 2 min |
 | 2 | **Run Load Shared Parameters** | The 36 `PRJ_*` bindings added under K-11 only take effect when the binder runs. Until then `PRJ_PROJECT_COD_TXT` and `PRJ_ORG_ORIGINATOR_CODE_TXT` do not appear in Manage → Project Information, and **no sheet number can be produced** — under K-13 the token is now omitted and Revit rejects the number outright. | 3 min |
-| 3 | **Set Organization Name = `PLANSCAPE`** | Currently reads **`ACE`**, a template leftover. It lands on every title block. | 1 min |
+| 3 | **Leave Organization Name = `ACE`** | ACE are the architects; Planscape documents for them and issues on ACE's title block. Not a leftover — nothing to change. Separately, the ISO **originator** code is `PLN` (Planscape authored the containers), pending one line of written confirmation from ACE. Different fields, different questions. | 0 min |
 | 4 | **Deploy the current build** (`deploy.bat`), restart Revit | Everything above is in this branch and not in whatever is currently deployed. Confirm the target: `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin \| sort -u` | 5 min |
 
-That is the whole blocking list. **~11 minutes.**
+That is the whole blocking list. **~10 minutes.**
 
 ---
 
@@ -43,9 +43,10 @@ Do that session when convenient. It is not on the critical path.
 
 | Item | State | Why it can wait |
 |---|---|---|
-| **G-25** `param_binding_resolver --apply` would orphan 10 live `SHT_*` | open, apply **blocked** | The tool's `SHT` exclusion (line 67) disagrees with reality. `--check` is now default and read-only, so nothing runs by accident. |
+| **G-25** `SHT_*` orphaning | **CLOSED** | The resolver's `SHT` exclusion was the wrong side — all ten bind to `Sheets`, as `PRJ_SHEET_*` does. Fixed, `--apply` landed, +27 params gained a binding row and nothing live was orphaned. |
+| **K-16** BOQ rate read the wrong scope | **CLOSED** | `ProdCode` and `SystemType` are Type-bound but were read off the instance, so both were always empty and every element fell to the category rate. Fixed. |
+| **3B.4** presentation auto-tagging | **CLOSED** | Six `pres-*` types set to `autoTag=false`, checksums re-stamped (6 of 93 drifted, `--check` now 93/93). |
 | **384** parameter-readership violations | ratchet at 384 | Mostly bucket A — a parameter genuinely missing. The gate stops the count going *up*, which is how all seven affix bugs arrived. Not a clearance target. |
-| **3B.4** 6 of 13 `pres-*` types have `autoTag=True` | **open, real defect** | Client-facing sheets should not auto-tag. Not fixed here because `STING_DRAWING_TYPES.json` is SHA-256 checksum-locked and changing it requires re-running `tools/StampDrawingTypeChecksums` — a deliberate step, not a tail-end edit. **Do this before issuing any presentation sheet.** |
 | **G-20** type marks | **built this pass** | Preview then assign from the DOCS tab. |
 | **K-14 / K-15** | open / closed | Mark dedup drift; `WriteToRooms` over-reporting (closed). |
 
@@ -72,10 +73,12 @@ Do that session when convenient. It is not on the critical path.
 ```
 dotnet build StingTools/StingTools.csproj        0 errors, 0 warnings
 tools/validate_data_schemas.py --self-test       8 deliberate defects caught
+tools/validate_data_schemas.py                   5 files validated, 0 warnings
 tools/validate_param_readership.py --self-test   4 defect shapes caught, no false positives
-tools/validate_param_readership.py               377 / ceiling 384 — PASS
+tools/validate_param_readership.py               384 / ceiling 384 — PASS
 tools/check_path_discipline.ps1                  Tier 1: 0 · Tier 2: 0
 tools/restamp_content_manifest.py --check        207/207 match
-tools/binding_simulator.py                       3401 declared · 3238 bound · 163 skipped · 0 conflicts
-tools/param_binding_resolver.py (--check)        3 files differ — see G-25, apply blocked
+tools/binding_simulator.py                       3401 declared · 3244 bound · 157 skipped · 0 conflicts
+tools/param_binding_resolver.py (--check)        all generated files match disk
+StampDrawingTypeChecksums --check                93/93 correct
 ```
