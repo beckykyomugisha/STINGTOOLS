@@ -180,6 +180,25 @@ Run **Family Conformance Check** against the tag library.
 
 ---
 
+## 7b · G-27b — how many quantities are ASSUMED rather than measured? **RECORD**
+
+Run **Evaluate Formulas** on the KNP26 model. The report now ends with a
+**"Quantity confidence (G-27)"** block. It is report-only — it blocks nothing.
+
+**RECORD the two numbers**: how many lookup sites hit a DEFAULT row at least once, and how
+many never resolved at all.
+
+Why it matters: all 26 `lookup()` calls read a table shipping a `DEFAULT` row, so an absent
+key produces a NUMBER rather than reporting that nothing was measured. Statically, all 25 key
+parameters are bound, so nothing is *guaranteed* to default — the real rate depends on whether
+your elements carry values, and only this run answers it.
+
+That number decides **G-30**: whether an export should BLOCK on an assumed quantity. If most
+quantities default today, blocking immediately would stop every BOQ in the product overnight,
+which is why the flag ships report-only first.
+
+---
+
 ## 8 · TITLE BLOCK — what feeds DWG NO.? **RECORD**
 
 Open the **ACE title block** in the Family Editor. Select the **DWG NO.** label → **Edit Label** →

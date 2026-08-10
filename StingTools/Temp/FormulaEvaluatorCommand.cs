@@ -38,6 +38,9 @@ namespace StingTools.Temp
             // this run's diagnostics are not suppressed by an earlier run's.
             FormulaEngine.ResetWarnBudget();
 
+            // G-27 — report-only lookup() resolution audit for this run.
+            LookupAudit.BeginRun();
+
             string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
             if (csvPath == null)
             {
@@ -296,6 +299,12 @@ namespace StingTools.Temp
                         $"sample elements: {sampleIds}");
                 }
             }
+
+            // G-27 — how many lookups were MEASURED vs ASSUMED. Surfaced here
+            // because a flag only in the log is a flag nobody reads.
+            string g27 = LookupAudit.EndRun();
+            if (!string.IsNullOrEmpty(g27))
+                report.AppendLine().AppendLine("── Quantity confidence (G-27) ──").AppendLine(g27);
 
             TaskDialog.Show("Formula Evaluator", report.ToString());
 
@@ -1794,13 +1803,16 @@ namespace StingTools.Temp
 
                 // The key may be a parameter holding the TypeKey, or a literal.
                 string key = keyRef;
+                string rawKeyValue = null;
+                bool keyWasEmpty = false;
                 if (!string.IsNullOrEmpty(keyRef) && _ctx.TryGetValue(keyRef, out object kv))
                 {
                     string resolved = kv as string ?? kv?.ToString();
+                    rawKeyValue = resolved;
                     // An EMPTY parameter is not a key — fall through to DEFAULT
                     // rather than querying "CONCRETE " and silently missing.
                     if (!string.IsNullOrWhiteSpace(resolved)) key = resolved;
-                    else key = "DEFAULT";
+                    else { key = "DEFAULT"; keyWasEmpty = true; }
                 }
 
                 // TryGetProperty, not GetProperty: the latter returns 0 for both
@@ -1809,16 +1821,42 @@ namespace StingTools.Temp
                 // blinding steel, nailed-tile fasteners, self-standing formwork
                 // props). Treating those as a miss would fail a formula whose
                 // correct answer is 0 — inverting the G-5 fix for those rows.
+                // G-27 — record WHICH of the three ways this resolved, into the same
+                // QuantityResolution structure the C# take-off uses. Until now a
+                // DEFAULT was indistinguishable from a measurement on the page, which
+                // is the mechanism behind G-15 and is universal: all 26 lookup()
+                // calls read a table that ships a DEFAULT row.
+                //
+                // Note the ordering subtlety: an empty parameter is rewritten to the
+                // literal key "DEFAULT" above, so it resolves through the SPECIFIC-row
+                // branch below and would otherwise look measured. keyWasEmpty is what
+                // distinguishes it.
+                bool defaulted = keyWasEmpty
+                                 || string.Equals(key, "DEFAULT", StringComparison.OrdinalIgnoreCase);
+
                 if (MaterialLookupCsv.TryGetProperty($"{table} {key}", column, out double v))
+                {
+                    LookupAudit.Record(table, keyRef, rawKeyValue, column,
+                        defaulted ? StingTools.BOQ.Takeoff.LookupState.Defaulted
+                                  : StingTools.BOQ.Takeoff.LookupState.Measured);
                     return v;
+                }
 
                 // Fall back to the table's DEFAULT row, which the registry
-                // indexes under the bare category name.
+                // indexes under the bare category name. Reaching here means the key
+                // was SET but did not match — RC-1's "unmatched" case, the more
+                // dangerous of the two because it is usually a typo.
                 if (MaterialLookupCsv.TryGetProperty(table, column, out v))
+                {
+                    LookupAudit.Record(table, keyRef, rawKeyValue, column,
+                        StingTools.BOQ.Takeoff.LookupState.Defaulted);
                     return v;
+                }
 
                 // G-5 composition: no value means the formula cannot be evaluated,
                 // so it is skipped rather than written as 0.
+                LookupAudit.Record(table, keyRef, rawKeyValue, column,
+                    StingTools.BOQ.Takeoff.LookupState.Unresolved);
                 Fail($"lookup({table},{key},{column}) found no value");
                 return 0;
             }
