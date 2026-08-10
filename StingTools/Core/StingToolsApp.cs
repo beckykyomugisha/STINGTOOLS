@@ -1103,7 +1103,9 @@ namespace StingTools.Core
                     if (TagConfig.AutoTaggerVisual.HasValue)
                         StingAutoTagger.SetVisualTagging(TagConfig.AutoTaggerVisual.Value);
                     if (TagConfig.AutoTaggerStaleMarker.HasValue)
-                        StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value);
+                        // G-47: pass the document so the ISO token parameters (SHARED, so
+                        // per-document ElementIds) can be watched for staleness.
+                        StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value, e.Document);
                     // GAP-AT-03: Restore discipline filter from project config
                     StingAutoTagger.RestoreDisciplineFilter();
                 }
