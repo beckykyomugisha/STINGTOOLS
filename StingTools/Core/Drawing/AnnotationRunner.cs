@@ -682,42 +682,27 @@ namespace StingTools.Core.Drawing
                 return;
             }
 
-            // Pre-resolve CategoryDepths pack for this bic (avoid per-element registry hit).
-            ViewStylePack depthPack = null;
-            string depthCatKey = null;
-            int resolvedDepth = 0;
-            bool hasDepth = false;
-            try
-            {
-                var dtId = DrawingTypeStamper.Read(view);
-                if (!string.IsNullOrEmpty(dtId))
-                {
-                    depthPack = DrawingTypeRegistry.TryGetPack(doc, dtId);
-                    if (depthPack?.CategoryDepths != null)
-                    {
-                        depthCatKey = Category.GetCategory(doc, bic)?.Name ?? bic.ToString();
-                        if (!depthPack.CategoryDepths.TryGetValue(depthCatKey, out resolvedDepth))
-                        {
-                            depthPack.CategoryDepths.TryGetValue(bic.ToString(), out resolvedDepth);
-                        }
-                        hasDepth = resolvedDepth > 0;
-                    }
-                }
-            }
-            catch { /* resolver must never throw */ }
-
-            // A rule's own tag7Depth is the most specific depth declaration
-            // there is, so it wins over the pack's per-category depth for the
-            // elements this rule covers. Same write as the pack path below
-            // (TAG_PARA_DEPTH_INT + cumulative TAG_PARA_STATE_n_BOOL), just a
-            // different source — the field had no reader at all before, so a
-            // rule asking for depth 3 silently got whatever the pack said.
-            if (rule?.Tag7Depth.HasValue == true && rule.Tag7Depth.Value > 0)
-            {
-                resolvedDepth = Math.Max(1, Math.Min(10, rule.Tag7Depth.Value));
-                hasDepth = true;
-            }
-
+            // Paragraph depth is NOT resolved or written here any more.
+            //
+            // This used to pre-resolve a depth from the pack's CategoryDepths (and
+            // the rule's tag7Depth) and then write TAG_PARA_DEPTH_INT +
+            // TAG_PARA_STATE_1..10_BOOL onto each host ELEMENT. Those writes could
+            // never land, for two independent reasons:
+            //
+            //   • TAG_PARA_DEPTH_INT has no binding at all — zero rows in
+            //     CATEGORY_BINDINGS.csv, RESOLVED_BINDINGS.csv AND
+            //     FAMILY_PARAMETER_BINDINGS.csv. It exists only as a definition in
+            //     MR_PARAMETERS.txt, so nothing anywhere can read it.
+            //   • TAG_PARA_STATE_*_BOOL / TAG_WARN_VISIBLE_BOOL are bound as TYPE
+            //     parameters (FAMILY_PARAMETER_BINDINGS.csv, 42 categories each).
+            //     ParameterHelpers.SetInt resolves via Element.LookupParameter, which
+            //     does not see type parameters from an instance — so an instance-scoped
+            //     write is unreachable by construction, not merely unbound.
+            //
+            // The live per-category depth path is TokenProfileApplier.WriteCategoryDepths,
+            // which writes the same gates to the element TYPE and therefore matches the
+            // Type binding. Do not reinstate an element-scoped writer here.
+            //
             // Per-rule tag orientation. IndependentTag.Create took a hardcoded
             // TagOrientation.Horizontal, so the field was inert.
             TagOrientation orientation = ResolveTagOrientation(rule, catKey, stats);
@@ -767,31 +752,9 @@ namespace StingTools.Core.Drawing
                         alreadyTagged?.Add(el.Id);
                     }
 
-                    // Apply CategoryDepths from the active pack, if declared.
-                    // FIX-6: write the tier flags CUMULATIVELY — a depth of N
-                    // means tiers 1..N are all visible (higher tiers off), not
-                    // tier N alone. Mirrors TokenProfileApplier.WriteCategoryDepths
-                    // so the produce path and the per-category depth path agree.
-                    if (hasDepth)
-                    {
-                        // H-4 — were a silent catch. These are the writes that make
-                        // paragraph depth take effect; if TAG_PARA_* are unbound the
-                        // tag renders at its default depth and the pack's
-                        // CategoryDepths appear to have been ignored. SetInt RETURNS
-                        // false when unbound and throws nothing, so the catch was
-                        // never the mechanism — SafeWrite.Set checks the return.
-                        // Reported once per parameter, not once per element.
-                        SafeWrite.Set(el, "TAG_PARA_DEPTH_INT",
-                            () => ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth),
-                            "AnnotationRunner.ParaDepth", stats?.Warnings);
-                        for (int t = 1; t <= 10; t++)
-                        {
-                            int tier = t;   // capture per iteration
-                            SafeWrite.Set(el, $"TAG_PARA_STATE_{tier}_BOOL",
-                                () => ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{tier}_BOOL", tier <= resolvedDepth ? 1 : 0),
-                                "AnnotationRunner.ParaDepth", stats?.Warnings);
-                        }
-                    }
+                    // CategoryDepths are applied by TokenProfileApplier.WriteCategoryDepths
+                    // (element TYPE scope, matching the Type binding). The element-scoped
+                    // writes that used to sit here could not land — see the note above.
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
             }
