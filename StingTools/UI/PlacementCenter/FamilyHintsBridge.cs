@@ -54,8 +54,8 @@ namespace StingTools.UI.PlacementCenter
                 Add(rows, sampleType, sampleInst, "PLACE_MOUNT_HEIGHT_MM",      "mm");
                 Add(rows, sampleType, sampleInst, "PLACE_OFFSET_X_MM",          "mm");
                 Add(rows, sampleType, sampleInst, "PLACE_MIN_SPACING_MM",       "mm");
-                Add(rows, sampleType, sampleInst, "PLACE_ANCHOR_TXT",           "");
-                Add(rows, sampleType, sampleInst, "PLACE_SIDE_TXT",             "");
+                Add(rows, sampleType, sampleInst, ParamRegistry.PLACE_ANCHOR,   "");
+                Add(rows, sampleType, sampleInst, ParamRegistry.PLACE_SIDE,     "");
                 Add(rows, sampleType, sampleInst, "PLACE_PRIORITY_INT",         "");
                 Add(rows, sampleType, sampleInst, "PLACE_MAX_PER_ROOM_INT",     "");
                 Add(rows, sampleType, sampleInst, "PLACE_SPACING_RULE_TXT",     "");
@@ -151,8 +151,8 @@ namespace StingTools.UI.PlacementCenter
                             TrySetLengthMm(sym, "PLACE_MIN_SPACING_MM", vm.MinSpacingMm)) { writes++; any = true; }
 
                         // Placement-rule discriminators
-                        if (TrySetString(sym, "PLACE_ANCHOR_TXT",        vm.Model.AnchorType    ?? "ROOM_CENTRE")) { writes++; any = true; }
-                        if (TrySetString(sym, "PLACE_SIDE_TXT",          vm.Model.SideConstraint ?? "EITHER"))     { writes++; any = true; }
+                        if (TrySetString(sym, ParamRegistry.PLACE_ANCHOR, vm.Model.AnchorType    ?? "ROOM_CENTRE")) { writes++; any = true; }
+                        if (TrySetString(sym, ParamRegistry.PLACE_SIDE,   vm.Model.SideConstraint ?? "EITHER"))     { writes++; any = true; }
                         if (TrySetInteger(sym, "PLACE_PRIORITY_INT",     vm.Priority))     { writes++; any = true; }
                         if (TrySetInteger(sym, "PLACE_MAX_PER_ROOM_INT", vm.MaxPerRoom))   { writes++; any = true; }
 

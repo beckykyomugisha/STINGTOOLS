@@ -1,4 +1,4 @@
 # K-11 parameter-readership violation baseline.
 # The gate fails when the violation count EXCEEDS this number.
 # Lower it when you fix violations; never raise it without saying why.
-603
+379

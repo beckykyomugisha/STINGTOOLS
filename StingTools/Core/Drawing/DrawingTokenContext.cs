@@ -103,6 +103,20 @@ namespace StingTools.Core.Drawing
         // Neither case is repaired here — repairing them would override a
         // caller's deliberate blank. They are only made *audible*, so the
         // producer's existing Warnings list carries them to the operator.
+        /// <summary>
+        /// Tokens whose value comes from a shared parameter on ProjectInformation
+        /// rather than from the caller or the DrawingType profile. These are the only
+        /// two in the whole token set with NO fallback of any kind — every other token
+        /// either falls back to the profile (lvl/vol/type/role/suit/rev/sys/disc) or is
+        /// deliberately omitted so the literal survives ({seq}, GAP-D).
+        /// </summary>
+        private static readonly Dictionary<string, string> TokenSourceParam =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "project",    "PRJ_PROJECT_COD_TXT" },
+                { "originator", "PRJ_ORG_ORIGINATOR_CODE_TXT" },
+            };
+
         private static readonly System.Text.RegularExpressions.Regex _tokenRx =
             new System.Text.RegularExpressions.Regex(@"\{([A-Za-z0-9_]+)(?::D(\d+))?\}",
                 System.Text.RegularExpressions.RegexOptions.Compiled);
@@ -139,10 +153,28 @@ namespace StingTools.Core.Drawing
             }
 
             if (blank.Count > 0)
+            {
+                // K-11 2.3: name the SOURCE, not just the token. The generic advice
+                // below ("set the profile default") is wrong for the two tokens backed
+                // by a shared parameter rather than the profile — an operator told to
+                // edit IsoNaming for {project} will not find it there. These are also
+                // the two that had no fallback of any kind, so they are the ones most
+                // likely to appear in this list.
+                var sourced = new List<string>();
+                foreach (var k in blank)
+                    if (TokenSourceParam.TryGetValue(k, out var src))
+                        sourced.Add($"{{{k}}} <- {src} on Project Information");
+
                 warnings.Add(
                     $"{label} pattern '{pattern}': token(s) {{{string.Join("}, {", blank)}}} resolved empty — "
                   + "the segment is dropped, leaving a doubled separator. Supply the value at the call "
-                  + "site, or set the profile default (IsoNaming.Level / .Volume / .Type / .Role).");
+                  + "site, or set the profile default (IsoNaming.Level / .Volume / .Type / .Role)."
+                  + (sourced.Count > 0
+                        ? " Parameter-backed token(s): " + string.Join("; ", sourced)
+                          + ". If the parameter is not visible in Manage > Project Information, it is not"
+                          + " bound — run Load Shared Parameters and re-open."
+                        : string.Empty));
+            }
             if (missing.Count > 0)
                 warnings.Add(
                     $"{label} pattern '{pattern}': token(s) {string.Join(", ", missing)} were not supplied and "

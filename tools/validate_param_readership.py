@@ -76,6 +76,22 @@ CODE_BOUND = {
 # Directories that are not plugin consumer code.
 SKIP_DIRS = {"obj", "bin", ".git", "Data", "_template_sources", "_workflow_sources"}
 
+# A literal in one of these contexts is NOT a parameter name, so it is correctly
+# absent from MR_PARAMETERS.txt and must not be counted as a violation. Triage of
+# the original 603 found these two patterns accounted for most of the inflation:
+#
+#   prefix test   paramName.StartsWith("ASS_LOC")            <- a namespace, not a name
+#   alias key     _extendedParams["ELC_BUSBAR_RATING"]        <- short alias ...
+#                     = "ELC_BUSBAR_RATING_A"                 <- ... mapping to the real name
+#                 Ext("ELC_BUSBAR_RATING")                    <- the accessor for it
+#
+# A gate set at an inflated number trains people to ignore it, so these are
+# excluded at the scan rather than absorbed into the baseline.
+NOT_A_PARAM_CONTEXT = (
+    "StartsWith(", "EndsWith(", "Contains(", "IndexOf(", "Replace(",
+    "_extendedParams[", "Ext(",
+)
+
 
 def load_declared():
     names = set()
@@ -136,6 +152,9 @@ def scan_code(root=PLUGIN):
                 s = line.lstrip()
                 # Skip comment-only lines: a name in prose is not a read.
                 if s.startswith("//") or s.startswith("///") or s.startswith("*"):
+                    continue
+                # Skip prefix tests and alias-key maps — see NOT_A_PARAM_CONTEXT.
+                if any(c in line for c in NOT_A_PARAM_CONTEXT):
                     continue
                 for m in NAME_RE.finditer(line):
                     name = m.group(1)

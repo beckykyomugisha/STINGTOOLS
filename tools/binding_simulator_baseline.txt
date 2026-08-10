@@ -1,0 +1,12 @@
+# Committed baseline for tools/binding_simulator.py, on claude/kibale-integration.
+#
+# SUPERSEDES the 3,018 bound / 374 skipped / 0 conflicts figure, which came from a
+# runtime Revit session and is NOT reproducible here. That number counted runtime
+# CategorySet resolution; this counts binding-data rows. Different metrics — do not
+# compare them.
+#
+# Regenerate: python tools/binding_simulator.py
+declared 3401
+bound    3238
+skipped  163
+conflict 0

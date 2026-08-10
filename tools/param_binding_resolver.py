@@ -1,4 +1,4 @@
-import os,re,csv,collections
+import os,re,csv,collections,sys,io
 # ---- code scan: param -> set(code domains) ----
 params={}
 for line in open("StingTools/Data/MR_PARAMETERS.txt",encoding="utf-8",errors="replace"):
@@ -129,13 +129,68 @@ print("resolution source:")
 for s,c in src.most_common(): print("  %-26s %5d"%(s,c))
 print("\nSCOPED:%d  UNIVERSAL:%d  UNBOUND:%d"%(scoped,univ,unb))
 print("remaining true gaps:",len(gaps))
-with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
-with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","desc"]); [w.writerow((o[0],o[1],o[4])) for o in sorted(gaps)]
-with open("StingTools/Data/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
+print("code-usage recovered:",src["code-usage"])
+
+# ---------------------------------------------------------------------------
+# --check (DEFAULT, provably read-only) / --apply
+#
+# This script used to WRITE all three files unconditionally, so a run intended as
+# a read-only baseline produced a 335-line diff in RESOLVED_BINDINGS.csv. A
+# verifier that mutates what it verifies cannot be used to check anything.
+#
+# Same shape as tools/restamp_content_manifest.py: --check reports and writes
+# nothing, exit 1 if anything differs; --apply is the explicit, deliberate write.
+# ---------------------------------------------------------------------------
+def _render_docs_resolved():
+    buf=io.StringIO(); w=csv.writer(buf,lineterminator="\r\n")
+    w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
+    return buf.getvalue()
+
+def _render_docs_gaps():
+    buf=io.StringIO(); w=csv.writer(buf,lineterminator="\r\n")
+    w.writerow(["param","group","desc"])
+    for o in sorted(gaps): w.writerow((o[0],o[1],o[4]))
+    return buf.getvalue()
+
+def _render_deployable():
+    buf=io.StringIO(); w=csv.writer(buf,lineterminator="\r\n")
+    w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
     for n,g,srcx,cats,d in sorted(out):
         if cats!="": w.writerow([n,cats])
-print("code-usage recovered:",src["code-usage"])
-print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")
+    return buf.getvalue()
+
+TARGETS=[("docs/RESOLVED_BINDINGS.csv",_render_docs_resolved),
+         ("docs/binding_gaps.csv",_render_docs_gaps),
+         ("StingTools/Data/RESOLVED_BINDINGS.csv",_render_deployable)]
+
+mode="--apply" if "--apply" in sys.argv else "--check"
+print("\nmode: %s%s"%(mode," (default; writes nothing)" if mode=="--check" else " (WRITING)"))
+
+differs=0
+for path,render in TARGETS:
+    new=render()
+    try:
+        cur=open(path,newline="",encoding="utf-8").read()
+    except OSError:
+        cur=None
+    same = (cur==new)
+    if mode=="--apply":
+        if same:
+            print("  unchanged  %s"%path)
+        else:
+            with open(path,"w",newline="",encoding="utf-8") as f: f.write(new)
+            print("  WROTE      %s"%path)
+    else:
+        if same:
+            print("  match      %s"%path)
+        else:
+            differs+=1
+            n_new=len(new.splitlines()); n_cur=len(cur.splitlines()) if cur is not None else 0
+            print("  DIFFERS    %s  (on disk %d lines, generated %d)"%(path,n_cur,n_new))
+
+if mode=="--check":
+    if differs:
+        print("\n%d file(s) differ. Re-run with --apply to update them, as its own commit."%differs)
+        sys.exit(1)
+    print("\nAll generated files match what is on disk.")
+    sys.exit(0)
