@@ -1300,16 +1300,15 @@ PRJ_SHEET_SEQ_TXT        segment 7 — 4-digit sequence
 PRJ_SHEET_FULL_REF_TXT   full 7-segment concatenation
 ```
 
-Measured state, all eight identical:
+**Corrected on measurement — there are 12 `PRJ_SHEET_*`, not eight.** All 12 are bound; **11 have zero writers**. Only `PRJ_SHEET_OF_TOTAL_TXT` had one. The eight above are the ISO-naming subset; the full family is larger.
 
-| | bound | C# files | **writers** |
-|---|---|---|---|
-| the seven segments | 1 each | 0 | **0** |
-| `PRJ_SHEET_FULL_REF_TXT` | 1 | 2 | **0** |
+**Bound, defined, documented — and nothing populates them.** This is K-11's shape one layer along: K-11 was *defined but not bound*; this is *bound but never written*.
 
-**Bound, defined, documented — and nothing populates any of them.** This is K-11's shape one layer along: K-11 was *defined but not bound*; this is *bound but never written*.
+### What this does NOT break — an earlier claim here was wrong
 
-`MatchLineEngine.cs:374`, `:947` and `:1025` **read** `PRJ_SHEET_FULL_REF_TXT` via `LookupParameter`. Since no writer exists, match-line cross-references resolve against an always-empty string. `TitleBlockCommands.cs:1019` refers to it in a comment describing the title-block cell it is meant to fill.
+This entry originally stated that `MatchLineEngine.cs:374`, `:947` and `:1025` resolve match-line cross-references against an always-empty string. **That is incorrect.** All three readers already fall back to `sheet.SheetNumber` — `:374` returns it when the parameter is empty, and `:947`/`:1025` add *both* values to the reference set. Match-line cross-references have always worked. They were using the native sheet number rather than the full ISO reference, so the output was **less precise, not broken.**
+
+The correction matters for prioritisation: this is a missing capability, not a live defect. `TitleBlockCommands.cs:1019` refers to the parameter in a comment describing the title-block cell it is meant to fill.
 
 ### Why this matters more than it looks
 
@@ -1321,9 +1320,15 @@ The design is right and complete. Only the populate step is missing.
 
 A writer invoked wherever `sheetNumberPattern` is applied, stamping the seven segments onto the sheet alongside the assembled native `Sheet Number`, then `PRJ_SHEET_FULL_REF_TXT` as their join. The values already exist at that moment — `DrawingTokenContext` has resolved every one of them to build the pattern. **Nothing new must be derived; the tokens are simply discarded after substitution instead of being stamped.**
 
+### What an unresolved segment must hold — and why "leave it empty" was wrong
+
+The obvious answer is that an unresolved segment can be left empty, because under K-13 the sheet number will have been rejected and no sheet exists to mislead anyone. **That reasoning does not hold.** The sheet is created *before* `SheetNumber` is assigned, and the assignment sits in a `try`/`catch` that only logs a warning — so **a sheet does exist carrying Revit's default number**. An empty `PRJ_SHEET_VOLUME_TXT` on that sheet reads as *"this project has no volume code"*, not *"this was never resolved."*
+
+So an unresolved segment is written as **its own literal** — `{project}` — visibly wrong, consistent with K-13, and impossible to mistake for a legitimate blank.
+
 ### Interim position
 
-Keep the full pattern in the native `Sheet Number` — that works today. When the writer lands, switching to selective display is a label edit, not a re-author. Register `PRJ_TB_SHEET_NR_TXT` (bound, 0 consumers) in the same review: it is described as *"sheet number string, may differ from Revit native sheet number"* and is a fourth spelling of the same idea.
+Keep the full pattern in the native `Sheet Number` — that works today. When the writer lands, switching to selective display is a label edit, not a re-author. `PRJ_TB_SHEET_NR_TXT` (bound, 0 C# consumers) is described as *"sheet number string, may differ from Revit native sheet number"* — a fourth spelling of the same idea whose purpose is now served twice over, by `PRJ_SHEET_FULL_REF_TXT` for the authored ISO reference and `sheet.SheetNumber` for the native one. **Recommend retire, but do not execute**: it is bound, so a title-block label may read it, and the C# scan cannot see that (K-11e).
 
 ---
 
