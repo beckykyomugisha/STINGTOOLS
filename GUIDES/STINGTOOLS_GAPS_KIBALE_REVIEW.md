@@ -1285,6 +1285,69 @@ The same shape as **G-8** (bound-but-wrong-scope), the `TAG_PARA_STATE_*` findin
 
 ---
 
+## K-12 · 🟠 P1 · The eight `PRJ_SHEET_*` segment parameters are bound and never written
+
+STING ships the ISO 19650 sheet ID **already decomposed into its seven segments**, plus a concatenation:
+
+```
+PRJ_SHEET_PROJECT_TXT    segment 1 — project code
+PRJ_SHEET_ORIG_TXT       segment 2 — originator
+PRJ_SHEET_VOLUME_TXT     segment 3 — volume / system
+PRJ_SHEET_LEVEL_TXT      segment 4 — level / location
+PRJ_SHEET_TYPE_TXT       segment 5 — type
+PRJ_SHEET_ROLE_TXT       segment 6 — role
+PRJ_SHEET_SEQ_TXT        segment 7 — 4-digit sequence
+PRJ_SHEET_FULL_REF_TXT   full 7-segment concatenation
+```
+
+Measured state, all eight identical:
+
+| | bound | C# files | **writers** |
+|---|---|---|---|
+| the seven segments | 1 each | 0 | **0** |
+| `PRJ_SHEET_FULL_REF_TXT` | 1 | 2 | **0** |
+
+**Bound, defined, documented — and nothing populates any of them.** This is K-11's shape one layer along: K-11 was *defined but not bound*; this is *bound but never written*.
+
+`MatchLineEngine.cs:374`, `:947` and `:1025` **read** `PRJ_SHEET_FULL_REF_TXT` via `LookupParameter`. Since no writer exists, match-line cross-references resolve against an always-empty string. `TitleBlockCommands.cs:1019` refers to it in a comment describing the title-block cell it is meant to fill.
+
+### Why this matters more than it looks
+
+This is the shipped answer to *"can we show only some ISO segments, like the tag token presets?"* — and it is a **better** answer than presets. A tag preset selects indices from an assembled string; here each segment is its own parameter, so a title-block label simply includes the ones wanted and omits the rest. A busy plan takes `ROLE + LEVEL + SEQ`; a CDE stamp takes `FULL_REF`. No preset vocabulary, no code change, pure label authoring.
+
+The design is right and complete. Only the populate step is missing.
+
+### What building it needs
+
+A writer invoked wherever `sheetNumberPattern` is applied, stamping the seven segments onto the sheet alongside the assembled native `Sheet Number`, then `PRJ_SHEET_FULL_REF_TXT` as their join. The values already exist at that moment — `DrawingTokenContext` has resolved every one of them to build the pattern. **Nothing new must be derived; the tokens are simply discarded after substitution instead of being stamped.**
+
+### Interim position
+
+Keep the full pattern in the native `Sheet Number` — that works today. When the writer lands, switching to selective display is a label edit, not a re-author. Register `PRJ_TB_SHEET_NR_TXT` (bound, 0 consumers) in the same review: it is described as *"sheet number string, may differ from Revit native sheet number"* and is a fourth spelling of the same idea.
+
+---
+
+## K-13 · 🟠 P1 · `{project}` and `{originator}` should fail loud, not fall back
+
+The token audit found 16 tokens, of which exactly two have **no fallback of any kind**: `{project}` (source `PRJ_PROJECT_COD_TXT`) and `{originator}` (source `PRJ_ORG_ORIGINATOR_CODE_TXT`). When unbound or empty, the segment **vanishes** and the applier substitutes happily:
+
+```
+want:  KNP26-PLN-COT01-00-DR-A-1001
+got:        -PLN-COT01-00-DR-A-1001
+```
+
+`{vol}` does **not** share the hole — `IsoNaming.Volume` is a profile field authored in `drawing_types.json`. `{lvl}` was given an `IsoNaming.Level` fallback under K-7, and the comment recording that fix describes this exact failure mode without ever generalising it.
+
+### The fix is already in the codebase — copy `{seq}`
+
+`{seq}` is protected differently and **better than a fallback**: it is deliberately never added to the substitution map, so the literal `{seq:D4}` survives into the output string and **Revit rejects the sheet number outright** rather than accepting a wrong one. Fail-loud by construction, no fallback value invented, no silent corruption possible.
+
+**Apply the same treatment to `{project}` and `{originator}`.** When the source parameter is absent or empty, leave the literal token in place. Revit refuses the number, the operator sees it immediately, and no sheet is ever issued with a missing project code.
+
+**Do not add a fallback value and do not substitute `XX`.** A project code is not optional and has no sensible default — a fabricated one produces a sheet that looks correct and is not, which is strictly worse than a sheet that will not save. This is the same principle as returning `null` rather than `0` from the formula engine (G-5) and refusing rather than defaulting in the path resolver.
+
+---
+
 # Part I — Fix order
 
 Eight things, ordered by damage-per-hour-of-work.
