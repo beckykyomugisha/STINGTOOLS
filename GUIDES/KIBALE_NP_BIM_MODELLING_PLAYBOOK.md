@@ -347,8 +347,30 @@ You want `KBL26-PLN-COT01-GF-DR-A-1001`. Every field is reachable; three things 
 
 | Parameter | Value | Feeds |
 |---|---|---|
-| `PRJ_PROJECT_COD_TXT` | `KBL26` | `{project}` |
+| `PRJ_PROJECT_COD_TXT` | `KIBALE` | `{project}` |
 | `PRJ_ORG_ORIGINATOR_CODE_TXT` | `PLN` | `{originator}` |
+
+> **You must re-run Load Shared Parameters first — including on a model that is already set up.**
+>
+> Until K-11 these two parameters were **declared but never bound**: they had no row in
+> `CATEGORY_BINDINGS.csv`, so they never appeared in Manage → Project Information and
+> `DrawingTokenContext` read them as null on every model. K-11 added the binding rows (36 `PRJ_*` in
+> total), but a binding row only takes effect when the binder runs.
+>
+> **Order, on an existing project:**
+> 1. Deploy the current build (`deploy.bat`), restart Revit.
+> 2. Open the model → **STING → Setup → Load Shared Parameters**. It is idempotent: it skips what is
+>    already bound and inserts what is not, so it is safe on a live model.
+> 3. **Manage → Project Information.** Both parameters now appear. Type the values.
+> 4. Re-run your sheet numbering. `{project}` and `{originator}` now resolve.
+>
+> If you skip step 2 the fields will still not be there, and the failure is silent — the sheet number
+> renders with the segment simply missing, `-PLN-COT01-…` with nothing before the first dash.
+
+**Why this was worth fixing.** `DrawingTokenContext.cs:66` does
+`ReadProjectInfo(doc, "PRJ_PROJECT_COD_TXT")` with **no fallback** — unlike `{lvl}`, which was given
+an `IsoNaming.Level` fallback in K-7. An unbound read returns empty, the applier substitutes it
+happily, and the segment vanishes. There is no warning, and the sheet looks plausible.
 
 **2. The drawing-type profile** — in your project override `_BIM_COORD/drawing_types.json`:
 

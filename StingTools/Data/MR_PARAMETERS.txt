@@ -1620,8 +1620,6 @@ PARAM	a1b2c3d4-5058-4a01-b001-000000000188	RGL_TAG_7_PARA_CMPL_TXT	TEXT		15	1	TA
 PARAM	a1b2c3d4-5059-4a01-b001-000000000189	CST_TAG_7_PARA_CONC_TXT	TEXT		2	1	TAG7 paragraph container for concrete	1	0
 PARAM	a1b2c3d4-505a-4a01-b001-000000000190	PLM_TAG_7_PARA_EQUIP_TXT	TEXT		6	1	TAG7 paragraph container for plumbing equipment	1	0
 PARAM	a1b2c3d4-505b-4a01-b001-000000000191	PRJ_PROJECT_COD_TXT	TEXT		13	1	ISO 19650 project code	1	0
-PARAM	a1b2c3d4-505c-4a01-b001-000000000192	PRJ_ORIGINATOR_COD_TXT	TEXT		13	1	ISO 19650 originator code	1	0
-PARAM	a1b2c3d4-505d-4a01-b001-000000000193	PRJ_VOLUME_COD_TXT	TEXT		13	1	ISO 19650 volume code	1	0
 PARAM	a1b2c3d4-505e-4a01-b001-000000000194	PRJ_STATUS_COD_TXT	TEXT		13	1	ISO 19650 document status code	1	0
 PARAM	a1b2c3d4-505f-4a01-b001-000000000195	PRJ_REV_COD_TXT	TEXT		13	1	ISO 19650 revision code	1	0
 # ==========================================================================
@@ -2477,9 +2475,6 @@ PARAM	3bb5edc1-54f9-56ff-92c9-405a8dde646c	PRJ_TB_LOGO_PATH_TXT	TEXT		13	1	File 
 PARAM	1817eeb3-4c56-50c2-b386-6b3be3d98fc4	PRJ_TB_LAST_SYNC_TXT	TEXT		13	1	ISO 8601 datetime of last sync to Planscape Server for this sheet [ISO 19650-2:2018]	0	0
 PARAM	eb514ec7-6636-5987-9667-8e85c31a8f85	PRJ_TB_LAST_SYNC_BY_TXT	TEXT		13	1	Username who triggered the last Planscape Server sync [ISO 19650-2:2018]	0	0
 PARAM	74c9d75f-840c-5263-9acf-8fecf80ec6aa	PRJ_TB_LOCK_BOOL	YESNO		13	1	When true, prevents TitleBlockParamApplier from overwriting manually set values on this sheet [ISO 19650-1:2018]	1	0
-PARAM	8dd6b517-7173-5a8d-b951-a08807fed830	PRJ_TB_SHOW_KEYPLAN_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]	1	0
-PARAM	fa841ad5-15e1-5ec2-91bc-a69d70cf9c42	PRJ_TB_SHOW_SCALEBAR_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_SCALE_BAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]	1	0
-PARAM	58c6e51f-6f22-546b-ac02-086ab6f6fbbf	PRJ_TB_SHOW_NORTHARROW_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]	1	0
 PARAM	483f47d7-a6cd-5fa7-bfde-ff2ab6e43178	PRJ_TB_SHOW_DISCBAND_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]	1	0
 PARAM	624563ac-3067-5990-ba13-a4d750e9ffc2	PRJ_TB_SCALE_OVERRIDE_TXT	TEXT		13	1	Override scale label shown on title block (e.g. "NTS", "1:100"). Empty = use view scale. [ISO 19650-1:2018]	1	0
 PARAM	a3408dee-9ced-5ccd-970c-0958bcc713a9	PRJ_TB_ISSUE_SUMMARY_TXT	TEXT		13	1	Short free-text summary of the issue purpose (e.g. "For Construction") [ISO 19650-1:2018]	1	0

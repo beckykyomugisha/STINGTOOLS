@@ -64,6 +64,18 @@ jobs:
       - name: Data schema gate — validate shipped data
         run: python3 tools/validate_data_schemas.py
 
+      # Parameter readership: a name a consumer READS must be one the binder
+      # SHIPS. Four defects in one review pass were this exact shape —
+      # WARN_VISIBLE_BOOL (missing prefix), PRJ_ORG_PROJECT_CODE (missing _TXT),
+      # TAG_PARA_STATE_* (declared, never bound) and 41 PRJ_* (K-11). Each read
+      # returned null forever and nothing said a word. Baseline-gated, so it
+      # fails on NEW violations without blocking on the existing backlog.
+      - name: Parameter readership gate — self-test
+        run: python3 tools/validate_param_readership.py --self-test
+
+      - name: Parameter readership gate
+        run: python3 tools/validate_param_readership.py
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #

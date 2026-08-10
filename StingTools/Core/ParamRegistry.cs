@@ -510,11 +510,18 @@ namespace StingTools.Core
         // TitleBlockFactory mints them as INSTANCE family params onto every family it
         // builds, and TITLE_BLOCK.csv seeds them through TitleBlockPopulate.
         //
-        // Their GROUP 13 near-namesakes (PRJ_TB_SHOW_KEYPLAN_BOOL, ...SCALEBAR...,
-        // ...NORTHARROW..., ...DISCBAND...) are NOT a project-wide override tier — no
-        // code reads or writes them, and they bind to Generic Models / Project
-        // Information rather than Title Blocks. They remain in MR_PARAMETERS.txt only so
-        // models that already bound them keep the binding.
+        // K-11: their GROUP 13 near-namesakes (PRJ_TB_SHOW_KEYPLAN_BOOL, ...SCALEBAR...,
+        // ...NORTHARROW...) have been RETIRED from MR_PARAMETERS.txt. They were the
+        // wrong half of a perfect inversion: RESOLVED_BINDINGS.csv shipped the
+        // no-underscore spelling (1 row each) while STING_TITLE_BLOCKS.json reads the
+        // underscored one (KEY_PLAN 1, NORTH_ARROW 9, SCALE_BAR 9) — so the binder bound
+        // the name nobody read and left the name every title block reads unbound, and
+        // every respectShowToggle slot in 9 title blocks was gated on a parameter that
+        // could never resolve. The underscored GROUP 26 spellings below are canonical.
+        //
+        // Retiring the definition does NOT unbind an existing model: a shared parameter
+        // already inserted into a document stays bound. It only stops the binder
+        // re-creating the dead spelling on new projects.
         public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
         public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
