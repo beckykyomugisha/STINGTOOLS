@@ -975,6 +975,66 @@ Pick one known survey point. In Revit, place a spot coordinate on it. If the E, 
 
 ---
 
+## Part 3E — Tagging: the procedure, and the one caveat that will bite you
+
+### The order matters
+
+Tagging is not "place a tag". A tag renders whatever the element's tokens say, so the tokens must be
+right *before* the tag goes on. The pipeline does this for you in one step, but only if you call it in
+the right order.
+
+1. **Load Shared Parameters** — once per model, before anything else. Without it the tokens have
+   nowhere to land and every later step silently writes nothing.
+2. **Set the project tokens** — DISC, LOC, ZONE per Part 1's naming standard. `Set Disc` / `Set Loc` /
+   `Set Zone` from the CREATE tab.
+3. **Tag & Combine** — the one-click path. It runs the full nine-step pipeline: category filter →
+   type-token inherit → populate all tokens → native-parameter map → formulas → build the ISO 19650
+   tag → write containers → TAG7 narrative → grid reference.
+4. **Validate Tags** — read-only. Fix what it reports before issuing anything.
+
+Do not place tags by hand from the Revit Annotate tab on this project. A hand-placed tag carries no
+tokens, passes no validation, and will read blank on the sheet.
+
+### Rooms need their own tag
+
+Revit does not allow a Multi-Category tag to tag a Room, a Space or an Area — this is a Revit
+restriction, not a STING one, and no parameter setting works around it.
+
+Use **`STING - Room Tag.rfa`** for rooms. It is already in the content library (manifest entry
+`tag-room`), so nothing needs creating. If this project ends up scheduling Spaces or Areas as well,
+they need their own tag families on the same basis.
+
+### The reload caveat — the one that will bite you
+
+If anyone edits a tag family and loads it back, Revit offers **"Overwrite the existing version and its
+parameter values"**. That wording is easy to skim past. It discards project-set values for **every**
+parameter of that family — not just the one that was edited. On a model where tag depth, style and
+warning visibility have been tuned, that is a visible, project-wide regression.
+
+**Before** editing any tag family:
+- export a schedule of the tag category with the gate and style parameters as columns, and
+- note the active mode from **Tag Studio → Presentation Mode → Report**.
+
+**After** reloading, re-apply the presentation mode first — it restores most of it in one pass — then
+reconcile against the schedule.
+
+Full procedure, including the parameter list: [`docs/UNIVERSAL_TAG_CONFORMANCE.md`](../docs/UNIVERSAL_TAG_CONFORMANCE.md) → Operator sheet.
+
+### Tag depth — **not yet documented, deliberately**
+
+> **PLACEHOLDER — do not fill this in from memory.**
+>
+> How many tiers of detail a tag shows (`TAG_PARA_STATE_1..10_BOOL`) is controlled either per tag
+> **type** or per tag **instance**, and which one is correct for this project is an open decision as
+> of 2026-08-10. The two answers imply different day-to-day procedures for the modeller, so writing
+> either one now would put a wrong instruction in front of the team.
+>
+> Tracked in [`docs/UNIVERSAL_TAG_CONFORMANCE.md`](../docs/UNIVERSAL_TAG_CONFORMANCE.md) §C.
+> Current evidence favours per-**type**. Until it is settled, set depth once for the project via
+> **Tag Studio → Presentation Mode** and do not vary it per tag.
+
+---
+
 ## Part 4A — Materials: exactly what to use and what to edit
 
 ### How the naming actually works

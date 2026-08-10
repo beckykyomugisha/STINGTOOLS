@@ -179,24 +179,44 @@ former does not change what the tag renders.
 
 ### (b) The element-side population does not exist either
 
+> **CORRECTED 2026-08-10.** The table below was right about the two binders it named and
+> **wrong to conclude the element-side population does not exist**. There is a THIRD binder
+> route, and on any project that has run Project Setup the gates *are* Type-bound on 42 host
+> categories. The conclusion in (a) is unaffected — see "What this changes" below.
+
 | File | Role | `TAG_PARA_STATE_*` / `TAG_WARN_VISIBLE_BOOL` |
 |---|---|---|
 | `MR_PARAMETERS.txt` | shared-parameter declarations | **present** — 10 gates + warn |
 | `BINDING_COVERAGE_MATRIX.csv` | coverage *claim* | **marked in 47 categories** |
-| `CATEGORY_BINDINGS.csv` | what `LoadSharedParamsCommand` actually binds | **ZERO rows** |
-| `RESOLVED_BINDINGS.csv` | the spec-driven binder's input | **ABSENT** |
+| `CATEGORY_BINDINGS.csv` | what `LoadSharedParamsCommand` binds | **ZERO rows** |
+| `RESOLVED_BINDINGS.csv` | the spec-driven binder's input | **present (3,019 rows), ZERO for these** |
+| `FAMILY_PARAMETER_BINDINGS.csv` | what `BatchAddFamilyParamsCommand` binds | **420 rows — 42 categories × 10 gates, plus 42 for warn, all `Type`** |
 
-The 47-category figure in the brief is real, but it comes from the **coverage matrix**, which is a
-report, not a binder input. Neither file the binders read carries these parameters at all.
+The 47-category figure comes from the coverage matrix, which is a report. But
+`FAMILY_PARAMETER_BINDINGS.csv` is **not** a report — `BatchAddFamilyParamsCommand`
+(`Temp/TemplateManagerCommands.cs:2636`) reads it and creates real project bindings via
+`doc.ParameterBindings` + `NewTypeBinding(catSet)`. That command is **not optional in practice**: it
+runs inside `ProjectSetupCommand` (`:361`, `:606`) and `MasterSetupCommand` (`:253`).
 
-**So `AnnotationRunner`'s write fails on every element** — `SetInt` returns `false` on an unbound
-parameter and throws nothing. Since H-4 that is reported rather than swallowed, and this is precisely
-the case `SafeWrite.Set` was built to surface: it will log
-`'TAG_PARA_STATE_3_BOOL' is not bound to this element's category`.
+**So on a set-up project the gates ARE Type-bound on host element types, and type-scoped writes to
+them DO land.** What they do not do is *matter* — see (a). Instance-scoped writes still fail, because
+`ParameterHelpers.SetInt` resolves via `Element.LookupParameter`, which cannot see a type parameter
+from an instance.
 
-This is the root of **G-8**: a coverage matrix asserting 47 categories while the binder input is
-empty is the same "gate that never ran, so its clean baseline was trusted" shape as the standing
-register finding.
+### What this changes
+
+| Writer | Scope | Lands? | Affects the tag? |
+|---|---|---|---|
+| `AnnotationRunner` (removed) | host **instance** | **No** — Type-bound param, instance lookup | No |
+| `TokenProfileApplier.WriteCategoryDepths` | host **type** | **Yes** (post-setup) | **No** — wrong population, per (a) |
+| `TagStyleEngine.SetParagraphDepth` | *all* element types, incl. tag `FamilySymbol`s | **Yes** | **Yes** — this is the functional path |
+
+`AnnotationRunner`'s writes were removed for the stronger reason: unreachable by construction, not
+merely unbound. `WriteCategoryDepths` was kept — but on this evidence it is **inert for tag
+rendering** and is a candidate for removal in its own right. Logged, not actioned.
+
+**G-8 stands but narrows**: the defect is not "nothing is bound", it is that a coverage matrix,
+three binder inputs and two writer scopes disagree about which population is authoritative.
 
 ### The 2-minute in-Revit confirmation
 
@@ -241,3 +261,94 @@ this project — they have the same restriction as Rooms.
 | 2.4 | Gate defaults | all 10 + warn ticked | T1–T2 on, rest off |
 | 2.5 | Element-side ↔ family-side gates | **unconnected, and element side unbound** | binding fix (G-8) or accept family-side only |
 | 2.6 | Family Category | **unverified** | operator reads it in Revit |
+
+---
+
+# Operator sheet
+
+Everything in §A and §B is independent of the per-type/per-instance depth question and can be done
+now. §C is **held** — do not start it.
+
+## §A — Add the `HANDOVER_MODE_*` trio (closes 2.1)
+
+The dual-wire design is live in code (`TagConfig.ResolveActivePatternMode`) but the family cannot
+participate, because the three gate parameters are absent.
+
+1. Open `STING_Tag_Universal.rfa`.
+2. **Manage → Shared Parameters** → set the file to `data/MR_PARAMETERS.txt` from the deployed plugin
+   folder. (Confirm the folder first: `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u`.)
+3. **Family Types → New Parameter → Shared Parameter**, add all three:
+   `HANDOVER_MODE_HANDOVER_BOOL`, `HANDOVER_MODE_DC_BOOL`, `HANDOVER_MODE_CUSTOM_BOOL`.
+4. Group: **General**. Match the instance/type setting of the existing `TAG_PARA_STATE_*` gates —
+   whatever §C resolves to, these must agree with them, because they appear in the same formula.
+5. Set exactly one to Yes (`HANDOVER_MODE_DC_BOOL` is the normal default).
+
+## §B — Per-row `and(...)` formulas (closes 2.1's second half)
+
+Rows for tiers T4–T10 must gate on **both** the tier and the pattern mode, otherwise a Handover-only
+row renders during Design & Construction.
+
+- Form: `if(and(TAG_PARA_STATE_7_BOOL, HANDOVER_MODE_HANDOVER_BOOL), ASS_TAG_7E_TXT, "")`
+- If a row is claimed by more than one mode, OR-merge rather than duplicating the row:
+  `if(or(and(state7, modeA), and(state7, modeB)), PARAM, "")`
+- `FamilyLabelAuthor.ApplyVisibilityFormulas` emits exactly these shapes, so authoring by hand and
+  re-running the author later converge on the same text.
+
+**Gate storage type matters.** STING stores these BOOLs as TEXT (`"Yes"`/`"No"`) in the v5.3+ default.
+A TEXT gate is not a valid bare condition — it must be written `GATE = "Yes"`. `TagConfig.GateToken`
+picks the right form automatically; if you hand-author, check the parameter's type first or Revit
+raises "Inconsistent Units".
+
+## The reload caveat — read before any of the above
+
+Loading an edited family back offers **"Overwrite the existing version and its parameter values"**.
+That discards project-set values for **every** parameter of the family, not just the ones you edited.
+
+**Capture first:**
+1. **Tag Studio → Style Audit**, export — records the current variant set per family.
+2. Schedule the tag category with the 11 gates, `TAG_DEPTH_TIER_INT` and the style BOOLs as columns;
+   export to Excel. This is the restore sheet.
+3. Note the active presentation mode (**Presentation Mode → Report**) — the fastest global restore.
+
+**Restore after reload:**
+4. **Tag Studio → Presentation Mode** → the captured mode. Rewrites states 1–3 + warn project-wide.
+5. Re-apply the **ViewStylePack** for tiers 4–10 and per-category depth, rather than hand-editing.
+6. Reconcile against the Excel; only genuinely bespoke per-type values need manual re-entry.
+
+**Do one family first and verify before committing to 206.**
+
+## §C — Depth: per-type vs per-instance — **HELD, DO NOT START**
+
+> **Status 2026-08-10: held pending owner re-decision.** The standing decision was to convert the
+> eleven gates to INSTANCE. The evidence gathered since favours **leaving them per-TYPE** — see §2.5
+> "What this changes" and the reasoning below. This section will be written once the owner
+> re-decides; converting 206 families is destructive and must not start on the old assumption.
+
+Why the evidence moved:
+
+- The functional path already works. `TagStyleEngine.SetParagraphDepth` sweeps
+  `WhereElementIsElementType()`, which **includes tag `FamilySymbol`s**, so it writes the gate on the
+  tag type — the population the label formula actually reads.
+- Per-tag depth variation already exists at type granularity. `TagStyleCatalogue.TypeVariantSpec`
+  carries `DepthTier` and mints `2.5_BOLD_RED_Filled30_T3`; `TagStyleEngine.FindTypeVariant` selects
+  it at placement. That is a working design, not a stub.
+- Converting to INSTANCE costs: a destructive reload of 206 families, retirement of the T-variant
+  catalogue, and **a new per-instance writer that does not exist today** — no code currently writes
+  the gates to a tag instance.
+- The gain is per-placed-tag depth, which the variant mechanism already provides per type.
+
+## Family Category — the 30-second check (closes 2.6)
+
+1. Open `STING_Tag_Universal.rfa`.
+2. **Create → Family Category and Parameters** (or **Modify → Family Category and Parameters**).
+3. Read the highlighted row. Close **without** changing it.
+
+| Answer | What it implies |
+|---|---|
+| **Multi-Category Tags** | Cannot tag Rooms, Spaces or Areas — Revit forbids it regardless of parameters. Those three need their own tag families. Confirm whether Spaces and Areas are in scope for this project. |
+| **A specific category** (e.g. Duct Tags) | The universal master is mis-categorised for its role; `PropagateUniversalTagCommand` recategorises clones, so this is survivable, but the master should be Multi-Category. |
+| **Generic Annotations** | It is not a tag at all and cannot be assigned to a host — it would place as a symbol. This would be a blocking defect. |
+
+**Either way, Rooms are already covered.** `STING - Room Tag.rfa` is present in the library as manifest
+entry `tag-room` (category `Rooms`), so no new family is needed. It carries the old-set parameter
+payload, so it needs the same §A/§B treatment as the universal tag if Rooms are to get tiered labels.
