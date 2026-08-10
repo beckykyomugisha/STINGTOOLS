@@ -85,11 +85,37 @@ namespace StingTools.Tags
         // Sample of the 128 TAG_{size}{style}_{colour}_BOOL style matrix. If
         // these aren't present, the family was not stamped with the
         // automation/presentation pack.
+        //
+        // NOT applicable to the single universal tag — see IsUniversalTag. The
+        // 128-param matrix is the PER-CATEGORY design, where each family carries
+        // every size/style/colour combination as label rows and one BOOL selects
+        // the visible one. The universal tag instead expresses style through TYPE
+        // VARIANTS (TagStyleCatalogue.TypeVariantSpec.CanonicalTypeName, e.g.
+        // "2.5_BOLD_RED_Filled30_T3"), so the matrix is CORRECTLY absent and
+        // scoring it as missing penalised the family for being right.
         private static readonly string[] TagStyleFingerprint = new[]
         {
             "TAG_2_5_NOM_BLACK_BOOL",
             "TAG_3_BOLD_BLUE_BOOL",
         };
+
+        /// <summary>
+        /// True when this family is the single universal tag master rather than one
+        /// of the per-category tag families.
+        /// <para>
+        /// The universal tag (<c>STING_Tag_Universal.rfa</c>) is propagated to every
+        /// category by <c>PropagateUniversalTagCommand</c> and deliberately ships with
+        /// an EMPTY manifest category so <c>ForCategory()</c> never returns it. It
+        /// carries style as type variants, not as the 128-BOOL matrix, so check (4)
+        /// does not apply to it.
+        /// </para>
+        /// </summary>
+        private static bool IsUniversalTag(string familyName)
+        {
+            if (string.IsNullOrEmpty(familyName)) return false;
+            return familyName.IndexOf("Tag_Universal", StringComparison.OrdinalIgnoreCase) >= 0
+                || familyName.IndexOf("Universal Tag", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
         /// <summary>
         /// Inspect one family file. Returns a populated row.
@@ -198,13 +224,26 @@ namespace StingTools.Tags
                 score += Math.Min(tagPts, 10);
 
                 // ── (4) Tag style matrix sample (10 pts) ─────────────
-                int stylePts = 0;
-                foreach (var name in TagStyleFingerprint)
+                // Scored 'pass by N/A' for the universal tag, matching how non-tag
+                // families are handled below: the matrix is the per-category design
+                // and its absence here is correct, not a defect.
+                if (IsUniversalTag(row.FamilyName))
                 {
-                    if (paramsByName.ContainsKey(name)) stylePts += 5;
-                    else row.Missing.Add($"Tag style param missing: {name} (run FamilyParamCreator with InjectAutomationPack=true)");
+                    score += 10;
+                    row.Warnings.Add(
+                        "Style matrix (128 TAG_{size}{style}_{colour}_BOOL) not checked — universal tag "
+                      + "carries style as type variants (TagStyleCatalogue), not as the BOOL matrix.");
                 }
-                score += Math.Min(stylePts, 10);
+                else
+                {
+                    int stylePts = 0;
+                    foreach (var name in TagStyleFingerprint)
+                    {
+                        if (paramsByName.ContainsKey(name)) stylePts += 5;
+                        else row.Missing.Add($"Tag style param missing: {name} (run FamilyParamCreator with InjectAutomationPack=true)");
+                    }
+                    score += Math.Min(stylePts, 10);
+                }
 
                 // ── (5) Tag visibility tiers (10 pts) ────────────────
                 int visPts = 0;
