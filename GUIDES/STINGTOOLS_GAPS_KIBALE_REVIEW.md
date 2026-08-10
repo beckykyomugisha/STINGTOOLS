@@ -1204,6 +1204,62 @@ PROJ-ORIG-VOL-LVL-TYPE-ROLE-NUM
 
 ---
 
+## K-11 · 🔴 P0 · 41 of 140 `PRJ_*` parameters have no binding row — and they are exactly the ISO-naming set
+
+Observed first in a live project. `Manage → Project Information` on a fresh Kibale model shows **nine** STING parameters — three `HEALTH_SCORE_*`, six `SUS_*` — and nothing else. No `PRJ_PROJECT_COD_TXT`, no `PRJ_ORG_ORIGINATOR_CODE_TXT`, no title-block controls.
+
+Measured against the shipped data:
+
+| | Count |
+|---|---|
+| `PRJ_*` defined in `MR_PARAMETERS.txt` | **140** |
+| present in `CATEGORY_BINDINGS.csv` | 99 |
+| **absent from `CATEGORY_BINDINGS.csv`** | **41** |
+| absent from **both** `CATEGORY_BINDINGS.csv` and `RESOLVED_BINDINGS.csv` | 7 |
+
+The nine that appear in the dialog are bound by the Phase 91 BOQ/sustainability code path at `LoadSharedParamsCommand.cs:867-890`, which covers only that set. Everything else relies on a binding row, and 41 do not have one.
+
+**The 41 are not a random sample.** They are the ISO 19650 identity group and the title-block control group:
+
+```
+ISO naming     PRJ_PROJECT_COD_TXT · PRJ_ORG_ORIGINATOR_CODE_TXT
+               PRJ_ORIGINATOR_COD_TXT · PRJ_VOLUME_COD_TXT · PRJ_VOLUME_CODE
+               PRJ_NR_TXT · PRJ_STATUS_COD_TXT · PRJ_REV_COD_TXT
+               PRJ_SHEET_SYSTEM_TXT
+Appointment    PRJ_ORG_APPOINTING_PARTY_TXT · PRJ_ORG_LEAD_APPOINTED_PARTY_TXT
+               PRJ_ORG_PARTICIPANTS_TXT · PRJ_ORG_CLASS_TXT
+               PRJ_ORG_WORKFLOW_PROFILE_TXT
+Title block    13 × PRJ_TB_* (client, company, address, design stage, 8 toggles)
+Engineering    PRJ_CLIMATE_SITE_ID · PRJ_REFRIG_* · PRJ_RTS_CLASS_TXT
+               PRJ_TRACE_TOLERANCE_PCT · PRJ_CONSTRUCTION_PROFILE_TXT
+Library        PRJ_CORPORATE_LIBRARY_PATH_TXT · PRJ_CORPORATE_LIBRARY_VERSION_TXT
+               PRJ_TEMPLATE_PROFILE_TXT
+```
+
+### Why this is P0
+
+`DrawingTokenContext.cs:66` resolves `{project}` by reading **`PRJ_PROJECT_COD_TXT`** off Project Information. The parameter is not bound, so the read returns null, so **every ISO sheet number is produced with an empty first segment** — `-PLN-COT01-00-DR-A-0001` — with no warning. The same applies to `{originator}` and `{vol}`.
+
+This is not recoverable by the operator. Documentation (including this project's own playbook) instructs the user to *"fill these by hand, once per model."* **There is nowhere to type them.** The parameter does not exist on the document.
+
+### The affix bug, again — three duplicate pairs
+
+Six of the 41 are three pairs differing only by an underscore, one spelling bound and the other not:
+
+| Bound (in `RESOLVED_BINDINGS.csv`) | Unbound |
+|---|---|
+| `PRJ_TB_SHOW_KEYPLAN_BOOL` | `PRJ_TB_SHOW_KEY_PLAN_BOOL` |
+| `PRJ_TB_SHOW_NORTHARROW_BOOL` | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` |
+| `PRJ_TB_SHOW_SCALEBAR_BOOL` | `PRJ_TB_SHOW_SCALE_BAR_BOOL` |
+
+Plus two spellings of originator (`PRJ_ORIGINATOR_COD_TXT` / `PRJ_ORG_ORIGINATOR_CODE_TXT`) and two of project code (`PRJ_PROJECT_COD_TXT` / `PRJ_ORG_PROJECT_CODE_TXT`, the latter bound). **A consumer reading one spelling while the binder ships the other returns null forever.** This is the fourth instance of the same defect class — after `WARN_VISIBLE_BOOL`, `PRJ_ORG_PROJECT_CODE` without `_TXT`, and the `TAG_PARA_STATE_*` write path.
+
+### Related
+
+The same shape as **G-8** (bound-but-wrong-scope), the `TAG_PARA_STATE_*` finding (defined, never bound, writes fail silently), **G-20** (`PRJ_ORG_PROJECT_CODE_TXT` read by 9 files, written by none) and **G-21** (`DrawingDispatcher.cs:106` reads it without `_TXT`). Four gaps, one root cause: **nothing validates that a parameter a consumer reads is a parameter the binder ships.**
+
+---
+
 # Part I — Fix order
 
 Eight things, ordered by damage-per-hour-of-work.
