@@ -33,11 +33,21 @@ import collections
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REGISTER = os.path.join(REPO, "GUIDES", "STINGTOOLS_GAPS_KIBALE_REVIEW.md")
 
+# Cells may be wrapped in ** ** anywhere — the register bolds P0 rows and bolds
+# statuses like **closed**. The first version of this regex required a BARE
+# priority cell, so every `| **P0** |` row failed to match and was silently
+# excluded from the count. That is the same drift defect this tool exists to
+# prevent, in the tool: a number computed from a subset nobody knew was a subset.
+#
+# Strip emphasis per cell rather than trying to spell it into one pattern.
 ROW = re.compile(
-    r'^\|\s*\*{0,2}([A-Z]+-\d+[a-z]?)\*{0,2}\s+(.*?)\s*\|'   # id + title
-    r'\s*(P[0-2]|—|-|\s*)\s*\|'                              # priority
-    r'\s*([^|]*)\|'                                          # status
+    r'^\|([^|]+)\|([^|]*)\|([^|]*)\|'   # id+title | priority | status
 )
+ID_IN_CELL = re.compile(r'^\s*\*{0,2}\s*([A-Z]+-\d+[a-z]?)\b')
+
+
+def _clean(cell):
+    return cell.replace("**", "").replace("`", "").strip()
 
 STATUS_ORDER = ["closed", "partial", "held", "blocked", "rule", "recommend", "correction", "open"]
 
@@ -55,6 +65,12 @@ def classify(raw):
 
 
 def scan():
+    """Return {id: status} plus every id appearing on more than one row.
+
+    A gap row is `| <ID> title | <priority> | <status> | …`. The priority cell is
+    what distinguishes it from the retrospective "Claim / What the data said"
+    table, whose second column is prose.
+    """
     rows = {}
     dupes = collections.defaultdict(list)
     with open(REGISTER, encoding="utf-8") as fh:
@@ -62,9 +78,21 @@ def scan():
             m = ROW.match(line)
             if not m:
                 continue
-            gid, title, pri, status = m.group(1), m.group(2), m.group(3), m.group(4)
-            dupes[gid].append((n, classify(status)))
-            rows[gid] = classify(status)
+            idm = ID_IN_CELL.match(m.group(1))
+            if not idm:
+                continue
+            pri = _clean(m.group(2))
+            # Priority cell must be a priority (or an explicit blank/dash), else
+            # this is a different table that happens to start with an ID-shaped word.
+            if pri not in ("P0", "P1", "P2", "—", "-", ""):
+                continue
+            gid = idm.group(1)
+            st = classify(_clean(m.group(3)))
+            dupes[gid].append((n, st))
+            # LAST-WINS would silently prefer a stale duplicate, so record the
+            # first and let the duplicate report force a human to resolve it.
+            if gid not in rows:
+                rows[gid] = st
     return rows, {k: v for k, v in dupes.items() if len(v) > 1}
 
 
