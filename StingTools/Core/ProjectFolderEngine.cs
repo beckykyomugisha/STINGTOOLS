@@ -385,6 +385,20 @@ namespace StingTools.Core
             try
             {
                 string code = DetectProjectCode(doc);
+
+                // The "PRJ" fallback means Project Information carried neither a Number
+                // nor a Name. On a real project that is a MISCONFIGURATION, not a normal
+                // state: the folder tree, the ES root stamp and every path derived from
+                // them are about to be minted under a placeholder, and the stamp makes it
+                // sticky. It is also the exact code that produced the 20 leaked trees in
+                // the corporate content library, where it was indistinguishable from
+                // success because nothing said anything.
+                //
+                // Surface it; do NOT auto-correct. Choosing a project code is the user's
+                // call, and silently inventing one is how the wrong code gets stamped.
+                if (string.Equals(code, "PRJ", StringComparison.Ordinal))
+                    WarnProjectCodeFallback(doc);
+
                 // Greenfield (brand-new) projects adopt the ISO 19650 CDE-first tree; any
                 // project with an existing root / legacy folders / setup keeps the numbered
                 // BIM tree so nothing an existing project relies on is force-restructured.
@@ -401,6 +415,57 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"LoadOrBootstrapSetup: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>Documents already warned this session, so opening several models
+        /// does not produce a dialog storm. Keyed on model path.</summary>
+        private static readonly HashSet<string> _prjFallbackWarned =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Report — loudly and once per model — that a project tree is about to be minted
+        /// under the "PRJ" placeholder because Project Information has no Number and no
+        /// Name. Never corrects the value: see the call site.
+        /// </summary>
+        private static void WarnProjectCodeFallback(Document doc)
+        {
+            string key = null;
+            try { key = doc?.PathName; } catch { }
+            if (string.IsNullOrEmpty(key)) key = "<unsaved>";
+
+            StingLog.Warn(
+                "PROJECT CODE FALLBACK: Project Information has neither Number nor Name, so the "
+              + $"folder tree for '{key}' is being created as 'PRJ'. This is almost certainly a "
+              + "misconfiguration. Set Project Information -> Number (<=8 characters) and re-open "
+              + "BEFORE further STING writes — the root is stamped into ExtensibleStorage on first "
+              + "resolve and does not follow a later rename.");
+
+            lock (_prjFallbackWarned)
+            {
+                if (!_prjFallbackWarned.Add(key)) return;
+            }
+
+            try
+            {
+                var td = new Autodesk.Revit.UI.TaskDialog("STING — project code not set")
+                {
+                    MainInstruction = "This project has no Project Number, so STING is using \"PRJ\".",
+                    MainContent =
+                        "Project Information carries neither a Number nor a Name, so the project "
+                      + "folder tree is about to be created as \"PRJ\".\n\n"
+                      + "Why this matters: the folder root is stamped into ExtensibleStorage the "
+                      + "first time it is resolved, so setting the Number later does NOT move the "
+                      + "tree — you get a second one. Several projects opened this way also share "
+                      + "one \"PRJ\" folder.\n\n"
+                      + "Fix now: Manage -> Project Information -> Number. Use up to 8 characters "
+                      + "(A-Z, 0-9). Then close and re-open the model.\n\n"
+                      + "STING has NOT guessed a code for you — choosing it is your call.",
+                    MainIcon = Autodesk.Revit.UI.TaskDialogIcon.TaskDialogIconWarning,
+                    CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Close
+                };
+                td.Show();
+            }
+            catch (Exception ex) { StingLog.Warn($"WarnProjectCodeFallback dialog: {ex.Message}"); }
         }
 
         /// <summary>
