@@ -147,6 +147,37 @@ namespace StingTools.Core
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
         /// Exposed as `internal` so sibling classes in this file (NativeParamMapper,
         /// TagPipelineHelper, SpatialAutoDetect, ...) can share the same cache.</summary>
+        /// <summary>
+        /// D10 — render a Double parameter in PROJECT units when AsValueString() is
+        /// unavailable (it returns null for parameters with no unit symbol, and for
+        /// some computed/read-only parameters).
+        /// <para>
+        /// Falls back to the raw internal value ONLY when the parameter declares no
+        /// unit type — an unitless double is already its own value. Anything else is
+        /// converted, because emitting internal feet/ft3-per-second onto a drawing is
+        /// the defect this exists to stop.
+        /// </para>
+        /// </summary>
+        internal static string FormatInternalDouble(Parameter p)
+        {
+            double raw = 0;
+            try { raw = p.AsDouble(); }
+            catch (Exception ex) { StingLog.Warn($"FormatInternalDouble AsDouble: {ex.Message}"); return string.Empty; }
+            try
+            {
+                var spec = p.Definition?.GetDataType();
+                if (spec != null && UnitUtils.IsMeasurableSpec(spec))
+                {
+                    var unit = p.GetUnitTypeId();
+                    if (unit != null)
+                        return UnitUtils.ConvertFromInternalUnits(raw, unit).ToString("0.###");
+                }
+            }
+            catch (Exception ex)
+            { StingLog.WarnRateLimited("FormatInternalDouble", $"unit conversion for '{p.Definition?.Name}': {ex.Message}"); }
+            return raw.ToString("0.###");
+        }
+
         internal static Parameter CachedLookup(Element el, string paramName)
         {
             string docKey = GetStableDocKey(el.Document);
@@ -231,7 +262,17 @@ namespace StingTools.Core
                 case StorageType.String:
                     return p.AsString() ?? string.Empty;
                 case StorageType.Double:
-                    return p.AsValueString() ?? p.AsDouble().ToString("0.###");
+                    // D10 — AsValueString() is PROJECT units ("25.00 L/s"). AsDouble()
+                    // is Revit INTERNAL units, and using it as the fallback leaked them
+                    // straight onto a drawing: a tag rendered Flow:0.882867 for an
+                    // element whose Air Flow is 25.00 L/s — 25 / 28.3168, i.e. ft3/s.
+                    //
+                    // Convert through the parameter's OWN unit type rather than a
+                    // hardcoded factor. Parameter.AsDouble() is always internal for a
+                    // Revit parameter, so this is the inverse of the ThermalConductivity
+                    // trap (where the value was already SI and converting corrupted it).
+                    // Here the value is genuinely internal and NOT converting corrupts it.
+                    return p.AsValueString() ?? FormatInternalDouble(p);
                 case StorageType.Integer:
                     return p.AsInteger().ToString();
                 case StorageType.ElementId:
@@ -885,17 +926,17 @@ namespace StingTools.Core
 
                 // Check BuildingName parameter first
                 string buildingName = info.BuildingName ?? "";
-                string locFromName = ParseLocCode(buildingName);
+                string locFromName = ParseLocCode(buildingName, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
                 // Check project name
                 string projName = info.Name ?? "";
-                locFromName = ParseLocCode(projName);
+                locFromName = ParseLocCode(projName, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
                 // Check address
                 string address = info.Address ?? "";
-                locFromName = ParseLocCode(address);
+                locFromName = ParseLocCode(address, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
             }
             catch (Exception ex)
@@ -920,12 +961,12 @@ namespace StingTools.Core
                 {
                     // Check room name for building/location patterns
                     string roomName = room.Name ?? "";
-                    string loc = ParseLocCode(roomName);
+                    string loc = ParseLocCode(roomName, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
 
                     // Check room number prefix (e.g., "B1-101" → BLD1)
                     string roomNum = room.Number ?? "";
-                    loc = ParseLocCode(roomNum);
+                    loc = ParseLocCode(roomNum, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
 
@@ -1078,10 +1119,37 @@ namespace StingTools.Core
 
         /// <summary>
         /// Parse a string for LOC code patterns.
-        /// Recognizes: BLD1/BLD2/BLD3, Building 1/2/3, Block A/B/C, EXT, External.
+        ///
+        /// F-9 / gap F-1: this used to recognise ONLY BLD1/BLD2/BLD3/EXT, hard-coded,
+        /// and never consulted the configured vocabulary. On a project declaring its
+        /// own codes that meant NO LOC auto-detection at all, silently — Kibale
+        /// declares COT01-COT08, STF, KDR, POOL, EXT, XX and not one of the first
+        /// eleven was reachable, so every element fell to XX.
+        ///
+        /// Now: the SpatialCodeRegistry vocabulary first (corporate baseline +
+        /// project override, honouring each code's wordBoundary guard), then the
+        /// original hard-coded aliases as a fallback so existing projects behave
+        /// exactly as before. Registry misses cost nothing — the fallback is the
+        /// old body, unchanged.
         /// </summary>
-        private static string ParseLocCode(string text)
+        private static string ParseLocCode(string text) => ParseLocCode(text, null);
+
+        private static string ParseLocCode(string text, Document doc)
         {
+            // Registry first. A project-declared code must win over a corporate
+            // alias, which is the whole point of the override tier.
+            try
+            {
+                var hit = SpatialCodeRegistry.MatchLoc(doc, text);
+                if (hit != null && !string.IsNullOrEmpty(hit.Code) &&
+                    !string.Equals(hit.Code, "XX", StringComparison.OrdinalIgnoreCase))
+                    return hit.Code;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("ParseLocCode.Registry", $"registry lookup: {ex.Message}");
+            }
+
             if (string.IsNullOrWhiteSpace(text)) return null;
             string upper = text.ToUpperInvariant();
 
@@ -4063,6 +4131,19 @@ namespace StingTools.Core
             // Reset read-only skip counter at batch boundary so each operation
             // gets fresh diagnostic logging (first 5 warnings + every 100th).
             ParameterHelpers.ResetReadOnlySkipCount();
+            // G-5: same reasoning for the formula-failure warn budget. Session-wide
+            // it would be spent on the first messy model and every later run would
+            // log nothing — silence being the exact failure mode G-5 removed.
+            Temp.FormulaEngine.ResetWarnBudget();
+            // F-2: report, then reset, the count of elements whose LOC could not be
+            // derived. These now carry XX instead of being absorbed into the first
+            // building code — the count is the only visible trace, so it must be said.
+            int unresolvedLoc = TagConfig.UnresolvedLocCount;
+            if (unresolvedLoc > 0)
+                StingLog.Warn($"{commandName}: {unresolvedLoc} element(s) had no derivable LOC and were "
+                            + "tagged XX. Previously these were filed under the first building code, "
+                            + "inflating it. Set ASS_LOC_TXT, or accept XX as 'location not established'.");
+            TagConfig.ResetUnresolvedLocCount();
             TagConfig.CheckComplianceGate(doc, commandName);
         }
 

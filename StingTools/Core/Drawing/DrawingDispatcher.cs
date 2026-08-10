@@ -103,7 +103,11 @@ namespace StingTools.Core.Drawing
             {
                 var pi = doc?.ProjectInformation;
                 if (pi == null) return null;
-                var p = pi.LookupParameter("PRJ_ORG_PROJECT_CODE");
+                // K-11 bucket B: this read the name WITHOUT the _TXT suffix, which is
+                // not a declared parameter (0 rows in MR_PARAMETERS.txt), so it returned
+                // null on every model and drawing-type routing by project code silently
+                // never matched. Sourced from ParamRegistry so a rename cannot reopen it.
+                var p = pi.LookupParameter(ParamRegistry.ORG_PROJECT_CODE);
                 return p?.StorageType == StorageType.String ? p.AsString() : null;
             }
             catch { return null; }

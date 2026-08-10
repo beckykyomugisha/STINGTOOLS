@@ -1,5 +1,10 @@
 # Tagging Workflow Analysis — T1–T10 Tier System Audit
 
+
+> ## ⛔ SUPERSEDED
+>
+> Superseded by docs/UNIVERSAL_TAG_CONFORMANCE.md and docs/F9_SPATIAL_CODE_RECONCILIATION.md. Its counts (137 families, 53 containers) predate the library consolidation.
+
 **Date:** 2026-04-28
 **Branch:** `claude/tagging-workflow-analysis-XigAY`
 **Scope:** Full tagging pipeline, T1–T10 tiers, button dispatch, Planscape sync

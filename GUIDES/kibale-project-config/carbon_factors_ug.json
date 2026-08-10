@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "basis": "Kibale NP project override. A1-A3 cradle-to-gate FOSSIL GWP, kgCO2e per CUBIC METRE of in-place material. Merged OVER the corporate STING_CARBON_FACTORS_UG.json by key (UgCarbonFactors.cs:93-101) — additive, so the corporate entries survive unless a key is repeated here.",
+  "provenance": "Timber and thatch figures are ICE v3.0 hardwood/softwood cross-checked against the corporate file's Uganda EDGE basis. Murram and hardcore are locally-won fill, transport-dominated, estimated from the corporate 'stone' entry. Treat all five added materials as indicative until an EPD or a local study is available, and say so in the carbon report.",
+
+  "byMaterial": {
+    "MURRAM COMPACTED FILL 200MM": 40,
+    "HARDCORE STONE FILL 150MM": 90,
+    "MAKUTI THATCH ROOFING 150MM": 55,
+    "EUCALYPTUS TIMBER POLE 100MM": 160,
+    "MVULE HARDWOOD TIMBER 50MM": 260,
+    "BLOCK HOLLOW 200MM": 140,
+    "BLOCK HOLLOW 150MM": 140,
+    "BLOCK HOLLOW 100MM": 140,
+    "BLOCK SOLID 200MM": 175,
+    "BLOCK SOLID 150MM": 175,
+    "TERRAZZO TILES 20MM": 340,
+    "CAST IN-SITU TERRAZZO 30MM": 340,
+    "EPOXY TERRAZZO 12MM": 620,
+    "LIGHTWEIGHT SCREED 40MM": 260
+  },
+  "_byMaterial_note": "This tier is EXACT-MATCH on Material.Name, case-insensitive, and is checked FIRST (UgCarbonFactors.cs:126-128). The corporate file leaves it completely empty even though the loader supports it — so this is the one place you can be precise instead of relying on substring keyword matching. The BLOCK HOLLOW / BLOCK SOLID entries exist because those 09_WALL_CORES names match NO corporate keyword and fall to class Masonry = 250, a 79 percent over-count (gap E-3). The TERRAZZO entries override the corporate 'tile' keyword = 700, which is a fired-ceramic figure wrongly applied to a cement-bound product. LIGHTWEIGHT SCREED 40MM is classed Metal in the shipped CSV, which would bill it at 12,200 — 42x wrong.",
+
+  "byKeyword": [
+    { "contains": "murram",     "perM3": 40,  "note": "lateritic gravel sub-base, locally won, transport-dominated" },
+    { "contains": "hardcore",   "perM3": 90,  "note": "crushed stone fill" },
+    { "contains": "makuti",     "perM3": 55,  "note": "palm thatch — fossil component only; biogenic carried separately" },
+    { "contains": "thatch",     "perM3": 55,  "note": "generic thatch, same basis as makuti" },
+    { "contains": "mvule",      "perM3": 260, "note": "tropical hardwood; sits ahead of the generic timber keyword" },
+    { "contains": "eucalyptus", "perM3": 160, "note": "fast-growing plantation softwood, local" },
+    { "contains": "terrazzo",   "perM3": 340, "note": "cement-bound — must precede the corporate 'tile' = 700 keyword" },
+    { "contains": "parquet",    "perM3": 200, "note": "hardwood parquet flooring" }
+  ],
+  "_byKeyword_note": "Matching is SUBSTRING, lower-cased, FIRST HIT IN FILE ORDER WINS (UgCarbonFactors.cs:130-139). Project entries are merged in before the corporate list, so these take precedence. Order within this array is therefore priority — 'mvule' must sit above anything that would also match, and 'terrazzo' must sit above the corporate 'tile'.",
+
+  "byMaterialClass": {
+    "Earth": 40,
+    "Stone": 90,
+    "Ceramic": 700
+  },
+  "_byMaterialClass_note": "Last-resort tier, exact match on Revit's Material.MaterialClass. 'Earth' is here so MURRAM COMPACTED FILL resolves even if someone renames the material and the keyword stops matching. Only reached when both byMaterial and byKeyword miss."
+}

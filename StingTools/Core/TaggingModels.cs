@@ -150,6 +150,41 @@ namespace StingTools.Core
         /// <summary>PERF-R13: Count of elements that defaulted to ZONE=Z01 (throttled from per-element warnings).</summary>
         public int DefaultZoneCount { get; set; }
 
+        // ── G-42: tag completeness at WRITE time ────────────────────────────
+        //
+        // TagConfig.TagIsComplete already existed and was called from eight sites —
+        // ComplianceScan, BOQSupportCommands, BIMManagerCommands. Every one is a
+        // READER. None was in the write path, which is why a tag rendering two blank
+        // segments reached a drawing with no warning at all.
+        //
+        // Counted here so the number appears beside TagsPlaced in the result dialog,
+        // not only in the log. A count nobody sees is the same as no count.
+
+        /// <summary>Tags written that failed TagConfig.TagIsComplete — a MANDATORY token was blank.</summary>
+        public int IncompleteTagCount { get; private set; }
+
+        /// <summary>
+        /// Tags that are complete but reached completeness through a FALLBACK.
+        /// G-27's distinction: complete-but-assumed is not the same as complete, and
+        /// conflating them is what made a defaulted quantity read as a measured one.
+        /// </summary>
+        public int AssumedTokenTagCount { get; private set; }
+
+        /// <summary>First few incomplete tags, for the result dialog. Bounded — a
+        /// thousand-element batch should not build a thousand-line message.</summary>
+        public readonly List<string> IncompleteSamples = new List<string>();
+
+        public void RecordTagCompleteness(bool complete, bool anyFallback, string tag, long elementId)
+        {
+            if (!complete)
+            {
+                IncompleteTagCount++;
+                if (IncompleteSamples.Count < 10)
+                    IncompleteSamples.Add($"{tag}  (element {elementId})");
+            }
+            else if (anyFallback) AssumedTokenTagCount++;
+        }
+
         /// <summary>PERF-02: Track empty FUNC/PROD inline during tagging loop to avoid post-loop re-scan.</summary>
         public void RecordEmptyTokens(string func, string prod)
         {
@@ -214,6 +249,20 @@ namespace StingTools.Core
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"  Tagged:       {TotalTagged:N0}");
             sb.AppendLine($"  Skipped:      {TotalSkipped:N0}");
+
+            // G-42 — beside TagsPlaced, not buried in the log. An incomplete tag is a
+            // defect; a complete-but-assumed one is a decision the operator should know
+            // they are relying on (G-27's distinction, same vocabulary).
+            if (IncompleteTagCount > 0)
+            {
+                sb.AppendLine($"  INCOMPLETE:   {IncompleteTagCount:N0} — a mandatory segment is blank");
+                foreach (var sample in IncompleteSamples)
+                    sb.AppendLine($"                  {sample}");
+                if (IncompleteTagCount > IncompleteSamples.Count)
+                    sb.AppendLine($"                  … +{IncompleteTagCount - IncompleteSamples.Count:N0} more");
+            }
+            if (AssumedTokenTagCount > 0)
+                sb.AppendLine($"  assumed:      {AssumedTokenTagCount:N0} complete, but one or more segments fell back to a default");
             if (TotalOverwritten > 0)
                 sb.AppendLine($"  Overwritten:  {TotalOverwritten:N0}");
             if (TotalCollisions > 0)

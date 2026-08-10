@@ -577,7 +577,7 @@ namespace StingTools.UI
             wrap.Children.Add(MakeToolBtn("Doc Package", "DocumentationPackage", BrAccent, "One-click: create full documentation set (views + sheets + templates)"));
             wrap.Children.Add(MakeToolBtn("Batch Views", "BatchCreateViews", BrAccent, "Batch create views from levels \u00D7 disciplines \u00D7 scope boxes"));
             wrap.Children.Add(MakeToolBtn("Batch Sheets", "BatchCreateSheets", BrAccent, "Batch create sheets with views placed from template"));
-            wrap.Children.Add(MakeToolBtn("Scope Boxes", "ScopeBoxManager", BrScopeBox, "Audit and assign scope boxes"));
+            wrap.Children.Add(MakeToolBtn("Scope Boxes", "ScopeBoxManager", BrScopeBox, "Rename scope boxes to the STING:: grammar, plus audit / auto-assign / clear view assignments"));
 
             border.Child = wrap;
             return border;

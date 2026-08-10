@@ -1,44 +1,44 @@
-Category,MAT_CODE,MAT_DISCIPLINE,Unit_Rate_USD,Unit_Rate_UGX,Unit,Description
-Walls,WAL,A,85.00,315000,m2,Standard internal wall per square metre
-Floors,FLR,A,120.00,444000,m2,Suspended floor slab per square metre
-Roofs,ROF,A,150.00,555000,m2,Roof covering per square metre
-Doors,DOR,A,450.00,1665000,each,Standard internal door leaf and frame
-Windows,WIN,A,600.00,2220000,each,Standard double-glazed window unit
-Columns,COL,S,520.00,1924000,m3,RC structural column per cubic metre (concrete + 160kg/m3 rebar + formwork) per NRM2
-Structural Framing,BEM,S,280.00,1036000,m,Steel beam per linear metre
-Ceilings,CLG,A,45.00,166500,m2,Suspended ceiling tile per square metre
-Furniture,FUR,A,200.00,740000,each,Standard furniture item
-Mechanical Equipment,AHU,M,8500.00,31450000,each,Air handling unit
-Duct Systems,DCT,M,65.00,240500,m,Ductwork per linear metre
-Pipe Systems,PIP,M,45.00,166500,m,Pipework per linear metre
-Electrical Equipment,DB,E,2500.00,9250000,each,Distribution board
-Lighting Fixtures,LUM,E,180.00,666000,each,Standard luminaire
-Cable Trays,CTR,E,35.00,129500,m,Cable tray per linear metre
-Conduits,CDT,E,25.00,92500,m,Conduit per linear metre
-Plumbing Fixtures,SNY,P,650.00,2405000,each,Sanitary fixture installed
-Plumbing Equipment,PEQ,P,1200.00,4440000,each,Plumbing equipment (calorifier / pump / pressure vessel)
-Pipe Fittings,PFT,M,12.00,44400,each,Pipe fitting (elbow / tee / reducer / coupling / cap)
-Pipe Accessories,PAC,M,35.00,129500,each,Pipe accessory (valve / trap / strainer / gauge / TMV)
-Pipe Insulations,PIN,M,15.00,55500,m,Pipe insulation per linear metre
-Duct Insulations,DIN,M,20.00,74000,m,Duct insulation per linear metre
-Pipe Sleeve,PSL,M,50.00,185000,each,Pipe sleeve / fire-rated penetration
-Pipe Hanger,PHG,M,30.00,111000,each,Pipe hanger / support assembly
-Sprinklers,SPK,FP,120.00,444000,each,Sprinkler head installed
-Fire Alarm Devices,FAD,FP,250.00,925000,each,Fire alarm device installed
-Rooms,RM,A,0.00,0,each,Room (no direct cost)
-Air Terminals,ATU,M,150.00,555000,each,Air terminal unit
-Air Terminals,LAT,E,180.00,666000,each,Lightning air terminal (Franklin rod / mesh node) per BS EN 62305-3
-Down Conductors,LDC,E,12.50,46200,m,Down conductor Cu tape 25x3mm per BS EN 62305-3 Tab 6
-Earth Electrodes,LEE,E,55.00,203500,each,Earth electrode Cu-bonded rod 2.4m driven type A
-Earth Bar,LEB,E,220.00,814000,each,Main earth bar with test clamps per BS EN 62305-3 §7.2
-SPD Type 1,LSP1,E,450.00,1665000,each,Type 1 SPD Iimp 25kA 10/350µs (DEHNbloc / equivalent)
-SPD Type 2,LSP2,E,280.00,1036000,each,Type 2 SPD In 20kA 8/20µs (DEHNguard / equivalent)
-SPD Type 1+2,LSP12,E,580.00,2146000,each,Combined Type 1+2 SPD per IEC 61643-11
-SPD Type 3,LSP3,E,140.00,518000,each,Type 3 SPD final-circuit class per IEC 61643-11
-Test Clamps,LTC,E,38.00,140600,each,Test clamp / inspection point per BS EN 62305-3 §7.2
-Bonding Conductor,LBC,E,8.50,31450,m,Equipotential bonding Cu 16mm² per BS EN 62305-3 §6.2
-Structural Foundations,FND,S,180.00,666000,m3,RC foundation per cubic metre (excavation + concrete + rebar)
-Structural Foundation,FDN,S,180.00,666000,m3,RC foundation per cubic metre (alias)
-Stairs,STR,A,2200.00,8140000,each,Stair flight (RC / steel) per flight
-Railings,RAL,A,95.00,351500,m,Balustrade / handrail per linear metre
-Generic Models,GEN,A,150.00,555000,each,Generic model item (uncosted placeholder rate)
+Category,PROD,MAT_CODE,MAT_DISCIPLINE,Unit_Rate_USD,Unit_Rate_UGX,Unit,Description
+Walls,WL,WAL,A,85.00,315000,m2,Standard internal wall per square metre
+Floors,FL,FLR,A,120.00,444000,m2,Suspended floor slab per square metre
+Roofs,RF,ROF,A,150.00,555000,m2,Roof covering per square metre
+Doors,DR,DOR,A,450.00,1665000,each,Standard internal door leaf and frame
+Windows,WIN,WIN,A,600.00,2220000,each,Standard double-glazed window unit
+Columns,COL,COL,S,520.00,1924000,m3,RC structural column per cubic metre (concrete + 160kg/m3 rebar + formwork) per NRM2
+Structural Framing,BM,BEM,S,280.00,1036000,m,Steel beam per linear metre
+Ceilings,CLG,CLG,A,45.00,166500,m2,Suspended ceiling tile per square metre
+Furniture,FUR,FUR,A,200.00,740000,each,Standard furniture item
+Mechanical Equipment,AHU,AHU,M,8500.00,31450000,each,Air handling unit
+Ducts,DU,DCT,M,65.00,240500,m,Ductwork per linear metre
+Pipes,PP,PIP,M,45.00,166500,m,Pipework per linear metre
+Electrical Equipment,DB,DB,E,2500.00,9250000,each,Distribution board
+Lighting Fixtures,LUM,LUM,E,180.00,666000,each,Standard luminaire
+Cable Trays,CBLT,CTR,E,35.00,129500,m,Cable tray per linear metre
+Conduits,CDT,CDT,E,25.00,92500,m,Conduit per linear metre
+Plumbing Fixtures,FIX,SNY,P,650.00,2405000,each,Sanitary fixture installed
+Plumbing Equipment,PEQ,PEQ,P,1200.00,4440000,each,Plumbing equipment (calorifier / pump / pressure vessel)
+Pipe Fittings,PFT,PFT,M,12.00,44400,each,Pipe fitting (elbow / tee / reducer / coupling / cap)
+Pipe Accessories,PAC,PAC,M,35.00,129500,each,Pipe accessory (valve / trap / strainer / gauge / TMV)
+Pipe Insulation,PIN,PIN,M,15.00,55500,m,Pipe insulation per linear metre
+Duct Insulation,DIN,DIN,M,20.00,74000,m,Duct insulation per linear metre
+Pipe Accessories,PSL,PSL,M,50.00,185000,each,Pipe sleeve / fire-rated penetration
+Pipe Accessories,PHG,PHG,M,30.00,111000,each,Pipe hanger / support assembly
+Sprinklers,SPR,SPK,FP,120.00,444000,each,Sprinkler head installed
+Fire Alarm Devices,FAD,FAD,FP,250.00,925000,each,Fire alarm device installed
+Rooms,RM,RM,A,0.00,0,each,Room (no direct cost)
+Air Terminals,GRL,ATU,M,150.00,555000,each,Air terminal unit
+Air Terminals,GRL,LAT,E,180.00,666000,each,Lightning air terminal (Franklin rod / mesh node) per BS EN 62305-3
+Down Conductors,,LDC,E,12.50,46200,m,Down conductor Cu tape 25x3mm per BS EN 62305-3 Tab 6
+Earth Electrodes,,LEE,E,55.00,203500,each,Earth electrode Cu-bonded rod 2.4m driven type A
+Earth Bar,,LEB,E,220.00,814000,each,Main earth bar with test clamps per BS EN 62305-3 §7.2
+SPD Type 1,,LSP1,E,450.00,1665000,each,Type 1 SPD Iimp 25kA 10/350µs (DEHNbloc / equivalent)
+SPD Type 2,,LSP2,E,280.00,1036000,each,Type 2 SPD In 20kA 8/20µs (DEHNguard / equivalent)
+SPD Type 1+2,,LSP12,E,580.00,2146000,each,Combined Type 1+2 SPD per IEC 61643-11
+SPD Type 3,,LSP3,E,140.00,518000,each,Type 3 SPD final-circuit class per IEC 61643-11
+Test Clamps,,LTC,E,38.00,140600,each,Test clamp / inspection point per BS EN 62305-3 §7.2
+Bonding Conductor,,LBC,E,8.50,31450,m,Equipotential bonding Cu 16mm² per BS EN 62305-3 §6.2
+Structural Foundations,FDN,FND,S,180.00,666000,m3,RC foundation per cubic metre (excavation + concrete + rebar)
+Structural Foundations,FDN,FDN,S,180.00,666000,m3,RC foundation per cubic metre (alias)
+Stairs,STR,STR,A,2200.00,8140000,each,Stair flight (RC / steel) per flight
+Railings,RLG,RAL,A,95.00,351500,m,Balustrade / handrail per linear metre
+Generic Models,GEN,GEN,A,150.00,555000,each,Generic model item (uncosted placeholder rate)

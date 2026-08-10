@@ -434,7 +434,13 @@ namespace StingTools.Core.Drawing
                             if (ssi != null)
                             {
                                 pr.ViewportIds.Add(ssi.Id);
-                                try { StingTools.Core.ParameterHelpers.SetInt(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); } catch { }
+                                // H-4 — was a silent catch. STING_AUTO_PLACED_BOOL is how a later run
+                                // tells its own viewports from hand-placed ones; if the write
+                                // never lands, re-running re-places on top of itself. SetInt
+                                // RETURNS false when unbound and throws nothing.
+                                StingTools.Core.SafeWrite.Set(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL,
+                                    () => StingTools.Core.ParameterHelpers.SetInt(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true),
+                                    "SheetPlacementBridge.ScheduleInstance", pr?.Warnings);
                             }
                         }
                         catch (Exception ex)
@@ -449,7 +455,10 @@ namespace StingTools.Core.Drawing
                     if (vp != null)
                     {
                         pr.ViewportIds.Add(vp.Id);
-                        try { StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); } catch { }
+                        // H-4 — the viewport branch of the same stamp; same defect.
+                        StingTools.Core.SafeWrite.Set(vp, ParamRegistry.STING_AUTO_PLACED_BOOL,
+                            () => StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true),
+                            "SheetPlacementBridge.Viewport", pr?.Warnings);
 
                         // SLOT-1: apply per-slot viewport type if declared
                         if (!string.IsNullOrWhiteSpace(slot?.ViewportType))

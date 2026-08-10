@@ -7,7 +7,7 @@
 // engines (SymbolLibraryCreator, TagFamilyCreator seed-load, MEP-from-DWG
 // placement) resolve against, so one version + checksum envelope covers content
 // that is otherwise scattered across Data/Seeds, Data/Symbols and
-// Data/TagFamilies/Seeds.
+// Data/TagFamilies (the Seeds sub-folder was retired — see ContentRoots).
 //
 // ContentManifestRegistry mirrors DrawingTypeRegistry exactly:
 //   1. Loads Data/STING_CONTENT_MANIFEST.json (shipped corporate baseline)

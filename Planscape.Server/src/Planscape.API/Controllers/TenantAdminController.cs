@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
-using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -13,9 +12,13 @@ namespace Planscape.API.Controllers;
 /// numbers a buyer needs to feel in control of their subscription:
 ///
 ///   • Plan, currency, trial expiry, billing-cycle
-///   • Live usage vs limits (authors / coordinators / projects / storage)
+///   • Live usage vs limits (projects / storage)
 ///   • Last-month revenue (if any payments) + next charge date
 ///   • Recent admin events (member invited, project created, plan changed)
+///
+/// Author / coordinator seat usage is NOT reported here. Seat entitlement is
+/// the StingTools licence, counted in D1 (#621); the counts that used to appear
+/// were derived from a ProjectRole predicate nothing writes (#619).
 ///
 /// All endpoints scoped to the resolved tenant by the global query filter
 /// from S1.1 — there is no path-parameter for tenant id so an admin can't
@@ -28,13 +31,11 @@ public class TenantAdminController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly ITenantContext _tenantContext;
-    private readonly IQuotaGuardService _quota;
 
-    public TenantAdminController(PlanscapeDbContext db, ITenantContext tenantContext, IQuotaGuardService quota)
+    public TenantAdminController(PlanscapeDbContext db, ITenantContext tenantContext)
     {
         _db = db;
         _tenantContext = tenantContext;
-        _quota = quota;
     }
 
     /// <summary>Single dashboard payload — plan, usage, members, billing.</summary>
@@ -47,12 +48,6 @@ public class TenantAdminController : ControllerBase
         var limits = BillingPlanLimits.For(tenant.Plan);
 
         var memberCount = await _db.ProjectMembers.CountAsync(ct);
-        var authorIds = await _db.ProjectMembers
-            .Where(m => m.ProjectRole == "Author")
-            .Select(m => m.UserId).Distinct().ToListAsync(ct);
-        var coordIds  = await _db.ProjectMembers
-            .Where(m => m.ProjectRole != "Author")
-            .Select(m => m.UserId).Distinct().ToListAsync(ct);
         var projectCount = await _db.Projects.CountAsync(ct);
         var storageBytes = await _db.ProjectModels.AsNoTracking()
             .Where(m => m.DeletedAt == null)
@@ -81,8 +76,14 @@ public class TenantAdminController : ControllerBase
             },
             usage = new
             {
-                authors      = new { current = authorIds.Count,  max = limits.MaxAuthors },
-                coordinators = new { current = coordIds.Count,   max = limits.MaxCoordinators },
+                // `authors` and `coordinators` are gone. They were counted with
+                // the same ProjectRole == "Author" predicate as the retired
+                // quota axes — a literal none of this codebase's four writers
+                // produce — so `authors` always displayed 0 and `coordinators`
+                // displayed every member including Owners and Managers (#619).
+                // Seat usage now lives where seats are sold: the D1 licence
+                // count (#621). `limits` below still advertises what the plan
+                // includes; we simply no longer claim to measure it here.
                 projects     = new { current = projectCount,     max = limits.MaxProjects },
                 storage      = new { currentMb = storageBytes / 1024 / 1024, maxMb = limits.StorageMb },
                 memberSeats  = memberCount,
@@ -103,19 +104,10 @@ public class TenantAdminController : ControllerBase
     [HttpPost("invite")]
     public async Task<ActionResult> Invite([FromBody] InviteUserRequest req, CancellationToken ct)
     {
-        // Quota check — refuses with 402 if cap reached.
+        // Seat entitlement is the StingTools licence, counted in D1 (#621) — this
+        // endpoint no longer refuses with 402. `role` still drives the UserRole /
+        // Iso19650Role written below and the response.
         var role = string.Equals(req.Role, "Author", StringComparison.OrdinalIgnoreCase) ? "Author" : "Coordinator";
-        var quota = await _quota.CheckCanAddUserAsync(role, ct);
-        if (!quota.Allowed)
-            return StatusCode(StatusCodes.Status402PaymentRequired, new
-            {
-                error = "quota_exceeded",
-                axis = quota.Axis.ToString(),
-                current = quota.Current,
-                max = quota.Max,
-                reason = quota.Reason,
-                upgrade_url = "/billing/upgrade",
-            });
 
         // Existing user with this email?
         var existing = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLowerInvariant(), ct);

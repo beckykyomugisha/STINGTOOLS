@@ -95,6 +95,14 @@ namespace StingTools.BOQ
     {
         public int ZeroRateCount;        // measured/count model rows with no rate found
         public int CouldNotMeasureCount; // measured-unit model rows whose quantity came back 0
+        /// <summary>
+        /// A-1 — measured rows the take-off explicitly could NOT resolve a quantity
+        /// for. A strict subset of <see cref="CouldNotMeasureCount"/>, which infers
+        /// the same condition from a zero quantity and so also catches rows that
+        /// measured legitimately to zero. This one carries no false positives, which
+        /// is what lets it drive a hard export gate.
+        /// </summary>
+        public int QuantityUnresolvedCount;
         public int LowConfidenceCount;   // priced rows below the export confidence floor
         public double QtyAtRisk;         // Σ quantity of the zero-rate rows
         public double ValueAtRiskUGX;    // Σ qty × proxy median rate for the unit (indicative)
@@ -103,6 +111,26 @@ namespace StingTools.BOQ
         // line into the Contract Sum, so it must gate the export too.
         public bool BlocksExport => ZeroRateCount > 0 || LowConfidenceCount > 0 || CouldNotMeasureCount > 0;
         public bool HasAnyIssue => ZeroRateCount > 0 || CouldNotMeasureCount > 0 || LowConfidenceCount > 0;
+    }
+
+    // ── LinkUnderCount ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A-3 — one included link placed N&gt;1 times but taken off ×1.
+    /// See <see cref="BOQDocument.LinkUnderCounts"/>.
+    /// </summary>
+    public class LinkUnderCount
+    {
+        public string LinkName;
+        public int InstanceCount;
+        /// <summary>Rows this link contributed — the quantity actually at stake.</summary>
+        public int RowCount;
+        /// <summary>Σ TotalUGX of those rows, as billed (i.e. ×1).</summary>
+        public double BilledUGX;
+        /// <summary>What the bill would carry if the multiplier were on.</summary>
+        public double WouldBeUGX => BilledUGX * (InstanceCount > 0 ? InstanceCount : 1);
+        /// <summary>The money not currently in the bill if this is an error.</summary>
+        public double ShortfallUGX => WouldBeUGX - BilledUGX;
     }
 
     // ── BoqMarkupBreakdown / BoqTotals ─────────────────────────────────────
@@ -144,6 +172,18 @@ namespace StingTools.BOQ
         public double DeductionQuantity;
         public double WastageQuantity;
         public string MeasurementNote;
+
+        /// <summary>
+        /// A-1 — false when this is a MEASURED line (m/m²/m³/kg) whose take-off
+        /// quantity source did not resolve. Quantity will read 0, but that 0 is a
+        /// failure, not a measurement: the row still carries a description, a
+        /// classification, a rate and an NRM2 section, so on paper it is
+        /// indistinguishable from a genuine cheap item. Defaults TRUE so every
+        /// existing construction site, snapshot and deserialised row keeps its
+        /// current meaning — only the take-off path can clear it.
+        /// </summary>
+        public bool QuantityResolved = true;
+
         public double RateUGX;
         public double RateUSD;
         public double EmbodiedCarbonKg;     // kgCO2e — A1-A3 FOSSIL headline (WP-C, RICS WLCA)
@@ -267,6 +307,7 @@ namespace StingTools.BOQ
                 DeductionQuantity = this.DeductionQuantity,
                 WastageQuantity = this.WastageQuantity,
                 MeasurementNote = this.MeasurementNote,
+                QuantityResolved = this.QuantityResolved,   // A-1 — must survive the clone
                 RateUGX = this.RateUGX,
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,
@@ -359,6 +400,54 @@ namespace StingTools.BOQ
         /// "mmhw". Defaults to NRM2 (UK Building Works). Phase 184h / P6.
         /// </summary>
         public string MeasurementStandardId = "nrm2";
+
+        /// <summary>
+        /// A-3 — links that are INCLUDED in the bill, loaded more than once, and whose
+        /// per-link ×N multiply flag is off. Each is quantified once regardless of how
+        /// many times it is placed.
+        ///
+        /// This is legitimate for a shared reference model placed twice; it is a
+        /// six-cottages-for-free error when the link is a building. The plugin cannot
+        /// tell the two apart, so it reports rather than decides — a warning row in the
+        /// audit sheet and a CONFIRMABLE gate in BOQPrepForExport.
+        /// </summary>
+        public List<LinkUnderCount> LinkUnderCounts = new List<LinkUnderCount>();
+
+        /// <summary>
+        /// K-4 — elements a user explicitly excluded from the takeoff, with the
+        /// reason each was excluded. Populated by CollectCandidateElements.
+        ///
+        /// These rows are NOT in <see cref="AllItems"/> and contribute nothing to
+        /// any total; they exist so the Audit Trail sheet can print what the bill
+        /// is missing on purpose. An exclusion that leaves no trace is
+        /// indistinguishable from a takeoff bug, which is the whole reason the
+        /// flag carries a reason at all.
+        /// </summary>
+        public List<BOQExcludedRow> UserExclusions = new List<BOQExcludedRow>();
+
+        // ── G-14 trap 3 — paragraph fallback accounting ─────────────────────
+        //
+        // ResolvedParagraphCount counts rows that HAVE a paragraph. It does not
+        // distinguish a paragraph resolved from the element's real parameters
+        // from a generic sentence synthesised because a token could not be
+        // filled. Both read as "resolved", so a bill of 4,000 generic sentences
+        // reported 100 % coverage.
+
+        /// <summary>Rows whose NRM2 paragraph is a synthesised fallback, not a
+        /// resolved template. Counted separately because the two are not the
+        /// same deliverable.</summary>
+        public int ParagraphFallbackCount;
+
+        /// <summary>Rows re-resolved live from the element at export time.</summary>
+        public int ParagraphRehydratedCount;
+
+        /// <summary>
+        /// Token name → how many rows failed to fill it. This is the actionable
+        /// half: an unresolved token names the parameter worth populating, and
+        /// the histogram ranks them by how much of the bill they would fix.
+        /// </summary>
+        public Dictionary<string, int> UnresolvedTokenCounts =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         // ── G3 — optional built-up preliminaries schedule ───────────────────
         // When PrelimsItemised is true the grand total uses the itemised prelim
@@ -550,8 +639,48 @@ namespace StingTools.BOQ
         public string NRM2Paragraph;
         public string Note;
         public string RateSource;           // P3 — provenance ("QS" for imported rates); null ⇒ "Override"
+
+        /// <summary>
+        /// K-4 — drop this element from the takeoff entirely. Honoured in
+        /// CollectCandidateElements, so no line item is ever built for it.
+        ///
+        /// An exclusion is never silent: every excluded element is recorded on
+        /// <see cref="BOQDocument.UserExclusions"/> and printed at the top of
+        /// the Audit Trail sheet with its reason. A quantity that vanishes from
+        /// a bill with no trace is the defect this flag would otherwise create.
+        /// </summary>
+        public bool Excluded;
+
+        /// <summary>
+        /// Why the element was excluded — mandatory in practice: an exclusion
+        /// with no reason is recorded as "(no reason given)" and flagged in the
+        /// audit sheet, because "someone removed this once" is not an
+        /// auditable answer at tender.
+        /// </summary>
+        public string ExcludeReason;
+
         public DateTime Modified = DateTime.UtcNow;
         public string ModifiedBy;
+    }
+
+    /// <summary>
+    /// K-4 — one element dropped from the takeoff by a user exclusion.
+    /// Carried on <see cref="BOQDocument.UserExclusions"/> purely so the
+    /// Audit Trail sheet can show what is NOT in the bill and why.
+    /// </summary>
+    public class BOQExcludedRow
+    {
+        public long ElementId;
+        public string UniqueId;
+        public string Category;
+        public string FamilyName;
+        public string TypeName;
+        public string Reason;
+        public string ExcludedBy;
+        public DateTime ExcludedAt;
+        /// <summary>Host model name, or the link's name when the element came
+        /// from a linked document.</summary>
+        public string SourceModel;
     }
 
     /// <summary>

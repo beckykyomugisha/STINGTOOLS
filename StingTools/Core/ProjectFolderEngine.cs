@@ -385,6 +385,20 @@ namespace StingTools.Core
             try
             {
                 string code = DetectProjectCode(doc);
+
+                // The "PRJ" fallback means Project Information carried neither a Number
+                // nor a Name. On a real project that is a MISCONFIGURATION, not a normal
+                // state: the folder tree, the ES root stamp and every path derived from
+                // them are about to be minted under a placeholder, and the stamp makes it
+                // sticky. It is also the exact code that produced the 20 leaked trees in
+                // the corporate content library, where it was indistinguishable from
+                // success because nothing said anything.
+                //
+                // Surface it; do NOT auto-correct. Choosing a project code is the user's
+                // call, and silently inventing one is how the wrong code gets stamped.
+                if (string.Equals(code, "PRJ", StringComparison.Ordinal))
+                    WarnProjectCodeFallback(doc);
+
                 // Greenfield (brand-new) projects adopt the ISO 19650 CDE-first tree; any
                 // project with an existing root / legacy folders / setup keeps the numbered
                 // BIM tree so nothing an existing project relies on is force-restructured.
@@ -401,6 +415,57 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"LoadOrBootstrapSetup: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>Documents already warned this session, so opening several models
+        /// does not produce a dialog storm. Keyed on model path.</summary>
+        private static readonly HashSet<string> _prjFallbackWarned =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Report — loudly and once per model — that a project tree is about to be minted
+        /// under the "PRJ" placeholder because Project Information has no Number and no
+        /// Name. Never corrects the value: see the call site.
+        /// </summary>
+        private static void WarnProjectCodeFallback(Document doc)
+        {
+            string key = null;
+            try { key = doc?.PathName; } catch { }
+            if (string.IsNullOrEmpty(key)) key = "<unsaved>";
+
+            StingLog.Warn(
+                "PROJECT CODE FALLBACK: Project Information has neither Number nor Name, so the "
+              + $"folder tree for '{key}' is being created as 'PRJ'. This is almost certainly a "
+              + "misconfiguration. Set Project Information -> Number (<=8 characters) and re-open "
+              + "BEFORE further STING writes — the root is stamped into ExtensibleStorage on first "
+              + "resolve and does not follow a later rename.");
+
+            lock (_prjFallbackWarned)
+            {
+                if (!_prjFallbackWarned.Add(key)) return;
+            }
+
+            try
+            {
+                var td = new Autodesk.Revit.UI.TaskDialog("STING — project code not set")
+                {
+                    MainInstruction = "This project has no Project Number, so STING is using \"PRJ\".",
+                    MainContent =
+                        "Project Information carries neither a Number nor a Name, so the project "
+                      + "folder tree is about to be created as \"PRJ\".\n\n"
+                      + "Why this matters: the folder root is stamped into ExtensibleStorage the "
+                      + "first time it is resolved, so setting the Number later does NOT move the "
+                      + "tree — you get a second one. Several projects opened this way also share "
+                      + "one \"PRJ\" folder.\n\n"
+                      + "Fix now: Manage -> Project Information -> Number. Use up to 8 characters "
+                      + "(A-Z, 0-9). Then close and re-open the model.\n\n"
+                      + "STING has NOT guessed a code for you — choosing it is your call.",
+                    MainIcon = Autodesk.Revit.UI.TaskDialogIcon.TaskDialogIconWarning,
+                    CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Close
+                };
+                td.Show();
+            }
+            catch (Exception ex) { StingLog.Warn($"WarnProjectCodeFallback dialog: {ex.Message}"); }
         }
 
         /// <summary>
@@ -627,9 +692,56 @@ namespace StingTools.Core
         /// tree under a guessed code.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// Path-only analogue of <c>Document.IsFamilyDocument</c>.
+        /// <para>
+        /// The document-scoped resolvers refuse family documents outright, because a
+        /// family has no project and therefore no project root. The path-only overloads
+        /// never receive a Document, so they cannot make that test — and every one of
+        /// them CREATES the directory it returns. Pointed at a family, they mint a
+        /// project tree next to it: that is how <c>_BIM_COORD/</c> and <c>PRJ/_data/coord/</c>
+        /// folders appeared inside the corporate content library.
+        /// </para>
+        /// <para>
+        /// In a path-only context the file extension is the document-kind signal, so it
+        /// is the test used here. Families (.rfa) and family templates (.rft) are
+        /// refused; projects (.rvt) and project templates (.rte) are accepted. An
+        /// extension-less synthetic probe is accepted — callers such as
+        /// LuminaireRegistry and StingHvacPanel build a <c>&lt;folder&gt;/_.rvt</c> probe
+        /// deliberately, and those folders really are project folders.
+        /// </para>
+        /// </summary>
+        internal static bool IsProjectModelPath(string modelPath)
+        {
+            if (string.IsNullOrEmpty(modelPath)) return false;
+            string ext;
+            try { ext = Path.GetExtension(modelPath); }
+            catch { return false; }
+            // FAIL-OPEN, deliberately. An extension-less path is ACCEPTED rather than
+            // refused, because LuminaireRegistry and StingHvacPanel build a synthetic
+            // "<folder>/_.rvt" probe and a stricter test would break them. The cost of
+            // that choice: a caller passing a BARE FOLDER (no trailing file component)
+            // is treated as a project model path and will mint a root inside it — the
+            // exact failure this guard exists to stop.
+            //
+            // This is safe today only because all seven call sites of the path-only
+            // overloads null-check the result and none of them passes a bare folder.
+            // If you add a call site, pass a path with a file component, or tighten
+            // this to require an explicit extension and fix the two probe callers.
+            if (string.IsNullOrEmpty(ext)) return true;
+            return !ext.Equals(".rfa", StringComparison.OrdinalIgnoreCase)
+                && !ext.Equals(".rft", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static string GetRootPathForModelPath(string rvtPath)
         {
             if (string.IsNullOrEmpty(rvtPath)) return null;
+            if (!IsProjectModelPath(rvtPath))
+            {
+                StingLog.Warn($"GetRootPathForModelPath: refusing family document path '{rvtPath}' " +
+                              "— a family has no project root. Returning null (absence, not a default).");
+                return null;
+            }
             try
             {
                 string projDir = Path.GetDirectoryName(rvtPath);
@@ -659,6 +771,16 @@ namespace StingTools.Core
         public static string GetMetaPathForModelPath(string rvtPath, string bucket, params string[] subParts)
         {
             if (string.IsNullOrEmpty(rvtPath) || string.IsNullOrEmpty(bucket)) return null;
+            // A family document has no project, so it has no metadata bucket. Refuse rather
+            // than fall through to the sibling-directory fallback below, which CREATES
+            // <dir>/<bucket> — next to a .rfa that means a project folder minted inside the
+            // content library. Absence is the correct answer; every caller null-checks.
+            if (!IsProjectModelPath(rvtPath))
+            {
+                StingLog.Warn($"GetMetaPathForModelPath({bucket}): refusing family document path " +
+                              $"'{rvtPath}' — no project, so no metadata bucket.");
+                return null;
+            }
             try
             {
                 string root = GetRootPathForModelPath(rvtPath);
@@ -745,6 +867,14 @@ namespace StingTools.Core
         {
             try
             {
+                // LoadOrBootstrapSetup and CaptureGreenfieldState already refuse family
+                // documents, but GetRootPath can still resolve one through the ES stamp /
+                // cache / <projDir>/<CODE> paths — and everything below CREATES. Pointed at
+                // a .rfa that mints <familyDir>/PRJ/_data/… inside whatever folder the
+                // family lives in. Guard here, at the single choke point every metadata
+                // bucket goes through.
+                if (doc != null && doc.IsFamilyDocument) return null;
+
                 string root = GetRootPath(doc);
                 if (string.IsNullOrEmpty(root)) return null;
                 string dataDir = Path.Combine(root, "_data");

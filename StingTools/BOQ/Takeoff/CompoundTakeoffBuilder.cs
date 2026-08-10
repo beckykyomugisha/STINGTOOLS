@@ -71,7 +71,7 @@ namespace StingTools.BOQ.Takeoff
             if (areaM2 <= 0) return null;   // can't measure → composite fallback
 
             string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
-            bool isBrick = material.Contains("brick");
+            bool isBrick = IsBrickWall(doc, el, material);
             bool isRc = material.Contains("concrete") || material.Contains("rc") || material.Contains("reinforced");
             var res = new Resolution();
 
@@ -385,18 +385,13 @@ namespace StingTools.BOQ.Takeoff
             return 0;
         }
 
+        // E-5 — was the FIRST id from GetMaterialIds(false). Now the shared
+        // dominant-by-volume resolver, so a compound element's constituent lines
+        // name the same governing material the rate, carbon and description use.
         private static string GetPrimaryMaterialName(Document doc, Element el)
         {
-            try
-            {
-                var ids = el.GetMaterialIds(false);
-                if (ids != null)
-                    foreach (var id in ids)
-                        if (id != null && id.Value > 0)
-                            return doc.GetElement(id)?.Name;
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("CompoundMat", $"GetPrimaryMaterialName: {ex.Message}"); }
-            return null;
+            string n = StingTools.BOQ.PrimaryMaterial.Resolve(el);
+            return string.IsNullOrEmpty(n) ? null : n;
         }
 
         private static string GetFamilyName(Document doc, Element el)
@@ -437,6 +432,43 @@ namespace StingTools.BOQ.Takeoff
         }
 
         // Infer the block size from the type name (e.g. "390x190 Block" → "390x190").
+        /// <summary>
+        /// Decide brick vs block from DATA, not from a substring of the material name.
+        /// <para>
+        /// The old test was <c>material.Contains("brick")</c>, so "Brick-faced blockwork"
+        /// took the brick branch and was measured with brick bond ratios — 2.27x the
+        /// block figure on 200mm work, with nothing flagged.
+        /// </para>
+        /// <para>
+        /// The proposed fix — "presence of a bond type is the brick signal" — does NOT
+        /// hold, and was checked before implementing: <see cref="InferBrickBond"/> exists
+        /// precisely because a genuine brick wall may carry no
+        /// <c>BLE_BRICK_BOND_TYPE_TXT</c> and resolve its bond from the type name. A
+        /// bond-presence test would misclassify every such wall as block.
+        /// </para>
+        /// <para>
+        /// So the order is BLOCK-evidence first. A block size ("440x215") is unambiguous
+        /// and a brick wall never carries one, which makes it the reliable discriminator;
+        /// "Brick-faced blockwork" carries a block size and now takes the block branch.
+        /// The material name survives only as the last resort, where no dimensional
+        /// evidence exists either way.
+        /// </para>
+        /// </summary>
+        private static bool IsBrickWall(Document doc, Element el, string materialLower)
+        {
+            // Gather the evidence here (Revit-facing), decide in MasonryClassifier
+            // (Revit-free, so the decision is unit-testable).
+            string blockSize = MaterialKeyCanonicaliser.BlockSize(
+                ParameterHelpers.GetString(el, "BLE_BLOCK_SIZE_TXT"));
+            if (string.IsNullOrWhiteSpace(blockSize)) blockSize = InferBlockSize(doc, el);
+
+            string bond = MaterialKeyCanonicaliser.BrickBond(
+                ParameterHelpers.GetString(el, "BLE_BRICK_BOND_TYPE_TXT"));
+            if (string.IsNullOrWhiteSpace(bond)) bond = InferBrickBond(doc, el);
+
+            return MasonryClassifier.IsBrick(blockSize, bond, materialLower);
+        }
+
         private static string InferBlockSize(Document doc, Element el)
         {
             string n = TypeAndName(doc, el);

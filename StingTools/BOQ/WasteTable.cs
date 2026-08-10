@@ -10,6 +10,16 @@
 //  through, so a quantity is grossed up by the SAME allowance whether you are
 //  pricing it or carbon-counting it.
 //
+//  E-4 — THAT SENTENCE WAS FALSE AS SHIPPED, and it is worth understanding why,
+//  because the table itself was never wrong. Resolution is
+//  Lookup(material) ?? Lookup(category). All three cost call sites in
+//  BOQCostManager passed material = NULL, so the material tier could not fire
+//  and cost always resolved on category; the two Sustainability call sites
+//  passed the real material name. Same table, same inputs on paper, two
+//  different answers — a tiled floor carbon-counted at 10 % and priced at 5 %.
+//  Sharing a table does not make two callers agree; passing it the same
+//  arguments does. The call sites now pass the dominant-by-volume material name.
+//
 //  Resolution: an explicit per-element rate override wins; else the first
 //  keyword in MATERIAL then CATEGORY that matches the table; else the project
 //  default knob. Keyword order is most-specific-first so "reinforced concrete"

@@ -51,19 +51,51 @@ namespace StingTools.BOQ
                 // gate actually reflects what the exporter will write.
                 EnsureAllParagraphsResolved(boq, doc);
 
-                // P0.3 — the low-coverage warning is a modal TaskDialog gate. When the
-                // export is driven from the BOQ panel (InlineHost=1) it is skipped: the
-                // panel already shows BOQ Health + coverage live, and the export result
-                // surfaces the "Paragraph coverage" metric, so no information is lost and
-                // no popup interrupts. The modal is kept for ribbon / non-panel callers.
-                bool fromPanel = UI.StingCommandHandler.GetExtraParam("InlineHost") == "1";
-                if (boq.ParagraphCoveragePct < 80 && !fromPanel)
+                // G-14 trap 3 — THE GATE NO LONGER SKIPS THE PANEL PATH.
+                //
+                // It used to: `if (coverage < 80 && !fromPanel)`, justified as "the
+                // panel already shows coverage live, so no information is lost".
+                // Information was not the point. This is a DECISION — export a bill
+                // carrying generic descriptions, or stop and fill them in — and
+                // skipping it answered "export" on the user's behalf, silently, on
+                // the path most exports actually take. A gate that does not run on
+                // the common path is not a gate.
+                //
+                // The gate now also counts SYNTHESISED paragraphs, not just absent
+                // ones. ParagraphCoveragePct counts rows that HAVE a paragraph, and
+                // a fallback sentence has one — so a bill of 4,000 generic sentences
+                // scored 100 % and never reached this dialog at all.
+                int genericRows = (boq.AllItems.Count - boq.ResolvedParagraphCount)
+                                + boq.ParagraphFallbackCount;
+                bool lowCoverage = boq.ParagraphCoveragePct < 80;
+                bool manyFallbacks = boq.AllItems.Count > 0
+                                  && boq.ParagraphFallbackCount * 5 > boq.AllItems.Count;   // >20 %
+
+                if (lowCoverage || manyFallbacks)
                 {
+                    var top = boq.UnresolvedTokenCounts
+                                 .OrderByDescending(kv => kv.Value)
+                                 .ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                                 .Take(10).ToList();
+                    var detail = new System.Text.StringBuilder();
+                    detail.Append($"{genericRows} of {boq.AllItems.Count} items will export with a generic ")
+                          .Append("description that does not describe the element.");
+                    if (boq.ParagraphFallbackCount > 0)
+                        detail.Append($" {boq.ParagraphFallbackCount} of those had a template that could not be filled.");
+                    if (top.Count > 0)
+                    {
+                        detail.Append("\n\nMost common unresolved tokens — each names a parameter worth populating:\n");
+                        foreach (var kv in top)
+                            detail.Append($"   [{kv.Key}] — {kv.Value} row(s)\n");
+                    }
+                    detail.Append("\nOpen the NRM2 templates tab to fill in missing descriptions before exporting.");
+
                     var td = new TaskDialog("BOQ paragraph coverage")
                     {
-                        MainInstruction = $"NRM2 paragraph coverage is only {boq.ParagraphCoveragePct:F0}%",
-                        MainContent = $"{boq.AllItems.Count - boq.ResolvedParagraphCount} of {boq.AllItems.Count} items will export "
-                            + "with a generic fallback description. Open the NRM2 templates tab to fill in missing descriptions before exporting.",
+                        MainInstruction = $"NRM2 paragraph coverage is {boq.ParagraphCoveragePct:F0}%"
+                                        + (manyFallbacks && !lowCoverage
+                                           ? " — but most descriptions are synthesised, not resolved" : ""),
+                        MainContent = detail.ToString(),
                         CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No | TaskDialogCommonButtons.Cancel,
                         DefaultButton = TaskDialogResult.No
                     };
@@ -479,10 +511,135 @@ namespace StingTools.BOQ
         private void BuildAuditTrailSheet(IXLWorksheet ws, BOQDocument boq)
         {
             BannerRow(ws, "Audit Trail — per-item rate source, quantity basis, last-costed timestamp");
+
+            int headerRow = 3;
+
+            // A-3 — links included in the bill, placed more than once, taken off ×1.
+            // Printed ABOVE the per-item table because it is a whole-bill finding: no
+            // individual row is wrong, the bill is simply missing N−1 copies of a
+            // building. Legitimate for a shared reference model placed twice, which is
+            // why it is a visible warning rather than a correction.
+            if (boq.LinkUnderCounts != null && boq.LinkUnderCounts.Count > 0)
+            {
+                int w = 3;
+                ws.Cell(w, 1).Value = "⚠ LINK UNDER-COUNT — these links are placed more than once but taken off ×1";
+                ws.Range(w, 1, w, 12).Merge().Style
+                    .Font.SetBold().Font.SetFontColor(XLColor.White)
+                    .Fill.SetBackgroundColor(XLColor.FromArgb(0xC0, 0x39, 0x2B));
+                w++;
+                string[] uc = { "Link", "Placed", "Taken off", "Rows", "Billed UGX", "Would be UGX", "Shortfall UGX", "Action" };
+                WriteHeader(ws, w, uc);
+                w++;
+                foreach (var u in boq.LinkUnderCounts.OrderByDescending(x => x.ShortfallUGX))
+                {
+                    ws.Cell(w, 1).Value = u.LinkName;
+                    ws.Cell(w, 2).Value = $"×{u.InstanceCount}";
+                    ws.Cell(w, 3).Value = "×1";
+                    ws.Cell(w, 4).Value = u.RowCount;
+                    ws.Cell(w, 5).Value = u.BilledUGX;
+                    ws.Cell(w, 6).Value = u.WouldBeUGX;
+                    ws.Cell(w, 7).Value = u.ShortfallUGX;
+                    ws.Cell(w, 8).Value = "Enable the per-link ×N multiplier if these are distinct buildings; "
+                                        + "ignore if it is one reference model placed more than once.";
+                    ws.Range(w, 1, w, 8).Style.Fill.SetBackgroundColor(XLColor.FromArgb(0xFD, 0xEB, 0xD0));
+                    w++;
+                }
+                w++;   // spacer
+                headerRow = w;
+            }
+
+            // G-14 trap 3 — how many descriptions are synthesised rather than
+            // resolved, and which tokens caused it. Printed here because the
+            // exported workbook is what a QS reads; a warning that lives only in
+            // a dialog the exporter clicked through leaves no trace in the
+            // deliverable.
+            if (boq.ParagraphFallbackCount > 0 || boq.UnresolvedTokenCounts.Count > 0)
+            {
+                int w = headerRow;
+                ws.Cell(w, 1).Value = $"✎ GENERIC DESCRIPTIONS — {boq.ParagraphFallbackCount} row(s) carry a synthesised "
+                                    + "sentence, not a resolved NRM2 template";
+                ws.Range(w, 1, w, 12).Merge().Style
+                    .Font.SetBold().Font.SetFontColor(XLColor.White)
+                    .Fill.SetBackgroundColor(XLColor.FromArgb(0xB9, 0x77, 0x0B));
+                w++;
+
+                string[] th = { "Unresolved token", "Rows affected", "Meaning" };
+                WriteHeader(ws, w, th);
+                w++;
+                foreach (var kv in boq.UnresolvedTokenCounts
+                                     .OrderByDescending(k => k.Value)
+                                     .ThenBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+                                     .Take(10))
+                {
+                    ws.Cell(w, 1).Value = $"[{kv.Key}]";
+                    ws.Cell(w, 2).Value = kv.Value;
+                    ws.Cell(w, 3).Value = "Populate this parameter to resolve these rows' descriptions";
+                    ws.Range(w, 1, w, th.Length).Style.Fill.SetBackgroundColor(XLColor.FromArgb(0xFC, 0xF3, 0xCF));
+                    w++;
+                }
+                if (boq.ParagraphRehydratedCount > 0)
+                {
+                    ws.Cell(w, 1).Value = $"({boq.ParagraphRehydratedCount} row(s) were re-resolved from the live model at export.)";
+                    ws.Range(w, 1, w, 12).Merge();
+                    w++;
+                }
+                w++;   // spacer
+                headerRow = w;
+            }
+
+            // K-4 — elements a user removed from this bill. Printed ABOVE the
+            // per-item table, like the link under-count block, because it is a
+            // statement about what the bill does NOT contain: no row below is
+            // wrong, quantities are simply absent by decision. An exclusion that
+            // shows up nowhere is indistinguishable from a takeoff bug, so the
+            // reason travels with it.
+            if (boq.UserExclusions != null && boq.UserExclusions.Count > 0)
+            {
+                int w = headerRow;
+                int noReason = boq.UserExclusions.Count(x => x.Reason == "(no reason given)");
+
+                ws.Cell(w, 1).Value = $"⊘ EXCLUDED BY USER — {boq.UserExclusions.Count} element(s) removed from this bill"
+                                    + (noReason > 0 ? $"; {noReason} with no reason recorded" : "");
+                ws.Range(w, 1, w, 12).Merge().Style
+                    .Font.SetBold().Font.SetFontColor(XLColor.White)
+                    .Fill.SetBackgroundColor(XLColor.FromArgb(0x7D, 0x3C, 0x98));
+                w++;
+
+                string[] ex = { "Element id", "UniqueId", "Category", "Family", "Type",
+                                "Reason", "Excluded by", "Excluded at", "Source model" };
+                WriteHeader(ws, w, ex);
+                w++;
+                foreach (var x in boq.UserExclusions
+                                     .OrderBy(e => e.Category ?? "")
+                                     .ThenBy(e => e.FamilyName ?? ""))
+                {
+                    ws.Cell(w, 1).Value = x.ElementId;
+                    ws.Cell(w, 2).Value = x.UniqueId;
+                    ws.Cell(w, 3).Value = x.Category;
+                    ws.Cell(w, 4).Value = x.FamilyName;
+                    ws.Cell(w, 5).Value = x.TypeName;
+                    ws.Cell(w, 6).Value = x.Reason;
+                    ws.Cell(w, 7).Value = x.ExcludedBy;
+                    ws.Cell(w, 8).Value = x.ExcludedAt == default(DateTime)
+                        ? "" : x.ExcludedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                    ws.Cell(w, 9).Value = x.SourceModel;
+
+                    // An unjustified exclusion is highlighted rather than hidden —
+                    // at tender "someone removed this once" is not an answer.
+                    ws.Range(w, 1, w, ex.Length).Style.Fill.SetBackgroundColor(
+                        x.Reason == "(no reason given)"
+                            ? XLColor.FromArgb(0xF5, 0xB7, 0xB1)
+                            : XLColor.FromArgb(0xEB, 0xDE, 0xF0));
+                    w++;
+                }
+                w++;   // spacer
+                headerRow = w;
+            }
+
             string[] cols = { "Line ref", "Element id", "UniqueId", "Category", "Family",
                 "Rate source", "Quantity basis", "Rate UGX", "Rate USD", "Last costed", "Snapshot ref", "Confidence" };
-            WriteHeader(ws, 3, cols);
-            int row = 4;
+            WriteHeader(ws, headerRow, cols);
+            int row = headerRow + 1;
             foreach (var it in boq.AllItems)
             {
                 ws.Cell(row, 1).Value = it.BOQLineRef;
@@ -499,8 +656,8 @@ namespace StingTools.BOQ
                 ws.Cell(row, 12).Value = it.RateConfidence;
                 row++;
             }
-            ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
-            ws.SheetView.FreezeRows(3);
+            ws.Range(headerRow, 1, headerRow, cols.Length).SetAutoFilter();
+            ws.SheetView.FreezeRows(headerRow);
         }
 
         private void BuildSnapshotDiffSheet(IXLWorksheet ws, BOQSnapshotDiff diff)
@@ -650,12 +807,33 @@ namespace StingTools.BOQ
                         catch (Exception ex) { StingLog.Warn($"EnsureAllParagraphsResolved: live-resolve {item.RevitElementId}: {ex.Message}"); }
                     }
 
+                    // G-14 trap 3 — record WHICH tokens could not be filled before
+                    // the fallback erases them. This is the actionable half: an
+                    // unresolved token names the parameter worth populating, and
+                    // the histogram ranks them by how much of the bill each fixes.
+                    // The old code discarded this and kept only a count.
+                    if (hasTokens)
+                    {
+                        foreach (System.Text.RegularExpressions.Match m
+                                 in _tokenPattern.Matches(item.ResolvedNRM2Paragraph))
+                        {
+                            string tok = m.Value.Trim('[', ']').Trim();
+                            if (tok.Length == 0) continue;
+                            boq.UnresolvedTokenCounts.TryGetValue(tok, out int c);
+                            boq.UnresolvedTokenCounts[tok] = c + 1;
+                        }
+                    }
+
                     // 2) Deterministic fallback sentence from item fields —
                     // always token-free.
                     item.ResolvedNRM2Paragraph = BuildFallbackParagraph(item);
                     fellBack++;
                 }
             }
+
+            boq.ParagraphRehydratedCount = rehydrated;
+            boq.ParagraphFallbackCount = fellBack;
+
             if (rehydrated > 0 || fellBack > 0)
                 StingLog.Info($"BOQ export: paragraph resolution — {rehydrated} re-resolved from elements, {fellBack} fell back to synthetic sentence.");
         }

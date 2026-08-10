@@ -814,7 +814,9 @@ namespace StingTools.BOQ
                     if (p == null || !p.HasValue) continue;
                     if (p.StorageType == StorageType.String) return p.AsString();
                     if (p.StorageType == StorageType.Integer) return p.AsInteger().ToString(CultureInfo.InvariantCulture);
-                    if (p.StorageType == StorageType.Double) return p.AsDouble().ToString("F2", CultureInfo.InvariantCulture);
+                    // D10 — a BOQ description carrying internal ft3/s is the same leak.
+                    if (p.StorageType == StorageType.Double)
+                        return p.AsValueString() ?? ParameterHelpers.FormatInternalDouble(p);
                     if (p.StorageType == StorageType.ElementId)
                     {
                         var id = p.AsElementId();

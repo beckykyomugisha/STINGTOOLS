@@ -153,10 +153,13 @@ namespace StingTools.BOQ.Takeoff
 
         /// <summary>
         /// Evaluate the rule's quantitySource against the element.
-        /// Returns 1.0 on any failure so a missing parameter doesn't
-        /// crash the whole take-off; the QS sees a flagged confidence.
+        ///
+        /// A-1 — returns NULL when a MEASURED unit (m/m²/m³/kg) has no resolvable
+        /// quantity source, so the caller can mark the line unresolved instead of
+        /// billing it at zero. Count units still fall back to 1.0. A missing
+        /// parameter never crashes the take-off; it now reports instead of hiding.
         /// </summary>
-        public static double EvaluateQuantity(Element el, TakeoffRule rule)
+        public static double? EvaluateQuantity(Element el, TakeoffRule rule)
         {
             if (rule == null) return 1.0;
             if (el == null) return FallbackQuantity(rule);
@@ -216,18 +219,26 @@ namespace StingTools.BOQ.Takeoff
         }
 
         /// <summary>
-        /// WP2 — the "could not measure" fallback. For MEASURED units (m/m²/m³/kg)
-        /// a missing measure is NOT one unit — return 0 (a visible sentinel the
-        /// uncosted-at-risk rollup can catch) instead of a fake 1.0. Count units
-        /// ('each'/'item'/'nr'/'no') legitimately stay 1.
+        /// A-1 — the "could not measure" fallback.
+        ///
+        /// Count units ('each'/'item'/'nr'/'no') legitimately stay 1. For MEASURED
+        /// units (m/m²/m³/kg) this returns NULL, not 0.
+        ///
+        /// WP2 returned 0 here as "a visible sentinel", but 0 is not visible: the
+        /// row still carries a description, a classification, a rate and an NRM2
+        /// section, so it reads as a genuine, cheap item on the bill. Worse, a 0
+        /// is indistinguishable from a quantity that was measured and really is
+        /// zero. Null says "this was never measured", which is a different fact
+        /// and the one the export gate needs. Same reasoning as the G-5 change in
+        /// the formula engine: a failure must not present as a value.
         /// </summary>
-        public static double FallbackQuantity(TakeoffRule rule)
+        public static double? FallbackQuantity(TakeoffRule rule)
         {
             string u = (rule?.Unit ?? "each").Trim().ToLowerInvariant();
             switch (u)
             {
                 case "each": case "item": case "nr": case "no": case "": return 1.0;
-                default: return 0.0;
+                default: return null;   // measured unit with no resolvable source
             }
         }
 

@@ -40,6 +40,7 @@ GROUP	34	Routing
 GROUP	35	SUS_SUSTAINABILITY
 GROUP	36	STING_VIEWPARAMS
 GROUP	37	STING_PLACER
+GROUP	38	STING_FINISH
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1	0
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1	0
@@ -1594,6 +1595,10 @@ PARAM	a1b2c3d4-503e-4a01-b001-000000000162	BLE_ROOM_FINISH_BASE_TXT	TEXT		2	1	Ro
 PARAM	a1b2c3d4-503f-4a01-b001-000000000163	BLE_ROOM_FINISH_CEILING_TXT	TEXT		2	1	Room ceiling finish material	1	0
 PARAM	a1b2c3d4-5040-4a01-b001-000000000164	BLE_ROOM_FINISH_FLOOR_TXT	TEXT		2	1	Room floor finish material	1	0
 PARAM	a1b2c3d4-5041-4a01-b001-000000000165	BLE_ROOM_FINISH_WALL_TXT	TEXT		2	1	Room wall finish material	1	0
+PARAM	a1b2c3d4-5060-4a01-b001-000000000196	BLE_ROOM_FINISH_BASE_COD_TXT	TEXT		2	1	Room base finish code (e.g. SK-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE	1	0
+PARAM	a1b2c3d4-5061-4a01-b001-000000000197	BLE_ROOM_FINISH_CEILING_COD_TXT	TEXT		2	1	Room ceiling finish code (e.g. CL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE	1	0
+PARAM	a1b2c3d4-5062-4a01-b001-000000000198	BLE_ROOM_FINISH_FLOOR_COD_TXT	TEXT		2	1	Room floor finish code (e.g. FL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE	1	0
+PARAM	a1b2c3d4-5063-4a01-b001-000000000199	BLE_ROOM_FINISH_WALL_COD_TXT	TEXT		2	1	Room wall finish code (e.g. WL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE	1	0
 PARAM	a1b2c3d4-5042-4a01-b001-000000000166	BLE_WINDOW_HEAD_HEIGHT_MM	TEXT		2	1	Window head height from floor in mm	1	0
 PARAM	a1b2c3d4-5043-4a01-b001-000000000167	BLE_ELE_LENGTH_M	TEXT		2	1	Element length in metres	1	0
 PARAM	a1b2c3d4-5044-4a01-b001-000000000168	BLE_ELE_VOLUME_CU_M	TEXT		2	1	Element volume in cubic metres	1	0
@@ -1616,7 +1621,6 @@ PARAM	a1b2c3d4-5059-4a01-b001-000000000189	CST_TAG_7_PARA_CONC_TXT	TEXT		2	1	TAG
 PARAM	a1b2c3d4-505a-4a01-b001-000000000190	PLM_TAG_7_PARA_EQUIP_TXT	TEXT		6	1	TAG7 paragraph container for plumbing equipment	1	0
 PARAM	a1b2c3d4-505b-4a01-b001-000000000191	PRJ_PROJECT_COD_TXT	TEXT		13	1	ISO 19650 project code	1	0
 PARAM	a1b2c3d4-505c-4a01-b001-000000000192	PRJ_ORIGINATOR_COD_TXT	TEXT		13	1	ISO 19650 originator code	1	0
-PARAM	a1b2c3d4-505d-4a01-b001-000000000193	PRJ_VOLUME_COD_TXT	TEXT		13	1	ISO 19650 volume code	1	0
 PARAM	a1b2c3d4-505e-4a01-b001-000000000194	PRJ_STATUS_COD_TXT	TEXT		13	1	ISO 19650 document status code	1	0
 PARAM	a1b2c3d4-505f-4a01-b001-000000000195	PRJ_REV_COD_TXT	TEXT		13	1	ISO 19650 revision code	1	0
 # ==========================================================================
@@ -2472,9 +2476,6 @@ PARAM	3bb5edc1-54f9-56ff-92c9-405a8dde646c	PRJ_TB_LOGO_PATH_TXT	TEXT		13	1	File 
 PARAM	1817eeb3-4c56-50c2-b386-6b3be3d98fc4	PRJ_TB_LAST_SYNC_TXT	TEXT		13	1	ISO 8601 datetime of last sync to Planscape Server for this sheet [ISO 19650-2:2018]	0	0
 PARAM	eb514ec7-6636-5987-9667-8e85c31a8f85	PRJ_TB_LAST_SYNC_BY_TXT	TEXT		13	1	Username who triggered the last Planscape Server sync [ISO 19650-2:2018]	0	0
 PARAM	74c9d75f-840c-5263-9acf-8fecf80ec6aa	PRJ_TB_LOCK_BOOL	YESNO		13	1	When true, prevents TitleBlockParamApplier from overwriting manually set values on this sheet [ISO 19650-1:2018]	1	0
-PARAM	8dd6b517-7173-5a8d-b951-a08807fed830	PRJ_TB_SHOW_KEYPLAN_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]	1	0
-PARAM	fa841ad5-15e1-5ec2-91bc-a69d70cf9c42	PRJ_TB_SHOW_SCALEBAR_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_SCALE_BAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]	1	0
-PARAM	58c6e51f-6f22-546b-ac02-086ab6f6fbbf	PRJ_TB_SHOW_NORTHARROW_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]	1	0
 PARAM	483f47d7-a6cd-5fa7-bfde-ff2ab6e43178	PRJ_TB_SHOW_DISCBAND_BOOL	YESNO		13	1	LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]	1	0
 PARAM	624563ac-3067-5990-ba13-a4d750e9ffc2	PRJ_TB_SCALE_OVERRIDE_TXT	TEXT		13	1	Override scale label shown on title block (e.g. "NTS", "1:100"). Empty = use view scale. [ISO 19650-1:2018]	1	0
 PARAM	a3408dee-9ced-5ccd-970c-0958bcc713a9	PRJ_TB_ISSUE_SUMMARY_TXT	TEXT		13	1	Short free-text summary of the issue purpose (e.g. "For Construction") [ISO 19650-1:2018]	1	0
@@ -3446,6 +3447,8 @@ PARAM	114852b0-7002-5680-80cd-930f91e8250b	MAT_COST_SUPPLY_NR	NUMBER		12	1	Mater
 PARAM	0621af78-0fbf-540e-9e6d-61df9925ae90	MAT_COST_INSTALL_NR	NUMBER		12	1	Material install unit cost (labour and plant) [Material Manager RFQ]	1	0
 PARAM	9794f566-efc2-5622-a23f-9e65e117eb48	MAT_VAT_PCT_NR	NUMBER		12	1	Material VAT percentage applied to supply and install [Material Manager RFQ]	1	0
 PARAM	800e0d61-f88d-5071-bc87-0c4ca3e51243	STING_EMB_CARBON_NR	NUMBER		12	1	Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon]	1	0
+PARAM	ae43ffaf-3d3d-5785-b279-427012125f17	STING_EMB_CARBON_FOSSIL_NR	NUMBER		12	1	Embodied carbon kgCO2e per unit, fossil fraction, A1-A3 GWP [Sustainability Carbon]	1	0
+PARAM	6e28ba35-e0b8-505e-a029-9cdd8b088ad2	STING_EMB_CARBON_BIOGENIC_NR	NUMBER		12	1	Embodied carbon kgCO2e per unit, biogenic fraction, A1-A3 GWP [Sustainability Carbon]	1	0
 PARAM	2776ca48-33b8-57a8-b2a6-ee982e442767	STING_MAT_EPD_SRC_TXT	TEXT		12	1	EPD data source / publisher reference [Sustainability Carbon]	1	0
 PARAM	c02ad751-5de9-50cc-a018-d7469595f8cf	STING_MAT_EPD_DATE_TXT	TEXT		12	1	EPD publication / validity date ISO 8601 [Sustainability Carbon]	1	0
 PARAM	e5455edb-f4f9-5585-a65e-363aa31f0b59	STING_MAT_LIFECYCLE_TXT	TEXT		12	1	Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager]	1	0
@@ -3486,3 +3489,10 @@ PARAM	5e189877-e121-53f8-ac57-849685c272e6	STING_PLACER_ASSY_ID_TXT	TEXT		37	1	S
 PARAM	091ab7ea-32fc-57dd-94e4-89a0af05c31c	STING_PLACER_MEMBER_ID_TXT	TEXT		37	1	Source assembly-member element id for the placed symbol [Symbols]	1	0
 PARAM	f44c8c2c-5981-517e-91e0-2a1c2970a74d	STING_PLACER_SYMBOL_CODE_TXT	TEXT		37	1	Resolved symbol code stamped on the placed symbol [Symbols]	1	0
 PARAM	e2b1686a-8c6a-5db8-ba02-144add1cc43f	STING_PLACER_VIEW_ID_TXT	TEXT		37	1	View id where the symbol was placed (per-view idempotency) [Symbols]	1	0
+PARAM	5e4ca8e4-f098-57f8-8829-7fb8353f9536	STING_FINISH_SRC_ROOM_ID_TXT	TEXT		38	1	Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]	1	0
+PARAM	c914565f-e02b-5c67-b9b6-c086cc17d2cf	STING_FINISH_CODE_TXT	TEXT		38	1	Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]	1	0
+PARAM	8dfccc8d-fd49-5bc5-9989-e0537a632a51	UNICLASS_PR_TXT	TEXT		1	1	Uniclass 2015 Products (Pr_) classification code, e.g. Pr_30_59_24 -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]	1	0
+PARAM	56d504fd-7f0f-51bd-b1cc-1f38ed9cdfd9	UNICLASS_SS_TXT	TEXT		1	1	Uniclass 2015 Systems (Ss_) classification code, e.g. Ss_25_10 -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]	1	0
+PARAM	40adcf6e-4d27-5f38-abd8-d2a92cbef48f	UNICLASS_EF_TXT	TEXT		1	1	Uniclass 2015 Elements/Functions (EF_) classification code -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]	1	0
+PARAM	7dd1529e-886b-56b5-96fa-d023f03b6a32	NBS_CODE_TXT	TEXT		1	1	NBS specification clause reference for this type -- read by ClassificationReader as a classification fallback [NBS]	1	0
+PARAM	8c96dd6c-13ec-5f34-9caa-a0d9de7abd19	ASSET_RFI_URL_TXT	TEXT		1	1	URL to the asset's RFI / product data record -- read per instance by ClassificationReader	1	0
