@@ -1175,6 +1175,35 @@ Point `BOQQsExport` / `BOQQsImport` at the book and the loop closes: export to E
 
 ---
 
+## K-10 · 🟠 P1 · The ISO 19650 file-name builder emits eight segments; the standard is seven
+
+`BIMManagerCommands.cs:3529` builds:
+
+```csharp
+return $"{project}-{originator}-{volume}-{level}-{type}-{role}-{classification}-{number}";
+```
+
+That is **eight** fields. `CLAUDE.md`, this project's naming standard, and BS EN ISO 19650-2 §A.5 as implemented by the UK BIM Framework all specify **seven** for a model or drawing file:
+
+```
+PROJ-ORIG-VOL-LVL-TYPE-ROLE-NUM
+```
+
+`classification` sits between `role` and `number` and has no counterpart in the seven-field form. Anything generated through this builder therefore carries an extra segment against every hand-named file on the same project, and the two will not sort, match or parse together.
+
+**Why it matters here.** Kibale's naming standard is seven fields (`KBL26-PLN-COT01-ZZ-M3-A-0001`). A transmittal or register row minted by this builder produces an eight-field name for the same document. A register keyed on file name then holds two spellings of one deliverable, and neither the CDE nor the drawing register will reconcile them.
+
+**Resolution, in order of preference:**
+
+1. **Make the classification segment optional and default it off.** When empty, emit seven fields with no double separator. This preserves the builder for projects that have adopted Uniclass without breaking those that have not — and it is the only option that does not force a decision on D9 before a file can be named.
+2. If classification must always be present, the project standard and `CLAUDE.md` both change to eight, and `XX` becomes the explicit "unclassified" value. This is worse: it puts a placeholder in every file name on every project that never adopts a classification system.
+
+**Do not resolve this by typing an eighth field by hand.** The conflict is between a code path and a written standard; hand-editing file names hides it rather than closing it.
+
+**Related.** The `{vol}` field has its own defect — F-7, it comes from the drawing type's JSON profile rather than the element's LOC, so with eleven buildings it cannot distinguish them. And `{lvl}` has no profile fallback — K-7. All three are in the same builder path and should be fixed together.
+
+---
+
 # Part I — Fix order
 
 Eight things, ordered by damage-per-hour-of-work.
