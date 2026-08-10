@@ -160,6 +160,37 @@ def analyse(root=PLUGIN, declared=None, bound=None):
     return hits, undeclared, unbound
 
 
+# --- 2.2d: near-duplicate NAME detection -------------------------------------
+# Phase 112 minted a whole PRJ_ORG_* set alongside an existing PRJ_* set with the
+# same meaning and a different GUID scheme (hand-minted a1b2c3d4-... vs UUIDv5),
+# and nothing flagged it. The result was two live spellings per concept, each read
+# by a different layer, and a binder that shipped whichever half nobody read.
+#
+# GUIDs cannot detect this — that is exactly the point: two spellings of one
+# concept have DIFFERENT GUIDs by construction. Only the names collide.
+
+AFFIXES = ("_TXT", "_BOOL", "_INT", "_DBL", "_COD", "_CODE", "_NR", "_NUM", "_ID")
+INFIXES = ("ORG_", "PRJ_", "STING_")
+
+
+def normalise_concept(name):
+    """Reduce a parameter name to its concept, so spellings of one idea collide."""
+    n = name
+    for a in AFFIXES:
+        while n.endswith(a):
+            n = n[: -len(a)]
+    for i in INFIXES:
+        n = n.replace(i, "")
+    return n.replace("_", "").upper()
+
+
+def find_near_duplicates(declared):
+    groups = collections.defaultdict(set)
+    for name in declared:
+        groups[normalise_concept(name)].add(name)
+    return {k: sorted(v) for k, v in groups.items() if len(v) > 1}
+
+
 def read_baseline():
     try:
         with open(BASELINE, encoding="utf-8") as fh:
@@ -228,6 +259,7 @@ def main():
 
     hits, undeclared, unbound = analyse()
     total = len(undeclared) + len(unbound)
+    dupes = find_near_duplicates(load_declared())
 
     print("=" * 72)
     print("Parameter readership gate")
@@ -236,6 +268,16 @@ def main():
     print(f"  UNDECLARED (not in MR_PARAMETERS.txt)      : {len(undeclared)}")
     print(f"  UNBOUND    (declared, no binding row)      : {len(unbound)}")
     print(f"  total violations                            : {total}")
+    print(f"  near-duplicate concepts (reported only)     : {len(dupes)}")
+
+    if "--duplicates" in sys.argv:
+        print("\n--- NEAR-DUPLICATE NAMES: one concept, several spellings ---")
+        print("Standing rule: a new subsystem must NOT mint a shared parameter for a")
+        print("concept that already has one, regardless of GUID scheme.\n")
+        for concept in sorted(dupes):
+            print(f"  {concept}")
+            for n in dupes[concept]:
+                print(f"      {n}")
 
     if "--report" in sys.argv:
         for title, group in (("UNDECLARED", undeclared), ("UNBOUND", unbound)):

@@ -17661,3 +17661,4 @@ PRJ_TB_SHOW_SCALE_BAR_BOOL,Project Information,Instance,True
 PRJ_TEMPLATE_PROFILE_TXT,Project Information,Instance,True
 PRJ_TRACE_TOLERANCE_PCT,Project Information,Instance,True
 PRJ_VOLUME_CODE,Project Information,Instance,True
+PRJ_ORIGINATOR_COD_TXT,Project Information,Instance,True
