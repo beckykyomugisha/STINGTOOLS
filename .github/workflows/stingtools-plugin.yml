@@ -76,6 +76,13 @@ jobs:
       - name: Parameter readership gate
         run: python3 tools/validate_param_readership.py
 
+      # D.1 — a public static map or predicate in Core that NOTHING calls is a
+      # mechanism that cannot fire. Seven such defects this workstream, the last
+      # of which (ResolveLpsFunc) invalidated a decision that had already been
+      # made. Ratcheted: the count may fall, never rise.
+      - name: Declared-but-uncalled gate
+        run: python3 tools/validate_declared_but_uncalled.py
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #

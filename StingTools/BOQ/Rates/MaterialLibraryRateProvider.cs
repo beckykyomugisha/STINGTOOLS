@@ -25,6 +25,32 @@ namespace StingTools.BOQ.Rates
         public int Priority => 95;
         public bool RequiresNetwork => false;
 
+        /// <summary>
+        /// D9 — a rate with no unit is not a rate.
+        /// <para>
+        /// Both tiers below used to fall back to "each" when the unit was unknown, so a
+        /// per-m² material silently billed per item. That is exactly what produced two
+        /// block families at UGX 2,220 and UGX 96,200 with nothing to say which was
+        /// which: 213 of the 1,279 library rows carry a RATE and a NULL
+        /// MAT_COST_UNIT_OF_MEASURE.
+        /// </para>
+        /// <para>
+        /// Returns null rather than guessing — A-1/H-1: never emit a number you could
+        /// not measure. The caller drops to the next provider, and the miss is counted
+        /// so the gap is visible instead of priced.
+        /// </para>
+        /// </summary>
+        private static bool UnitIsKnown(RateRequest req, string matName, out string unit)
+        {
+            unit = req?.Unit;
+            if (!string.IsNullOrWhiteSpace(unit)) return true;
+            StingLog.WarnRateLimited("MatLibRate.NoUnit",
+                $"Material '{matName}' has a rate but NO unit of measure. Refusing to price it "
+              + "rather than defaulting to 'each' — a per-m2 rate billed per item is the "
+              + "UGX 2,220 vs 96,200 defect. Populate MAT_COST_UNIT_OF_MEASURE.");
+            return false;
+        }
+
         public RateLookup Resolve(RateRequest req)
         {
             if (req?.Element == null) return null;
@@ -62,6 +88,7 @@ namespace StingTools.BOQ.Rates
                             double v = cp.AsDouble();
                             if (v > 0)
                             {
+                                if (!UnitIsKnown(req, matName, out string t1Unit)) return null;   // D9
                                 MaterialRateMissLog.RecordHit();
                                 return new RateLookup
                                 {
@@ -94,7 +121,7 @@ namespace StingTools.BOQ.Rates
                                     // material creation (gap E-12), which is not this pass.
                                     UnitRate = v,
                                     CurrencyCode = "USD",
-                                    Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                                    Unit = t1Unit,
                                     SourceId = Id,
                                     Confidence = 95,
                                     Provenance = $"Material '{mat.Name}' ALL_MODEL_COST (live, MAT panel)",
@@ -110,6 +137,7 @@ namespace StingTools.BOQ.Rates
                 double libVal = StingTools.UI.MaterialLookupCsv.GetCost(matName);
                 if (libVal > 0)
                 {
+                    if (!UnitIsKnown(req, matName, out string t2Unit)) return null;   // D9
                     MaterialRateMissLog.RecordHit();
                     return new RateLookup
                     {
@@ -122,7 +150,7 @@ namespace StingTools.BOQ.Rates
                         // cost column is actually added.
                         UnitRate = libVal,
                         CurrencyCode = "UGX",
-                        Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                        Unit = t2Unit,
                         SourceId = Id,
                         Confidence = 90,
                         Provenance = $"Material '{matName}' MATERIAL_LOOKUP.csv (corporate)",
