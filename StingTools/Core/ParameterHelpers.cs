@@ -147,6 +147,37 @@ namespace StingTools.Core
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
         /// Exposed as `internal` so sibling classes in this file (NativeParamMapper,
         /// TagPipelineHelper, SpatialAutoDetect, ...) can share the same cache.</summary>
+        /// <summary>
+        /// D10 — render a Double parameter in PROJECT units when AsValueString() is
+        /// unavailable (it returns null for parameters with no unit symbol, and for
+        /// some computed/read-only parameters).
+        /// <para>
+        /// Falls back to the raw internal value ONLY when the parameter declares no
+        /// unit type — an unitless double is already its own value. Anything else is
+        /// converted, because emitting internal feet/ft3-per-second onto a drawing is
+        /// the defect this exists to stop.
+        /// </para>
+        /// </summary>
+        internal static string FormatInternalDouble(Parameter p)
+        {
+            double raw = 0;
+            try { raw = p.AsDouble(); }
+            catch (Exception ex) { StingLog.Warn($"FormatInternalDouble AsDouble: {ex.Message}"); return string.Empty; }
+            try
+            {
+                var spec = p.Definition?.GetDataType();
+                if (spec != null && UnitUtils.IsMeasurableSpec(spec))
+                {
+                    var unit = p.GetUnitTypeId();
+                    if (unit != null)
+                        return UnitUtils.ConvertFromInternalUnits(raw, unit).ToString("0.###");
+                }
+            }
+            catch (Exception ex)
+            { StingLog.WarnRateLimited("FormatInternalDouble", $"unit conversion for '{p.Definition?.Name}': {ex.Message}"); }
+            return raw.ToString("0.###");
+        }
+
         internal static Parameter CachedLookup(Element el, string paramName)
         {
             string docKey = GetStableDocKey(el.Document);
@@ -231,7 +262,17 @@ namespace StingTools.Core
                 case StorageType.String:
                     return p.AsString() ?? string.Empty;
                 case StorageType.Double:
-                    return p.AsValueString() ?? p.AsDouble().ToString("0.###");
+                    // D10 — AsValueString() is PROJECT units ("25.00 L/s"). AsDouble()
+                    // is Revit INTERNAL units, and using it as the fallback leaked them
+                    // straight onto a drawing: a tag rendered Flow:0.882867 for an
+                    // element whose Air Flow is 25.00 L/s — 25 / 28.3168, i.e. ft3/s.
+                    //
+                    // Convert through the parameter's OWN unit type rather than a
+                    // hardcoded factor. Parameter.AsDouble() is always internal for a
+                    // Revit parameter, so this is the inverse of the ThermalConductivity
+                    // trap (where the value was already SI and converting corrupted it).
+                    // Here the value is genuinely internal and NOT converting corrupts it.
+                    return p.AsValueString() ?? FormatInternalDouble(p);
                 case StorageType.Integer:
                     return p.AsInteger().ToString();
                 case StorageType.ElementId:

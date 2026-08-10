@@ -2791,14 +2791,26 @@ namespace StingTools.Core
                 }
                 else
                 {
-                    // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
-                    // Tier 1 content is visible in tag families after tagging)
+                    // D11 — shipped tier-gate defaults: tiers 1 and 2 ON, 3..10 OFF.
+                    // Tier 1 alone renders an identity code with no context; tier 2 adds
+                    // the material/system line a reviewer needs to recognise what the
+                    // tag is on. Tiers 3+ stay off so a stock tag is readable.
                     ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                    ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_2, true);
                 }
 
-                // TAG_WARN_VISIBLE_BOOL = No (default off — prevents expensive per-element
-                // warning evaluation on every WriteTag7All call for large models)
-                ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, false);
+                // D11 — TAG_WARN_VISIBLE_BOOL = Yes.
+                //
+                // It shipped OFF "to avoid expensive per-element warning evaluation",
+                // which silently disabled the warning surface entirely: the tag
+                // completeness enforcement added under G-42 counts and reports incomplete
+                // tags, and the operator could never SEE any of it on the drawing because
+                // the family's warning row was gated off by default.
+                //
+                // A check whose output is invisible is the same defect as a check nobody
+                // calls (G-48). Cost is a per-element evaluation on WriteTag7All; the
+                // alternative was silence.
+                ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, true);
 
                 // TAG_7_SECTION_VISIBLE_A-F and default tag style: resolve the active
                 // ViewStylePack once so both features share the same lookup overhead.

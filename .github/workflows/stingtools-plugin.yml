@@ -83,6 +83,13 @@ jobs:
       - name: Declared-but-uncalled gate
         run: python3 tools/validate_declared_but_uncalled.py
 
+      # D.2 — two owners for one quantity. Three narrow checks, three counts:
+      # two formulas computing one output; one parameter written from two C#
+      # files; a formula output a C# path also writes. Five such defects were
+      # found by accident (G-15, G-34, G-35, G-44, the two binders).
+      - name: Dual-owner gate
+        run: python3 tools/validate_dual_owner.py
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #

@@ -286,7 +286,10 @@ namespace StingTools.Core.Drawing
                 {
                     case StorageType.String:  return p.AsString() ?? string.Empty;
                     case StorageType.Integer: return p.AsInteger().ToString();
-                    case StorageType.Double:  return p.AsDouble().ToString("0.###");
+                    // D10 — internal units must not reach a title block. Same leak as
+                    // the Flow:0.882867 tag; shares ParameterHelpers' converter rather
+                    // than repeating the logic.
+                    case StorageType.Double:  return p.AsValueString() ?? ParameterHelpers.FormatInternalDouble(p);
                     default:                  return p.AsValueString() ?? string.Empty;
                 }
             }
