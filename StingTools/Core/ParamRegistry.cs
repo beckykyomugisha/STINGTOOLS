@@ -2239,9 +2239,35 @@ namespace StingTools.Core
 
         private static void LoadExtendedParams(JObject root)
         {
-            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+            // G-51: OVERLAY, do not replace. This method used to open with
+            //     _extendedParams = new Dictionary<...>();
+            // which discarded the 260 defaults LoadDefaults() had just set and left
+            // only what the JSON happened to carry — 17 keys. Every other Ext() key
+            // then resolved to "" (see Ext), so the product behaved BETTER with
+            // PARAMETER_REGISTRY.json absent than present. Measured live: ~25
+            // "key 'DOOR_FUNC' not found" warnings in a single Tag & Combine run,
+            // for a key assigned in code at LoadDefaults but not present in the JSON.
+            //
+            // Corporate baseline + project override is the pattern used by
+            // AecFilterRegistry, MepSizingRegistry and DrawingTypeRegistry. This is
+            // the same shape: code defaults are the baseline, the JSON overrides by
+            // key, and a key the JSON omits keeps its default rather than vanishing.
+            // Seed the compiled baseline first. LoadDefaults() runs ONLY on failure
+            // paths (file missing :1948, parse error :1972, exception :2236), so on
+            // the success path nothing had ever set these.
+            if (_extendedParams == null || _extendedParams.Count == 0)
+                SeedExtendedParamDefaults();
+
+            int before = _extendedParams.Count;
+            int overridden = 0, added = 0;
+
             var ext = root["extended_params"] as JObject;
-            if (ext == null) return;
+            if (ext == null)
+            {
+                // No section at all is legitimate — the defaults stand.
+                StingLog.Info($"ParamRegistry: extended_params absent from JSON; keeping {before} code defaults");
+                return;
+            }
 
             foreach (var group in ext)
             {
@@ -2251,10 +2277,15 @@ namespace StingTools.Core
                 {
                     string key = item["key"]?.ToString();
                     string paramName = item["param_name"]?.ToString();
-                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(paramName))
-                        _extendedParams[key] = paramName;
+                    if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(paramName)) continue;
+
+                    if (_extendedParams.ContainsKey(key)) overridden++; else added++;
+                    _extendedParams[key] = paramName;
                 }
             }
+
+            StingLog.Info($"ParamRegistry: extended_params — {before} defaults, " +
+                          $"{overridden} overridden, {added} added, {_extendedParams.Count} total");
         }
 
         /// <summary>
@@ -2551,6 +2582,283 @@ namespace StingTools.Core
                 { "line2", new[] {4,5,6,7} },
             };
 
+            // G-51: seeded via SeedExtendedParamDefaults so the JSON loader can
+            // overlay these rather than replace them.
+            SeedExtendedParamDefaults();
+
+            ContainerGroups = Array.Empty<ContainerGroupDef>();
+            UniversalParams = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+                "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
+                "ASS_TAG_SCHEME_TXT", "ASS_LOD_VERIFIED_TXT",
+                "CSI_SECTION_TXT", "CSI_TITLE_TXT", "FOHLIO_REF_TXT",
+            };
+
+            // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.
+            // Without this, _guidByName stays null → AllParamGuids returns empty dict →
+            // all GUID lookups fail → compliance scan fails → commands that check GUIDs crash.
+            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+            _nameByGuid = new Dictionary<Guid, string>();
+            foreach (var tok in SourceTokens)
+            {
+                if (Guid.TryParse(tok.GuidStr, out Guid g))
+                {
+                    _guidByName[tok.ParamName] = g;
+                    _nameByGuid[g] = tok.ParamName;
+                }
+            }
+
+            // CRASH FIX: Initialize CategoryEnumMap with all taggable categories
+            // plus the tag-family aliases produced by TagFamilyCreatorCommand
+            // (count: TagFamilyConfig.TotalFamilyCount at runtime).
+            // Without this, ResolveUniversalCategoryEnums() returns empty array →
+            // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
+            // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
+            // The Tag Categories sub-tab in the dockable panel reads from this map.
+            CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Air Terminals", "OST_DuctTerminal" },
+                { "Analytical Duct Segments", "OST_AnalyticalDuctSegments" },
+                { "Analytical Links", "OST_AnalyticalLinks" },
+                { "Analytical Members", "OST_AnalyticalMember" },
+                { "Analytical Nodes", "OST_AnalyticalNodes" },
+                { "Analytical Openings", "OST_AnalyticalOpenings" },
+                { "Analytical Panels", "OST_AnalyticalPanels" },
+                { "Analytical Pipe Segments", "OST_AnalyticalPipeSegments" },
+                { "Area Based Loads", "OST_AreaLoads" },
+                { "Area Loads", "OST_AreaLoads" },
+                { "Areas", "OST_Areas" },
+                { "Assemblies", "OST_Assemblies" },
+                { "Audio Visual Devices", "OST_AudioVisualDevices" },
+                { "Boundary Conditions", "OST_BoundaryConditions" },
+                { "Cable Tray Fittings", "OST_CableTrayFitting" },
+                { "Cable Tray Runs", "OST_CableTrayRun" },
+                { "Cable Trays", "OST_CableTray" },
+                { "Casework", "OST_Casework" },
+                { "Ceilings", "OST_Ceilings" },
+                { "Columns", "OST_Columns" },
+                { "Communication Devices", "OST_CommunicationDevices" },
+                { "Conduit Fittings", "OST_ConduitFitting" },
+                { "Conduit Runs", "OST_ConduitRun" },
+                { "Conduits", "OST_Conduit" },
+                { "Coordination Model", "OST_CoordinationModel" },
+                { "Curtain Panels", "OST_CurtainWallPanels" },
+                { "Curtain Wall Mullions", "OST_CurtainWallMullions" },
+                { "Curtain Systems", "OST_Curtain_Systems" },
+                { "Data Devices", "OST_DataDevices" },
+                { "Detail Items", "OST_DetailComponents" },
+                { "Doors", "OST_Doors" },
+                { "Duct Accessories", "OST_DuctAccessory" },
+                { "Duct Fittings", "OST_DuctFitting" },
+                { "Duct Insulation", "OST_DuctInsulations" },
+                { "Duct Lining", "OST_DuctLinings" },
+                { "Duct Placeholders", "OST_PlaceHolderDucts" },
+                { "Ducts", "OST_DuctCurves" },
+                { "Electrical Circuits", "OST_ElectricalCircuit" },
+                { "Electrical Connectors", "OST_ElectricalConnectors" },
+                { "Electrical Equipment", "OST_ElectricalEquipment" },
+                { "Electrical Spare/Space Circuits", "OST_ElectricalInternalCircuits" },
+                { "Electrical Fixtures", "OST_ElectricalFixtures" },
+                { "Entourage", "OST_Entourage" },
+                { "Fascia", "OST_Fascia" },
+                { "Fire Alarm Devices", "OST_FireAlarmDevices" },
+                { "Fire Protection", "OST_FireProtection" },
+                { "Flex Ducts", "OST_FlexDuctCurves" },
+                { "Flex Pipes", "OST_FlexPipeCurves" },
+                { "Floors", "OST_Floors" },
+                { "Food Service Equipment", "OST_FoodServiceEquipment" },
+                { "Furniture", "OST_Furniture" },
+                { "Furniture Systems", "OST_FurnitureSystems" },
+                { "Generic Models", "OST_GenericModel" },
+                { "Gutter", "OST_Gutter" },
+                { "HVAC Zones", "OST_HVAC_Zones" },
+                { "Handrails", "OST_StairsRailingHandRail" },
+                { "Hardscape", "OST_Hardscape" },
+                { "Internal Area Loads", "OST_InternalAreaLoads" },
+                { "Internal Line Loads", "OST_InternalLineLoads" },
+                { "Internal Point Loads", "OST_InternalPointLoads" },
+                { "Lighting Devices", "OST_LightingDevices" },
+                { "Lighting Fixtures", "OST_LightingFixtures" },
+                { "Line Loads", "OST_LineLoads" },
+                { "MEP Ancillary", "OST_MechanicalEquipment" },
+                { "MEP Fabrication Containment", "OST_FabricationContainment" },
+                { "MEP Fabrication Ductwork", "OST_FabricationDuctwork" },
+                { "MEP Fabrication Ductwork Stiffeners", "OST_FabricationDuctworkStiffeners" },
+                { "MEP Fabrication Hangers", "OST_FabricationHangers" },
+                { "MEP Fabrication Pipework", "OST_FabricationPipework" },
+                { "Mass", "OST_Mass" },
+                // NOTE: OST_Materials intentionally EXCLUDED — materials use native Revit
+                // properties (Color, Transparency, ThermalAsset, StructuralAsset) set via
+                // MaterialCommands.cs, NOT shared parameter bindings.
+                { "Mechanical Control Devices", "OST_MechanicalControlDevices" },
+                { "Mechanical Equipment", "OST_MechanicalEquipment" },
+                { "Mechanical Equipment Sets", "OST_MechanicalEquipmentSets" },
+                { "Medical Equipment", "OST_MedicalEquipment" },
+                { "Model Groups", "OST_IOSModelGroups" },
+                { "Nurse Call Devices", "OST_NurseCallDevices" },
+                { "Pads", "OST_BuildingPad" },
+                { "Parking", "OST_Parking" },
+                { "Parts", "OST_Parts" },
+                { "Pipe Accessories", "OST_PipeAccessory" },
+                { "Pipe Fittings", "OST_PipeFitting" },
+                { "Pipe Insulation", "OST_PipeInsulations" },
+                { "Pipe Placeholders", "OST_PlaceHolderPipes" },
+                { "Pipes", "OST_PipeCurves" },
+                { "Piping Systems", "OST_PipingSystem" },
+                { "Planting", "OST_Planting" },
+                { "Plumbing Equipment", "OST_PlumbingEquipment" },
+                { "Plumbing Fixtures", "OST_PlumbingFixtures" },
+                { "Point Loads", "OST_PointLoads" },
+                { "Profiles", "OST_ProfileFamilies" },
+                { "Property Line Segments", "OST_SitePropertyLineSegment" },
+                { "Property Lines", "OST_SiteProperty" },
+                { "RVT Links", "OST_RvtLinks" },
+                { "Railings", "OST_StairsRailing" },
+                { "Ramps", "OST_Ramps" },
+                { "Revision Clouds", "OST_RevisionClouds" },
+                { "Roads", "OST_Roads" },
+                { "Roof Soffits", "OST_RoofSoffit" },
+                { "Roofs", "OST_Roofs" },
+                { "Rooms", "OST_Rooms" },
+                { "Shaft Openings", "OST_ShaftOpening" },
+                { "Security Devices", "OST_SecurityDevices" },
+                { "Signage", "OST_Signage" },
+                { "Site", "OST_Site" },
+                { "Slab Edges", "OST_EdgeSlab" },
+                { "Spaces", "OST_MEPSpaces" },
+                { "Specialty Equipment", "OST_SpecialityEquipment" },
+                { "Sprinklers", "OST_Sprinklers" },
+                { "Stair Landings", "OST_StairsLandings" },
+                { "Stair Runs", "OST_StairsRuns" },
+                { "Stair Supports", "OST_StairsSupports" },
+                { "Stairs", "OST_Stairs" },
+                { "Structural Area Reinforcement", "OST_AreaRein" },
+                { "Structural Beam Systems", "OST_StructuralFramingSystem" },
+                { "Structural Columns", "OST_StructuralColumns" },
+                { "Structural Connections", "OST_StructConnections" },
+                { "Structural Fabric Reinforcement", "OST_FabricReinforcement" },
+                { "Structural Foundations", "OST_StructuralFoundation" },
+                { "Structural Framing", "OST_StructuralFraming" },
+                { "Structural Path Reinforcement", "OST_PathRein" },
+                { "Structural Rebar", "OST_Rebar" },
+                { "Structural Load Cases", "OST_LoadCases" },
+                { "Structural Rebar Couplers", "OST_RebarCoupler" },
+                { "Structural Stiffeners", "OST_StructuralStiffener" },
+                { "Structural Trusses", "OST_StructuralTruss" },
+                { "Telephone Devices", "OST_TelephoneDevices" },
+                { "Temporary Structures", "OST_TemporaryStructure" },
+                { "Top Rails", "OST_RailingTopRail" },
+                { "Toposolid", "OST_Toposolid" },
+                { "Toposolid Links", "OST_Toposolid" },
+                { "Vertical Circulation", "OST_VerticalCirculation" },
+                { "Vibration Dampers", "OST_VibrationDampers" },
+                { "Vibration Isolators", "OST_VibrationIsolators" },
+                { "Vibration Management", "OST_VibrationManagement" },
+                { "Wall Sweeps", "OST_WallSweeps" },
+                { "Walls", "OST_Walls" },
+                { "Wash", "OST_Planting" },
+                { "Windows", "OST_Windows" },
+                { "Wire", "OST_Wire" },
+                { "Zones", "OST_Zones" },
+
+                // ════════════════════════════════════════════════════════════════
+                // TAG-FAMILY-CREATOR ALIGNMENT (Phase 78 follow-up)
+                //
+                // The CreateTagFamilies command in Tags/TagFamilyCreatorCommand.cs
+                // creates 137 .rfa tag families: 121 unique BuiltInCategory bases
+                // plus 16 variants (8 tie-in + 3 sheet + 4 structural + 1 MEP).
+                //
+                // The 13 base entries below cover BICs that the TagFamilyCreator
+                // produces but were missing from the original 124-entry map. Some
+                // are alias enums (Revit ships overlapping enum names for the same
+                // category — e.g. OST_Cornices and OST_WallSweeps both resolve to
+                // "Wall Sweeps"). Adding both keys is safe because BuildCategorySet
+                // uses CategorySet.Insert which dedupes by Category.Id.
+                //
+                // The 16 variant display names share their BIC with an existing
+                // base entry. They surface in the Tag Categories sub-tab so the
+                // checkbox count matches the tag families a coordinator has
+                // just created (TagFamilyConfig.TotalFamilyCount at runtime).
+                //
+                // CATEGORY_SKIP semantic note: skipping a variant entry (e.g.
+                // "Floors (Structural)") via the runtime element-category filter
+                // also skips its base ("Floors") because Revit reports the base
+                // category at element level. Variants are presented for parity
+                // with the tag-family list, not for independent runtime gating.
+                // ════════════════════════════════════════════════════════════════
+
+                // ── Missing base BICs created by TagFamilyCreator ─────────────
+                { "Materials", "OST_Materials" },                       // Material Tag.rft (excluded from UniversalCategories below)
+                { "Sheets", "OST_Sheets" },                             // Generic Tag.rft — base sheet document tag
+                { "Structural Connection Bolts", "OST_StructConnectionBolts" },
+                { "Structural Connection Welds", "OST_StructConnectionWelds" },
+
+                // ── Alias enums (different BIC name, same Revit category) ─────
+                // Both forms compile against current Revit API; exposing both
+                // ensures Tags created with either spelling resolve correctly.
+                { "Mechanical Equipment Set", "OST_MechanicalEquipmentSet" }, // alias of OST_MechanicalEquipmentSets
+                { "Analytical Opening", "OST_AnalyticalOpening" },            // alias of OST_AnalyticalOpenings
+                { "Analytical Panel", "OST_AnalyticalPanel" },                // alias of OST_AnalyticalPanels
+                { "Rigid Links (Analytical)", "OST_RigidLinksAnalytical" },   // alias of OST_AnalyticalLinks
+                { "Hand Rail", "OST_RailingHandRail" },                       // alias of OST_StairsRailingHandRail
+                { "Railings (Std)", "OST_Railings" },                         // alias of OST_StairsRailing
+                { "Rebar Coupler", "OST_Coupler" },                           // alias of OST_RebarCoupler
+                { "Cornices", "OST_Cornices" },                               // alias of OST_WallSweeps
+                { "Toposolid Link", "OST_ToposolidLink" },                    // distinct enum — was previously folded into OST_Toposolid
+
+                // ── Tie-in point variant tag families (ISO 19650-3) ───────────
+                { "Tie-In Point (Pipe)", "OST_PipeCurves" },
+                { "Tie-In Point (Duct)", "OST_DuctCurves" },
+                { "Tie-In Point (Conduit)", "OST_Conduit" },
+                { "Tie-In Point (Cable Tray)", "OST_CableTray" },
+                { "Tie-In Point (Fire Protection)", "OST_Sprinklers" },
+                { "Tie-In Point (Gas)", "OST_GenericModel" },
+                { "Tie-In Point (Fire Protection Pipe)", "OST_PipeCurves" },
+                { "Tie-In Point (Gas Pipe)", "OST_PipeCurves" },
+
+                // ── Discipline-specific sheet tag variants ────────────────────
+                { "Sheets (Architectural)", "OST_Sheets" },
+                { "Sheets (MEP)", "OST_Sheets" },
+                { "Sheets (Structural)", "OST_Sheets" },
+
+                // ── Structural variant tag families ───────────────────────────
+                { "Floors (Structural)", "OST_Floors" },
+                { "Walls (Structural/Load-bearing)", "OST_Walls" },
+                { "Structural Framing (Bracing)", "OST_StructuralFraming" },
+                { "Columns (Architectural)", "OST_Columns" },
+
+                // ── MEP variant tag family ────────────────────────────────────
+                { "MEP Sleeve (Fire-rated penetration)", "OST_GenericModel" },
+            };
+
+            // Set UniversalCategories to the full category list so
+            // ResolveUniversalCategoryEnums returns all categories even without JSON.
+            // CRITICAL: Exclude "Materials" and any "Materials"-suffix variant —
+            // material-specific params are bound via BuildGroupCategoryOverrides()
+            // in LoadSharedParamsCommand. Including Materials here would bind
+            // ALL 2300+ parameters to OST_Materials, polluting every material's
+            // custom properties panel in Revit.
+            UniversalCategories = CategoryEnumMap.Keys
+                .Where(k => !k.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories (v5.0), {UniversalParams.Length} universal params");
+        }
+
+        /// <summary>
+        /// G-51: the 260 compiled extended-parameter defaults, extracted from LoadDefaults
+        /// so LoadExtendedParams can seed them before overlaying PARAMETER_REGISTRY.json.
+        /// Before this, LoadDefaults ran ONLY on failure paths (file missing, parse error,
+        /// exception), so on the success path these 260 were never set and the JSON's 17
+        /// were the whole map — every other Ext() key resolved to "".
+        /// </summary>
+        private static void SeedExtendedParamDefaults()
+        {
             // Extended params defaults — use indexer syntax (dict[key] = value) instead
             // of collection initializer to prevent duplicate-key crashes if keys overlap.
             _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -2842,269 +3150,6 @@ namespace StingTools.Core
             _extendedParams["WARR_GUAR_PARTS"] = "ASS_WARRANTY_PARTS_TXT"; _extendedParams["WARR_DUR_PARTS"] = "ASS_WARRANTY_DURATION_PARTS_YRS";
             _extendedParams["WARR_GUAR_LABOR"] = "ASS_WARRANTY_LABOR_TXT"; _extendedParams["WARR_DUR_LABOR"] = "ASS_WARRANTY_DURATION_LABOR_YRS";
             _extendedParams["WARR_DUR_UNIT"] = "ASS_WARRANTY_DUR_UNIT_TXT"; _extendedParams["MODEL_REF"] = "ASS_MODEL_REF_TXT";
-
-            ContainerGroups = Array.Empty<ContainerGroupDef>();
-            UniversalParams = new[]
-            {
-                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
-                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-                "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
-                "ASS_TAG_SCHEME_TXT", "ASS_LOD_VERIFIED_TXT",
-                "CSI_SECTION_TXT", "CSI_TITLE_TXT", "FOHLIO_REF_TXT",
-            };
-
-            // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.
-            // Without this, _guidByName stays null → AllParamGuids returns empty dict →
-            // all GUID lookups fail → compliance scan fails → commands that check GUIDs crash.
-            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
-            _nameByGuid = new Dictionary<Guid, string>();
-            foreach (var tok in SourceTokens)
-            {
-                if (Guid.TryParse(tok.GuidStr, out Guid g))
-                {
-                    _guidByName[tok.ParamName] = g;
-                    _nameByGuid[g] = tok.ParamName;
-                }
-            }
-
-            // CRASH FIX: Initialize CategoryEnumMap with all taggable categories
-            // plus the tag-family aliases produced by TagFamilyCreatorCommand
-            // (count: TagFamilyConfig.TotalFamilyCount at runtime).
-            // Without this, ResolveUniversalCategoryEnums() returns empty array →
-            // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
-            // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
-            // The Tag Categories sub-tab in the dockable panel reads from this map.
-            CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "Air Terminals", "OST_DuctTerminal" },
-                { "Analytical Duct Segments", "OST_AnalyticalDuctSegments" },
-                { "Analytical Links", "OST_AnalyticalLinks" },
-                { "Analytical Members", "OST_AnalyticalMember" },
-                { "Analytical Nodes", "OST_AnalyticalNodes" },
-                { "Analytical Openings", "OST_AnalyticalOpenings" },
-                { "Analytical Panels", "OST_AnalyticalPanels" },
-                { "Analytical Pipe Segments", "OST_AnalyticalPipeSegments" },
-                { "Area Based Loads", "OST_AreaLoads" },
-                { "Area Loads", "OST_AreaLoads" },
-                { "Areas", "OST_Areas" },
-                { "Assemblies", "OST_Assemblies" },
-                { "Audio Visual Devices", "OST_AudioVisualDevices" },
-                { "Boundary Conditions", "OST_BoundaryConditions" },
-                { "Cable Tray Fittings", "OST_CableTrayFitting" },
-                { "Cable Tray Runs", "OST_CableTrayRun" },
-                { "Cable Trays", "OST_CableTray" },
-                { "Casework", "OST_Casework" },
-                { "Ceilings", "OST_Ceilings" },
-                { "Columns", "OST_Columns" },
-                { "Communication Devices", "OST_CommunicationDevices" },
-                { "Conduit Fittings", "OST_ConduitFitting" },
-                { "Conduit Runs", "OST_ConduitRun" },
-                { "Conduits", "OST_Conduit" },
-                { "Coordination Model", "OST_CoordinationModel" },
-                { "Curtain Panels", "OST_CurtainWallPanels" },
-                { "Curtain Wall Mullions", "OST_CurtainWallMullions" },
-                { "Curtain Systems", "OST_Curtain_Systems" },
-                { "Data Devices", "OST_DataDevices" },
-                { "Detail Items", "OST_DetailComponents" },
-                { "Doors", "OST_Doors" },
-                { "Duct Accessories", "OST_DuctAccessory" },
-                { "Duct Fittings", "OST_DuctFitting" },
-                { "Duct Insulation", "OST_DuctInsulations" },
-                { "Duct Lining", "OST_DuctLinings" },
-                { "Duct Placeholders", "OST_PlaceHolderDucts" },
-                { "Ducts", "OST_DuctCurves" },
-                { "Electrical Circuits", "OST_ElectricalCircuit" },
-                { "Electrical Connectors", "OST_ElectricalConnectors" },
-                { "Electrical Equipment", "OST_ElectricalEquipment" },
-                { "Electrical Spare/Space Circuits", "OST_ElectricalInternalCircuits" },
-                { "Electrical Fixtures", "OST_ElectricalFixtures" },
-                { "Entourage", "OST_Entourage" },
-                { "Fascia", "OST_Fascia" },
-                { "Fire Alarm Devices", "OST_FireAlarmDevices" },
-                { "Fire Protection", "OST_FireProtection" },
-                { "Flex Ducts", "OST_FlexDuctCurves" },
-                { "Flex Pipes", "OST_FlexPipeCurves" },
-                { "Floors", "OST_Floors" },
-                { "Food Service Equipment", "OST_FoodServiceEquipment" },
-                { "Furniture", "OST_Furniture" },
-                { "Furniture Systems", "OST_FurnitureSystems" },
-                { "Generic Models", "OST_GenericModel" },
-                { "Gutter", "OST_Gutter" },
-                { "HVAC Zones", "OST_HVAC_Zones" },
-                { "Handrails", "OST_StairsRailingHandRail" },
-                { "Hardscape", "OST_Hardscape" },
-                { "Internal Area Loads", "OST_InternalAreaLoads" },
-                { "Internal Line Loads", "OST_InternalLineLoads" },
-                { "Internal Point Loads", "OST_InternalPointLoads" },
-                { "Lighting Devices", "OST_LightingDevices" },
-                { "Lighting Fixtures", "OST_LightingFixtures" },
-                { "Line Loads", "OST_LineLoads" },
-                { "MEP Ancillary", "OST_MechanicalEquipment" },
-                { "MEP Fabrication Containment", "OST_FabricationContainment" },
-                { "MEP Fabrication Ductwork", "OST_FabricationDuctwork" },
-                { "MEP Fabrication Ductwork Stiffeners", "OST_FabricationDuctworkStiffeners" },
-                { "MEP Fabrication Hangers", "OST_FabricationHangers" },
-                { "MEP Fabrication Pipework", "OST_FabricationPipework" },
-                { "Mass", "OST_Mass" },
-                // NOTE: OST_Materials intentionally EXCLUDED — materials use native Revit
-                // properties (Color, Transparency, ThermalAsset, StructuralAsset) set via
-                // MaterialCommands.cs, NOT shared parameter bindings.
-                { "Mechanical Control Devices", "OST_MechanicalControlDevices" },
-                { "Mechanical Equipment", "OST_MechanicalEquipment" },
-                { "Mechanical Equipment Sets", "OST_MechanicalEquipmentSets" },
-                { "Medical Equipment", "OST_MedicalEquipment" },
-                { "Model Groups", "OST_IOSModelGroups" },
-                { "Nurse Call Devices", "OST_NurseCallDevices" },
-                { "Pads", "OST_BuildingPad" },
-                { "Parking", "OST_Parking" },
-                { "Parts", "OST_Parts" },
-                { "Pipe Accessories", "OST_PipeAccessory" },
-                { "Pipe Fittings", "OST_PipeFitting" },
-                { "Pipe Insulation", "OST_PipeInsulations" },
-                { "Pipe Placeholders", "OST_PlaceHolderPipes" },
-                { "Pipes", "OST_PipeCurves" },
-                { "Piping Systems", "OST_PipingSystem" },
-                { "Planting", "OST_Planting" },
-                { "Plumbing Equipment", "OST_PlumbingEquipment" },
-                { "Plumbing Fixtures", "OST_PlumbingFixtures" },
-                { "Point Loads", "OST_PointLoads" },
-                { "Profiles", "OST_ProfileFamilies" },
-                { "Property Line Segments", "OST_SitePropertyLineSegment" },
-                { "Property Lines", "OST_SiteProperty" },
-                { "RVT Links", "OST_RvtLinks" },
-                { "Railings", "OST_StairsRailing" },
-                { "Ramps", "OST_Ramps" },
-                { "Revision Clouds", "OST_RevisionClouds" },
-                { "Roads", "OST_Roads" },
-                { "Roof Soffits", "OST_RoofSoffit" },
-                { "Roofs", "OST_Roofs" },
-                { "Rooms", "OST_Rooms" },
-                { "Shaft Openings", "OST_ShaftOpening" },
-                { "Security Devices", "OST_SecurityDevices" },
-                { "Signage", "OST_Signage" },
-                { "Site", "OST_Site" },
-                { "Slab Edges", "OST_EdgeSlab" },
-                { "Spaces", "OST_MEPSpaces" },
-                { "Specialty Equipment", "OST_SpecialityEquipment" },
-                { "Sprinklers", "OST_Sprinklers" },
-                { "Stair Landings", "OST_StairsLandings" },
-                { "Stair Runs", "OST_StairsRuns" },
-                { "Stair Supports", "OST_StairsSupports" },
-                { "Stairs", "OST_Stairs" },
-                { "Structural Area Reinforcement", "OST_AreaRein" },
-                { "Structural Beam Systems", "OST_StructuralFramingSystem" },
-                { "Structural Columns", "OST_StructuralColumns" },
-                { "Structural Connections", "OST_StructConnections" },
-                { "Structural Fabric Reinforcement", "OST_FabricReinforcement" },
-                { "Structural Foundations", "OST_StructuralFoundation" },
-                { "Structural Framing", "OST_StructuralFraming" },
-                { "Structural Path Reinforcement", "OST_PathRein" },
-                { "Structural Rebar", "OST_Rebar" },
-                { "Structural Load Cases", "OST_LoadCases" },
-                { "Structural Rebar Couplers", "OST_RebarCoupler" },
-                { "Structural Stiffeners", "OST_StructuralStiffener" },
-                { "Structural Trusses", "OST_StructuralTruss" },
-                { "Telephone Devices", "OST_TelephoneDevices" },
-                { "Temporary Structures", "OST_TemporaryStructure" },
-                { "Top Rails", "OST_RailingTopRail" },
-                { "Toposolid", "OST_Toposolid" },
-                { "Toposolid Links", "OST_Toposolid" },
-                { "Vertical Circulation", "OST_VerticalCirculation" },
-                { "Vibration Dampers", "OST_VibrationDampers" },
-                { "Vibration Isolators", "OST_VibrationIsolators" },
-                { "Vibration Management", "OST_VibrationManagement" },
-                { "Wall Sweeps", "OST_WallSweeps" },
-                { "Walls", "OST_Walls" },
-                { "Wash", "OST_Planting" },
-                { "Windows", "OST_Windows" },
-                { "Wire", "OST_Wire" },
-                { "Zones", "OST_Zones" },
-
-                // ════════════════════════════════════════════════════════════════
-                // TAG-FAMILY-CREATOR ALIGNMENT (Phase 78 follow-up)
-                //
-                // The CreateTagFamilies command in Tags/TagFamilyCreatorCommand.cs
-                // creates 137 .rfa tag families: 121 unique BuiltInCategory bases
-                // plus 16 variants (8 tie-in + 3 sheet + 4 structural + 1 MEP).
-                //
-                // The 13 base entries below cover BICs that the TagFamilyCreator
-                // produces but were missing from the original 124-entry map. Some
-                // are alias enums (Revit ships overlapping enum names for the same
-                // category — e.g. OST_Cornices and OST_WallSweeps both resolve to
-                // "Wall Sweeps"). Adding both keys is safe because BuildCategorySet
-                // uses CategorySet.Insert which dedupes by Category.Id.
-                //
-                // The 16 variant display names share their BIC with an existing
-                // base entry. They surface in the Tag Categories sub-tab so the
-                // checkbox count matches the tag families a coordinator has
-                // just created (TagFamilyConfig.TotalFamilyCount at runtime).
-                //
-                // CATEGORY_SKIP semantic note: skipping a variant entry (e.g.
-                // "Floors (Structural)") via the runtime element-category filter
-                // also skips its base ("Floors") because Revit reports the base
-                // category at element level. Variants are presented for parity
-                // with the tag-family list, not for independent runtime gating.
-                // ════════════════════════════════════════════════════════════════
-
-                // ── Missing base BICs created by TagFamilyCreator ─────────────
-                { "Materials", "OST_Materials" },                       // Material Tag.rft (excluded from UniversalCategories below)
-                { "Sheets", "OST_Sheets" },                             // Generic Tag.rft — base sheet document tag
-                { "Structural Connection Bolts", "OST_StructConnectionBolts" },
-                { "Structural Connection Welds", "OST_StructConnectionWelds" },
-
-                // ── Alias enums (different BIC name, same Revit category) ─────
-                // Both forms compile against current Revit API; exposing both
-                // ensures Tags created with either spelling resolve correctly.
-                { "Mechanical Equipment Set", "OST_MechanicalEquipmentSet" }, // alias of OST_MechanicalEquipmentSets
-                { "Analytical Opening", "OST_AnalyticalOpening" },            // alias of OST_AnalyticalOpenings
-                { "Analytical Panel", "OST_AnalyticalPanel" },                // alias of OST_AnalyticalPanels
-                { "Rigid Links (Analytical)", "OST_RigidLinksAnalytical" },   // alias of OST_AnalyticalLinks
-                { "Hand Rail", "OST_RailingHandRail" },                       // alias of OST_StairsRailingHandRail
-                { "Railings (Std)", "OST_Railings" },                         // alias of OST_StairsRailing
-                { "Rebar Coupler", "OST_Coupler" },                           // alias of OST_RebarCoupler
-                { "Cornices", "OST_Cornices" },                               // alias of OST_WallSweeps
-                { "Toposolid Link", "OST_ToposolidLink" },                    // distinct enum — was previously folded into OST_Toposolid
-
-                // ── Tie-in point variant tag families (ISO 19650-3) ───────────
-                { "Tie-In Point (Pipe)", "OST_PipeCurves" },
-                { "Tie-In Point (Duct)", "OST_DuctCurves" },
-                { "Tie-In Point (Conduit)", "OST_Conduit" },
-                { "Tie-In Point (Cable Tray)", "OST_CableTray" },
-                { "Tie-In Point (Fire Protection)", "OST_Sprinklers" },
-                { "Tie-In Point (Gas)", "OST_GenericModel" },
-                { "Tie-In Point (Fire Protection Pipe)", "OST_PipeCurves" },
-                { "Tie-In Point (Gas Pipe)", "OST_PipeCurves" },
-
-                // ── Discipline-specific sheet tag variants ────────────────────
-                { "Sheets (Architectural)", "OST_Sheets" },
-                { "Sheets (MEP)", "OST_Sheets" },
-                { "Sheets (Structural)", "OST_Sheets" },
-
-                // ── Structural variant tag families ───────────────────────────
-                { "Floors (Structural)", "OST_Floors" },
-                { "Walls (Structural/Load-bearing)", "OST_Walls" },
-                { "Structural Framing (Bracing)", "OST_StructuralFraming" },
-                { "Columns (Architectural)", "OST_Columns" },
-
-                // ── MEP variant tag family ────────────────────────────────────
-                { "MEP Sleeve (Fire-rated penetration)", "OST_GenericModel" },
-            };
-
-            // Set UniversalCategories to the full category list so
-            // ResolveUniversalCategoryEnums returns all categories even without JSON.
-            // CRITICAL: Exclude "Materials" and any "Materials"-suffix variant —
-            // material-specific params are bound via BuildGroupCategoryOverrides()
-            // in LoadSharedParamsCommand. Including Materials here would bind
-            // ALL 2300+ parameters to OST_Materials, polluting every material's
-            // custom properties panel in Revit.
-            UniversalCategories = CategoryEnumMap.Keys
-                .Where(k => !k.Equals("Materials", StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-
-            StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories (v5.0), {UniversalParams.Length} universal params");
         }
 
         // ════════════════════════════════════════════════════════════════
