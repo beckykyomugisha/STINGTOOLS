@@ -1658,6 +1658,12 @@ namespace StingTools.Core
                 if (doc == null) return;
                 if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
+                // Save-As fires for FAMILY documents too. The snapshot migration resolves
+                // through the path-only StingPaths overloads, which cannot see
+                // IsFamilyDocument and used to mint a project folder beside the .rfa —
+                // the content-library leak. The resolver now refuses family paths; this
+                // is the belt-and-braces guard at the site that has the Document.
+                if (doc.IsFamilyDocument) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
 
                 // Save As moves the .rvt, so the STING project root resolves somewhere new.

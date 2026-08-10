@@ -627,9 +627,56 @@ namespace StingTools.Core
         /// tree under a guessed code.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// Path-only analogue of <c>Document.IsFamilyDocument</c>.
+        /// <para>
+        /// The document-scoped resolvers refuse family documents outright, because a
+        /// family has no project and therefore no project root. The path-only overloads
+        /// never receive a Document, so they cannot make that test — and every one of
+        /// them CREATES the directory it returns. Pointed at a family, they mint a
+        /// project tree next to it: that is how <c>_BIM_COORD/</c> and <c>PRJ/_data/coord/</c>
+        /// folders appeared inside the corporate content library.
+        /// </para>
+        /// <para>
+        /// In a path-only context the file extension is the document-kind signal, so it
+        /// is the test used here. Families (.rfa) and family templates (.rft) are
+        /// refused; projects (.rvt) and project templates (.rte) are accepted. An
+        /// extension-less synthetic probe is accepted — callers such as
+        /// LuminaireRegistry and StingHvacPanel build a <c>&lt;folder&gt;/_.rvt</c> probe
+        /// deliberately, and those folders really are project folders.
+        /// </para>
+        /// </summary>
+        internal static bool IsProjectModelPath(string modelPath)
+        {
+            if (string.IsNullOrEmpty(modelPath)) return false;
+            string ext;
+            try { ext = Path.GetExtension(modelPath); }
+            catch { return false; }
+            // FAIL-OPEN, deliberately. An extension-less path is ACCEPTED rather than
+            // refused, because LuminaireRegistry and StingHvacPanel build a synthetic
+            // "<folder>/_.rvt" probe and a stricter test would break them. The cost of
+            // that choice: a caller passing a BARE FOLDER (no trailing file component)
+            // is treated as a project model path and will mint a root inside it — the
+            // exact failure this guard exists to stop.
+            //
+            // This is safe today only because all seven call sites of the path-only
+            // overloads null-check the result and none of them passes a bare folder.
+            // If you add a call site, pass a path with a file component, or tighten
+            // this to require an explicit extension and fix the two probe callers.
+            if (string.IsNullOrEmpty(ext)) return true;
+            return !ext.Equals(".rfa", StringComparison.OrdinalIgnoreCase)
+                && !ext.Equals(".rft", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static string GetRootPathForModelPath(string rvtPath)
         {
             if (string.IsNullOrEmpty(rvtPath)) return null;
+            if (!IsProjectModelPath(rvtPath))
+            {
+                StingLog.Warn($"GetRootPathForModelPath: refusing family document path '{rvtPath}' " +
+                              "— a family has no project root. Returning null (absence, not a default).");
+                return null;
+            }
             try
             {
                 string projDir = Path.GetDirectoryName(rvtPath);
@@ -659,6 +706,16 @@ namespace StingTools.Core
         public static string GetMetaPathForModelPath(string rvtPath, string bucket, params string[] subParts)
         {
             if (string.IsNullOrEmpty(rvtPath) || string.IsNullOrEmpty(bucket)) return null;
+            // A family document has no project, so it has no metadata bucket. Refuse rather
+            // than fall through to the sibling-directory fallback below, which CREATES
+            // <dir>/<bucket> — next to a .rfa that means a project folder minted inside the
+            // content library. Absence is the correct answer; every caller null-checks.
+            if (!IsProjectModelPath(rvtPath))
+            {
+                StingLog.Warn($"GetMetaPathForModelPath({bucket}): refusing family document path " +
+                              $"'{rvtPath}' — no project, so no metadata bucket.");
+                return null;
+            }
             try
             {
                 string root = GetRootPathForModelPath(rvtPath);
@@ -745,6 +802,14 @@ namespace StingTools.Core
         {
             try
             {
+                // LoadOrBootstrapSetup and CaptureGreenfieldState already refuse family
+                // documents, but GetRootPath can still resolve one through the ES stamp /
+                // cache / <projDir>/<CODE> paths — and everything below CREATES. Pointed at
+                // a .rfa that mints <familyDir>/PRJ/_data/… inside whatever folder the
+                // family lives in. Guard here, at the single choke point every metadata
+                // bucket goes through.
+                if (doc != null && doc.IsFamilyDocument) return null;
+
                 string root = GetRootPath(doc);
                 if (string.IsNullOrEmpty(root)) return null;
                 string dataDir = Path.Combine(root, "_data");
