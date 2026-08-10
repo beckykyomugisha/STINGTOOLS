@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Compile Include="..\StingTools\IfcResults\IfcGuidEncoder.cs" Link="IfcResults\IfcGuidEncoder.cs" />
+    <Compile Include="..\StingTools\BOQ\Takeoff\MasonryClassifier.cs" Link="Takeoff\MasonryClassifier.cs" />
     <Compile Include="..\StingTools\BOQ\WasteFactor.cs" Link="WasteFactor.cs" />
     <Compile Include="..\StingTools\BOQ\WasteTable.cs" Link="WasteTable.cs" />
     <Compile Include="..\StingTools\BOQ\ErpFormats.cs" Link="ErpFormats.cs" />
