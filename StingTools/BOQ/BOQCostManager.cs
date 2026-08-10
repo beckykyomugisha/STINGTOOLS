@@ -892,6 +892,40 @@ namespace StingTools.BOQ
 
         // ── Rate resolution ────────────────────────────────────────────────
 
+        /// <summary>
+        /// Read a parameter from the instance, falling back to its TYPE.
+        /// <para>
+        /// Element.LookupParameter is instance-scoped, so a Type-bound parameter is
+        /// invisible from an instance and returns null with no error. Several of the
+        /// STING classification tokens (PROD, SYS) are Type-bound by design — they
+        /// describe the product, not the placement — so any code keying a lookup on
+        /// them must go through the type.
+        /// </para>
+        /// <para>
+        /// Instance first, so a per-placement override still wins where one exists.
+        /// </para>
+        /// </summary>
+        private static string ReadInstanceThenType(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return "";
+            try
+            {
+                string v = ParameterHelpers.GetString(el, paramName);
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+
+                var tid = el.GetTypeId();
+                if (tid == null || tid == ElementId.InvalidElementId) return "";
+                var t = el.Document?.GetElement(tid);
+                if (t == null) return "";
+                return ParameterHelpers.GetString(t, paramName) ?? "";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadInstanceThenType('{paramName}'): {ex.Message}");
+                return "";
+            }
+        }
+
         private static (double rate, string unit, string description) ResolveRate(
             Document doc, Element el, string catName,
             Dictionary<string, (double rate, string unit)> csvRates,
@@ -913,9 +947,23 @@ namespace StingTools.BOQ
             {
                 CategoryName = catName ?? "",
                 Discipline = ResolveDiscipline(el, catName),
-                ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
+                // 3B.3 / K-16 — read these THROUGH THE TYPE.
+                //
+                // ASS_PRODCT_COD_TXT and ASS_SYSTEM_TYPE_TXT are bound as TYPE
+                // parameters (CATEGORY_BINDINGS.csv: 19 rows each, all "Type"), but this
+                // was reading them off the INSTANCE via ParameterHelpers.GetString ->
+                // CachedLookup -> Element.LookupParameter, which cannot see a type
+                // parameter from an instance. Both were therefore ALWAYS EMPTY, so the
+                // PROD-code and system-type rate passes never matched and every element
+                // in a category fell through to the single category-level rate.
+                //
+                // On a door schedule that means a fire door and a cupboard door price
+                // identically — plausible on the page, wrong in the tender.
+                //
+                // MAT_CODE is Instance-bound and is correctly read from the instance.
+                ProdCode = ReadInstanceThenType(el, ParamRegistry.PROD),
                 MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
-                SystemType = ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",   // RC-2
+                SystemType = ReadInstanceThenType(el, ParamRegistry.SYS),   // RC-2
                 Unit = csvRates != null && csvRates.TryGetValue(catName ?? "", out var hint) ? hint.unit : "",
                 CurrencyCode = "UGX",
                 AsOf = DateTime.UtcNow,
