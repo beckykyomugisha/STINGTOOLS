@@ -75,11 +75,17 @@ namespace StingTools.Tags
             "ASS_TAG_7_TXT",
         };
 
+        // Sourced from ParamRegistry rather than hardcoded: the third entry was
+        // "WARN_VISIBLE_BOOL", which does not exist. MR_PARAMETERS.txt declares
+        // TAG_WARN_VISIBLE_BOOL and nothing unprefixed, so this check could never
+        // pass on any family and every tag silently lost points to a typo.
+        // ParamRegistry.WARN_VISIBLE is the single source of truth and is reloaded
+        // from the registry at runtime, so a future rename cannot re-open this gap.
         private static readonly string[] TagVisibilityFingerprint = new[]
         {
-            "TAG_PARA_STATE_1_BOOL",
-            "TAG_PARA_STATE_2_BOOL",
-            "WARN_VISIBLE_BOOL",
+            ParamRegistry.PARA_STATE_1,
+            ParamRegistry.PARA_STATE_2,
+            ParamRegistry.WARN_VISIBLE,
         };
 
         // Sample of the 128 TAG_{size}{style}_{colour}_BOOL style matrix. If
