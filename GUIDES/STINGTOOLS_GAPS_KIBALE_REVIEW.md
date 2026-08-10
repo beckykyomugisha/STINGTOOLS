@@ -1254,6 +1254,31 @@ Six of the 41 are three pairs differing only by an underscore, one spelling boun
 
 Plus two spellings of originator (`PRJ_ORIGINATOR_COD_TXT` / `PRJ_ORG_ORIGINATOR_CODE_TXT`) and two of project code (`PRJ_PROJECT_COD_TXT` / `PRJ_ORG_PROJECT_CODE_TXT`, the latter bound). **A consumer reading one spelling while the binder ships the other returns null forever.** This is the fourth instance of the same defect class — after `WARN_VISIBLE_BOOL`, `PRJ_ORG_PROJECT_CODE` without `_TXT`, and the `TAG_PARA_STATE_*` write path.
 
+### Evidence from a live title block — and why the tiebreak is not obvious
+
+Opening the project's title block family in the Family Editor and inspecting a label (Revit's **Edit Label** dialog — *Spaces / Prefix / Value / Suffix / Break*) shows three parameters wired into it:
+
+```
+PRJ_NR_TXT              "PROJECT N…"
+PRJ_ORIGINATOR_COD_TXT  "ORIGINATO…"
+PRJ_TB_DESIGN_STAGE_TXT "STAGE:"
+```
+
+**All three are in the 41.** They will render empty on every sheet, silently. The title block is correctly authored; the binding data is not there to feed it. This is K-11's consequence made visible on a real deliverable.
+
+It also shows the originator pair is **not a typo with a clear winner** — the two spellings have real consumers on different layers:
+
+| Spelling | C# consumers | Data files | Family layer |
+|---|---|---|---|
+| `PRJ_ORG_ORIGINATOR_CODE_TXT` | **6** | 10 | — |
+| `PRJ_ORIGINATOR_COD_TXT` | **0** | 3 | **the title block reads this one** |
+
+Choosing the code spelling means re-authoring a title block label by hand — the API cannot author labels. Choosing the family spelling means editing 6 C# files. Neither is free, and "prefer the spelling consumers already read" does not resolve it, because both are read.
+
+`PRJ_NR_TXT` is the same shape: **0 C# consumers**, 9 data files, and one title block label — a family-layer parameter with no code behind it. It is also a *second* project number, distinct from Revit's native `Project Number` (set to `KNP26` on this project) and from the three project-code fields already catalogued. Four fields, one concept, nothing reconciling them.
+
+**Recommendation:** treat the family layer as the constraint, not the code layer. A `.rfa` label cannot be edited programmatically and every existing title block in every past project carries the current spelling; C# is cheap to change and version-controlled. So keep `PRJ_ORIGINATOR_COD_TXT`, bind it, and repoint the 6 C# consumers — but confirm first that no *other* shipped family reads the `ORG_` spelling, because that would invert the argument.
+
 ### Related
 
 The same shape as **G-8** (bound-but-wrong-scope), the `TAG_PARA_STATE_*` finding (defined, never bound, writes fail silently), **G-20** (`PRJ_ORG_PROJECT_CODE_TXT` read by 9 files, written by none) and **G-21** (`DrawingDispatcher.cs:106` reads it without `_TXT`). Four gaps, one root cause: **nothing validates that a parameter a consumer reads is a parameter the binder ships.**
