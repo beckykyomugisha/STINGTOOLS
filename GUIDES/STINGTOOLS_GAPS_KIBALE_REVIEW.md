@@ -1805,6 +1805,184 @@ Point `BOQQsExport` / `BOQQsImport` at the book and the loop closes: export to E
 
 ---
 
+## K-10 · 🟠 P1 · The ISO 19650 file-name builder emits eight segments; the standard is seven
+
+`BIMManagerCommands.cs:3529` builds:
+
+```csharp
+return $"{project}-{originator}-{volume}-{level}-{type}-{role}-{classification}-{number}";
+```
+
+That is **eight** fields. `CLAUDE.md`, this project's naming standard, and BS EN ISO 19650-2 §A.5 as implemented by the UK BIM Framework all specify **seven** for a model or drawing file:
+
+```
+PROJ-ORIG-VOL-LVL-TYPE-ROLE-NUM
+```
+
+`classification` sits between `role` and `number` and has no counterpart in the seven-field form. Anything generated through this builder therefore carries an extra segment against every hand-named file on the same project, and the two will not sort, match or parse together.
+
+**Why it matters here.** Kibale's naming standard is seven fields (`KBL26-PLN-COT01-ZZ-M3-A-0001`). A transmittal or register row minted by this builder produces an eight-field name for the same document. A register keyed on file name then holds two spellings of one deliverable, and neither the CDE nor the drawing register will reconcile them.
+
+**Resolution, in order of preference:**
+
+1. **Make the classification segment optional and default it off.** When empty, emit seven fields with no double separator. This preserves the builder for projects that have adopted Uniclass without breaking those that have not — and it is the only option that does not force a decision on D9 before a file can be named.
+2. If classification must always be present, the project standard and `CLAUDE.md` both change to eight, and `XX` becomes the explicit "unclassified" value. This is worse: it puts a placeholder in every file name on every project that never adopts a classification system.
+
+**Do not resolve this by typing an eighth field by hand.** The conflict is between a code path and a written standard; hand-editing file names hides it rather than closing it.
+
+**Related.** The `{vol}` field has its own defect — F-7, it comes from the drawing type's JSON profile rather than the element's LOC, so with eleven buildings it cannot distinguish them. And `{lvl}` has no profile fallback — K-7. All three are in the same builder path and should be fixed together.
+
+---
+
+## K-11 · 🔴 P0 · 41 of 140 `PRJ_*` parameters have no binding row — and they are exactly the ISO-naming set
+
+Observed first in a live project. `Manage → Project Information` on a fresh Kibale model shows **nine** STING parameters — three `HEALTH_SCORE_*`, six `SUS_*` — and nothing else. No `PRJ_PROJECT_COD_TXT`, no `PRJ_ORG_ORIGINATOR_CODE_TXT`, no title-block controls.
+
+Measured against the shipped data:
+
+| | Count |
+|---|---|
+| `PRJ_*` defined in `MR_PARAMETERS.txt` | **140** |
+| present in `CATEGORY_BINDINGS.csv` | 99 |
+| **absent from `CATEGORY_BINDINGS.csv`** | **41** |
+| absent from **both** `CATEGORY_BINDINGS.csv` and `RESOLVED_BINDINGS.csv` | 7 |
+
+The nine that appear in the dialog are bound by the Phase 91 BOQ/sustainability code path at `LoadSharedParamsCommand.cs:867-890`, which covers only that set. Everything else relies on a binding row, and 41 do not have one.
+
+**The 41 are not a random sample.** They are the ISO 19650 identity group and the title-block control group:
+
+```
+ISO naming     PRJ_PROJECT_COD_TXT · PRJ_ORG_ORIGINATOR_CODE_TXT
+               PRJ_ORIGINATOR_COD_TXT · PRJ_VOLUME_COD_TXT · PRJ_VOLUME_CODE
+               PRJ_NR_TXT · PRJ_STATUS_COD_TXT · PRJ_REV_COD_TXT
+               PRJ_SHEET_SYSTEM_TXT
+Appointment    PRJ_ORG_APPOINTING_PARTY_TXT · PRJ_ORG_LEAD_APPOINTED_PARTY_TXT
+               PRJ_ORG_PARTICIPANTS_TXT · PRJ_ORG_CLASS_TXT
+               PRJ_ORG_WORKFLOW_PROFILE_TXT
+Title block    13 × PRJ_TB_* (client, company, address, design stage, 8 toggles)
+Engineering    PRJ_CLIMATE_SITE_ID · PRJ_REFRIG_* · PRJ_RTS_CLASS_TXT
+               PRJ_TRACE_TOLERANCE_PCT · PRJ_CONSTRUCTION_PROFILE_TXT
+Library        PRJ_CORPORATE_LIBRARY_PATH_TXT · PRJ_CORPORATE_LIBRARY_VERSION_TXT
+               PRJ_TEMPLATE_PROFILE_TXT
+```
+
+### Why this is P0
+
+`DrawingTokenContext.cs:66` resolves `{project}` by reading **`PRJ_PROJECT_COD_TXT`** off Project Information. The parameter is not bound, so the read returns null, so **every ISO sheet number is produced with an empty first segment** — `-PLN-COT01-00-DR-A-0001` — with no warning. The same applies to `{originator}` and `{vol}`.
+
+This is not recoverable by the operator. Documentation (including this project's own playbook) instructs the user to *"fill these by hand, once per model."* **There is nowhere to type them.** The parameter does not exist on the document.
+
+### The affix bug, again — three duplicate pairs
+
+Six of the 41 are three pairs differing only by an underscore, one spelling bound and the other not:
+
+| Bound (in `RESOLVED_BINDINGS.csv`) | Unbound |
+|---|---|
+| `PRJ_TB_SHOW_KEYPLAN_BOOL` | `PRJ_TB_SHOW_KEY_PLAN_BOOL` |
+| `PRJ_TB_SHOW_NORTHARROW_BOOL` | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` |
+| `PRJ_TB_SHOW_SCALEBAR_BOOL` | `PRJ_TB_SHOW_SCALE_BAR_BOOL` |
+
+Plus two spellings of originator (`PRJ_ORIGINATOR_COD_TXT` / `PRJ_ORG_ORIGINATOR_CODE_TXT`) and two of project code (`PRJ_PROJECT_COD_TXT` / `PRJ_ORG_PROJECT_CODE_TXT`, the latter bound). **A consumer reading one spelling while the binder ships the other returns null forever.** This is the fourth instance of the same defect class — after `WARN_VISIBLE_BOOL`, `PRJ_ORG_PROJECT_CODE` without `_TXT`, and the `TAG_PARA_STATE_*` write path.
+
+### Evidence from a live title block — and why the tiebreak is not obvious
+
+Opening the project's title block family in the Family Editor and inspecting a label (Revit's **Edit Label** dialog — *Spaces / Prefix / Value / Suffix / Break*) shows three parameters wired into it:
+
+```
+PRJ_NR_TXT              "PROJECT N…"
+PRJ_ORIGINATOR_COD_TXT  "ORIGINATO…"
+PRJ_TB_DESIGN_STAGE_TXT "STAGE:"
+```
+
+**All three are in the 41.** They will render empty on every sheet, silently. The title block is correctly authored; the binding data is not there to feed it. This is K-11's consequence made visible on a real deliverable.
+
+It also shows the originator pair is **not a typo with a clear winner** — the two spellings have real consumers on different layers:
+
+| Spelling | C# consumers | Data files | Family layer |
+|---|---|---|---|
+| `PRJ_ORG_ORIGINATOR_CODE_TXT` | **6** | 10 | — |
+| `PRJ_ORIGINATOR_COD_TXT` | **0** | 3 | **the title block reads this one** |
+
+Choosing the code spelling means re-authoring a title block label by hand — the API cannot author labels. Choosing the family spelling means editing 6 C# files. Neither is free, and "prefer the spelling consumers already read" does not resolve it, because both are read.
+
+`PRJ_NR_TXT` is the same shape: **0 C# consumers**, 9 data files, and one title block label — a family-layer parameter with no code behind it. It is also a *second* project number, distinct from Revit's native `Project Number` (set to `KNP26` on this project) and from the three project-code fields already catalogued. Four fields, one concept, nothing reconciling them.
+
+**Recommendation:** treat the family layer as the constraint, not the code layer. A `.rfa` label cannot be edited programmatically and every existing title block in every past project carries the current spelling; C# is cheap to change and version-controlled. So keep `PRJ_ORIGINATOR_COD_TXT`, bind it, and repoint the 6 C# consumers — but confirm first that no *other* shipped family reads the `ORG_` spelling, because that would invert the argument.
+
+### Related
+
+The same shape as **G-8** (bound-but-wrong-scope), the `TAG_PARA_STATE_*` finding (defined, never bound, writes fail silently), **G-20** (`PRJ_ORG_PROJECT_CODE_TXT` read by 9 files, written by none) and **G-21** (`DrawingDispatcher.cs:106` reads it without `_TXT`). Four gaps, one root cause: **nothing validates that a parameter a consumer reads is a parameter the binder ships.**
+
+---
+
+## K-12 · 🟠 P1 · The eight `PRJ_SHEET_*` segment parameters are bound and never written
+
+STING ships the ISO 19650 sheet ID **already decomposed into its seven segments**, plus a concatenation:
+
+```
+PRJ_SHEET_PROJECT_TXT    segment 1 — project code
+PRJ_SHEET_ORIG_TXT       segment 2 — originator
+PRJ_SHEET_VOLUME_TXT     segment 3 — volume / system
+PRJ_SHEET_LEVEL_TXT      segment 4 — level / location
+PRJ_SHEET_TYPE_TXT       segment 5 — type
+PRJ_SHEET_ROLE_TXT       segment 6 — role
+PRJ_SHEET_SEQ_TXT        segment 7 — 4-digit sequence
+PRJ_SHEET_FULL_REF_TXT   full 7-segment concatenation
+```
+
+**Corrected on measurement — there are 12 `PRJ_SHEET_*`, not eight.** All 12 are bound; **11 have zero writers**. Only `PRJ_SHEET_OF_TOTAL_TXT` had one. The eight above are the ISO-naming subset; the full family is larger.
+
+**Bound, defined, documented — and nothing populates them.** This is K-11's shape one layer along: K-11 was *defined but not bound*; this is *bound but never written*.
+
+### What this does NOT break — an earlier claim here was wrong
+
+This entry originally stated that `MatchLineEngine.cs:374`, `:947` and `:1025` resolve match-line cross-references against an always-empty string. **That is incorrect.** All three readers already fall back to `sheet.SheetNumber` — `:374` returns it when the parameter is empty, and `:947`/`:1025` add *both* values to the reference set. Match-line cross-references have always worked. They were using the native sheet number rather than the full ISO reference, so the output was **less precise, not broken.**
+
+The correction matters for prioritisation: this is a missing capability, not a live defect. `TitleBlockCommands.cs:1019` refers to the parameter in a comment describing the title-block cell it is meant to fill.
+
+### Why this matters more than it looks
+
+This is the shipped answer to *"can we show only some ISO segments, like the tag token presets?"* — and it is a **better** answer than presets. A tag preset selects indices from an assembled string; here each segment is its own parameter, so a title-block label simply includes the ones wanted and omits the rest. A busy plan takes `ROLE + LEVEL + SEQ`; a CDE stamp takes `FULL_REF`. No preset vocabulary, no code change, pure label authoring.
+
+The design is right and complete. Only the populate step is missing.
+
+### What building it needs
+
+A writer invoked wherever `sheetNumberPattern` is applied, stamping the seven segments onto the sheet alongside the assembled native `Sheet Number`, then `PRJ_SHEET_FULL_REF_TXT` as their join. The values already exist at that moment — `DrawingTokenContext` has resolved every one of them to build the pattern. **Nothing new must be derived; the tokens are simply discarded after substitution instead of being stamped.**
+
+### What an unresolved segment must hold — and why "leave it empty" was wrong
+
+The obvious answer is that an unresolved segment can be left empty, because under K-13 the sheet number will have been rejected and no sheet exists to mislead anyone. **That reasoning does not hold.** The sheet is created *before* `SheetNumber` is assigned, and the assignment sits in a `try`/`catch` that only logs a warning — so **a sheet does exist carrying Revit's default number**. An empty `PRJ_SHEET_VOLUME_TXT` on that sheet reads as *"this project has no volume code"*, not *"this was never resolved."*
+
+So an unresolved segment is written as **its own literal** — `{project}` — visibly wrong, consistent with K-13, and impossible to mistake for a legitimate blank.
+
+### Interim position
+
+Keep the full pattern in the native `Sheet Number` — that works today. When the writer lands, switching to selective display is a label edit, not a re-author. `PRJ_TB_SHEET_NR_TXT` (bound, 0 C# consumers) is described as *"sheet number string, may differ from Revit native sheet number"* — a fourth spelling of the same idea whose purpose is now served twice over, by `PRJ_SHEET_FULL_REF_TXT` for the authored ISO reference and `sheet.SheetNumber` for the native one. **Recommend retire, but do not execute**: it is bound, so a title-block label may read it, and the C# scan cannot see that (K-11e).
+
+---
+
+## K-13 · 🟠 P1 · `{project}` and `{originator}` should fail loud, not fall back
+
+The token audit found 16 tokens, of which exactly two have **no fallback of any kind**: `{project}` (source `PRJ_PROJECT_COD_TXT`) and `{originator}` (source `PRJ_ORG_ORIGINATOR_CODE_TXT`). When unbound or empty, the segment **vanishes** and the applier substitutes happily:
+
+```
+want:  KNP26-PLN-COT01-00-DR-A-1001
+got:        -PLN-COT01-00-DR-A-1001
+```
+
+`{vol}` does **not** share the hole — `IsoNaming.Volume` is a profile field authored in `drawing_types.json`. `{lvl}` was given an `IsoNaming.Level` fallback under K-7, and the comment recording that fix describes this exact failure mode without ever generalising it.
+
+### The fix is already in the codebase — copy `{seq}`
+
+`{seq}` is protected differently and **better than a fallback**: it is deliberately never added to the substitution map, so the literal `{seq:D4}` survives into the output string and **Revit rejects the sheet number outright** rather than accepting a wrong one. Fail-loud by construction, no fallback value invented, no silent corruption possible.
+
+**Apply the same treatment to `{project}` and `{originator}`.** When the source parameter is absent or empty, leave the literal token in place. Revit refuses the number, the operator sees it immediately, and no sheet is ever issued with a missing project code.
+
+**Do not add a fallback value and do not substitute `XX`.** A project code is not optional and has no sensible default — a fabricated one produces a sheet that looks correct and is not, which is strictly worse than a sheet that will not save. This is the same principle as returning `null` rather than `0` from the formula engine (G-5) and refusing rather than defaulting in the path resolver.
+
+---
+
 # Part I — Fix order
 
 Eight things, ordered by damage-per-hour-of-work.

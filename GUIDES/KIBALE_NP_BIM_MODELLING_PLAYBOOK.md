@@ -479,6 +479,35 @@ Your instinct is right: keep the Mark thin and put the detail in the schedule.
 
 The drawing then shows a short mark; the door schedule carries the columns.
 
+**The codes themselves, measured against the shipped maps — do not guess these.**
+
+| Token | Door | Window | Where it comes from |
+|---|---|---|---|
+| **SYS** | `ARC` | `ARC` | `SysMap` — both are architectural fit-out, they do not differ here |
+| **FUNC** | `FIT` | `FIT` | `FuncMap`, which is **keyed by SYS**, so `ARC→FIT` for both |
+| **PROD** | `DR` | **`WIN`** | `ProdMap` — note `WIN`, three letters, *not* `WN` |
+
+Two traps this closes:
+
+- **`EXT` and `INT` are not FUNC values.** `FuncMap` contains no such entries. `EXT` is a **LOC** code (`DefaultLocCodes`) meaning external works. Writing `EXT` into `ASS_FUNC_TXT` puts a location code in a function field, and nothing will reject it.
+- **FUNC cannot distinguish a door from a window.** Both are `FIT`. Only **PROD** separates them, which is why a short display mark must carry PROD — `DR-0001` / `WIN-0012` — and never FUNC alone.
+
+Worked example, a door in cottage 1, ground floor, zone 1:
+
+```
+A-COT01-Z01-GF-ARC-FIT-DR-0001
+│ │     │   │  │   │   │  └ SEQ
+│ │     │   │  │   │   └── PROD  DR   (WIN for a window)
+│ │     │   │  │   └────── FUNC  FIT  (derived from SYS)
+│ │     │   │  └────────── SYS   ARC
+│ │     │   └───────────── LVL   GF
+│ │     └───────────────── ZONE  Z01
+│ └─────────────────────── LOC   COT01
+└───────────────────────── DISC  A
+```
+
+**`WN-` in an older type-name convention is a different thing** — that is a Revit *type name* prefix you author, not a STING token. When a short display mark is configured the value rendered is the **PROD** code, so the drawing reads `WIN`. Keep the type-name prefix `WIN-` so the two match on the sheet.
+
 **On making tokens read-only — you cannot, and the mechanism that looks like it does is half-built.** Revit does not allow a project shared parameter to be read-only in the Properties palette, and nothing in STINGTOOLS attempts it.
 
 `ASS_TOKEN_LOCK_TXT` exists and works, but it is **snapshot-and-restore, not prevention**: it records the value before auto-population, lets everything overwrite it, then writes it back. Format is a comma-separated token list, e.g. `LVL,SYS,PROD`. Nine tokens are lockable — `DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV`. `SEQ` is not.
