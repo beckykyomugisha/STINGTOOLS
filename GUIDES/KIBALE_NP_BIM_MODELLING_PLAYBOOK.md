@@ -367,6 +367,41 @@ You want `KBL26-PLN-COT01-GF-DR-A-1001`. Every field is reachable; three things 
 > If you skip step 2 the fields will still not be there, and the failure is silent — the sheet number
 > renders with the segment simply missing, `-PLN-COT01-…` with nothing before the first dash.
 
+#### Showing only part of the code on a busy sheet — the answer to "can I hide segments like tags do"
+
+Yes, and it is better than the tag mechanism, because **each segment is its own parameter** rather
+than a preset selecting a subset of one string.
+
+Every sheet STING produces now carries the seven segments individually, plus their join:
+
+| Parameter | Holds |
+|---|---|
+| `PRJ_SHEET_PROJECT_TXT` | `KIBALE` |
+| `PRJ_SHEET_ORIG_TXT` | `PLN` |
+| `PRJ_SHEET_VOLUME_TXT` | `COT01` |
+| `PRJ_SHEET_LEVEL_TXT` | `GF` |
+| `PRJ_SHEET_TYPE_TXT` | `DR` |
+| `PRJ_SHEET_ROLE_TXT` | `A` |
+| `PRJ_SHEET_SEQ_TXT` | `1001` |
+| `PRJ_SHEET_FULL_REF_TXT` | `KIBALE-PLN-COT01-GF-DR-A-1001` |
+
+**Nothing new is derived** — these are the same values the sheet number was built from, which used
+to be discarded after substitution.
+
+**Selective display is a title-block label edit, and it is yours to make** — no re-authoring, no new
+family, no code:
+
+- **Busy plan at 1:100** — a label showing `PRJ_SHEET_ROLE_TXT` + `PRJ_SHEET_LEVEL_TXT` +
+  `PRJ_SHEET_SEQ_TXT` gives `A-GF-1001`: enough to find the sheet, short enough to read.
+- **CDE / transmittal stamp** — one label bound to `PRJ_SHEET_FULL_REF_TXT` gives the complete ISO
+  reference in a single field.
+- **Drawing register** — schedule the segments as separate columns and sort by any of them.
+
+> **If a label shows `{project}` or `{lvl}` in braces, that segment never resolved.** It is not a
+> rendering fault. The sheet number will have been rejected too — see the warning in
+> `StingTools.log`, which names the token and the parameter to set. Braces are deliberate: a blank
+> would read as "this project has no volume code" instead of "this was never filled in".
+
 **Why this was worth fixing.** `DrawingTokenContext.cs:66` does
 `ReadProjectInfo(doc, "PRJ_PROJECT_COD_TXT")` with **no fallback** — unlike `{lvl}`, which was given
 an `IsoNaming.Level` fallback in K-7. An unbound read returns empty, the applier substitutes it

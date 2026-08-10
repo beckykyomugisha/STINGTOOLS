@@ -63,8 +63,10 @@ namespace StingTools.Core.Drawing
                 { "mark",       mark       ?? string.Empty },
                 { "purpose",    dt?.Purpose ?? string.Empty },
                 { "phase",      dt?.Phase   ?? string.Empty },
-                { "project",    ReadProjectInfo(doc, "PRJ_PROJECT_COD_TXT") },
-                { "originator", ReadProjectInfo(doc, "PRJ_ORG_ORIGINATOR_CODE_TXT") },
+                // K-13: {project} and {originator} are NOT seeded here. They are the
+                // only two tokens with no fallback of any kind, and they are added
+                // below only when their source parameter actually holds a value —
+                // see the block after this initialiser.
                 // ISO 19650 fields with profile fallback to discipline.
                 { "vol",        dt?.IsoNaming?.Volume      ?? string.Empty },
                 { "type",       dt?.IsoNaming?.Type        ?? string.Empty },
@@ -79,11 +81,60 @@ namespace StingTools.Core.Drawing
             // rendering "Sheet Number A--" because the upstream had no seq.
             if (seq.HasValue)
                 d["seq"] = seq.Value.ToString("D" + Math.Max(1, seqWidth));
+
+            // K-13: {project} and {originator} follow the SAME rule as {seq} — omit
+            // rather than blank.
+            //
+            // These two read a shared parameter on ProjectInformation and have no
+            // profile fallback. Seeded with an empty string they produced a sheet
+            // number that LOOKS deliberate: "{project}-{originator}-{vol}-…" renders
+            // "-PLN-COT01-GF-DR-A-1001", and nothing distinguishes a dropped leading
+            // segment from a number the author meant to write.
+            //
+            // Omitting them instead leaves the literal "{project}" in the string.
+            // Revit rejects braces in a sheet number outright, so the assignment
+            // throws and the sheet keeps its default number — visibly wrong, and
+            // impossible to issue by accident.
+            //
+            // NOT substituted with "XX" or any placeholder: a fabricated project code
+            // produces a sheet that looks correct and is not, which is worse than one
+            // that will not save. Same principle as G-5 (report null, never 0) and the
+            // path resolver refusing rather than defaulting to PRJ.
+            foreach (var kv in TokenSourceParam)
+            {
+                string v = ReadProjectInfo(doc, kv.Value);
+                if (!string.IsNullOrWhiteSpace(v)) d[kv.Key] = v;
+            }
             return d;
         }
 
-        // K-7: a pattern token can fail in two silent ways, both of which
-        // reach an issued sheet without a word being logged:
+        // THE RULE FOR EVERY TOKEN, not just the one that prompted it.
+        //
+        // K-7 wrote this up for {lvl} and never asked whether the other fifteen
+        // shared the hole. K-11 audited all sixteen. They do not all share it, and
+        // the reason they do not is the rule:
+        //
+        //   A token must have EITHER a fallback that is itself authored somewhere a
+        //   human can see and fix, OR no entry at all — never a blank entry.
+        //
+        //   * lvl, vol, type, role, suit, rev, sys, disc, discipline
+        //       fall back to the DrawingType profile (IsoNaming.*, .System,
+        //       .Discipline). The profile is a JSON file an author edits, so a blank
+        //       there is visible and attributable. Safe.
+        //   * seq, project, originator
+        //       have no such backstop, so they are OMITTED when unknown. The literal
+        //       survives, Revit rejects the braces, and the sheet number fails to
+        //       save. Loud. ({seq} by GAP-D, {project}/{originator} by K-13.)
+        //   * purpose, phase, spool, mark
+        //       are not ISO name segments — they feed title-block cells, where a
+        //       blank is a blank cell, not a corrupted identifier. Safe to blank.
+        //
+        // So: if you add a token, decide which of the three groups it is in. A new
+        // ISO-segment token with a blank default is the defect this comment exists
+        // to prevent.
+        //
+        // The two silent failure modes, both of which reach an issued sheet without
+        // a word being logged:
         //
         //   1. The key resolves to an EMPTY string. The applier substitutes it
         //      happily and the segment vanishes, so
@@ -176,10 +227,30 @@ namespace StingTools.Core.Drawing
                         : string.Empty));
             }
             if (missing.Count > 0)
+            {
+                // K-13: name the source for the parameter-backed tokens, so the log
+                // explains the rejection Revit is about to produce rather than just
+                // reporting it.
+                var sourcedMissing = new List<string>();
+                foreach (var m in missing)
+                {
+                    var bare = m.Trim('{', '}').Split(':')[0];
+                    if (TokenSourceParam.TryGetValue(bare, out var src))
+                        sourcedMissing.Add($"{m} <- {src} on Project Information is empty or unbound");
+                }
+
                 warnings.Add(
                     $"{label} pattern '{pattern}': token(s) {string.Join(", ", missing)} were not supplied and "
                   + "remain literal. Revit rejects braces in a sheet number, so the value will not be written "
-                  + "unless a later stage fills them.");
+                  + "unless a later stage fills them."
+                  + (sourcedMissing.Count > 0
+                        ? " " + string.Join("; ", sourcedMissing)
+                          + ". This is deliberate: the token is omitted rather than blanked so the sheet "
+                          + "number fails to save instead of silently losing a segment. Set the parameter "
+                          + "in Manage > Project Information; if it is not listed there it is not bound, "
+                          + "so run Load Shared Parameters and re-open."
+                        : string.Empty));
+            }
             return warnings;
         }
 

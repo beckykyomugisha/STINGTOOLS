@@ -210,6 +210,47 @@ def find_near_duplicates(declared):
     return {k: sorted(v) for k, v in groups.items() if len(v) > 1}
 
 
+# --- 1.4b: affix check -------------------------------------------------------
+# The affix bug is the single most repeated defect on this codebase. Five so far:
+#   WARN_VISIBLE_BOOL          missing TAG_ prefix
+#   PRJ_ORG_PROJECT_CODE       missing _TXT suffix
+#   PRJ_TB_SHOW_KEYPLAN_BOOL   missing underscore  (x3: KEYPLAN/NORTHARROW/SCALEBAR)
+#   PRJ_ORIGINATOR_COD_TXT     ORG_ infix split
+#   TAG_TEXT_COLOUR_TEXT       _TEXT where every sibling is _TXT
+#
+# Two distinct shapes, so two checks:
+#   PAIRS     two names collapse to the same key under a suffix/underscore/plural
+#             variation -> one concept, two spellings
+#   OUTLIERS  a name uses a minority suffix spelling (_TEXT) where the codebase
+#             convention is overwhelmingly _TXT -> no pair yet, but the next
+#             consumer that guesses the conventional spelling gets a silent null
+
+def _affix_key(name):
+    k = name.replace("_", "").upper()
+    if k.endswith("TEXT"):
+        k = k[:-4] + "TXT"
+    if k.endswith("S") and not k.endswith("SS"):
+        k = k[:-1]
+    return k
+
+
+def find_affix_pairs(names):
+    groups = collections.defaultdict(set)
+    for n in names:
+        groups[_affix_key(n)].add(n)
+    return {k: sorted(v) for k, v in groups.items() if len(v) > 1}
+
+
+def find_affix_outliers(declared):
+    """Names using a minority suffix spelling where a dominant convention exists."""
+    txt = sum(1 for n in declared if n.endswith("_TXT"))
+    text = [n for n in declared if n.endswith("_TEXT")]
+    # Only report when _TXT is clearly the convention.
+    if txt > 10 * max(1, len(text)):
+        return sorted(text), txt, len(text)
+    return [], txt, len(text)
+
+
 def read_baseline():
     try:
         with open(BASELINE, encoding="utf-8") as fh:
@@ -288,6 +329,26 @@ def main():
     print(f"  UNBOUND    (declared, no binding row)      : {len(unbound)}")
     print(f"  total violations                            : {total}")
     print(f"  near-duplicate concepts (reported only)     : {len(dupes)}")
+
+    declared_all = load_declared()
+    universe = declared_all | set(hits)
+    pairs = find_affix_pairs(universe)
+    outliers, n_txt, n_text = find_affix_outliers(declared_all)
+    print(f"  affix pairs (suffix/underscore/plural)      : {len(pairs)}")
+    print(f"  affix convention outliers (_TEXT vs _TXT)   : {len(outliers)}  "
+          f"[_TXT {n_txt} / _TEXT {n_text}]")
+
+    if "--affix" in sys.argv:
+        print("\n--- AFFIX PAIRS: one concept, two spellings ---")
+        for k in sorted(pairs):
+            print(f"  {k}")
+            for n in pairs[k]:
+                mark = "" if n in declared_all else "   <-- NOT DECLARED"
+                print(f"      {n}{mark}")
+        print("\n--- AFFIX CONVENTION OUTLIERS ---")
+        print(f"  _TXT is the convention ({n_txt} params). These use _TEXT:")
+        for n in outliers:
+            print(f"      {n}")
 
     if "--duplicates" in sys.argv:
         print("\n--- NEAR-DUPLICATE NAMES: one concept, several spellings ---")
