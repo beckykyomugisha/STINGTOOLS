@@ -182,6 +182,28 @@ namespace StingTools.Tags
             string catName = "";
             try { catName = famDoc.OwnerFamily?.FamilyCategory?.Name ?? ""; } catch { }
             row.Category = catName;
+
+            // The check had NO category test at all, which is how 206 families could
+            // carry wrong categories undetected — "STING - Air Terminal Tag" is a
+            // Generic Model Tag, so Revit never offers it for Air Terminals, and
+            // nothing said so. 147 families declare a category in
+            // STING_TAG_CONFIG_v5_0_*.csv; compare against it where one exists.
+            //
+            // Reported, never corrected here: a mismatch means the family was authored
+            // against the wrong template, which is a finding for a human, not something
+            // an audit should silently rewrite.
+            try
+            {
+                var catRes = TagCategoryResolver.Resolve(famDoc, famDoc.OwnerFamily);
+                if (catRes != null && catRes.IsMismatch)
+                {
+                    row.Missing.Add($"CATEGORY MISMATCH: {catRes.Note}");
+                    row.Warnings.Add(
+                        "Family category disagrees with the declared one. Revit offers a tag only "
+                      + "for its own category, so this family cannot tag what it was written for.");
+                }
+            }
+            catch (Exception ex) { row.Warnings.Add($"Category check: {ex.Message}"); }
             // Heuristic: families with placement type "Invalid" or category
             // null / "Generic Annotations" are 2D. Anything else is treated
             // as 3D.

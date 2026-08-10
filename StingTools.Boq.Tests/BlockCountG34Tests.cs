@@ -63,6 +63,19 @@ namespace StingTools.Boq.Tests
         }
 
         [Fact]
+        public void Masonry_Mortar_Has_No_Formula_Owner_Left()
+        {
+            // G-35: CST_CALC_MORTAR_M3 = CST_CALC_BLOCKS_NR * 0.0063 survived G-15 and
+            // was a THIRD owner of masonry mortar — 3.638 m3 against CompoundTakeoff's
+            // 0.550, a 6.6x over-measure. Not a defensible alternative method: 0.0063
+            // m3/block is 39% of a 400x200x200 block's own volume, against a 10-15%
+            // norm. CompoundTakeoff is the single owner.
+            Assert.Null(RowFor("CST_CALC_MORTAR_M3"));
+            Assert.Null(RowFor("CST_S_MAS_MORTAR_VOLUME_CU_M"));
+            Assert.DoesNotContain("CST_CALC_MORTAR_M3", File.ReadAllText(CsvPath));
+        }
+
+        [Fact]
         public void Nothing_Still_References_The_Deleted_Twin()
         {
             // The G-15 lesson: deleting a formula strands anything that summed it.
