@@ -3237,6 +3237,12 @@ namespace StingTools.BOQ
                 if (lines.Length < 2) return rates;
                 string header = lines[0].ToLowerInvariant();
                 bool is7Col = header.Contains("mat_code");
+                // D6 — the 8-column schema adds a PROD column and keys the product
+                // tier on DISC|PROD. Two rows can now share a PROD code and stay
+                // distinct: Air Terminals ATU (M|GRL) and LAT (E|GRL) are different
+                // products in one Revit category, and keying on PROD alone would have
+                // collapsed them into one rate.
+                bool hasProd = header.Contains(",prod,") || header.StartsWith("category,prod");
 
                 // CA-1 — explicit one-wins de-duplication. The first row for a key
                 // wins (top of file is authoritative); a later duplicate is skipped
@@ -3261,9 +3267,25 @@ namespace StingTools.BOQ
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
                     if (cols.Length < 3) continue;
-                    if (is7Col && cols.Length >= 7)
+                    if (hasProd && cols.Length >= 8)
                     {
-                        // Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
+                        // Category, PROD, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
+                        if (double.TryParse(cols[5], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
+                        {
+                            string unit = cols[6].Trim();
+                            string prodCode = cols[1].Trim();
+                            string disc = cols[3].Trim();
+                            // D6: the product key. Registered FIRST so it wins the
+                            // one-wins de-dup against the coarser keys below.
+                            if (!string.IsNullOrEmpty(prodCode) && !string.IsNullOrEmpty(disc))
+                                Put($"{disc}|{prodCode}", rateUgx, unit);
+                            Put(cols[0], rateUgx, unit);   // category
+                            Put(cols[2], rateUgx, unit);   // MAT_CODE
+                        }
+                    }
+                    else if (is7Col && cols.Length >= 7)
+                    {
+                        // Legacy 7-column: Category, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
                         if (double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
                         {
                             Put(cols[0], rateUgx, cols[5].Trim());

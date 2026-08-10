@@ -56,6 +56,9 @@
     <None Include="..\StingTools\Data\FORMULAS_WITH_DEPENDENCIES.csv" Link="Data\FORMULAS_WITH_DEPENDENCIES.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\StingTools\Data\cost_rates_5d.csv" Link="Data\cost_rates_5d.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- Z-25: timber carbon split regression — ship BLE + MEP material CSVs to output. -->
     <None Include="..\StingTools\Data\BLE_MATERIALS.csv" Link="Data\BLE_MATERIALS.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

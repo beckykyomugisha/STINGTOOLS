@@ -169,7 +169,30 @@ namespace StingTools.BOQ.Rates
             // Every branch reports HOW it resolved (2.3), reusing G-27's vocabulary
             // rather than inventing a third one.
 
-            // Pass 1 — PRODUCT. The actual thing being bought.
+            // Pass 0 (D6) — DISCIPLINE + PRODUCT. The most specific key there is.
+            //
+            // PROD alone is not unique: Air Terminals carries a mechanical air terminal
+            // and a lightning air terminal, both GRL in ProdMap, at different rates.
+            // DISC (M vs E) separates them without inventing a PROD code or migrating
+            // ProdMap — which would have touched every tag in every existing model.
+            if (!string.IsNullOrEmpty(req.ProdCode) && !string.IsNullOrEmpty(req.Discipline) &&
+                _rates.TryGetValue($"{req.Discipline}|{req.ProdCode}", out var byDiscProd))
+            {
+                return new RateLookup
+                {
+                    UnitRate = byDiscProd.rate,
+                    CurrencyCode = "UGX",
+                    Unit = byDiscProd.unit ?? "each",
+                    SourceId = Id,
+                    Confidence = 97,
+                    ResolutionLevel = RateResolutionLevel.Product,
+                    Provenance = $"{_sourceFile} product match ({req.Discipline}|{req.ProdCode})",
+                    MatchedKey = $"{req.Discipline}|{req.ProdCode}"
+                };
+            }
+
+            // Pass 1 — PRODUCT without discipline. Kept for rate cards that carry a
+            // globally-unique PROD code and no discipline column.
             if (!string.IsNullOrEmpty(req.ProdCode) &&
                 _rates.TryGetValue(req.ProdCode, out var byProd))
             {
