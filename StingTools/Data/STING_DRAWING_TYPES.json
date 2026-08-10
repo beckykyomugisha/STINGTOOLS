@@ -4,62 +4,62 @@
   "_tokenProfileDesign": {
     "rationale": "Each drawingType.tokenProfile is precomputed for Phase 165 by the matrix in commit message 'Intelligent tag profile matrix'. Override any field per project by dropping a project-scoped drawing_types.json under <project>/_BIM_COORD/.",
     "rules": [
-      "PRESENTATION (pres-*) \u2014 ITALIC GREY 2.5mm, Mono scheme, depth 2, PROD-SEQ display, identity+spatial sections only. Subdued for client-facing decks.",
-      "CLARIFICATION (clar-*) \u2014 BOLDITALIC RED 3mm, Discipline scheme, depth 3, full 8-segment, A+B+C+D+F sections. Markup style for RFIs / queries.",
-      "HANDOVER / FM (handover, fm-*) \u2014 NOM PURPLE 2.5mm, System scheme, depth 10, HANDOVER pattern, T4+T9+T10 tiers active. Lifecycle-ready audit trail.",
-      "SPOOL / FABRICATION (-spool, -fabrication) \u2014 BOLD BLACK 3mm, System scheme, depth 7, DISC-PROD-SEQ display, T7 fab+QC tier. Workshop-readable.",
-      "SCHEDULE (-schedule) \u2014 NOM 2mm, BOQ preset, depth 1, no graphic scheme, PROD-SEQ display. Schedules render as tables.",
-      "COORDINATION / CLASH (coord-, clash-) \u2014 BOLD RED 2.5mm, Discipline scheme, depth 8, T8 clash triage tier. Highlights ownership.",
-      "LEGEND \u2014 NOM GREY 2mm, Compact preset, depth 1, SEQ-only display. Legend tags read like keys.",
-      "FIRE STRATEGY / FIRE ALARM (-fire-) \u2014 BOLD RED 2.5mm, System scheme, depth 4, T4 commissioning tier. Witness/sign-off captured.",
-      "DEMOLITION \u2014 BOLD RED, Status scheme, depth 2. Status colours show NEW/EXISTING/DEMOLISHED.",
-      "FINISHES (-finishes, -screed, -raised-floor) \u2014 Status scheme, depth 3. Each finish package reads distinctly.",
-      "SETTING OUT \u2014 BOLD, depth 4, Discipline scheme. Survives crowded annotation.",
-      "SITE / ACCESSIBILITY \u2014 Zone scheme, depth 3. Reads compliance routes / building zones.",
-      "AREA PLAN \u2014 Function scheme, depth 2, DISC-PROD-SEQ display. Functional zoning emphasis.",
-      "RCP \u2014 System scheme, depth 3, A+B+C+E sections. Distinguishes ceiling-fixture systems.",
-      "FOUNDATION \u2014 BOLD BLACK, Material scheme, depth 4. Concrete/rebar/steel callouts.",
-      "PLUMBING DRAINAGE \u2014 GREEN, System scheme, depth 3. Discipline convention.",
-      "ELECTRICAL POWER / LIGHTING / FIRE ALARM \u2014 ORANGE (high contrast vs yellow on white), System scheme. Riser uses Level scheme to track floor distribution.",
-      "PARTITION / SANITARY LAYOUT \u2014 depth 3, DISC-PROD-SEQ display. 1:50 detail layouts.",
-      "DETAIL \u2014 NOM 3.5mm, FullSpec preset, depth 5, all 6 A-F sections visible. Most-data-per-element drawings.",
-      "SECTION / ELEVATION \u2014 NOM, depth 3, full 8-segment, A+B+C sections. Standard production read.",
-      "PLANTROOM (1:50 dense MEP) \u2014 BOLD BLUE 3mm, System scheme, depth 5. Survives plantroom density.",
-      "HVAC DUCT PLAN \u2014 System scheme, depth 3. Air-system colour coding.",
-      "STANDARD PLAN (arch / struct / mep / elec / plumbing fallthrough) \u2014 NOM, Discipline-coloured, Discipline scheme, depth 3, full 8-segment. The default production read."
+      "PRESENTATION (pres-*) — ITALIC GREY 2.5mm, Mono scheme, depth 2, PROD-SEQ display, identity+spatial sections only. Subdued for client-facing decks.",
+      "CLARIFICATION (clar-*) — BOLDITALIC RED 3mm, Discipline scheme, depth 3, full 8-segment, A+B+C+D+F sections. Markup style for RFIs / queries.",
+      "HANDOVER / FM (handover, fm-*) — NOM PURPLE 2.5mm, System scheme, depth 10, HANDOVER pattern, T4+T9+T10 tiers active. Lifecycle-ready audit trail.",
+      "SPOOL / FABRICATION (-spool, -fabrication) — BOLD BLACK 3mm, System scheme, depth 7, DISC-PROD-SEQ display, T7 fab+QC tier. Workshop-readable.",
+      "SCHEDULE (-schedule) — NOM 2mm, BOQ preset, depth 1, no graphic scheme, PROD-SEQ display. Schedules render as tables.",
+      "COORDINATION / CLASH (coord-, clash-) — BOLD RED 2.5mm, Discipline scheme, depth 8, T8 clash triage tier. Highlights ownership.",
+      "LEGEND — NOM GREY 2mm, Compact preset, depth 1, SEQ-only display. Legend tags read like keys.",
+      "FIRE STRATEGY / FIRE ALARM (-fire-) — BOLD RED 2.5mm, System scheme, depth 4, T4 commissioning tier. Witness/sign-off captured.",
+      "DEMOLITION — BOLD RED, Status scheme, depth 2. Status colours show NEW/EXISTING/DEMOLISHED.",
+      "FINISHES (-finishes, -screed, -raised-floor) — Status scheme, depth 3. Each finish package reads distinctly.",
+      "SETTING OUT — BOLD, depth 4, Discipline scheme. Survives crowded annotation.",
+      "SITE / ACCESSIBILITY — Zone scheme, depth 3. Reads compliance routes / building zones.",
+      "AREA PLAN — Function scheme, depth 2, DISC-PROD-SEQ display. Functional zoning emphasis.",
+      "RCP — System scheme, depth 3, A+B+C+E sections. Distinguishes ceiling-fixture systems.",
+      "FOUNDATION — BOLD BLACK, Material scheme, depth 4. Concrete/rebar/steel callouts.",
+      "PLUMBING DRAINAGE — GREEN, System scheme, depth 3. Discipline convention.",
+      "ELECTRICAL POWER / LIGHTING / FIRE ALARM — ORANGE (high contrast vs yellow on white), System scheme. Riser uses Level scheme to track floor distribution.",
+      "PARTITION / SANITARY LAYOUT — depth 3, DISC-PROD-SEQ display. 1:50 detail layouts.",
+      "DETAIL — NOM 3.5mm, FullSpec preset, depth 5, all 6 A-F sections visible. Most-data-per-element drawings.",
+      "SECTION / ELEVATION — NOM, depth 3, full 8-segment, A+B+C sections. Standard production read.",
+      "PLANTROOM (1:50 dense MEP) — BOLD BLUE 3mm, System scheme, depth 5. Survives plantroom density.",
+      "HVAC DUCT PLAN — System scheme, depth 3. Air-system colour coding.",
+      "STANDARD PLAN (arch / struct / mep / elec / plumbing fallthrough) — NOM, Discipline-coloured, Discipline scheme, depth 3, full 8-segment. The default production read."
     ],
     "disciplineColors": {
-      "A_arch": "BLACK \u2014 calm, professional",
-      "S_struct": "BLACK \u2014 engineering convention",
-      "M_mech": "BLUE  \u2014 UK convention",
-      "E_elec": "ORANGE \u2014 high contrast on white (yellow unreadable)",
+      "A_arch": "BLACK — calm, professional",
+      "S_struct": "BLACK — engineering convention",
+      "M_mech": "BLUE  — UK convention",
+      "E_elec": "ORANGE — high contrast on white (yellow unreadable)",
       "P_plumb": "GREEN",
       "FP_fire": "RED",
       "multi": "GREY"
     },
     "sizeBands": {
-      "scale_<=20": "3.5mm \u2014 large detail drawings",
-      "scale_<=50": "3.0mm \u2014 section / detail / spool",
-      "scale_<=200": "2.5mm \u2014 standard production plan",
-      "scale_>200": "2.0mm \u2014 site / area plan / schedule"
+      "scale_<=20": "3.5mm — large detail drawings",
+      "scale_<=50": "3.0mm — section / detail / spool",
+      "scale_<=200": "2.5mm — standard production plan",
+      "scale_>200": "2.0mm — site / area plan / schedule"
     },
     "stages": {
-      "RIBA_2_concept": "PRESENTATION profiles (pres-*) \u2014 depth 2, mono, ITALIC GREY",
+      "RIBA_2_concept": "PRESENTATION profiles (pres-*) — depth 2, mono, ITALIC GREY",
       "RIBA_3_4_design": "DC pattern, depth 3-5, discipline-coloured NOM",
       "RIBA_5_construction": "DC pattern, depth 7+, BOLD spools, T7 fab tier active",
       "RIBA_6_handover": "HANDOVER pattern, depth 10, T4+T9+T10 tiers, PURPLE"
     },
     "clientFacingProfiles": [
-      "pres-* \u2014 silk presentation grade",
-      "handover-A1 \u2014 Stage 6 client deliverable",
-      "fm-asset-location-A1-1to100 \u2014 FM client handover",
-      "clar-design-intent-A1 \u2014 design narrative for client review"
+      "pres-* — silk presentation grade",
+      "handover-A1 — Stage 6 client deliverable",
+      "fm-asset-location-A1-1to100 — FM client handover",
+      "clar-design-intent-A1 — design narrative for client review"
     ]
   },
   "drawingTypes": [
     {
       "id": "arch-plan-A1-1to100",
-      "name": "Architectural Plan \u2014 A1 @ 1:100",
+      "name": "Architectural Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "9eef0c06406aeaccb4f25dc371e71b1b625e5f544c497299c7898b293ba480a4",
       "purpose": "Plan",
@@ -74,7 +74,7 @@
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "ARCHITECTURAL PLAN \u2014 {lvl}",
+      "sheetNamePattern": "ARCHITECTURAL PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -237,7 +237,7 @@
     },
     {
       "id": "arch-rcp-A1-1to100",
-      "name": "Architectural RCP \u2014 A1 @ 1:100",
+      "name": "Architectural RCP — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "de0585ee25428a95c4cfb14e3e792d42b29cdd481b2c9eda0a86da5876c884b5",
       "purpose": "RCP",
@@ -249,7 +249,7 @@
       "viewTemplateName": "STING - Reflected Ceiling Plan",
       "viewStylePackId": "corp-standard-rcp",
       "sheetNumberPattern": "A-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "REFLECTED CEILING PLAN \u2014 {lvl}",
+      "sheetNamePattern": "REFLECTED CEILING PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -412,7 +412,7 @@
     },
     {
       "id": "arch-section-A1-1to50",
-      "name": "Architectural Section \u2014 A1 @ 1:50",
+      "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "1183cd80351dea31af9a15a71d9fbf07d477e6e628f59bf20630bfa71a790495",
       "purpose": "Section",
@@ -581,7 +581,7 @@
     },
     {
       "id": "arch-elev-A1-1to100",
-      "name": "Architectural Elevation \u2014 A1 @ 1:100",
+      "name": "Architectural Elevation — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "7b56a769d7d6323c38db5f18d833d39bd506a5e1b32c13ac65b517cc4a820202",
       "purpose": "Elevation",
@@ -772,7 +772,7 @@
     },
     {
       "id": "arch-detail-A3-1to20",
-      "name": "Architectural Detail \u2014 A3 @ 1:20",
+      "name": "Architectural Detail — A3 @ 1:20",
       "origin": "corporate",
       "checksum": "aa2f5b14db861e629b198a5d551cde86f618ca208ba56e7a6cab11369feced0f",
       "purpose": "Detail",
@@ -964,7 +964,7 @@
     },
     {
       "id": "struct-plan-A1-1to100",
-      "name": "Structural Plan \u2014 A1 @ 1:100",
+      "name": "Structural Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "185b986837de624d5b8dca7f7472f805cfd110ec4933ecc3b68f1237fc67245b",
       "purpose": "Plan",
@@ -975,7 +975,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Structural Plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "STRUCTURAL PLAN \u2014 {lvl}",
+      "sheetNamePattern": "STRUCTURAL PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1083,7 +1083,7 @@
     },
     {
       "id": "struct-section-A1-1to50",
-      "name": "Structural Section \u2014 A1 @ 1:50",
+      "name": "Structural Section — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "c8be03cd6330e086544457c2e4a9a99d0915d5cf60287a973461d81903b7519d",
       "purpose": "Section",
@@ -1210,7 +1210,7 @@
     },
     {
       "id": "mep-plan-A1-1to100",
-      "name": "MEP Plan \u2014 A1 @ 1:100",
+      "name": "MEP Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "69ab2cedaa052e4cbc8fb7fcb1b6307a43248c63bd5cc730760564ae71cab47c",
       "purpose": "Plan",
@@ -1222,7 +1222,7 @@
       "viewTemplateName": "STING - MEP Plan",
       "viewStylePackId": "corp-standard-hvac",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP PLAN \u2014 {lvl}",
+      "sheetNamePattern": "MEP PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1369,7 +1369,7 @@
     },
     {
       "id": "mep-coord-A1-1to50",
-      "name": "MEP Coordination \u2014 A1 @ 1:50",
+      "name": "MEP Coordination — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "c1f260c6f2812ea955d2de0def17f7017e611c9a64c4a8ee919de8f7707a866b",
       "purpose": "Coordination",
@@ -1381,7 +1381,7 @@
       "viewTemplateName": "STING - MEP Coordination",
       "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MEP COORDINATION \u2014 {lvl}",
+      "sheetNamePattern": "MEP COORDINATION — {lvl}",
       "productionRules": [
         {
           "idx": 0,
@@ -1549,7 +1549,7 @@
     },
     {
       "id": "pipe-spool-A1-1to50",
-      "name": "Pipe Spool \u2014 A1 @ 1:50",
+      "name": "Pipe Spool — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "71671cb4cd1b1096de06502d82e7f719b76dde59abfea52446a547475a6d364f",
       "purpose": "Spool",
@@ -1730,7 +1730,7 @@
     },
     {
       "id": "duct-spool-A1-1to50",
-      "name": "Duct Spool \u2014 A1 @ 1:50",
+      "name": "Duct Spool — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "e0dea2771d261836e55f644c5716d15029b41bbd72702416bf2d762d9c13663a",
       "purpose": "Spool",
@@ -2117,7 +2117,7 @@
     },
     {
       "id": "handover-A1",
-      "name": "Handover Sheet \u2014 A1",
+      "name": "Handover Sheet — A1",
       "origin": "corporate",
       "checksum": "4f5108065a7a5b0af16d7b4425b1f7434b2171e9a3cc328fd119da7c17b27164",
       "purpose": "Plan",
@@ -2129,7 +2129,7 @@
       "viewTemplateName": "STING - Handover",
       "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "HO-{seq:D3}",
-      "sheetNamePattern": "HANDOVER \u2014 {lvl}",
+      "sheetNamePattern": "HANDOVER — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -2309,7 +2309,7 @@
     },
     {
       "id": "arch-site-A1-1to500",
-      "name": "Site / Location Plan \u2014 A1 @ 1:500",
+      "name": "Site / Location Plan — A1 @ 1:500",
       "origin": "corporate",
       "checksum": "744736aa422be9668d84bd2aa48819a75ba2bf2a4bb8ab830bf186e2897ab75d",
       "purpose": "Plan",
@@ -2419,7 +2419,7 @@
     },
     {
       "id": "arch-roof-A1-1to100",
-      "name": "Architectural Roof Plan \u2014 A1 @ 1:100",
+      "name": "Architectural Roof Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "5447e1e2742a5369cc92f5d2f5b0c3c8ad9fac0833661d44a191627c0c01b89d",
       "purpose": "Plan",
@@ -2531,7 +2531,7 @@
     },
     {
       "id": "arch-floor-finishes-A1-1to100",
-      "name": "Floor Finishes Plan \u2014 A1 @ 1:100",
+      "name": "Floor Finishes Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "93efd4608c15b8d9554e0d57c5cf007678535c91bc33350cde6a6968cf19a5f6",
       "purpose": "Plan",
@@ -2543,7 +2543,7 @@
       "viewTemplateName": "STING - Finishes Plan",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-FF-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FLOOR FINISHES \u2014 {lvl}",
+      "sheetNamePattern": "FLOOR FINISHES — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -2653,7 +2653,7 @@
     },
     {
       "id": "arch-fire-strategy-A1-1to100",
-      "name": "Fire Strategy Plan \u2014 A1 @ 1:100",
+      "name": "Fire Strategy Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "3c868e3c313d89a1bc45ad572b4495bcb63eba779547808a483e6414607f689e",
       "purpose": "Plan",
@@ -2665,7 +2665,7 @@
       "viewTemplateName": "STING - Fire Strategy",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-FS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FIRE STRATEGY \u2014 {lvl}",
+      "sheetNamePattern": "FIRE STRATEGY — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -2771,7 +2771,7 @@
     },
     {
       "id": "arch-accessibility-A1-1to100",
-      "name": "Accessibility Plan (Part M) \u2014 A1 @ 1:100",
+      "name": "Accessibility Plan (Part M) — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "844e884780eb32284f583fb22c77f02344cf619491bc26fdc9c13f6a026d0cc0",
       "purpose": "Plan",
@@ -2783,7 +2783,7 @@
       "viewTemplateName": "STING - Accessibility",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "A-AC-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ACCESSIBILITY \u2014 {lvl}",
+      "sheetNamePattern": "ACCESSIBILITY — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -2899,7 +2899,7 @@
     },
     {
       "id": "arch-interior-elev-A1-1to50",
-      "name": "Interior Elevation \u2014 A1 @ 1:50",
+      "name": "Interior Elevation — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "168ac1692fe1ba8932aa5ab1c7eb0a3a4620290bf4369750b470efb978c6e520",
       "purpose": "Elevation",
@@ -3174,7 +3174,7 @@
     },
     {
       "id": "struct-foundation-A1-1to100",
-      "name": "Foundation Plan \u2014 A1 @ 1:100",
+      "name": "Foundation Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "33197b3e0267b0399f7d58eaae0c9a63c7e6a8f2318de36fba3db423927738f5",
       "purpose": "Plan",
@@ -3299,7 +3299,7 @@
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
-      "name": "Rebar Detail \u2014 A3 @ 1:20",
+      "name": "Rebar Detail — A3 @ 1:20",
       "origin": "corporate",
       "checksum": "b8e1b0cec4d9778e8e4d8f7a4c780c937a33342b559a1d5965907ba8147b7dfa",
       "purpose": "Detail",
@@ -3406,7 +3406,7 @@
     {
       "id": "mep-hvac-duct-A1-1to100",
       "system": "HVAC",
-      "name": "HVAC Duct Layout \u2014 A1 @ 1:100",
+      "name": "HVAC Duct Layout — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "8012fdf571addd42dd6f2864267fe0d0958407aca4cce34025f47297577b95ef",
       "purpose": "Plan",
@@ -3418,7 +3418,7 @@
       "viewTemplateName": "STING - HVAC Duct",
       "viewStylePackId": "corp-standard-hvac",
       "sheetNumberPattern": "M-DC-{lvl}-{seq:D3}",
-      "sheetNamePattern": "HVAC DUCT \u2014 {lvl}",
+      "sheetNamePattern": "HVAC DUCT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -3565,7 +3565,7 @@
     },
     {
       "id": "mep-plantroom-A1-1to50",
-      "name": "Plant Room Plan \u2014 A1 @ 1:50",
+      "name": "Plant Room Plan — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "582e1ec443edffaabfa44b570c3e910a6b830f8ee810f5a464a4d438497e81e8",
       "purpose": "Plan",
@@ -3577,7 +3577,7 @@
       "viewTemplateName": "STING - Plant Room",
       "viewStylePackId": "corp-standard-hvac",
       "sheetNumberPattern": "M-PR-{seq:D3}",
-      "sheetNamePattern": "PLANT ROOM \u2014 {mark}",
+      "sheetNamePattern": "PLANT ROOM — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -3737,7 +3737,7 @@
     {
       "id": "elec-power-A1-1to100",
       "system": "LV",
-      "name": "Electrical Power Layout \u2014 A1 @ 1:100",
+      "name": "Electrical Power Layout — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "46a0568206978730f62eb8a525cfa24c2a92a234dc6793a9481ac2fb8ab214af",
       "purpose": "Plan",
@@ -3749,7 +3749,7 @@
       "viewTemplateName": "STING - Power Layout",
       "viewStylePackId": "corp-standard-elec",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "POWER LAYOUT \u2014 {lvl}",
+      "sheetNamePattern": "POWER LAYOUT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -3874,7 +3874,7 @@
     {
       "id": "elec-lighting-A1-1to100",
       "system": "LTG",
-      "name": "Lighting Layout \u2014 A1 @ 1:100",
+      "name": "Lighting Layout — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "0f7b75f3aadc1b317569603427e7f9fd067df43efe7a51439a1c53a6b547d77b",
       "purpose": "Plan",
@@ -3886,7 +3886,7 @@
       "viewTemplateName": "STING - Lighting Layout",
       "viewStylePackId": "corp-standard-elec",
       "sheetNumberPattern": "E-LT-{lvl}-{seq:D3}",
-      "sheetNamePattern": "LIGHTING LAYOUT \u2014 {lvl}",
+      "sheetNamePattern": "LIGHTING LAYOUT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -4010,7 +4010,7 @@
     },
     {
       "id": "elec-fire-alarm-A1-1to100",
-      "name": "Fire Alarm Layout \u2014 A1 @ 1:100",
+      "name": "Fire Alarm Layout — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "60a97eb78944e37d2bc53f8bd75ae292c77a15f6e6738661847fd02e60ba3fa5",
       "purpose": "Plan",
@@ -4022,7 +4022,7 @@
       "viewTemplateName": "STING - Fire Alarm",
       "viewStylePackId": "corp-standard-elec",
       "sheetNumberPattern": "E-FA-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FIRE ALARM \u2014 {lvl}",
+      "sheetNamePattern": "FIRE ALARM — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -4152,7 +4152,7 @@
     },
     {
       "id": "plumb-drainage-A1-1to100",
-      "name": "Drainage Layout \u2014 A1 @ 1:100",
+      "name": "Drainage Layout — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "2d329b33978db34ff98d508a5098e9978be5ae59b8b7de2ed027ff078a157919",
       "purpose": "Plan",
@@ -4164,7 +4164,7 @@
       "viewTemplateName": "STING - Drainage",
       "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-DR-{lvl}-{seq:D3}",
-      "sheetNamePattern": "DRAINAGE \u2014 {lvl}",
+      "sheetNamePattern": "DRAINAGE — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -4275,7 +4275,7 @@
     },
     {
       "id": "fm-asset-location-A1-1to100",
-      "name": "FM Asset Location Plan \u2014 A1 @ 1:100",
+      "name": "FM Asset Location Plan — A1 @ 1:100",
       "origin": "corporate",
       "checksum": "be350512340d58d031bdfeb7aee1a87bc905a149be671a5ee9b3609d22631456",
       "purpose": "Plan",
@@ -4287,7 +4287,7 @@
       "viewTemplateName": "STING - FM Asset",
       "viewStylePackId": "corp-standard-plan",
       "sheetNumberPattern": "FM-AS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ASSET LOCATION \u2014 {lvl}",
+      "sheetNamePattern": "ASSET LOCATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -4391,7 +4391,7 @@
     },
     {
       "id": "coord-clash-A1-1to50",
-      "name": "Coordination Clash Plan \u2014 A1 @ 1:50",
+      "name": "Coordination Clash Plan — A1 @ 1:50",
       "origin": "corporate",
       "checksum": "1f4e27845136094584af5c8766b94796c489fe2bd420168923bc7bf2b9702c6e",
       "purpose": "Coordination",
@@ -4403,7 +4403,7 @@
       "viewTemplateName": "STING - Clash Coordination",
       "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "CO-CL-{lvl}-{seq:D3}",
-      "sheetNamePattern": "CLASH COORDINATION \u2014 {lvl}",
+      "sheetNamePattern": "CLASH COORDINATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -4563,9 +4563,9 @@
     },
     {
       "id": "pres-3d-axon-A1",
-      "name": "Presentation 3D Axonometric \u2014 A1",
+      "name": "Presentation 3D Axonometric — A1",
       "origin": "corporate",
-      "checksum": "47582a3726d9247c7338fdd499a371f96a93be72a020af628e0868578b445519",
+      "checksum": "41165f55dbd1d02128d23afbe4deae814b3c3049f752572a90138f3a2255af16",
       "purpose": "3D",
       "discipline": "*",
       "paperSize": "A1",
@@ -4592,7 +4592,7 @@
           "nameSuffix": " - KEY"
         }
       ],
-      "sheetNamePattern": "3D AXONOMETRIC \u2014 {mark}",
+      "sheetNamePattern": "3D AXONOMETRIC — {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 500
@@ -4697,7 +4697,7 @@
             "skipIfTagged": true
           }
         ],
-        "autoTag": true,
+        "autoTag": false,
         "denseUntilScale": 100
       },
       "print": {
@@ -4715,7 +4715,7 @@
         "Discipline": "Presentation",
         "Suitability": "S1",
         "Sheet Status": "ISSUED FOR INFORMATION",
-        "Sheet Title": "3D AXONOMETRIC \u2014 {mark}"
+        "Sheet Title": "3D AXONOMETRIC — {mark}"
       },
       "isoNaming": {
         "volume": "01",
@@ -4730,9 +4730,9 @@
     },
     {
       "id": "pres-perspective-A1",
-      "name": "Presentation Perspective \u2014 A1",
+      "name": "Presentation Perspective — A1",
       "origin": "corporate",
-      "checksum": "46224be21bfe6adef3ab6df0fc9a3430c4152d88c96aaf3722cd678ef557b5b9",
+      "checksum": "f51c544c2b006dfd2121bb0d209c57f8c706e683073ded0df6a83c09bf15e317",
       "purpose": "3D",
       "discipline": "A",
       "paperSize": "A1",
@@ -4742,7 +4742,7 @@
       "viewTemplateName": "STING - Presentation Perspective",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "PR-PV-{seq:D2}",
-      "sheetNamePattern": "PERSPECTIVE \u2014 {mark}",
+      "sheetNamePattern": "PERSPECTIVE — {mark}",
       "crop": {
         "kind": "None"
       },
@@ -4838,7 +4838,7 @@
             "skipIfTagged": true
           }
         ],
-        "autoTag": true,
+        "autoTag": false,
         "denseUntilScale": 100
       },
       "print": {
@@ -4873,7 +4873,7 @@
     },
     {
       "id": "pres-exterior-elev-A1",
-      "name": "Presentation Exterior Elevation \u2014 A1",
+      "name": "Presentation Exterior Elevation — A1",
       "origin": "corporate",
       "checksum": "f2985e25f8b203a375a02ac6f8835b577c162851956a0f7d54d95e5e20a7b0cb",
       "purpose": "Elevation",
@@ -4885,7 +4885,7 @@
       "viewTemplateName": "STING - Presentation Elevation",
       "viewStylePackId": "corp-standard-elevation",
       "sheetNumberPattern": "PR-EL-{seq:D2}",
-      "sheetNamePattern": "EXTERIOR ELEVATION \u2014 {mark}",
+      "sheetNamePattern": "EXTERIOR ELEVATION — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 300
@@ -4976,7 +4976,7 @@
     },
     {
       "id": "pres-render-board-A1",
-      "name": "Presentation Render Board \u2014 A1 (4-up)",
+      "name": "Presentation Render Board — A1 (4-up)",
       "origin": "corporate",
       "checksum": "e937f5b0c4c120e857be752416a6b2ce541bd0b23d37aa7ebec63f83723c416b",
       "purpose": "3D",
@@ -5083,7 +5083,7 @@
     },
     {
       "id": "pres-context-site-A1",
-      "name": "Presentation Context / Site \u2014 A1 @ 1:500",
+      "name": "Presentation Context / Site — A1 @ 1:500",
       "origin": "corporate",
       "checksum": "0a2f63a8cf50c7c405478cd023dd883c556ef67f17d00b4a6391db4957b16b09",
       "purpose": "Plan",
@@ -5095,7 +5095,7 @@
       "viewTemplateName": "STING - Presentation Context",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "PR-CX-{seq:D2}",
-      "sheetNamePattern": "CONTEXT PLAN \u2014 {mark}",
+      "sheetNamePattern": "CONTEXT PLAN — {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 3000
@@ -5195,7 +5195,7 @@
     },
     {
       "id": "clar-markup-A1",
-      "name": "Clarification / Markup Plan \u2014 A1",
+      "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
       "checksum": "cdf46417d122195c19765c63e30c097a96c7ba54374a8409ab00a40768464878",
       "purpose": "Clarification",
@@ -5207,7 +5207,7 @@
       "viewTemplateName": "STING - Clarification Markup",
       "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
-      "sheetNamePattern": "CLARIFICATION \u2014 {mark}",
+      "sheetNamePattern": "CLARIFICATION — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -5305,7 +5305,7 @@
     },
     {
       "id": "clar-rfi-A3",
-      "name": "RFI Sketch \u2014 A3",
+      "name": "RFI Sketch — A3",
       "origin": "corporate",
       "checksum": "7e084263b9d431d2e16d495a40a8e39ae640b523bfdf67a323a2e016fc086140",
       "purpose": "Clarification",
@@ -5420,7 +5420,7 @@
     },
     {
       "id": "clar-design-intent-A1",
-      "name": "Design Intent Presentation \u2014 A1",
+      "name": "Design Intent Presentation — A1",
       "origin": "corporate",
       "checksum": "d7c8e8ccccd5fc6ef6e200462cd1d2c4662799a3b5f90eef4bc8bdec3e323e0a",
       "purpose": "Plan",
@@ -5432,7 +5432,7 @@
       "viewTemplateName": "STING - Design Intent",
       "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "DI-{seq:D3}",
-      "sheetNamePattern": "DESIGN INTENT \u2014 {mark}",
+      "sheetNamePattern": "DESIGN INTENT — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -6285,7 +6285,7 @@
       "id": "pres-narrative-A1",
       "name": "Client Narrative — A1 (TAG7 prose)",
       "origin": "corporate",
-      "checksum": "896850a27a7758d604c1f71d7438a2e4cc6c148ebd56f257317ea5e301319593",
+      "checksum": "488ae91decfa6a1bc9420d2896bd8dd4623b0a7c562f5bb6b20562b9b3f43e64",
       "purpose": "Plan",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6303,7 +6303,7 @@
         "marginMm": 200
       },
       "annotation": {
-        "autoTag": true,
+        "autoTag": false,
         "denseUntilScale": 100,
         "rules": [
           {
@@ -6758,7 +6758,7 @@
       "id": "pres-3d-exterior-A1",
       "name": "Presentation 3D Exterior",
       "origin": "corporate",
-      "checksum": "1b9e8525fae8f89b4934c7fcf824e0ba27341bbb07f3341e28e6ca8db547bf7c",
+      "checksum": "24646631c3190b830e093be7da87f9d4fe287072408618695cbb8a339548c750",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6860,7 +6860,7 @@
             "skipIfTagged": true
           }
         ],
-        "autoTag": true,
+        "autoTag": false,
         "denseUntilScale": 100
       },
       "print": {
@@ -6896,7 +6896,7 @@
       "name": "Presentation 3D Interior Cut-Away",
       "description": "Apply a Section Box manually before generating with this profile. The section box should cut at ceiling height to expose the interior. Pairs naturally with pres-interior-terracotta or pres-interior-sage.",
       "origin": "corporate",
-      "checksum": "eef9df4e88b9c98f63a839809f77934d82e8b6317e3ecb71c70e7f2aa85a25dd",
+      "checksum": "5bde1e12cf510fec9613b4c7ca8c5ed973dda89499d17025637d0cd4d7d0a00c",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6998,7 +6998,7 @@
             "skipIfTagged": true
           }
         ],
-        "autoTag": true,
+        "autoTag": false,
         "denseUntilScale": 100
       },
       "print": {
@@ -7033,7 +7033,7 @@
       "name": "Presentation Composite Sheet",
       "description": "4-slot composite presentation sheet — main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
       "origin": "corporate",
-      "checksum": "55732addc31181d0f8f88eb8f3271a706448301a7800c871fc0b9b9ea624340c",
+      "checksum": "e07bb725b702e079b15d6394e9f198bd4ab06ad1b58f169e54fef564ecedcdae",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -7163,7 +7163,7 @@
             "skipIfTagged": true
           }
         ],
-        "autoTag": true,
+        "autoTag": false,
         "denseUntilScale": 100
       },
       "print": {
