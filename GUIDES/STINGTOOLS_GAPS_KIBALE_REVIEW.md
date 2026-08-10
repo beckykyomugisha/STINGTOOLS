@@ -5,13 +5,135 @@
 > **Date of review: 2026-08-08.** Re-verify before acting; the codebase moves.
 >
 > **The original header said "nothing here has been fixed". That is no longer true** —
-> **58 of 104 entries are closed** on `claude/kibale-integration`, 8 more partial, 1 held, 2 blocked, 3 recommend/correction, 1 standing rule, 34 open.
+> **46 of 89 entries are closed** on `claude/kibale-integration` — 8 partial, 2 blocked, 1 held, 6 recommend/correction/rule, 26 open. Counted from the table rows, not maintained by hand; the previous "58 of 104" was a hand-updated figure that had drifted from the document. See the ID ledger below.
 > See the status index below.
 >
 > *(Counted, not estimated: the index has 66 rows but some cover a range — `C-1 … C-6` is
 > six entries, `H-6 … H-11` six, `J-1 … J-4` four. Expanding those gives 81 identifiers, of
 > which `E-1b` is a sub-variant of `E-1` rather than a separate entry — hence 80. Re-run the
 > count after editing the index rather than incrementing the header by hand.)*
+
+## ID ledger — every ID ever issued
+
+**Rules, from 2026-08-10 onward:**
+
+1. **An ID is never reused.** Once issued it means one thing forever.
+2. **An ID is never renumbered again.** The 2026-08-10 pass was the last one; it existed
+   only because K-11 and K-12 each carried two meanings in this file simultaneously.
+3. **A retired ID stays listed**, marked RETIRED, so a reader meeting it in an old commit
+   can still resolve it. Same rule as the parameter GUIDs.
+4. Sub-letters (`K-11b`, `K-12c`) are findings that belong to a parent entry and are never
+   promoted to their own number.
+
+**Renumbered once, on 2026-08-10** — both because this file held two entries under each ID:
+
+| Was | Now | Meaning | Why this side moved |
+|---|---|---|---|
+| `K-11` | **`K-14`** | Mark dedup drifts from the asset ID | 1 commit reference, 0 code references |
+| `K-12` | **`K-15`** | `WriteToRooms` over-reports | 1 commit reference (`daf87d34b`), 0 code references |
+
+`K-11` and `K-12` keep their PRJ_* / PRJ_SHEET_* meanings: 3 code-comment sites
+(`DrawingDispatcher.cs:106`, `DrawingProducer.cs:822`, `:1102`) and 11 commit references.
+Historical commit messages are **not** rewritten — `daf87d34b` still says K-12 and that is
+expected; the ledger is how you resolve it.
+
+<details><summary><b>All 89 issued IDs</b></summary>
+
+| ID | Title | Status |
+|---|---|---|
+| `A-1` | failed quantity → zero | **closed** |
+| `A-2` | two Uniclass parameter sets | **closed** |
+| `A-3` | repeated links taken off once | **closed** |
+| `A-4` | room-finish default invents carpet | **closed** |
+| `B-1` | no East African / AAQS method | open |
+| `B-2` | no earthwork path | **closed** |
+| `B-3` | `ViewStylePack.Checksum` unused | open |
+| `C-1` | … C-6 Scope Box Manager | **closed** |
+| `E-1` | / E-1b material rate ~3,700× low | **closed** |
+| `E-2` | three dead carbon paths | **closed** |
+| `E-3` | keyword-order landmines | open |
+| `E-4` | waste never applies to priced qty | **closed** |
+| `E-5` | two "primary material" algorithms | **closed** |
+| `E-6` | a rate miss is silent | **closed** |
+| `E-7` | identity class leads the description | **partial** |
+| `E-8` | dead Tier 2, schema drift, dup blocks | **partial** |
+| `E-9` | missing East African materials | open |
+| `E-10` | quarter of library at flat default | **partial** |
+| `E-11` | seven invalid identity classes | **closed** |
+| `E-12` | third of library has no density/carbon | open |
+| `E-13` | cost has no unit | **closed** |
+| `E-14` | `MAT_ISO_19650_ID` has no grammar | open |
+| `E-15` | material-name inconsistencies | **closed** |
+| `E-16` | the full alignment fix | **partial** |
+| `F-1` | three LOC vocabularies | **closed** |
+| `F-2` | untagged → first building | **closed** |
+| `F-3` | `BuildingCodeSeed` defeats level parser | open |
+| `F-4` | five level-code vocabularies | open |
+| `F-5` | `LG` renders "Level G" | open |
+| `F-6` | three values called "level" | open |
+| `F-7` | volume-code params dead | open |
+| `F-8` | `LocPatterns` dead code | open |
+| `F-9` | the SpatialCodeRegistry fix | **partial** |
+| `G-1` | / G-13 `lookup()` not implemented | **closed** |
+| `G-2` | CSV reader destroys quoted literals | **closed** |
+| `G-3` | was "33 formulas" | An evaluator built and signed off against half the surface |
+| `G-4` | was "one caller in eight" of 18 call sites | Time spent auditing 17 sites that were never involved |
+| `G-5` | nothing fails loudly | **closed** |
+| `G-6` | 32 rows silently dropped | **closed** |
+| `G-7` | `MULTI` formulas never fire | open |
+| `G-8` | Type-vs-Instance binding ambiguity | **partial** |
+| `G-9` | federated-model cache hazard | open |
+| `G-10` | arithmetic and modelling errors | **partial** |
+| `G-11` | floors, screeds, finishes uncovered | **partial** |
+| `G-12` | priority order | — |
+| `G-14` | the three BOQ-engine traps | **closed** |
+| `G-15` | formula take-off not material-aware** | **open** |
+| `G-16` | depth per-type vs per-instance | **held** |
+| `G-17` | STING minted project roots outside projects | **closed** |
+| `G-18` | conformance checker scored two things wrong | **closed** |
+| `G-19` | 25 writers target unbound parameters | open |
+| `G-20` | no type-mark generator | open |
+| `G-21` | `PRJ_ORG_PROJECT_CODE_TXT` never written, one reader broken | open |
+| `G-22` | "PRJ" fallback was silent | **closed** |
+| `G-23` | nothing validated consumer names against binder data** | **closed (gate)** |
+| `G-23b` | the 603 triaged | **closed** |
+| `G-24` | K-7 hole generalised across all 16 tokens | **closed** |
+| `G-25` | param_binding_resolver would orphan 10 live `SHT_*`** | **open — apply BLOCKED** |
+| `G-26` | resolver was a mutating verifier | **closed** |
+| `H-1` | IFC writer reports success writing nothing | **closed** |
+| `H-2` | hardcoded currency in IFC/ERP export | **closed** |
+| `H-3` | gates report 100 % on an empty bill | **closed** |
+| `H-4` | swallowed sheet-name write | **closed** |
+| `H-5` | no schema validation for data files | **closed** |
+| `H-6` | … H-11 | open |
+| `J-1` | … J-4 material price book | open |
+| `K-1` | room finishes never written | **closed** |
+| `K-2` | no finish code parameter or legend | **closed** |
+| `K-3` | nothing turns a finish into an element | **closed** |
+| `K-4` | no per-element BOQ exclusion | **closed** |
+| `K-5` | `PHASE_CREATED` not filtered | open |
+| `K-6` | two category-exclusion lists | open |
+| `K-7` | `{lvl}` renders empty and silent | **closed** |
+| `K-8` | ISO pattern contradicts the data | **closed** |
+| `K-9` | token-lock check is dead code | open |
+| `K-10` | Mark mapped to two parameters | open |
+| `K-11` | 41 `PRJ_*` declared but unbound | **closed** |
+| `K-11b` | duplicate spellings, perfect inversion | **closed** |
+| `K-11c` | project-code: one concept or two | **recommend, not decided** |
+| `K-11d` | originator pair — **my retirement was wrong, reversed** | **closed** |
+| `K-11e` | `.rfa` evidence is unobtainable | **BLOCKED** |
+| `K-11f` | affix check — a SIXTH affix bug | open |
+| `K-12` | seven sheet segments populated | **closed** |
+| `K-12b` | the "no sheet exists to mislead" argument is FALSE | **closed** |
+| `K-12c` | MatchLine readers were NOT resolving against empty | **correction** |
+| `K-12d` | `PRJ_TB_SHEET_NR_TXT` — 4th spelling | **recommend, not decided** |
+| `K-13` | `{project}`/`{originator}` fail loud | **closed** |
+| `K-14` | Mark dedup drifts from asset ID | open |
+| `K-15` | `WriteToRooms` over-reports | **closed** |
+
+</details>
+
+---
 
 ## How to read this
 
@@ -188,8 +310,8 @@ A gate that cannot fail must be treated as a gate that is not there.
 | K-8 ISO pattern contradicts the data | P2 | **closed** | `84a7919af` |
 | K-9 token-lock check is dead code | P1 | open | |
 | K-10 Mark mapped to two parameters | P1 | open | |
-| K-11 Mark dedup drifts from asset ID | P2 | open | |
-| K-12 `WriteToRooms` over-reports | P2 | **closed** | `daf87d34b` |
+| K-14 Mark dedup drifts from asset ID | P2 | open | renumbered from K-11 on 2026-08-10 — see the ID ledger |
+| K-15 `WriteToRooms` over-reports | P2 | **closed** | `daf87d34b` (that commit says K-12; renumbered to K-15 — see the ID ledger) |
 | J-1 … J-4 material price book | — | open | |
 
 ---
@@ -1515,7 +1637,7 @@ So excluding a category from tagging does nothing to the bill, and vice versa, a
 
 `DrawingType.IsoNaming` (`:427-440`) carries **Volume, Type, Role, Suitability, Revision** — and no Level, Project, Originator or Number.
 
-`vol`, `type` and `role` all fall back to the profile in `DrawingTokenContext.Build`. **`{lvl}` does not** — `:57` is `{ "lvl", levelCode ?? string.Empty }`. If the producing command passes no level, the sheet number comes out `KBL26-PLN-COT01--DR-A-1001` with an empty segment and no warning.
+`vol`, `type` and `role` all fall back to the profile in `DrawingTokenContext.Build`. **`{lvl}` does not** — `:57` is `{ "lvl", levelCode ?? string.Empty }`. If the producing command passes no level, the sheet number comes out `KNP26-PLN-COT01--DR-A-1001` with an empty segment and no warning.
 
 Same shape for `{seq}`: absent entirely when the caller has no value (`:75`), leaving the literal `{seq:D4}` in the sheet number.
 
@@ -1588,11 +1710,17 @@ written += MapBuiltIn(el, BuiltInParameter.ALL_MODEL_MARK, "ASS_SERIAL_NR_TXT");
 
 A Mark of `D-101` becomes both the asset ID and the equipment **serial number**. For COBie handover, Serial Number should be the manufacturer's serial — this is a semantic error that reaches the client's asset register.
 
-## K-11 · 🟡 P2 · Mark dedup silently drifts from the asset ID
+## K-14 · 🟡 P2 · Mark dedup silently drifts from the asset ID
+
+> **Renumbered from K-11** on 2026-08-10. K-11 now means the 41 unbound `PRJ_*`
+> parameters: 3 code-comment references and 11 commit references, against this entry's 1.
 
 `WarningsManager.cs:1055-1062` resolves duplicate-mark warnings by appending `_2`, `_3` to the Mark. But `MapAll` writes `ASS_ID_TXT` with `SetIfEmpty`, so the STING ID keeps the **pre-dedup** value. The two diverge with no warning, and `ASS_ID_TXT` is the one the bill and the handover use.
 
-## K-12 · 🟡 P2 · `WriteToRooms` reports rooms it did not change
+## K-15 · 🟡 P2 · `WriteToRooms` reports rooms it did not change
+
+> **Renumbered from K-12** on 2026-08-10. `daf87d34b` calls it K-12; that commit message
+> is historical and is not rewritten.
 
 `PlasteringEngine.cs:996-1014` increments `written++` per room regardless of whether `SetIfEmpty` changed anything. On an already-populated model it reports every room as updated. The number is not evidence.
 

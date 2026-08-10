@@ -99,10 +99,22 @@ namespace StingTools.Tags
         // VARIANTS (TagStyleCatalogue.TypeVariantSpec.CanonicalTypeName, e.g.
         // "2.5_BOLD_RED_Filled30_T3"), so the matrix is CORRECTLY absent and
         // scoring it as missing penalised the family for being right.
+        // K-11f: the second entry read "TAG_3_BOLD_BLUE_BOOL" — an underscore after
+        // the 3 that the declaration does not have. MR_PARAMETERS.txt declares
+        // TAG_3BOLD_BLUE_BOOL, and the families were built from the declaration, so
+        // this half of the sample could not match on ANY family, universal or
+        // per-category. The declaration wins: it is what the binder ships.
+        //
+        // This cannot regress. The check passes for no family today, so if the
+        // declared spelling were somehow also wrong, the result is unchanged.
         private static readonly string[] TagStyleFingerprint = new[]
         {
-            "TAG_2_5_NOM_BLACK_BOOL",
-            "TAG_3_BOLD_BLUE_BOOL",
+            // BOTH entries were wrong, in two different ways:
+            //   TAG_2_5_NOM_BLACK_BOOL  -> TAG_2.5NOM_BLACK_BOOL   (literal dot, no underscores)
+            //   TAG_3_BOLD_BLUE_BOOL    -> TAG_3BOLD_BLUE_BOOL     (no underscore after the digit)
+            // The shipped matrix spells size and style as one token: TAG_{size}{STYLE}_{COLOUR}_BOOL.
+            "TAG_2.5NOM_BLACK_BOOL",
+            "TAG_3BOLD_BLUE_BOOL",
         };
 
         /// <summary>

@@ -106,7 +106,7 @@ These are cheap now and expensive later. Take them in this order and write them 
 
 Fix the code **first**, before the first save. In STINGTOOLS the code is derived from **Revit Project Information → Project Number**, sanitised to ≤ 8 characters, and then **stamped into ExtensibleStorage** so the whole output tree stays put even if someone edits the number later. It is also the suffix on every folder name and the first field of every ISO 19650 file name.
 
-**Recommendation:** `KBL26` (Kibale, 2026) or `KIBNP26`. Short, unambiguous, no spaces, no punctuation.
+**Recommendation:** `KNP26` (Kibale, 2026) or `KIBNP26`. Short, unambiguous, no spaces, no punctuation.
 
 **The exact mechanism, from the code** (`Core/ProjectFolderEngine.cs:758-784`, `Core/Storage/StingProjectRootSchema.cs`):
 - `DetectProjectCode` takes `ProjectInformation.Number`, strips everything but letters/digits/`_`/`-`, uppercases, **truncates to 8 characters**. No Number → first 3 letters of Name → `"PRJ"`.
@@ -116,9 +116,9 @@ Fix the code **first**, before the first save. In STINGTOOLS the code is derived
 **Therefore the correct opening move is:** set Project Number and Name → **save the file** → **close and reopen it**, so `DocumentOpened` runs against a saved document and the stamp lands. Do this before any other STING command. It takes thirty seconds and it removes an entire class of "where did my exports go" failure.
 
 Once fixed, it appears in:
-- the project folder name `<rvtDir>/KBL26/`
-- every folder display name (`01_WIP_KBL26`, …) if `FOLDER_CODE_SUFFIX` is on
-- every file name: `KBL26-PLN-C01-ZZ-DR-A-1001`
+- the project folder name `<rvtDir>/KNP26/`
+- every folder display name (`01_WIP_KNP26`, …) if `FOLDER_CODE_SUFFIX` is on
+- every file name: `KNP26-PLN-COT01-ZZ-DR-A-1001`
 - every ISO 19650 asset tag written by STING
 
 #### There are TWO project-code fields, and nothing reconciles them
@@ -132,7 +132,7 @@ different purposes, and **no code anywhere checks that they agree**.
 | `PRJ_ORG_PROJECT_CODE_TXT` | 9 files incl. `TitleBlockParamApplier`, `TemplateManifest`, `ServerPublisher`, `TagSchemeEngine` | **ISO 19650 document numbers**, transmittals, rendered file names |
 
 **Set both, to the same value.** For Kibale: **`KIBALE`** — 6 characters, within the 8-character limit,
-no punctuation. (This supersedes the `KBL26` / `KIBNP26` suggestion above; the decision is `KIBALE`.)
+no punctuation. (This supersedes the `KNP26` / `KIBNP26` suggestion above; the decision is `KIBALE`.)
 
 Three measured facts you need to know before relying on either:
 
@@ -145,6 +145,46 @@ Three measured facts you need to know before relying on either:
 3. **`DrawingDispatcher.ReadProjectCode` (`:106`) is broken** — it looks up `PRJ_ORG_PROJECT_CODE`
    without the `_TXT` suffix, which is not a declared parameter, so it always returns null. Do not rely
    on drawing-type routing by project code until that is fixed (registered as **G-21**).
+
+#### The Project Information checklist — do this first, in this order
+
+Four fields carry the project code. **`ProjectInformation.Number` is the source; the other three are
+derived stamps** written at setup (K-11c). Do not type them independently — a divergence between any
+stamp and Number is now warned about, but the warning is a safety net, not a workflow.
+
+| Field | Value for this project | Why |
+|---|---|---|
+| **Project Number** | **`KNP26`** | the source. 5 characters, inside the ≤8 limit |
+| Organization Name | **`PLANSCAPE`** | **currently reads `ACE`** — a template leftover, and it lands on every title block |
+| Project Name | Kibale… — **`KIBALE`** spelling | not `KIBAALE` |
+| `PRJ_PROJECT_COD_TXT` | `KNP26` | derived — feeds `{project}` in sheet numbers |
+| `PRJ_ORG_PROJECT_CODE_TXT` | `KNP26` | derived — feeds the template engine / ISO doc numbers |
+| `PRJ_NR_TXT` | `KNP26` | derived — title-block label + schedules |
+| `PRJ_ORG_ORIGINATOR_CODE_TXT` | `PLN` | feeds `{originator}` |
+
+**Order:** set Project Number → save → close → reopen (so the ES root stamp lands against a saved
+document) → **Load Shared Parameters** → set the remaining fields in Manage → Project Information.
+
+`KNP26` is 5 characters. The limit is 8 — `DetectProjectCode` truncates silently past that, so a
+longer code would fork the folder tree from the document number without saying anything.
+
+#### The title block's sample values are asset tags, not sheet numbers
+
+The Sheet Number sample value and the **DWG NO.** field on the current title block both carry
+**8-segment ASSET TAG** patterns (`DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ`). That is the tag grammar for
+a *duct or a door*, not the ISO 19650 grammar for a *drawing*, which is
+`{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq}` — 7 segments.
+
+**Recommended sample value:** `KNP26-PLN-COT01-00-DR-A-1001`
+
+> **What feeds DWG NO. could not be traced from the repo.** No STING-authored title block declares a
+> `DWG NO.` field — it appears only in `MR_SCHEDULES.csv` and `ScheduleCommands.cs`, neither of which
+> writes a title-block label. The field is therefore on **your** title block, inherited with the ACE
+> template. Open it in the Family Editor and read the label's parameter binding; under K-11e that is
+> the only way to establish it, because a `.rfa` label cannot be read statically.
+
+**Do not edit the .rfa to fix this** — the sample value is a family default, and changing it is an
+operator step, not a code change.
 
 #### If you see "PRJ" anywhere, stop
 
@@ -203,12 +243,12 @@ You have seven identical cottages at seven different elevations and seven differ
 
 | Model | Contents |
 |---|---|
-| `KBL26-PLN-SITE-ZZ-M3-A` | Toposolid, boundary, roads, paths, retaining, pool, camp fire terrace, external drainage. Hosts all links. |
-| `KBL26-PLN-C01-ZZ-M3-A` | The **typical cottage** — authored once, linked **7×** |
-| `KBL26-PLN-C08-ZZ-M3-A` | The **twin cottage** |
-| `KBL26-PLN-STF-ZZ-M3-A` | Staff lodge + laundry cage |
-| `KBL26-PLN-KDR-ZZ-M3-A` | Kitchen, dining, reception, back space |
-| `KBL26-PLN-FED-ZZ-M3-A` | Federated / coordination model — links only, no native geometry |
+| `KNP26-PLN-SITE-ZZ-M3-A` | Toposolid, boundary, roads, paths, retaining, pool, camp fire terrace, external drainage. Hosts all links. |
+| `KNP26-PLN-COT01-ZZ-M3-A` | The **typical cottage** — authored once, linked **7×** |
+| `KNP26-PLN-C08-ZZ-M3-A` | The **twin cottage** |
+| `KNP26-PLN-STF-ZZ-M3-A` | Staff lodge + laundry cage |
+| `KNP26-PLN-KDR-ZZ-M3-A` | Kitchen, dining, reception, back space |
+| `KNP26-PLN-FED-ZZ-M3-A` | Federated / coordination model — links only, no native geometry |
 
 **Why links and not groups, specifically here:**
 - Groups misbehave when instances sit on different levels — which is exactly your situation with 27.75 m of fall.
@@ -227,7 +267,7 @@ Maintain one table, kept in the site model as a Revit schedule or a key schedule
 
 | Unit | Easting | Northing | Rotation | FFL (mAOD) | Platform cut/fill |
 |---|---|---|---|---|---|
-| C01 | … | … | … | 1487.500 | … |
+| COT01 | … | … | … | 1487.500 | … |
 | C02 | … | … | … | 1491.000 | … |
 
 Every cottage model is authored with **±0.000 = its own FFL**. The link carries the real elevation. That way the cottage model stays genuinely typical and only the table changes.
@@ -292,14 +332,14 @@ Anything in the right-hand column enters the bill as a **measured addition** or 
 
 Two layers, both cheap if done at family/type creation and expensive if retro-fitted:
 
-1. **STING ISO 19650 tag** — the 8-segment `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ` asset tag. This is your identity spine and it drives the auto-tagger, validation, and handover data. For this project: `LOC` = the building (`C01`…`C08`, `STF`, `KDR`, `SITE`), `ZONE` = suite/wing where meaningful.
+1. **STING ISO 19650 tag** — the 8-segment `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ` asset tag. This is your identity spine and it drives the auto-tagger, validation, and handover data. For this project: `LOC` = the building (`COT01`…`C08`, `STF`, `KDR`, `SITE`), `ZONE` = suite/wing where meaningful.
 2. **A commercial classification** — **Uniclass 2015 `Ss` (systems) and `Pr` (products)** is the right choice for a bill, because `Ss` maps almost one-to-one onto how a QS groups measured work. Assign it at the **Type**, never the instance. STING can also write CSI MasterFormat if the client asks for it.
 
 Do **not** rely on Revit's Assembly Code / Uniformat unless the QS asks for it — it is a US table and it will not match a Ugandan bill.
 
 ### D10 — Naming, once, for everything
 
-**Files (ISO 19650):** `KBL26-PLN-C01-ZZ-M3-A-0001`
+**Files (ISO 19650):** `KNP26-PLN-COT01-ZZ-M3-A-0001`
 Project – Originator – Volume – Level – Type – Role – Number.
 
 **Revit types** — the type name is the bill description. Build it so it reads as one:
@@ -314,18 +354,18 @@ DR-D2-PVO-900x2100      Door type D2/pvo
 WN-W1-PVO-1500x1200     Window type W1/pvo
 RF-THATCH-XXX           (pending specification)
 ```
-**Rooms:** `C01-01 Executive Room`, `C01-02 Lounge`, `STF-05 Room 5`. Prefix with the building. Never rely on Revit's auto-number.
+**Rooms:** `COT01-01 Executive Room`, `COT01-02 Lounge`, `STF-05 Room 5`. Prefix with the building. Never rely on Revit's auto-number.
 
 **Views:** let the drawing-type engine name them from the template so the sheet number and the view name cannot drift apart.
 
 ### The one-page naming standard for this project
 
-Every name on the job, in one place. **`KBL26` is the project code; `COT01`…`COT08`, `STF`, `KDR`, `POOL`, `EXT` are the LOC codes.** Use the same LOC code in all seven places below — that single consistency is what makes the automation work.
+Every name on the job, in one place. **`KNP26` is the project code; `COT01`…`COT08`, `STF`, `KDR`, `POOL`, `EXT` are the LOC codes.** Use the same LOC code in all seven places below — that single consistency is what makes the automation work.
 
 | Thing | Pattern | Example |
 |---|---|---|
-| **Model file** (ISO 19650) | `PROJ-ORIG-VOL-LVL-TYPE-ROLE-NUM` | `KBL26-PLN-COT01-ZZ-M3-A-0001.rvt` |
-| **Drawing file** | same, `TYPE=DR` | `KBL26-PLN-COT01-GF-DR-A-1001.pdf` |
+| **Model file** (ISO 19650) | `PROJ-ORIG-VOL-LVL-TYPE-ROLE-NUM` | `KNP26-PLN-COT01-ZZ-M3-A-0001.rvt` |
+| **Drawing file** | same, `TYPE=DR` | `KNP26-PLN-COT01-GF-DR-A-1001.pdf` |
 | **Sheet number** | from the drawing type's pattern — never typed | `A-GF-001` |
 | **Scope box** | `STING::<drawing-type-id>::<level>::<tag>` — **hard regex, no spaces** | `STING::arch-setting-out-A1-1to50::GF::COT01` |
 | **Level** | plain, parseable prose — **not** prefixed | `Ground`, `Level 01`, `Roof`, `Basement 1` |
@@ -341,7 +381,7 @@ Every name on the job, in one place. **`KBL26` is the project code; `COT01`…`C
 
 ### Sheet numbers as the full ISO code — exactly how
 
-You want `KBL26-PLN-COT01-GF-DR-A-1001`. Every field is reachable; three things need setting and one has a trap.
+You want `KNP26-PLN-COT01-GF-DR-A-1001`. Every field is reachable; three things need setting and one has a trap.
 
 **1. Project Information shared parameters** (once per model, by hand — nothing auto-fills these):
 
@@ -416,7 +456,7 @@ happily, and the segment vanishes. There is no warning, and the sheet looks plau
 
 **3. Drop `-{suit}-{rev}` from the shipped pattern.** The corporate `arch-plan-A1-1to100` ships as `…-{seq:D4}-{suit}-{rev}` with `suitability: "S2"`, `revision: "P01"` — so out of the box you get `…-A-0001-S2-P01`, not your target. Removing them from `isoNaming` alone is **not enough**: the tokens would render empty and leave trailing `--`. Remove them from the *pattern*.
 
-> **The trap — `{lvl}` has no profile fallback.** `vol`, `type` and `role` all fall back to `IsoNaming`; `{lvl}` does not, because `IsoNaming` has **no Level field** (`DrawingType.cs:427-440`). `DrawingTokenContext.cs:57` is `{ "lvl", levelCode ?? "" }` — the producing command must pass it. If it passes nothing you get `KBL26-PLN-COT01--DR-A-1001` with an empty segment and no warning. Gap K-7.
+> **The trap — `{lvl}` has no profile fallback.** `vol`, `type` and `role` all fall back to `IsoNaming`; `{lvl}` does not, because `IsoNaming` has **no Level field** (`DrawingType.cs:427-440`). `DrawingTokenContext.cs:57` is `{ "lvl", levelCode ?? "" }` — the producing command must pass it. If it passes nothing you get `KNP26-PLN-COT01--DR-A-1001` with an empty segment and no warning. Gap K-7.
 
 **On `GF` vs `00`:** the ISO 19650 UK Annex level field is `00` for ground, and `Iso19650Vocabulary.LevelCodes` correctly ships `ZZ XX B2 B1 00…20 RF MZ PH`. `GF` is **not** in it. Since you want this project as a template for future work, **use `00`** in the sheet number and keep `GF` only as the STING tag code. That is the alignment you asked for, and it costs nothing here — one storey.
 
@@ -451,11 +491,11 @@ Two limits worth knowing: it only snapshots **non-empty** values, so locking an 
 
 ---
 
-## Part 1A — "Can I model C01 and have the rest be links, which are again linked?"
+## Part 1A — "Can I model COT01 and have the rest be links, which are again linked?"
 
-**No. Link C01 seven times directly into the site model. Do not nest.**
+**No. Link COT01 seven times directly into the site model. Do not nest.**
 
-What you are describing is a **nested link** — C01 linked into some intermediate model, which is then linked into the site. Revit supports it, but it costs you the two things this project depends on:
+What you are describing is a **nested link** — COT01 linked into some intermediate model, which is then linked into the site. Revit supports it, but it costs you the two things this project depends on:
 
 1. **Nested links do not schedule reliably.** "Include elements in links" reaches *one* level. A nested link has no true condition set for schedule filtering, so it drops out of link schedules. Your quantities would silently lose a level of depth — the same failure mode as the ×1 multiplier, but harder to spot.
 2. **Visibility becomes conditional.** A nested link only appears in the grandparent if its reference type is **Attach**, not **Overlay**, and even then it is often visible only through a linked view rather than a host view. You would spend real time fighting visibility graphics that a flat structure never raises.
@@ -465,11 +505,11 @@ And nesting buys you nothing here. The thing you actually want — *one model, s
 ### The structure to use
 
 ```
-KBL26-PLN-SITE  (host)
-├── KBL26-PLN-COT01   × 7 instances, each on a different Shared Site
-├── KBL26-PLN-COT08   × 1   (twin cottage)
-├── KBL26-PLN-STF     × 1
-├── KBL26-PLN-KDR     × 1
+KNP26-PLN-SITE  (host)
+├── KNP26-PLN-COT01   × 7 instances, each on a different Shared Site
+├── KNP26-PLN-COT08   × 1   (twin cottage)
+├── KNP26-PLN-STF     × 1
+├── KNP26-PLN-KDR     × 1
 └── survey DWG
 ```
 
@@ -601,7 +641,7 @@ The middle segment is the **drawing type id**, and it must be one that actually 
 
 The Project Setup wizard can also bulk-rename scope boxes to a pattern **before** it lays out grids, and can auto-generate two perpendicular sections per scope box — useful here, because it handles tilted boxes correctly via the box transform, which is exactly what you need for eight rotated cottages.
 
-> **Correction to conventional practice:** a plain `SB-C01` name is fine for a purely manual workflow, but it does nothing in STING. If you are going to use the automation, use the `STING::` form from the start — renaming scope boxes after views exist re-runs the crop on everything.
+> **Correction to conventional practice:** a plain `SB-COT01` name is fine for a purely manual workflow, but it does nothing in STING. If you are going to use the automation, use the `STING::` form from the start — renaming scope boxes after views exist re-runs the crop on everything.
 
 Inside each **building model**, you generally do not need scope boxes at all — the building is the extent.
 
@@ -638,7 +678,7 @@ Inside each **building model**, you generally do not need scope boxes at all —
 
 ### Stage D — The typical cottage (the highest-leverage hour of the project)
 
-19. Model **C01 completely and correctly**, because you are about to multiply every mistake by seven.
+19. Model **COT01 completely and correctly**, because you are about to multiply every mistake by seven.
     - Radial grid A–G / 1–6, set out at the drawn **22°** and **45°**.
     - `R5795` external wall — one curved wall, not a polygon of segments.
     - Internal partitions, en-suites, `duct` risers.
@@ -647,12 +687,12 @@ Inside each **building model**, you generally do not need scope boxes at all —
     - Rooms, with finish codes from the annotation (`timber panquette ff`, `cem. screed ff`).
     - Sanitaryware and FF&E as scheduled families, not as decoration.
     - Full parameter/type naming per D10 as you go — *not* as a clean-up pass.
-20. Run the **tagging and validation pass on C01 alone**. Fix every warning. Only then multiply.
-21. Link C01 into the site model **7×**, position and rotate per the setting-out schedule.
+20. Run the **tagging and validation pass on COT01 alone**. Fix every warning. Only then multiply.
+21. Link COT01 into the site model **7×**, position and rotate per the setting-out schedule.
 
 ### Stage E — The one-offs
 
-22. **Twin cottage** — start as a copy of the C01 model, mirror the spine, add the `bt`.
+22. **Twin cottage** — start as a copy of the COT01 model, mirror the spine, add the `bt`.
 23. **Staff lodge** — the 3600 module repeats 10×; here a group *inside* that one model is appropriate, because all rooms share a level.
 24. **Kitchen / dining / reception / back space** — the most services-heavy building; coordinate extract, gas, grease, drainage early.
 25. **Pool, camp fire terrace, laundry cage.**
@@ -894,9 +934,9 @@ if (!seenTitles.Add(linkName)) continue;
 
 **A link placed seven times is taken off exactly ONCE by default.** The engine deliberately de-duplicates by model title, because the common case is a shared reference model placed once.
 
-To get ×7 you must **opt in per link**. After you tick a link for inclusion, if it is placed more than once the panel offers a second picker — *"Multiply repeated links… tick a link to multiply its quantities (and cost / carbon) by its instance count"* (`UI/BOQCostManagerPanel.cs:686-708`). Ticking it multiplies `Quantity`, `EmbodiedCarbonKg` and `BiogenicKg` by the loaded-instance count and tags the row `[Linked: C01 ×7]`.
+To get ×7 you must **opt in per link**. After you tick a link for inclusion, if it is placed more than once the panel offers a second picker — *"Multiply repeated links… tick a link to multiply its quantities (and cost / carbon) by its instance count"* (`UI/BOQCostManagerPanel.cs:686-708`). Ticking it multiplies `Quantity`, `EmbodiedCarbonKg` and `BiogenicKg` by the loaded-instance count and tags the row `[Linked: COT01 ×7]`.
 
-**On this project: link C01 seven times, then tick the multiplier.** Skip that one checkbox and your bill contains one cottage and seven-eighths of your accommodation is free.
+**On this project: link COT01 seven times, then tick the multiplier.** Skip that one checkbox and your bill contains one cottage and seven-eighths of your accommodation is free.
 
 Two consequences worth knowing:
 - **Linked rows are read-only.** They are not cost-stamped, so no `CST_*` parameters are written back into the cottage model, and you cannot select the element in the host from the BOQ row. Cost write-back only happens in the host.
@@ -976,7 +1016,7 @@ In AutoCAD, `ID` at each point returns X and Y (Easting and Northing). Record th
 
 | Unit | SOP description | Easting | Northing | Rotation | FFL (mAOD) |
 |---|---|---|---|---|---|
-| C01 | centre of circle | … | … | … | 1487.500 |
+| COT01 | centre of circle | … | … | … | 1487.500 |
 
 That table is a deliverable in its own right — it is what the setting-out engineer works from on site.
 
@@ -999,7 +1039,7 @@ Then link the building models into the site with **Auto — By Shared Coordinate
 
 This is the part most people get wrong. One cottage model placed seven times needs **seven named Sites**.
 
-Inside the C01 model, **Manage → Coordinates → Location → Site** — create a named site per position: `C01`, `C02`, … `C07`. Each carries its own E/N/elevation/rotation. Then when you link C01 into the site model seven times, set each instance to a different **Shared Site**.
+Inside the COT01 model, **Manage → Coordinates → Location → Site** — create a named site per position: `COT01`, `C02`, … `C07`. Each carries its own E/N/elevation/rotation. Then when you link COT01 into the site model seven times, set each instance to a different **Shared Site**.
 
 The payoffs:
 - one model, seven correct positions, and a rename or a design change propagates to all seven

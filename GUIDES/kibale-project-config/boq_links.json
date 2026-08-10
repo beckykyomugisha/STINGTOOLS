@@ -2,17 +2,17 @@
   "_comment": "Kibale NP — which linked models are quantified, and which are multiplied by their instance count. Schema verified against StingTools/BOQ/BOQCostManager.cs:344-350 (LinksConfig). Titles must match the linked Document.Title EXACTLY — that is the .rvt file name without the extension.",
 
   "included": [
-    "KBL26-PLN-COT01-ZZ-M3-A-0001",
-    "KBL26-PLN-COT08-ZZ-M3-A-0001",
-    "KBL26-PLN-STF-ZZ-M3-A-0001",
-    "KBL26-PLN-KDR-ZZ-M3-A-0001"
+    "KNP26-PLN-COT01-ZZ-M3-A-0001",
+    "KNP26-PLN-COT08-ZZ-M3-A-0001",
+    "KNP26-PLN-STF-ZZ-M3-A-0001",
+    "KNP26-PLN-KDR-ZZ-M3-A-0001"
   ],
 
   "multiply": {
-    "KBL26-PLN-COT01-ZZ-M3-A-0001": true,
-    "KBL26-PLN-COT08-ZZ-M3-A-0001": false,
-    "KBL26-PLN-STF-ZZ-M3-A-0001": false,
-    "KBL26-PLN-KDR-ZZ-M3-A-0001": false
+    "KNP26-PLN-COT01-ZZ-M3-A-0001": true,
+    "KNP26-PLN-COT08-ZZ-M3-A-0001": false,
+    "KNP26-PLN-STF-ZZ-M3-A-0001": false,
+    "KNP26-PLN-KDR-ZZ-M3-A-0001": false
   },
 
   "_critical": "COT01 is set to multiply:true because it is placed SEVEN times. Without it, BOQCostManager.cs:3251 de-duplicates by model title and takes the cottage off exactly ONCE — six of your seven cottages would be free and nothing would warn you. See gap A-3.",

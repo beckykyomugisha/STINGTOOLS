@@ -29,12 +29,23 @@ Violation class 2 (UNBOUND) is a defect unless a code path binds it, which is wh
 CODE_BOUND is explicit and small — an escape hatch that must be justified, not a
 silent allowance.
 
-BASELINE
---------
-The tree has pre-existing violations. Rather than block on all of them, the gate
-holds the line at a recorded count: it FAILS when violations exceed the baseline
-in tools/param_readership_baseline.txt. Lower the baseline when you fix some.
-That is the same shape as check_path_discipline.ps1.
+BASELINE — THIS IS A RATCHET, NOT A CLEARANCE TARGET
+----------------------------------------------------
+The gate FAILS only when the violation count INCREASES above the recorded ceiling
+in tools/param_readership_baseline.txt. It does not fail on a non-zero count, and
+the remaining backlog is NOT scheduled for clearance.
+
+Recorded ceiling: 379 (2026-08-10), down from 603 once bucket-C false matches
+were excluded at the scan.
+
+The ~108 that remain after triage are bucket A (a parameter genuinely missing
+from the sources) and are individually cheap to ignore and expensive to chase.
+The value here is stopping the count going UP: every one of the six affix bugs
+found on this codebase was introduced by a new consumer guessing a name, and that
+is exactly what an increase detects.
+
+Lower the ceiling when you fix some. Never raise it without saying why in the
+commit. Same shape as check_path_discipline.ps1.
 
 USAGE
   python3 tools/validate_param_readership.py              # gate against baseline
@@ -61,7 +72,7 @@ PREFIXES = (
     "MGS_", "CLN_", "RAD_", "CEQ_", "LIG_", "COM_", "TPL_", "PEN_", "LOD_",
     "STING_", "WARN_", "MNT_", "PLACE_",
 )
-NAME_RE = re.compile(r'"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)"')
+NAME_RE = re.compile(r'"([A-Z][A-Z0-9.]*(?:_[A-Z0-9.]+)+)"')  # dots: the style matrix spells sizes TAG_2.5NOM_...
 
 # Parameters bound by a CODE PATH rather than a data row. Each entry must name
 # the binding site, so this list can be audited rather than trusted.
@@ -226,7 +237,7 @@ def find_near_duplicates(declared):
 #             consumer that guesses the conventional spelling gets a silent null
 
 def _affix_key(name):
-    k = name.replace("_", "").upper()
+    k = name.replace("_", "").replace(".", "").upper()
     if k.endswith("TEXT"):
         k = k[:-4] + "TXT"
     if k.endswith("S") and not k.endswith("SS"):

@@ -695,6 +695,13 @@ namespace StingTools.UI
                     case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
                     case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
                     case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
+                    // G-20 — door/window TYPE marks. Preview is a separate tag, not a
+                    // flag, so the read-only path cannot be skipped by muscle memory.
+                    case "TypeMark_Preview":           RunCommand<Commands.Drawing.TypeMarkPreviewCommand>(app); break;
+                    case "TypeMark_Assign":            RunCommand<Commands.Drawing.TypeMarkAssignCommand>(app); break;
+                    // 3B — the specification half of the door/window pair. IsItemized=false
+                    // was never set anywhere in the plugin, so no collapsed schedule existed.
+                    case "TypeSchedule_Create":        RunCommand<Commands.Drawing.CreateTypeScheduleCommand>(app); break;
                     case "DrawingTypes_MigrateCsv":    RunCommand<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app); break;
                     case "DrawingTypes_MigrateParams":     RunCommand<Commands.Drawing.TitleBlockParamMigrateCommand>(app); break;
                     case "DrawingTypes_AuditLegacyParams": RunCommand<Commands.Drawing.TitleBlockParamMigrateAuditCommand>(app); break;

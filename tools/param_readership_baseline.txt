@@ -1,4 +1,12 @@
-# K-11 parameter-readership violation baseline.
-# The gate fails when the violation count EXCEEDS this number.
-# Lower it when you fix violations; never raise it without saying why.
-379
+# K-11 parameter-readership violation CEILING. This is a RATCHET.
+# The gate fails only when the count EXCEEDS this number. It does not fail on a
+# non-zero count, and the remaining backlog is not scheduled for clearance.
+#
+# 603  first measurement (2026-08-10)
+# 379  after excluding bucket-C false matches (prefix tests, alias keys) at the scan
+# 384  after widening NAME_RE to match DOTTED names (TAG_2.5NOM_BLACK_BOOL). The
+#      style matrix spells sizes with a literal dot, so all ~128 of those params
+#      were invisible to this gate. The ceiling ROSE because COVERAGE rose, not
+#      because violations were introduced — a gate that cannot see a whole family
+#      of parameters is the blind spot it exists to prevent.
+384
