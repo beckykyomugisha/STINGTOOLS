@@ -206,3 +206,38 @@ projects would be destructive and would break the asset register.
   through `MR_PARAMETERS.csv`.
 - **Nothing is declared as both Type and Instance**, so the multi-category rows in the CSV are
   at least internally consistent.
+
+---
+
+## G-52 · 🟠 P1 · Two room buttons have no handler case — clicking does nothing
+
+Measured against `StingCommandHandler.cs`:
+
+| Button `Tag=` | Handler case |
+|---|---|
+| `Tagging_RoomTagApply` | **0** |
+| `Bedroom` | **0** |
+
+Both sit on the panel and do nothing when pressed. `Tagging_RoomTagApply` is the worse of the two —
+it reads as the room-tag apply action, so an operator pressing it concludes room tagging is broken
+rather than that the button is.
+
+They are two of the **117** dead buttons the dispatch-wiring gate now tracks
+(`tools/validate_dispatch_wiring.py`, baseline 117). Also in that 117:
+`CreateTags_ScopeApply` and `CreateTags_OverwriteApply` — the *Apply* buttons on the CREATE TAGS
+tab's Scope and Overwrite rows.
+
+Fix is one of two, per button: add the case, or remove the button. Re-baselining is not the fix.
+
+### The related documentation defect
+
+There is **no `Describe` command** in STING — no case, no button, no command class; the word
+appears only in unrelated files. Operators reach for it because two real things sit near that idea
+and neither is named "describe":
+
+- **Type Description** — the long name behind the type code (`SAT` → *"Supply Air Terminal,
+  210×60"*). Revit's own field, mirrored to `ASS_DESCRIPTION_TXT`.
+- **TAG7 narrative** — the multi-sentence paragraph built in TAG STUDIO from A–F sub-sections.
+
+Documented in playbook Part 3E so the next operator does not go looking for a command that was
+never built.

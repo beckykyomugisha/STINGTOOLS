@@ -2024,3 +2024,80 @@ Eight things, ordered by damage-per-hour-of-work.
 | 8 | Normalise the nine invalid identity classes; apply the normaliser on the description path | E-11 | 29 % of the library currently bills as "generic" |
 
 Then the structural work: the `SpatialCodeRegistry` (F-9), schema validation for `Data/*.json` (H-5), and the Scope Box Manager (Part C).
+
+---
+
+## K-14 · 🟠 P1 · Four dead buttons in the tagging and room groups
+
+Measured across every `*CommandHandler.cs` and every panel XAML: **117 buttons carry a `Tag`
+with no matching `case`**, so clicking them does nothing. Only `<Button>` elements wiring
+`Click="Cmd_Click"` were counted — an earlier pass counted bare `Tag=` attributes and reported
+298, most of them the literals `0`, `1`, `10`, `100`, which Revit uses for data binding on
+`ComboBoxItem` and `RadioButton`.
+
+Four are in the operator's daily path:
+
+| Button | Tag | Tab |
+|---|---|---|
+| Room Tag Apply | `Tagging_RoomTagApply` | TAGGING |
+| Bedroom | `Bedroom` | placement |
+| Apply (Scope row) | `CreateTags_ScopeApply` | CREATE TAGS |
+| Apply (Overwrite row) | `CreateTags_OverwriteApply` | CREATE TAGS |
+
+The last two sit beside the `ScopeSelection` / `ScopeProject` radio options that the tagging
+documentation audit found had **neither** a case nor a button, while the implementation audit
+recorded them as done. Same control group, three dead parts.
+
+Now gated by `tools/validate_dispatch_wiring.py`, ratcheted at 117.
+
+---
+
+## K-15 · 🟠 P1 · 17 of 22 room schedules have no name column
+
+22 Rooms-category schedules ship across four packs (`ARCH_Comprehensive`, `ARCH_Design`,
+`ARCH_Regulatory`, `FM_Revit`). **Five carry a name field.** The other seventeen list
+`ASS_ID_TXT`, `ASS_LOC_TXT`, `ASS_TAG_1_TXT`, `PRJ_COMMENTS_TXT` — codes with nothing a reader
+can orient by.
+
+They are also thin and duplicated: Environmental 3 fields, Accessibility 4, Acoustic 5, and
+"Accessibility Schedule" exists in three packs with 4, 4 and 6 fields.
+
+**Fix:** every Rooms-category schedule should open with the same four columns —
+`ASS_ROOM_NUM_TXT`, `ASS_ROOM_NAME_TXT`, `ASS_LOC_TXT`, `ASS_TAG_1_TXT` — before its own
+subject matter. That is a data change in `MR_SCHEDULES.csv`, not a Revit change.
+
+This is the operator-visible half of the complaint that schedules "read codes, not names". The
+other half is K-16 below.
+
+---
+
+## K-16 · 🟠 P1 · Nothing generates Description or Comments
+
+`ASS_DESCRIPTION_TXT` has **zero direct writers**. It is mirrored from Revit's native
+`ALL_MODEL_DESCRIPTION` (`ParameterHelpers.cs:2737`, with a type-level fallback at `:3914`), so
+a schedule shows a description only where a human has typed one into Type Properties. Across a
+few hundred types that is the reason schedules read as codes.
+
+**The machinery to generate them already exists, pointed elsewhere:**
+
+- `BOQParagraphEnhancer` (6 files) composes NBS/NRM2-style natural-language paragraphs
+- `BOQ_DESCRIPTIONS.json` is a 218-line description library keyed by section code
+- `WriteTag7All` (21 files) builds the TAG7 A–F rich narrative from tokens
+- `ALL_MODEL_INSTANCE_COMMENTS` is already read in 18 files
+
+All of it targets BOQ lines and tag paragraphs. None writes the element's own Description or
+Comments.
+
+**Proposed:** a `Describe` command that composes `ALL_MODEL_DESCRIPTION` at TYPE level from
+material + PROD code + nominal size + the `BOQ_DESCRIPTIONS.json` phrase for that section, and
+`ALL_MODEL_INSTANCE_COMMENTS` at instance level from room and position. Type-level means one
+write per type, not per element.
+
+Three conditions, all learned the hard way in this workstream:
+
+1. **Never overwrite a human-authored description.** Fill only where empty, and report the
+   count skipped — a generated description that replaces a specified one is worse than none.
+2. **Declare provenance.** The generated text must be distinguishable from an authored one, or
+   the next audit cannot tell which is which.
+3. **Do not write it into a token or numeric parameter.** That is exactly what the eight
+   deleted formulas did.
