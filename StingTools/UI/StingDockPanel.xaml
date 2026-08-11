@@ -609,6 +609,12 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Swap Tags" Tag="SwapTags" Click="Cmd_Click" ToolTip="Swap tag values between 2 elements"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Fix Dupes" Tag="FixDuplicates" Click="Cmd_Click" ToolTip="Auto-resolve duplicate tags"/>
                                 </WrapPanel>
+                                <!-- REPAIR & DEFAULTS — these three had handler cases but no buttons -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Repair Polluted" Tag="Tags_RepairPolluted" Click="Cmd_Click" ToolTip="Clear polluted SEQ and stale internal-unit values so the next Tag+Combine can rewrite them. Reports counts first — nothing is cleared until you confirm."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tier Defaults" Tag="TagStudio_SetTierDefaults" Click="Cmd_Click" ToolTip="Set the shipped tier gates on every loaded STING tag type: tiers 1-2 on, 3-10 off, warning row on. Fixes all type variants at once."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Category Dry-Run" Tag="TagStudio_CategoryDryRun" Click="Cmd_Click" ToolTip="Read-only: list every loaded STING tag family's declared category against its actual one. Changes nothing."/>
+                                </WrapPanel>
                                 <!-- TIE-IN POINT TAGS -->
                                 <TextBlock Style="{StaticResource SubLabel}" Text="TIE-IN POINT TAGS" Margin="0,6,0,2"/>
                                 <WrapPanel>
