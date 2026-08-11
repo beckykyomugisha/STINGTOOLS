@@ -1,0 +1,66 @@
+Row,Tier,Name,Formula,Prefix,Suffix,Break
+1,T1,,,,,true
+2,T2,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",,,true
+3,T2,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",,,true
+4,T2,Show T2 - Status,"if(TAG_PARA_STATE_2_BOOL, ASS_STATUS_TXT, """")",Status:,,true
+5,T2,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",Std:,,true
+6,T2,Show T2-Ph179 - Asset Systems,"if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",Sys:,,false
+7,T2,Show T2-Ph179 - Mec System,"if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, """")",MSys:,,true
+8,T4,Show T4 - Commissioning - State,"if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, """")",Comm:,,false
+9,T4,Show T4 - Commissioning - Date,"if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, """")",on,,false
+10,T4,Show T4 - Commissioning - Operative,"if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, """")",by,,true
+11,T4,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",Option:,,false
+12,T4,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",Ref:,,false
+13,T4,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",Key:,,true
+14,T5,Show T5 - Cost - UG Price,"if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX_DISP_TXT, """")",,UGX,false
+15,T5,Show T5 - Cost - Intl Price,"if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD_DISP_TXT, """")",/,USD,false
+16,T5,Show T5 - Cost - Quote Ref,"if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, """")",Quote:,,true
+17,T5,Show T5 - Cost - Unit Rate (neutral),"if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR_DISP_TXT, """")",Rate:,,false
+18,T5,Show T5 - Cost - Currency Code,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, """")",,,false
+19,T5,Show T5 - Cost - FX to Base,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR_DISP_TXT, """")",FX:,,false
+20,T5,Show T5 - Cost - FX Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, """")",FX date:,,false
+21,T5,Show T5 - Cost - As-of Date,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, """")",As of:,,true
+22,T5,Show T5 - Cost - Stale Flag,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, """")",Stale:,,false
+23,T5,Show T5 - Cost - Stale Reason,"if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, """")",-,,true
+24,T5,Show T5 - Payment - % Complete,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR_DISP_TXT, """")",Cmpl:,%,false
+25,T5,Show T5 - Payment - Cert No,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR_DISP_TXT, """")",Cert#:,,false
+26,T5,Show T5 - Payment - Cert Date,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, """")",Certified:,,false
+27,T5,Show T5 - Payment - Last Valued,"if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, """")",Valued:,,true
+28,T5,Show T5 - Variation - Number,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, """")",Var:,,false
+29,T5,Show T5 - Variation - Instr Date,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, """")",Instr:,,false
+30,T5,Show T5 - Variation - Valuation,"if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR_DISP_TXT, """")",Val:,,true
+31,T5,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",Cap:,,false
+32,T5,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",Power:,,false
+33,T5,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",Flow:,,true
+34,T5,Show T5-Ph179 - Item Code,"if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",Item:,,true
+35,T6,Show T6 - Carbon - Product A1-A3,"if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, """")",A1-A3:,kgCO₂e,false
+36,T6,Show T6 - Carbon - Transport A4,"if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, """")",A4:,kgCO₂e,false
+37,T6,Show T6 - Carbon - Operational B6,"if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, """")",B6:,kgCO₂e/yr,true
+38,T6,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",Mfr:,,false
+39,T6,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",Model:,,false
+40,T6,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",Life:,yr,true
+41,T7,Show T7 - Fabrication - Spool No,"if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, """")",Spool:,,false
+42,T7,Show T7 - Fabrication - Status,"if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, """")",Fab:,,false
+43,T7,Show T7 - QC - Inspector,"if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, """")",QC:,,true
+44,T7,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",Installed:,,false
+45,T7,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",Hrs:,h,false
+46,T7,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",@,UGX,true
+47,T8,Show T8 - Clash - Triage Severity,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, """")",Sev:,/5,false
+48,T8,Show T8 - Clash - Triage Category,"if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, """")",,,false
+49,T8,Show T8 - Clash - Resolution Status,"if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, """")",Res:,,true
+50,T8,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",Crit:,/5,false
+51,T8,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",Zone:,,false
+52,T8,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",Lvl:,,true
+53,T9,Show T9 - As-built - Deviation,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, """")",Δ:,mm,false
+54,T9,Show T9 - As-built - Capture Date,"if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, """")",on,,false
+55,T9,Show T9 - Health Score,"if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, """")",Health:,/100,true
+56,T9,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",Parts:,,false
+57,T9,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",Labor:,,false
+58,T9,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",Terms:,,true
+59,T10,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",IFC:,,false
+60,T10,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",ACC:,,false
+61,T10,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",Sync:,,true
+62,T10,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",Uniclass:,,false
+63,T10,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",Key:,,false
+64,T10,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",Ref:,,true
+65,T10,Show T10-Ph179 - Trace Seq,"if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",Trc:,,true

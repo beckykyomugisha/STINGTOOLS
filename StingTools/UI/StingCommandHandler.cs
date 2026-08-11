@@ -1569,6 +1569,7 @@ namespace StingTools.UI
                     case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;
                     case "RetrofitProject": RunCommand<Temp.RetrofitProjectCommand>(app); break;
                     case "MigrateTagFamilies": RunCommand<Commands.TagStudio.MigrateTagFamiliesCommand>(app); break;
+                    case "UniversalTag_Diff": RunCommand<Commands.TagStudio.UniversalTagDiffCommand>(app); break;
                     case "MigrateTagLabelRefs": RunCommand<Commands.TagStudio.MigrateTagLabelReferencesCommand>(app); break;
                     case "Propagate_UniversalTag": RunCommand<Commands.TagStudio.PropagateUniversalTagCommand>(app); break;
                     case "Gate_StampStatus": RunCommand<Commands.TagStudio.StampGateStatusCommand>(app); break;
