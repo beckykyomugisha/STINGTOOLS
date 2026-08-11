@@ -185,6 +185,15 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// Raise the event once so a suite runner's queued commands get drained.
+        /// Suite runners enqueue every ticked check rather than calling
+        /// DispatchCommand per check — repeated dispatches overwrite one tag slot
+        /// and only the last survives. The pump tag itself does nothing; the work
+        /// happens in StingCommandHandler's drain at the end of Execute.
+        /// </summary>
+        public static bool PumpQueue() => DispatchCommand("STING_QueuePump");
+
+        /// <summary>
         /// Dispatch that works from a dialog shown DURING command execution.
         ///
         /// A modal dialog opened inside an IExternalCommand (the drawing-production
@@ -298,9 +307,11 @@ namespace StingTools.UI
                     bool schedules = chkSyncSchedules != null && chkSyncSchedules.IsChecked == true;
                     bool template  = chkSyncTemplate  != null && chkSyncTemplate.IsChecked  == true;
                     if (!elements && !schedules && !template) return true; // nothing ticked, no-op
-                    if (elements)  { DispatchCommand("ExportToExcel");           DispatchCommand("ImportFromExcel"); }
-                    if (schedules) { DispatchCommand("ExportSchedulesToExcel");  DispatchCommand("ImportSchedulesFromExcel"); }
-                    if (template)  { DispatchCommand("ExportExcelTemplate"); }
+                    if (elements)  { StingCommandHandler.EnqueueCommand("ExportToExcel");           StingCommandHandler.EnqueueCommand("ImportFromExcel"); }
+                    if (schedules) { StingCommandHandler.EnqueueCommand("ExportSchedulesToExcel");  StingCommandHandler.EnqueueCommand("ImportSchedulesFromExcel"); }
+                    if (template)  { StingCommandHandler.EnqueueCommand("ExportExcelTemplate"); }
+                    // Enqueued above; one pump dispatch makes Execute run and drain them.
+                    PumpQueue();
                     return true;
                 }
                 case "Platform_PublishTarget":
@@ -398,16 +409,18 @@ namespace StingTools.UI
                 {
                     // Reads the DATA QA validator CheckBoxes.
                     bool any = false;
-                    if (chkValVTmpl   != null && chkValVTmpl.IsChecked   == true) { DispatchCommand("ValidateTemplate");        any = true; }
-                    if (chkValDynBind != null && chkValDynBind.IsChecked == true) { DispatchCommand("DynamicBindings");         any = true; }
-                    if (chkValSchema  != null && chkValSchema.IsChecked  == true) { DispatchCommand("SchemaValidate");          any = true; }
-                    if (chkValClash   != null && chkValClash.IsChecked   == true) { DispatchCommand("ClashDetect");             any = true; }
-                    if (chkValXClash  != null && chkValXClash.IsChecked  == true) { DispatchCommand("CrossModelClash");         any = true; }
-                    if (chkValMep     != null && chkValMep.IsChecked     == true) { DispatchCommand("MEPClearance");            any = true; }
-                    if (chkValNaming  != null && chkValNaming.IsChecked  == true) { DispatchCommand("NamingAudit");             any = true; }
-                    if (chkValIfc     != null && chkValIfc.IsChecked     == true) { DispatchCommand("IFCPropertyValidation");   any = true; }
-                    if (chkValGbxml   != null && chkValGbxml.IsChecked   == true) { DispatchCommand("GbXMLEnrichment");         any = true; }
+                    if (chkValVTmpl   != null && chkValVTmpl.IsChecked   == true) { StingCommandHandler.EnqueueCommand("ValidateTemplate");        any = true; }
+                    if (chkValDynBind != null && chkValDynBind.IsChecked == true) { StingCommandHandler.EnqueueCommand("DynamicBindings");         any = true; }
+                    if (chkValSchema  != null && chkValSchema.IsChecked  == true) { StingCommandHandler.EnqueueCommand("SchemaValidate");          any = true; }
+                    if (chkValClash   != null && chkValClash.IsChecked   == true) { StingCommandHandler.EnqueueCommand("ClashDetect");             any = true; }
+                    if (chkValXClash  != null && chkValXClash.IsChecked  == true) { StingCommandHandler.EnqueueCommand("CrossModelClash");         any = true; }
+                    if (chkValMep     != null && chkValMep.IsChecked     == true) { StingCommandHandler.EnqueueCommand("MEPClearance");            any = true; }
+                    if (chkValNaming  != null && chkValNaming.IsChecked  == true) { StingCommandHandler.EnqueueCommand("NamingAudit");             any = true; }
+                    if (chkValIfc     != null && chkValIfc.IsChecked     == true) { StingCommandHandler.EnqueueCommand("IFCPropertyValidation");   any = true; }
+                    if (chkValGbxml   != null && chkValGbxml.IsChecked   == true) { StingCommandHandler.EnqueueCommand("GbXMLEnrichment");         any = true; }
                     _ = any;
+                    // Enqueued above; one pump dispatch makes Execute run and drain them.
+                    PumpQueue();
                     return true;
                 }
                 case "Setup_MepScheduleCreate":
@@ -476,13 +489,15 @@ namespace StingTools.UI
                 case "Standards_RunSuite":
                 {
                     bool any = false;
-                    if (chkStdCableSize != null && chkStdCableSize.IsChecked == true) { DispatchCommand("Std_CalcCableSize");    any = true; }
-                    if (chkStdWindLoad  != null && chkStdWindLoad.IsChecked  == true) { DispatchCommand("Std_CalcWindLoad");     any = true; }
-                    if (chkStdCooling   != null && chkStdCooling.IsChecked   == true) { DispatchCommand("Std_CalcCoolingLoad");  any = true; }
-                    if (chkStdLighting  != null && chkStdLighting.IsChecked  == true) { DispatchCommand("Std_CalcLighting");     any = true; }
-                    if (chkStdEgress    != null && chkStdEgress.IsChecked    == true) { DispatchCommand("Std_CalcEgress");       any = true; }
-                    if (chkStdSprinkler != null && chkStdSprinkler.IsChecked == true) { DispatchCommand("Std_DesignSprinkler");  any = true; }
+                    if (chkStdCableSize != null && chkStdCableSize.IsChecked == true) { StingCommandHandler.EnqueueCommand("Std_CalcCableSize");    any = true; }
+                    if (chkStdWindLoad  != null && chkStdWindLoad.IsChecked  == true) { StingCommandHandler.EnqueueCommand("Std_CalcWindLoad");     any = true; }
+                    if (chkStdCooling   != null && chkStdCooling.IsChecked   == true) { StingCommandHandler.EnqueueCommand("Std_CalcCoolingLoad");  any = true; }
+                    if (chkStdLighting  != null && chkStdLighting.IsChecked  == true) { StingCommandHandler.EnqueueCommand("Std_CalcLighting");     any = true; }
+                    if (chkStdEgress    != null && chkStdEgress.IsChecked    == true) { StingCommandHandler.EnqueueCommand("Std_CalcEgress");       any = true; }
+                    if (chkStdSprinkler != null && chkStdSprinkler.IsChecked == true) { StingCommandHandler.EnqueueCommand("Std_DesignSprinkler");  any = true; }
                     _ = any;
+                    // Enqueued above; one pump dispatch makes Execute run and drain them.
+                    PumpQueue();
                     return true;
                 }
                 case "Mep_AutoSizeRun":
@@ -592,39 +607,43 @@ namespace StingTools.UI
                 }
                 case "Tagging_RoomTagApply":
                 {
-                    // Dispatch anchor + leader in sequence so the user picks
-                    // both with one button press.
-                    string anchorTag = null;
-                    if (rbRoomTagCentroid != null && rbRoomTagCentroid.IsChecked == true) anchorTag = (rbRoomTagCentroid.Tag as string) ?? "RoomTagCentroid";
-                    else if (rbRoomTagTopLeft != null && rbRoomTagTopLeft.IsChecked == true) anchorTag = (rbRoomTagTopLeft.Tag as string) ?? "RoomTagTopLeft";
-                    else if (rbRoomTagTopCentre != null && rbRoomTagTopCentre.IsChecked == true) anchorTag = (rbRoomTagTopCentre.Tag as string) ?? "RoomTagTopCentre";
-                    if (string.IsNullOrEmpty(anchorTag)) anchorTag = "RoomTagCentroid";
-                    DispatchCommand(anchorTag);
+                    // Two back-to-back DispatchCommand calls DO NOT run two commands.
+                    // SetCommand writes one tag slot and ExternalEvent.Raise coalesces,
+                    // so Execute ran once and saw only the second (leader) tag — the
+                    // anchor, which is the part that visibly moves the tag, was
+                    // silently dropped. Pass both choices as ExtraParams and dispatch
+                    // ONCE; RoomTag_ApplySync performs both on the API thread in order.
+                    string anchor = "Centroid";
+                    if (rbRoomTagTopLeft != null && rbRoomTagTopLeft.IsChecked == true) anchor = "TopLeft";
+                    else if (rbRoomTagTopCentre != null && rbRoomTagTopCentre.IsChecked == true) anchor = "TopCentre";
 
-                    string leaderTag = null;
-                    if (rbRoomLeaderLock != null && rbRoomLeaderLock.IsChecked == true) leaderTag = (rbRoomLeaderLock.Tag as string) ?? "RoomTagLeaderLock";
-                    else if (rbRoomLeaderFree != null && rbRoomLeaderFree.IsChecked == true) leaderTag = (rbRoomLeaderFree.Tag as string) ?? "RoomTagLeaderFree";
-                    if (string.IsNullOrEmpty(leaderTag)) leaderTag = "RoomTagLeaderLock";
-                    DispatchCommand(leaderTag);
+                    string leader = (rbRoomLeaderFree != null && rbRoomLeaderFree.IsChecked == true)
+                        ? "Free" : "Lock";
+
+                    StingCommandHandler.SetExtraParam("RoomTagAnchor", anchor);
+                    StingCommandHandler.SetExtraParam("RoomTagLeader", leader);
+                    DispatchCommand("RoomTag_ApplySync");
                     return true;
                 }
                 case "Tagging_AnalyseSuite":
                 {
                     // Walk every ticked check + dispatch the underlying tag.
                     bool any = false;
-                    if (chkAnalyseScore      != null && chkAnalyseScore.IsChecked      == true) { DispatchCommand((chkAnalyseScore.Tag      as string) ?? "AnalyseScore");           any = true; }
-                    if (chkAnalyseClashes    != null && chkAnalyseClashes.IsChecked    == true) { DispatchCommand((chkAnalyseClashes.Tag    as string) ?? "AnalyseClashes");         any = true; }
-                    if (chkAnalyseCrossings  != null && chkAnalyseCrossings.IsChecked  == true) { DispatchCommand((chkAnalyseCrossings.Tag  as string) ?? "AnalyseCrossings");       any = true; }
-                    if (chkAnalyseDensity    != null && chkAnalyseDensity.IsChecked    == true) { DispatchCommand((chkAnalyseDensity.Tag    as string) ?? "AnalyseDensity");         any = true; }
-                    if (chkAnalyseClusters   != null && chkAnalyseClusters.IsChecked   == true) { DispatchCommand((chkAnalyseClusters.Tag   as string) ?? "AnalyseClusters");        any = true; }
-                    if (chkAnalyseStats      != null && chkAnalyseStats.IsChecked      == true) { DispatchCommand((chkAnalyseStats.Tag      as string) ?? "TagStats");               any = true; }
-                    if (chkAnalyseByDisc     != null && chkAnalyseByDisc.IsChecked     == true) { DispatchCommand((chkAnalyseByDisc.Tag     as string) ?? "SelectByDiscipline");     any = true; }
-                    if (chkAnalysePin        != null && chkAnalysePin.IsChecked        == true) { DispatchCommand((chkAnalysePin.Tag        as string) ?? "PinTags");                any = true; }
-                    if (chkAnalyseResetPos   != null && chkAnalyseResetPos.IsChecked   == true) { DispatchCommand((chkAnalyseResetPos.Tag   as string) ?? "ResetTagPositions");      any = true; }
-                    if (chkAnalyseDiscComp   != null && chkAnalyseDiscComp.IsChecked   == true) { DispatchCommand((chkAnalyseDiscComp.Tag   as string) ?? "DiscComplianceReport");   any = true; }
-                    if (chkAnalyseWfTrend    != null && chkAnalyseWfTrend.IsChecked    == true) { DispatchCommand((chkAnalyseWfTrend.Tag    as string) ?? "WorkflowTrend");          any = true; }
-                    if (chkAnalyseLinkedMan  != null && chkAnalyseLinkedMan.IsChecked  == true) { DispatchCommand((chkAnalyseLinkedMan.Tag  as string) ?? "ExportLinkedManifest");   any = true; }
+                    if (chkAnalyseScore      != null && chkAnalyseScore.IsChecked      == true) { StingCommandHandler.EnqueueCommand((chkAnalyseScore.Tag      as string) ?? "AnalyseScore");           any = true; }
+                    if (chkAnalyseClashes    != null && chkAnalyseClashes.IsChecked    == true) { StingCommandHandler.EnqueueCommand((chkAnalyseClashes.Tag    as string) ?? "AnalyseClashes");         any = true; }
+                    if (chkAnalyseCrossings  != null && chkAnalyseCrossings.IsChecked  == true) { StingCommandHandler.EnqueueCommand((chkAnalyseCrossings.Tag  as string) ?? "AnalyseCrossings");       any = true; }
+                    if (chkAnalyseDensity    != null && chkAnalyseDensity.IsChecked    == true) { StingCommandHandler.EnqueueCommand((chkAnalyseDensity.Tag    as string) ?? "AnalyseDensity");         any = true; }
+                    if (chkAnalyseClusters   != null && chkAnalyseClusters.IsChecked   == true) { StingCommandHandler.EnqueueCommand((chkAnalyseClusters.Tag   as string) ?? "AnalyseClusters");        any = true; }
+                    if (chkAnalyseStats      != null && chkAnalyseStats.IsChecked      == true) { StingCommandHandler.EnqueueCommand((chkAnalyseStats.Tag      as string) ?? "TagStats");               any = true; }
+                    if (chkAnalyseByDisc     != null && chkAnalyseByDisc.IsChecked     == true) { StingCommandHandler.EnqueueCommand((chkAnalyseByDisc.Tag     as string) ?? "SelectByDiscipline");     any = true; }
+                    if (chkAnalysePin        != null && chkAnalysePin.IsChecked        == true) { StingCommandHandler.EnqueueCommand((chkAnalysePin.Tag        as string) ?? "PinTags");                any = true; }
+                    if (chkAnalyseResetPos   != null && chkAnalyseResetPos.IsChecked   == true) { StingCommandHandler.EnqueueCommand((chkAnalyseResetPos.Tag   as string) ?? "ResetTagPositions");      any = true; }
+                    if (chkAnalyseDiscComp   != null && chkAnalyseDiscComp.IsChecked   == true) { StingCommandHandler.EnqueueCommand((chkAnalyseDiscComp.Tag   as string) ?? "DiscComplianceReport");   any = true; }
+                    if (chkAnalyseWfTrend    != null && chkAnalyseWfTrend.IsChecked    == true) { StingCommandHandler.EnqueueCommand((chkAnalyseWfTrend.Tag    as string) ?? "WorkflowTrend");          any = true; }
+                    if (chkAnalyseLinkedMan  != null && chkAnalyseLinkedMan.IsChecked  == true) { StingCommandHandler.EnqueueCommand((chkAnalyseLinkedMan.Tag  as string) ?? "ExportLinkedManifest");   any = true; }
                     _ = any;
+                    // Enqueued above; one pump dispatch makes Execute run and drain them.
+                    PumpQueue();
                     return true;
                 }
                 default:

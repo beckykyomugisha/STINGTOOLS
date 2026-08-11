@@ -97,6 +97,63 @@ namespace StingTools.UI
             return !_lastTagUnhandled;
         }
 
+        // ── Suite-runner command queue ────────────────────────────────────────
+        // Tags enqueued here run one after another inside a single Execute pass.
+        // Bounded so a runaway caller cannot build an unbounded chain.
+        private const int MaxQueuedCommands = 32;
+        private static readonly Queue<string> _queued = new Queue<string>();
+
+        /// <summary>
+        /// Queue an additional command to run after the current dispatch. Use this
+        /// instead of calling DispatchCommand repeatedly — repeated dispatches
+        /// overwrite one tag slot and only the last one survives.
+        /// </summary>
+        public static void EnqueueCommand(string tag)
+        {
+            if (string.IsNullOrWhiteSpace(tag)) return;
+            lock (_queued)
+            {
+                if (_queued.Count >= MaxQueuedCommands)
+                {
+                    StingLog.Warn($"Command queue full ({MaxQueuedCommands}) — dropping '{tag}'. "
+                                + "A suite runner is queueing more work than the cap allows.");
+                    return;
+                }
+                _queued.Enqueue(tag);
+            }
+        }
+
+        /// <summary>Run every queued tag in order. Called at the end of Execute.</summary>
+        private void DrainQueuedCommands(UIApplication app)
+        {
+            if (_executeDepth > 0) return;      // an inner (wizard) pass — let the outer one drain
+            while (true)
+            {
+                string next;
+                lock (_queued)
+                {
+                    if (_queued.Count == 0) return;
+                    next = _queued.Dequeue();
+                }
+                try
+                {
+                    lock (_lock) { _commandTag = next; _param1 = ""; _param2 = ""; }
+                    Execute(app);
+                }
+                catch (Exception ex)
+                {
+                    // One failing member must not abandon the rest of the suite.
+                    StingLog.Error($"Queued command '{next}' failed", ex);
+                }
+            }
+        }
+
+        /// <summary>Discard anything queued but not yet run (panel teardown, cancel).</summary>
+        public static void ClearQueuedCommands()
+        {
+            lock (_queued) { _queued.Clear(); }
+        }
+
         public string GetName() => "STING Command Dispatcher";
 
         public void Execute(UIApplication app)
@@ -1703,11 +1760,33 @@ namespace StingTools.UI
                     case "BatchViewCats": BatchViewCategories(app); break;
                     case "BatchViewRunAll": BatchViewRunAll(app); break;
 
+                    // No-op pump. A suite runner enqueues its checks and raises this
+                    // once so Execute runs and the drain at the end fires. Doing the
+                    // work here instead would run the first check twice.
+                    case "STING_QueuePump": break;
+
                     case "RoomTagCentroid": MoveRoomTags(app, "Centroid"); break;
                     case "RoomTagTopLeft": MoveRoomTags(app, "TopLeft"); break;
                     case "RoomTagTopCentre": MoveRoomTags(app, "TopCentre"); break;
                     case "RoomTagLeaderLock": RoomTagLeaderToggle(app, true); break;
                     case "RoomTagLeaderFree": RoomTagLeaderToggle(app, false); break;
+
+                    // "Apply room-tag sync" applies BOTH the anchor and the leader
+                    // mode. The runner used to call DispatchCommand twice in a row;
+                    // SetCommand overwrites a single tag slot and ExternalEvent.Raise
+                    // coalesces, so Execute ran once and saw only the LEADER tag. The
+                    // anchor — the part that visibly moves the tag — was silently
+                    // dropped, which is why the button read as doing nothing.
+                    // RunTagSync's own comment already warns about this hazard.
+                    // One dispatch, both actions, on the API thread, in order.
+                    case "RoomTag_ApplySync":
+                    {
+                        string anchor = GetExtraParam("RoomTagAnchor");
+                        string leader = GetExtraParam("RoomTagLeader");
+                        MoveRoomTags(app, string.IsNullOrEmpty(anchor) ? "Centroid" : anchor);
+                        RoomTagLeaderToggle(app, !string.Equals(leader, "Free", StringComparison.OrdinalIgnoreCase));
+                        break;
+                    }
 
                     case "ListLinks": ListLinkedModels(app); break;
                     case "SelInLink":
@@ -4163,6 +4242,21 @@ namespace StingTools.UI
                 }
             }
             }); // S8.2.1 — close PluginTelemetry.Run lambda
+
+            // ── Suite-runner queue drain ──────────────────────────────────────
+            // A "suite" button (Tagging_AnalyseSuite, Setup_ValidatorSuite,
+            // Standards_RunSuite, ExcelLink_SyncSuite) is meant to run several
+            // checks from one click. They did it by calling DispatchCommand once
+            // per ticked box — up to twelve times — but SetCommand writes ONE tag
+            // slot and ExternalEvent.Raise coalesces, so Execute ran once and saw
+            // only the last tag. Eleven of twelve checks never ran, and the button
+            // still looked like it worked because the last one did.
+            //
+            // Re-raising the event from here is not an option: Raise() is Denied
+            // while a command is in flight. Drain in-process instead. Execute is
+            // already re-entrant by design (_executeDepth guards wizard dispatch
+            // loops), so recursion is the existing, tested path.
+            DrainQueuedCommands(app);
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.
             // (See commit history for rationale — FilteredElementCollector after

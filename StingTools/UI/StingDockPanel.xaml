@@ -1330,8 +1330,14 @@
                                             <Button Style="{StaticResource ActionBtn}" Content="By variable" Tag="ColorByVariable" Click="Cmd_Click" ToolTip="Colour by System / Status / Zone / Level / Function / Location"/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Box colour"  Tag="SetBoxColor"     Click="Cmd_Click" ToolTip="Set tag bounding-box fill colour (separate from text)"/>
                                         </WrapPanel>
-                                        <TextBlock Style="{StaticResource SubLabel}" Text="PARAGRAPH DEPTH"/>
+                                        <TextBlock Style="{StaticResource SubLabel}" Text="DESCRIPTION / PARAGRAPH"/>
                                         <WrapPanel>
+                                            <!-- Operators look for a "Describe" action on this tab because
+                                                 Type Description and the TAG7 narrative both live near that
+                                                 idea. The Paragraph Builder IS that tool; it was only on the
+                                                 TAG STUDIO tab, so it read as missing. Same command, second
+                                                 entry point where people actually look for it. -->
+                                            <Button Style="{StaticResource ActionBtn}" Content="Describe (Paragraph Builder)…" Tag="ParagraphBuilder" Click="Cmd_Click" ToolTip="Compose the TAG7 narrative — the description that appears on the tag"/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Set depth (1-10)" Tag="SetParagraphDepthExt" Click="Cmd_Click" ToolTip="Control TAG7 paragraph visibility tiers"/>
                                         </WrapPanel>
                                         <TextBlock Style="{StaticResource SubLabel}" Text="PATTERN MODE (T4-T10 PAYLOAD SET)"/>

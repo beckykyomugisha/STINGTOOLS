@@ -46,6 +46,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE = os.path.join(ROOT, "tools", "dispatch_wiring_baseline.json")
 
 CASE_RE = re.compile(r'case\s+"([A-Za-z0-9_]+)"')
+# Suite-runner interception in code-behind: `cmdTag == "Tagging_RoomTagApply"`.
+# These never reach a handler switch, so a case-only scan calls them dead.
+RUNNER_RE = re.compile(r'cmdTag\s*==\s*"([A-Za-z0-9_]+)"')
+# The per-tab modules do not switch at all — they populate a registry:
+#   registry.Register("Folder_CloudSync", app => RunCommandPublic<…>(app));
+REGISTER_RE = re.compile(r'\.Register\(\s*"([A-Za-z0-9_]+)"')
 BUTTON_RE = re.compile(r"<Button\b[^>]*?>", re.S)
 TAG_RE = re.compile(r'Tag="([A-Za-z0-9_]+)"')
 
@@ -58,9 +64,38 @@ def read(path):
 def collect_cases():
     """Every case label across every command handler."""
     out = {}
-    for path in sorted(glob.glob(os.path.join(ROOT, "StingTools", "UI", "*CommandHandler.cs"))):
-        for name in CASE_RE.findall(read(path)):
-            out.setdefault(name, os.path.basename(path))
+    # RECURSIVE, to match collect_buttons below. The non-recursive glob missed
+    # UI/Plumbing/StingPlumbingCommandHandler.cs and
+    # UI/Sustainability/StingSustainabilityCommandHandler.cs while the button
+    # scan — already recursive — picked their panels up. Every Plumb_*,
+    # Plumbing_* and Sustain_* button was therefore reported dead while being
+    # correctly wired. A gate that mismeasures in the alarming direction trains
+    # people to ignore it, which is the failure this file exists to prevent.
+    #
+    # THREE dispatch surfaces, not one. A tag is reachable if ANY of them
+    # handles it:
+    #   1. *CommandHandler.cs           — the IExternalEventHandler switches
+    #   2. *.xaml.cs code-behind        — "suite runner" buttons are intercepted
+    #                                     in Cmd_Click and never reach a handler
+    #                                     (RunTaggingRunner, RunDocsRunner, …)
+    #   3. UI/Modules/*CommandModule.cs — the extracted per-tab dispatch modules
+    # Scanning only (1) reported Tagging_RoomTagApply as dead while it is fully
+    # implemented — it reads the anchor + leader radios and dispatches two
+    # concrete tags. Counting a working button as broken is the same failure as
+    # missing a broken one.
+    patterns = [
+        os.path.join(ROOT, "StingTools", "UI", "**", "*CommandHandler.cs"),
+        os.path.join(ROOT, "StingTools", "UI", "**", "*.xaml.cs"),
+        os.path.join(ROOT, "StingTools", "UI", "Modules", "*.cs"),
+    ]
+    for pattern in patterns:
+        for path in sorted(glob.glob(pattern, recursive=True)):
+            for name in CASE_RE.findall(read(path)):
+                out.setdefault(name, os.path.basename(path))
+            for name in RUNNER_RE.findall(read(path)):
+                out.setdefault(name, os.path.basename(path))
+            for name in REGISTER_RE.findall(read(path)):
+                out.setdefault(name, os.path.basename(path))
     return out
 
 

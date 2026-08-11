@@ -75,6 +75,18 @@ namespace StingTools.Commands.TagStudio
                 int typesTouched = 0, gatesWritten = 0, symbolsWithoutGates = 0;
                 var missing = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                // Per-gate outcome tally. The first version reported only "types
+                // carrying gates" and "values written", which cannot distinguish
+                // "the gate is not on this type" from "the gate is there and already
+                // holds the target value" — so a run that wrote 0 was unreadable.
+                // Three counters per parameter name make the next run self-explaining.
+                var tally = new SortedDictionary<string, int[]>(StringComparer.Ordinal); // [written, alreadyCorrect, absent]
+                int[] Slot(string n)
+                {
+                    if (!tally.TryGetValue(n, out int[] c)) { c = new int[3]; tally[n] = c; }
+                    return c;
+                }
+
                 using (var tx = new Transaction(doc, "STING Set Tag Tier Defaults"))
                 {
                     tx.Start();
@@ -83,23 +95,20 @@ namespace StingTools.Commands.TagStudio
                         bool anyGateOnThisSymbol = false;
                         int writtenHere = 0;
 
-                        for (int i = 0; i < paraStates.Length; i++)
+                        void Apply(string pname, bool want)
                         {
-                            bool want = i < TiersOn;
-                            switch (SetBool(sym, paraStates[i], want))
+                            switch (SetBool(sym, pname, want))
                             {
-                                case GateWrite.Written: writtenHere++; anyGateOnThisSymbol = true; break;
-                                case GateWrite.AlreadyCorrect: anyGateOnThisSymbol = true; break;
-                                case GateWrite.Absent: missing.Add(paraStates[i]); break;
+                                case GateWrite.Written:        writtenHere++; anyGateOnThisSymbol = true; Slot(pname)[0]++; break;
+                                case GateWrite.AlreadyCorrect:                anyGateOnThisSymbol = true; Slot(pname)[1]++; break;
+                                case GateWrite.Absent:         missing.Add(pname);                        Slot(pname)[2]++; break;
                             }
                         }
 
-                        switch (SetBool(sym, ParamRegistry.WARN_VISIBLE, true))
-                        {
-                            case GateWrite.Written: writtenHere++; anyGateOnThisSymbol = true; break;
-                            case GateWrite.AlreadyCorrect: anyGateOnThisSymbol = true; break;
-                            case GateWrite.Absent: missing.Add(ParamRegistry.WARN_VISIBLE); break;
-                        }
+                        for (int i = 0; i < paraStates.Length; i++)
+                            Apply(paraStates[i], i < TiersOn);
+
+                        Apply(ParamRegistry.WARN_VISIBLE, true);
 
                         if (!anyGateOnThisSymbol) { symbolsWithoutGates++; continue; }
 
@@ -122,10 +131,27 @@ namespace StingTools.Commands.TagStudio
                     report.AppendLine("  Those families predate the gated label design; run the family");
                     report.AppendLine("  conformance check (FamilyConformanceCheck) against them.");
                 }
+                report.AppendLine();
+                report.AppendLine("  Per gate — written / already correct / not on the type:");
+                report.AppendLine($"    {"parameter",-28} {"want",5} {"wrote",6} {"same",6} {"absent",7}");
+                for (int i = 0; i < paraStates.Length; i++)
+                {
+                    int[] c = tally.TryGetValue(paraStates[i], out int[] v) ? v : new int[3];
+                    report.AppendLine($"    {paraStates[i],-28} {(i < TiersOn ? "ON" : "OFF"),5} {c[0],6} {c[1],6} {c[2],7}");
+                }
+                {
+                    int[] c = tally.TryGetValue(ParamRegistry.WARN_VISIBLE, out int[] v) ? v : new int[3];
+                    report.AppendLine($"    {ParamRegistry.WARN_VISIBLE,-28} {"ON",5} {c[0],6} {c[1],6} {c[2],7}");
+                }
+                report.AppendLine();
+                report.AppendLine("  'same' means the gate IS on the type and already holds the target");
+                report.AppendLine("  value — nothing to do. 'absent' means the type does not carry it,");
+                report.AppendLine("  which for tiers 1-3 and the warning row means they are instance-side");
+                report.AppendLine("  and must be set per placed tag, not here.");
                 if (missing.Count > 0)
                 {
                     report.AppendLine();
-                    report.AppendLine("  Gates absent on at least one type (skipped, never invented):");
+                    report.AppendLine("  Absent on at least one type (skipped, never invented):");
                     report.AppendLine("    " + string.Join(", ", missing));
                 }
                 report.AppendLine();
