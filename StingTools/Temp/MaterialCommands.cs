@@ -98,6 +98,11 @@ namespace StingTools.Temp
         public const int ColCostAssemblyUgx = 63;   // MAT_COST_ASSEMBLY_UGX
         public const int ColCompStrength = 68;      // PROP_COMP_STRENGTH_MPA
         public const int ColTensStrength = 69;      // PROP_TENS_STRENGTH_MPA
+        // E-2 — the fossil/biogenic split. Present in both BLE_MATERIALS.csv and
+        // MEP_MATERIALS.csv (73 columns each) since the carbon split landed, but
+        // no constant existed, so nothing could read them.
+        public const int ColCarbonFossil = 70;      // PROP_CARBON_FOSSIL_KG_M3
+        public const int ColCarbonBiogenic = 71;    // PROP_CARBON_BIOGENIC_KG_M3
 
         /// <summary>
         /// Column-to-parameter mappings for populating ALL CSV data as shared parameters.
@@ -158,6 +163,20 @@ namespace StingTools.Temp
             (ColCarbon,         "PROP_CARBON_KG_M3"),
             (ColCompStrength,   "PROP_COMP_STRENGTH_MPA"),
             (ColTensStrength,   "PROP_TENS_STRENGTH_MPA"),
+            // E-2 — turn the deterministic carbon tier on.
+            //
+            // PROP_CARBON_KG_M3 above writes a parameter of the same name that NO
+            // resolver reads. CarbonFactorResolver's exact-match tier reads
+            // STING_EMB_CARBON_NR (CarbonFactorResolver.cs:62) and its split tiers
+            // read STING_EMB_CARBON_FOSSIL_NR / _BIOGENIC_NR (:141, :150) — so the
+            // library's real measured carbon never reached the resolver and every
+            // material fell through to the keyword / class estimate.
+            //
+            // Same column, second destination: PROP_CARBON_KG_M3 is kept so any
+            // existing schedule built on it keeps working.
+            (ColCarbon,         "STING_EMB_CARBON_NR"),
+            (ColCarbonFossil,   "STING_EMB_CARBON_FOSSIL_NR"),
+            (ColCarbonBiogenic, "STING_EMB_CARBON_BIOGENIC_NR"),
             // Assets — hyphens, not underscores (must match MR_PARAMETERS.txt)
             (ColPhysicalAsset,  "BLE_APP-PHYSICAL-ASSET"),
             (ColThermalAsset,   "BLE_APP-THERMAL-ASSET"),

@@ -64,7 +64,10 @@ namespace StingTools.Core.Content
                 {
                     baseline.Add(Path.Combine(data, "Families"));
                     baseline.Add(Path.Combine(data, "TagFamilies"));            // deployed flat set
-                    baseline.Add(Path.Combine(data, "TagFamilies", "Seeds"));   // source subset
+                    // TagFamilies/Seeds is deliberately absent. It held 137
+                    // pre-tier-change families that shadowed the live set for the 88
+                    // categories whose names they shared; they are deleted and the
+                    // folder is not re-introduced as an empty precedence slot.
                 }
             }
             catch { }

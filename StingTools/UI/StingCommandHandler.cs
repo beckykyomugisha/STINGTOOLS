@@ -695,6 +695,13 @@ namespace StingTools.UI
                     case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
                     case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
                     case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
+                    // G-20 — door/window TYPE marks. Preview is a separate tag, not a
+                    // flag, so the read-only path cannot be skipped by muscle memory.
+                    case "TypeMark_Preview":           RunCommand<Commands.Drawing.TypeMarkPreviewCommand>(app); break;
+                    case "TypeMark_Assign":            RunCommand<Commands.Drawing.TypeMarkAssignCommand>(app); break;
+                    // 3B — the specification half of the door/window pair. IsItemized=false
+                    // was never set anywhere in the plugin, so no collapsed schedule existed.
+                    case "TypeSchedule_Create":        RunCommand<Commands.Drawing.CreateTypeScheduleCommand>(app); break;
                     case "DrawingTypes_MigrateCsv":    RunCommand<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app); break;
                     case "DrawingTypes_MigrateParams":     RunCommand<Commands.Drawing.TitleBlockParamMigrateCommand>(app); break;
                     case "DrawingTypes_AuditLegacyParams": RunCommand<Commands.Drawing.TitleBlockParamMigrateAuditCommand>(app); break;
@@ -1977,6 +1984,8 @@ namespace StingTools.UI
                     case "CoveringSmartApply": RunCommand<Model.CoveringSmartApplyCommand>(app); break;
                     case "CoveringBatchApply": RunCommand<Model.CoveringBatchApplyCommand>(app); break;
                     case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
+                    case "Finish_CreateFloorsFromRooms": RunCommand<Model.CreateFinishFloorsFromRoomsCommand>(app); break;
+                    case "Finish_ReloadCodes": RunCommand<Model.ReloadFinishCodesCommand>(app); break;
                     case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
                     case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
                     case "CoveringFireRating": RunCommand<Model.CoveringFireRatingCommand>(app); break;
@@ -3268,7 +3277,8 @@ namespace StingTools.UI
                         }
                         break;
                     }
-                    case "ScheduleWizard":
+                    case "Scheduler":        // current name
+                    case "ScheduleWizard":   // legacy tag — kept so saved workflows and MCP calls keep working
                     {
                         // Load CSV definitions and existing schedule names for the wizard
                         var doc = app.ActiveUIDocument?.Document;
@@ -3559,6 +3569,12 @@ namespace StingTools.UI
                     case "BOQQsExport":             RunCommand<BOQ.BOQQsExportCommand>(app); break;
                     case "BOQQsImport":             RunCommand<BOQ.BOQQsImportCommand>(app); break;
                     case "BOQ_RateGapReport":       RunCommand<BOQ.BOQRateGapReportCommand>(app); break;
+                    // G-14 trap 2 — per-element pre-flight: which of the six
+                    // required fields each billable element is missing.
+                    case "BOQ_ReadinessByElement":  RunCommand<BOQ.BOQReadinessByElementCommand>(app); break;
+                    // B-2 — the earthwork path: reads Revit cut/fill off graded
+                    // toposolids and emits the four measured earthworks bill rows.
+                    case "Site_CutFillTakeoff":     RunCommand<Commands.Site.SiteCutFillTakeoffCommand>(app); break;
                     case "BOQ_SignOff":             RunCommand<BOQ.BOQSignOffCommand>(app); break;
                     case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
                     case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;

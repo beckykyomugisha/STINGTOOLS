@@ -58,7 +58,7 @@ Asset tagging assigns a **unique, structured identifier** to every building elem
 | Consistency | Human error prone | 100% format compliance |
 | Coverage | Typically 60-70% | 95-100% achievable |
 | Maintenance | Manual update on changes | Auto-stale detection |
-| Containers | 1 parameter only | All 53 containers populated |
+| Containers | 1 parameter only | All 182 containers populated |
 | Validation | Visual inspection | 45+ automated checks |
 
 ### Supported Categories (22)

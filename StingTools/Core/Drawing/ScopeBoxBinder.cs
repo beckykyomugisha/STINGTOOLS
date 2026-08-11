@@ -65,6 +65,91 @@ namespace StingTools.Core.Drawing
             public string    Reason { get; set; }
         }
 
+        /// <summary>
+        /// The canonical rejection reason produced when a name carries the
+        /// STING:: prefix but fails the strict pattern. Exposed so the
+        /// Scope Box Manager renders the same wording the scan warnings do.
+        /// </summary>
+        public const string PatternReason =
+            "name has STING:: prefix but does not match "
+          + "STING::<id>[::<level>][::<tag>] (allowed chars: A-Z 0-9 . _ -)";
+
+        /// <summary>The literal prefix every bindable scope-box name starts with.</summary>
+        public static string Prefix => NamePrefix;
+
+        /// <summary>
+        /// True when <paramref name="segment"/> is legal inside one "::"-delimited
+        /// token of the grammar. Lets a UI validate a drawing-type id, level code
+        /// or tag as it is typed, without assembling a whole candidate name.
+        /// </summary>
+        public static bool IsValidSegment(string segment)
+            => !string.IsNullOrEmpty(segment) && _segment.IsMatch(segment);
+
+        private static readonly Regex _segment =
+            new Regex(@"^[A-Za-z0-9_\-\.]+$", RegexOptions.Compiled);
+
+        /// <summary>
+        /// The single public entry point for "is this scope-box name legal?".
+        /// Deliberately the ONLY parser: <see cref="ScanProject"/> and the
+        /// batch-produce command both route through it, so the grammar lives
+        /// in exactly one regex.
+        ///
+        /// Returns false in two distinct situations, told apart by
+        /// <paramref name="reason"/>:
+        ///   • reason == null  — the name is simply not a STING box (no prefix).
+        ///                       Not an error; nothing to fix.
+        ///   • reason != null  — the name claims to be a STING box and is
+        ///                       malformed. Surface it to the operator.
+        ///
+        /// <paramref name="binding"/>.ScopeBox is left null — callers that
+        /// have the Element assign it themselves.
+        /// </summary>
+        public static bool TryParseName(string name, out ScopeBoxBinding binding, out string reason)
+        {
+            binding = null;
+            reason  = null;
+            if (string.IsNullOrWhiteSpace(name)) return false;
+
+            // PERF-07: cheap startswith filter before the regex.
+            if (!name.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase)) return false;
+
+            var m = _pattern.Match(name);
+            if (!m.Success)
+            {
+                // ACC-02: surface the rejection so the operator can
+                // fix typos like "STING::arch plan" → "STING::arch-plan".
+                reason = PatternReason;
+                return false;
+            }
+
+            binding = new ScopeBoxBinding
+            {
+                DrawingTypeId = m.Groups[1].Value,
+                LevelCode     = m.Groups[2].Success ? m.Groups[2].Value : null,
+                Tag           = m.Groups[3].Success ? m.Groups[3].Value : null,
+            };
+            return true;
+        }
+
+        /// <summary>
+        /// Compose a name that <see cref="TryParseName"/> will accept, from
+        /// already-validated segments. Optional segments are dropped rather
+        /// than emitted empty — "STING::id::::tag" is not legal grammar, so a
+        /// blank level with a non-blank tag has no representation and the tag
+        /// is dropped too (the caller should have flagged that as invalid).
+        /// </summary>
+        public static string ComposeName(string drawingTypeId, string levelCode, string tag)
+        {
+            if (string.IsNullOrWhiteSpace(drawingTypeId)) return string.Empty;
+            var sb = new System.Text.StringBuilder(NamePrefix).Append(drawingTypeId.Trim());
+            if (!string.IsNullOrWhiteSpace(levelCode))
+            {
+                sb.Append("::").Append(levelCode.Trim());
+                if (!string.IsNullOrWhiteSpace(tag)) sb.Append("::").Append(tag.Trim());
+            }
+            return sb.ToString();
+        }
+
         public static List<ScopeBoxBinding> ScanProject(Document doc)
             => ScanProject(doc, out _);
 
@@ -81,29 +166,22 @@ namespace StingTools.Core.Drawing
                     .WhereElementIsNotElementType())
                 {
                     var name = el.Name ?? "";
-                    // PERF-07: cheap startswith filter before the regex.
-                    if (!name.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase)) continue;
-                    var m = _pattern.Match(name);
-                    if (!m.Success)
+                    if (!TryParseName(name, out var binding, out var reason))
                     {
-                        // ACC-02: surface the rejection so the operator can
-                        // fix typos like "STING::arch plan" → "STING::arch-plan".
-                        warnings.Add(new NameWarning
-                        {
-                            ScopeBoxId = el.Id,
-                            Name       = name,
-                            Reason     = "name has STING:: prefix but does not match "
-                                       + "STING::<id>[::<level>][::<tag>] (allowed chars: A-Z 0-9 . _ -)",
-                        });
+                        // reason == null means "not a STING box at all" — skip
+                        // silently. A non-null reason is a fixable typo and is
+                        // reported so the box is not dropped without a word.
+                        if (reason != null)
+                            warnings.Add(new NameWarning
+                            {
+                                ScopeBoxId = el.Id,
+                                Name       = name,
+                                Reason     = reason,
+                            });
                         continue;
                     }
-                    results.Add(new ScopeBoxBinding
-                    {
-                        ScopeBox = el,
-                        DrawingTypeId = m.Groups[1].Value,
-                        LevelCode = m.Groups[2].Success ? m.Groups[2].Value : null,
-                        Tag       = m.Groups[3].Success ? m.Groups[3].Value : null,
-                    });
+                    binding.ScopeBox = el;
+                    results.Add(binding);
                 }
             }
             catch (Exception ex)

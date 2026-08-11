@@ -160,7 +160,17 @@ namespace StingTools.Core.Mep
             string number = Unique(takenNos, Substitute(numPat, disc, levelCode, seq));
             takenNos.Add(number);
             try { sheet.SheetNumber = number; } catch (Exception ex) { warnings.Add($"{row.ViewName}: sheet number: {ex.Message}"); }
-            try { sheet.Name = Substitute(namPat, disc, levelCode, seq); } catch { }
+            // H-4 — was `catch { }`. The line above reports a sheet-number failure
+            // to the user; this one discarded a sheet-NAME failure on the very
+            // next statement, so the sheet shipped to the CDE called "Unnamed"
+            // and the run reported success. A name is what a reviewer identifies
+            // the drawing by — this is a deliverable defect, not a cosmetic one.
+            try { sheet.Name = Substitute(namPat, disc, levelCode, seq); }
+            catch (Exception ex)
+            {
+                warnings.Add($"{row.ViewName}: sheet name: {ex.Message} — sheet {sheet.SheetNumber} keeps its default name");
+                StingLog.Warn($"MepLevelViewProducer: sheet name for '{row.ViewName}': {ex.Message}");
+            }
             row.SheetNumber = sheet.SheetNumber;
 
             try

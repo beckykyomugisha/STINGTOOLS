@@ -23,6 +23,17 @@ namespace StingTools.BOQ
     internal static class BoqErpExporter
     {
         /// <summary>Flat ERP cost-import CSV. Returns the path written.</summary>
+
+        /// <summary>
+        /// H-2 — the document's currency, not a literal. BcisHttpRateProvider returns
+        /// rates defaulting to GBP, so a BCIS-priced bill was exporting a Currency field
+        /// asserting UGX against figures that were not UGX. An ERP or P6 import has no
+        /// way to detect that; it just books the wrong number. Same source
+        /// BOQSupportCommands already honours.
+        /// </summary>
+        private static string Ccy(BOQDocument boq)
+            => string.IsNullOrWhiteSpace(boq?.Currency) ? "UGX" : boq.Currency.Trim();
+
         public static string ExportCsv(BOQDocument boq, string path)
         {
             if (boq == null) throw new ArgumentNullException(nameof(boq));
@@ -48,7 +59,7 @@ namespace StingTools.BOQ
                     Q(i.Unit),
                     i.RateUGX.ToString("0.##", CultureInfo.InvariantCulture),
                     i.TotalUGX.ToString("0.##", CultureInfo.InvariantCulture),
-                    "UGX", Q(i.Level), Q(i.Location), Q(source), Q(elemRef)
+                    Q(Ccy(boq)), Q(i.Level), Q(i.Location), Q(source), Q(elemRef)
                 }));
             }
 
@@ -76,7 +87,7 @@ namespace StingTools.BOQ
             var project = new XElement("Project",
                 new XElement("Id", Sanitise(projCode)),
                 new XElement("Name", projCode),
-                new XElement("Currency", "UGX"));
+                new XElement("Currency", Ccy(boq)));
 
             int actSeq = 1;
             foreach (var g in groups)
@@ -95,7 +106,7 @@ namespace StingTools.BOQ
                         new XElement("PricePerUnit", total.ToString("0.##", CultureInfo.InvariantCulture)),
                         new XElement("PlannedUnits", "1"),
                         new XElement("PlannedCost", total.ToString("0.##", CultureInfo.InvariantCulture)),
-                        new XElement("Currency", "UGX"))));
+                        new XElement("Currency", Ccy(boq)))));
                 actSeq++;
             }
             root.Add(project);

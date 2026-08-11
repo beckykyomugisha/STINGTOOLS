@@ -2,6 +2,435 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Viewer zoom — the far plane, then both zoom-out bounds)
+
+Reported symptom: in the coordination viewer (`wwwroot/viewer.html`), the model
+disappeared after a modest scroll-out. Three PRs, of which only the first was a
+correctness fix; the other two bound the range.
+
+| PR | Change | Where |
+|---|---|---|
+| [#618](https://github.com/beckykyomugisha/STINGTOOLS/pull/618) | `updateClipPlanes()` recomputes near/far **every frame** from the camera's current distance to `modelBounds` | `viewer.html` (new fn + call in the animate loop) |
+| [#622](https://github.com/beckykyomugisha/STINGTOOLS/pull/622) | `controls.maxDistance = radius * 40` — perspective zoom-out capped at 20× the model diagonal | same fn |
+| [#627](https://github.com/beckykyomugisha/STINGTOOLS/pull/627) | `controls.minZoom` — ortho zoom-out floored to a view ~20× the model radius | same fn |
+
+**The original defect.** near/far were set **once**, by `fitCamera`, from the
+framing distance at load; the animate loop only ran `controls.update()`. For a
+~25 m building fit at ~32 m that froze `far` at ≈568 m, so the model crossed the
+far plane and vanished. `zoomToCursor` reaches that sooner than a plain dolly: a
+wheel-out retreats along the pointer ray and re-seats the orbit target ahead of
+the camera. Verified with three.js `Frustum.setFromProjectionMatrix` against the
+vendored `three.module.js` — the box leaves the frustum from 600 m under the old
+frozen plane and stays inside it at 600 m / 5 km / 100 km after.
+
+**Why two more PRs.** #618 is provably live (served bytes byte-identical to
+`main`, `Cache-Control: no-store`) and the symptom still reproduced *while the
+model stayed centred* — so the far plane was not the whole story. #622 and #627
+therefore bound the reachable range rather than explain it. Ortho needed its own
+bound because `maxDistance` does nothing there: the eye never moves, `camera.zoom`
+does the work, and OrbitControls' `minZoom` defaults to 0. Measured before the
+floor, on a 25.3 m box: 100 notches → 601 m view half-height, 200 → 24 km, model
+0.05% of frame. After: pinned at 246.6 m, model a steady 5%.
+
+**What is NOT explained** — see ROADMAP `VIEW-1`. Ortho is ruled out as the
+culprit (its span stays symmetric, `near -98.6` / `far 98.6`, so it never clips
+on zoom-out), and no code in the viewer or the overlay layers hides geometry by
+distance or zoom — no `scene.fog`, no LOD, no distance-driven `visible = false`,
+and every `renderer.clippingPlanes` writer is user-invoked (section box, clash
+section, section plane).
+
+Both `viewer.html` copies stay byte-identical (`Planscape/assets/viewer/` source
+and the committed `wwwroot/` copy); CI gates this with **Source ↔ wwwroot
+byte-equal** plus a container gate that builds the image, serves it, and diffs
+what comes back.
+
+#### Completed (Phase 231 — KUT gate presets, and the "26 dead buttons" that were not dead)
+
+**1. Six wired commands were in no preset.** `Program_Audit`, `OwnerStandards_Audit`,
+`CSI_Assign`, `Fohlio_ExportFinishes`, `Fohlio_ImportFinishes` and `DeviceCoord_Audit`
+each had a button, a handler case and a `ResolveCommand` case — and appeared in zero
+workflow files. A1 requires a program audit at Deliverables **A, B and C** (Owner's shared
+Excel + pdf + deficiency log) and carries a DEVICE COORDINATION clause at B and C; none
+had automated coverage. All six are now placed where the contract puts them.
+
+**2. Four missing presets authored.** Only Deliverable D existed, though the matrix defines
+six milestones. Deliverable B — the first real gate the team meets, 4-5 months in — had
+nothing to run.
+
+| Preset | LOD | Steps | Shape |
+|---|---|---|---|
+| `WORKFLOW_KUT_DeliverableA.json` | 200 | 8 | Light: tokens, tags, LOD, program audit |
+| `WORKFLOW_KUT_DeliverableB.json` | 300 | 15 | Fullest gate: program + owner-standards + CSI + device coordination + Fohlio finishes + clash |
+| `WORKFLOW_KUT_DeliverableC.json` | 350 | 18 | B's shape + `CSI_Assign` → `SpecLink_Reconcile` + sheet register/compliance for the bidding set |
+| `WORKFLOW_KUT_GateAudit.json` | any | 8 | **Read-only pre-gate check**, milestone-agnostic |
+
+**Ordering defect closed.** `SpecLink_Reconcile` ran in Deliverable D with nothing
+assigning CSI sections first, so every spec section reported as a gap or over-spec.
+`CSI_Assign` now precedes it everywhere it appears.
+
+**Gate Audit is read-only by construction**, and proving that changed its contents: the
+obvious choice `ValidateTags` is a **writer** — it builds a "STING Validation Legend"
+inside a transaction — as are `CompletenessDashboard` and `DiscComplianceReport`
+("STING Compliance Legend"). All three were excluded; tag validation there is
+`PreTagAudit` + `TokenConfidenceAudit`. Every one of its 8 steps is verified
+`[Transaction(TransactionMode.ReadOnly)]`.
+
+**3. The README promised a preset that did not exist.** Deployment step 7 told the team to
+run **KUT Gate Audit**; no such file. It exists now, the §2B table lists all nine presets
+with their picker `name`, and the checklist and the files are verified to agree in **four**
+directions (file→table, table→file, cited name→preset `name`, preset `name`→cited).
+
+**4. Fohlio → LOD 500 ordering dependency.** Rung 500 for Furniture / Furniture Systems
+requires `FOHLIO_REF_TXT`, which only `Fohlio_Import` writes. Deliverable D ran no Fohlio
+step, so the D gate failed all furniture unless someone remembered to run FF&E Sync first.
+The Fohlio steps now run **before** `LOD_Verify`, and both the step label and the preset
+description record why, so it does not get reordered back.
+
+**5. The "26 dead buttons" are not dead — zero buttons are.** The brief listed 26 button
+tags with no `case` in any handler and concluded clicking them does nothing. The count is
+right; the conclusion was wrong. Dock-panel dispatch has **three** layers, and
+`StingCommandHandler.cs:173` consults the first one *before* its switch:
+
+| Layer | Source | Names |
+|---|---|---|
+| L1 `CommandRegistry` | `UI/Modules/*CommandModule.cs` | 661 |
+| L2 `Cmd_Click` suite runners | `StingDockPanel.xaml.cs` | 38 |
+| L3 handler `case` labels | six command handlers | 2,276 |
+
+Of the 26, **23 dispatch through L2 runners and 3 through the L1 registry**
+(`Folder_CloudSync`, `HC_HbnAutoPopulate`, `Tags_MigrateStyleCode`). **All 1,323
+`Cmd_Click` button tags are reachable.** `SILENT_BUTTONS_TODO.md` records the same
+correction being needed once before — the earlier "141 silent buttons" figure was ~96%
+false-positive for exactly this reason — so this is the second time a switch-only audit
+has produced a large wrong number. Nothing was "fixed" because nothing was broken; the
+finding is recorded and now enforced.
+
+**Gate Tier 4.** `tools/check_workflow_wiring.ps1` gained a tier that fails when a
+`Cmd_Click` button's `Tag` reaches none of the three layers. It lives in the same script
+because it is the same failure class and needs the same C#-source parsing; splitting it
+would duplicate that logic for one idea. `tools/button_wiring_baseline.txt` is deliberately
+**empty**. The scan is restricted to `<Button>` elements with `Click="Cmd_Click"` — a naive
+`Tag="..."` scan over the XAML over-reports by 177, because `Tag` also carries filter
+values and picker options on controls that never dispatch.
+
+**Documentation.** `SILENT_BUTTONS_TODO.md` exists at the **repo root**, not `docs/`;
+CLAUDE.md's bare reference made it look missing, and now links it explicitly and warns
+against switch-only counts. `docs/UNREACHABLE_COMMANDS_TRIAGE.md` gained a companion note
+pointing at it, and flags that its own 126 figure predates the three-layer correction.
+
+**Verification.** Build `-t:Rebuild` **0 errors / 0 warnings**; `StingTools.Tags.Tests`
+**243/243**; `check_workflow_wiring.ps1` green across all four tiers. Every step object in
+the five touched presets was audited against `WorkflowStep`'s `[JsonProperty]` names —
+only `commandTag`, `label` and `optional` are used, **no unbound key, no `tag`, no
+`order`** — and every `commandTag` verified against `ResolveCommand`. The gate was proved
+**to fail**, not merely to pass: Tier 1 on a `"tag"`-keyed step in a new preset, Tier 2 on
+a bogus `commandTag`, Tier 4 on a re-pointed button tag, each exiting 1, then restored and
+re-run green. **Nothing was executed in Revit** — the presets are composed from existing
+verified commands, and no workflow was run.
+
+**Correction to the brief's premise:** it also referenced a *Tier 3* enforcing `order`
+against array position. No such tier exists in the script. The rule is still honoured —
+none of the new presets uses `order` — but no Tier 3 failure could be demonstrated because
+there is nothing to demonstrate. Adding one would fail existing presets (40 `order` uses)
+and is logged as a ROADMAP item rather than done silently.
+
+Files: 4 new `WORKFLOW_KUT_*.json` · `WORKFLOW_KUT_DeliverableD.json` ·
+`project-templates/KUT/README.md` · `tools/check_workflow_wiring.ps1` +
+`tools/button_wiring_baseline.txt` (new) · `SILENT_BUTTONS_TODO.md` ·
+`docs/UNREACHABLE_COMMANDS_TRIAGE.md` · `CLAUDE.md`.
+
+#### Completed (Phase 230 — KUT review follow-ups: rung-500 consistency, FF&E, Division 02 handover, order drift)
+
+Four items raised reviewing PR #623 and PR #630 after they merged. Small, all verified.
+
+**1. `Cable Trays` was the odd one out at rung 500.** It carried `+ASS_INSTALLATION_DATE_TXT`
+while `Ducts`, `Pipes` and `Conduits` — same distribution class — were a bare `inherit: 400`,
+and the matrix `description` already listed Cable Trays in the fabric/distribution group. Data
+contradicted its own stated intent, so this was a miss rather than a decision. Now a bare
+inherit, consistent with its siblings.
+
+**2. `Furniture` / `Furniture Systems` now sit in their own FF&E group at rung 500.** They were
+inheriting the fabric default, which put the LOD gate and `Fohlio_Audit` at odds: the two
+categories are Fohlio-tracked, `Fohlio_Audit` measures their link currency, and `LOD_Verify`
+asked nothing of them at handover. Rung 500 now adds `+ASS_INSTALLATION_DATE_TXT` and
+`+FOHLIO_REF_TXT` — a dated install and a live Fohlio link are what handover actually carries
+for a furniture item — but **not** a serial number, which it does not. Both parameters verified
+present in `MR_PARAMETERS.txt` with GUIDs and bound `<ALL>` in `RESOLVED_BINDINGS.csv`. The
+matrix `description` now documents three groups, not two.
+
+**3. Division 02 is now documented as a manual step where the project team will read it.**
+Phase 228 withdrew the naming-based demolition rows for good reason (`CsiMasterFormat.Resolve`
+never sees `Phase Demolished`), but A1 Deliverable B still requires an Existing Conditions &
+Removals Plan, and the gap lived only in `docs/ROADMAP.md`. Added to
+`project-templates/KUT/README.md` as deployment step 5 with two concrete methods, and to
+`GUIDES/KUT_BEP_TEMPLATE.md` as a new §10.3 with a `[FILL: owner]` slot and a QA-table row.
+Both state the timing constraint: classify demolition **before** `SpecLink_Reconcile`, or the
+Owner's Division 02 spec sections report as over-specification and the reconciliation reads
+clean when it is not.
+
+**4. `tools/check_workflow_wiring.ps1` gains Tier 3 — `order` vs array position.** `WorkflowStep`
+does not bind `order` any more than it bound `tag`; 40 steps carry it and the engine ignores
+every one, executing in array position. All 44 presets agree today, so nothing runs out of
+sequence — the tier exists to keep it that way, because the failure is silent: sort a preset by
+`order` in an editor and the file states one sequence while the engine runs another. Proved in
+both directions — swapping two steps in `WORKFLOW_ElectricalDesignReview.json` without touching
+their `order` values fails Tier 3 and exits 1; the restored tree passes.
+
+**Also corrected:** `GUIDES/KUT_BEP_TEMPLATE.md` §4.1 still named Uniclass 2015 as the primary
+classification with CSI as "a secondary cross-reference". The Owner mandates RIB SpecLink across
+every discipline (A2) and Phase 228 set `sting_classification.json` to `CSI`, so the BEP
+contradicted both the contract and the shipped config. CSI is now stated as primary.
+
+Verified: `dotnet build -t:Rebuild` 0 errors / 0 warnings; `StingTools.Tags.Tests` 243/243;
+`STING_LOD_MATRIX.json` parses; wiring gate green (44 presets, 328 steps, 655 case labels).
+Not exercised in a live Revit session — the rung-500 changes are data and the checks that read
+them are unchanged, but no `LOD_Verify` run against real elements was performed.
+
+#### Completed (Phase 229 — eleven workflow presets executed nothing and reported success)
+
+Closes ROADMAP **KUT-1** and **KUT-2**. Pre-existing debt, not introduced by any recent
+phase — measured identically on `main` before this work started.
+
+**The defect.** `WorkflowStep` binds only `[JsonProperty("commandTag")]`. A step written
+`{"tag": "..."}` deserialises with `CommandTag == null`, resolves to nothing and is
+skipped — **the run completes and reports success having executed zero steps.** The trap
+is easy to fall into because `WorkflowStepResult`, the *output* record, legitimately
+serialises its tag as `"tag"`.
+
+**KUT-1 — 59 steps across 11 presets, every step in each file, so each preset was
+entirely inert:** `WORKFLOW_ElectricalSubmission` (19), `ElectricalPostFitOut` (11),
+`ElectricalDesignReview` (10), `HealthcareCommissioning` (5), `RdsIssue` (3),
+`AntiLigatureAudit` · `HTM-01-06-EndoReprocess` · `HTM-04-01-Annual` · `MgasVerification` ·
+`PressureRegimeAudit` (2 each), `NFPA110-GeneratorTest` (1). Anyone who demoed one of
+these to a client watched it report success while doing nothing.
+
+**Three more silently-dropped keys found in the same files** and fixed with it: 39
+`description` + 20 `name` → `label` (display only), and **40 `continueOnFail` + 20
+`allowSkip` → `optional`, which changes execution** — `Optional` is what stops a failed
+step aborting the run, so a step its author marked non-fatal was fatal.
+
+**KUT-2 — sequencing mattered.** Renaming the field exposed the 11 inert presets' tags to
+resolution for the first time, so unresolved rose **66 → 96** (82 distinct) before falling.
+Triage, by grepping **all six** command handlers (`StingCommandHandler` plus the
+Electrical / Hvac / Plumbing / Lps / Sustainability panels — the first pass only searched
+the main one and badly over-reported "no command exists"):
+
+| Disposition | Count |
+|---|---|
+| Command existed in a handler → **added a `ResolveCommand` case** | **72** |
+| No command exists → step marked `optional` + explanatory label + baselined | 10 |
+
+Nothing new was written: all 72 are command classes the dock panels already dispatch,
+never wired into `ResolveCommand`. The 10 are `WORKFLOW_DailyFieldWalk`'s seven steps
+(BIM Coordination Center **SITE PHOTOS tab** interactions, not `IExternalCommand`s — the
+preset is a manual checklist, not an executable workflow), `BOQ_DriftCheck` /
+`BOQ_ExportErp` (aspirational; no source anywhere), and `Hvac_AutoSizeDuct` (a strategy
+dispatcher reading the HVAC panel's header radio — resolving it from a workflow would
+silently pick one strategy and hide that from the user).
+
+**KUT-3(b) — a gate so it cannot regress.** `tools/check_workflow_wiring.ps1`, mirroring
+`check_path_discipline.ps1` in shape, exit-code convention and output style. Tier 1 fails
+on any step keyed `"tag"` without `"commandTag"` (hard zero, no baseline); Tier 2 fails on
+any `commandTag` with no `case` label, allowing only the explicit commented baseline in
+`tools/workflow_wiring_baseline.txt`. It parses `case "..."` labels out of
+`WorkflowEngine.cs` **source text** — the test projects cannot reference
+`StingTools.csproj` because it needs the Revit API, so a source scan is the honest
+mechanism, and the script says so in a comment to stop someone "improving" it into a
+compile-time reference that cannot work. Wired into the existing
+`.github/workflows/stingtools-plugin.yml` beside the path-discipline gate.
+
+**Verification.** Build `-t:Rebuild` **0 errors / 0 warnings**; `StingTools.Tags.Tests`
+**243/243**. All 44 presets parse; steps keyed `"tag"`: **59 → 0**; unresolved
+`commandTag`s: **96 → 10, all baselined**. Every rename was applied scoped to the `steps[]`
+array and re-parsed, asserting the preset root and every non-step key was untouched and
+that no step's value drifted — an earlier unscoped pass clobbered six presets' root
+`description` and was reverted. The gate was proved **in both directions**: it fails on a
+deliberately `"tag"`-keyed step (Tier 1) and on an invented tag (Tier 2), and passes on the
+restored tree. **Nothing was exercised in a live Revit session** — no workflow was run.
+
+Files: `StingTools/Core/WorkflowEngine.cs` (+72 cases) · 14 `StingTools/Data/WORKFLOW_*.json` ·
+`tools/check_workflow_wiring.ps1` + `tools/workflow_wiring_baseline.txt` (new) ·
+`.github/workflows/stingtools-plugin.yml`.
+#### Completed (Phase 228 — KUT project-readiness: one LOD ladder, the missing CSI divisions, Owner defaults)
+
+Kampala Uganda Temple (KUT) readiness pass. The contracted role is **information
+management, coordination and verification — not authoring**, and the Owner's
+environment is **CSI MasterFormat + RIB SpecLink + Fohlio**. Nothing in the
+contract requires ISO 19650 naming on Owner deliverables, COBie, or IFC, and none
+was added.
+
+**1. The LOD matrix is now a standard LOD matrix, and there is only one of them.**
+
+Two competing LOD systems existed. The deliverable-keyed
+`Data/STING_LOD_MATRIX.json` + `Core/Validation/LodVerificationEngine.cs` is
+correct and was kept; the RIBA-keyed `Data/LOD_REQUIREMENTS.json` +
+`Core/LODValidationCommand.cs` scored the same elements by its own
+parameter-presence heuristic and gave a second answer to "is this at LOD 300?".
+
+`LODValidationCommand` was **not** unreachable — `StingDockPanel.xaml:2573` has a
+live "LOD Check" button (`Tag="LODValidation"`) — so per the brief it was **not
+deleted**. It now delegates to `LodVerificationEngine`, keeping its distinct
+`StingResultPanel` output and the one thing the matrix does not cover: the
+`STING_LOD_*_VISIBLE` family-switch audit (a visibility concern, not a maturity
+one). `LOD_REQUIREMENTS.json` had no other reader and was deleted.
+
+The ladder is now the full standard **100 / 200 / 300 / 350 / 400 / 500** across
+all 20 `categoryRules` including `"*"`. This mattered structurally:
+`LodVerificationEngine.Resolve` returns null when a rung key is absent and
+`Verify` then does `continue`, so a milestone at a missing rung would have
+**silently skipped every element** rather than failing loudly.
+
+- **LOD 500 is scoped by category, deliberately.** On **serialised, serviceable
+  plant** (Mechanical/Electrical Equipment, Plumbing/Lighting Fixtures, Air Terminals,
+  Sprinklers, Fire Alarm Devices, Specialty Equipment) it inherits 400 and adds
+  `+ASS_SERIAL_NR_TXT` + `+ASS_INSTALLATION_DATE_TXT` — the O&M/commissioning record
+  the Owner receives and what Fohlio publishes. On **fabric and distribution**
+  (Walls, Floors, Doors, Windows, Ducts, Pipes, Conduits, Cable Trays, Structural
+  Framing/Columns/Foundations, Casework, Furniture, Rooms and the `"*"` fallback) it is
+  a bare `inherit: 400` adding no parameters. An installation date on every wall, duct
+  run and pipe segment is not something a general contractor's as-built delivers;
+  demanding it would report near-total failure on fabric at the first `deliverable-d`
+  run and train the team to ignore the report. Doors and Windows sit in the **fabric**
+  group — manufacturer and model at 400, schedule-tracked, but not serialised plant.
+  Parameter names were taken from `MR_PARAMETERS.txt`, **not invented**: the obvious
+  guesses `ASS_SERIAL_NUM_TXT` and `ASS_INSTALL_DATE` do not exist, and
+  `ASS_INSTALL_DATE_TXT` is explicitly marked `DEPRECATED` in favour of
+  `ASS_INSTALLATION_DATE_TXT`. All nine referenced parameters are declared with a GUID
+  and bound `<ALL>` in `RESOLVED_BINDINGS.csv`.
+- **LOD 100** is the conceptual rung: an empty check block that every in-scope
+  element passes. Deliberate — the engine has no "is named / is on a level" check
+  and inventing one was out of scope. It completes the ladder and gives a project
+  overlay something to bind a milestone to.
+- **`deliverable-d` moved 400 → 500** and is renamed *"Deliverable D (record /
+  as-built model)"*. **LOD 400 was not lost**: a new `construction` milestone
+  carries it, covering Work Program 3.1 *Supervise the Building Construction
+  Contract*. See the PR and `project-templates/KUT/README.md` §4c for the record
+  of this decision — the client's A1 document says 400 and is read as an error.
+
+**Fewer false positives at LOD 300.** `placeholderFamilyPatterns` contained
+`(?i)generic` and `(?i)\bdefault\b`, which match Revit's own stock naming
+("Generic - 200mm", "Default"), so the first Deliverable-B run would have drowned
+in noise. Those two are gone; `placeholder`, `^STING_SEED_`, `\bTBD\b`, `\bdummy\b`
+and a new `<[^>]*>` remain. `requireTypeNotGeneric` is untouched — it is the
+deliberate, separate check, so a "Generic - 200mm" wall still fails LOD 300, once,
+for the right reason, instead of twice.
+
+**1b. Project-wide LOD verification no longer narrows its own scope silently.**
+
+`LodScope.Collect` built project scope from `ExplicitCategories`, which filters out
+`"*"` — so the fallback rule the matrix defines precisely so nothing escapes **never
+applied outside a manual selection**. Roofs, Ceilings, Stairs, Railings, Ramps,
+Furniture, Furniture Systems, Structural Foundations, Electrical Fixtures, Duct/Pipe
+Fittings, Curtain Panels/Mullions and Rooms were never scanned, and the run reported a
+confident per-category percentage without disclosing what it had declined to look at.
+Ceilings, stair finishes, railings and millwork are exactly what the Owner's review
+panel scrutinises; Furniture and Furniture Systems are two of the six Fohlio FF&E
+categories, so Deliverable D could show a green LOD gate over a furniture register
+nothing had verified.
+
+Three changes: (a) project scope now collects every **taggable model category** —
+`CategoryType.Model` ∩ `TagConfig.DiscMap` (the tagging pipeline's own definition, so
+LOD scope and tag scope agree) minus a documented `NonPhysicalCategories` set
+(Materials, RVT Links, Model Groups, Analytical\*, Loads, Parts…) and the project's
+`TagConfig.CategorySkipList`; `Resolve` already falls through to `"*"`, so no engine
+change was needed. (b) **14 new explicit category rules** for the categories this
+project is judged on, so they get a real ladder rather than leaning on `"*"`. (c) a
+**scope-disclosure block** in all three output forms — TaskDialog, CSV (`#` header
+lines) and the JSON gate report now state how many elements were verified, which
+categories rode the `"*"` rule, and which model categories were present but **NOT
+SCANNED**. "Not scanned" is now stated, never inferred from absence.
+
+Measured on a synthetic 3,314-element model: **879 → 2,789 elements in scope
+(+1,910)**, all 14 previously-invisible categories covered, 525 non-physical elements
+disclosed rather than dropped, and 1,420 annotation elements correctly never collected.
+
+**2. CSI MasterFormat map — five missing divisions, and the reason half of it never fired.**
+
+Added **05 Metals · 14 Conveying Equipment · 31 Earthwork · 32 Exterior Improvements ·
+33 Utilities** (86 → 144 rules, 19 divisions). Without them `CSI_Assign` left every
+civil, structural-steel and elevator element unresolved and `SpecLink_Reconcile` could
+never reconcile those books. Real MasterFormat 2020 numbers; SYS tokens taken from the
+shipped vocabulary (`BGD`, `SWD`, `SDS`, `IRR`) rather than invented.
+
+**Division 02 was drafted and then withdrawn.** Revit expresses demolition through the
+**phase** system, and `CsiMasterFormat.Resolve` is never handed the element's phase
+state — it matches on category/family/type/SYS only. Nobody names a toposolid
+"demolition", so a naming-keyed rule could not fire on a real model: it would have read
+as Division 02 coverage in a review while delivering nothing. Supporting it properly
+means a `Phase` qualifier column, which widens every row from 6 fields to 7 — and
+`ParseCsvLines` drops short rows, so **every project's existing `_BIM_COORD/csi_map.csv`
+overlay would silently stop loading**. That needs its own change with its own
+verification pass; tracked as ROADMAP KUT-5, and the CSV says so where the rows would
+have been.
+
+While testing, a **pre-existing defect** surfaced that would have made much of
+this dead on arrival: `ParameterHelpers.GetFamilyName` / `GetFamilySymbolName`
+return `""` for anything that is not a `FamilyInstance`, and `CsiRule.Score`
+treats an empty candidate as no-match. Every family/type discriminator on a
+**system** category was therefore unmatchable — the shipped
+`Walls (?i)masonry|block|brick → 04 20 00` and `(?i)concrete → 03 30 00` rows had
+**never once fired**, and every wall silently took the 09 29 00 Gypsum Board
+default. Fixed locally with `CsiMap.TypeName` (falls back to the element type's
+name; a no-op for loadable families), and the affected discriminators — including
+those two shipped rows — moved to the `TypeRegex` column where they belong.
+
+The **family** side was deliberately left alone rather than given a matching
+`CsiMap.FamilyName` fallback: for a system element that would return the system-family
+name ("Basic Wall", "Pipe Types"), which re-scores **every** system-category rule in
+the map for no current benefit — no rule needs it once the discriminators are on
+`TypeRegex`. Instead the constraint is now documented in the CSV header, and an audit
+of all 144 rows confirms **zero** FamilyRegex rows remain on a system category. Three
+sit on `Structural Foundations`, which is genuinely mixed (isolated footings are
+`FamilyInstance`, wall footings are `ContinuousFooting`); they target piles, which are
+`FamilyInstance`, and the bare category default catches continuous footings.
+
+**3. Owner defaults.** KUT classification standard flipped **Uniclass → CSI**
+(verified `"CSI"` parses: `Enum.TryParse<ClassStandard>` is case-insensitive, with
+a substring fallback). The IPC plumbing code is a **Revit Project Information
+value that no repo file can set**, so it is documented as a week-1 step in
+`project-templates/KUT/README.md`: `DrainageSizer.ResolveCode` and `VentDesigner`
+route any value starting `IPC` to `IPCSiAdapter`, and **anything else — including
+blank — silently falls back to BS EN 12056**, producing UK drainage and vent sizes
+that look valid and are wrong.
+
+**4. Two orphaned Fohlio commands surfaced.** `Fohlio_ExportFinishes` /
+`Fohlio_ImportFinishes` were wired in `StingCommandHandler` and
+`WorkflowEngine.ResolveCommand` but had no button and appeared in no workflow —
+unreachable, despite A1 Deliverables B and C both requiring room finishes to be
+maintained in Fohlio. Added as "Finishes Export" / "Finishes Import" beside the
+existing Fohlio trio, with tooltips stating that finishes match by **Room Number,
+not by tag**. Also added to `_allKnownCommandTags` so the workflow "did you mean"
+suggester knows them.
+
+**Not done — already fixed upstream.** The brief asked for a
+`CsiMasterFormat.FormatSection` display formatter and a fix for 2 failing
+`CsiMasterFormatTests`. Both had already landed on `main` (PR #554): `FormatSection`
+exists, `Reconcile` emits it, the XLSX writer and TaskDialog consume it, and the
+tests were already reconciled. Baseline measured at **243 passed / 0 failed**, not
+the 239/2 the brief expected. No change made.
+
+**Verification.** `dotnet build -t:Rebuild` → **0 errors / 0 warnings**;
+`StingTools.Tags.Tests` → **243/243**. The LOD matrix was validated field-by-field
+against the `LodCheck`/`LodMatrix` C# classes (34 categoryRules, full 6-rung ladder
+each, all 9 parameters declared + bound), and its inheritance and `"+param"` merge
+were simulated to confirm every milestone resolves for every category with no silent
+skips — including that rung 500 now resolves to a bare inherit on fabric and to
+serial + install date on plant. The scope fix was proved with a before/after harness
+over a synthetic 3,314-element model (879 → 2,789 in scope). The CSI map was replayed
+through a port of `ParseCsvLines`/`Score`/`Resolve` over 50 cases — including system
+elements passed with an empty family exactly as the real code does — plus a row audit
+for the FamilyRegex-on-system-category defect. Workflow wiring was diffed against
+`origin/main`: **66 unresolved `commandTag`s and 59 malformed steps exist on both**
+(pre-existing, tracked as KUT-1/KUT-2); all 5 `WORKFLOW_KUT_*` presets are clean on
+both. **Nothing was exercised in a live Revit session** — no runtime verification was
+performed.
+
+Files: `StingTools/Data/STING_LOD_MATRIX.json` · `StingTools/Data/LOD_REQUIREMENTS.json` (deleted) ·
+`StingTools/Core/LODValidationCommand.cs` · `StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv` ·
+`StingTools/Commands/Classification/CsiCommands.cs` · `StingTools/UI/StingDockPanel.xaml` ·
+`StingTools/Core/WorkflowEngine.cs` · `StingTools/Data/WORKFLOW_KUT_DeliverableD.json` ·
+`project-templates/KUT/**` · `CLAUDE.md` (LOD section corrected).
+
 #### Completed (Token-Depth Live E1–E5 — retroactive log; the runner is retired)
 
 Five enhancements to the "Set depth applies live" display path landed on `main`
@@ -12658,7 +13087,7 @@ drift detection + SyncStyles.
 #### Completed (Phase 70 — Comprehensive Guide Rewrite & Deep Review)
 
 649. **BIM_COORDINATION_WORKFLOW_GUIDE.md rewrite** — Complete rewrite from 1,034 to 1,705 lines with 22 sections: Introduction & Purpose, Roles & Responsibilities (14 ISO 19650 roles with CDE access matrix), Daily BIM Coordinator Workflow (6-phase day cycle with step-by-step procedures), Model Setup & Configuration (3 setup methods, project_config.json reference), Tagging Workflow (full 11-step pipeline, 5 collision modes, SEQ persistence), Document Management & CDE State Machine (7-state lifecycle, compliance-gated transitions, suitability codes, file naming), Issue Management & BCF (7 issue types, SLA enforcement, cross-system automation), Revision Management (snapshots, compare, auto-revision), Coordination & Clash Detection (intra/cross-model, federated compliance), Compliance & QA (real-time scan, 5 compliance gates, data drop readiness, 45-check validation), Warnings Management (87+ rules, 10 auto-fix strategies, SLA tracking, deliverable impact), Workflow Automation (30+ presets, 19 condition types, compound conditions, custom JSON), Data Exchange (Excel round-trip with 7-token validation, COBie V2.4 with 22 presets, IFC, BCF), Handover & FM (COBie, maintenance, O&M, asset health), BEP & Governance (22 presets, auto-enrichment), Reporting & Dashboards (11 report types, compliance trend), International Standards (19 standards reference), BIM Coordination Center (13 tabs, interactive features, 3D zoom), Meeting Management (5 types, action tracking, 6 automation rules), 4D/5D Scheduling, Troubleshooting, Command Quick Reference.
-650. **TAGGING_GUIDE.md rewrite** — Complete rewrite from 1,291 to 1,306 lines with 27 sections: Introduction (comparison table, 22 categories), Tag Format & Structure (configurable format), Token Reference (all 8 segments with auto-detection methods, valid codes, cross-validation rules), Tagging Pipeline (11-step RunFullPipeline with detailed step descriptions), Tagging Commands Reference (4 tables: primary/validation/fix/setup), One-Click Workflows (6 project stages, 5 automation presets, custom JSON), Token Management (individual/bulk/lock/cross-discipline), Tag Collision Handling (3 modes, SEQ persistence, range allocation), Tag Containers (53 parameters with selective writing), TAG7 Rich Narrative (6 sub-sections, 5 presentation modes, paragraph depth), Tag Validation (4 buckets, ISO code validation, cross-validation, 5 compliance gates), Smart Tag Placement (16-position system, collision algorithm, 16 commands), Tag Style Engine (128 combinations, 8 color schemes, 8 commands), Display Modes (5 modes, per-view routing), Real-Time Auto-Tagging (IUpdater, discipline filter, bulk paste queue), Stale Detection (3 staleness triggers, re-tagging, selection), Tag Operations (7+7+5+5 commands), Leader Management (14 commands), Legend Building (31 commands), Workflow Automation (3 recommended flows, 5 presets, custom JSON), Cross-System Integration (10 system links), Data Exchange (Excel columns, 7-token validation, COBie), Graitec Numbering (5 styles, 6 grouping algorithms), Tag Export/Import, Configuration Reference (20+ keys), Troubleshooting (12 common issues, 6 performance tips), Complete Command Reference (42 commands in 3 tables).
+650. **TAGGING_GUIDE.md rewrite** — Complete rewrite from 1,291 to 1,306 lines with 27 sections: Introduction (comparison table, 22 categories), Tag Format & Structure (configurable format), Token Reference (all 8 segments with auto-detection methods, valid codes, cross-validation rules), Tagging Pipeline (11-step RunFullPipeline with detailed step descriptions), Tagging Commands Reference (4 tables: primary/validation/fix/setup), One-Click Workflows (6 project stages, 5 automation presets, custom JSON), Token Management (individual/bulk/lock/cross-discipline), Tag Collision Handling (3 modes, SEQ persistence, range allocation), Tag Containers (53 parameters with selective writing), TAG7 Rich Narrative (6 sub-sections, 12 presentation modes, paragraph depth), Tag Validation (4 buckets, ISO code validation, cross-validation, 5 compliance gates), Smart Tag Placement (16-position system, collision algorithm, 16 commands), Tag Style Engine (128 combinations, 8 color schemes, 8 commands), Display Modes (5 modes, per-view routing), Real-Time Auto-Tagging (IUpdater, discipline filter, bulk paste queue), Stale Detection (3 staleness triggers, re-tagging, selection), Tag Operations (7+7+5+5 commands), Leader Management (14 commands), Legend Building (31 commands), Workflow Automation (3 recommended flows, 5 presets, custom JSON), Cross-System Integration (10 system links), Data Exchange (Excel columns, 7-token validation, COBie), Graitec Numbering (5 styles, 6 grouping algorithms), Tag Export/Import, Configuration Reference (20+ keys), Troubleshooting (12 common issues, 6 performance tips), Complete Command Reference (42 commands in 3 tables).
 651. **Deep review findings** — 97+ gaps identified across 3 parallel review agents: Tagging pipeline (35 gaps: 5 CRITICAL including batch size inconsistency, STATUS/REV missing from validation, NativeParamMapper order issues), BIM/Coordination workflows (47 gaps: 6 CRITICAL including CDE approval enforcement, entity linking, coordination data refresh), Warnings/Model systems (16 gaps: 3 CRITICAL including 15+ missing classification rules, 12 categories without auto-fix, missing MEP/structural standards enforcement).
 
 #### Completed (Phase 71 — Critical Performance Fix, Warnings Enhancement, DWG-to-BIM Enhancement)

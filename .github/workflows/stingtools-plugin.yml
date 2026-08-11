@@ -44,6 +44,52 @@ jobs:
           [ $FAIL -eq 0 ] && echo "✓ All JSON files valid"
           exit $FAIL
 
+      # H-5 — schema validation for the shipped data files.
+      #
+      # The step above proves a file is well-formed JSON and nothing else. It
+      # cannot see a mistyped field name, and neither can the compiler, and
+      # neither can Newtonsoft: both MissingMemberHandling settings in this repo
+      # are Ignore, so an unknown key is dropped at load and the feature reading
+      # it silently does nothing. That is how G-2 sat undetected across 13,212
+      # rows.
+      #
+      # Self-test runs FIRST and on its own. It mutates real shipped files in a
+      # temp copy and asserts every deliberate defect is rejected — because a
+      # validator whose matching has broken reports green over broken data
+      # forever, which is the same "empty list standing in for an error" defect
+      # the gate exists to catch.
+      - name: Data schema gate — self-test
+        run: python3 tools/validate_data_schemas.py --self-test
+
+      - name: Data schema gate — validate shipped data
+        run: python3 tools/validate_data_schemas.py
+
+      # Parameter readership: a name a consumer READS must be one the binder
+      # SHIPS. Four defects in one review pass were this exact shape —
+      # WARN_VISIBLE_BOOL (missing prefix), PRJ_ORG_PROJECT_CODE (missing _TXT),
+      # TAG_PARA_STATE_* (declared, never bound) and 41 PRJ_* (K-11). Each read
+      # returned null forever and nothing said a word. Baseline-gated, so it
+      # fails on NEW violations without blocking on the existing backlog.
+      - name: Parameter readership gate — self-test
+        run: python3 tools/validate_param_readership.py --self-test
+
+      - name: Parameter readership gate
+        run: python3 tools/validate_param_readership.py
+
+      # D.1 — a public static map or predicate in Core that NOTHING calls is a
+      # mechanism that cannot fire. Seven such defects this workstream, the last
+      # of which (ResolveLpsFunc) invalidated a decision that had already been
+      # made. Ratcheted: the count may fall, never rise.
+      - name: Declared-but-uncalled gate
+        run: python3 tools/validate_declared_but_uncalled.py
+
+      # D.2 — two owners for one quantity. Three narrow checks, three counts:
+      # two formulas computing one output; one parameter written from two C#
+      # files; a formula output a C# path also writes. Five such defects were
+      # found by accident (G-15, G-34, G-35, G-44, the two binders).
+      - name: Dual-owner gate
+        run: python3 tools/validate_dual_owner.py
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #
@@ -53,6 +99,14 @@ jobs:
       - name: Check path discipline
         shell: pwsh
         run: ./tools/check_path_discipline.ps1
+
+      # Workflow wiring: every WORKFLOW_*.json step must name a command the engine
+      # can resolve. Two silent no-ops used to get through here — steps keyed "tag"
+      # instead of "commandTag" (11 presets, every step, so each ran ZERO steps and
+      # still reported success), and commandTags with no ResolveCommand case.
+      - name: Check workflow wiring
+        shell: pwsh
+        run: ./tools/check_workflow_wiring.ps1
 
       - name: Check for duplicate parameter GUIDs
         run: |

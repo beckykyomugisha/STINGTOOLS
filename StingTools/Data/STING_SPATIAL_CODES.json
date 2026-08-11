@@ -1,0 +1,364 @@
+{
+  "schemaVersion": "1.0",
+  "_status": "CORPORATE BASELINE. Inert on arrival — SpatialCodeRegistry reads it, and as of this commit only ParseLocCode/ParseZoneCode consume the LOC half. GetLevelCode is NOT yet rewired; see docs/F9_SPATIAL_CODE_RECONCILIATION.md.",
+  "_levelNote": "'code' is the STING tag code; 'isoCode' is the ISO 19650 file-name field. They are DIFFERENT ALPHABETS (GF vs 00) — see the reconciliation report. isoCode is NULL where no ISO equivalent exists (LG/UG/SB/POD/TR/AT/PL/MZ/UR/ZZ/XX); a null must make the consumer fall back explicitly rather than emit a non-ISO code into an ISO field. 'origin' is reconciled (a code some existing vocabulary already produces) or new (vocabulary this registry introduces).",
+  "_synthesisNote": "L06-L99 are NOT enumerated. The loader synthesises them: code Lnn, isoCode nn, aliases 'level n' / 'ln' / ordinal. Same for SB1-SB9 from the SB entry. Enumerating 99 rows and also declaring a synthesis rule would let the two disagree.",
+  "_retiredNote": "PR (Plant Room, 'Reserved') is RETIRED, not adopted. It had no producer and no consumer, PL already covers plant levels, and PR is taken elsewhere in this codebase as the Programme DOCUMENT-type code (Iso19650Vocabulary.cs:96, DocAutomationCommands.cs:195, BIMManagerCommands.cs:183). A level code colliding with a document code is the vocabulary confusion F-9 exists to end.",
+  "levels": [
+    {
+      "code": "XX",
+      "isoCode": null,
+      "label": "No level",
+      "aliases": [],
+      "sortOrder": -1000,
+      "origin": "reconciled",
+      "note": "Sentinel. isoCode null: ISO 19650 also uses XX, but it is asserted by the consumer, not mapped here."
+    },
+    {
+      "code": "ZZ",
+      "isoCode": null,
+      "label": "Multiple levels",
+      "aliases": [
+        "all levels",
+        "multiple"
+      ],
+      "sortOrder": -999,
+      "origin": "new",
+      "note": "NEW VOCABULARY. Present in Iso19650Vocabulary but GetLevelCode cannot produce it; nothing infers 'spans levels' from a Revit level name. Reachable only once something sets it deliberately."
+    },
+    {
+      "code": "B3",
+      "isoCode": "B3",
+      "label": "Basement 3",
+      "aliases": [
+        "basement 3",
+        "b3"
+      ],
+      "sortOrder": -30,
+      "origin": "reconciled"
+    },
+    {
+      "code": "B2",
+      "isoCode": "B2",
+      "label": "Basement 2",
+      "aliases": [
+        "basement 2",
+        "b2"
+      ],
+      "sortOrder": -20,
+      "origin": "reconciled"
+    },
+    {
+      "code": "B1",
+      "isoCode": "B1",
+      "label": "Basement",
+      "aliases": [
+        "basement",
+        "basement 1",
+        "b1"
+      ],
+      "sortOrder": -10,
+      "origin": "reconciled"
+    },
+    {
+      "code": "SB",
+      "isoCode": null,
+      "label": "Sub-basement",
+      "aliases": [
+        "sub-basement",
+        "sub basement",
+        "sb"
+      ],
+      "sortOrder": -40,
+      "origin": "reconciled",
+      "note": "GetLevelCode also emits SB1..SB9; the loader synthesises those from this entry."
+    },
+    {
+      "code": "LG",
+      "isoCode": null,
+      "label": "Lower ground",
+      "aliases": [
+        "lower ground",
+        "lower ground floor",
+        "lg"
+      ],
+      "sortOrder": -5,
+      "origin": "reconciled",
+      "note": "No ISO 19650 equivalent — isoCode null so a consumer must decide rather than emit a non-ISO code into an ISO field."
+    },
+    {
+      "code": "GF",
+      "isoCode": "00",
+      "label": "Ground floor",
+      "aliases": [
+        "ground",
+        "ground floor",
+        "ground level",
+        "gf",
+        "00 - ground",
+        "00"
+      ],
+      "sortOrder": 0,
+      "origin": "reconciled",
+      "note": "THE 00->GF DECISION. code=GF is the STING tag code; isoCode=00 is the ISO 19650 field. L00 belongs to neither alphabet and is retired."
+    },
+    {
+      "code": "UG",
+      "isoCode": null,
+      "label": "Upper ground",
+      "aliases": [
+        "upper ground",
+        "upper ground floor",
+        "ug"
+      ],
+      "sortOrder": 5,
+      "origin": "reconciled",
+      "note": "No ISO equivalent."
+    },
+    {
+      "code": "MZ",
+      "isoCode": null,
+      "label": "Mezzanine",
+      "aliases": [
+        "mezzanine",
+        "mezz",
+        "mezzanine 1"
+      ],
+      "sortOrder": 15,
+      "origin": "reconciled",
+      "note": "No ISO equivalent."
+    },
+    {
+      "code": "MZ2",
+      "isoCode": null,
+      "label": "Mezzanine 2",
+      "aliases": [
+        "mezzanine 2",
+        "second mezzanine",
+        "upper mezzanine"
+      ],
+      "sortOrder": 16,
+      "origin": "new",
+      "note": "NEW VOCABULARY. GetLevelCode cannot produce it — today 'Mezzanine 2' collides with 'Mezzanine' on MZ. Adopting MZ2 is the F-6 fix and WILL re-code existing tags on any model with two mezzanines."
+    },
+    {
+      "code": "L01",
+      "isoCode": "01",
+      "label": "Level 1",
+      "aliases": [
+        "level 1",
+        "first",
+        "first floor",
+        "1st",
+        "1st floor",
+        "l01"
+      ],
+      "sortOrder": 101,
+      "origin": "reconciled"
+    },
+    {
+      "code": "L02",
+      "isoCode": "02",
+      "label": "Level 2",
+      "aliases": [
+        "level 2",
+        "second",
+        "second floor",
+        "2nd",
+        "2nd floor",
+        "l02"
+      ],
+      "sortOrder": 102,
+      "origin": "reconciled"
+    },
+    {
+      "code": "L03",
+      "isoCode": "03",
+      "label": "Level 3",
+      "aliases": [
+        "level 3",
+        "third",
+        "third floor",
+        "3rd",
+        "3rd floor",
+        "l03"
+      ],
+      "sortOrder": 103,
+      "origin": "reconciled"
+    },
+    {
+      "code": "L04",
+      "isoCode": "04",
+      "label": "Level 4",
+      "aliases": [
+        "level 4",
+        "fourth",
+        "fourth floor",
+        "4th",
+        "4th floor",
+        "l04"
+      ],
+      "sortOrder": 104,
+      "origin": "reconciled"
+    },
+    {
+      "code": "L05",
+      "isoCode": "05",
+      "label": "Level 5",
+      "aliases": [
+        "level 5",
+        "fifth",
+        "fifth floor",
+        "5th",
+        "5th floor",
+        "l05"
+      ],
+      "sortOrder": 105,
+      "origin": "reconciled"
+    },
+    {
+      "code": "PL",
+      "isoCode": null,
+      "label": "Plant level",
+      "aliases": [
+        "plant",
+        "plant room",
+        "plant level",
+        "plantroom"
+      ],
+      "sortOrder": 300,
+      "origin": "reconciled",
+      "note": "Supersedes the retired PR. No ISO equivalent."
+    },
+    {
+      "code": "TR",
+      "isoCode": null,
+      "label": "Terrace",
+      "aliases": [
+        "terrace",
+        "tr"
+      ],
+      "sortOrder": 310,
+      "origin": "reconciled",
+      "note": "No ISO equivalent."
+    },
+    {
+      "code": "POD",
+      "isoCode": null,
+      "label": "Podium",
+      "aliases": [
+        "podium",
+        "pod"
+      ],
+      "sortOrder": 20,
+      "origin": "reconciled",
+      "note": "No ISO equivalent."
+    },
+    {
+      "code": "PH",
+      "isoCode": "PH",
+      "label": "Penthouse",
+      "aliases": [
+        "penthouse",
+        "pent",
+        "ph"
+      ],
+      "sortOrder": 320,
+      "origin": "reconciled"
+    },
+    {
+      "code": "AT",
+      "isoCode": null,
+      "label": "Attic",
+      "aliases": [
+        "attic",
+        "att",
+        "at"
+      ],
+      "sortOrder": 330,
+      "origin": "reconciled",
+      "note": "No ISO equivalent."
+    },
+    {
+      "code": "RF",
+      "isoCode": "RF",
+      "label": "Roof",
+      "aliases": [
+        "roof",
+        "roof level",
+        "rf"
+      ],
+      "sortOrder": 340,
+      "origin": "reconciled"
+    },
+    {
+      "code": "UR",
+      "isoCode": null,
+      "label": "Upper roof",
+      "aliases": [
+        "upper roof",
+        "roof plant",
+        "upper roof level"
+      ],
+      "sortOrder": 350,
+      "origin": "new",
+      "note": "NEW VOCABULARY. No producer today — 'Upper Roof' currently sanitises to the 12-char passthrough UPPER-ROOF, which fails the length check."
+    }
+  ],
+  "locations": [
+    {
+      "code": "XX",
+      "label": "No location",
+      "aliases": [],
+      "kind": "sentinel"
+    },
+    {
+      "code": "BLD1",
+      "label": "Building 1",
+      "aliases": [
+        "building 1",
+        "main building",
+        "block a",
+        "primary"
+      ],
+      "kind": "building"
+    },
+    {
+      "code": "BLD2",
+      "label": "Building 2",
+      "aliases": [
+        "building 2",
+        "annex",
+        "block b",
+        "secondary"
+      ],
+      "kind": "building"
+    },
+    {
+      "code": "BLD3",
+      "label": "Building 3",
+      "aliases": [
+        "building 3",
+        "block c",
+        "tertiary"
+      ],
+      "kind": "building"
+    },
+    {
+      "code": "EXT",
+      "label": "External / site",
+      "aliases": [
+        "external",
+        "exterior",
+        "outside",
+        "site",
+        "landscape",
+        "car park"
+      ],
+      "kind": "external",
+      "wordBoundary": true,
+      "note": "wordBoundary=true: EXT must not match NEXT / TEXTILE / EXTENSION. ParseLocCode already implements this guard; it is the pattern for every short code."
+    }
+  ],
+  "projectTypePresets": {}
+}

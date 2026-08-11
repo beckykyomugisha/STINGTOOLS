@@ -32,7 +32,7 @@
   "COMPLIANCE_GATE_PCT": 80,
   "AUTO_TAGGER_ENABLED": false,
   "AUTO_TAGGER_DISC_FILTER": ["A", "S"],
-  "_tagger_note": "Leave the live auto-tagger OFF while you build C01. Turn it on only once the cottage validates clean, or you will be fixing tags on geometry you are still moving.",
+  "_tagger_note": "Leave the live auto-tagger OFF while you build COT01. Turn it on only once the cottage validates clean, or you will be fixing tags on geometry you are still moving.",
 
   "FORMULA_CACHE_TTL_MINUTES": 5,
   "_formula_note": "The tag pipeline's formula cache is TTL-only and does NOT check the CSV mtime (gap G-9). A short TTL limits how long a stale formula set survives if anyone edits FORMULAS_WITH_DEPENDENCIES.csv mid-session.",

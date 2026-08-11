@@ -21,22 +21,81 @@ using StingTools.Core;
 
 namespace StingTools.Core.Mep
 {
-    public sealed class MepCircuitResult
+    /// <summary>
+    /// H-4 — the write sink both result types implement, so StampTokens can
+    /// report an unbound parameter regardless of which pass called it. Without
+    /// it, AutoGroup would keep swallowing exactly the writes BuildExisting
+    /// now reports — fixing one caller and leaving its twin silent.
+    /// </summary>
+    public interface IParamWriteSink
+    {
+        List<string> Warnings { get; }
+        void NoteUnwritten(string param);
+    }
+
+    public sealed class MepCircuitResult : IParamWriteSink
     {
         public int Named { get; set; }
         public int Stamped { get; set; }
         public int Created { get; set; }
         public List<string> Rows { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
+
+        /// <summary>
+        /// H-4 — parameter name → how many elements the write did not land on.
+        /// Reported ONCE per parameter at the end rather than per element: a
+        /// 4,000-element run would otherwise bury the finding in 4,000 identical
+        /// warnings, which is its own kind of silence.
+        /// </summary>
+        public Dictionary<string, int> UnwrittenParams { get; } =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        public void NoteUnwritten(string param)
+        {
+            if (string.IsNullOrEmpty(param)) return;
+            UnwrittenParams.TryGetValue(param, out int c);
+            UnwrittenParams[param] = c + 1;
+        }
+
+        /// <summary>Fold the unwritten tally into Warnings. Call once per run.</summary>
+        public void FinaliseWarnings()
+        {
+            foreach (var kv in UnwrittenParams.OrderByDescending(k => k.Value))
+                Warnings.Add($"{kv.Key}: write did not land on {kv.Value} element(s) — "
+                           + "the parameter is not bound to those categories in this model. "
+                           + "Run Load Shared Parameters, then re-run; until then downstream "
+                           + "grouping on this token falls back to blank.");
+        }
     }
 
-    public sealed class CircuitGroupResult
+    public sealed class CircuitGroupResult : IParamWriteSink
     {
         public int Groups { get; set; }       // panels that received circuits
         public int Created { get; set; }       // circuits created
         public int Unreachable { get; set; }   // devices with no panel in range
         public List<string> Rows { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
+
+        // H-4 — same unbound-parameter accounting as MepCircuitResult. AutoGroup
+        // stamps through the same StampTokens, so it had the same silence.
+        public Dictionary<string, int> UnwrittenParams { get; } =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        public void NoteUnwritten(string param)
+        {
+            if (string.IsNullOrEmpty(param)) return;
+            UnwrittenParams.TryGetValue(param, out int c);
+            UnwrittenParams[param] = c + 1;
+        }
+
+        public void FinaliseWarnings()
+        {
+            foreach (var kv in UnwrittenParams.OrderByDescending(k => k.Value))
+                Warnings.Add($"{kv.Key}: write did not land on {kv.Value} element(s) — "
+                           + "the parameter is not bound to those categories in this model. "
+                           + "Run Load Shared Parameters, then re-run; until then downstream "
+                           + "grouping on this token falls back to blank.");
+        }
     }
 
     public static class MepCircuitBuilder
@@ -65,14 +124,14 @@ namespace StingTools.Core.Mep
                     string func = FuncFor(sys);
 
                     // Stamp the circuit element itself.
-                    StampTokens(sys, name, func);
+                    StampTokens(sys, name, func, r);
                     r.Named++;
 
                     // Stamp its members so tags / schedules pick the circuit up.
                     try
                     {
                         foreach (Element el in sys.Elements.Cast<Element>())
-                            StampTokens(el, name, func);
+                            StampTokens(el, name, func, r);
                     }
                     catch (Exception ex) { r.Warnings.Add($"{name}: members: {ex.Message}"); }
 
@@ -81,6 +140,10 @@ namespace StingTools.Core.Mep
                 }
                 catch (Exception ex) { r.Warnings.Add($"Circuit {sys.Id}: {ex.Message}"); }
             }
+            // H-4 — fold the unbound-parameter tally into the warnings the caller
+            // shows. Without this the run still reports "Named N, Stamped N" while
+            // having written nothing.
+            r.FinaliseWarnings();
             return r;
         }
 
@@ -195,7 +258,7 @@ namespace StingTools.Core.Mep
                         if (circuit == null) { r.Warnings.Add($"{panelName}: Create returned null"); continue; }
                         try { circuit.SelectPanel(panel); } catch (Exception ex) { r.Warnings.Add($"{panelName}: SelectPanel: {ex.Message}"); }
                         string name = $"{panelName}-AG{circuitOnPanel:D2}";
-                        StampTokens(circuit, name, "PWR");
+                        StampTokens(circuit, name, "PWR", r);
                         foreach (var id in chunk)
                             try { StampTokens(doc.GetElement(id), name, "PWR"); } catch { }
                         r.Created++;
@@ -205,6 +268,7 @@ namespace StingTools.Core.Mep
                 }
             }
             r.Groups = byPanel.Count;
+            r.FinaliseWarnings();   // H-4 — same reporting as BuildExisting
             return r;
         }
 
@@ -232,13 +296,44 @@ namespace StingTools.Core.Mep
             try { return el.Name; } catch { return "PANEL"; }
         }
 
-        private static void StampTokens(Element el, string name, string func)
+        // H-4 — this method swallowed four consecutive parameter writes, and it is
+        // the SOLE writer of MEP_SYS_NAME. If that parameter is unbound — routine,
+        // and exactly what G-8 is about — every circuited element silently got no
+        // MEP system token and downstream grouping fell back to blank.
+        //
+        // The subtle part: a log line in the catch would NOT have caught it.
+        // ParameterHelpers.SetString/SetIfEmpty return FALSE on an unbound
+        // parameter and throw nothing at all, so the exception handler never
+        // fires. The return value is the signal; the exception is the rare case.
+        private static void StampTokens(Element el, string name, string func, IParamWriteSink r = null)
         {
-            try { ParameterHelpers.SetString(el, ParamRegistry.MEP_SYS_NAME, name, overwrite: true); } catch { }
-            try { ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, "E"); } catch { }
-            try { ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, "LV"); } catch { }
+            Write(el, ParamRegistry.MEP_SYS_NAME, name, overwrite: true, r: r);
+            Write(el, ParamRegistry.DISC, "E", overwrite: false, r: r);
+            Write(el, ParamRegistry.SYS, "LV", overwrite: false, r: r);
             if (!string.IsNullOrWhiteSpace(func))
-                try { ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func); } catch { }
+                Write(el, ParamRegistry.FUNC, func, overwrite: false, r: r);
+        }
+
+        private static void Write(Element el, string param, string value, bool overwrite, IParamWriteSink r)
+        {
+            try
+            {
+                bool ok = overwrite
+                    ? ParameterHelpers.SetString(el, param, value, overwrite: true)
+                    : ParameterHelpers.SetIfEmpty(el, param, value);
+
+                // SetIfEmpty returns false both when the parameter is missing AND
+                // when it already holds a value, so only the overwrite path can
+                // distinguish "unbound" from "left alone". Count the unbound case
+                // off the lookup directly rather than inferring it from the return.
+                if (!ok && el?.LookupParameter(param) == null)
+                    r?.NoteUnwritten(param);
+            }
+            catch (Exception ex)
+            {
+                r?.Warnings.Add($"{param} on {el?.Id}: {ex.Message}");
+                StingLog.WarnRateLimited("MepCircuit.Stamp", $"StampTokens {param}: {ex.Message}");
+            }
         }
 
         private static string FuncFor(ElectricalSystem sys)

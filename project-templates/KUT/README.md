@@ -21,7 +21,7 @@ drafting:
 
 | Already in the codebase | Role |
 |---|---|
-| `StingTools/Data/STING_LOD_MATRIX.json` | Unified A1/A2 LOD matrix — already carries the exact `deliverable-a/b/c` + `conformed-set` + `deliverable-d` milestones (200/300/350/350/400) from proposal §3.5 |
+| `StingTools/Data/STING_LOD_MATRIX.json` | Unified A1/A2 LOD matrix — carries the `deliverable-a/b/c` + `conformed-set` + `construction` + `deliverable-d` milestones (200/300/350/350/400/**500**) from proposal §3.5. **Deliverable D is LOD 500, not the 400 printed in the client's A1 document** — see §4c |
 | `StingTools/Data/STING_OWNER_STANDARDS_PACK.json` | Corporate Owner-standards rule pack (KUT-aware) |
 | `StingTools/Data/STING_TAG_SCHEMES.json` | Tag-scheme library incl. a disabled `kut-temple-example` |
 | `StingTools/Data/STING_CLIMATE_DATA.json` | Kampala already present (`id: kampala`, elev 1155 m) |
@@ -45,20 +45,40 @@ wins** — so you are activating/localising, never forking.
 | File | Effect |
 |---|---|
 | `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); adds a (disabled) Fohlio FF&E link check |
-| `_BIM_COORD/lod_matrix.json` | Restates the confirmed 5-milestone matrix as the client-facing record; adds Lighting Fixtures + Plumbing Fixtures category rules |
+| `_BIM_COORD/lod_matrix.json` | Restates the confirmed 6-milestone matrix as the client-facing record; adds Lighting Fixtures + Plumbing Fixtures category rules |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
 | `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the now-enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
 
 ### B. Workflow presets (in `StingTools/Data/`, auto-loaded)
 | Preset | Proposal ref | Rhythm |
 |---|---|---|
-| `WORKFLOW_KUT_Mobilisation.json` | §4.1 | Once at kick-off — params, worksets, filters, BEP, CDE register |
-| `WORKFLOW_KUT_CoordinationCycle.json` | §4.2 | Fortnightly — federate, clash, BCF→ACC Issues, model health, completeness |
-| `WORKFLOW_KUT_DeliverableD.json` | §4.4 | Close-out — LOD 400 verify/stamp, SpecLink reconcile, audit, sign-off |
-| `WORKFLOW_KUT_MonthlyReport.json` | §4.6 | Monthly — read-only KPI chain for the status report |
-| `WORKFLOW_KUT_FFESync.json` | A1 Fohlio | FF&E round-trip — Fohlio export → import → currency audit |
+The **Preset** column is the file; the **name** shown in the Workflows picker is the
+preset's `name` field, given in bold. The two must stay in step — the deployment
+checklist in §5 refers to presets by their picker name.
+
+| Preset | name | Proposal ref | Rhythm |
+|---|---|---|---|
+| `WORKFLOW_KUT_Mobilisation.json` | **KUT Mobilisation** | §4.1 | Once at kick-off — params, worksets, filters, BEP, CDE register |
+| `WORKFLOW_KUT_CoordinationCycle.json` | **KUT Coordination Cycle** | §4.2 | Fortnightly — federate, clash, BCF→ACC Issues, model health, completeness |
+| `WORKFLOW_KUT_GateAudit.json` | **KUT Gate Audit** | A1 gates | **Read-only pre-gate check, any milestone** — run before declaring a deliverable ready. Writes nothing |
+| `WORKFLOW_KUT_DeliverableA.json` | **KUT Deliverable A** | A1 Phase 1 | Gate — LOD 200 schematic; tokens, tags, program audit |
+| `WORKFLOW_KUT_DeliverableB.json` | **KUT Deliverable B** | A1 Phase 2 | Gate — LOD 300 50% docs. The fullest gate: program + owner-standards + CSI + device coordination + Fohlio finishes + clash |
+| `WORKFLOW_KUT_DeliverableC.json` | **KUT Deliverable C** | A1 Phase 2 | Gate — LOD 350 100% docs; adds CSI → SpecLink reconcile and the sheet register for the bidding set |
+| `WORKFLOW_KUT_DeliverableD.json` | **KUT Deliverable D** | §4.4 | Close-out — Fohlio refresh, LOD 500 verify/stamp, CSI → SpecLink reconcile, audit, sign-off |
+| `WORKFLOW_KUT_MonthlyReport.json` | **KUT Monthly Report** | §4.6 | Monthly — read-only KPI chain for the status report |
+| `WORKFLOW_KUT_FFESync.json` | **KUT FF&E Sync** | A1 Fohlio | FF&E round-trip — Fohlio export → import → currency audit |
 
 Run from **STING panel → Workflows**, or `WorkflowPreset`.
+
+**Two orderings inside these presets are load-bearing — do not reorder them:**
+
+- **`CSI_Assign` before `SpecLink_Reconcile`.** Reconciliation compares the model's CSI
+  sections against the issued SpecLink TOC. With nothing assigning them first, every spec
+  section reports as a gap and every model section as over-spec, and the report is worthless.
+- **The Fohlio steps before `LOD_Verify` in Deliverable D.** LOD 500 requires
+  `FOHLIO_REF_TXT` on Furniture and Furniture Systems, and `Fohlio_Import` is the only
+  thing that writes it. Run the gate first and every piece of furniture fails for a
+  data-linkage reason unrelated to as-built accuracy.
 
 ---
 
@@ -130,16 +150,107 @@ Run the ISO tag now, complete the rest later, in parallel with the team:
 
 ---
 
+## 4c. LOD ladder — Deliverable D is LOD 500
+
+The client's **A1 Design Scope of Services states LOD 400 for Deliverable D**. We
+verify Deliverable D at **LOD 500**, and record here why.
+
+| Deliverable | LOD | Milestone id |
+|---|---|---|
+| A — schematic | 200 | `deliverable-a` |
+| B — 50% documents | 300 | `deliverable-b` |
+| C — 100% documents | 350 | `deliverable-c` |
+| Conformed set | 350 | `conformed-set` |
+| Construction supervision (Work Program 3.1) | 400 | `construction` |
+| **D — record / as-built** | **500** | `deliverable-d` |
+
+LOD 400 is *fabrication and installation* maturity — the state a model is in while
+the work is being built. LOD 500 is *field-verified as-built*, which is by
+definition what a record/handover model is. A record model held to LOD 400 would
+not have to carry the installed serial numbers, installation dates or maintenance
+data that make it useful to the Owner's FM team, which is the entire point of the
+deliverable. The A1 figure is read as a drafting error in the client document.
+
+**LOD 400 has not been discarded** — it is reachable as the `construction`
+milestone, covering Work Program item *3.1 Supervise the Building Construction
+Contract*. Nothing that was verifiable before became unverifiable.
+
+**Raise this with the Owner** at the next BEP review so the contract record and
+the verification gate agree. If the Owner confirms 400 is intended, change
+`deliverable-d` back to `"lod": 400` in `_BIM_COORD/lod_matrix.json` — the project
+overlay wins over the corporate baseline, so it is a one-line project decision and
+needs no code change.
+
+---
+
 ## 5. Deployment checklist
 
 1. Copy `_BIM_COORD/` into the temple project folder.
 2. Set `PRJ_ORG_PROJECT_CODE_TXT = KUT` and `PRJ_ORG_ORIGINATOR_CODE_TXT` on
    Project Information (drives the sheet pattern + tag scheme).
-3. Confirm the LOC→volume map and the originator/volume/level/type number table
+3. **Set `PLM_PRJ_PLUMBING_CODE_TXT = IPC-US` on Project Information.**
+   This is a **Revit Project Information value, so no repo file can set it** — it
+   must be written into the model, and it is easy to miss because there is no
+   error when it is absent. `DrainageSizer.ResolveCode` and `VentDesigner` route
+   any value starting `IPC` to `IPCSiAdapter`; **anything else — including blank —
+   silently falls back to BS EN 12056 (`BS-UK`)**. The Owner is US-standard, so
+   leaving this unset produces UK drainage and vent sizes that look perfectly
+   valid and are wrong for the code the design is reviewed against.
+4. Confirm the LOC→volume map and the originator/volume/level/type number table
    against the Owner's week-1 BEP register; edit `_BIM_COORD/*.json` to match.
-4. Run **KUT Mobilisation** once on the federation host.
-5. Run **KUT Coordination Cycle** fortnightly; **KUT Monthly Report** monthly;
-   **KUT Gate Audit** + **KUT Deliverable D** at the contractual gates.
+5. **Classify demolition by hand — `CSI_Assign` cannot do it.** See
+   "Demolition (CSI Division 02) is a manual step" below. Assign the owner of this
+   task at the Phase 2 kick-off, not at the Deliverable B review.
+6. Run **KUT Mobilisation** once on the federation host.
+7. Run **KUT Coordination Cycle** fortnightly and **KUT Monthly Report** monthly.
+8. At each contractual gate, run **KUT Gate Audit** first — it is read-only and tells you
+   what the gate would say without changing anything — then the gate itself:
+   **KUT Deliverable A** (LOD 200) · **KUT Deliverable B** (LOD 300) ·
+   **KUT Deliverable C** (LOD 350) · **KUT Deliverable D** (LOD 500).
+   **KUT FF&E Sync** runs whenever the Fohlio register moves; Deliverable D refreshes the
+   link itself, so it does not depend on you having remembered.
+
+### Demolition (CSI Division 02) is a manual step
+
+A1 Deliverable B requires an **Existing Conditions & Removals Plan**, and Deliverable C
+carries the removals scope through to the tender documents. **`CSI_Assign` cannot classify
+demolition**, so nothing in the automated pipeline will produce Division 02 sections.
+
+`CsiMasterFormat.Resolve` matches on **category / family / type / system** only. Revit
+expresses demolition through the **`Phase Demolished`** property, which the resolver never
+receives. Naming-based rules (`(?i)existing|demolition|clearance`) were drafted and then
+**withdrawn deliberately** — they would have read as coverage in a review while matching
+nothing, because nobody names a toposolid "demolition". Honest absence beats a rule that
+looks like it works. Tracked as ROADMAP **KUT-5**; the fix is phase-awareness in the
+resolver, which is a schema change to the map CSV and is not scheduled.
+
+Until then, one of:
+
+- **Project overlay.** Add explicit Division 02 rows to `_BIM_COORD/csi_map.csv` keyed on a
+  naming convention the team actually applies (e.g. a `DEMO_` type-name prefix agreed at
+  kick-off, matched in the **TypeRegex** column — *not* FamilyRegex, which returns empty for
+  system elements such as Topography and Toposolid). The overlay loads before the corporate
+  map, so overlay rows win.
+- **Write `CSI_SECTION_TXT` / `CSI_TITLE_TXT` directly** on the demolition scope from a
+  schedule or a filtered selection, before running `SpecLink_Reconcile`.
+
+Either way, do it **before** `SpecLink_Reconcile` — otherwise the Division 02 sections in the
+Owner's SpecLink book report as over-specification (spec with no model backing) and the
+reconciliation reads clean when it is not.
+
+### Owner-standard settings summary
+
+| Setting | Value | Where it lives |
+|---|---|---|
+| Classification standard | **CSI MasterFormat** (not Uniclass) | `_BIM_COORD/sting_classification.json` — in this pack |
+| Plumbing code | **`IPC-US`** (not BS EN 12056) | `PLM_PRJ_PLUMBING_CODE_TXT` on **Project Information** — step 3 above |
+| Specifications | RIB SpecLink | reconciled by `SpecLink_Reconcile` |
+| FF&E / finishes / O&M | Fohlio | `_BIM_COORD/fohlio_map.json` + `Fohlio_*` commands |
+| Demolition (Division 02) | **manual — not automated** | `_BIM_COORD/csi_map.csv` overlay or direct parameter write — step 5 above |
+
+> **Not required by this contract:** ISO 19650 naming on Owner deliverables, COBie,
+> or IFC. STING's ISO 19650 machinery remains our *internal* method for tagging and
+> coordination — it is not imposed on what the Owner receives.
 
 > Built without `dotnet build` verification (Linux sandbox). The JSON conforms
 > to the existing registry schemas and every workflow `commandTag` resolves in

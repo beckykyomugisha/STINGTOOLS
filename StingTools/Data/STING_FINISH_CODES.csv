@@ -1,0 +1,66 @@
+# v1.0 | 20260808 | STING room finish code legend (K-2)
+#
+# The finish code legend that STINGTOOLS previously did not ship. Before this file,
+# every finish parameter in MR_PARAMETERS.txt was free-text prose with no picklist and
+# no validation: ROOM_TYPE_CLASSIFIER.csv is a lighting classifier, and CODE_LEGEND.json's
+# FIN entry is a 4D trade code. Finishes were described in sentences that could not be
+# filtered, sorted, validated or joined to a material.
+#
+# USAGE
+#   Put the FINISH_CODE (e.g. FL-01) in the room's finish parameter:
+#     BLE_ROOM_FINISH_{FLOOR,WALL,CEILING,BASE}_COD_TXT   (the code — filterable, joinable)
+#     BLE_ROOM_FINISH_{FLOOR,WALL,CEILING,BASE}_TXT       (the prose description)
+#   and the matching Revit built-in ("Floor Finish", "Wall Finish", "Ceiling Finish",
+#   "Base Finish"), which is what a native Revit schedule, an IFC export and
+#   ISBRoomFinishCommand's schedule can all see.
+#
+# JOIN
+#   MAT_CODE joins this table to Data/BLE_MATERIALS.csv, so a finish code resolves to a
+#   real material with a real cost, thickness and specification. Every MAT_CODE below was
+#   verified present in BLE_MATERIALS.csv v2.2 — none are invented.
+#
+# CODE SHAPE
+#   FL-nn floor · WL-nn wall · CL-nn ceiling · SK-nn skirting / base.
+#   Note the deliberate two-digit form: BLE_MATERIALS MAT_CODEs in the same families use
+#   three digits (FL-068, WL-186, CL-050), so a finish code is never mistaken for a
+#   material code. FINISH_CODE is the project-facing key; MAT_CODE is the library key.
+#
+# REVIT_TYPE_HINT
+#   Preferred Revit type name for the finish element. Finish_CreateFloorsFromRooms
+#   resolves a FloorType by exact name, then case-insensitive substring, before reporting
+#   the code as unresolved. Blank for wall / ceiling / base codes, which are applied as
+#   compound layers or sweeps rather than as their own element.
+#
+# This is the corporate baseline. Projects override it with
+# <project>/_BIM_COORD/finish_codes.csv — entries win by FINISH_CODE.
+#
+FINISH_CODE,SURFACE,FINISH_DESCRIPTION,MAT_CODE,MAT_NAME,THICKNESS_MM,REVIT_TYPE_HINT,NOTES
+FL-01,FLOOR,"Timber parquet, herringbone, sealed",FLR-029,HERRINGBONE PARQUET 15MM,15,Finish - Parquet 15mm,Lay on screed; sealed on site
+FL-02,FLOOR,"Engineered timber board, oak natural",FL-068,FLOOR TIMBER-ENG OAK-NATURAL,18,Finish - Timber Board 18mm,Floating or bonded to screed
+FL-03,FLOOR,"Cement screed, power-floated, exposed",FLR-001,STANDARD CEMENT SCREED 50MM,50,Finish - Screed 50mm,Screed as the wearing surface — no separate finish
+FL-04,FLOOR,Polished cement screed,FLR-003,POLISHED CEMENT SCREED 50MM,50,Finish - Polished Screed 50mm,Power-floated then mechanically polished
+FL-05,FLOOR,"Ceramic floor tile, matt, wet areas",FL-056,FLOOR CERAMIC WHITE-MATT,10,Finish - Ceramic Tile 10mm,Bed on screed laid to falls in wet areas
+FL-06,FLOOR,"Porcelain floor tile, wood effect",FL-064,FLOOR PORCELAIN WOOD-OAK,10,Finish - Porcelain Tile 10mm,
+FL-07,FLOOR,Vinyl LVT,FL-001,VINYL LVT SOLID LIGHT-GREY,2.5,Finish - Vinyl LVT 2.5mm,Requires self-levelling screed substrate
+FL-08,FLOOR,Carpet tile,FL-031,CARPET TILE SOLID LIGHT-GREY,6,Finish - Carpet Tile 6mm,
+FL-09,FLOOR,Epoxy resin floor,FL-080,FLOOR EPOXY LIGHT-GREY,3,Finish - Epoxy 3mm,Plant rooms / service areas
+FL-10,FLOOR,External concrete paver,FLR-035,CONCRETE PAVER 60MM,60,Finish - Concrete Paver 60mm,External — sand bed on compacted sub-base
+FL-11,FLOOR,External clay brick paver,FLR-054,CLAY BRICK PAVER 65MM,65,Finish - Brick Paver 65mm,External terraces and walkways
+WL-01,WALL,Internal cement plaster + matt emulsion,WL-001,INTERNAL PLASTER STANDARD 15MM + EMULSION,15.5,,Default internal wall finish
+WL-02,WALL,Internal smooth plaster + paint,WL-003,INTERNAL PLASTER SMOOTH 18MM + PAINT,18,,Higher-spec internal areas
+WL-03,WALL,External cement-sand render 1:4,WL-266,CEMENT SAND RENDER 1-4 (EXTERNAL STANDARD),15,,Standard external render
+WL-04,WALL,External render + weatherguard coating,WL-005,EXTERNAL RENDER 15MM + WEATHERGUARD,15.8,,Exposed elevations
+WL-05,WALL,Ceramic wall tile to 2100mm,WL-063,MEDIUM FORMAT CERAMIC 300X450MM,9,,Wet areas — tile height per room data sheet
+WL-06,WALL,Timber wall panelling,WL-038,TIMBER WALL PANELING 32MM,32.5,,Internal feature walls
+WL-07,WALL,External timber cladding,WL-039,EXTERIOR TIMBER CLADDING 35MM,42,,Ventilated cavity behind
+WL-08,WALL,Masonry paint on fair-face blockwork,PT-028,MASONRY PAINT WHITE,0.5,,No plaster — direct to fair-face
+CL-01,CEILING,Timber tongue-and-groove ceiling,CLG-053,TIMBER T&G CEILING 15MM,15,,
+CL-02,CEILING,Gypsum board + skim + matt emulsion,CL-050,CEILING GYPSUM PAINTED-WHITE,12.5,,Default suspended / MF ceiling finish
+CL-03,CEILING,Cement plaster ceiling finish,CLG-016,CEMENT PLASTER FINISH 12MM,12,,Direct to soffit
+CL-04,CEILING,Acoustic timber panel,CLG-058,ACOUSTIC TIMBER PANEL 25MM,25,,Where an NC target applies
+CL-05,CEILING,"Timber slat, oak natural",CL-038,CEILING WOOD OAK-SLAT-NATURAL,25,,Feature ceilings
+SK-01,BASE,Hardwood skirting 100mm,WL-186,HARDWOOD SKIRTING 100MM,30.3,,Measured as a linear item — model as a wall sweep
+SK-02,BASE,Cement + paint skirting 100mm,WL-199,CEMENT + PAINT SKIRTING 100MM,100,,
+SK-03,BASE,Ceramic tile skirting 100mm,WL-202,CERAMIC TILES SKIRTING 100MM,100,,Wet areas — match WL-05
+SK-04,BASE,Softwood painted skirting 75mm,WL-207,SOFTWOOD PAINTED SKIRTING 75MM,75,,
+SK-05,BASE,Porcelain tile skirting 150mm,WL-203,PORCELAIN TILES SKIRTING 150MM,150,,

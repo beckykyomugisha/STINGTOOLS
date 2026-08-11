@@ -1734,13 +1734,16 @@ namespace StingTools.Core
             var halfP = FindFamilyParam(fm, paramName);
             if (halfP == null) return;
 
-            // Seed with a default value (150 mm = ~0.492 ft)
-            try
-            {
-                if (fm.CurrentType != null)
-                    fm.Set(halfP, 0.492);
-            }
-            catch { }
+            // Seed with a default value (150 mm = ~0.492 ft).
+            // H-4 — was a silent catch. FamilyManager.Set THROWS, so the exception is
+            // the signal here. Two lines above, an AddParameter failure IS reported
+            // and returns; a seed failure was discarded, leaving the parameter
+            // present but at 0 — and a half-dimension of 0 places annotation on the
+            // element's own edge rather than 150 mm off it. The family is authored,
+            // the run reports success, and the symbol is wrong.
+            if (fm.CurrentType != null)
+                SafeWrite.Try(() => fm.Set(halfP, 0.492),
+                    "FamilySymbolAuthor", $"seed default for '{paramName}'", result?.Warnings);
 
             // Link via formula when source param found: STING_PLAN_HALF_W_FT = Width / 2
             if (sourceParam != null && !halfP.IsShared)

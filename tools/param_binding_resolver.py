@@ -1,4 +1,4 @@
-import os,re,csv,collections
+import os,re,csv,collections,sys,io
 # ---- code scan: param -> set(code domains) ----
 params={}
 for line in open("StingTools/Data/MR_PARAMETERS.txt",encoding="utf-8",errors="replace"):
@@ -49,7 +49,7 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "DOOR":"Doors","WINDOW":"Windows","WALL":"Walls|Curtain Panels|Curtain Wall Mullions","FLOOR":"Floors","CEILING":"Ceilings",
 "ROOF":"Roofs","STAIR":"Stairs|Railings","RAMP":"Ramps","RAILING":"Railings","CASEWORK":"Casework","FURN":"Furniture|Furniture Systems",
 "PARK":"Parking","COLUMN":"Columns|Structural Columns","ROOM":"Rooms","FINISH":"Walls|Floors|Ceilings|Roofs|Rooms",
-"MATERIAL":"Materials","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
+"MATERIAL":"Materials","SHEETS":"Sheets","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
 SAFE={"HVC":"HVAC","PLM":"PLUMB","ELC":"ELEC","LTG":"LIGHT","ICT":"DATA","COM":"DATA","MGS":"HEALTH","CLN":"HEALTH","CEQ":"HEALTH","RAD":"HEALTH","FLS":"FIRE"}
 BLE={"DOOR":"DOOR","WINDOW":"WINDOW","WALL":"WALL","FACADE":"WALL","CW":"WALL","PANEL":"WALL","MULLION":"WALL","FLR":"FLOOR","FLOOR":"FLOOR","SLAB":"FLOOR","CEILING":"CEILING","CEIL":"CEILING","ROOF":"ROOF","STAIR":"STAIR","RAMP":"RAMP","RAILING":"RAILING","RAIL":"RAILING","CASEWORK":"CASEWORK","FURN":"FURN","FURNITURE":"FURN","PARK":"PARK","PARKING":"PARK","COLUMN":"COLUMN","ROOM":"ROOM","HEADROOM":"ROOM","STRUCT":"STRUCT","LOAD":"STRUCT","LIVE":"STRUCT","FINISH":"FINISH","TILE":"FINISH","PAINT":"FINISH","PLASTER":"FINISH","MORTAR":"FINISH","BRICK":"FINISH","BLOCK":"FINISH","SURFACE":"FINISH","MAT":"MATERIAL","MATERIAL":"MATERIAL","CBL":"CABLE_TRAY","SIGN":"ARCH"}
 CST_ROLLUP=set("UNIT TOTAL RATE SUP LABOUR BOQ DUTY FX UG INTL PROC INSTALL FORMWORK EMBODIED TITLE".split()); CST={"CALC":"FINISH","S":"STRUCT"}
@@ -64,7 +64,15 @@ def resolve(n,desc,depth=0):
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
     if pre=="TAG": return "NONE","annotation-only"
-    if pre in("Qto","VT","TB","TBL","SHT","VIEW"): return "NONE","excluded"
+    # G-25: SHT_ is NOT excluded. All ten SHT_* params bind to the Sheets category
+    # exactly as the PRJ_SHEET_* family does, and RESOLVED_BINDINGS.csv has carried
+    # them as "Sheets" all along. Excluding them here made --apply DROP their only
+    # binding row (9 of 10 have no CATEGORY_BINDINGS row), silently unbinding live
+    # parameters -- SHT_REV_TXT and SHT_REV_DATE_TXT are read by TitleBlockRevisionSyncer,
+    # DrawingProduceAndExportCommand and BIMCoordinationCenter. The exclusion was the
+    # wrong side of the disagreement, not the data.
+    if pre=="SHT": return "SHEETS","sheet-scoped"
+    if pre in("Qto","VT","TB","TBL","VIEW"): return "NONE","excluded"
     if pre=="CSI": return "UNIVERSAL","classification"
     if pre=="STRUCT":
         if sub=="COL": return "COLUMN","struct-col"
@@ -129,13 +137,68 @@ print("resolution source:")
 for s,c in src.most_common(): print("  %-26s %5d"%(s,c))
 print("\nSCOPED:%d  UNIVERSAL:%d  UNBOUND:%d"%(scoped,univ,unb))
 print("remaining true gaps:",len(gaps))
-with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
-with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","desc"]); [w.writerow((o[0],o[1],o[4])) for o in sorted(gaps)]
-with open("StingTools/Data/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
+print("code-usage recovered:",src["code-usage"])
+
+# ---------------------------------------------------------------------------
+# --check (DEFAULT, provably read-only) / --apply
+#
+# This script used to WRITE all three files unconditionally, so a run intended as
+# a read-only baseline produced a 335-line diff in RESOLVED_BINDINGS.csv. A
+# verifier that mutates what it verifies cannot be used to check anything.
+#
+# Same shape as tools/restamp_content_manifest.py: --check reports and writes
+# nothing, exit 1 if anything differs; --apply is the explicit, deliberate write.
+# ---------------------------------------------------------------------------
+def _render_docs_resolved():
+    buf=io.StringIO(); w=csv.writer(buf,lineterminator="\r\n")
+    w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
+    return buf.getvalue()
+
+def _render_docs_gaps():
+    buf=io.StringIO(); w=csv.writer(buf,lineterminator="\r\n")
+    w.writerow(["param","group","desc"])
+    for o in sorted(gaps): w.writerow((o[0],o[1],o[4]))
+    return buf.getvalue()
+
+def _render_deployable():
+    buf=io.StringIO(); w=csv.writer(buf,lineterminator="\r\n")
+    w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
     for n,g,srcx,cats,d in sorted(out):
         if cats!="": w.writerow([n,cats])
-print("code-usage recovered:",src["code-usage"])
-print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")
+    return buf.getvalue()
+
+TARGETS=[("docs/RESOLVED_BINDINGS.csv",_render_docs_resolved),
+         ("docs/binding_gaps.csv",_render_docs_gaps),
+         ("StingTools/Data/RESOLVED_BINDINGS.csv",_render_deployable)]
+
+mode="--apply" if "--apply" in sys.argv else "--check"
+print("\nmode: %s%s"%(mode," (default; writes nothing)" if mode=="--check" else " (WRITING)"))
+
+differs=0
+for path,render in TARGETS:
+    new=render()
+    try:
+        cur=open(path,newline="",encoding="utf-8").read()
+    except OSError:
+        cur=None
+    same = (cur==new)
+    if mode=="--apply":
+        if same:
+            print("  unchanged  %s"%path)
+        else:
+            with open(path,"w",newline="",encoding="utf-8") as f: f.write(new)
+            print("  WROTE      %s"%path)
+    else:
+        if same:
+            print("  match      %s"%path)
+        else:
+            differs+=1
+            n_new=len(new.splitlines()); n_cur=len(cur.splitlines()) if cur is not None else 0
+            print("  DIFFERS    %s  (on disk %d lines, generated %d)"%(path,n_cur,n_new))
+
+if mode=="--check":
+    if differs:
+        print("\n%d file(s) differ. Re-run with --apply to update them, as its own commit."%differs)
+        sys.exit(1)
+    print("\nAll generated files match what is on disk.")
+    sys.exit(0)

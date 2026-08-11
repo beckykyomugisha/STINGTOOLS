@@ -682,42 +682,27 @@ namespace StingTools.Core.Drawing
                 return;
             }
 
-            // Pre-resolve CategoryDepths pack for this bic (avoid per-element registry hit).
-            ViewStylePack depthPack = null;
-            string depthCatKey = null;
-            int resolvedDepth = 0;
-            bool hasDepth = false;
-            try
-            {
-                var dtId = DrawingTypeStamper.Read(view);
-                if (!string.IsNullOrEmpty(dtId))
-                {
-                    depthPack = DrawingTypeRegistry.TryGetPack(doc, dtId);
-                    if (depthPack?.CategoryDepths != null)
-                    {
-                        depthCatKey = Category.GetCategory(doc, bic)?.Name ?? bic.ToString();
-                        if (!depthPack.CategoryDepths.TryGetValue(depthCatKey, out resolvedDepth))
-                        {
-                            depthPack.CategoryDepths.TryGetValue(bic.ToString(), out resolvedDepth);
-                        }
-                        hasDepth = resolvedDepth > 0;
-                    }
-                }
-            }
-            catch { /* resolver must never throw */ }
-
-            // A rule's own tag7Depth is the most specific depth declaration
-            // there is, so it wins over the pack's per-category depth for the
-            // elements this rule covers. Same write as the pack path below
-            // (TAG_PARA_DEPTH_INT + cumulative TAG_PARA_STATE_n_BOOL), just a
-            // different source — the field had no reader at all before, so a
-            // rule asking for depth 3 silently got whatever the pack said.
-            if (rule?.Tag7Depth.HasValue == true && rule.Tag7Depth.Value > 0)
-            {
-                resolvedDepth = Math.Max(1, Math.Min(10, rule.Tag7Depth.Value));
-                hasDepth = true;
-            }
-
+            // Paragraph depth is NOT resolved or written here any more.
+            //
+            // This used to pre-resolve a depth from the pack's CategoryDepths (and
+            // the rule's tag7Depth) and then write TAG_PARA_DEPTH_INT +
+            // TAG_PARA_STATE_1..10_BOOL onto each host ELEMENT. Those writes could
+            // never land, for two independent reasons:
+            //
+            //   • TAG_PARA_DEPTH_INT has no binding at all — zero rows in
+            //     CATEGORY_BINDINGS.csv, RESOLVED_BINDINGS.csv AND
+            //     FAMILY_PARAMETER_BINDINGS.csv. It exists only as a definition in
+            //     MR_PARAMETERS.txt, so nothing anywhere can read it.
+            //   • TAG_PARA_STATE_*_BOOL / TAG_WARN_VISIBLE_BOOL are bound as TYPE
+            //     parameters (FAMILY_PARAMETER_BINDINGS.csv, 42 categories each).
+            //     ParameterHelpers.SetInt resolves via Element.LookupParameter, which
+            //     does not see type parameters from an instance — so an instance-scoped
+            //     write is unreachable by construction, not merely unbound.
+            //
+            // The live per-category depth path is TokenProfileApplier.WriteCategoryDepths,
+            // which writes the same gates to the element TYPE and therefore matches the
+            // Type binding. Do not reinstate an element-scoped writer here.
+            //
             // Per-rule tag orientation. IndependentTag.Create took a hardcoded
             // TagOrientation.Horizontal, so the field was inert.
             TagOrientation orientation = ResolveTagOrientation(rule, catKey, stats);
@@ -767,21 +752,9 @@ namespace StingTools.Core.Drawing
                         alreadyTagged?.Add(el.Id);
                     }
 
-                    // Apply CategoryDepths from the active pack, if declared.
-                    // FIX-6: write the tier flags CUMULATIVELY — a depth of N
-                    // means tiers 1..N are all visible (higher tiers off), not
-                    // tier N alone. Mirrors TokenProfileApplier.WriteCategoryDepths
-                    // so the produce path and the per-category depth path agree.
-                    if (hasDepth)
-                    {
-                        try { ParameterHelpers.SetInt(el, "TAG_PARA_DEPTH_INT", resolvedDepth); }
-                        catch { }
-                        for (int t = 1; t <= 10; t++)
-                        {
-                            try { ParameterHelpers.SetInt(el, $"TAG_PARA_STATE_{t}_BOOL", t <= resolvedDepth ? 1 : 0); }
-                            catch { }
-                        }
-                    }
+                    // CategoryDepths are applied by TokenProfileApplier.WriteCategoryDepths
+                    // (element TYPE scope, matching the Type binding). The element-scoped
+                    // writes that used to sit here could not land — see the note above.
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
             }
@@ -1193,7 +1166,17 @@ namespace StingTools.Core.Drawing
                                 : doc.Create.NewSpotElevation(view, faceRef, origin, bend, end, refPt, hasLeader);
                             if (symbolId != ElementId.InvalidElementId && sd != null)
                             {
-                                try { sd.ChangeTypeId(symbolId); } catch { }
+                                // H-4 — was a silent catch. ChangeTypeId THROWS, so the
+                                // exception is the signal here. A swallowed failure
+                                // leaves the spot dimension placed but carrying the
+                                // WRONG symbol type — and result.SpotsPlaced++ on the
+                                // next line still counts it as a success. That is the
+                                // exact shape this batch keeps finding: the count says
+                                // done, the drawing says otherwise.
+                                SafeWrite.Try(() => sd.ChangeTypeId(symbolId),
+                                    "AnnotationRunner.Spot",
+                                    $"spot {(isCoordinate ? "coordinate" : "elevation")} symbol type",
+                                    result?.Warnings);
                             }
                             result.SpotsPlaced++;
                             // Keep the index current so a later rule of the same

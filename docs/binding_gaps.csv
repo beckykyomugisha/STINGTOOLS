@@ -1,9 +1,14 @@
 param,group,desc
+ASSET_RFI_URL_TXT,1,URL to the asset's RFI / product data record -- read per instance by ClassificationReader
 BLE_ELES_SPARE_01_TXT,2,Spare parameter 1 for BLE_ELES group
 BLE_ELES_SPARE_02_TXT,2,Spare parameter 2 for BLE_ELES group
 BLE_ELES_SPARE_03_TXT,2,Spare parameter 3 for BLE_ELES group
+NBS_CODE_TXT,1,NBS specification clause reference for this type -- read by ClassificationReader as a classification fallback [NBS]
 SPARE_PARAM_01_TXT,11,Spare parameter 01 for future use [ISO 19650-1:2018]
 SPARE_PARAM_02_TXT,11,Spare parameter 02 for future use [ISO 19650-1:2018]
 SPARE_PARAM_03_TXT,11,Spare parameter 03 for future use [ISO 19650-1:2018]
 SPARE_PARAM_04_NR,11,Spare parameter 04 for future use [ISO 19650-1:2018]
 SPARE_PARAM_05_INT,11,Spare parameter 05 for future use [ISO 19650-1:2018]
+UNICLASS_EF_TXT,1,Uniclass 2015 Elements/Functions (EF_) classification code -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]
+UNICLASS_PR_TXT,1,"Uniclass 2015 Products (Pr_) classification code, e.g. Pr_30_59_24 -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]"
+UNICLASS_SS_TXT,1,"Uniclass 2015 Systems (Ss_) classification code, e.g. Ss_25_10 -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015]"

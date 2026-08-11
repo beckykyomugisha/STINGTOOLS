@@ -5,126 +5,126 @@
   "version": "2.0",
   "steps": [
     {
-      "id": 1, "name": "Save System Configuration",
+      "id": 1, "label": "Save System Configuration",
       "commandTag": "Plumb_SaveSystemConfig",
-      "description": "Saves building type, plumbing code (BS-UK / IPC-US / AS-3500 / SANS-10252), materials, and velocity limits.",
-      "allowSkip": true
+      "label": "Saves building type, plumbing code (BS-UK / IPC-US / AS-3500 / SANS-10252), materials, and velocity limits.",
+      "optional": true
     },
     {
-      "id": 2, "name": "Scan Fixture Units",
+      "id": 2, "label": "Scan Fixture Units",
       "commandTag": "Plumb_ScanFixtures",
-      "description": "Walks all plumbing fixtures, assigns DU/LU/WSFU from tables, writes PLM_DRN_DU_NR, PLM_SUP_LU_CW_NR, PLM_SUP_LU_HW_NR.",
-      "allowSkip": false
+      "label": "Walks all plumbing fixtures, assigns DU/LU/WSFU from tables, writes PLM_DRN_DU_NR, PLM_SUP_LU_CW_NR, PLM_SUP_LU_HW_NR.",
+      "optional": false
     },
     {
-      "id": 3, "name": "Build Pipe Network Graph",
+      "id": 3, "label": "Build Pipe Network Graph",
       "commandTag": "Plumb_BuildNetwork",
-      "description": "Constructs directed connectivity graph (BFS from fixtures → mains → termination). Foundation for all system-level calculations.",
-      "allowSkip": false
+      "label": "Constructs directed connectivity graph (BFS from fixtures → mains → termination). Foundation for all system-level calculations.",
+      "optional": false
     },
     {
-      "id": 4, "name": "Size Cold + Hot Water Supply",
+      "id": 4, "label": "Size Cold + Hot Water Supply",
       "commandTag": "Plumb_SizeSupply",
-      "description": "BS EN 806-3 / Hunter pipe sizing for DCW and DHW systems. Writes PLM_SUP_QD, PLM_SUP_VEL, PLM_SUP_DN_REQ.",
-      "allowSkip": true,
+      "label": "BS EN 806-3 / Hunter pipe sizing for DCW and DHW systems. Writes PLM_SUP_QD, PLM_SUP_VEL, PLM_SUP_DN_REQ.",
+      "optional": true,
       "condition": { "type": "hasSupplySystem" }
     },
     {
-      "id": 5, "name": "Size Drainage",
+      "id": 5, "label": "Size Drainage",
       "commandTag": "Plumb_SizeDrainage",
-      "description": "BS EN 12056-2 / IPC 2021 drainage sizing. Writes PLM_CALC_DN_MM and PLM_CALC_SLOPE_PCT.",
-      "allowSkip": false
+      "label": "BS EN 12056-2 / IPC 2021 drainage sizing. Writes PLM_CALC_DN_MM and PLM_CALC_SLOPE_PCT.",
+      "optional": false
     },
     {
-      "id": 6, "name": "Apply Drainage Slopes",
+      "id": 6, "label": "Apply Drainage Slopes",
       "commandTag": "Plumb_SlopeAutomation",
-      "description": "Enforces minimum slopes per BS EN 12056-2 / AS 3500 / IPC on all drainage pipes. Moves pipe endpoints to achieve correct gradients.",
-      "allowSkip": false
+      "label": "Enforces minimum slopes per BS EN 12056-2 / AS 3500 / IPC on all drainage pipes. Moves pipe endpoints to achieve correct gradients.",
+      "optional": false
     },
     {
-      "id": 7, "name": "Design Vent System",
+      "id": 7, "label": "Design Vent System",
       "commandTag": "Plumb_CreateVents",
-      "description": "BS EN 12056-2 Annex B vent sizing + physical vent pipe creation. Places AAVs where branch length exceeds limit.",
-      "allowSkip": true
+      "label": "BS EN 12056-2 Annex B vent sizing + physical vent pipe creation. Places AAVs where branch length exceeds limit.",
+      "optional": true
     },
     {
-      "id": 8, "name": "Insert P-Traps",
+      "id": 8, "label": "Insert P-Traps",
       "commandTag": "Plumb_InsertPTraps",
-      "description": "Detects and inserts P-trap families on fixtures missing a trap seal. BS 6465-2 / DW 144-2 seal depths.",
-      "allowSkip": true
+      "label": "Detects and inserts P-trap families on fixtures missing a trap seal. BS 6465-2 / DW 144-2 seal depths.",
+      "optional": true
     },
     {
-      "id": 9, "name": "Place Pipe Sleeves",
+      "id": 9, "label": "Place Pipe Sleeves",
       "commandTag": "Plumb_PlaceSleeves",
-      "description": "Inserts sleeve families at wall/slab penetrations. Fire-rating inherited from host element.",
-      "allowSkip": true
+      "label": "Inserts sleeve families at wall/slab penetrations. Fire-rating inherited from host element.",
+      "optional": true
     },
     {
-      "id": 10, "name": "Plan Hanger Locations",
+      "id": 10, "label": "Plan Hanger Locations",
       "commandTag": "Plumb_PlaceHangers",
-      "description": "Generates hanger spacing plan per BS 5572 / BSRIA BG 29. Trapeze grouping for shared runs.",
-      "allowSkip": true
+      "label": "Generates hanger spacing plan per BS 5572 / BSRIA BG 29. Trapeze grouping for shared runs.",
+      "optional": true
     },
     {
-      "id": 11, "name": "Pressure Check by Network",
+      "id": 11, "label": "Pressure Check by Network",
       "commandTag": "Plumb_NetworkPressure",
-      "description": "Static pressure at each network node. Colours pipes by pressure zone (red/amber/green). Writes PLM_PRESSURE_KPA.",
-      "allowSkip": true
+      "label": "Static pressure at each network node. Colours pipes by pressure zone (red/amber/green). Writes PLM_PRESSURE_KPA.",
+      "optional": true
     },
     {
-      "id": 12, "name": "Pump Selection",
+      "id": 12, "label": "Pump Selection",
       "commandTag": "Plumb_PumpSelect",
-      "description": "Calculates duty head + flow from critical path. Matches to pump catalogue. Writes PLM_PUMP_DUTY_HEAD_M, PLM_PUMP_MODEL_TXT.",
-      "allowSkip": true,
+      "label": "Calculates duty head + flow from critical path. Matches to pump catalogue. Writes PLM_PUMP_DUTY_HEAD_M, PLM_PUMP_MODEL_TXT.",
+      "optional": true,
       "condition": { "type": "hasPumpElement" }
     },
     {
-      "id": 13, "name": "Expansion Vessel Sizing",
+      "id": 13, "label": "Expansion Vessel Sizing",
       "commandTag": "Plumb_ExpVessel",
-      "description": "BS 7074-1 expansion vessel sizing for closed DHW systems.",
-      "allowSkip": true
+      "label": "BS 7074-1 expansion vessel sizing for closed DHW systems.",
+      "optional": true
     },
     {
-      "id": 14, "name": "Water Safety — Dead-Leg Scan",
+      "id": 14, "label": "Water Safety — Dead-Leg Scan",
       "commandTag": "Plumbing_DeadLegScan",
-      "description": "HSG 274 dead-leg detection. Flags legs > 0.45m. Writes PLM_DEAD_LEG_LENGTH_M.",
-      "allowSkip": false
+      "label": "HSG 274 dead-leg detection. Flags legs > 0.45m. Writes PLM_DEAD_LEG_LENGTH_M.",
+      "optional": false
     },
     {
-      "id": 15, "name": "Water Safety — TMV Register",
+      "id": 15, "label": "Water Safety — TMV Register",
       "commandTag": "Plumb_TMVEngine",
-      "description": "BS 8680 / HTM 04-01 TMV scan. Validates outlet temperatures, flags overdue tests.",
-      "allowSkip": true
+      "label": "BS 8680 / HTM 04-01 TMV scan. Validates outlet temperatures, flags overdue tests.",
+      "optional": true
     },
     {
-      "id": 16, "name": "Legionella Risk Assessment Report",
+      "id": 16, "label": "Legionella Risk Assessment Report",
       "commandTag": "Plumb_LegionellaReport",
-      "description": "Generates ACOP L8 / HSG 274 structured risk assessment combining dead-leg data, TMV register, and system description.",
-      "allowSkip": true
+      "label": "Generates ACOP L8 / HSG 274 structured risk assessment combining dead-leg data, TMV register, and system description.",
+      "optional": true
     },
     {
-      "id": 17, "name": "Backflow Audit",
+      "id": 17, "label": "Backflow Audit",
       "commandTag": "Plumbing_BackflowAudit",
-      "description": "BS EN 1717 fluid category classification and cross-connection check.",
-      "allowSkip": true
+      "label": "BS EN 1717 fluid category classification and cross-connection check.",
+      "optional": true
     },
     {
-      "id": 18, "name": "Generate Drainage Schematic",
+      "id": 18, "label": "Generate Drainage Schematic",
       "commandTag": "Plumb_DrainageSchematic",
-      "description": "Auto-generates drainage riser schematic diagram in a new Drafting View from the pipe network graph.",
-      "allowSkip": true
+      "label": "Auto-generates drainage riser schematic diagram in a new Drafting View from the pipe network graph.",
+      "optional": true
     },
     {
-      "id": 19, "name": "Generate BOQ",
+      "id": 19, "label": "Generate BOQ",
       "commandTag": "Plumb_BOQ",
-      "description": "Exports plumbing Bill of Quantities to CSV: pipe lengths by DN/material, fittings, accessories, fixtures.",
-      "allowSkip": true
+      "label": "Exports plumbing Bill of Quantities to CSV: pipe lengths by DN/material, fittings, accessories, fixtures.",
+      "optional": true
     },
     {
-      "id": 20, "name": "Full Plumbing Audit",
+      "id": 20, "label": "Full Plumbing Audit",
       "commandTag": "Plumb_FullAudit",
-      "description": "RAG dashboard: drainage compliance, supply pressures, slope adequacy, dead-legs, TMVs, material compatibility. Final sign-off gate.",
-      "allowSkip": false
+      "label": "RAG dashboard: drainage compliance, supply pressures, slope adequacy, dead-legs, TMVs, material compatibility. Final sign-off gate.",
+      "optional": false
     }
   ],
   "metadata": {
