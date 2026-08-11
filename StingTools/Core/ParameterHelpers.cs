@@ -3985,11 +3985,13 @@ namespace StingTools.Core
                         // had none, so every Double routed through here was stored in
                         // internal units under an SI-suffixed name.
                         //
-                        // Convert to the parameter's own display unit rather than a
-                        // hard-coded factor per BuiltInParameter: it is what the
-                        // operator reads in Revit, it tracks a project that works in
-                        // other units, and it needs no per-parameter table to drift.
-                        val = ConvertToDisplayUnits(p).ToString("G6",
+                        // Convert to the unit the TARGET PARAMETER'S NAME DECLARES.
+                        // The naming convention is the contract every downstream
+                        // reader honours — a schedule column headed PLM_PPE_SZ_MM is
+                        // read as millimetres — so the value must satisfy the name,
+                        // not the project's current display setting. Falls back to the
+                        // display unit when the name declares nothing.
+                        val = ConvertForTarget(p, targetParamName).ToString("G6",
                             System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     case StorageType.Integer:
@@ -4009,25 +4011,68 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// A Double parameter's value in its own display unit. Falls back to the raw
-        /// internal value when the parameter carries no unit (Number-spec parameters
-        /// legitimately have none) or the unit cannot be read — and logs when it does,
-        /// because a silent fallback here reintroduces exactly the internal-units bug
-        /// this exists to fix.
+        /// STING parameter-name suffix → the unit that name declares. The convention is
+        /// the contract: a reader seeing PLM_PPE_SZ_MM is entitled to millimetres. Order
+        /// matters — longer suffixes are tested first so _SQ_M does not match _M.
         /// </summary>
-        private static double ConvertToDisplayUnits(Parameter p)
+        private static readonly (string Suffix, ForgeTypeId Unit)[] _declaredUnitBySuffix =
+        {
+            ("_SQ_M",   UnitTypeId.SquareMeters),
+            ("_CU_M",   UnitTypeId.CubicMeters),
+            ("_M2",     UnitTypeId.SquareMeters),
+            ("_M3",     UnitTypeId.CubicMeters),
+            ("_MM2",    UnitTypeId.SquareMillimeters),
+            ("_LPS",    UnitTypeId.LitersPerSecond),
+            ("_LS",     UnitTypeId.LitersPerSecond),
+            ("_CFM",    UnitTypeId.CubicFeetPerMinute),
+            ("_MPS",    UnitTypeId.MetersPerSecond),
+            ("_KPA",    UnitTypeId.Kilopascals),
+            ("_PA",     UnitTypeId.Pascals),
+            ("_KW",     UnitTypeId.Kilowatts),
+            ("_W",      UnitTypeId.Watts),
+            ("_KG",     UnitTypeId.Kilograms),
+            ("_KN",     UnitTypeId.Kilonewtons),
+            ("_V",      UnitTypeId.Volts),
+            ("_A",      UnitTypeId.Amperes),
+            ("_C",      UnitTypeId.Celsius),
+            ("_MM",     UnitTypeId.Millimeters),
+            ("_M",      UnitTypeId.Meters),
+        };
+
+        /// <summary>
+        /// A Double parameter's value expressed in the unit the TARGET parameter's name
+        /// declares. Falls back to the source parameter's display unit when the name
+        /// declares nothing, and to the raw internal value when there is no unit at all
+        /// (Number-spec parameters legitimately have none).
+        ///
+        /// Every fallback logs. A silent one reintroduces the defect this exists to fix:
+        /// PLM_PPE_SZ_MM holding 0.492126 (feet) and HVC_AIRFLOW_LPS holding 0.882867
+        /// (ft³/s) both read as compliant numbers in a schedule.
+        /// </summary>
+        private static double ConvertForTarget(Parameter p, string targetParamName)
         {
             double raw = p.AsDouble();
             try
             {
-                ForgeTypeId unit = p.GetUnitTypeId();
-                if (unit == null || unit.Empty()) return raw;
-                return UnitUtils.ConvertFromInternalUnits(raw, unit);
+                ForgeTypeId sourceUnit = p.GetUnitTypeId();
+                if (sourceUnit == null || sourceUnit.Empty()) return raw;   // dimensionless
+
+                string name = (targetParamName ?? "").ToUpperInvariant();
+                foreach (var (suffix, unit) in _declaredUnitBySuffix)
+                {
+                    if (!name.EndsWith(suffix, StringComparison.Ordinal)) continue;
+                    // The name's unit must be valid for THIS parameter's measurement.
+                    // A _C suffix on a length parameter is a naming accident, not a
+                    // temperature: convert by display unit rather than throw.
+                    if (!UnitUtils.IsValidUnit(p.Definition?.GetDataType(), unit)) break;
+                    return UnitUtils.ConvertFromInternalUnits(raw, unit);
+                }
+                return UnitUtils.ConvertFromInternalUnits(raw, sourceUnit);
             }
             catch (Exception ex)
             {
                 StingLog.WarnRateLimited("MapBuiltInUnit",
-                    $"NativeParamMapper: could not read the display unit for '{p?.Definition?.Name}' "
+                    $"NativeParamMapper: could not resolve a unit for '{targetParamName}' "
                   + $"— storing the raw internal value ({ex.Message}).");
                 return raw;
             }

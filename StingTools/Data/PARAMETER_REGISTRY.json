@@ -385,7 +385,7 @@
     {
       "param_name": "HANDOVER_MODE_HANDOVER_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567801",
-      "description": "Pattern selector — Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
+      "description": "Pattern selector \u2014 Handover / FM T4-T10 payload is live. Paired with HANDOVER_MODE_DC_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -393,7 +393,7 @@
     {
       "param_name": "HANDOVER_MODE_DC_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567802",
-      "description": "Pattern selector — Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
+      "description": "Pattern selector \u2014 Design & Construction T4-T10 payload is live. Paired with HANDOVER_MODE_HANDOVER_BOOL; exactly one is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -401,7 +401,7 @@
     {
       "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
       "guid": "a8f3c1d2-4e56-7890-abcd-ef1234567803",
-      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "description": "Pattern selector \u2014 Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
       "binding": "universal",
       "param_type": "YESNO",
       "required": false
@@ -1481,7 +1481,7 @@
     {
       "param_name": "STING_GATE_DATA_STATUS_INT",
       "guid": "b7f3e2a1-0002-4a01-b001-0000000a0001",
-      "description": "Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives left universal-tag status badge",
+      "description": "Data-completeness gate status stamped by ComplianceScan (0=red/1=amber/2=green) \u2014 drives left universal-tag status badge",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1489,7 +1489,7 @@
     {
       "param_name": "STING_GATE_QA_STATUS_INT",
       "guid": "b7f3e2a1-0002-4a01-b001-0000000a0002",
-      "description": "QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge",
+      "description": "QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) \u2014 drives right universal-tag status badge",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1497,7 +1497,7 @@
     {
       "param_name": "STING_GATE_DATA_MSG_TXT",
       "guid": "b7f3e2a1-0002-4a01-b001-0000000a0003",
-      "description": "Data gate terse reason stamped by ComplianceScan (blank when green) — label next to the left status badge",
+      "description": "Data gate terse reason stamped by ComplianceScan (blank when green) \u2014 label next to the left status badge",
       "binding": "universal",
       "param_type": "TEXT",
       "required": false
@@ -1505,7 +1505,7 @@
     {
       "param_name": "STING_GATE_QA_MSG_TXT",
       "guid": "b7f3e2a1-0002-4a01-b001-0000000a0004",
-      "description": "QA gate terse reason stamped by ComplianceScan (blank when green) — label next to the right status badge",
+      "description": "QA gate terse reason stamped by ComplianceScan (blank when green) \u2014 label next to the right status badge",
       "binding": "universal",
       "param_type": "TEXT",
       "required": false
@@ -14909,7 +14909,7 @@
     {
       "param_name": "FOHLIO_REF_TXT",
       "guid": "0ecf2056-1239-52bc-87f8-17c281e67209",
-      "description": "Fohlio item URL/ID — the link-never-duplicate key into the Owner FF&E single source of truth (Fohlio ExLink profile)",
+      "description": "Fohlio item URL/ID \u2014 the link-never-duplicate key into the Owner FF&E single source of truth (Fohlio ExLink profile)",
       "datatype": "TEXT",
       "group_id": 1,
       "group_name": "ASS_MNG",
@@ -14921,7 +14921,7 @@
     {
       "param_name": "LTG_HOIST_WEIGHT_KG",
       "guid": "f2ec67d7-0d9a-561b-b3f6-11b713ac468e",
-      "description": "Decorative-lighting hoist load (kg) — A1 §5 lighting schedule",
+      "description": "Decorative-lighting hoist load (kg) \u2014 A1 \u00a75 lighting schedule",
       "datatype": "TEXT",
       "group_id": 7,
       "group_name": "LTG_CONTROLS",
@@ -14933,7 +14933,7 @@
     {
       "param_name": "LTG_HOIST_MOTOR_TXT",
       "guid": "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5",
-      "description": "Decorative-lighting hoist motor type / reference — A1 §5 lighting schedule",
+      "description": "Decorative-lighting hoist motor type / reference \u2014 A1 \u00a75 lighting schedule",
       "datatype": "TEXT",
       "group_id": 7,
       "group_name": "LTG_CONTROLS",
@@ -14945,7 +14945,7 @@
     {
       "param_name": "LTG_HOIST_DROP_MM",
       "guid": "c110503a-c776-5c6e-8298-24adf24d1fd0",
-      "description": "Decorative-lighting hoist drop distance (mm) — A1 §5 lighting schedule",
+      "description": "Decorative-lighting hoist drop distance (mm) \u2014 A1 \u00a75 lighting schedule",
       "datatype": "TEXT",
       "group_id": 7,
       "group_name": "LTG_CONTROLS",
@@ -25317,7 +25317,7 @@
     {
       "param_name": "ASS_CST_FX_TO_BASE_NR_DISP_TXT",
       "guid": "2f6725f9-94b3-58f6-8d85-0f542659fd8f",
-      "description": "Display mirror of ASS_CST_FX_TO_BASE_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of ASS_CST_FX_TO_BASE_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25329,7 +25329,7 @@
     {
       "param_name": "ASS_CST_UNIT_RATE_NR_DISP_TXT",
       "guid": "465171ad-d9b5-54c2-a002-86cbff6f15cf",
-      "description": "Display mirror of ASS_CST_UNIT_RATE_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of ASS_CST_UNIT_RATE_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25341,7 +25341,7 @@
     {
       "param_name": "ASS_PMT_CERT_NO_NR_DISP_TXT",
       "guid": "1fee3b2b-7f2a-56a5-9d89-81d40113b725",
-      "description": "Display mirror of ASS_PMT_CERT_NO_NR — TEXT copy for tag labels (numeric source stays INTEGER)",
+      "description": "Display mirror of ASS_PMT_CERT_NO_NR \u2014 TEXT copy for tag labels (numeric source stays INTEGER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25353,7 +25353,7 @@
     {
       "param_name": "ASS_PMT_PCT_COMPLETE_NR_DISP_TXT",
       "guid": "f27e6d2a-a647-5fd5-9c41-9ef2a54f22e3",
-      "description": "Display mirror of ASS_PMT_PCT_COMPLETE_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of ASS_PMT_PCT_COMPLETE_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25365,7 +25365,7 @@
     {
       "param_name": "ASS_VAR_VALUATION_NR_DISP_TXT",
       "guid": "8854c07f-d664-545c-a5a3-89c0be61961a",
-      "description": "Display mirror of ASS_VAR_VALUATION_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of ASS_VAR_VALUATION_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25377,7 +25377,7 @@
     {
       "param_name": "CST_INSTALL_HRS_DISP_TXT",
       "guid": "84726a5b-ca7f-59a8-9d3b-7d9f5b8fe4f3",
-      "description": "Display mirror of CST_INSTALL_HRS — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CST_INSTALL_HRS \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25389,7 +25389,7 @@
     {
       "param_name": "CST_INTL_PRICE_USD_DISP_TXT",
       "guid": "e1c19fcb-f0bf-552a-a795-9e28918bb81b",
-      "description": "Display mirror of CST_INTL_PRICE_USD — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CST_INTL_PRICE_USD \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25401,7 +25401,7 @@
     {
       "param_name": "CST_UG_PRICE_UGX_DISP_TXT",
       "guid": "1a55a7cb-fa8e-51bf-944b-e173d9026299",
-      "description": "Display mirror of CST_UG_PRICE_UGX — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CST_UG_PRICE_UGX \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 2,
       "group_name": "CST_PROC",
@@ -25413,7 +25413,7 @@
     {
       "param_name": "CBN_A1_A3_KG_CO2E_DISP_TXT",
       "guid": "e72731ee-88d0-5341-b458-4ce288e5fbe4",
-      "description": "Display mirror of CBN_A1_A3_KG_CO2E — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CBN_A1_A3_KG_CO2E \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 9,
       "group_name": "PER_SUST",
@@ -25425,7 +25425,7 @@
     {
       "param_name": "CBN_A4_KG_CO2E_DISP_TXT",
       "guid": "434c64bc-c14b-5c9e-8378-dece87752dca",
-      "description": "Display mirror of CBN_A4_KG_CO2E — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CBN_A4_KG_CO2E \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 9,
       "group_name": "PER_SUST",
@@ -25437,7 +25437,7 @@
     {
       "param_name": "CBN_B6_KG_CO2E_YR_DISP_TXT",
       "guid": "d45fbd40-963e-5e52-864f-e4964ef3b449",
-      "description": "Display mirror of CBN_B6_KG_CO2E_YR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CBN_B6_KG_CO2E_YR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 9,
       "group_name": "PER_SUST",
@@ -25449,7 +25449,7 @@
     {
       "param_name": "CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT",
       "guid": "fa08ef1f-51b7-5c82-84fb-9e5f1e8ada50",
-      "description": "Display mirror of CBN_REFRIGERANT_GWP_KG_CO2E — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CBN_REFRIGERANT_GWP_KG_CO2E \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 9,
       "group_name": "PER_SUST",
@@ -25461,7 +25461,7 @@
     {
       "param_name": "CBN_RUNTIME_HRS_YR_NR_DISP_TXT",
       "guid": "be0ee58d-72c5-5774-9e38-075cedf8332f",
-      "description": "Display mirror of CBN_RUNTIME_HRS_YR_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of CBN_RUNTIME_HRS_YR_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 9,
       "group_name": "PER_SUST",
@@ -25473,7 +25473,7 @@
     {
       "param_name": "ASBUILT_COVER_DEVIATION_MM_DISP_TXT",
       "guid": "27c20c60-e59f-561f-8fbe-abaeb67bbefa",
-      "description": "Display mirror of ASBUILT_COVER_DEVIATION_MM — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of ASBUILT_COVER_DEVIATION_MM \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 24,
       "group_name": "ASBUILT",
@@ -25485,7 +25485,7 @@
     {
       "param_name": "ASBUILT_DEVIATION_MM_DISP_TXT",
       "guid": "5ad7dbaa-5744-5ecb-98c1-80a316640285",
-      "description": "Display mirror of ASBUILT_DEVIATION_MM — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of ASBUILT_DEVIATION_MM \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 24,
       "group_name": "ASBUILT",
@@ -25497,7 +25497,7 @@
     {
       "param_name": "ASS_TRACE_SEQ_NR_DISP_TXT",
       "guid": "d66a235f-2250-590a-8a9f-b5bd78f330da",
-      "description": "Display mirror of ASS_TRACE_SEQ_NR — TEXT copy for tag labels (numeric source stays INTEGER)",
+      "description": "Display mirror of ASS_TRACE_SEQ_NR \u2014 TEXT copy for tag labels (numeric source stays INTEGER)",
       "datatype": "TEXT",
       "group_id": 1,
       "group_name": "ASS_MNG",
@@ -25509,7 +25509,7 @@
     {
       "param_name": "BLE_CBL_TRAY_DEPTH_MM_DISP_TXT",
       "guid": "d35d7a52-5b70-5128-bdd6-6a265190b471",
-      "description": "Display mirror of BLE_CBL_TRAY_DEPTH_MM — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of BLE_CBL_TRAY_DEPTH_MM \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 10,
       "group_name": "BLE_ELES",
@@ -25521,7 +25521,7 @@
     {
       "param_name": "BLE_CBL_TRAY_WIDTH_MM_DISP_TXT",
       "guid": "d6ff6b02-0aca-5fdb-abf3-cdc24966d9a1",
-      "description": "Display mirror of BLE_CBL_TRAY_WIDTH_MM — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of BLE_CBL_TRAY_WIDTH_MM \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 10,
       "group_name": "BLE_ELES",
@@ -25533,7 +25533,7 @@
     {
       "param_name": "CLASH_TRIAGE_SEVERITY_NR_DISP_TXT",
       "guid": "24b29d51-28da-59b4-a011-007d932651b7",
-      "description": "Display mirror of CLASH_TRIAGE_SEVERITY_NR — TEXT copy for tag labels (numeric source stays INTEGER)",
+      "description": "Display mirror of CLASH_TRIAGE_SEVERITY_NR \u2014 TEXT copy for tag labels (numeric source stays INTEGER)",
       "datatype": "TEXT",
       "group_id": 20,
       "group_name": "CLASH_COORDINATION",
@@ -25545,7 +25545,7 @@
     {
       "param_name": "ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT",
       "guid": "b6b94a07-509f-5c45-9660-eb1198a2db47",
-      "description": "Display mirror of ELC_LPS_PROJECT_NG_OVERRIDE_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of ELC_LPS_PROJECT_NG_OVERRIDE_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 4,
       "group_name": "ELC_PWR",
@@ -25557,7 +25557,7 @@
     {
       "param_name": "HEALTH_SCORE_LAST_NR_DISP_TXT",
       "guid": "7c4f149b-46cf-50d7-9c10-8fbd2bdd80f8",
-      "description": "Display mirror of HEALTH_SCORE_LAST_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of HEALTH_SCORE_LAST_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 23,
       "group_name": "HEALTH_METRICS",
@@ -25569,7 +25569,7 @@
     {
       "param_name": "HVC_DCT_INSULATION_THK_MM_DISP_TXT",
       "guid": "20cf7cbd-bedc-5889-9a10-d742250717c2",
-      "description": "Display mirror of HVC_DCT_INSULATION_THK_MM — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of HVC_DCT_INSULATION_THK_MM \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -25581,7 +25581,7 @@
     {
       "param_name": "HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT",
       "guid": "76586c57-4c2c-5391-aecc-7e4e52182a3d",
-      "description": "Display mirror of HVC_REFRIGERANT_CHARGE_KG_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of HVC_REFRIGERANT_CHARGE_KG_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 5,
       "group_name": "HVC_SYSTEMS",
@@ -25593,7 +25593,7 @@
     {
       "param_name": "STR_BOLT_TORQUE_NM_NR_DISP_TXT",
       "guid": "1da0151c-391f-5abe-a3ff-b15574113003",
-      "description": "Display mirror of STR_BOLT_TORQUE_NM_NR — TEXT copy for tag labels (numeric source stays NUMBER)",
+      "description": "Display mirror of STR_BOLT_TORQUE_NM_NR \u2014 TEXT copy for tag labels (numeric source stays NUMBER)",
       "datatype": "TEXT",
       "group_id": 16,
       "group_name": "BLE_STRUCTURE",
@@ -25665,7 +25665,7 @@
     {
       "param_name": "SUS_EPD_REF_TXT",
       "guid": "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06",
-      "description": "Type III EPD reference (ISO 14025 / EN 15804) on a material/type — resolver prefers product-specific EPD data [Phase 195 EDGE/LEED]",
+      "description": "Type III EPD reference (ISO 14025 / EN 15804) on a material/type \u2014 resolver prefers product-specific EPD data [Phase 195 EDGE/LEED]",
       "datatype": "TEXT",
       "group_id": 35,
       "group_name": "SUS_SUSTAINABILITY",
@@ -33293,12 +33293,15 @@
     {
       "param_name": "WARN_ELC_PNL_SHORT_CIRCUIT",
       "guid": "fec31a6f-f79e-5631-99b2-753abe18b18c",
-      "description": "Panel short circuit rating check",
-      "threshold": "25",
+      "description": "Panel short-circuit withstand rating below project minimum",
+      "threshold": "6",
       "unit": "kA",
       "severity": "CRITICAL",
       "param_type": "TEXT",
-      "binding": "universal"
+      "binding": "universal",
+      "source_param": "ELC_PNL_SHORT_CIRCUIT_KA",
+      "comparison": "MIN",
+      "standard": "BS 7671:2018+A2:2022 Reg 434.5.1; min rating per BS EN 60898-1 Icn 6 kA"
     },
     {
       "param_name": "WARN_ELC_PNL_SPARE_WAYS",
@@ -33393,12 +33396,15 @@
     {
       "param_name": "WARN_HVC_DCT_SOUNDLVL_DB",
       "guid": "be2ddf28-3fb9-4242-ab1d-19b704687d9e",
-      "description": "Duct-borne sound level limit",
+      "description": "Air terminal noise level above design limit",
       "threshold": "35",
       "unit": "dB",
       "severity": "MEDIUM",
       "param_type": "TEXT",
-      "binding": "universal"
+      "binding": "universal",
+      "source_param": "HVC_DCT_TERMINAL_SOUND_DB_NR",
+      "comparison": "MAX",
+      "standard": "CIBSE Guide A Table 1.5 (NR 35); BS 8233:2014"
     },
     {
       "param_name": "WARN_HVC_DUCT_LEAKAGE_CLASS",
@@ -33453,12 +33459,15 @@
     {
       "param_name": "WARN_LTG_ILLUMINANCE",
       "guid": "98b5f268-7df3-5220-a68b-6214a4b3cb70",
-      "description": "Illuminance level minimum",
+      "description": "Maintained illuminance below minimum for an occupied task area",
       "threshold": "300",
       "unit": "lux",
       "severity": "MEDIUM",
       "param_type": "TEXT",
-      "binding": "universal"
+      "binding": "universal",
+      "source_param": "ASS_DESIGN_LTG_LVL_LUX_NR",
+      "comparison": "MIN",
+      "standard": "BS EN 12464-1:2021 (300 lx floor; task areas may require 500 lx)"
     },
     {
       "param_name": "WARN_MEP_DUCT_ACC_PRESSURE_DROP",
