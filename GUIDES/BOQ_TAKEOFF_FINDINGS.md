@@ -250,3 +250,53 @@ and neither is named "describe":
 
 Documented in playbook Part 3E so the next operator does not go looking for a command that was
 never built.
+
+---
+
+## G-53 · 🟠 P1 · The tier gates are not what makes a tag ten lines
+
+`TagStudio_SetTierDefaults` reported `Gate values written: 0` across 16 tag family types. That
+looked like a broken command. The per-gate table shows it was not:
+
+```
+parameter               want  wrote  same  absent
+TAG_PARA_STATE_1_BOOL    ON     0      0     16
+TAG_PARA_STATE_2_BOOL    ON     0      0     16
+TAG_PARA_STATE_3_BOOL    OFF    0      0     16
+TAG_PARA_STATE_4..10     OFF    0     16      0
+TAG_WARN_VISIBLE_BOOL    ON     0      0     16
+```
+
+**Tiers 4–10 are already OFF on every type** — column `same`, nothing to write. **Tiers 1, 2, 3 and
+the warning row are `absent` from every type** — the type does not carry them, so there is nothing
+to set.
+
+The command wrote zero because zero needed writing. It is correct.
+
+### What this changes
+
+The working theory has been *"the gates are split — 1–3 instance-side, 4–10 type-side"*, and the
+remedy was to set the type-side ones. That remedy is now known to be a no-op: **tiers 4–10 were
+already off and the tag still renders ten lines**, so those rows are not driven by their gates.
+
+Restated: **turning tier gates off does not shorten the tag.** Either the label rows for tiers 1–3
+are not gated at all and render unconditionally, or they are gated by an instance parameter that
+the placed tag does not carry.
+
+### The check that separates those two — operator, two minutes
+
+Select a **placed** tag and read its **instance Properties** (not Edit Type):
+
+| What you see | What it means |
+|---|---|
+| `TAG_PARA_STATE_1/2/3_BOOL` present | gates are instance-side; depth is per placed tag and a command can set them |
+| absent | the rows are **ungated** — no parameter anywhere suppresses them, and shortening the tag means editing the label rows in the Family Editor |
+
+Everything about tag depth waits on that answer, including whether
+`UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`'s depth design was ever implemented.
+
+### Related
+
+An earlier note claimed a `_T3` type would render identically to `_T2` because the universal master
+carries no T3 rows. That claim and this one are about the same underlying question — whether depth
+is gated at all — and should be resolved together rather than as two entries.
