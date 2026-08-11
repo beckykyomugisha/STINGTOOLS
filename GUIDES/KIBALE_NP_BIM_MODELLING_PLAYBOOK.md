@@ -1168,6 +1168,82 @@ Use **`STING - Room Tag.rfa`** for rooms. It is already in the content library (
 `tag-room`), so nothing needs creating. If this project ends up scheduling Spaces or Areas as well,
 they need their own tag families on the same basis.
 
+### The room sequence — and why the order is not negotiable
+
+Six live room commands, all on the panel:
+
+| Command | What it does |
+|---|---|
+| `RoomAudit` | read-only — unnamed, unnumbered, unbounded, duplicate |
+| `RoomAreaAudit` | area checks |
+| `RoomZoneAssign` | assigns the **ZONE** token from the room — this is what makes `Z01` correct |
+| `RoomParamPush` | pushes room name and number onto **every element standing in the room** |
+| `RoomDataExport` | round-trips the room register to Excel |
+| `RoomTagCentroid` / `TopLeft` / `TopCentre` / `LeaderFree` / `LeaderLock` | tag placement |
+
+Run them in this order:
+
+```
+1. Draw rooms
+2. Name and Number them          ← Revit's native fields, not a STING parameter
+3. RoomAudit                      ← catch unnamed / unbounded before they propagate
+4. RoomZoneAssign                 ← ZONE token
+5. RoomParamPush                  ← room name + number onto contained elements
+6. Tag & Combine                  ← everything else
+7. Place STING - Room Tag
+```
+
+**Steps 2–5 must precede 6.** `ASS_ROOM_NAME_TXT` is written with `SetIfEmpty`
+(`ParameterHelpers.cs:2803`). Tag an element while its room is still *"Room 1"* and that value
+sticks — re-tagging will **not** replace it, because the parameter is no longer empty. This is the
+same call that cost two full debugging passes on `ASS_SEQ_NUM_TXT`. If it has already happened,
+`Tags_RepairPolluted` (TAGGING tab) is the recovery.
+
+For 60-odd rooms across seven cottages, use **`RoomDataExport`** to build the register in Excel
+rather than typing in the Properties palette.
+
+**Two dead buttons in this group:** `Tagging_RoomTagApply` and `Bedroom` have no handler case —
+clicking them does nothing and never has. Registered as G-52.
+
+### Where you type a NAME, as opposed to a code
+
+The single most common confusion: **you never type into a `STING_`/`ASS_` parameter.** They are
+mirrors. Type into Revit's own field and STING copies it across on the next Tag & Combine —
+anything typed directly into the mirror is overwritten.
+
+| Type it here | Mirrored to | Mapped at |
+|---|---|---|
+| **Edit Type → Identity Data → Description** | `ASS_DESCRIPTION_TXT` | `ParameterHelpers.cs:2737`, type fallback `:3914` |
+| Edit Type → Model | `ASS_MODEL_NR_TXT` | `:3918` |
+| Edit Type → Manufacturer | `ASS_MANUFACTURER_TXT` | `:3921` |
+| **Room → Name** | `ASS_ROOM_NAME_TXT` on every element *in* the room | `:2803` |
+| **Room → Number** | `ASS_ROOM_NUM_TXT` | `:2804` |
+| Room → Name (on the room itself) | `BLE_ROOM_NAME_TXT` | `:3710` |
+
+**The Type Description is the long name behind the type code.** `SAT` is the PROD code;
+*"Supply Air Terminal, 210×60"* is the Description. Set it **once per type**, not once per
+instance — twelve door types, not ninety-six doors.
+
+There is **no `Describe` command** in STING — no case, no button, no command class. What exists is
+the **TAG7 narrative**, built in TAG STUDIO → *Paragraph Builder* / *Apply preset*, which composes a
+multi-sentence description from the A–F sub-sections. That is a different thing from the Type
+Description and the two are easily confused.
+
+### Codes and names are different fields — a schedule can show both
+
+You do not have to choose. Add all four columns:
+
+```
+ASS_TAG_1_TXT        M-BLD1-Z01-L01-HVAC-SUP-SAT-0025    the ISO code
+ASS_DESCRIPTION_TXT  Supply Air Terminal, 210x60          the name
+ASS_ROOM_NAME_TXT    Executive Room                       where it is
+ASS_ROOM_NUM_TXT     COT01-01
+```
+
+The code is the key that guarantees uniqueness and drives the BOQ and the asset register. The
+description is what a human reads. A schedule showing only codes is unreadable to a contractor; one
+showing only names cannot be joined to anything.
+
 ### The reload caveat — the one that will bite you
 
 If anyone edits a tag family and loads it back, Revit offers **"Overwrite the existing version and its
