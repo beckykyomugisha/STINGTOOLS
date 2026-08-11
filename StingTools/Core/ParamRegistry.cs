@@ -3399,7 +3399,7 @@ namespace StingTools.Core
             string newHash = ComputeTokenHash(tokenValues);
             if (string.IsNullOrEmpty(skipParam))
             {
-                string priorHash = ParameterHelpers.GetString(el, "ASS_LAST_TOKEN_HASH_TXT");
+                string priorHash = ParameterHelpers.GetString(el, TOKEN_HASH_PARAM);
                 if (!string.IsNullOrEmpty(priorHash)
                     && string.Equals(priorHash, newHash, StringComparison.Ordinal))
                 {
@@ -3460,9 +3460,33 @@ namespace StingTools.Core
             // containers that didn't actually get written. We only stamp on
             // the full-sweep path (skipParam null).
             if (string.IsNullOrEmpty(skipParam))
-                ParameterHelpers.SetString(el, "ASS_LAST_TOKEN_HASH_TXT", newHash, overwrite: true);
+                ParameterHelpers.SetString(el, TOKEN_HASH_PARAM, newHash, overwrite: true);
 
             return written;
+        }
+
+        /// <summary>
+        /// The re-tag fast-path hash. Private so this file stays its only writer —
+        /// a second file writing the same name by string literal is precisely what
+        /// tools/validate_dual_owner.py check (b) exists to catch.
+        /// </summary>
+        private const string TOKEN_HASH_PARAM = "ASS_LAST_TOKEN_HASH_TXT";
+
+        /// <summary>
+        /// Drop an element's cached token hash so the next <see cref="WriteContainers"/>
+        /// call performs the full container sweep instead of short-circuiting.
+        /// Callers that clear or repair token values MUST call this: the hash still
+        /// holds the pre-change value, and the fast path would otherwise skip the
+        /// very rewrite the repair exists to enable.
+        /// </summary>
+        public static void InvalidateTokenHash(Element el)
+        {
+            if (el == null) return;
+            try { ParameterHelpers.SetString(el, TOKEN_HASH_PARAM, "", overwrite: true); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ParamRegistry.InvalidateTokenHash on {el.Id?.Value}: {ex.Message}");
+            }
         }
 
         /// <summary>

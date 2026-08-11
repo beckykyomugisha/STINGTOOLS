@@ -3976,7 +3976,20 @@ namespace StingTools.Core
                         val = p.AsString();
                         break;
                     case StorageType.Double:
-                        val = p.AsDouble().ToString("G6",
+                        // D10-follow-up: AsDouble() returns Revit INTERNAL units —
+                        // feet, ft³/s, ft/s — never the unit the target parameter's
+                        // name declares. Writing it raw is how ASS_FLOW_RATE_TXT came
+                        // to read 8.29895 on an air terminal moving 235 L/s
+                        // (235 / 28.3168 = 8.29895 ft³/s). The sibling helper
+                        // MapDimension has always taken an explicit factor; this one
+                        // had none, so every Double routed through here was stored in
+                        // internal units under an SI-suffixed name.
+                        //
+                        // Convert to the parameter's own display unit rather than a
+                        // hard-coded factor per BuiltInParameter: it is what the
+                        // operator reads in Revit, it tracks a project that works in
+                        // other units, and it needs no per-parameter table to drift.
+                        val = ConvertToDisplayUnits(p).ToString("G6",
                             System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     case StorageType.Integer:
@@ -3993,6 +4006,31 @@ namespace StingTools.Core
                 return SetIfEmptyInt(writeTarget, targetParamName, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// A Double parameter's value in its own display unit. Falls back to the raw
+        /// internal value when the parameter carries no unit (Number-spec parameters
+        /// legitimately have none) or the unit cannot be read — and logs when it does,
+        /// because a silent fallback here reintroduces exactly the internal-units bug
+        /// this exists to fix.
+        /// </summary>
+        private static double ConvertToDisplayUnits(Parameter p)
+        {
+            double raw = p.AsDouble();
+            try
+            {
+                ForgeTypeId unit = p.GetUnitTypeId();
+                if (unit == null || unit.Empty()) return raw;
+                return UnitUtils.ConvertFromInternalUnits(raw, unit);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("MapBuiltInUnit",
+                    $"NativeParamMapper: could not read the display unit for '{p?.Definition?.Name}' "
+                  + $"— storing the raw internal value ({ex.Message}).");
+                return raw;
+            }
         }
 
         /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>

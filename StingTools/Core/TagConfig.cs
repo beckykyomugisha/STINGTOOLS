@@ -2789,15 +2789,21 @@ namespace StingTools.Core
                     for (int i = 0; i < paraStates.Length; i++)
                         ParameterHelpers.SetYesNo(el, paraStates[i], i < paraDepth, overwrite: true);
                 }
-                else
-                {
-                    // D11 — shipped tier-gate defaults: tiers 1 and 2 ON, 3..10 OFF.
-                    // Tier 1 alone renders an identity code with no context; tier 2 adds
-                    // the material/system line a reviewer needs to recognise what the
-                    // tag is on. Tiers 3+ stay off so a stock tag is readable.
-                    ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
-                    ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_2, true);
-                }
+                // D11's element-level tier-gate seeding used to live here and has been
+                // REMOVED. TAG_PARA_STATE_*_BOOL and TAG_WARN_VISIBLE_BOOL are declared
+                // "Generic Models, Type" in MR_PARAMETERS.csv and appear in neither
+                // CATEGORY_BINDINGS.csv nor RESOLVED_BINDINGS.csv — they are TYPE
+                // parameters of the TAG FAMILY, not instance parameters of the model
+                // element. Every SetYesNo(el, …) against them landed nowhere and
+                // reported success.
+                //
+                // The gates now get their defaults where they actually live: on the
+                // loaded tag FamilySymbols, via Commands.TagStudio.SetTagTierDefaults
+                // ("TagStudio_SetTierDefaults"). Run it once per project.
+                //
+                // The two branches above write to `el` as well and are equally inert
+                // for the same reason; they predate D11 and are left alone rather than
+                // silently changed. Logged in docs/ROADMAP.md.
 
                 // D11 — TAG_WARN_VISIBLE_BOOL = Yes.
                 //
@@ -2808,9 +2814,10 @@ namespace StingTools.Core
                 // the family's warning row was gated off by default.
                 //
                 // A check whose output is invisible is the same defect as a check nobody
-                // calls (G-48). Cost is a per-element evaluation on WriteTag7All; the
-                // alternative was silence.
-                ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, true);
+                // calls (G-48). The intent stands; the write did not — TAG_WARN_VISIBLE_BOOL
+                // is a tag-family TYPE parameter, so this line set nothing. Moved to
+                // Commands.TagStudio.SetTagTierDefaults, which writes it on the
+                // FamilySymbols where it is actually bound.
 
                 // TAG_7_SECTION_VISIBLE_A-F and default tag style: resolve the active
                 // ViewStylePack once so both features share the same lookup overhead.
