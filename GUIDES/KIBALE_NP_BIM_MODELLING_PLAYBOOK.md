@@ -1202,8 +1202,10 @@ same call that cost two full debugging passes on `ASS_SEQ_NUM_TXT`. If it has al
 For 60-odd rooms across seven cottages, use **`RoomDataExport`** to build the register in Excel
 rather than typing in the Properties palette.
 
-**Two dead buttons in this group:** `Tagging_RoomTagApply` and `Bedroom` have no handler case —
-clicking them does nothing and never has. Registered as G-52.
+**`Tagging_RoomTagApply` works.** An earlier draft of this section said it was dead. It is not —
+it is dispatched from `StingDockPanel.xaml.cs:719`, reads the anchor and leader radios, and fires
+two concrete tags. The check that reported it dead only scanned one of three dispatch surfaces and
+produced 117 false positives; see G-52 (withdrawn).
 
 ### Where you type a NAME, as opposed to a code
 

@@ -209,25 +209,34 @@ projects would be destructive and would break the asset register.
 
 ---
 
-## G-52 · 🟠 P1 · Two room buttons have no handler case — clicking does nothing
+## G-52 · ❌ WITHDRAWN · The two "dead" room buttons were never dead
 
-Measured against `StingCommandHandler.cs`:
+**This entry was wrong and the tool that produced it was wrong.** Recorded here rather than
+deleted, because the failure is more instructive than the finding would have been.
 
-| Button `Tag=` | Handler case |
-|---|---|
-| `Tagging_RoomTagApply` | **0** |
-| `Bedroom` | **0** |
+`Tagging_RoomTagApply` and `Bedroom` were reported as having no handler case. Both are live.
+`Tagging_RoomTagApply` is dispatched at `StingDockPanel.xaml.cs:719` — it reads the anchor and
+leader radios and dispatches two concrete tags. It works.
 
-Both sit on the panel and do nothing when pressed. `Tagging_RoomTagApply` is the worse of the two —
-it reads as the room-tag apply action, so an operator pressing it concludes room tagging is broken
-rather than that the button is.
+The check that found them, `tools/validate_dispatch_wiring.py`, had two defects:
 
-They are two of the **117** dead buttons the dispatch-wiring gate now tracks
-(`tools/validate_dispatch_wiring.py`, baseline 117). Also in that 117:
-`CreateTags_ScopeApply` and `CreateTags_OverwriteApply` — the *Apply* buttons on the CREATE TAGS
-tab's Scope and Overwrite rows.
+1. `collect_cases()` globbed **non-recursively** while `collect_buttons()` globbed recursively, so
+   it never saw `UI/Plumbing/StingPlumbingCommandHandler.cs` or
+   `UI/Sustainability/StingSustainabilityCommandHandler.cs`. Every `Plumb_*`, `Plumbing_*` and
+   `Sustain_*` button was reported dead while correctly wired.
+2. It assumed **one** dispatch surface. There are three: the `*CommandHandler.cs` switches,
+   code-behind "suite runner" interception in `Cmd_Click` (`cmdTag == "…"`), and the extracted
+   per-tab modules in `UI/Modules/*CommandModule.cs`, which register rather than switch.
 
-Fix is one of two, per button: add the case, or remove the button. Re-baselining is not the fix.
+Corrected count: **BUTTON WITHOUT CASE = 0**. All 117 were false positives.
+
+**The lesson is the one this file has been repeating all along, turned on its author.** A gate that
+mismeasures in the alarming direction is not a safe failure — it manufactures work, and if it is
+believed it gets written into a register and a playbook as fact, which is what happened here.
+Counting a working button as broken is the same defect as missing a broken one.
+
+The gate is worth keeping now that it measures all three surfaces, and it is baselined at 0, so any
+genuinely dead button added from here fails CI immediately.
 
 ### The related documentation defect
 
