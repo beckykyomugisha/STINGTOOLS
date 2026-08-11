@@ -89,6 +89,13 @@ namespace StingTools.BOQ.Rates
                 // category rate. Falls through to CSV when no material rate
                 // is set, so legacy projects keep working.
                 new MaterialLibraryRateProvider(),
+                // 4.2 — the editable material price book (priority 93). Between the
+                // material library (95) and the CSV category rate (90): a curated,
+                // dated, unit-bearing price beats a category average, while a rate
+                // the operator set on the element or in the MAT panel still wins.
+                // Returns null when neither the baseline nor the project override
+                // exists, so projects that never adopt it are unaffected.
+                Providers.MaterialPriceBookProvider.Load(doc),
                 // Phase 184j / P8: external + project rate-card providers
                 // are added lazily by RegisterExternalProviders so the
                 // registry doesn't fail when a project hasn't configured

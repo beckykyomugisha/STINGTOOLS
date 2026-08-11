@@ -698,7 +698,8 @@ namespace StingTools.BOQ
             int rateConfidence;
             (double rate, string unit, string description) picked = ResolveRate(
                 doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence,
-                out double? splitLabour, out double? splitPlant, out double? splitMaterial);
+                out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+                out Rates.RateResolutionLevel rateLevel, out string rateProvenance);
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
@@ -796,6 +797,8 @@ namespace StingTools.BOQ
                 Zone = GetZoneName(el),
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
+                RateResolution = rateLevel,
+                RateProvenance = rateProvenance,
                 RateConfidence = rateConfidence,
                 LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
                 PlantUGX = splitPlant,
@@ -931,9 +934,18 @@ namespace StingTools.BOQ
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence,
-            out double? splitLabour, out double? splitPlant, out double? splitMaterial)
+            out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+            out Rates.RateResolutionLevel resolutionLevel, out string rateProvenance)
         {
             splitLabour = splitPlant = splitMaterial = null;
+            // K-16b — carry the level and provenance OUT. Providers set
+            // RateResolutionLevel on every lookup and nothing read it, so the
+            // below-product audit had nothing to count and a priced bill could
+            // not say which rates were category averages. Discarding the field
+            // one line after it is computed is the same defect class as a check
+            // whose output is invisible.
+            resolutionLevel = Rates.RateResolutionLevel.None;
+            rateProvenance = "";
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -975,6 +987,8 @@ namespace StingTools.BOQ
             {
                 rateSource = "None";
                 rateConfidence = 20;
+                resolutionLevel = Rates.RateResolutionLevel.None;
+                rateProvenance = "No provider returned a rate";
                 return (0, "each", catName);
             }
 
@@ -986,6 +1000,8 @@ namespace StingTools.BOQ
             splitLabour = lookup.LabourRate;     // G4 — propagate optional L/P/M split
             splitPlant = lookup.PlantRate;
             splitMaterial = lookup.MaterialRate;
+            resolutionLevel = lookup.ResolutionLevel;
+            rateProvenance = lookup.Provenance ?? "";
             return (lookup.UnitRate, lookup.Unit, lookup.MatchedKey ?? catName);
         }
 

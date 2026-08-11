@@ -202,6 +202,18 @@ namespace StingTools.BOQ
         // building/EDGE level). Equals LifecycleCostUGX when no carbon price is
         // set. Additive — safe default 0 for old saved rows.
         public double LifecycleCostInclCarbonUGX;
+        /// <summary>
+        /// K-16b — how specifically the rate resolved. Providers have always set
+        /// this; nothing carried it onto the line, so every rate looked equally
+        /// authoritative on the page. Anything below Product is an average over
+        /// something, and BOQ_BelowProductAudit counts them.
+        /// Defaults to None so old snapshots deserialise unchanged.
+        /// </summary>
+        public Rates.RateResolutionLevel RateResolution = Rates.RateResolutionLevel.None;
+
+        /// <summary>Human-readable source of the rate — provider, quotation, date.</summary>
+        public string RateProvenance = "";
+
         public string ResolvedNRM2Paragraph;
         public string BOQLineRef;           // e.g. "14.3.2"
         public string Note;
