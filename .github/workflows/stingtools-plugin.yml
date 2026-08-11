@@ -90,6 +90,17 @@ jobs:
       - name: Dual-owner gate
         run: python3 tools/validate_dual_owner.py
 
+      # Dispatch wiring — a command must be reachable and a button must do
+      # something. Three commands shipped with handler cases and no buttons and
+      # the operator went looking for them; that was the eighth instance of
+      # "wired on one side only". Only BUTTON-WITHOUT-CASE is gated (clicking
+      # does nothing — unambiguous). CASE-WITHOUT-BUTTON is reported, not gated,
+      # because the ribbon, context menus, the NLP processor and
+      # WorkflowEngine.ResolveCommand are all legitimate second surfaces and
+      # baselining 655 mostly-noise findings is how a gate gets ignored.
+      - name: Dispatch wiring gate
+        run: python3 tools/validate_dispatch_wiring.py
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #
