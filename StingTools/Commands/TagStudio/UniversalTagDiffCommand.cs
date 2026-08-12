@@ -95,7 +95,7 @@ namespace StingTools.Commands.TagStudio
                 }
 
                 if (doc.IsFamilyDocument)
-                    return ReportOn(doc.FamilyManager, doc.Title, spec, openedByUs: null);
+                    return ReportOn(doc.FamilyManager, doc.Title, spec, doc, openedByUs: null);
 
                 // In a project: pick one loaded tag family and inspect it via
                 // EditFamily, which hands back a family Document without taking
@@ -113,7 +113,7 @@ namespace StingTools.Commands.TagStudio
                             $"Could not open '{fam.Name}' for inspection.");
                         return Result.Failed;
                     }
-                    return ReportOn(fdoc.FamilyManager, fam.Name, spec, openedByUs: fdoc);
+                    return ReportOn(fdoc.FamilyManager, fam.Name, spec, doc, openedByUs: fdoc);
                 }
                 finally
                 {
@@ -138,7 +138,8 @@ namespace StingTools.Commands.TagStudio
         // ------------------------------------------------------------------
 
         private static Result ReportOn(FamilyManager fm, string familyName,
-                                       List<UniversalTagRow> spec, Document openedByUs)
+                                       List<UniversalTagRow> spec, Document contextDoc,
+                                       Document openedByUs)
         {
             if (fm == null)
             {
@@ -161,6 +162,17 @@ namespace StingTools.Commands.TagStudio
                 results.Add(Judge(row, byName));
             }
 
+            // Per-family rows. The universal spec covers T1/T2/T4-T10 — the rows
+            // that are identical on all 206 families. T3 is the per-family
+            // engineering block (wall build-up on a wall tag, duct-terminal data
+            // on a duct tag) and lives in the v5 CSVs instead. Checking only the
+            // universal spec would report a correctly-authored T3 row as
+            // something the family should not have.
+            int perFamilyRows = 0;
+            var perFamily = LoadPerFamilyRows(contextDoc, familyName, out perFamilyRows);
+            foreach (UniversalTagRow row in perFamily)
+                results.Add(Judge(row, byName));
+
             // Gate parameters: the formulas cannot work without them, and the
             // master is missing several (STATE_1/2/3 and the warning gate).
             var gatesMissing = UniversalTagRowSpec.GateParameters()
@@ -171,7 +183,11 @@ namespace StingTools.Commands.TagStudio
 
             var sb = new StringBuilder();
             sb.AppendLine($"Family: {familyName}");
-            sb.AppendLine($"Spec:   {UniversalTagRowSpec.DataFileName} — {spec.Count} rows, {results.Count} calculated");
+            sb.AppendLine($"Spec:   {UniversalTagRowSpec.DataFileName} — {spec.Count} universal rows");
+            sb.AppendLine(perFamilyRows > 0
+                ? $"        + {perFamilyRows} per-family row(s) from the v5 tag-config CSVs (T3)"
+                : "        no per-family (T3) rows declared for this family");
+            sb.AppendLine($"        {results.Count} calculated rows checked");
             sb.AppendLine();
 
             foreach (RowVerdict v in new[]
@@ -335,6 +351,59 @@ namespace StingTools.Commands.TagStudio
         private static string Q(string s)
         {
             return "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        }
+
+        /// <summary>
+        /// The per-family (T3) rows this family declares in the v5 tag-config
+        /// CSVs, shaped like universal rows so one Judge covers both.
+        ///
+        /// The CSV's own Formula column is used verbatim. It has always carried
+        /// the correct <c>if(TAG_PARA_STATE_3_BOOL, SOURCE, "")</c> text; the
+        /// reader simply skipped column 10 and FamilyLabelAuthor re-derived a
+        /// wrong one. Reading it back is what makes this an oracle rather than a
+        /// second opinion.
+        /// </summary>
+        private static List<UniversalTagRow> LoadPerFamilyRows(Document contextDoc,
+                                                               string familyName,
+                                                               out int declaredCount)
+        {
+            declaredCount = 0;
+            var rows = new List<UniversalTagRow>();
+            if (string.IsNullOrEmpty(familyName)) return rows;
+
+            try
+            {
+                Dictionary<string, TierPlan> plans = TagConfigPlanResolver.LoadAll(contextDoc);
+                TierPlan plan;
+                if (plans == null || !plans.TryGetValue(familyName, out plan) || plan == null)
+                    return rows;
+                if (plan.T3Rows == null || plan.T3Rows.Count == 0) return rows;
+
+                declaredCount = plan.T3Rows.Count;
+                int n = 0;
+                foreach (TierRow tr in plan.T3Rows)
+                {
+                    if (string.IsNullOrEmpty(tr.Name) || string.IsNullOrEmpty(tr.Formula)) continue;
+                    rows.Add(new UniversalTagRow
+                    {
+                        // Negative row numbers keep per-family rows visually
+                        // distinct from the build sheet's 1..65 in the CSV report.
+                        Row = -(++n),
+                        Tier = tr.Tier,
+                        Name = tr.Name,
+                        Formula = tr.Formula,
+                        Prefix = tr.Prefix,
+                        Suffix = tr.Suffix,
+                        Break = tr.Brk,
+                        SourceParameter = tr.Parameter,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"UniversalTagDiff.LoadPerFamilyRows('{familyName}'): {ex.Message}");
+            }
+            return rows;
         }
 
         private static Family PickTagFamily(Document doc)

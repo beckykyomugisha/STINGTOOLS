@@ -139,6 +139,10 @@ namespace StingTools.Tags
                     if (state == TierState.Omit || rows == null) return;
                     foreach (var r in rows) flat.Add((t, r, mp.GateParam));
                 }
+                // T3 = the per-family engineering block. Excluded while the
+                // universal master was the only authoring route; it is exactly
+                // what a per-family author is for.
+                Accum(3,  mp.Plan.T3Rows,  mp.Plan.T3);
                 Accum(4,  mp.Plan.T4Rows,  mp.Plan.T4);
                 Accum(5,  mp.Plan.T5Rows,  mp.Plan.T5);
                 Accum(6,  mp.Plan.T6Rows,  mp.Plan.T6);
@@ -150,7 +154,7 @@ namespace StingTools.Tags
 
             if (flat.Count == 0)
             {
-                result.Warnings.Add($"{opts.FamilyName ?? "(unknown)"}: no T4..T10 rows to author.");
+                result.Warnings.Add($"{opts.FamilyName ?? "(unknown)"}: no T3..T10 rows to author.");
                 return result;
             }
 
@@ -160,6 +164,11 @@ namespace StingTools.Tags
                 .Select(x => x.Row?.Parameter)
                 .Where(s => !string.IsNullOrEmpty(s))
                 .Concat(flat.Select(x => x.Gate).Where(s => !string.IsNullOrEmpty(s)))
+                // The TIER gates too. Every formula tests TAG_PARA_STATE_n_BOOL,
+                // and a formula referencing a parameter the family does not carry
+                // does not fail loudly — SetFormula throws and the row is left
+                // ungated, which looks exactly like the master's current state.
+                .Concat(flat.Select(x => "TAG_PARA_STATE_" + x.Tier + "_BOOL"))
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
             result.ParamsBound = BindSharedParameters(fdoc, distinctParams, opts, result);
@@ -312,16 +321,38 @@ namespace StingTools.Tags
         }
 
         // ------------------------------------------------------------------
-        // Per-row formula: visibility is gated by TAG_PARA_STATE_N_BOOL; when a
-        // mode gate is supplied the gate becomes and(stateN, modeGate). Each
-        // gate token carries its storage-type-correct condition form via
-        // TagConfig.GateToken — TEXT gates (the v5.3+ default) emit `= "Yes"`,
-        // YESNO gates stay bare. When the same source parameter is referenced by
-        // multiple (tier, gate) pairs — which happens when Handover and Design &
-        // Construction both list it — we OR-merge them into a single formula of
-        // shape if(or(and(stateN="Yes", gateA="Yes"), …), PARAM, "").
+        // Per-row formula.
+        //
+        // THE TARGET. Each row is TWO parameters: TierRow.Name is the calculated
+        // value that sits in the label and HOLDS the formula, TierRow.Parameter
+        // is the shared parameter the formula READS. This method used to key on
+        // Parameter and emit if(gate, COMM_STATE_TXT, "") onto COMM_STATE_TXT
+        // itself — self-referential, so Revit rejects it as a circular chain, or
+        // accepts it and the source value is destroyed. Name was never used. That
+        // is the likeliest reason this file had no callers, and it is fixed here:
+        // the formula goes on Name, and Name is created as an INSTANCE text
+        // parameter when the family does not already carry it (instance, because
+        // the value varies per tagged element; a type parameter also could not
+        // reference the instance source it reads).
+        //
+        // THE GATE FORM. TagConfig.GateToken resolves each gate's condition form
+        // from its storage type so the emitted formula never trips Revit's
+        // "Inconsistent Units": YESNO gates stay bare, a legacy TEXT gate becomes
+        // `gate = "Yes"`.
+        //
+        // MULTI-MODE. When Handover and Design & Construction both list the same
+        // calculated value, the gates OR-merge into
+        // if(or(and(stateN, gateA), and(stateM, gateB)), SOURCE, "").
+        //
         // Rows whose target tier is in preservedTiers are skipped.
         // ------------------------------------------------------------------
+        private sealed class RowAuthoring
+        {
+            public string Source;               // the parameter the formula reads
+            public string DeclaredFormula;      // the CSV's Formula column, if any
+            public List<string> Gates = new List<string>();
+        }
+
         private static void ApplyVisibilityFormulas(Document fdoc,
             List<(int Tier, TierRow Row, string Gate)> flat,
             HashSet<int> preservedTiers, Result result)
@@ -330,57 +361,96 @@ namespace StingTools.Tags
 
             FamilyManager fm = fdoc.FamilyManager;
 
-            // Resolve each gate's condition FORM via its storage type so the
-            // emitted formula never trips Revit's "Inconsistent Units" error.
-            // STING stores TAG_PARA_STATE_*_BOOL + mode-gate BOOLs as TEXT
-            // ("Yes"/"No"), which is NOT a valid bare if()/and()/or() condition —
-            // it must be written as `gate = "Yes"`. TagConfig.GateToken picks the
-            // right form (TEXT ⇒ `= "Yes"`, YESNO ⇒ bare) and self-heals if a
-            // family carries a legacy Integer gate.
-            var gatesByParam = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            var byCalcValue = new Dictionary<string, RowAuthoring>(StringComparer.Ordinal);
             int skippedRows = 0;
             foreach (var (tier, row, modeGate) in flat)
             {
                 if (preservedTiers.Contains(tier)) { skippedRows++; continue; }
                 if (row == null || string.IsNullOrEmpty(row.Parameter)) { skippedRows++; continue; }
+                if (string.IsNullOrEmpty(row.Name))
+                {
+                    // No calculated-value name means there is nothing to put the
+                    // formula ON. Authoring it onto the source is what this fix
+                    // exists to stop, so the row is reported rather than bodged.
+                    skippedRows++;
+                    result.Warnings.Add($"T{tier} row '{row.Parameter}': no calculated-value name in the CSV — cannot author a gated formula.");
+                    continue;
+                }
 
-                string stateBool = "TAG_PARA_STATE_" + tier + "_BOOL";
-                string stateTok = TagConfig.GateToken(fm, stateBool);
+                string stateTok = TagConfig.GateToken(fm, "TAG_PARA_STATE_" + tier + "_BOOL");
                 string gateExpr = string.IsNullOrEmpty(modeGate)
                     ? stateTok
                     : "and(" + stateTok + ", " + TagConfig.GateToken(fm, modeGate) + ")";
 
-                if (!gatesByParam.TryGetValue(row.Parameter, out var list))
+                RowAuthoring ra;
+                if (!byCalcValue.TryGetValue(row.Name, out ra))
                 {
-                    list = new List<string>();
-                    gatesByParam[row.Parameter] = list;
+                    ra = new RowAuthoring { Source = row.Parameter, DeclaredFormula = row.Formula };
+                    byCalcValue[row.Name] = ra;
                 }
-                if (!list.Contains(gateExpr, StringComparer.Ordinal)) list.Add(gateExpr);
+                else if (!string.Equals(ra.Source, row.Parameter, StringComparison.Ordinal))
+                {
+                    // Same calculated value fed by two different sources across
+                    // modes. Only one formula can win, so say which.
+                    result.Warnings.Add($"'{row.Name}' is declared against both {ra.Source} and {row.Parameter}; keeping {ra.Source}.");
+                }
+                if (!ra.Gates.Contains(gateExpr, StringComparer.Ordinal)) ra.Gates.Add(gateExpr);
             }
 
             using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — tier formulas"))
             {
                 tx.Start();
                 result.FormulasSkipped += skippedRows;
-                foreach (var kv in gatesByParam)
-                {
-                    string paramName = kv.Key;
-                    List<string> gates = kv.Value;
 
-                    FamilyParameter target = null;
-                    foreach (FamilyParameter fp in fm.Parameters)
+                foreach (var kv in byCalcValue)
+                {
+                    string calcName = kv.Key;
+                    RowAuthoring ra = kv.Value;
+
+                    FamilyParameter target = FindParameter(fm, calcName);
+                    if (target == null)
                     {
-                        if (string.Equals(fp.Definition?.Name, paramName, StringComparison.Ordinal))
+                        try
                         {
-                            target = fp; break;
+                            target = fm.AddParameter(calcName, GroupTypeId.General,
+                                                     SpecTypeId.String.Text, true /* instance */);
+                            result.ParamsBound++;
+                        }
+                        catch (Exception ex)
+                        {
+                            result.FormulasSkipped++;
+                            result.Warnings.Add($"could not create calculated value '{calcName}': {ex.Message}");
+                            continue;
                         }
                     }
-                    if (target == null) { result.FormulasSkipped++; continue; }
 
-                    string combined = gates.Count == 1
-                        ? gates[0]
-                        : "or(" + string.Join(", ", gates) + ")";
-                    string formula = "if(" + combined + ", " + paramName + ", \"\")";
+                    // Prefer the formula the CSV DECLARES — it is the reviewed
+                    // text, and re-deriving it is what went wrong before. It only
+                    // applies when this row has a single, unmodified tier gate;
+                    // a mode gate or an OR-merge has to be composed here.
+                    string formula;
+                    bool singlePlainGate = ra.Gates.Count == 1;
+                    if (singlePlainGate && !string.IsNullOrEmpty(ra.DeclaredFormula))
+                    {
+                        formula = ra.DeclaredFormula;
+                    }
+                    else
+                    {
+                        string combined = ra.Gates.Count == 1
+                            ? ra.Gates[0]
+                            : "or(" + string.Join(", ", ra.Gates) + ")";
+                        formula = "if(" + combined + ", " + ra.Source + ", \"\")";
+                    }
+
+                    if (string.Equals(calcName, ra.Source, StringComparison.Ordinal))
+                    {
+                        // Belt and braces: if a CSV ever names a row after its own
+                        // source, refuse rather than write the circular formula.
+                        result.FormulasSkipped++;
+                        result.Warnings.Add($"'{calcName}' names its own source parameter — refusing to write a self-referential formula.");
+                        continue;
+                    }
+
                     try
                     {
                         fm.SetFormula(target, formula);
@@ -389,7 +459,7 @@ namespace StingTools.Tags
                     catch (Exception ex)
                     {
                         result.FormulasSkipped++;
-                        result.Warnings.Add($"SetFormula('{paramName}') failed: {ex.Message}");
+                        result.Warnings.Add($"SetFormula('{calcName}') failed: {ex.Message}");
                     }
                 }
                 tx.Commit();

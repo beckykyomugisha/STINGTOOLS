@@ -16,17 +16,19 @@ namespace StingTools.Core
     /// </summary>
     /// <remarks>
     /// Pure C#: no Autodesk.Revit.* dependency so the reader can be exercised
-    /// from unit tests or headless scripts. Assembles only T4..T10 rows — T1..T3
-    /// are default-present in every family and live outside the tier-variation
-    /// plan (<see cref="PerFamilyTierMap"/> never stores T1..T3).
+    /// from unit tests or headless scripts. Assembles T3..T10 rows. T1..T2 are
+    /// the universal identity/description block that every family ships and are
+    /// cloned by Propagate_UniversalTag, so they stay outside the per-family
+    /// plan; T3 is the per-family engineering block and belongs IN it.
     /// </remarks>
-    // LEGACY(universal-tag): the TierPlan-building API (LoadFile/LoadFiles/Parse) has no
-    // direct caller since TagConfigPlanResolver was deleted (universal-tag teardown). RETAINED
-    // because the v5.0 CSV data it parses is the canonical *synced* tag-config source (see
-    // reference-tag-config-sources; LABEL_DEFINITIONS.json is canonical) and those CSVs are
-    // still read across ParamRegistry / TagConfig / HandoverModeHelper / PresentationModeCommand
-    // / FamilyParamCreatorCommand / LpsValidator via their own paths. A future pass may either
-    // rewire a live reader onto this typed parser or retire it with the CSVs together.
+    // The "no direct caller since TagConfigPlanResolver was deleted" note that
+    // stood here is out of date twice over: TagConfigPlanResolver exists, and
+    // UniversalTagDiffCommand now reads per-family T3 rows through it. The v5.0
+    // CSVs remain the canonical *synced* tag-config source (see
+    // reference-tag-config-sources; LABEL_DEFINITIONS.json is canonical) and are
+    // also read via their own paths across ParamRegistry / TagConfig /
+    // HandoverModeHelper / PresentationModeCommand / FamilyParamCreatorCommand /
+    // LpsValidator.
     public static class TagConfigCsvReader
     {
         private static readonly Regex FamilyHeaderRegex =
@@ -50,6 +52,9 @@ namespace StingTools.Core
         private const int ColSpc       = 5;
         private const int ColBrk       = 6;
         private const int ColName      = 9;
+        // Column 10 was skipped entirely — the reader jumped Name(9) → Style(11)
+        // and discarded the one field that says what each row's formula IS.
+        private const int ColFormula   = 10;
         private const int ColStyle     = 11;
         private const int ColColor     = 12;
         private const int ColSize      = 13;
@@ -142,6 +147,7 @@ namespace StingTools.Core
                     currentFamily = name;
                     currentPlan = new TierPlan
                     {
+                        T3 = TierState.Omit,
                         T4 = TierState.Omit, T5 = TierState.Omit, T6 = TierState.Omit,
                         T7 = TierState.Omit, T8 = TierState.Omit, T9 = TierState.Omit,
                         T10 = TierState.Omit,
@@ -167,6 +173,7 @@ namespace StingTools.Core
                         {
                             result[famName] = new TierPlan
                             {
+                                T3 = TierState.Omit,
                                 T4 = TierState.Omit, T5 = TierState.Omit, T6 = TierState.Omit,
                                 T7 = TierState.Omit, T8 = TierState.Omit, T9 = TierState.Omit,
                                 T10 = TierState.Omit,
@@ -207,7 +214,11 @@ namespace StingTools.Core
             var tierMatch = TierRegex.Match(tierStr);
             if (!tierMatch.Success) return;
             if (!int.TryParse(tierMatch.Groups["n"].Value, out var tierNum)) return;
-            if (tierNum < 4 || tierNum > 10) return; // plan only covers T4..T10
+            // T3..T10. T3 was excluded while the universal master was the only
+            // authoring route — it is the per-family engineering block and cannot
+            // live on a master cloned to 206 families. The per-family path can
+            // author it, and the CSVs have always carried the rows.
+            if (tierNum < 3 || tierNum > 10) return;
 
             var row = new TierRow
             {
@@ -218,6 +229,7 @@ namespace StingTools.Core
                 Spc       = ParseInt(cols[ColSpc]),
                 Brk       = ParseBrk(cols[ColBrk]),
                 Name      = cols[ColName].Trim(),
+                Formula   = cols[ColFormula].Trim(),
                 Style     = cols[ColStyle].Trim(),
                 Color     = cols[ColColor].Trim(),
                 Size      = ParseDouble(cols[ColSize]),
@@ -226,6 +238,7 @@ namespace StingTools.Core
 
             switch (tierNum)
             {
+                case 3:  plan.T3Rows.Add(row);  plan.T3  = TierState.Replace; break;
                 case 4:  plan.T4Rows.Add(row);  plan.T4  = TierState.Replace; break;
                 case 5:  plan.T5Rows.Add(row);  plan.T5  = TierState.Replace; break;
                 case 6:  plan.T6Rows.Add(row);  plan.T6  = TierState.Replace; break;
@@ -259,23 +272,45 @@ namespace StingTools.Core
         // Duplicated from StingToolsApp.ParseCsvLine so the reader has no
         // transitive dependency on the Revit-bound entry point. Semantics must
         // stay identical — the two implementations read the same CSV files.
+        //
+        // They were NOT identical. This copy toggled inQuote on every quote, so a
+        // doubled "" — CSV's escape for one literal quote — cancelled itself out
+        // and vanished. Harmless while nothing read a field containing quotes;
+        // fatal for the Formula column, where every row ends in the empty-string
+        // literal:
+        //
+        //   CSV      "if(TAG_PARA_STATE_3_BOOL, BLE_WALL_CORE_MATERIAL_TXT, """")"
+        //   was      if(TAG_PARA_STATE_3_BOOL, BLE_WALL_CORE_MATERIAL_TXT, )
+        //   now      if(TAG_PARA_STATE_3_BOOL, BLE_WALL_CORE_MATERIAL_TXT, "")
+        //
+        // The "was" line is not a formula Revit will accept, and nothing would
+        // have reported that — it would have surfaced as SetFormula failing on
+        // every row. Now byte-for-byte the same algorithm as StingToolsApp.
         private static string[] ParseCsvLine(string line)
         {
             var result = new List<string>();
-            bool inQuote = false;
+            if (line == null) { result.Add(""); return result.ToArray(); }
+
             var current = new System.Text.StringBuilder();
-            foreach (char c in line ?? string.Empty)
+            bool inQuote = false;
+
+            for (int i = 0; i < line.Length; i++)
             {
-                if (c == '"') { inQuote = !inQuote; }
-                else if (c == ',' && !inQuote)
+                char c = line[i];
+                if (inQuote)
                 {
-                    result.Add(current.ToString());
-                    current.Clear();
+                    if (c == '"')
+                    {
+                        // "" inside a quoted field is one literal quote; a lone
+                        // quote closes the field.
+                        if (i + 1 < line.Length && line[i + 1] == '"') { current.Append('"'); i++; }
+                        else inQuote = false;
+                    }
+                    else current.Append(c);
                 }
-                else
-                {
-                    current.Append(c);
-                }
+                else if (c == '"') inQuote = true;
+                else if (c == ',') { result.Add(current.ToString()); current.Clear(); }
+                else current.Append(c);
             }
             result.Add(current.ToString());
             return result.ToArray();

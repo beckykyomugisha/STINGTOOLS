@@ -19,7 +19,14 @@ namespace StingTools.Core
         Omit,
     }
 
-    /// <summary>One visible row inside a tier — parameter reference + affixes.</summary>
+    /// <summary>
+    /// One visible row inside a tier. TWO parameters, not one:
+    /// <see cref="Name"/> is the calculated value that sits in the label and
+    /// HOLDS the formula; <see cref="Parameter"/> is the shared parameter that
+    /// formula READS. Writing the formula onto <see cref="Parameter"/> is
+    /// self-referential — Revit rejects it, or accepts it and the source value
+    /// is destroyed.
+    /// </summary>
     public sealed class TierRow
     {
         public string Tier { get; set; }
@@ -32,11 +39,32 @@ namespace StingTools.Core
         public string Style { get; set; }
         public string Color { get; set; }
         public double Size { get; set; }
+
+        /// <summary>
+        /// The formula as DECLARED in the v5 CSV's Formula column, e.g.
+        /// <c>if(TAG_PARA_STATE_3_BOOL, BLE_WALL_CORE_MATERIAL_TXT, "")</c>.
+        /// Empty when the source row leaves the column blank.
+        ///
+        /// Consumers must prefer this over re-deriving one. The CSV has carried
+        /// the correct formula all along; FamilyLabelAuthor synthesised its own
+        /// and got the target wrong, which is the likeliest reason that file was
+        /// never called from anywhere.
+        /// </summary>
+        public string Formula { get; set; }
     }
 
-    /// <summary>State + row list for every tier T4..T10 in a tag family.</summary>
+    /// <summary>State + row list for every tier T3..T10 in a tag family.</summary>
     public sealed class TierPlan
     {
+        /// <summary>
+        /// T3 is the PER-FAMILY engineering block — wall build-up on a wall tag,
+        /// duct-terminal data on a duct tag. It is deliberately absent from the
+        /// universal master (build sheet STEP 1 removes all six rows), because a
+        /// master cloned to 206 families would give every one of them some other
+        /// discipline's T3. It belongs to the per-family authoring path instead,
+        /// which is what this plan feeds.
+        /// </summary>
+        public TierState T3 { get; set; } = TierState.Keep;
         public TierState T4 { get; set; } = TierState.Keep;
         public TierState T5 { get; set; } = TierState.Keep;
         public TierState T6 { get; set; } = TierState.Keep;
@@ -44,6 +72,7 @@ namespace StingTools.Core
         public TierState T8 { get; set; } = TierState.Keep;
         public TierState T9 { get; set; } = TierState.Keep;
         public TierState T10 { get; set; } = TierState.Keep;
+        public List<TierRow> T3Rows { get; set; } = new List<TierRow>();
         public List<TierRow> T4Rows { get; set; } = new List<TierRow>();
         public List<TierRow> T5Rows { get; set; } = new List<TierRow>();
         public List<TierRow> T6Rows { get; set; } = new List<TierRow>();
@@ -52,11 +81,12 @@ namespace StingTools.Core
         public List<TierRow> T9Rows { get; set; } = new List<TierRow>();
         public List<TierRow> T10Rows { get; set; } = new List<TierRow>();
 
-        /// <summary>True if the specified tier (4..10) is OMITted for this family.</summary>
+        /// <summary>True if the specified tier (3..10) is OMITted for this family.</summary>
         public bool IsOmitted(int tier)
         {
             switch (tier)
             {
+                case 3: return T3 == TierState.Omit;
                 case 4: return T4 == TierState.Omit;
                 case 5: return T5 == TierState.Omit;
                 case 6: return T6 == TierState.Omit;
