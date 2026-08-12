@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "issueDate": "2026-08-08",
+  "issuedBy": "Planscape Consulting Engineers Ltd",
+  "baseCurrency": "USD",
+  "_baseCurrencyNote": "USD because that is what the library actually holds. Measured across all 1,279 rows of BLE_MATERIALS.csv and MEP_MATERIALS.csv, MAT_COST_UNIT_UGX is exactly MAT_COST_UNIT_USD x 3700 with no exceptions in BLE and three rounding variants in MEP. The UGX column is derived, not independent — so USD is the real source of truth and the FX rate belongs in one place, not baked into 1,279 rows.",
+  "fx": {
+    "UGX": 3700,
+    "GBP": 0.79,
+    "KES": 129,
+    "TZS": 2600,
+    "_note": "Units of the named currency per 1 USD. UGX_PER_USD in project_config.json overrides the UGX entry for a single project. Update here once and every material re-prices; do not edit prices to chase the exchange rate."
+  },
+  "_priceEntryShape": "materialName is the EXACT Material.Name — the same string as MAT_NAME in the CSV, which is unique across all 1,279 rows (verified, zero collisions), so it is a safe primary key. unitOfMeasure is REQUIRED: the CSV has no unit column at all, which is why two block families sit at UGX 2,220 and UGX 96,200 with nothing to say one is per block and the other per square metre.",
+  "prices": [
+    {
+      "materialName": "HOLLOW CONCRETE BLOCK 8IN (200MM)",
+      "rate": 0.6,
+      "currency": "USD",
+      "unitOfMeasure": "each",
+      "labourFraction": 0.35,
+      "source": "Kampala supplier quotation",
+      "quotedOn": "2026-07-15",
+      "validUntil": "2026-12-31",
+      "region": "UG-CENTRAL",
+      "note": "400x200x200 hollow block, the common Uganda size. PLACEHOLDER RATE — replace with your priced figure."
+    },
+    {
+      "materialName": "STANDARD CEMENT SCREED 50MM",
+      "rate": 8.0,
+      "currency": "USD",
+      "unitOfMeasure": "m2",
+      "labourFraction": 0.45,
+      "source": "library baseline",
+      "quotedOn": "2026-02-26",
+      "region": "UG-CENTRAL",
+      "note": "1:4 sand-cement screed, 50mm. PLACEHOLDER."
+    },
+    {
+      "materialName": "MAKUTI THATCH ROOFING 150MM",
+      "rate": 24.9,
+      "currency": "USD",
+      "unitOfMeasure": "m2",
+      "labourFraction": 0.55,
+      "source": "Kibale NP — local craft rate",
+      "quotedOn": "2026-08-01",
+      "region": "UG-WEST",
+      "note": "Labour-dominated. Thatching is a craft trade and the labour fraction is materially higher than for sheet roofing. PLACEHOLDER."
+    },
+    {
+      "materialName": "MURRAM COMPACTED FILL 200MM",
+      "rate": 6.2,
+      "currency": "USD",
+      "unitOfMeasure": "m3",
+      "labourFraction": 0.3,
+      "source": "Kibale NP — local haulage estimate",
+      "quotedOn": "2026-08-01",
+      "region": "UG-WEST",
+      "note": "Transport-dominated; the rate moves with haul distance from the borrow pit, not with the material. PLACEHOLDER."
+    },
+    {
+      "materialName": "HARDCORE STONE FILL 150MM",
+      "rate": 9.4,
+      "currency": "USD",
+      "unitOfMeasure": "m3",
+      "labourFraction": 0.3,
+      "source": "Kibale NP — local haulage estimate",
+      "quotedOn": "2026-08-01",
+      "region": "UG-WEST",
+      "note": "PLACEHOLDER."
+    },
+    {
+      "materialName": "MVULE HARDWOOD TIMBER 50MM",
+      "rate": 210.0,
+      "currency": "USD",
+      "unitOfMeasure": "m3",
+      "labourFraction": 0.2,
+      "source": "Nile Ply quotation",
+      "quotedOn": "2026-07-20",
+      "region": "UG-CENTRAL",
+      "note": "PLACEHOLDER. Confirm CITES/legal-sourcing documentation before specifying mvule at scale."
+    },
+    {
+      "materialName": "IRON SHEET 28 GAUGE 0.9MM",
+      "rate": 10.0,
+      "currency": "USD",
+      "unitOfMeasure": "m2",
+      "labourFraction": 0.25,
+      "source": "library baseline",
+      "quotedOn": "2026-02-26",
+      "region": "UG-CENTRAL",
+      "note": "PLACEHOLDER."
+    }
+  ],
+  "_updateFlow": [
+    "1. A quantity surveyor edits THIS file — one row per material, with a source and a date. Not 1,279 CSV rows, not a Revit dialog, not a code change.",
+    "2. Run Cost_ReloadRules. The provider cache drops and the next BOQRefresh re-prices.",
+    "3. The FX rate lives in the fx block. Change it in one place and every non-USD figure follows. Nobody edits a price to chase the shilling.",
+    "4. quotedOn and validUntil make the price auditable. A rate audit can then report 'N materials priced from quotations older than 6 months' — which is the question a QS actually asks and which nothing in the tool can answer today.",
+    "5. region lets one corporate book serve Kampala, Fort Portal, Nairobi and Dar without forking it.",
+    "6. Because it is a plain JSON file it diffs in git, so a price change is reviewable and attributable like any other change."
+  ],
+  "_whyNotTheExistingRoutes": {
+    "material library CSV": "1,279 rows, no unit column, and the price is entangled with geometry, appearance, thermal and carbon data in a 72-column row. Editing a price means touching a row that also defines what the material looks like. Wrong granularity for something that changes quarterly.",
+    "rate_card.json": "Keyed on Revit CATEGORY, so the finest grain available is 'Walls'. It cannot distinguish 200mm hollow block from a glazed screen. Good for a project-wide backstop, useless as a price book.",
+    "cost_rates_5d.csv": "Corporate, category-keyed, same limitation, and it is the silent fallback that currently absorbs every material-rate miss.",
+    "CST_UNIT_RATE_UGX element override": "Correct for a genuine one-off, at priority 100. Does not scale and does not carry forward to the next project.",
+    "BCIS / Planscape feeds": "Already exist and are lazily registered from _BIM_COORD/rate_feeds.json. Right answer for UK BCIS data; there is no equivalent published feed for Uganda, which is exactly why a hand-maintained book is needed.",
+    "BOQQsExport / BOQQsImport": "An Excel round-trip already exists and is the natural editing surface for a QS. Point it at this file and the loop closes: export, price in Excel, import, reload."
+  },
+  "_alsoRequired": "Stop overloading Revit's ALL_MODEL_COST. Stamp STING_MAT_RATE_NR + STING_MAT_RATE_CCY_TXT + STING_MAT_RATE_UOM_TXT at material creation and read those. ALL_MODEL_COST then belongs to the human editing the material browser, and the provider can finally tell the two apart — which is the ambiguity that caused the ~3,700x defect in the first place.",
+  "_shippedAs": "Corporate baseline. Project override at <project>/_BIM_COORD/material_price_book.json, merged by materialName. Read by MaterialPriceBookProvider at priority 93 — above the CSV category rate (90), below the per-element override (100). Prices are held in baseCurrency with the FX table beside them: change a rate once and every material reprices. unitOfMeasure is REQUIRED; an entry without one is skipped and logged."
+}

@@ -2800,8 +2800,23 @@ namespace StingTools.Core
             if (room == null) room = ParameterHelpers.GetRoomAtElement(doc, el);
             if (room != null)
             {
-                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, room.Name ?? "");
-                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NUM, room.Number ?? "");
+                // MIRRORS, not authored values — so they OVERWRITE.
+                //
+                // These were SetIfEmpty, which is the third time that has bitten us
+                // after the SEQ token and the flow parameters. The distinction that
+                // matters: a value the OPERATOR types deserves SetIfEmpty, because
+                // re-tagging must not discard their work. A value MIRRORED from a
+                // live Revit property does not — it has exactly one correct value at
+                // any moment, the one the source holds now. Under SetIfEmpty a room
+                // renamed mid-project could never propagate: every element inside it
+                // kept the name the room had on the day it was first tagged, and the
+                // schedule read as authoritative.
+                //
+                // The write is still guarded by `room != null`, so an element that
+                // has drifted out of any room keeps its last known room rather than
+                // being blanked — losing the value is not an improvement on staleness.
+                written += SetOverwriteInt(el, ParamRegistry.ROOM_NAME, room.Name ?? "");
+                written += SetOverwriteInt(el, ParamRegistry.ROOM_NUM, room.Number ?? "");
 
                 // Room area in m² (Revit stores in sq ft, convert)
                 double areaSqFt = room.Area;
@@ -2809,7 +2824,7 @@ namespace StingTools.Core
                 {
                     string areaM2 = (areaSqFt * 0.092903).ToString("F2",
                         System.Globalization.CultureInfo.InvariantCulture);
-                    written += SetIfEmptyInt(el, ParamRegistry.ROOM_AREA, areaM2);
+                    written += SetOverwriteInt(el, ParamRegistry.ROOM_AREA, areaM2);
                 }
 
                 // Room Department
@@ -3707,9 +3722,12 @@ namespace StingTools.Core
             int written = 0;
             try
             {
+                // Mirror of the room's own Name — overwrite for the same reason as
+                // ASS_ROOM_NAME_TXT above: under SetIfEmpty a renamed room kept the
+                // name it carried when first tagged, on the room itself.
                 Parameter name = el.get_Parameter(BuiltInParameter.ROOM_NAME);
                 if (name != null && name.HasValue)
-                    written += SetIfEmptyInt(el, ParamRegistry.BLE_ROOM_NAME, name.AsString() ?? "");
+                    written += SetOverwriteInt(el, ParamRegistry.BLE_ROOM_NAME, name.AsString() ?? "");
 
                 Parameter num = el.get_Parameter(BuiltInParameter.ROOM_NUMBER);
                 if (num != null && num.HasValue)
@@ -3976,7 +3994,22 @@ namespace StingTools.Core
                         val = p.AsString();
                         break;
                     case StorageType.Double:
-                        val = p.AsDouble().ToString("G6",
+                        // D10-follow-up: AsDouble() returns Revit INTERNAL units —
+                        // feet, ft³/s, ft/s — never the unit the target parameter's
+                        // name declares. Writing it raw is how ASS_FLOW_RATE_TXT came
+                        // to read 8.29895 on an air terminal moving 235 L/s
+                        // (235 / 28.3168 = 8.29895 ft³/s). The sibling helper
+                        // MapDimension has always taken an explicit factor; this one
+                        // had none, so every Double routed through here was stored in
+                        // internal units under an SI-suffixed name.
+                        //
+                        // Convert to the unit the TARGET PARAMETER'S NAME DECLARES.
+                        // The naming convention is the contract every downstream
+                        // reader honours — a schedule column headed PLM_PPE_SZ_MM is
+                        // read as millimetres — so the value must satisfy the name,
+                        // not the project's current display setting. Falls back to the
+                        // display unit when the name declares nothing.
+                        val = ConvertForTarget(p, targetParamName).ToString("G6",
                             System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     case StorageType.Integer:
@@ -3995,10 +4028,90 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
+        /// <summary>
+        /// STING parameter-name suffix → the unit that name declares. The convention is
+        /// the contract: a reader seeing PLM_PPE_SZ_MM is entitled to millimetres. Order
+        /// matters — longer suffixes are tested first so _SQ_M does not match _M.
+        /// </summary>
+        private static readonly (string Suffix, ForgeTypeId Unit)[] _declaredUnitBySuffix =
+        {
+            ("_SQ_M",   UnitTypeId.SquareMeters),
+            ("_CU_M",   UnitTypeId.CubicMeters),
+            ("_M2",     UnitTypeId.SquareMeters),
+            ("_M3",     UnitTypeId.CubicMeters),
+            ("_MM2",    UnitTypeId.SquareMillimeters),
+            ("_LPS",    UnitTypeId.LitersPerSecond),
+            ("_LS",     UnitTypeId.LitersPerSecond),
+            ("_CFM",    UnitTypeId.CubicFeetPerMinute),
+            ("_MPS",    UnitTypeId.MetersPerSecond),
+            ("_KPA",    UnitTypeId.Kilopascals),
+            ("_PA",     UnitTypeId.Pascals),
+            ("_KW",     UnitTypeId.Kilowatts),
+            ("_W",      UnitTypeId.Watts),
+            ("_KG",     UnitTypeId.Kilograms),
+            ("_KN",     UnitTypeId.Kilonewtons),
+            ("_V",      UnitTypeId.Volts),
+            ("_A",      UnitTypeId.Amperes),
+            ("_C",      UnitTypeId.Celsius),
+            ("_MM",     UnitTypeId.Millimeters),
+            ("_M",      UnitTypeId.Meters),
+        };
+
+        /// <summary>
+        /// A Double parameter's value expressed in the unit the TARGET parameter's name
+        /// declares. Falls back to the source parameter's display unit when the name
+        /// declares nothing, and to the raw internal value when there is no unit at all
+        /// (Number-spec parameters legitimately have none).
+        ///
+        /// Every fallback logs. A silent one reintroduces the defect this exists to fix:
+        /// PLM_PPE_SZ_MM holding 0.492126 (feet) and HVC_AIRFLOW_LPS holding 0.882867
+        /// (ft³/s) both read as compliant numbers in a schedule.
+        /// </summary>
+        private static double ConvertForTarget(Parameter p, string targetParamName)
+        {
+            double raw = p.AsDouble();
+            try
+            {
+                ForgeTypeId sourceUnit = p.GetUnitTypeId();
+                if (sourceUnit == null || sourceUnit.Empty()) return raw;   // dimensionless
+
+                string name = (targetParamName ?? "").ToUpperInvariant();
+                foreach (var (suffix, unit) in _declaredUnitBySuffix)
+                {
+                    if (!name.EndsWith(suffix, StringComparison.Ordinal)) continue;
+                    // The name's unit must be valid for THIS parameter's measurement.
+                    // A _C suffix on a length parameter is a naming accident, not a
+                    // temperature: convert by display unit rather than throw.
+                    if (!UnitUtils.IsValidUnit(p.Definition?.GetDataType(), unit)) break;
+                    return UnitUtils.ConvertFromInternalUnits(raw, unit);
+                }
+                return UnitUtils.ConvertFromInternalUnits(raw, sourceUnit);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("MapBuiltInUnit",
+                    $"NativeParamMapper: could not resolve a unit for '{targetParamName}' "
+                  + $"— storing the raw internal value ({ex.Message}).");
+                return raw;
+            }
+        }
+
         /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>
         private static int SetIfEmptyInt(Element el, string paramName, string value)
         {
             return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
+        }
+
+        /// <summary>
+        /// Overwriting counterpart of <see cref="SetIfEmptyInt"/>, for values MIRRORED
+        /// from a live Revit property. A mirror has one correct value at any moment;
+        /// preserving a stale copy is not caution, it is a wrong number with a
+        /// plausible face. Operator-authored values keep SetIfEmpty.
+        /// </summary>
+        private static int SetOverwriteInt(Element el, string paramName, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;   // never blank a known value
+            return ParameterHelpers.SetString(el, paramName, value, overwrite: true) ? 1 : 0;
         }
 
         /// <summary>

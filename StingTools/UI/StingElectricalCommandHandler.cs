@@ -167,6 +167,13 @@ namespace StingTools.UI
                 // Panel_PlaceOnSheets dispatched in the Phase 178 block below.
 
                 // ── CIRCTS ───────────────────────────────────────────
+                // Both commands existed and both were reachable from
+                // WorkflowEngine.ResolveCommand; only the panel dispatch case was
+                // missing, so the two buttons did nothing when clicked.
+                case "Circuit_AssignAuto":
+                    RunCommand<StingTools.Commands.Electrical.BatchAssignCircuitsCommand>(app); break;
+                case "Validation_BS7671":
+                    RunCommand<StingTools.Commands.Electrical.ElectricalStandardsValidatorCommand>(app); break;
                 case "Circuit_AutoDesc":
                     RunCommand<StingTools.Commands.Electrical.CircuitDescriptionCommand>(app); break;
                 case "Circuit_PreviewDesc":

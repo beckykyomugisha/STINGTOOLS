@@ -33,6 +33,13 @@ namespace StingTools.BOQ.Rates
         /// <summary>MAT_CODE on the element — e.g. "CONC-C30", "STL-S355".</summary>
         public string MatCode { get; set; } = "";
 
+        /// <summary>
+        /// Exact Material.Name — the same string as MAT_NAME in the material
+        /// libraries, unique across all 1,279 rows and therefore a safe key for the
+        /// material price book. Empty lets the provider derive it from the element.
+        /// </summary>
+        public string MaterialName { get; set; } = "";
+
         /// <summary>RC-2 — ASS_SYSTEM_TYPE_TXT (e.g. "MedicalGas", "DCW", "LV") so a
         /// system-keyed rate can differentiate otherwise-identical categories
         /// (med-gas vs domestic copper). Empty = no system differentiation.</summary>

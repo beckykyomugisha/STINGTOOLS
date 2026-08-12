@@ -1124,6 +1124,9 @@ namespace StingTools.UI
                     ("Rate Gap Report", "BOQ_RateGapReport",
                      "List every modelled item that still needs a price (no rate / low confidence / defaulted), the " +
                      "value at risk, and a CSV worklist to hand the QS. Read-only.", false),
+                    ("Below-Product Rate Audit", "BOQ_BelowProductAudit",
+                     "How much of the bill is priced by a category average rather than by the product — rows and " +
+                     "value at each resolution level, worst groups first. Read-only; changes nothing.", false),
                     ("Add Manual / PS / Daywork", "BOQAddManualRow",
                      "Author a row the model can't carry (manual measured / provisional sum / dayworks / PC sum). " +
                      "Survives a model rebuild.", false),

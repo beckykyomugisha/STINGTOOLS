@@ -1068,6 +1068,33 @@ namespace StingTools.Core
             public string Threshold { get; set; }
             public string Unit { get; set; }
             public string Severity { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
+
+            /// <summary>
+            /// The element parameter this check MEASURES. Set it and GetWarningDataValue
+            /// reads it directly instead of guessing from substrings of the warning
+            /// parameter's name — which is how WARN_HVC_DCT_SOUNDLVL_DB came to read
+            /// HVC_DCT_SOUNDLVL_DB while the intent was HVC_DCT_TERMINAL_SOUND_DB_NR.
+            /// Empty falls back to the substring ladder, so existing entries are unchanged.
+            /// </summary>
+            public string SourceParam { get; set; }
+
+            /// <summary>
+            /// "MIN" (warn when value is BELOW threshold), "MAX" (warn when ABOVE), or
+            /// "RANGE" with <see cref="ThresholdMax"/>. Empty falls back to inferring the
+            /// direction from keywords in Description — which silently gets a rating
+            /// check backwards when the description happens to contain neither word.
+            /// </summary>
+            public string Comparison { get; set; }
+
+            /// <summary>Upper bound for Comparison = "RANGE". Threshold is the lower bound.</summary>
+            public string ThresholdMax { get; set; }
+
+            /// <summary>
+            /// The standard the threshold comes from, quoted in the warning text so a
+            /// reviewer can check it. A compliance number with no provenance is an
+            /// opinion; this is the field that makes it a citation.
+            /// </summary>
+            public string Standard { get; set; }
         }
 
         /// <summary>All warning threshold definitions keyed by param name.</summary>
@@ -1103,22 +1130,48 @@ namespace StingTools.Core
         {
             if (def == null || string.IsNullOrEmpty(currentValue) || string.IsNullOrEmpty(def.Threshold))
                 return null;
-            // Try numeric comparison
-            if (double.TryParse(currentValue, out double val) && double.TryParse(def.Threshold, out double thresh))
+            if (!double.TryParse(currentValue, out double val)) return null;
+            if (!double.TryParse(def.Threshold, out double thresh)) return null;
+
+            // Explicit direction wins. The keyword inference below is kept for the
+            // ~480 legacy entries that carry no Comparison, but it is a guess: an
+            // entry whose description contains neither "minimum" nor "limit" falls
+            // into the final branch and fires when the value is ABOVE the threshold.
+            // For a RATING (short-circuit withstand, fire resistance) higher is safer,
+            // so that default is exactly backwards — which is why Comparison exists.
+            string cmp = (def.Comparison ?? "").Trim().ToUpperInvariant();
+            if (cmp.Length == 0)
             {
-                // For most thresholds: value exceeding limit is a warning
-                // For minimums (coverage, width, depth): value below threshold is a warning
                 bool isMinimum = def.Description.Contains("minimum") || def.Description.Contains("min ");
                 bool isLimit = def.Description.Contains("limit") || def.Description.Contains("maximum") || def.Description.Contains("max ");
-
-                if (isMinimum && val < thresh)
-                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} < {def.Threshold} {def.Unit}]";
-                else if (isLimit && val > thresh)
-                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} > {def.Threshold} {def.Unit}]";
-                else if (!isMinimum && !isLimit && val > thresh)
-                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} exceeds {def.Threshold} {def.Unit}]";
+                cmp = isMinimum ? "MIN" : "MAX";   // legacy default: treat as an upper limit
             }
-            return null;
+
+            string breach = null;
+            switch (cmp)
+            {
+                case "MIN":
+                    if (val < thresh) breach = $"{currentValue} {def.Unit} < {def.Threshold} {def.Unit} required";
+                    break;
+                case "RANGE":
+                    if (double.TryParse(def.ThresholdMax, out double hi))
+                    {
+                        if (val < thresh || val > hi)
+                            breach = $"{currentValue} {def.Unit} outside {def.Threshold}–{def.ThresholdMax} {def.Unit}";
+                    }
+                    else if (val < thresh)
+                    {
+                        breach = $"{currentValue} {def.Unit} < {def.Threshold} {def.Unit} required";
+                    }
+                    break;
+                default: // MAX
+                    if (val > thresh) breach = $"{currentValue} {def.Unit} > {def.Threshold} {def.Unit} permitted";
+                    break;
+            }
+            if (breach == null) return null;
+
+            string cite = string.IsNullOrWhiteSpace(def.Standard) ? "" : $" [{def.Standard}]";
+            return $"[!{def.Severity}: {def.Description} — {breach}{cite}]";
         }
 
         // ── Paragraph container mapping (v5.5) ──────────────────────────
@@ -2371,10 +2424,14 @@ namespace StingTools.Core
             {
                 var def = new WarningThresholdDef
                 {
-                    ParamName   = w["param_name"]?.ToString() ?? "",
-                    Guid        = w["guid"]?.ToString() ?? "",
-                    Description = w["description"]?.ToString() ?? "",
-                    Threshold   = w["threshold"]?.ToString() ?? "",
+                    ParamName    = w["param_name"]?.ToString() ?? "",
+                    Guid         = w["guid"]?.ToString() ?? "",
+                    Description  = w["description"]?.ToString() ?? "",
+                    Threshold    = w["threshold"]?.ToString() ?? "",
+                    SourceParam  = w["source_param"]?.ToString() ?? "",
+                    Comparison   = w["comparison"]?.ToString() ?? "",
+                    ThresholdMax = w["threshold_max"]?.ToString() ?? "",
+                    Standard     = w["standard"]?.ToString() ?? "",
                     Unit        = w["unit"]?.ToString() ?? "",
                     Severity    = w["severity"]?.ToString() ?? "MEDIUM",
                 };
@@ -3399,7 +3456,7 @@ namespace StingTools.Core
             string newHash = ComputeTokenHash(tokenValues);
             if (string.IsNullOrEmpty(skipParam))
             {
-                string priorHash = ParameterHelpers.GetString(el, "ASS_LAST_TOKEN_HASH_TXT");
+                string priorHash = ParameterHelpers.GetString(el, TOKEN_HASH_PARAM);
                 if (!string.IsNullOrEmpty(priorHash)
                     && string.Equals(priorHash, newHash, StringComparison.Ordinal))
                 {
@@ -3460,9 +3517,33 @@ namespace StingTools.Core
             // containers that didn't actually get written. We only stamp on
             // the full-sweep path (skipParam null).
             if (string.IsNullOrEmpty(skipParam))
-                ParameterHelpers.SetString(el, "ASS_LAST_TOKEN_HASH_TXT", newHash, overwrite: true);
+                ParameterHelpers.SetString(el, TOKEN_HASH_PARAM, newHash, overwrite: true);
 
             return written;
+        }
+
+        /// <summary>
+        /// The re-tag fast-path hash. Private so this file stays its only writer —
+        /// a second file writing the same name by string literal is precisely what
+        /// tools/validate_dual_owner.py check (b) exists to catch.
+        /// </summary>
+        private const string TOKEN_HASH_PARAM = "ASS_LAST_TOKEN_HASH_TXT";
+
+        /// <summary>
+        /// Drop an element's cached token hash so the next <see cref="WriteContainers"/>
+        /// call performs the full container sweep instead of short-circuiting.
+        /// Callers that clear or repair token values MUST call this: the hash still
+        /// holds the pre-change value, and the fast path would otherwise skip the
+        /// very rewrite the repair exists to enable.
+        /// </summary>
+        public static void InvalidateTokenHash(Element el)
+        {
+            if (el == null) return;
+            try { ParameterHelpers.SetString(el, TOKEN_HASH_PARAM, "", overwrite: true); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ParamRegistry.InvalidateTokenHash on {el.Id?.Value}: {ex.Message}");
+            }
         }
 
         /// <summary>

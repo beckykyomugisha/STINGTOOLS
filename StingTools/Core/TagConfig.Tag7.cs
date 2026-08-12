@@ -2112,6 +2112,17 @@ namespace StingTools.Core
         /// </summary>
         private static string GetWarningDataValue(Element el, string warnParam, string categoryName)
         {
+            // A declared source_param on the threshold definition wins outright. The
+            // substring ladder below is a name-guessing heuristic: it matches
+            // WARN_HVC_DCT_SOUNDLVL_DB on "SOUNDLVL" and reads HVC_DCT_SOUNDLVL_DB,
+            // which is a different parameter from the one the air-terminal noise check
+            // is supposed to measure. Guessing is kept for the entries that have no
+            // declaration; new checks declare and are exact.
+            if (ParamRegistry.WarningThresholds != null
+                && ParamRegistry.WarningThresholds.TryGetValue(warnParam, out var wdef)
+                && !string.IsNullOrWhiteSpace(wdef?.SourceParam))
+                return ParameterHelpers.GetString(el, wdef.SourceParam.Trim());
+
             // Map warning params to their corresponding data sources
             // Pattern: WARN_{prefix}_{metric} maps to the element's actual parameter
             string wp = warnParam.ToUpperInvariant();
@@ -2223,7 +2234,12 @@ namespace StingTools.Core
             if (wp.Contains("SHORT_CIRCUIT"))
                 return ParameterHelpers.GetString(el, "ELC_PNL_SHORT_CIRCUIT_KA");
             // Spare ways
+            // This `if` had NO BODY, so it swallowed the pipe-gradient check as its
+            // statement: SPARE_WAYS resolved to nothing, and PIPE_GRADIENT could only
+            // ever be reached by a warning parameter whose name contained BOTH — i.e.
+            // never. Two checks silently returned no data. Both restored.
             if (wp.Contains("SPARE_WAYS"))
+                return ParameterHelpers.GetString(el, "ELC_PNL_SPARE_WAYS_NR");
             // Pipe gradient
             if (wp.Contains("PIPE_GRADIENT"))
                 return ParameterHelpers.GetString(el, "PLM_PIPE_GRADIENT_PCT");

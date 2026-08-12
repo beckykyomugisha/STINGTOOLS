@@ -396,6 +396,38 @@ namespace StingTools.Temp
             public string[] BuiltinInputs;
         }
 
+        /// <summary>
+        /// The ten ISO 19650 source-token parameters, which no formula may target.
+        /// Read from ParamRegistry so a project that renames a token keeps the guard,
+        /// with a literal fallback for the window before the registry has loaded
+        /// (formula load can precede it) — an empty set here would silently disarm
+        /// the guard, which is the failure mode it exists to prevent.
+        /// </summary>
+        private static HashSet<string> TokenParameterNames()
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                "ASS_STATUS_TXT", "ASS_REV_TXT",
+            };
+            try
+            {
+                foreach (string p in ParamRegistry.AllTokenParams ?? Array.Empty<string>())
+                    if (!string.IsNullOrWhiteSpace(p)) set.Add(p.Trim());
+                if (!string.IsNullOrWhiteSpace(ParamRegistry.STATUS)) set.Add(ParamRegistry.STATUS.Trim());
+                if (!string.IsNullOrWhiteSpace(ParamRegistry.REV)) set.Add(ParamRegistry.REV.Trim());
+            }
+            catch (Exception ex)
+            {
+                // Registry not loaded yet, or a renamed token could not be read.
+                // The literal set above still stands — say so rather than pass silently.
+                StingLog.Warn($"Formula token guard: falling back to the built-in token list ({ex.Message}).");
+            }
+            return set;
+        }
+
         /// <summary>Load formula definitions from CSV file (cached; re-reads on path or file change).</summary>
         public static List<FormulaDefinition> LoadFormulas(string csvPath)
         {
@@ -519,6 +551,55 @@ namespace StingTools.Temp
                     else StingLog.Warn($"Formula '{f.ParameterName}': duplicate definition ignored (kept first; expression='{f.Expression}').");
                 }
                 formulas = deduped;
+            }
+
+            // ── Token-parameter guard ────────────────────────────────────────
+            // The ten ISO 19650 source tokens are pipeline INPUTS. They are
+            // derived by TokenAutoPopulator.PopulateAll and consumed by
+            // TagConfig.BuildAndWriteTag / ParamRegistry.WriteContainers, which
+            // assemble ASS_TAG_1_TXT and the ~53 containers FROM them. A formula
+            // whose target is a token inverts that: the formula pass runs at
+            // ParameterHelpers.cs:4309 — after PopulateAll, before
+            // BuildAndWriteTag — so it silently overwrites a correctly derived
+            // token, and the tag is then built from the overwritten value.
+            //
+            // Two such rows shipped in FORMULAS_WITH_DEPENDENCIES.csv:
+            //     ASS_FUNC_TXT    = ASS_CAT_TXT   + " - " + ASS_DESCRIPTION_TXT
+            //     ASS_SEQ_NUM_TXT = ASS_TAG_1_TXT + "-"   + ASS_ID_TXT
+            // They were generated against two ASS_MNG spare slots whose names the
+            // tag system later claimed (MR_PARAMETERS.csv:262-263 still describes
+            // both as "Spare parameter 1/2 for ASS_MNG group"). The SEQ one is
+            // circular — ASS_TAG_1_TXT is assembled from ASS_SEQ_NUM_TXT — and the
+            // topological sort below cannot see it, because the cycle closes
+            // outside the formula set: no row produces ASS_TAG_1_TXT, so there is
+            // no edge to detect. Both rows are removed from the CSV; this guard
+            // exists so the class cannot recur from a project override, a
+            // regenerated CSV, or an older data/ copy on disk.
+            //
+            // Rejected loudly by name. A formula that is dropped in silence is
+            // indistinguishable from one that ran and did nothing — the same
+            // invisible-failure class the short-row report above exists to close.
+            {
+                var tokenTargets = TokenParameterNames();
+                var kept = new List<FormulaDefinition>(formulas.Count);
+                var rejected = new List<string>();
+                foreach (var f in formulas)
+                {
+                    if (!string.IsNullOrEmpty(f.ParameterName)
+                        && tokenTargets.Contains(f.ParameterName))
+                        rejected.Add($"{f.ParameterName} = {f.Expression}");
+                    else
+                        kept.Add(f);
+                }
+                if (rejected.Count > 0)
+                {
+                    formulas = kept;
+                    StingLog.Warn($"Formula load: REFUSED {rejected.Count} formula(s) targeting an ISO 19650 token "
+                                + "parameter. Tokens are derived by PopulateAll and consumed by the tag builder; a "
+                                + "formula writing one overwrites the derived value and corrupts the assembled tag. "
+                                + "Remove the row(s) from FORMULAS_WITH_DEPENDENCIES.csv. Refused: "
+                                + string.Join(" | ", rejected));
+                }
             }
 
             // Sort by the (provisional) dependency level as a stable starting

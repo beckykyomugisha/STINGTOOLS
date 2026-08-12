@@ -122,6 +122,10 @@ def main():
     print(f"  (a) one output parameter, two+ formulas        : {len(a)}")
     print(f"  (b) one parameter, writes in two+ C# files     : {len(b)}")
     print(f"  (c) formula output ALSO written by C#          : {len(c)}")
+    print("  NOTE: (b) and (c) match STRING-LITERAL parameter names only. A write")
+    print("        through a constant (ParameterHelpers.SetString(el, ParamRegistry.TAG1,")
+    print("        ...)) is invisible — G-44, the defect that motivated (b), is exactly")
+    print("        that shape. These two counts are a FLOOR, not a total.")
 
     if "--report" in sys.argv:
         print("\n--- (a) two formulas, same output ---")

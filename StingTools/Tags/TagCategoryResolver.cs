@@ -137,6 +137,17 @@ namespace StingTools.Tags
 
             res.DeclaredTagCategory = tagCat;
             res.IsMismatch = !string.Equals(res.ActualCategory, tagCat.Name, StringComparison.OrdinalIgnoreCase);
+
+            // Note was previously set ONLY on the three failure paths above, so a
+            // successful resolution that found a MISMATCH came back with Note null —
+            // and PropagateUniversalTagCommand:296 logs exactly that field, producing
+            // "'STING - Air Terminal Tag' — " with nothing after the em-dash. The
+            // caller had no reason for a warning it was raising. Note is now set on
+            // every outcome; callers may treat it as a description, never as a
+            // success/failure flag (use DeclaredTagCategory for that).
+            res.Note = res.IsMismatch
+                ? $"declared '{hostCat}' → tag category '{tagCat.Name}', but the family is '{res.ActualCategory}' — will recategorise"
+                : $"declared '{hostCat}' → tag category '{tagCat.Name}', already matches";
             return res;
         }
 
