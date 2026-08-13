@@ -54,7 +54,10 @@ straight onto the blocker requirement. Two cases it cannot cover are handled dir
 **Blockers reported, not thrown** — unbound shared parameter (names the categories:
 "ZONE is not bound to Ducts, Pipes; 3 categories skipped"), view-template-locked V/G (offers
 `Vis_ApplyToTemplate`), `AreGraphicsOverridesAllowed() == false`, legend/schedule/sheet views,
-non-filterable categories, and zero matches.
+non-filterable categories, zero matches, and an **unresolved category rule** — a preset naming
+a category this model does not have keeps its `OST_` string and raises
+"Preset names a category this model doesn't have: 'OST_DuctCurve'" rather than matching nothing
+in silence. That check lives in `PlanCore`, so it is unit-tested rather than Revit-only.
 
 **Reset clears both mechanisms.** `Vis_ResetAll` disables the temporary view mode *and* removes
 every `STING VIS - ` filter from the view. The two halves have opposite transaction
@@ -68,7 +71,7 @@ categories it is bound to; Temporary mode handles it. The isolate filter is one 
 (it is still found and deleted by prefix).
 
 **Verification** — `dotnet build StingTools/StingTools.csproj -c Debug` → **0 errors, 0
-warnings**. `StingTools.Visibility.Tests` (new, xUnit/net8.0) → **55 passing**, picked up
+warnings**. `StingTools.Visibility.Tests` (new, xUnit/net8.0) → **61 passing**, picked up
 automatically by the `StingTools.*.Tests/*.csproj` glob in
 `.github/workflows/stingtools-unit-tests.yml`. `tools/check_path_discipline.ps1` → clean.
 **Not yet exercised inside Revit** — see the runner's §4 for the in-Revit checklist that

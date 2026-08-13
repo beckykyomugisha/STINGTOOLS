@@ -50,6 +50,10 @@ namespace StingTools.Core.Visibility
         /// <summary>
         /// Preset JSON names categories as BuiltInCategory strings ("OST_DuctCurves") so it
         /// stays readable and version-safe. Resolve those to ids + display names in place.
+        /// <para>A name that does not resolve deliberately keeps its original
+        /// <c>CategoryName</c> and leaves <c>CategoryId</c> at 0;
+        /// <c>VisibilityRuleMatcher.PlanCore</c> detects that and raises a blocker naming the
+        /// offending string, rather than the rule silently matching nothing.</para>
         /// </summary>
         internal static void ResolveCategoryRules(Document doc, VisibilitySet set)
         {

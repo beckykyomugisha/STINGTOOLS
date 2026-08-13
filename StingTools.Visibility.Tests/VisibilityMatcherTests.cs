@@ -181,6 +181,92 @@ namespace StingTools.Visibility.Tests
             Assert.Equal(2, plan.TotalScanned);
         }
 
+        // ── Unresolved category rules must not fail silently ────────────
+
+        [Fact]
+        public void UnresolvedCategoryRule_RaisesABlockerNamingIt()
+        {
+            // What a typo in STING_VISIBILITY_PRESETS.json looks like after the engine's
+            // resolution pass: the OST_ name survives, CategoryId stays 0.
+            var set = Set(new VisibilityRule
+            {
+                Kind = VisibilityRuleKind.Category,
+                CategoryId = 0,
+                CategoryName = "OST_DuctCurve"   // real name is OST_DuctCurves
+            });
+
+            var plan = VisibilityRuleMatcher.PlanCore(
+                new[] { El(1, cat: 100), El(2, cat: 200) }, set, VisibilityMode.Temporary);
+
+            Assert.Equal(0, plan.MatchCount);
+            var blocker = Assert.Single(plan.Blockers);
+            Assert.Contains("OST_DuctCurve", blocker);
+            Assert.Contains("doesn't have", blocker);
+        }
+
+        [Fact]
+        public void UnresolvedCategoryRule_IsReportedOncePerDistinctName()
+        {
+            var set = Set(
+                new VisibilityRule { Kind = VisibilityRuleKind.Category, CategoryName = "OST_Typo" },
+                new VisibilityRule { Kind = VisibilityRuleKind.Category, CategoryName = "OST_Typo" },
+                new VisibilityRule { Kind = VisibilityRuleKind.Category, CategoryName = "OST_Other" });
+
+            var plan = VisibilityRuleMatcher.PlanCore(new[] { El(1) }, set, VisibilityMode.Temporary);
+
+            Assert.Equal(2, plan.Blockers.Count);
+        }
+
+        [Fact]
+        public void CategoryRuleWithNoNameAtAll_IsStillReported()
+        {
+            var set = Set(new VisibilityRule { Kind = VisibilityRuleKind.Category });
+
+            var plan = VisibilityRuleMatcher.PlanCore(new[] { El(1) }, set, VisibilityMode.Temporary);
+
+            Assert.Contains("(unnamed)", Assert.Single(plan.Blockers));
+        }
+
+        [Fact]
+        public void ResolvedCategoryRules_RaiseNoBlocker()
+        {
+            var set = Set(new VisibilityRule
+            {
+                Kind = VisibilityRuleKind.Category,
+                CategoryId = 100,
+                CategoryName = "Ducts"
+            });
+
+            var plan = VisibilityRuleMatcher.PlanCore(new[] { El(1, cat: 100) }, set, VisibilityMode.Temporary);
+
+            Assert.Empty(plan.Blockers);
+            Assert.Equal(1, plan.MatchCount);
+        }
+
+        [Fact]
+        public void OneBadCategoryAmongGood_StillReportsWhileTheRestMatch()
+        {
+            // Same group, so the category rules OR — the good one still matches.
+            var set = Set(
+                new VisibilityRule { Kind = VisibilityRuleKind.Category, CategoryId = 100, CategoryName = "Ducts" },
+                new VisibilityRule { Kind = VisibilityRuleKind.Category, CategoryName = "OST_Nope" });
+
+            var plan = VisibilityRuleMatcher.PlanCore(
+                new[] { El(1, cat: 100), El(2, cat: 999) }, set, VisibilityMode.Temporary);
+
+            Assert.Equal(1, plan.MatchCount);
+            Assert.Contains("OST_Nope", Assert.Single(plan.Blockers));
+        }
+
+        [Fact]
+        public void TokenRules_AreNotAffectedByTheCategoryCheck()
+        {
+            var set = Set(Token(VisibilityTokens.Zone, VisibilityAction.Hide, "Z02"));
+            var plan = VisibilityRuleMatcher.PlanCore(new[] { El(1, zone: "Z02") }, set, VisibilityMode.Temporary);
+
+            Assert.Empty(plan.Blockers);
+        }
+
         [Fact]
         public void PlanCore_CountsMatchesAndTotal()
         {

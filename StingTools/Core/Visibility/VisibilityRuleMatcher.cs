@@ -155,6 +155,8 @@ namespace StingTools.Core.Visibility
             // An empty rule set is a legitimate no-op: zero matches, and NOT a blocker.
             if (set?.Rules == null || set.Rules.Count == 0) return plan;
 
+            AppendUnresolvedCategoryBlockers(set, plan);
+
             var groups = GroupRules(set);
             foreach (var key in groups.Keys) plan.RuleCounts[key] = 0;
 
@@ -174,6 +176,35 @@ namespace StingTools.Core.Visibility
                 plan.Filters = BuildFilters(set, snapshots);
 
             return plan;
+        }
+
+        /// <summary>
+        /// A category rule that still carries <c>CategoryId == 0</c> by the time it reaches the
+        /// planner never resolved — a typo in a preset, or a category this model does not have.
+        /// <see cref="MatchesRule"/> then returns false for every element, so without this the
+        /// user would see only "No element matched these rules (scanned 8,331)" and no hint that
+        /// their preset is malformed. That is the same silent-default failure the preset store
+        /// guards against, one layer down, on the file most likely to be hand-edited.
+        /// </summary>
+        private static void AppendUnresolvedCategoryBlockers(VisibilitySet set, VisibilityPlan plan)
+        {
+            var reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var rule in set.Rules)
+            {
+                if (rule == null || rule.Kind != VisibilityRuleKind.Category) continue;
+                if (rule.CategoryId != 0) continue;
+
+                string label = string.IsNullOrWhiteSpace(rule.CategoryName)
+                    ? "(unnamed)"
+                    : rule.CategoryName;
+                if (!reported.Add(label)) continue;
+
+                plan.Blockers.Add(
+                    $"Preset names a category this model doesn't have: '{label}'. " +
+                    "That rule matches nothing — check the spelling against the BuiltInCategory " +
+                    "name (e.g. 'OST_DuctCurves'), or remove it.");
+            }
         }
 
         /// <summary>One filter per distinct (kind, token, value) — deterministic and de-duplicated.</summary>

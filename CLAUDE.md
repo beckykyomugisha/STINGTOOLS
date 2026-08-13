@@ -621,13 +621,14 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 - **`"STING VIS - "` prefix is the cleanup contract** — `Vis_PurgeFilters` and `Vis_ResetAll` find and delete by it, and touch nothing else.
 - **Reset clears both mechanisms** (temporary mode *and* the filters). The two halves have opposite transaction requirements, so `VisibilityEngine.Reset` sequences them itself — call it with no open transaction.
 - Token parameters resolve through `ParamRegistry.DISC/.LOC/.ZONE/…`, never literals.
+- **An unresolvable category rule raises a blocker, not silence.** A preset naming a category the model lacks keeps its `OST_` string with `CategoryId == 0`; `PlanCore` detects that and names it, instead of the rule quietly matching nothing.
 - Presets: corporate `Data/STING_VISIBILITY_PRESETS.json` (4 baseline) + project override at `<project>/_BIM_COORD/visibility_presets.json`, project winning by name.
 
 **Caveats**
 1. Show-only **by category** in Saved mode is reported as a blocker, not implemented — a view filter can only act on the categories it binds to. Temporary mode does it.
 2. The isolate filter is one combined `STING VIS - NOT (isolate)` element; it does not round-trip through `TryParseFilterName` (still purged by prefix).
 3. The UI namespace is `StingTools.UI.VisibilityCenter`, **not** `.Visibility` — the latter shadows `System.Windows.Visibility` inside existing `StingTools.UI` files (`RevitVgEditor`, `BOQCostManagerPanel`).
-4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, 55 passing). The Revit-bound half is not yet exercised in Revit.
+4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, 61 passing). The Revit-bound half is not yet exercised in Revit.
 
 ---
 
