@@ -224,17 +224,68 @@ namespace StingTools.Commands.TagStudio
                 if (warnGateMissing) sb.AppendLine($"    {WarnGate}  (status badges)");
             }
 
+            // WHAT THE FAMILY ACTUALLY HAS.
+            //
+            // When every spec row comes back "calculated value missing", the
+            // absence is the least informative thing that can be said — it has
+            // two very different causes and reporting only the miss cannot tell
+            // them apart:
+            //
+            //   never created   the label holds the SOURCE parameters directly.
+            //                   Raw parameters always render and no gate is ever
+            //                   consulted, which matches the symptom exactly.
+            //   named otherwise the calculated values exist under names the build
+            //                   sheet does not use, so the lookup misses and this
+            //                   is a naming mismatch, not a structural gap.
+            //
+            // The two need different amounts of work, so the inventory decides it
+            // rather than a reading of a screenshot.
+            int sourcesBound = UniversalTagRowSpec.SourceParameters().Count(byName.ContainsKey);
+            int sourcesTotal = UniversalTagRowSpec.SourceParameters().Count;
+            var formulaBearing = byName.Values
+                .Where(fp => !string.IsNullOrWhiteSpace(fp.Formula))
+                .ToList();
+
+            sb.AppendLine();
+            sb.AppendLine("  What the family actually carries:");
+            sb.AppendLine($"    family parameters, total              {byName.Count,4}");
+            sb.AppendLine($"    spec SOURCE parameters bound          {sourcesBound,4} of {sourcesTotal}");
+            sb.AppendLine($"    parameters carrying ANY formula       {formulaBearing.Count,4}");
+
             int ok = results.Count(r => r.Verdict == RowVerdict.Ok);
+            int missing = results.Count(r => r.Verdict == RowVerdict.MissingParam);
             sb.AppendLine();
             if (ok == results.Count && gatesMissing.Count == 0)
             {
                 sb.AppendLine("CONFORMS. Every calculated row carries its gated formula, and every");
                 sb.AppendLine("gate the spec references is bound. Tier depth will work on this family.");
             }
+            else if (missing == results.Count && formulaBearing.Count == 0 && sourcesBound > 0)
+            {
+                // The decisive combination: none of the calculated values exist,
+                // nothing in the family has a formula at all, but the sources ARE
+                // bound. The label is holding raw parameters.
+                sb.AppendLine("NO CALCULATED VALUES AT ALL. None of the spec's calculated values");
+                sb.AppendLine($"exist, no parameter in this family carries a formula, and {sourcesBound} of the");
+                sb.AppendLine($"{sourcesTotal} source parameters ARE bound. The label is holding the source");
+                sb.AppendLine("parameters directly, which is why every row renders and why toggling a");
+                sb.AppendLine("gate changes nothing — there is no formula to consult one.");
+                sb.AppendLine();
+                sb.AppendLine("This is NOT 65 empty Formula cells. Gating this family means creating");
+                sb.AppendLine($"{missing} calculated values AND swapping {missing} rows in Edit Label by hand — the");
+                sb.AppendLine("Revit API can create the parameters but cannot put them in a label.");
+            }
+            else if (missing == results.Count && formulaBearing.Count > 0)
+            {
+                sb.AppendLine($"NAME MISMATCH, LIKELY. None of the spec's calculated values exist, but");
+                sb.AppendLine($"{formulaBearing.Count} parameter(s) in this family DO carry formulas — so gated rows");
+                sb.AppendLine("were authored under different names. Compare the inventory CSV against");
+                sb.AppendLine("the build sheet before creating anything new.");
+            }
             else if (ok == 0 && results.All(r => r.Verdict == RowVerdict.NoFormula || r.Verdict == RowVerdict.MissingParam))
             {
                 sb.AppendLine("NO GATING AT ALL. Every row renders unconditionally, so the tier");
-                sb.AppendLine("gates do nothing when toggled — this is the state the master is in.");
+                sb.AppendLine("gates do nothing when toggled.");
                 sb.AppendLine("Fix: give each calculated value the formula from the build sheet.");
             }
             else
@@ -246,12 +297,19 @@ namespace StingTools.Commands.TagStudio
             // Full per-row detail goes to the log + a CSV, not the dialog — 65
             // rows do not fit in a TaskDialog and truncating them would hide the
             // ones that matter.
-            string csvPath = WriteDetail(familyName, results);
+            string csvPath = WriteDetail(familyName, results, contextDoc);
+            string invPath = WriteInventory(familyName, byName, contextDoc);
             if (!string.IsNullOrEmpty(csvPath))
             {
                 sb.AppendLine();
                 sb.AppendLine("Per-row detail:");
                 sb.AppendLine("  " + csvPath);
+            }
+            if (!string.IsNullOrEmpty(invPath))
+            {
+                sb.AppendLine();
+                sb.AppendLine("Family parameter inventory:");
+                sb.AppendLine("  " + invPath);
             }
 
             foreach (RowResult r in results.Where(x => x.Verdict != RowVerdict.Ok))
@@ -334,12 +392,85 @@ namespace StingTools.Commands.TagStudio
             }
         }
 
-        private static string WriteDetail(string familyName, List<RowResult> results)
+        /// <summary>
+        /// Where to put the reports.
+        ///
+        /// In the Family Editor there is no project to anchor to, so
+        /// OutputLocationHelper falls all the way through to the system temp
+        /// folder and raises its "could not write to the project directory"
+        /// dialog. A saved family has an obvious better home: its own folder,
+        /// next to the .rfa being diffed. Only when the family has never been
+        /// saved do we hand over to the normal resolver.
+        /// </summary>
+        private static string ResolveOutputDir(Document contextDoc)
+        {
+            try
+            {
+                if (contextDoc != null && contextDoc.IsFamilyDocument &&
+                    !string.IsNullOrEmpty(contextDoc.PathName))
+                {
+                    string famDir = System.IO.Path.GetDirectoryName(contextDoc.PathName);
+                    if (!string.IsNullOrEmpty(famDir) && System.IO.Directory.Exists(famDir))
+                        return famDir;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"UniversalTagDiff.ResolveOutputDir: {ex.Message}"); }
+            return OutputLocationHelper.GetOutputDirectory(contextDoc);
+        }
+
+        /// <summary>
+        /// Every family parameter, with its formula. This is the file that
+        /// distinguishes "the calculated values were never created" from "they
+        /// exist under other names" — sort by Formula and the answer is visible.
+        /// </summary>
+        private static string WriteInventory(string familyName,
+            Dictionary<string, FamilyParameter> byName, Document contextDoc)
         {
             try
             {
                 string safe = string.Join("_", (familyName ?? "family").Split(System.IO.Path.GetInvalidFileNameChars()));
-                string dir = OutputLocationHelper.GetOutputDirectory();
+                string dir = ResolveOutputDir(contextDoc);
+                if (string.IsNullOrEmpty(dir)) return null;
+                string path = System.IO.Path.Combine(dir, $"universal_tag_params_{safe}.csv");
+
+                var specSources = new HashSet<string>(UniversalTagRowSpec.SourceParameters(), StringComparer.Ordinal);
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Name,IsShared,IsInstance,HasFormula,IsSpecSource,Formula");
+                foreach (var kv in byName.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    FamilyParameter fp = kv.Value;
+                    string formula = null;
+                    bool shared = false, instance = false;
+                    try { formula = fp.Formula; } catch { }
+                    try { shared = fp.IsShared; } catch { }
+                    try { instance = fp.IsInstance; } catch { }
+
+                    sb.AppendLine(string.Join(",",
+                        Q(kv.Key),
+                        shared ? "yes" : "no",
+                        instance ? "instance" : "type",
+                        string.IsNullOrWhiteSpace(formula) ? "no" : "yes",
+                        specSources.Contains(kv.Key) ? "yes" : "no",
+                        Q(formula)));
+                }
+
+                System.IO.File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+                return path;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"UniversalTagDiff.WriteInventory: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string WriteDetail(string familyName, List<RowResult> results, Document contextDoc)
+        {
+            try
+            {
+                string safe = string.Join("_", (familyName ?? "family").Split(System.IO.Path.GetInvalidFileNameChars()));
+                string dir = ResolveOutputDir(contextDoc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 string path = System.IO.Path.Combine(dir, $"universal_tag_diff_{safe}.csv");
 
