@@ -738,6 +738,8 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
 // TagSyncController + ArchiCADController (mapping upsert).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngestService,
     Planscape.Infrastructure.Services.IfcIngestService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityReconciliationService,
+    Planscape.Infrastructure.Services.IdentityReconciliationService>();
 // K2 — Platform event spine (durable cross-surface channel → STING plugin).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
     Planscape.Infrastructure.Services.PlatformEventService>();
@@ -2021,6 +2023,19 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // they did before.
         "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"DeletedAtUtc\" timestamp with time zone NULL",
         "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_DeletedAtUtc\" ON \"TaggedElements\" (\"ProjectId\", \"DeletedAtUtc\")",
+        // R1 — TaggedElements.IfcGlobalId (the canonical cross-host key). Same
+        // idempotent-patch rationale as DeletedAtUtc above: fresh DBs get it from
+        // the EF model via CreateTables; pre-existing DBs get it here. Nullable so
+        // existing rows read as "unknown GlobalId" until the next push populates
+        // it. NON-unique index for now (Increment 1) — the unique constraint +
+        // dedup lands in Increment 2.
+        "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"IfcGlobalId\" text NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" (\"ProjectId\", \"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL",
+        // Safe backfill: non-Revit rows (RevitElementId = 0) already carry the
+        // IFC GlobalId in UniqueId, so copy it across. Revit rows are backfilled
+        // from ExternalElementMapping during the Increment-2 merge; until then
+        // they populate IfcGlobalId on their next push (MapDtoToEntity).
+        "UPDATE \"TaggedElements\" SET \"IfcGlobalId\" = \"UniqueId\" WHERE \"RevitElementId\" = 0 AND (\"IfcGlobalId\" IS NULL OR \"IfcGlobalId\" = '') AND \"UniqueId\" <> ''",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)
