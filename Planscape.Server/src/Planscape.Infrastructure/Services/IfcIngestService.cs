@@ -94,12 +94,28 @@ public sealed class IfcIngestService : IIfcIngestService
                 .Where(g => !string.IsNullOrWhiteSpace(g))
                 .ToList();
 
-            var existingTagged = await _db.TaggedElements
+            // R1 (2b) — match on the canonical IfcGlobalId FIRST, so an ArchiCAD /
+            // Bonsai push converges onto an existing REVIT-origin row for the same
+            // element (RevitElementId > 0, UniqueId = the 45-char Revit id) instead
+            // of inserting a second row. Keep a UniqueId fallback for any legacy
+            // non-Revit row the Increment-1 backfill missed (IfcGlobalId still null,
+            // GlobalId parked in UniqueId). Keyed by IfcGlobalId ?? UniqueId.
+            var existingRows = await _db.TaggedElements
                 .IgnoreQueryFilters()
                 .Where(t => t.TenantId == tenantId
                             && t.ProjectId == projectId
-                            && batchGuids.Contains(t.UniqueId))
-                .ToDictionaryAsync(t => t.UniqueId, ct);
+                            && ((t.IfcGlobalId != null && batchGuids.Contains(t.IfcGlobalId))
+                                || batchGuids.Contains(t.UniqueId)))
+                .ToListAsync(ct);
+            var existingTagged = new Dictionary<string, TaggedElement>();
+            foreach (var row in existingRows)
+            {
+                var key = !string.IsNullOrEmpty(row.IfcGlobalId) ? row.IfcGlobalId! : row.UniqueId;
+                // Prefer a row that already carries the canonical key if a legacy
+                // duplicate also matched; reconciliation collapses the stragglers.
+                if (!existingTagged.TryGetValue(key, out var kept) || string.IsNullOrEmpty(kept.IfcGlobalId))
+                    existingTagged[key] = row;
+            }
 
             foreach (var el in batch)
             {

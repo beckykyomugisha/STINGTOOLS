@@ -2036,6 +2036,24 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // from ExternalElementMapping during the Increment-2 merge; until then
         // they populate IfcGlobalId on their next push (MapDtoToEntity).
         "UPDATE \"TaggedElements\" SET \"IfcGlobalId\" = \"UniqueId\" WHERE \"RevitElementId\" = 0 AND (\"IfcGlobalId\" IS NULL OR \"IfcGlobalId\" = '') AND \"UniqueId\" <> ''",
+        // R1 (2b) — enforce ONE row per (project, GlobalId) by making the Increment-1
+        // index UNIQUE. Postgres cannot alter an index's uniqueness in place, so it
+        // is dropped + recreated — but ONLY when (a) it is not already unique and
+        // (b) the data holds no (ProjectId, IfcGlobalId) duplicates. That guard
+        // means: a fresh DB (already unique from the model) is skipped; a clean DB
+        // is converted once; a DB that still has duplicates keeps its non-unique
+        // index (lookups keep working) until an operator runs
+        // POST /api/admin/identity/reconcile/apply and restarts. Atomic (single DO
+        // block) so a failed convert can never leave the table with no index.
+        "DO $$ BEGIN " +
+        "IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' " +
+            "AND indexname='IX_TaggedElements_ProjectId_IfcGlobalId' AND indexdef ILIKE '%UNIQUE%') " +
+        "AND NOT EXISTS (SELECT 1 FROM (SELECT \"ProjectId\",\"IfcGlobalId\" FROM \"TaggedElements\" " +
+            "WHERE \"IfcGlobalId\" IS NOT NULL GROUP BY \"ProjectId\",\"IfcGlobalId\" HAVING COUNT(*)>1) d) THEN " +
+        "DROP INDEX IF EXISTS \"IX_TaggedElements_ProjectId_IfcGlobalId\"; " +
+        "CREATE UNIQUE INDEX \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" " +
+            "(\"ProjectId\",\"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL; " +
+        "END IF; END $$;",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)
