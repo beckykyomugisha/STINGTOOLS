@@ -2,6 +2,32 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Retiring `session-8tl9ga` — the last two aliases it was still the only copy of)
+
+`origin/claude/session-8tl9ga` was deleted as ROADMAP `SMK-1` directed. Re-reading
+it immediately before deletion — rather than trusting the row that said it had
+been fully reconciled — found two dual-accept cases in `WorkflowEngine` that had
+**not** landed:
+
+- `AccPullClashes` / `AccSyncIssueStatus` alongside the `ACC_`-prefixed forms.
+  The dock-panel buttons and shipped presets use `ACC_`, but the BIM Coordination
+  Center's ACC card dispatches the unprefixed spelling and `StingCommandHandler`
+  already accepts either. `ResolveCommand` did not — so a project-local preset
+  copied off that card resolved to nothing and was skipped in silence.
+- `Lite_ComCheck` alongside `ComCheck_Export`, for the same reason: the Electrical
+  panel's button carries the tag a user would copy.
+
+Neither is caught by the wiring gate, because Tier 2 only sees presets committed
+to `StingTools/Data/` — a user's project-local preset is ungated by construction,
+which is exactly why the engine should accept the spelling the UI shows them.
+
+Also added the Niagara, KPI and ACC tags to `_allKnownCommandTags`, the corpus
+behind `GetClosestCommandTags`, so an unknown-tag error can suggest them.
+
+The lesson is the same one this whole workstream is about: a reconciliation is
+not done because a summary says it is. `ResolveCommand` case labels 656 → 659;
+build 0/0; both gates re-run green.
+
 #### Completed (Smoke-test .docx — the last hand-carried copy gets a gate)
 
 The reconciliation below made the checklist a generated projection of
