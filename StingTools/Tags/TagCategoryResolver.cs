@@ -89,7 +89,7 @@ namespace StingTools.Tags
         /// <summary>Drops the cache so an edited tag-config CSV is picked up without restarting Revit.</summary>
         public static void Reload()
         {
-            lock (_lock) { _declared = null; }
+            lock (_lock) { _declared = null; _annotationCats.Clear(); }
         }
 
         /// <summary>Number of families with a declared category. Zero means the config was not found.</summary>
@@ -242,6 +242,27 @@ namespace StingTools.Tags
         /// the annotation categories the document actually has, trying the plural
         /// and singular forms. Returns null rather than guessing.
         /// </summary>
+        // Keyed on the document's own hash so two open projects do not share a
+        // list. Cleared by Reload() along with the CSV cache.
+        private static readonly Dictionary<int, List<Category>> _annotationCats =
+            new Dictionary<int, List<Category>>();
+
+        private static List<Category> AnnotationCategories(Document doc)
+        {
+            int key = doc.GetHashCode();
+            List<Category> cached;
+            if (_annotationCats.TryGetValue(key, out cached)) return cached;
+
+            var annotation = new List<Category>();
+            foreach (Category c in doc.Settings.Categories)
+            {
+                if (c != null && c.CategoryType == CategoryType.Annotation)
+                    annotation.Add(c);
+            }
+            _annotationCats[key] = annotation;
+            return annotation;
+        }
+
         private static Category FindTagCategory(Document doc, string hostCategoryName)
         {
             string host = hostCategoryName.Trim();
@@ -254,12 +275,11 @@ namespace StingTools.Tags
             if (host.EndsWith("s", StringComparison.OrdinalIgnoreCase))
                 candidates.Add(host.Substring(0, host.Length - 1) + " Tags");   // Doors → Door Tags
 
-            var annotation = new List<Category>();
-            foreach (Category c in doc.Settings.Categories)
-            {
-                if (c != null && c.CategoryType == CategoryType.Annotation)
-                    annotation.Add(c);
-            }
+            // Cached per document. Resolve() is called once per family, and a
+            // 281-family propagation re-walked all ~1,000 document categories every
+            // time — two API reads each, so ~562,000 reads for a list that cannot
+            // change during the run.
+            List<Category> annotation = AnnotationCategories(doc);
 
             foreach (string want in candidates)
             {

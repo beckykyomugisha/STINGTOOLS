@@ -181,6 +181,26 @@ namespace StingTools.Commands.TagStudio
                 .Distinct()
                 .ToList();
 
+            // ── Index the shared-parameter file ONCE ──
+            // AddMissingParams used to linear-scan defFile.Groups for EVERY wanted
+            // parameter, inside the per-target loop: ~139 wanted x 3,401 definitions
+            // = up to 472,000 Definition.Name reads PER FAMILY, each one a Revit API
+            // call across the managed/native boundary. On top of that
+            // OpenSharedParameterFile re-parsed the whole file for every target.
+            // That is what made an 11-family run look hung.
+            //
+            // One pass builds the lookup; every target reuses it.
+            app.SharedParametersFilename = sharedParamFile;
+            Dictionary<string, ExternalDefinition> sharedDefs = BuildSharedDefIndex(app);
+            if (sharedDefs.Count == 0)
+            {
+                TaskDialog.Show("Propagate Universal Tag",
+                    "Could not read the shared parameter file:" + Environment.NewLine + sharedParamFile +
+                    Environment.NewLine + Environment.NewLine + "Nothing was propagated.");
+                return Result.Failed;
+            }
+            StingLog.Info($"PropagateUniversalTag: indexed {sharedDefs.Count} shared parameter definitions once");
+
             var progress = StingProgressDialog.Show("Propagate Universal Tag", targets.Count);
             var rows = new List<List<string>>();
             int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0;
@@ -205,7 +225,7 @@ namespace StingTools.Commands.TagStudio
                     progress.Increment($"Propagating → {targetName} ({i + 1}/{targets.Count})");
 
                     var r = PropagateOne(doc, app, master, target, sharedParamFile,
-                        styleAndVisParams, variants, arrowheads);
+                        styleAndVisParams, variants, arrowheads, sharedDefs);
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
                     if (r.Success) succeeded++; else failed++;
@@ -276,7 +296,8 @@ namespace StingTools.Commands.TagStudio
             Autodesk.Revit.ApplicationServices.Application app,
             Family master, Family target, string sharedParamFile,
             List<string> styleAndVisParams, List<TypeVariantSpec> variants,
-            Dictionary<string, ElementId> arrowheads)
+            Dictionary<string, ElementId> arrowheads,
+            Dictionary<string, ExternalDefinition> sharedDefs)
         {
             var result = new PropResult();
             string targetName = target.Name;
@@ -314,14 +335,7 @@ namespace StingTools.Commands.TagStudio
                     }
 
                     FamilyManager fm = famDoc.FamilyManager;
-                    var defFile = app.OpenSharedParameterFile();
-                    if (defFile == null)
-                    {
-                        result.ErrorMessage = "OpenSharedParameterFile returned null";
-                        famDoc.Close(false); famDoc = null;
-                        tg.RollBack();
-                        return result;
-                    }
+                    // No OpenSharedParameterFile here — the caller indexed it once.
 
                     // Resolve the target's tag category inside the family document.
                     // Built-in category ids are document-independent, so GetCategory
@@ -369,7 +383,7 @@ namespace StingTools.Commands.TagStudio
 
                         // (c) Ensure style/visibility params exist, then (re)create the
                         // data-driven depth/style type variants.
-                        result.ParamsAdded = AddMissingParams(fm, defFile, styleAndVisParams);
+                        result.ParamsAdded = AddMissingParams(fm, sharedDefs, styleAndVisParams);
                         result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
 
                         tx.Commit();
@@ -506,7 +520,38 @@ namespace StingTools.Commands.TagStudio
         /// Style/visibility params are TYPE params (mirrors MigrateTagFamilies).
         /// Must run inside an open transaction on the family document.
         /// </summary>
-        private static int AddMissingParams(FamilyManager fm, DefinitionFile defFile, List<string> wanted)
+        /// <summary>
+        /// One pass over the shared-parameter file, name -> definition. Built once
+        /// per command run and reused by every target: the previous code re-scanned
+        /// the whole file for each wanted parameter of each family, which is
+        /// O(wanted x definitions) Revit API reads per family.
+        /// </summary>
+        private static Dictionary<string, ExternalDefinition> BuildSharedDefIndex(
+            Autodesk.Revit.ApplicationServices.Application app)
+        {
+            var index = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                DefinitionFile defFile = app.OpenSharedParameterFile();
+                if (defFile == null)
+                {
+                    StingLog.Warn("BuildSharedDefIndex: OpenSharedParameterFile returned null");
+                    return index;
+                }
+                foreach (DefinitionGroup grp in defFile.Groups)
+                    foreach (Definition def in grp.Definitions)
+                        if (def is ExternalDefinition ed && !index.ContainsKey(ed.Name))
+                            index[ed.Name] = ed;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BuildSharedDefIndex", ex);
+            }
+            return index;
+        }
+
+        private static int AddMissingParams(FamilyManager fm,
+            Dictionary<string, ExternalDefinition> sharedDefs, List<string> wanted)
         {
             int added = 0;
             var existing = new HashSet<string>(
@@ -517,14 +562,8 @@ namespace StingTools.Commands.TagStudio
             {
                 if (string.IsNullOrEmpty(paramName) || existing.Contains(paramName)) continue;
 
-                ExternalDefinition extDef = null;
-                foreach (DefinitionGroup grp in defFile.Groups)
-                {
-                    foreach (Definition def in grp.Definitions)
-                        if (def.Name == paramName && def is ExternalDefinition ed) { extDef = ed; break; }
-                    if (extDef != null) break;
-                }
-                if (extDef == null) continue;
+                ExternalDefinition extDef;
+                if (!sharedDefs.TryGetValue(paramName, out extDef) || extDef == null) continue;
 
                 try
                 {
