@@ -1,4 +1,4 @@
-<Page x:Class="StingTools.UI.StingDockPanel"
+﻿<Page x:Class="StingTools.UI.StingDockPanel"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="STING Tools"
@@ -1972,6 +1972,14 @@
                                             ToolTip="Build the full MEP/FP/SLD symbol library (~190 families) into _BIM_COORD/Families/Symbols and load into the project" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Set Profile" Tag="Symbols_SetProfile" Click="Cmd_Click" ToolTip="Set the active mixed-standard profile (Uganda / US-Intl / UK / Full-IEC)" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Place MEP" Tag="Symbols_PlaceMepDetail" Click="Cmd_Click" ToolTip="Place scale-aware MEP detail symbols (FamilyInstance) on MEP elements in the active view. Distinct from tag overlays — uses MepSymbolEngine + CSV catalogue." FontWeight="Bold"/>
+                                    <!-- Seeds_Build was reachable only from inside five workflow presets
+                                         (Penetration Sweep / Penetration Register / Plumbing Rough-In /
+                                         Electrical Rough-In / SLD Production) until this button. It builds
+                                         the 16 model SEED families from Data/Seeds/*.json — a different
+                                         thing from Symbols_CreateAll, which builds the ~190 annotation
+                                         symbol families. -->
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Build Seeds" Tag="Seeds_Build" Click="Cmd_Click"
+                                            ToolTip="Build the 16 model seed families from Data/Seeds/*.json (plumbing/electrical/mech/fire/medgas/lab fixtures + equipment). Idempotent — protectExisting, so re-runs are safe." FontWeight="Bold"/>
                                 </WrapPanel>
                                 <Expander Header="Create &amp; standards" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
@@ -3071,6 +3079,10 @@
                                             ToolTip="Re-run the local Revit clash kernel from the active 3D view. (Not a server-streamed live feed — clash detection runs in-Revit.)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Matrix" Tag="ClashMatrixEdit" Click="Cmd_Click"
                                             ToolTip="Edit the category-pair matrix that drives clash detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ACC Pull" Tag="ACC_PullClashes" Click="Cmd_Click"
+                                            ToolTip="Pull clash results from ACC Model Coordination, rank them, write a CSV and escalate the top-ranked back to ACC Issues. Needs %APPDATA%\Planscape\acc_credentials.json."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ACC Sync" Tag="ACC_SyncIssueStatus" Click="Cmd_Click"
+                                            ToolTip="Reconcile ACC Issue status back onto the escalation sidecar, so a closed ACC issue lets a recurring clash re-raise. Needs %APPDATA%\Planscape\acc_credentials.json."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3736,14 +3748,16 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- KUT KPI DASHBOARD (proposal §4.6) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="KUT KPI DASHBOARD"/>
+                        <!-- OWNER KPI DASHBOARD. Shaped by the KUT proposal §4.6 KPI set,
+                             but the command derives its code from PRJ_ORG_PROJECT_CODE_TXT,
+                             so the section is not named after one client. -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="OWNER KPI DASHBOARD"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1A237E">
                             <StackPanel>
                                 <TextBlock Text="§4.6 monthly KPI dashboard — compliance, clash burn-down, model health, Owner-system coverage" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="KUT_KpiDashboard" Click="Cmd_Click"
-                                            ToolTip="Kampala Temple KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="Owner_KpiDashboard" Click="Cmd_Click"
+                                            ToolTip="Owner KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV. Reports under PRJ_ORG_PROJECT_CODE_TXT (falls back to STING)."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

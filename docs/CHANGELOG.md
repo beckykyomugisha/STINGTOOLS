@@ -2,6 +2,270 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Retiring `session-8tl9ga` — the last two aliases it was still the only copy of)
+
+`origin/claude/session-8tl9ga` was deleted as ROADMAP `SMK-1` directed. Re-reading
+it immediately before deletion — rather than trusting the row that said it had
+been fully reconciled — found two dual-accept cases in `WorkflowEngine` that had
+**not** landed:
+
+- `AccPullClashes` / `AccSyncIssueStatus` alongside the `ACC_`-prefixed forms.
+  The dock-panel buttons and shipped presets use `ACC_`, but the BIM Coordination
+  Center's ACC card dispatches the unprefixed spelling and `StingCommandHandler`
+  already accepts either. `ResolveCommand` did not — so a project-local preset
+  copied off that card resolved to nothing and was skipped in silence.
+- `Lite_ComCheck` alongside `ComCheck_Export`, for the same reason: the Electrical
+  panel's button carries the tag a user would copy.
+
+Neither is caught by the wiring gate, because Tier 2 only sees presets committed
+to `StingTools/Data/` — a user's project-local preset is ungated by construction,
+which is exactly why the engine should accept the spelling the UI shows them.
+
+Also added the Niagara, KPI and ACC tags to `_allKnownCommandTags`, the corpus
+behind `GetClosestCommandTags`, so an unknown-tag error can suggest them.
+
+The lesson is the same one this whole workstream is about: a reconciliation is
+not done because a summary says it is. `ResolveCommand` case labels 656 → 659;
+build 0/0; both gates re-run green.
+
+#### Completed (Smoke-test .docx — the last hand-carried copy gets a gate)
+
+The reconciliation below made the checklist a generated projection of
+`smoke_test.json` and gated the markdown by regeneration. The `.docx` was left
+out: rendering it needs `python-docx` and `tools/check_smoke_test.py` is
+deliberately stdlib-only so it runs on a bare CI runner, so the gate ran
+`build_smoke_test.py --no-docx` and diffed the markdown alone.
+
+That left the `.docx` as the one unproved copy — and it is the copy the tester
+physically carries into the Revit session. An edit to `smoke_test.json` that
+regenerated only the markdown would have put a stale checklist in their hands:
+the same drift this pipeline was built to stop, one level down.
+
+Closed with two digests stamped into `docProps/core.xml` at generation and read
+back with `zipfile` — stdlib, no new CI dependency. Writing the document needs
+`python-docx`; proving it is current does not.
+
+- **`inputs-sha256`** — SHA-256 over the owner's `smoke_test.json` **plus
+  `build_smoke_test.py` and `smoke_test_lib.py`**. The generator is in the digest
+  because a change to `render_docx()` alters the document without touching the
+  JSON, and the markdown byte-diff would not notice; source-only hashing would
+  leave that hole open. The cost is one regeneration whenever the generator
+  changes, which is correct — the generator determines the output.
+- **`parts-sha256`** — SHA-256 over every OPC part except `docProps/core.xml`
+  (which carries the stamps and so cannot hash itself). This is what catches a
+  hand-edit in Word: same source, same generator, so the provenance digest still
+  matches while the body says something else. Injected during
+  `_normalise_docx_zip`, after every part exists.
+
+Bytes are LF-normalised before hashing so a Windows checkout with
+`core.autocrlf=true` and a Linux runner agree. Regeneration stays byte-identical
+(verified: rebuild produces no diff), so a rebuild without a content change still
+shows nothing — a diff that always fires is a diff people learn to ignore.
+
+**Verified by breaking it, five ways**, each producing a distinct actionable
+message and each reverting cleanly: source edited with only the markdown
+regenerated; generator changed without regeneration; `.docx` deleted; `.docx`
+body hand-edited; `.docx` corrupted. The fourth is the one that mattered — it
+**passed** against the inputs digest alone, which is why `parts-sha256` exists.
+
+Neither stamp is a tamper-proof seal; anyone determined can regenerate both. That
+is not the threat. The threat is someone fixing a typo in Word the night before
+the session and shipping a document that no longer round-trips to the source.
+
+Files: `tools/smoke_test_lib.py` (`docx_inputs_digest`, `docx_parts_digest`,
+`read_docx_stamp`, `read_docx_parts_stamp`, `docx_path_for`),
+`tools/build_smoke_test.py` (stamp on write), `tools/check_smoke_test.py`
+(assertion 10, `check_docx_current`), `.github/workflows/smoke-test-gate.yml`
+and `docs/examples/_smoke_test_schema.md` (both previously stated the `.docx` was
+unchecked).
+
+#### Completed (KUT smoke-test reconciliation — the checklist becomes a generated, gated projection)
+
+The Phase 192 KUT alignment pack shipped with a 27-step manual Revit smoke-test
+checklist, because none of it had ever been run inside Revit. That checklist then
+existed in three states at once: markdown on `main`, a Word document generated by
+hand on `origin/claude/session-8tl9ga`, and a 779-line Python pre-flight on the
+same branch — which by then was ~100 commits behind `main` and predated three
+merged KUT PRs (#623 LOD ladder, #635 rung-500 consistency, #638 gate presets).
+The copies had already drifted apart.
+
+Every defect was the same defect: **the same fact written down in more than one
+place.** So the fix is not "correct the four stale steps" — it is to make the
+checklist a projection of one machine-readable source and gate that source in CI
+against the code it describes. A step that names a dead button now fails a build
+instead of wasting a Revit session.
+
+| Artefact | Role |
+|---|---|
+| [`docs/examples/_smoke_test_schema.md`](examples/_smoke_test_schema.md) | The contract — what a step may declare |
+| `docs/examples/KUT/smoke_test.json` | **The source.** 33 steps, machine-readable |
+| `tools/smoke_test_lib.py` | The parsing the generator and the checker share |
+| `tools/build_smoke_test.py` | source → `REVIT_SMOKE_TEST.md` + `.docx` |
+| `tools/check_smoke_test.py` | source → validated against the codebase |
+| `.github/workflows/smoke-test-gate.yml` | Runs the checker on the paths that matter |
+
+Owner-agnostic by construction — the tooling globs `docs/examples/*/smoke_test.json`,
+so a second engagement is a new folder, not a fork.
+
+**`reach` is the honest field.** `button` / `workflow` / `manual`, and it is
+checked rather than asserted. The checker resolves every `commandTag` through the
+**same four dispatch layers** the wiring gate uses (`CommandRegistry` modules,
+`Cmd_Click` runners, the six handler `case` sets, `WorkflowEngine`). A one-layer
+check over-reports by ~96%; this repo has been burned by that twice.
+
+**Proven in both directions.** A gate only ever seen passing is not a gate:
+pointing one step at a nonexistent `commandTag`, one at a wrong panel section, and
+leaving the markdown stale produced three distinct failures with actionable
+messages and exit 1; reverting returned exit 0. The `.docx` was opened in Word —
+9 pages, 36 tables, steps 1–33 in order, 33 tick-box rows, no placeholder leakage.
+
+##### The four stale steps, corrected in the source
+
+| Was | Now |
+|---|---|
+| Step 27: press **Build Seeds**, expect `STING_SEED_BaptismalFont` to build | There was no such button (`Seeds_Build` lived only inside five presets) and no such file — the font is a symbol *inside* `Data/Seeds/STING_SEED_PlumbingFixture.json`. A `Seeds_Build` button was added next to the other `Symbols_*` buttons, so the step is `reach: "button"` and names the right artefact |
+| Step 25: run `WORKFLOW_GateAudit.json` | Repointed at `WORKFLOW_KUT_GateAudit.json`; the old preset is deleted (below). The three `WORKFLOW_KUT_Deliverable{A,B,C}` gate presets from #638, which no step exercised at all, are now steps 30–32 |
+| LOD verified only at `deliverable-b` | Added runs at `construction` (asserting LOD 400) and `deliverable-d` (asserting LOD 500) — the rungs #623/#635 moved, and the highest-risk data in the pack |
+| Step 3: "the three `LTG_HOIST_*` params appear" | Names the categories: **Lighting Fixtures only**, per `PARAMETER_REGISTRY.json` (`"binding": "LightingFixtures"`) and `RESOLVED_BINDINGS.csv`. The dead branch's `CATEGORY_BINDINGS.csv` change adding Generic Models was therefore **not** ported — it copied the pattern of the sibling `LTG_FIX_*` params, which are genuinely universal |
+
+##### One KUT overlay pack
+
+Two divergent packs existed, each missing files the other had, and smoke-test
+step 2 copied only from `docs/examples/KUT/`. So `owner_standards.json`,
+`lod_matrix.json` and `fohlio_map.json` never reached `<project>/_BIM_COORD/`,
+and the steps that claimed to prove the KUT Owner profile were exercising the
+corporate baseline. In the other direction the "official" deployment pack lacked
+`project_config.json`, which holds the `BLD1..BLD6` LOC codes the tag scheme's
+volume map depends on.
+
+`project-templates/KUT/_BIM_COORD/` is now the single deployable pack, with a
+`manifest.json` recording per file what it overlays, the corporate baseline it
+merges over, the merge key, the code that reads it, and the three things that are
+**not** in the pack because they are Revit Project Information values or
+credentials. The duplicate `tag_schemes.json` was deleted after confirming both
+copies parse to the same object ignoring prose (`json.load` + compare, not
+eyeball). `docs/examples/KUT/` is now source + generated outputs + the Fohlio
+credential stub, pointing at the one deployment sequence rather than restating it.
+
+##### One Gate Audit preset
+
+`WORKFLOW_GateAudit.json` and `WORKFLOW_KUT_GateAudit.json` both shipped. The
+newer one's description argues that `ValidateTags`, `CompletenessDashboard` and
+`DiscComplianceReport` are **writers** — they build legends inside transactions —
+and so do not belong in a read-only pre-gate check. The old one still contained
+two of them, and was the one the checklist named.
+
+Re-verified rather than trusted: all eight steps of `WORKFLOW_KUT_GateAudit`
+resolve to classes carrying `[Transaction(TransactionMode.ReadOnly)]`, and
+`ValidateTagsCommand` + `CompletenessDashboardCommand` are both `Manual`. The old
+preset is deleted; nothing resolved "Gate Audit" by name, so no alias was needed.
+
+**The claim is now enforced, and generalised.** A preset declares
+`"readOnly": true` and CI proves every step is `ReadOnly`. That immediately found
+two more: `WORKFLOW_PlumbingAudit` called itself a "Read-only audit pipeline"
+while step 1 stamps `PLM_DRN_DU` / `PLM_SUP_LU` / `PLM_SUP_WSFU` via
+`writeBack: true`, and `WORKFLOW_KUT_MonthlyReport` said "all steps are
+read-only" while two build a legend in a transaction. Both descriptions now state
+what is true.
+
+The claim is a **field, not prose**, and that was learned the hard way. The first
+version grepped descriptions for "read-only" and was wrong in both directions
+within minutes: it failed `PlumbingAudit` *after* the description was honestly
+corrected to "NOT read-only, despite the name", and it failed `MonthlyReport` for
+the phrase "chains the read-only metrics". Sentence-level negation handling did
+not rescue it either. A claim CI enforces has to be declarative, or the
+enforcement makes the prose worse. Prose is still surfaced as a **non-fatal
+advisory** so an undeclared claim is noticed by a human.
+
+##### Two integration gaps closed, and a gate widened that found three more
+
+`ACC_PullClashes` / `ACC_SyncIssueStatus` existed, resolved in `WorkflowEngine`,
+and are step 3 of `WORKFLOW_KUT_CoordinationCycle` — but could not be run on
+their own from any panel, which is a real gap for a fortnightly triage rhythm.
+Both now have buttons in the BIM tab's clash section, and `StingCommandHandler`
+accepts the `ACC_`-prefixed spelling as well as the `AccPullClashes` spelling the
+BIM Coordination Center card already used.
+
+**Tier 4 of `tools/check_workflow_wiring.ps1` scanned `StingDockPanel.xaml`
+alone**, so the Electrical / HVAC / Plumbing / LPS / Sustainability panel buttons
+were ungated on the XAML side — and two smoke-test steps live exactly there. It
+now scans all six panel XAMLs and code-behinds: **1,323 → 1,653** buttons. A
+panel whose files are missing fails the gate rather than being skipped, so a
+rename must be noticed.
+
+The widened scan reported three dead buttons. All three were wired; nothing was
+added to `tools/button_wiring_baseline.txt`, which stays empty:
+
+| Tag | Panel | What it really was |
+|---|---|---|
+| `Circuit_AssignAuto` | Electrical | Command existed and resolved in `WorkflowEngine`; reachable only from `WORKFLOW_ElectricalQA`. Handler case added |
+| `Validation_BS7671` | Electrical | Same |
+| `DocPackage` | HVAC | Not a dispatch name at all — the command is `DocumentationPackage`. The same wrong key was in `DocAutomationDialog`'s "Doc Package" card, which turns its operation key into a command tag via `SetCommand`, so **that card was silently dead too** |
+
+##### `Owner_KpiDashboard` — generic logic stops wearing one client's name
+
+`KutKpiDashboardCommand` was 471 lines with nothing temple-specific in any of
+them, behind a client-specific surface: the command tag, the output filenames
+(`STING_KUT_KPI_*`), the snapshot log (`kut_kpi_log.jsonl`) and the dialog title.
+A second owner engagement would have forked the file. The code now comes from
+`PRJ_ORG_PROJECT_CODE_TXT` (falling back to `STING`), `KUT_KpiDashboard` survives
+as a dispatch alias in both dispatch sites, and an existing `kut_kpi_log.jsonl`
+is read and appended to rather than orphaned.
+
+The KUT `lod_matrix.json` overlay pinned two categories, and `LodVerificationEngine`
+**replaces a category rule wholesale**, so each copy silently discarded every
+future corporate improvement. Diffed rather than assumed: `Lighting Fixtures` was
+byte-identical to corporate (pure loss, no gain), and `Plumbing Fixtures` had
+dropped `+MNT_TYPE_TXT` from rung 400 — which corporate has carried since Phase
+192 B1 (`8144226dc`), **predating the overlay** (`003ab3b2c`). That is drift, not
+a decision: the overlay's own description says the rules are "restated" from
+corporate. Both removed. **Behaviour change, stated in the README and in the
+file:** Plumbing Fixtures at LOD 400 require `MNT_TYPE_TXT` again.
+
+##### An empty LOD scope is no longer a green gate
+
+`LodVerificationEngine.Verify` did `if (check == null) continue;` **before**
+`result.Total++`, so a category with no rule and no `*` fallback left the
+denominator entirely. Corporate ships a `*` rule so it cannot bite today — but an
+overlay supplying `categoryRules` against a baseline that lost `*` would report
+**100% pass over zero elements**, because `OverallPct` returns `100.0` when
+`Total == 0`. Same failure class as the eleven presets that executed zero steps
+and reported success (#630).
+
+Skipped elements are now counted per category and surfaced in the TaskDialog, the
+CSV header and the JSON gate report; a run with `Total == 0` reports as
+*"NO ELEMENTS IN SCOPE — nothing verified. This is not a pass."* and the gate
+report's `overallPct` is `null` with a `noElementsInScope` flag to branch on.
+Skips stay **outside** the denominator — folding them in would turn a coverage gap
+into a fail, a different lie.
+
+Covered by tests following the existing pattern rather than a new project: the
+Revit-free half of the engine (matrix model, `*`-fallback resolution, the tally)
+moved to `Core/Validation/LodMatrixModel.cs` and is `<Compile Include>`d by
+`StingTools.Tags.Tests`, the way that project already links `ProgramAuditEngine`.
+`LodVerificationResult` derives from the Revit-free `LodTally` and
+`LodVerificationEngine.Resolve` delegates to `LodRuleResolver`, so the plugin and
+the tests exercise one copy of the resolution code, not two.
+
+##### Verification
+
+| Check | Result |
+|---|---|
+| `dotnet build StingTools/StingTools.csproj -c Debug` | 0 errors, 0 warnings |
+| `pwsh tools/check_workflow_wiring.ps1` | OK — 47 presets, 376 steps, **6 panels / 1,653 buttons**, Tier 4 = 0 |
+| `pwsh tools/check_path_discipline.ps1` | OK — unchanged |
+| `python tools/check_smoke_test.py` | OK — 33 steps, 168 assertions |
+| `python tools/build_smoke_test.py` + `git diff --exit-code` | Regeneration is a no-op |
+| `dotnet test StingTools.Tags.Tests` | 256 passed, 0 failed (was 241 cases) |
+
+**What none of this proves.** The gate proves the checklist's *wiring* — the tag
+resolves, the button is there with that label, the fixture exists, the parameter
+binds. It cannot open Revit, so it proves nothing about geometry, about whether a
+tag is right, or whether an LOD verdict is fair. **A green CI run is not a tested
+pack.** The value of the Revit session is that it tests judgement against a real
+model; this only stops that session being wasted on a checklist that was wrong
+before it started.
+
 #### Completed (Viewer zoom — the far plane, then both zoom-out bounds)
 
 Reported symptom: in the coordination viewer (`wwwroot/viewer.html`), the model
