@@ -126,6 +126,37 @@ namespace StingTools.Commands.TagStudio
             Family master = PickMaster(stingFamilies);
             if (master == null) return Result.Cancelled;
 
+            // ── 1b. The master's gate bindings become everyone's ──
+            //
+            // Propagation clones the master wholesale, so whatever binding kind the
+            // master's TAG_PARA_STATE_* gates have is what every target ends up
+            // with. On 2026-08-13 an operator normalised a TARGET to type gates,
+            // propagated from a master that still had 1/2/3 + WARN as instance
+            // parameters, and the fix was silently undone — the gates vanished from
+            // Edit Type again with nothing reporting why.
+            //
+            // Checked before the confirmation, and refused rather than warned: a
+            // warning buried in a dialog that also lists five other bullet points
+            // is how the first one was missed, and the whole run has to be redone
+            // afterwards anyway.
+            var splitGates = MasterInstanceGates(doc, master);
+            if (splitGates.Count > 0)
+            {
+                TaskDialog.Show("Propagate Universal Tag",
+                    $"'{master.Name}' has {splitGates.Count} tier gate(s) bound as INSTANCE " +
+                    "parameters:" + Environment.NewLine + Environment.NewLine +
+                    "  " + string.Join(", ", splitGates) + Environment.NewLine + Environment.NewLine +
+                    "Propagation would copy that split to every target, undoing any " +
+                    "normalisation already done to them — instance gates do not appear " +
+                    "in Edit Type, so tier depth would look broken again." +
+                    Environment.NewLine + Environment.NewLine +
+                    "Run 'Normalise Gates' on the MASTER first, then propagate." +
+                    Environment.NewLine + "Nothing was changed.");
+                StingLog.Warn($"PropagateUniversalTag: refused — master '{master.Name}' has " +
+                              $"instance gates: {string.Join(", ", splitGates)}");
+                return Result.Cancelled;
+            }
+
             // ── 2. Targets = every other loaded STING tag family, scoped ──
             var candidates = stingFamilies.Where(f => f.Id != master.Id).ToList();
             var targets = ChooseTargets(candidates, out string scopeLabel);
@@ -305,6 +336,50 @@ namespace StingTools.Commands.TagStudio
         // ──────────────────────────────────────────────────────────────────
         //  Single-target propagation
         // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Tier gates on the master that are bound as INSTANCE parameters, short
+        /// form (T1, T2, WARN). Empty means the master is consistent and safe to
+        /// propagate. Opens the master read-only and closes it again.
+        /// </summary>
+        private static List<string> MasterInstanceGates(Document doc, Family master)
+        {
+            var split = new List<string>();
+            Document famDoc = null;
+            try
+            {
+                famDoc = doc.EditFamily(master);
+                if (famDoc == null) return split;   // cannot check: do not block the run
+
+                var gates = new List<string>();
+                for (int i = 1; i <= 10; i++) gates.Add("TAG_PARA_STATE_" + i + "_BOOL");
+                gates.Add("TAG_WARN_VISIBLE_BOOL");
+
+                FamilyManager fm = famDoc.FamilyManager;
+                foreach (FamilyParameter fp in fm.Parameters)
+                {
+                    string n = fp.Definition?.Name;
+                    if (string.IsNullOrEmpty(n) || !gates.Contains(n)) continue;
+                    bool isInstance;
+                    try { isInstance = fp.IsInstance; } catch { continue; }
+                    if (!isInstance) continue;
+                    split.Add(n == "TAG_WARN_VISIBLE_BOOL"
+                        ? "WARN"
+                        : "T" + n.Replace("TAG_PARA_STATE_", "").Replace("_BOOL", ""));
+                }
+            }
+            catch (Exception ex)
+            {
+                // A check that cannot run must not block the command it guards.
+                StingLog.Warn($"PropagateUniversalTag.MasterInstanceGates: {ex.Message}");
+            }
+            finally
+            {
+                try { famDoc?.Close(false); }
+                catch (Exception ex) { StingLog.Info($"MasterInstanceGates close: {ex.Message}"); }
+            }
+            return split;
+        }
 
         private class PropResult
         {
