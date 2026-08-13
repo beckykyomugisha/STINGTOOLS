@@ -225,7 +225,34 @@ namespace StingTools.Commands.TagStudio
                     progress.Increment($"Propagating → {targetName} ({i + 1}/{targets.Count})");
 
                     var r = PropagateOne(doc, app, master, target, sharedParamFile,
-                        styleAndVisParams, variants, arrowheads, sharedDefs);
+                        styleAndVisParams, variants, arrowheads, sharedDefs,
+                        allowRecategorise: true);
+
+                    // Recategorising is a bonus fix; propagating the label is the
+                    // job. When Revit refuses to load across a category change,
+                    // retry keeping the family's existing category so the label
+                    // still arrives, and say so rather than reporting a bare
+                    // failure the operator can do nothing with.
+                    string status = r.Success ? "OK" : "FAILED";
+                    if (!r.Success && r.CategoryMismatch)
+                    {
+                        StingLog.Info($"PropagateUniversalTag: retrying '{targetName}' without recategorisation");
+                        progress.Increment($"Retry (keep category) → {targetName}");
+                        var retry = PropagateOne(doc, app, master, target, sharedParamFile,
+                            styleAndVisParams, variants, arrowheads, sharedDefs,
+                            allowRecategorise: false);
+                        if (retry.Success)
+                        {
+                            retry.CategoryMismatch = true;
+                            retry.ErrorMessage =
+                                $"label propagated, but category left as '{catName}' — " +
+                                $"{r.ErrorMessage}. Delete the loaded family (and its placed " +
+                                "tags) and re-load to change its category.";
+                            r = retry;
+                            status = "OK (category unchanged)";
+                        }
+                    }
+
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
                     if (r.Success) succeeded++; else failed++;
@@ -234,7 +261,7 @@ namespace StingTools.Commands.TagStudio
                     {
                         targetName, catName,
                         r.ParamsAdded.ToString(), r.TypesCreated.ToString(),
-                        r.Success ? "OK" : "FAILED", r.ErrorMessage ?? ""
+                        status, r.ErrorMessage ?? ""
                     });
                 }
             }
@@ -297,7 +324,8 @@ namespace StingTools.Commands.TagStudio
             Family master, Family target, string sharedParamFile,
             List<string> styleAndVisParams, List<TypeVariantSpec> variants,
             Dictionary<string, ElementId> arrowheads,
-            Dictionary<string, ExternalDefinition> sharedDefs)
+            Dictionary<string, ExternalDefinition> sharedDefs,
+            bool allowRecategorise)
         {
             var result = new PropResult();
             string targetName = target.Name;
@@ -310,10 +338,23 @@ namespace StingTools.Commands.TagStudio
             // Resolve against the DECLARED category in STING_TAG_CONFIG_v5_0_*.csv
             // instead, and fall back to the family's own only when nothing is declared.
             var catRes = TagCategoryResolver.Resolve(doc, target);
-            ElementId targetCatId = catRes.DeclaredTagCategory?.Id ?? target.FamilyCategory?.Id;
             result.CategoryMismatch = catRes.IsMismatch;
             result.CategoryNote = catRes.Note;
-            if (catRes.IsMismatch)
+
+            // A loaded family cannot be overwritten by one of a DIFFERENT category —
+            // Revit's LoadFamily just returns false, no exception, no reason. That
+            // is what failed all 8 recategorising targets on 2026-08-13 while the 3
+            // non-recategorising ones succeeded: the work was done (138 params, 14
+            // variants each) and then discarded at the last step.
+            //
+            // On the retry pass we keep the family's existing category so the label
+            // — the thing the operator actually asked to propagate — still lands.
+            // The mis-categorisation is reported, not silently accepted.
+            ElementId targetCatId = allowRecategorise
+                ? (catRes.DeclaredTagCategory?.Id ?? target.FamilyCategory?.Id)
+                : target.FamilyCategory?.Id;
+
+            if (catRes.IsMismatch && allowRecategorise)
                 StingLog.Warn($"PropagateUniversalTag: '{targetName}' — {catRes.Note}");
             Document famDoc = null;
             string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
@@ -461,7 +502,15 @@ namespace StingTools.Commands.TagStudio
                     if (!loadedOk)
                     {
                         TryDeleteTempDir(tempDir);
-                        result.ErrorMessage = "LoadFamily back into project failed";
+                        // Name the likeliest cause rather than restating the symptom.
+                        // LoadFamily returns false with no exception when the project
+                        // already holds a family of this name in a DIFFERENT category.
+                        result.ErrorMessage = (result.CategoryMismatch && allowRecategorise)
+                            ? $"LoadFamily declined — the project's '{targetName}' is " +
+                              $"'{target.FamilyCategory?.Name}' and this clone is " +
+                              "recategorised; Revit will not overwrite across categories"
+                            : "LoadFamily back into project failed (Revit declined, no reason given)";
+                        StingLog.Warn($"PropagateUniversalTag: '{targetName}' FAILED — {result.ErrorMessage}");
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{targetName}: tg.RollBack after load fail: {rbEx.Message}"); }
                         return result;
                     }
