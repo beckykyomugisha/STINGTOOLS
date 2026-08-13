@@ -1403,3 +1403,27 @@ Pooled client for `PluginTelemetry` (currently `new HttpClient()` per call), rou
 ad-hoc unauthenticated clients through `PlanscapeServerClient`, and resolving the
 workflow-state dual storage (ES `StingWorkflowStateSchema` vs `workflow_state.json`) —
 pick one, migrate, document the storage-ownership rule in CLAUDE.md.
+
+### Visibility Center — open items (Phase 232)
+
+Delivered in Phase 232 (see [`CHANGELOG.md`](CHANGELOG.md)); these are the gaps left behind.
+
+- **Show-only by category in Saved mode is a blocker, not a feature.** A `ParameterFilterElement`
+  can only act on the categories it binds to, so it cannot hide elements of *other* categories.
+  The engine reports this and points at Temporary mode. Implementing it properly means binding an
+  inverse filter to every other filterable category — viable, but heavy enough to want a real user
+  asking for it first.
+- **The isolate filter does not round-trip.** Show-only in Saved mode emits one combined
+  `STING VIS - NOT (isolate)` filter whose rule tree is the negation of the whole set, so
+  `TryParseFilterName` returns false for it. It is still found and deleted by prefix, so purge and
+  reset are unaffected; only reconstructing a set *from* an existing filter would miss it.
+- **`VisibilityTarget.SelectedViews` and `ViewTemplate` are declared but only partly wired.**
+  `ActiveView` and `AllViewsOnSheet` are reachable from the dropdown; `ViewTemplate` is reachable
+  only via the separate `Vis_ApplyToTemplate` command, and `SelectedViews` has no UI at all.
+- **No in-Revit verification yet.** The runner's §4 checklist (hide by category, hide by ZONE, two
+  tokens combined, isolate, Reset-all clearing both mechanisms, preset save/reload,
+  `Vis_PurgeFilters` leaving the project clean, and the view-template-locked blocker) has not been
+  run against a real model.
+- **Out of scope by decision, logged here as asked:** worksets and phases as visibility axes;
+  design-option visibility (already `DesignOptions_LockView`); per-element graphic overrides beyond
+  show/hide (that is `RevitVgEditor`'s job); syncing visibility state to Planscape Server.

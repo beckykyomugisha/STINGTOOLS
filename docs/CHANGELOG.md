@@ -2,6 +2,78 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 232 — Visibility Center)
+
+One dropdown on the SELECT tab that shows/hides elements by **category** and by **ISO 19650
+tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode
+(`View.HideElementsTemporary` — instant, session-only, does not print) or **Saved** mode
+(`ParameterFilterElement` + `view.SetFilterVisibility` — persists, prints, pushable to a view
+template). Built to spec in [`VISIBILITY_CENTER_RUNNER.md`](VISIBILITY_CENTER_RUNNER.md).
+
+**Files** — 7 new under `StingTools/`, plus a test project.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` / `VisibilityPresetLibrary` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityPlan.cs` | ✅ | `VisibilityPlan` / `PlannedFilter` / `VisibilityResult` / `VisibilityElementSnapshot` |
+| `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming + parsing |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | JSON load/save/merge (takes resolved paths, so it is testable) |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets + snapshots; 30 s cache |
+| `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
+| `Core/Visibility/VisibilityFilterBuilder.cs` | — | `ParameterFilterElement` creation + binding blocker detection |
+| `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; the only place touching `StingPaths` |
+| `Commands/Visibility/VisibilityCommands.cs` | — | The 8 commands |
+| `UI/Visibility/VisibilityDropdown.xaml(.cs)` + `VisibilityRowVm.cs` + `VisibilityDropdownHost.cs` | — | The popup |
+| `Data/STING_VISIBILITY_PRESETS.json` | — | 4 baseline presets |
+
+**Commands** — `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` ·
+`Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset`. Registered in
+`StingCommandHandler` immediately below the existing `ViewIsolate` / `ViewHide` / `ViewReveal` /
+`ViewReset` cases, which are **unchanged and still work** — they hide the current *selection*,
+this hides by *rule*.
+
+**Plan/Apply split.** `Plan()` writes nothing and returns matched ids, required filters,
+per-group counts and a `List<string> Blockers`; `Apply()` performs the write. The dropdown's
+live footer ("Will hide 1,204 of 8,331 elements · 3 filters") calls
+`VisibilityRuleMatcher.PlanCore` — the Revit-free half — so it recomputes on every tick without
+touching the Revit API. This is the pattern CLAUDE.md P1 #4 asks someone to prove on one
+feature; it is also what let the matching semantics carry 55 unit tests.
+
+**Matching contract.** Values within a rule OR; rules grouped by (kind, token key) OR within a
+group and AND across groups. Two category rules therefore mean "Ducts OR Pipes" — AND-ing them
+would match nothing, since an element has one category. Mixing `Hide` and `ShowOnly` in one set
+is rejected with a message, never silently resolved.
+
+**Reuse.** Token filters go through the existing `AecFilterFactory.FindOrCreate` rather than a
+second factory — it already resolves shared parameters via `ParamRegistry.AllParamGuids`,
+OR-combines with `LogicalOrFilter`, and reports an unbound parameter as a *warning*, which maps
+straight onto the blocker requirement. Two cases it cannot cover are handled directly in
+`VisibilityFilterBuilder`: a **category-only** filter (needs the rule-less
+`ParameterFilterElement.Create` overload) and the **inverted** show-only filter.
+
+**Blockers reported, not thrown** — unbound shared parameter (names the categories:
+"ZONE is not bound to Ducts, Pipes; 3 categories skipped"), view-template-locked V/G (offers
+`Vis_ApplyToTemplate`), `AreGraphicsOverridesAllowed() == false`, legend/schedule/sheet views,
+non-filterable categories, and zero matches.
+
+**Reset clears both mechanisms.** `Vis_ResetAll` disables the temporary view mode *and* removes
+every `STING VIS - ` filter from the view. The two halves have opposite transaction
+requirements — disabling a temporary mode throws inside a transaction, removing a filter needs
+one — so `VisibilityEngine.Reset` sequences them itself rather than leaving that trap to callers.
+
+**Known limits** (logged in [`ROADMAP.md`](ROADMAP.md)): show-only **by category** in Saved mode
+is reported as a blocker rather than implemented, because a view filter can only act on the
+categories it is bound to; Temporary mode handles it. The isolate filter is one combined
+`STING VIS - NOT (isolate)` element, so it does not round-trip through `TryParseFilterName`
+(it is still found and deleted by prefix).
+
+**Verification** — `dotnet build StingTools/StingTools.csproj -c Debug` → **0 errors, 0
+warnings**. `StingTools.Visibility.Tests` (new, xUnit/net8.0) → **55 passing**, picked up
+automatically by the `StingTools.*.Tests/*.csproj` glob in
+`.github/workflows/stingtools-unit-tests.yml`. `tools/check_path_discipline.ps1` → clean.
+**Not yet exercised inside Revit** — see the runner's §4 for the in-Revit checklist that
+remains open.
+
 #### Completed (Viewer zoom — the far plane, then both zoom-out bounds)
 
 Reported symptom: in the coordination viewer (`wwwroot/viewer.html`), the model

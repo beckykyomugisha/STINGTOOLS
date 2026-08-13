@@ -596,6 +596,41 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 
 ---
 
+## Visibility Center (Phase 232)
+
+**Status**: `StingTools/Core/Visibility/` (8 files) + `Commands/Visibility/VisibilityCommands.cs` + `UI/Visibility/` (4 files) + `Data/STING_VISIBILITY_PRESETS.json`. Spec: [`docs/VISIBILITY_CENTER_RUNNER.md`](docs/VISIBILITY_CENTER_RUNNER.md).
+
+A dropdown on the **SELECT** tab that shows/hides elements by **category** and by **ISO 19650 tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode (`View.HideElementsTemporary` — session-only, does not print) or **Saved** mode (`ParameterFilterElement` + `SetFilterVisibility` — persists, prints, pushable to a view template). Default is Temporary.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityPlan.cs` | ✅ | Plan / result / element-snapshot records |
+| `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | Preset JSON load/save/merge (path-agnostic) |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets; 30 s cache |
+| `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
+| `Core/Visibility/VisibilityFilterBuilder.cs` | — | Filter creation + binding-blocker detection |
+| `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; only `StingPaths` caller |
+
+**Commands**: `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` · `Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset` — dispatched from `StingCommandHandler` beside the untouched `ViewIsolate` / `ViewHide` / `ViewReveal` / `ViewReset` cases (those hide the *selection*; these hide by *rule*).
+
+**Contracts worth knowing**
+- **`Plan()` writes nothing; `Apply()` writes.** The dropdown footer ("will hide 1,204 of 8,331") calls the Revit-free `VisibilityRuleMatcher.PlanCore`, so it recomputes per tick without the Revit API. This is the compute/present split CLAUDE.md P1 #4 asks for, proven on one feature.
+- **Matching**: values within a rule OR; rules grouped by (kind, token) OR within a group, AND across groups. Mixed `Hide` + `ShowOnly` is rejected with a message, never silently resolved.
+- **`"STING VIS - "` prefix is the cleanup contract** — `Vis_PurgeFilters` and `Vis_ResetAll` find and delete by it, and touch nothing else.
+- **Reset clears both mechanisms** (temporary mode *and* the filters). The two halves have opposite transaction requirements, so `VisibilityEngine.Reset` sequences them itself — call it with no open transaction.
+- Token parameters resolve through `ParamRegistry.DISC/.LOC/.ZONE/…`, never literals.
+- Presets: corporate `Data/STING_VISIBILITY_PRESETS.json` (4 baseline) + project override at `<project>/_BIM_COORD/visibility_presets.json`, project winning by name.
+
+**Caveats**
+1. Show-only **by category** in Saved mode is reported as a blocker, not implemented — a view filter can only act on the categories it binds to. Temporary mode does it.
+2. The isolate filter is one combined `STING VIS - NOT (isolate)` element; it does not round-trip through `TryParseFilterName` (still purged by prefix).
+3. The UI namespace is `StingTools.UI.VisibilityCenter`, **not** `.Visibility` — the latter shadows `System.Windows.Visibility` inside existing `StingTools.UI` files (`RevitVgEditor`, `BOQCostManagerPanel`).
+4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, 55 passing). The Revit-bound half is not yet exercised in Revit.
+
+---
+
 ## ExLink (External Data Link)
 
 **Status**: `StingTools/ExLink/` (8 files · 5,723 lines).
