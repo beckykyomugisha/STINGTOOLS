@@ -3505,21 +3505,49 @@ namespace StingTools.Tags
             if (paraStringTypes + paraIntegerTypes + paraMixed > 0)
             {
                 report.AppendLine();
+                // WHICH STORAGE TYPE IS CORRECT: YESNO.
+                //
+                // This block used to report the opposite — YESNO as "legacy",
+                // TEXT as "v5.3+", and advised re-binding every YESNO gate to
+                // TEXT. That advice would have broken a working family: a bare
+                // `if(gate, …)` is only valid on YESNO, which is Revit's native
+                // condition type, and the build sheet records that comparing a
+                // YESNO gate to "Yes" fails with "Inconsistent Units".
+                //
+                // 614aba59b settled this from the shipped data — MR_PARAMETERS.txt
+                // declares all ten gates YESNO, uniform — but corrected only
+                // LABEL_DEFINITIONS.json, so this report kept asserting the
+                // reverse. Confirmed live on STING_Tag_Universal 2026-08-13:
+                // YESNO gates, bare formulas, and unticking TAG_PARA_STATE_2_BOOL
+                // collapsed the tag as designed.
+                //
+                // TEXT gates are the anomaly and need the `= "Yes"` form;
+                // TagConfig.GateToken emits that automatically, so they are
+                // reported rather than treated as an emergency.
                 report.AppendLine("── Paragraph BOOL storage (TAG_PARA_STATE_*_BOOL) ──");
-                report.AppendLine($"  TEXT-storage (v5.3+):  {paraStringTypes}");
-                report.AppendLine($"  YESNO-storage (legacy): {paraIntegerTypes}");
-                report.AppendLine($"  Mixed within one type:  {paraMixed}");
-                if (paraIntegerTypes > 0 || paraMixed > 0)
+                report.AppendLine($"  YESNO-storage (v5.4+, correct): {paraIntegerTypes}");
+                report.AppendLine($"  TEXT-storage (legacy):          {paraStringTypes}");
+                report.AppendLine($"  Mixed within one type:          {paraMixed}");
+                if (paraMixed > 0)
                 {
-                    report.AppendLine("  ⚠ Mixed bindings make SetParagraphDepth half-silent.");
-                    report.AppendLine("    Calculated-Value `if(BOOL, …)` only resolves on TEXT params.");
-                    report.AppendLine("    Re-load MR_PARAMETERS.txt v5.3+ then re-bind from project.");
+                    report.AppendLine("  ⚠ Mixed storage inside one type — the gate condition form cannot");
+                    report.AppendLine("    be right for both. Re-bind that type's gates to YESNO.");
+                }
+                else if (paraStringTypes > 0)
+                {
+                    report.AppendLine("  ⚠ TEXT-stored gates need the `gate = \"Yes\"` condition form.");
+                    report.AppendLine("    TagConfig.GateToken emits it, so these still work — but YESNO");
+                    report.AppendLine("    is the standard and MR_PARAMETERS.txt declares all ten that way.");
+                }
+                else if (paraIntegerTypes > 0)
+                {
+                    report.AppendLine("  ✓ All gates YESNO — bare `if(gate, …)` is the correct form.");
                 }
             }
 
             StingLog.Info($"TagFamilyAudit stylePack: scanned={stingTypesScanned}, " +
                 $"full={stingTypesFullPack}, partial={stingTypesPartialPack}; " +
-                $"paraBOOL: text={paraStringTypes}, yesno={paraIntegerTypes}, mixed={paraMixed}");
+                $"paraBOOL: yesno(correct)={paraIntegerTypes}, text(legacy)={paraStringTypes}, mixed={paraMixed}");
 
             TaskDialog td = new TaskDialog("Tag Family Audit");
             td.MainInstruction = $"Tag coverage: {stingLoaded + otherTag}/{TagFamilyConfig.CategoryTemplateMap.Count} categories";
