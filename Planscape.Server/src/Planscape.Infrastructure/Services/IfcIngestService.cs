@@ -189,6 +189,35 @@ public sealed class IfcIngestService : IIfcIngestService
             warnings.Add("GlobalIdRegistry upsert failed — cross-host mapping + tagged elements were still saved.");
         }
 
+        // -------------------------------------------------------
+        // 3b. Refresh the project's compliance snapshot + LastSyncAt.
+        //     Until now the /ifc/data door (ArchiCAD / Bonsai / Tekla) never
+        //     touched Project, so an ArchiCAD/Bonsai-only project (a) was never
+        //     reflected on the dashboard and (b) — because ComplianceSnapshotJob
+        //     filters on LastSyncAt >= cutoff — was never even picked up by the
+        //     6-hourly job. Only Revit traffic (the /tagsync door) kept
+        //     compliance alive. Mirror what TagSyncController does so every
+        //     ingest path keeps the number live.
+        //     NOTE: this duplicates TagSyncController.ComputeComplianceAsync's
+        //     scalar formula; extracting one shared calculator is tracked in
+        //     docs/ROADMAP.md (round-trip gap R3). Kept byte-aligned with the
+        //     controller (tagged = non-empty Tag1; container = complete/tagged;
+        //     RAG 80/50) so both doors report the same number.
+        try
+        {
+            await UpdateProjectComplianceAsync(tenantId, projectId, ct);
+        }
+        catch (Exception ex)
+        {
+            // Elements + mappings are already committed per-batch; never fail the
+            // primary ingest on a metrics refresh. Surfaced (not swallowed) so a
+            // stuck dashboard is visible rather than silently stale.
+            _logger?.LogWarning(ex, "[ifc-ingest] project compliance refresh failed " +
+                "(elements + mappings still committed)");
+            warnings.Add("Project compliance refresh failed — elements were saved; " +
+                "re-push to refresh the dashboard.");
+        }
+
         if (nonCanonicalVe > 0)
             warnings.Add($"{nonCanonicalVe} element(s) carried a ValidationErrors blob that does not " +
                          "parse as the canonical ValidationErrorDto[] shape ([{code,message,severity}]); " +
@@ -226,6 +255,44 @@ public sealed class IfcIngestService : IIfcIngestService
             Skipped = skipped,
             Warnings = warnings,
         };
+    }
+
+    // ------------------------------------------------------------------
+    // Recompute the project's scalar compliance metrics from its
+    // TaggedElements and stamp them (plus LastSyncAt) onto the Project row.
+    // Mirrors TagSyncController.ComputeComplianceAsync's scalar formula so the
+    // /ifc/data door keeps the dashboard live exactly the way the Revit
+    // /tagsync door does. Uses IgnoreQueryFilters + explicit TenantId because
+    // this may run off-request (the ambient tenant filter isn't guaranteed set),
+    // consistent with the element upsert above.
+    // ------------------------------------------------------------------
+    private async Task UpdateProjectComplianceAsync(Guid tenantId, Guid projectId, CancellationToken ct)
+    {
+        var project = await _db.Projects
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == projectId, ct);
+        if (project is null) return;
+
+        var q = _db.TaggedElements
+            .IgnoreQueryFilters()
+            .Where(t => t.TenantId == tenantId && t.ProjectId == projectId);
+
+        int total    = await q.CountAsync(ct);
+        int tagged   = await q.CountAsync(e => e.Tag1 != null && e.Tag1 != "", ct);
+        int complete = await q.CountAsync(e => e.IsComplete, ct);
+
+        double pct          = total  > 0 ? (double)tagged   / total  * 100 : 0;
+        double containerPct = tagged > 0 ? (double)complete / tagged * 100 : 0;
+        string rag          = pct >= 80 ? "GREEN" : pct >= 50 ? "AMBER" : "RED";
+
+        project.TotalElements              = total;
+        project.TaggedElements             = tagged;
+        project.CompliancePercent          = Math.Round(pct, 1);
+        project.ContainerCompliancePercent = Math.Round(containerPct, 1);
+        project.RagStatus                  = rag;
+        project.LastSyncAt                 = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
     }
 
     // ------------------------------------------------------------------
