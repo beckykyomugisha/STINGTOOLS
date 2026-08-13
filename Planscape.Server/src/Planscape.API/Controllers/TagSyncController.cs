@@ -573,6 +573,12 @@ public class TagSyncController : ControllerBase
     {
         entity.RevitElementId = dto.RevitElementId;
         entity.UniqueId = dto.UniqueId;
+        // R1 — persist the canonical cross-host key the DTO already carries (was
+        // previously dropped), and stamp origin so a Revit-authored row is
+        // distinguishable from its ArchiCAD/IFC twin. Only overwrite with a
+        // non-empty value so a push that omits it can't blank an existing key.
+        if (!string.IsNullOrWhiteSpace(dto.IfcGlobalId)) entity.IfcGlobalId = dto.IfcGlobalId;
+        entity.Source = "revit";
         entity.Disc = dto.Disc; entity.Loc = dto.Loc; entity.Zone = dto.Zone;
         entity.Lvl = dto.Lvl; entity.Sys = dto.Sys; entity.Func = dto.Func;
         entity.Prod = dto.Prod; entity.Seq = dto.Seq;

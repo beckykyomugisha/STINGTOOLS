@@ -659,6 +659,13 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => new { t.ProjectId, t.UniqueId })
                 .IsUnique()
                 .HasFilter("\"UniqueId\" <> ''");
+            // R1 — the canonical cross-host key. NON-unique for now: today the
+            // same physical element still lives as two rows (Revit + IFC), so a
+            // unique constraint would reject the second. Increment 2 merges the
+            // duplicates and swaps this to unique + makes it the primary upsert
+            // key. This index also serves the Revit pull-back reverse lookup (R2).
+            e.HasIndex(t => new { t.ProjectId, t.IfcGlobalId })
+                .HasFilter("\"IfcGlobalId\" IS NOT NULL");
             e.HasIndex(t => t.Tag1);
             e.HasIndex(t => t.Disc);
             e.HasIndex(t => t.IsStale);

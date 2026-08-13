@@ -133,6 +133,10 @@ public sealed class IfcIngestService : IIfcIngestService
                         continue;
                     }
 
+                    // R1 — stamp the canonical key explicitly (not only via
+                    // UniqueId) + record origin, so the changes feed and cross-host
+                    // matching key on IfcGlobalId regardless of ingest door.
+                    t.IfcGlobalId = el.IfcGlobalId; t.Source = host;
                     t.Disc = el.Discipline; t.Loc = el.Location; t.Zone = el.Zone; t.Lvl = el.Level;
                     t.Sys = el.System; t.Func = el.Function; t.Prod = el.Product; t.Seq = el.Sequence;
                     t.Tag1 = el.FullTag;
@@ -157,6 +161,8 @@ public sealed class IfcIngestService : IIfcIngestService
                         TenantId = tenantId,
                         ProjectId = projectId,
                         UniqueId = el.IfcGlobalId,
+                        IfcGlobalId = el.IfcGlobalId,  // R1 — explicit canonical key
+                        Source = host,                 // R1 — origin (archicad/bonsai/tekla/…)
                         RevitElementId = 0,  // host-agnostic — IFC GlobalId is the key
                         Disc = el.Discipline, Loc = el.Location, Zone = el.Zone, Lvl = el.Level,
                         Sys = el.System, Func = el.Function, Prod = el.Product, Seq = el.Sequence,
