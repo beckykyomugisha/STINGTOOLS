@@ -738,6 +738,8 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
 // TagSyncController + ArchiCADController (mapping upsert).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngestService,
     Planscape.Infrastructure.Services.IfcIngestService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityReconciliationService,
+    Planscape.Infrastructure.Services.IdentityReconciliationService>();
 // K2 — Platform event spine (durable cross-surface channel → STING plugin).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
     Planscape.Infrastructure.Services.PlatformEventService>();
