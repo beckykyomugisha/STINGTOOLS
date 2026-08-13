@@ -17,7 +17,7 @@ namespace StingTools.Commands.Radiation
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 var findings = MriZoneEngine.Audit(doc);
                 var sb = new StringBuilder();
                 sb.AppendLine("STING — MRI Suite Audit").AppendLine();

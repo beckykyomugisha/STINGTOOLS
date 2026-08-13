@@ -26,7 +26,7 @@ namespace StingTools.Core.Clash
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) return Result.Cancelled;
                 ClashSession.Clear(doc);
                 TaskDialog.Show("STING Clash",
@@ -51,7 +51,7 @@ namespace StingTools.Core.Clash
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc != null) ClashSession.Clear(doc);
                 return Result.Succeeded;
             }

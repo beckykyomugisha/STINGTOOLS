@@ -18,7 +18,7 @@ namespace StingTools.Commands.Twin
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 var reg = new IoTDeviceRegistry(doc);
                 var all = reg.All().ToList();
                 var sb = new StringBuilder();

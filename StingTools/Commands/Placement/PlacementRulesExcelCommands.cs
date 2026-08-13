@@ -27,7 +27,7 @@ namespace StingTools.Commands.Placement
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData?.Application?.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
             var rules = PlacementRuleLoader.Load(doc?.PathName ?? "");
 
             string outDir = OutputLocationHelper.GetOutputPath(doc, "PlacementRules") ?? Path.GetTempPath();
@@ -57,7 +57,7 @@ namespace StingTools.Commands.Placement
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData?.Application?.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
             string projectPath = doc?.PathName ?? "";
             if (string.IsNullOrEmpty(projectPath))
             {

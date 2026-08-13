@@ -27,7 +27,7 @@ namespace StingTools.Core.Clash
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();

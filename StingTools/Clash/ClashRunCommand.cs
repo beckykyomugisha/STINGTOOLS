@@ -38,7 +38,7 @@ namespace StingTools.Core.Clash
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uiDoc = commandData?.Application?.ActiveUIDocument;
+            var uiDoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
             var doc = uiDoc?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
             try { return ExecuteOnDocument(doc, silent: false, out _); }

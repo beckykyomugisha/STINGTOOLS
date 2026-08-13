@@ -476,12 +476,12 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetApp(commandData)?.ActiveUIDocument == null)
                 {
                     TaskDialog.Show("Clash Detection", "No active document.");
                     return Result.Failed;
                 }
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
                 var doc = uidoc.Document;
                 if (doc == null || doc.IsFamilyDocument)
                 {
@@ -607,12 +607,12 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetApp(commandData)?.ActiveUIDocument == null)
                 {
                     TaskDialog.Show("Cross-Model Clash", "No active document.");
                     return Result.Failed;
                 }
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 if (doc == null || doc.IsFamilyDocument)
                 {
                     TaskDialog.Show("Cross-Model Clash", "Cross-model clash requires a project document with links.");
@@ -823,12 +823,12 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetApp(commandData)?.ActiveUIDocument == null)
                 {
                     TaskDialog.Show("MEP Clearance", "No active document.");
                     return Result.Failed;
                 }
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 if (doc == null || doc.IsFamilyDocument)
                 {
                     TaskDialog.Show("MEP Clearance", "Clearance validation requires a project document.");
@@ -1152,12 +1152,12 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetApp(commandData)?.ActiveUIDocument == null)
                 {
                     TaskDialog.Show("Naming Audit", "No active document.");
                     return Result.Failed;
                 }
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 if (doc == null || doc.IsFamilyDocument)
                 {
                     TaskDialog.Show("Naming Audit", "Naming audit requires a project document.");

@@ -18,7 +18,7 @@ namespace StingTools.Commands.Adjacency
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 var sb = new StringBuilder();
                 sb.AppendLine("STING — Adjacency + Clean/Dirty Flow Audit").AppendLine();
 

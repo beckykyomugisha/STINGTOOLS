@@ -372,7 +372,7 @@ namespace StingTools.Tags
         {
             try
             {
-                var uiApp = commandData.Application;
+                var uiApp = ParameterHelpers.GetApp(commandData);
 
                 // Pick the folder to scan.
                 string folder = PickFolder(uiApp);

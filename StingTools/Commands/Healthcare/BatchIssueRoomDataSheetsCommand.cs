@@ -19,7 +19,7 @@ namespace StingTools.Commands.Healthcare
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType().ToElements()
                     .Where(r => !string.IsNullOrEmpty(GetParam(r, "CLN_ROOM_CLASS_TXT")))

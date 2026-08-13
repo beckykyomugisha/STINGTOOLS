@@ -24,7 +24,7 @@ namespace StingTools.Commands.Placement
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uiapp = commandData?.Application;
+            var uiapp = ParameterHelpers.GetApp(commandData);
             if (uiapp?.ActiveUIDocument?.Document == null) { message = "No active document."; return Result.Failed; }
             try { RunInteractive(uiapp)?.Show(); return Result.Succeeded; }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }

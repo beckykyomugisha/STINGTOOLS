@@ -1259,7 +1259,7 @@ namespace StingTools.Core
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
                 string dir = System.IO.Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(dir)) return;
@@ -1331,7 +1331,7 @@ namespace StingTools.Core
             else if (result == TaskDialogResult.CommandLink2)
             {
                 StingStaleMarker.SetEnabled(!StingStaleMarker.IsEnabled,
-                    commandData?.Application?.ActiveUIDocument?.Document);
+                    ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document);
                 TagConfig.AutoTaggerStaleMarker = StingStaleMarker.IsEnabled;
                 AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
             }

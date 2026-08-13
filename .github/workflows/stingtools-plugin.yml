@@ -101,6 +101,15 @@ jobs:
       - name: Dispatch wiring gate
         run: python3 tools/validate_dispatch_wiring.py
 
+      # The dispatch gate proves a Tag= has a case. It cannot prove the case
+      # does anything once entered. A dock-panel button runs its command with a
+      # NULL ExternalCommandData, so a command reading commandData.Application
+      # sees no document and returns Failed — and RunCommand discards the
+      # message, so the button silently does nothing. 66 commands were in that
+      # state; this keeps the count at zero.
+      - name: Command context gate
+        run: python3 tools/validate_command_context.py
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #

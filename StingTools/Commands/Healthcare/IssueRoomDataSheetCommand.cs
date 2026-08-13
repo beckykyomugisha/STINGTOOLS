@@ -18,7 +18,7 @@ namespace StingTools.Commands.Healthcare
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
                 var doc = uidoc.Document;
                 Reference r;
                 try { r = uidoc.Selection.PickObject(ObjectType.Element, "Pick the Room to issue an RDS for"); }

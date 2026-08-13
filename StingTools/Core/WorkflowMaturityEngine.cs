@@ -429,7 +429,7 @@ namespace StingTools.Core
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var steps = CommissioningWorkflows.GetCommissioningSteps();
@@ -453,7 +453,7 @@ namespace StingTools.Core
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var steps = CommissioningWorkflows.GetHandoverValidationSteps();
@@ -476,7 +476,7 @@ namespace StingTools.Core
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var steps = CommissioningWorkflows.GetSustainabilitySteps();

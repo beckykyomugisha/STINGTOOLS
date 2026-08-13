@@ -581,7 +581,7 @@ namespace StingTools.Docs
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var entries = DrawingRegisterSync.ExtractFromModel(doc);
@@ -606,7 +606,7 @@ namespace StingTools.Docs
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var issues = CrossScheduleValidator.ValidateAll(doc);
@@ -633,7 +633,7 @@ namespace StingTools.Docs
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var queue = PrintQueueManager.BuildQueue(doc);
@@ -656,7 +656,7 @@ namespace StingTools.Docs
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var (total, generated, missing) = DocumentPackageBuilder.AssemblePackage(doc, "DD3", null);

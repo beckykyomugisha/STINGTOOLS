@@ -23,7 +23,7 @@ namespace StingTools.Commands.Electrical.Import
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             try
             {
                 // 1. Collect panel data from Revit model.
