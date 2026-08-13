@@ -690,3 +690,6 @@ R3 (done); then tombstones (R6), unit normalization (R7), and unifying conflict 
 `ReconcileEngine` (R4/R8). Items (1)–(2) are architectural (identity redesign + two new write paths)
 and warrant a short spec + owner decisions (dedup strategy; whether Revit should consume the Python
 core via a service or stay C#).
+
+**Spec:** the R1/R2 implementation plan (work items per codebase, owner decisions D1–D6, phasing, and
+end-to-end acceptance tests) is written up in [`ROUND_TRIP_R1_R2_SPEC.md`](ROUND_TRIP_R1_R2_SPEC.md).
