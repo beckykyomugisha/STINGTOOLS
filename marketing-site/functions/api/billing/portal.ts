@@ -36,7 +36,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
       "/billing_portal/sessions",
       {
         customer: tenant.stripe_customer_id,
-        return_url: `${appOrigin(env)}/account/billing`,
+        return_url: `${appOrigin(env)}/account`,
       },
       { secretKey: env.STRIPE_SECRET_KEY }
     );

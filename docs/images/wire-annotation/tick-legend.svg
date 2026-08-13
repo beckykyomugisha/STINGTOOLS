@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 250" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0.5" y="0.5" width="759" height="249" rx="10" fill="#ffffff" stroke="#CFD8DC"/>
+  <text x="30" y="40" font-size="20" font-weight="700" fill="#263238">Tick marks at a glance &#8212; one tick per wire</text>
+
+  <!-- Cell 1: 1 tick -->
+  <line x1="55" y1="120" x2="175" y2="120" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="105" y1="138" x2="125" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <text x="115" y="180" font-size="14" font-weight="700" fill="#37474F" text-anchor="middle">1 tick</text>
+  <text x="115" y="200" font-size="12" fill="#607D8B" text-anchor="middle">single wire (rare)</text>
+
+  <!-- Cell 2: 2 ticks -->
+  <line x1="245" y1="120" x2="365" y2="120" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="297" y1="138" x2="317" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <line x1="313" y1="138" x2="333" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <text x="305" y="180" font-size="14" font-weight="700" fill="#37474F" text-anchor="middle">2 ticks</text>
+  <text x="305" y="200" font-size="12" fill="#607D8B" text-anchor="middle">live + neutral (1&#216;)</text>
+
+  <!-- Cell 3: 3 ticks -->
+  <line x1="435" y1="120" x2="555" y2="120" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="483" y1="138" x2="503" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <line x1="499" y1="138" x2="519" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <line x1="515" y1="138" x2="535" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <text x="495" y="180" font-size="14" font-weight="700" fill="#37474F" text-anchor="middle">3 ticks</text>
+  <text x="495" y="200" font-size="12" fill="#607D8B" text-anchor="middle">3-core</text>
+
+  <!-- Cell 4: 4 ticks -->
+  <line x1="625" y1="120" x2="745" y2="120" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="669" y1="138" x2="689" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <line x1="685" y1="138" x2="705" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <line x1="701" y1="138" x2="721" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <line x1="717" y1="138" x2="737" y2="102" stroke="#00897B" stroke-width="4" stroke-linecap="round"/>
+  <text x="685" y="180" font-size="14" font-weight="700" fill="#37474F" text-anchor="middle">4 ticks</text>
+  <text x="685" y="200" font-size="12" fill="#607D8B" text-anchor="middle">3-phase + neutral (3&#216;)</text>
+
+  <text x="30" y="235" font-size="12" fill="#90A4AE">Slash count is driven by ELC_WIRE_CORE_COUNT_INT (clamped 0&#8211;4). Angle defaults to 60&#176; (BS 7671 oblique).</text>
+</svg>

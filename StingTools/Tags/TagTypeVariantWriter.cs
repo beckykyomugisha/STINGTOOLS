@@ -131,8 +131,10 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Set a tag-formula BOOL on a family type, regardless of whether the parameter
-        /// is stored as TEXT ("Yes"/"No") or INTEGER (1/0). TEXT is the v5.3+ default —
-        /// YESNO is not allowed as the condition of a Revit label Calculated Value.
+        /// is stored as INTEGER (1/0) or TEXT ("Yes"/"No"). The universal master + the
+        /// TAG_PARA_STATE_*/style BOOLs are declared YESNO in MR_PARAMETERS.txt, so they
+        /// land as INTEGER on propagated families; the String branch is a fallback for
+        /// any family hand-authored with a TEXT variant of the param.
         /// </summary>
         public static void SetFamilyBool(FamilyManager fm, FamilyParameter fp, bool value)
         {

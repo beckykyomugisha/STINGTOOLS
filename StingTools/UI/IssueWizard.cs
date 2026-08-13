@@ -22,7 +22,7 @@ namespace StingTools.UI
         {
             var wizard = new StingWizardDialog("STING Issue Tracker", 780, 580);
             wizard.AddPage(new IssueTypePage());
-            wizard.AddPage(new IssuePriorityPage());
+            wizard.AddPage(new IssuePriorityPage(doc));
             wizard.AddPage(new IssueDetailsPage(doc, uidoc));
             wizard.AddPage(new IssueReviewPage(doc, uidoc));
 
@@ -38,6 +38,8 @@ namespace StingTools.UI
             if (r.TryGetValue("IssueType", out var it)) res.IssueType = it as string ?? "RFI";
             if (r.TryGetValue("Priority", out var p)) res.Priority = p as string ?? "MEDIUM";
             if (r.TryGetValue("AssignedTo", out var a)) res.AssignedTo = a as string ?? "";
+            if (r.TryGetValue("AssignedToUserId", out var au)) res.AssignedToUserId = au as string ?? "";
+            if (r.TryGetValue("AssignedToEmail", out var ae)) res.AssignedToEmail = ae as string ?? "";
             if (r.TryGetValue("Title", out var t)) res.Title = t as string ?? "";
             if (r.TryGetValue("Description", out var d)) res.Description = d as string ?? "";
             if (r.TryGetValue("Discipline", out var disc)) res.Discipline = disc as string ?? "Z";
@@ -142,12 +144,18 @@ namespace StingTools.UI
         // ════════════════════════════════════════════════════════════
         private class IssuePriorityPage : WizardPage
         {
+            /// <summary>The one non-roster choice, labelled so it is obvious the
+            /// person is outside the project rather than just missing from a list.</summary>
+            private const string ExternalOption = "External (not a project member)…";
+
             private readonly Dictionary<string, RadioButton> _priorityRadios = new();
+            private readonly Document _doc;
             private System.Windows.Controls.ComboBox _assignCombo;
             private System.Windows.Controls.TextBox _customAssignee;
 
-            public IssuePriorityPage()
+            public IssuePriorityPage(Document doc)
             {
+                _doc = doc;
                 Title = "Priority";
                 Description = "Set priority level and assign responsibility.";
             }
@@ -224,25 +232,41 @@ namespace StingTools.UI
                 panel.Children.Add(StingWizardDialog.MakeDescription(
                     "Select who is responsible for resolving this issue."));
 
-                var assignees = new[]
-                {
-                    Environment.UserName + " (Self)",
-                    "BIM Coordinator",
-                    "Design Lead",
-                    "Project Manager",
-                    "Contractor",
-                    "Specialist Consultant",
-                    "Unassigned",
-                    "Custom..."
-                };
-                var assignPanel = StingWizardDialog.MakeLabelledCombo("Assignee:", assignees, 0, out _assignCombo);
+                // The roster, not a list of job titles. This used to offer
+                // "BIM Coordinator" / "Design Lead" / "Project Manager" — generic
+                // roles that name nobody, so the issue was assigned to a string
+                // that matched no user and notified no one. Names come from the
+                // canonical project members (server-first) via ProjectRoster.
+                var roster = StingTools.Core.ProjectRoster.Load(_doc);
+                var assignees = new List<string> { Environment.UserName + " (Self)" };
+                assignees.AddRange(roster.Select(m => m.Display));
+                assignees.Add("Unassigned");
+                // Kept, and deliberately relabelled: assigning an issue to a
+                // subcontractor who has no Planscape account is legitimate, and a
+                // picker that refuses just pushes the free text somewhere else.
+                // The label makes clear this person is outside the project roster.
+                assignees.Add(ExternalOption);
+
+                var assignPanel = StingWizardDialog.MakeLabelledCombo("Assignee:", assignees.ToArray(), 0, out _assignCombo);
                 panel.Children.Add(assignPanel);
 
-                var customPanel = StingWizardDialog.MakeLabelledText("Custom Assignee:", "", out _customAssignee);
+                if (roster.Count == 0)
+                {
+                    // Say which of "nobody is on this project" and "we could not
+                    // reach the server" applies, rather than showing a short list
+                    // that looks authoritative.
+                    panel.Children.Add(StingWizardDialog.MakeDescription(
+                        "No project members found — the model may not be linked to a Planscape " +
+                        "project, or the server is unreachable. Use \"" + ExternalOption +
+                        "\" to enter a name manually."));
+                }
+
+                var customPanel = StingWizardDialog.MakeLabelledText("External assignee:", "", out _customAssignee);
                 _customAssignee.IsEnabled = false;
                 _assignCombo.SelectionChanged += (s, e) =>
                 {
-                    _customAssignee.IsEnabled = _assignCombo.SelectedItem?.ToString()?.Contains("Custom") == true;
+                    _customAssignee.IsEnabled =
+                        string.Equals(_assignCombo.SelectedItem?.ToString(), ExternalOption, StringComparison.Ordinal);
                 };
                 panel.Children.Add(customPanel);
 
@@ -255,13 +279,23 @@ namespace StingTools.UI
                 results["Priority"] = priority;
 
                 string assignee = _assignCombo?.SelectedItem?.ToString() ?? "";
-                if (assignee.Contains("Custom") && !string.IsNullOrWhiteSpace(_customAssignee?.Text))
-                    assignee = _customAssignee.Text;
+                if (string.Equals(assignee, ExternalOption, StringComparison.Ordinal))
+                    assignee = _customAssignee?.Text?.Trim() ?? "";
                 else if (assignee.Contains("(Self)"))
                     assignee = Environment.UserName;
                 else if (assignee == "Unassigned")
                     assignee = "";
                 results["AssignedTo"] = assignee;
+
+                // Carry the server identity when the pick resolved to a real
+                // project member, so downstream sync can set AssigneeUserId
+                // rather than shipping a display name the server has to guess at.
+                var match = StingTools.Core.ProjectRoster.Find(_doc, assignee);
+                if (match != null && match.IsServerBacked)
+                {
+                    results["AssignedToUserId"] = match.ServerUserId.Value.ToString();
+                    if (!string.IsNullOrWhiteSpace(match.Email)) results["AssignedToEmail"] = match.Email;
+                }
             }
         }
 
@@ -534,6 +568,11 @@ namespace StingTools.UI
         public string IssueType { get; set; } = "RFI";
         public string Priority { get; set; } = "MEDIUM";
         public string AssignedTo { get; set; } = "";
+        /// <summary>Server AppUser id when the assignee resolved to a real project
+        /// member. Empty for an external (non-member) assignee — the display name
+        /// is then all we have, and callers should not pretend otherwise.</summary>
+        public string AssignedToUserId { get; set; } = "";
+        public string AssignedToEmail { get; set; } = "";
         public string Title { get; set; } = "";
         public string Description { get; set; } = "";
         public string Discipline { get; set; } = "Z";

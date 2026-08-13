@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HVAC — heat loads, duct sizing and noise — Planscape</title>
+<meta name="description" content="Why plant sized on the sum of zone peaks is too big, how duct sizing strategies differ, and what NC really measures — then how STING calculates it in Revit.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/hvac.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; HVAC</div>
+  <h1>HVAC — heat loads, duct sizing and noise</h1>
+  <div class="meta">📖 11-minute read · Intermediate</div>
+
+  <p>Three questions decide a mechanical design: how much heating and cooling the building needs, how big the ducts have to be to deliver it, and whether the result will be quiet enough to work in. This guide covers all three, engineering first.</p>
+
+  <h2>The oversizing problem</h2>
+  <p>Start with the single most common error in load calculation, because it is expensive and almost invisible.</p>
+  <p>Every zone in a building has a peak load — the worst moment it will face. It is tempting to size the central plant by adding those peaks together. That is what Revit's own heating and cooling load calculation does, and it is wrong.</p>
+  <p>The zones do not peak at the same time. An east-facing office peaks mid-morning when the sun is on it. The west-facing office peaks late afternoon. By the time the west side is at its worst, the east side has been in shade for hours. Adding their individual peaks sizes the plant for a moment that never occurs.</p>
+  <p>The correct method is to total the loads <em>hour by hour</em> across the whole system, and take the largest hourly total. That is the <strong>block load</strong> — the real worst moment for the plant, as opposed to the sum of the worst moments for each room.</p>
+  <p>The gap between the two is typically <strong>20–30%</strong> of plant capacity. Oversized plant costs more, occupies more space, and — because it spends its life running at part load, cycling rather than modulating — often controls worse and dehumidifies less effectively than correctly sized plant.</p>
+
+  <h3>Diversity, in one line</h3>
+  <p><strong>Diversity = block load ÷ sum of peaks.</strong> A diversity of 1.0 means every zone genuinely peaks together and there is nothing to save. A diversity of 0.75 means the plant only ever has to meet three-quarters of the added-up peaks. Size to the block, not the sum.</p>
+
+  <h2>What actually goes into a load</h2>
+  <p>A design-day load is the sum of everything adding or removing heat at a given hour:</p>
+  <ul>
+    <li><strong>Conduction</strong> through walls, roofs and glazing, driven by the difference between outside and setpoint</li>
+    <li><strong>Solar gain</strong> through glazing, which depends on orientation and time of day — the reason zone peaks separate at all</li>
+    <li><strong>Occupants</strong>, contributing both sensible heat and moisture</li>
+    <li><strong>Lighting and equipment</strong>, following their hourly usage profiles</li>
+    <li><strong>Ventilation and infiltration</strong> — conditioning outside air is often the largest single item</li>
+  </ul>
+  <p>Sensible load changes air temperature; latent load is the moisture. They are tracked separately because they are met by different means, and a design that ignores latent load produces cold, clammy spaces.</p>
+  <p>All of this depends on where the building is. STING carries design-day conditions for <strong>42 cities</strong> and corrects air density for site elevation — which matters more than people expect. At Nairobi's altitude, air is meaningfully less dense than at sea level, so the same air volume carries less heat.</p>
+
+  <div class="callout warn">
+    <strong>What this is and isn't.</strong> STING's load engine is a simplified Radiant Time Series with CIBSE Guide A weather, not a full dynamic simulation. It models the design day as a smooth temperature curve, assumes 50% relative humidity at setpoint, and ignores solar gain when finding the heating peak (heating design is the cold night case). It is well suited to sizing and to comparing options. For a certified energy model, export and run a dedicated tool.
+  </div>
+
+  <h2>Sizing ducts</h2>
+  <p>Duct size trades four things against each other: fan energy, noise, space, and material cost. Bigger ducts move air slowly and quietly but cost more and consume ceiling void; smaller ducts are cheaper and fit, but the fan works harder forever and the system is louder.</p>
+  <p>There are four established ways to resolve that trade, and STING implements all four:</p>
+  <table class="tbl">
+    <thead><tr><th>Strategy</th><th>How it decides</th><th>Use it when</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Velocity limit</strong></td><td>Smallest duct that keeps air below a speed limit</td><td>The default; simple and predictable</td></tr>
+      <tr><td><strong>Equal friction</strong></td><td>Same pressure loss per metre throughout</td><td>Standard practice for most commercial work</td></tr>
+      <tr><td><strong>Static regain</strong></td><td>Reduces velocity progressively so slowing air recovers pressure</td><td>Long runs with many branches; best balance, more work</td></tr>
+      <tr><td><strong>Constant pressure</strong></td><td>Holds branch pressure steady</td><td>Variable air volume systems</td></tr>
+    </tbody>
+  </table>
+  <p>The limits differ by what the duct is doing. A main can run faster than a runout because it is further from occupied space:</p>
+  <table class="tbl">
+    <thead><tr><th>Role</th><th>Max velocity</th><th>Max friction</th><th>Basis</th></tr></thead>
+    <tbody>
+      <tr><td>Main</td><td>8.0 m/s</td><td>1.2 Pa/m</td><td>CIBSE Guide B3</td></tr>
+      <tr><td>Branch</td><td>6.0 m/s</td><td>1.0 Pa/m</td><td>CIBSE Guide B3</td></tr>
+      <tr><td>Runout</td><td>4.5 m/s</td><td>0.8 Pa/m</td><td>CIBSE Guide B3</td></tr>
+      <tr><td>Outdoor air</td><td>4.0 m/s</td><td>0.8 Pa/m</td><td>ASHRAE 62.1</td></tr>
+      <tr><td>Exhaust</td><td>10.0 m/s</td><td>1.5 Pa/m</td><td>SMACNA</td></tr>
+      <tr><td>Kitchen exhaust</td><td>12.0 m/s</td><td>2.0 Pa/m</td><td>DW/172</td></tr>
+      <tr><td>Smoke</td><td>15.0 m/s</td><td>2.5 Pa/m</td><td>BS 9999</td></tr>
+    </tbody>
+  </table>
+  <p>These are editable. A project with tight acoustic requirements or generous ceiling voids should adjust them rather than accept the defaults.</p>
+
+  <h2>Noise, and what NC actually means</h2>
+  <p>NC — Noise Criteria — is not a single loudness number. Sound is measured across frequency bands, and human annoyance depends heavily on which frequencies dominate: a low rumble and a high hiss at the same overall level are not equally tolerable.</p>
+  <p>An NC curve is a shape across those bands. Your <strong>NC rating is the lowest curve your measured sound stays entirely under</strong> — one band poking above NC-30 makes the room NC-35, regardless of how quiet the rest is. It is a worst-band measure, which is why a single "too loud" frequency ruins a space.</p>
+  <p>Typical targets: office 35, meeting room 30, patient room 30, classroom 30, restaurant 40, plantroom 75.</p>
+  <p>Sound reaching a room is the fan's noise, minus what the ductwork absorbs along the way, plus new noise generated by air rushing past every bend, damper and diffuser. That last term is why oversizing a fan then throttling it with a damper is a poor solution — you have moved the noise from the fan to the damper, which is closer to the occupant.</p>
+
+  <div class="callout warn">
+    <strong>Treat NC results as indicative.</strong> Unless you have supplied a manufacturer's sound data for the fan, STING derives an approximate fan noise from flow and pressure. That is enough to compare routes and spot problems; it is not enough to certify compliance. For diffuser noise specifically, the manufacturer's catalogue figure at your design throw is the authoritative number.
+  </div>
+
+  <h2>How STING approaches it</h2>
+  <p>HVAC has its own panel with seven tabs: <strong>EQPT</strong>, <strong>SYS</strong>, <strong>CALCS</strong>, <strong>DUCT</strong>, <strong>LOADS</strong>, <strong>FAB</strong> and <strong>RPRT</strong>. Above them sits a header strip carrying project-wide context — design standard, region, pressure class, air density, sizing strategy and scope. Every calculation reads it, so set it before you calculate.</p>
+
+  <h3>Loads first</h3>
+  <p>On <strong>LOADS</strong>, <strong>Block load</strong> is the main event. It runs the hour-by-hour calculation across your spaces and reports the building block load, the sum of peaks, and the diversity between them — plus which hour the peak lands on and the worst zones. Reading those three numbers together tells you immediately whether the plant schedule you inherited is realistic.</p>
+  <p>It writes peak sensible load, peak latent load, peak hour and outside air quantity onto each space, so the results are available to schedules rather than trapped in a report.</p>
+  <p><strong>Audit envelope</strong> checks the construction data the calculation depends on, and <strong>Ventilation audit</strong> checks outside air rates. Both are worth running before you trust a load figure. <strong>Run loads (Revit)</strong> hands off to Revit's own calculation if you want to compare.</p>
+
+  <h3>Then sizing</h3>
+  <p>On <strong>CALCS</strong>, <strong>Auto-size</strong> is the one that changes the model — it sizes ducts using the strategy and pressure class from the header. <strong>Friction</strong>, <strong>Static regain</strong> and <strong>Equal friction</strong> are report-only calculators for checking individual cases.</p>
+  <p><strong>Balance</strong> distributes flow across branches, <strong>NC predict</strong> estimates noise at a terminal, and <strong>Run all validators</strong> is the catch-all check.</p>
+
+  <div class="callout">
+    <strong>If Auto-size reports sizes but changes nothing,</strong> the ducts in scope have sizes driven by their fittings and are read-only. STING says so explicitly rather than reporting a silent success.
+  </div>
+
+  <h3>Then the model, then reports</h3>
+  <p><strong>DUCT</strong> handles creation and routing — <strong>Create types</strong>, <strong>Place duct</strong>, <strong>Auto-drop</strong>, <strong>Generate layout</strong>, <strong>Place hangers</strong> and <strong>Validate fills</strong>. <strong>RPRT</strong> covers <strong>Pressure-class audit</strong>, <strong>Detect stale sizes</strong> — which finds ducts whose sizing no longer matches the loads that drove it — and <strong>Climate inspect</strong> to confirm which design weather is in use.</p>
+
+  <h2>A sensible order of work</h2>
+  <ol>
+    <li>Set the header context — standard, region, pressure class, strategy.</li>
+    <li><strong>RPRT</strong> &rsaquo; <strong>Climate inspect</strong>, and confirm the site is right. A wrong city invalidates everything downstream.</li>
+    <li><strong>LOADS</strong> &rsaquo; <strong>Audit envelope</strong> and <strong>Ventilation audit</strong>.</li>
+    <li><strong>LOADS</strong> &rsaquo; <strong>Block load</strong>. Note the diversity figure.</li>
+    <li><strong>CALCS</strong> &rsaquo; <strong>Auto-size</strong>, then <strong>Balance</strong>.</li>
+    <li><strong>CALCS</strong> &rsaquo; <strong>NC predict</strong> on the critical spaces.</li>
+    <li><strong>RPRT</strong> &rsaquo; <strong>Detect stale sizes</strong> before issuing.</li>
+  </ol>
+  <p>Step 2 is the one people skip and regret. Every load, every duct size and every fan selection descends from the design weather, and the default is London unless the project says otherwise.</p>
+
+  <div class="cta-band">
+    <p>Next: <a href="/guides/electrical.html">Electrical</a> covers cable sizing, voltage drop, fault current and panel schedules.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

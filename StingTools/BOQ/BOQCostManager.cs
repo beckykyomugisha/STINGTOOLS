@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQCostManager.cs — Phase 3 of the BOQ & Cost Manager.
 //  Central engine. Builds a BOQDocument from the Revit model, writes cost
 //  parameters back to elements and the ProjectInformation record, persists
@@ -333,7 +333,7 @@ namespace StingTools.BOQ
         {
             string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — memory only
-            return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_links.json");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "boq_links.json");
         }
 
         // P2.3 — per-link instance multiplier. boq_links.json now carries the

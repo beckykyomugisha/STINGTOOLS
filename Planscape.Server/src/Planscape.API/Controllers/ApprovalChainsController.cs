@@ -110,6 +110,14 @@ public class ApprovalChainsController : ControllerBase
             Status      = "OPEN",
             CreatedBy   = displayName,
             Description = req.Description,
+            // #552 — stamp the revision the approvers are opening the round against.
+            // Without this the gate in DocumentsController.CheckApprovalGate has no
+            // field to scope by, so a COMPLETED chain satisfies SHARED->PUBLISHED for
+            // every FUTURE revision of the document too: rework bumps to P02, the
+            // legacy path correctly demands fresh approval, and the P01 chain quietly
+            // supplies it. Whoever approved P01 ends up recorded as having sanctioned
+            // content they never saw.
+            RevisionSnapshot = doc.Revision,
         };
         _db.ApprovalChains.Add(chain);
 

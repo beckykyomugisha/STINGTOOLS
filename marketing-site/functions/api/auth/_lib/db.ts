@@ -10,6 +10,7 @@ import type {
   PublicUser,
   PublicTenant,
 } from "./types";
+import { currencyForCountry } from "../../_lib/billing/catalog";
 
 const TRIAL_DAYS = 14;
 const REFRESH_TTL_DAYS = 30;
@@ -34,6 +35,9 @@ export function toPublicTenant(t: TenantRow): PublicTenant {
     slug: t.slug,
     trialEndsAt: t.trial_ends_at,
     subscriptionStatus: t.subscription_status,
+    currency: t.currency,
+    planProduct: t.plan_product,
+    planTier: t.plan_tier,
   };
 }
 
@@ -65,7 +69,10 @@ export async function createTenant(
       input.name,
       input.slug,
       input.country,
-      "USD",
+      // Derive the billing currency from the tenant's country so UG/KE/TZ/RW
+      // tenants land on their local (Pesapal) currency instead of USD — the one
+      // line that makes the Pesapal rail reachable. Null country → USD fallback.
+      currencyForCountry(input.country),
       "trial",
       nowIso,
       trialEnds.toISOString(),

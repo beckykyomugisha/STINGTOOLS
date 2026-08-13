@@ -67,21 +67,21 @@ export default function ModelsPage() {
     <AppShell>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <Link href={`/projects/${projectId}`} className="text-sm text-slate-400 hover:underline">
+          <Link href={`/projects/${projectId}`} className="text-sm text-fg-subtle hover:underline">
             ← Project
           </Link>
           <h1 className="text-xl font-semibold">Models</h1>
         </div>
         <Link
           href={`/projects/${projectId}/viewer`}
-          className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+          className="rounded border border-border-strong px-3 py-2 text-sm hover:bg-surface-2"
         >
           3D model
         </Link>
       </div>
 
       {/* Upload */}
-      <form onSubmit={onUpload} className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
+      <form onSubmit={onUpload} className="mb-6 rounded-lg border border-border bg-surface p-4">
         <h2 className="mb-3 text-sm font-medium">Publish a model</h2>
         <div className="flex flex-wrap items-end gap-3">
           <input
@@ -95,40 +95,40 @@ export default function ModelsPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Name (optional)"
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
+            className="rounded border border-border-strong px-2 py-1 text-sm"
           />
           <input
             value={discipline}
             onChange={(e) => setDiscipline(e.target.value)}
             placeholder="Discipline (e.g. M)"
-            className="w-32 rounded border border-slate-300 px-2 py-1 text-sm"
+            className="w-32 rounded border border-border-strong px-2 py-1 text-sm"
           />
           <button
             type="submit"
             disabled={!file || busy}
-            className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded bg-accent px-3 py-2 text-sm font-medium text-fg-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {busy ? 'Uploading…' : 'Upload'}
           </button>
         </div>
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="mt-2 text-xs text-fg-subtle">
           GLB/glTF render directly. Export from Revit (BIM tab → Publish Model), or convert IFC to GLB first.
         </p>
       </form>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {notice && <p className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{notice}</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {notice && <p className="mb-3 rounded bg-success-subtle px-3 py-2 text-sm text-success">{notice}</p>}
 
       {/* List */}
       {models.length === 0 ? (
-        <p className="text-slate-500">No models published yet.</p>
+        <p className="text-fg-muted">No models published yet.</p>
       ) : (
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+        <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
           {models.map((m) => (
             <li key={m.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <span className="text-sm font-medium">{m.name}</span>
-                <span className="ml-2 text-xs text-slate-400">
+                <span className="ml-2 text-xs text-fg-subtle">
                   {m.discipline ? `${m.discipline} · ` : ''}
                   {m.format ?? ''}
                   {m.revision ? ` · ${m.revision}` : ''}
@@ -136,7 +136,7 @@ export default function ModelsPage() {
               </div>
               <Link
                 href={`/projects/${projectId}/viewer?model=${m.id}`}
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-accent hover:underline"
               >
                 View
               </Link>

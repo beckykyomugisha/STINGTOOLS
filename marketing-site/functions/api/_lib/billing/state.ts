@@ -229,6 +229,33 @@ export async function getActiveSubscription(
     .first<SubscriptionRow>();
 }
 
+// The tenant's current subscription on ANY provider (most recent non-cancelled,
+// else most recent). Unlike getActiveSubscription above — which is deliberately
+// Stripe-only because cancel/resume/change-plan drive the Stripe API — this is
+// read-only and provider-agnostic, so the account page can render a Pesapal
+// subscription too.
+export async function getCurrentSubscription(
+  db: D1Database,
+  tenantId: string
+): Promise<SubscriptionRow | null> {
+  const live = await db
+    .prepare(
+      `SELECT * FROM subscriptions
+         WHERE tenant_id = ? AND status != 'cancelled'
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .bind(tenantId)
+    .first<SubscriptionRow>();
+  if (live) return live;
+  return db
+    .prepare(
+      `SELECT * FROM subscriptions WHERE tenant_id = ?
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .bind(tenantId)
+    .first<SubscriptionRow>();
+}
+
 export async function setSubscriptionCancelAtPeriodEnd(
   db: D1Database,
   id: string,
@@ -473,6 +500,26 @@ export async function upsertInvoice(
     due_at: null,
     paid_at: input.paidAt,
     created_at: input.createdAt,
+  };
+}
+
+// cancelAtPeriodEnd + currentPeriodEnd are the two fields the account page can't
+// get from toPublicTenant — they decide whether it offers Cancel or Resume, and
+// what date it quotes. provider is exposed because self-serve cancel/resume are
+// Stripe-only (see getActiveSubscription).
+export function toPublicSubscription(s: SubscriptionRow) {
+  return {
+    id: s.id,
+    provider: s.provider,
+    product: s.product,
+    tier: s.tier,
+    billingCycle: s.billing_cycle,
+    currency: s.currency,
+    amountCents: s.amount_cents,
+    currentPeriodEnd: s.current_period_end,
+    cancelAtPeriodEnd: s.cancel_at_period_end === 1,
+    status: s.status,
+    createdAt: s.created_at,
   };
 }
 

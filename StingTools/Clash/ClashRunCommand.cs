@@ -112,7 +112,7 @@ namespace StingTools.Core.Clash
                 // ── Config / output paths ──
                 string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();
                 Directory.CreateDirectory(outDir);
-                string clashesJson  = Path.Combine(outDir, "clashes.json");
+                string clashesJson  = ClashPersistence.CanonicalPath(doc);
                 string matrixJson   = FindDataFile("default_clash_matrix.json");
                 string rulesJson    = FindDataFile("default_clash_rules.json");
                 string exclusionsJson = Path.Combine(outDir, "clash_exclusions.json");

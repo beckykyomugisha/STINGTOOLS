@@ -1,0 +1,570 @@
+"""Tests for the pull + reconcile engine (plan §1.4.2 / §1.4.3).
+
+These pin the conflict policy. It replaces StingBridge's heuristic, which
+compared the remote timestamp to *now* rather than to the local edit time — so a
+local change made five seconds ago lost to a remote change made fifty-nine
+seconds ago. Getting this wrong silently overwrites users' work, so each rule
+has its own test and its own name.
+"""
+from __future__ import annotations
+
+import json
+import tempfile
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+
+from stingtools_core.hosts.adapter import ChangeDelta
+from stingtools_core.sync import (
+    CursorStore, PullClient, ReconcileEngine, parse_utc, tokens_equal,
+)
+
+NOW = datetime(2026, 7, 20, 12, 0, 0, tzinfo=timezone.utc)
+
+
+def iso(dt: datetime) -> str:
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+def tokens(**over) -> dict:
+    base = {"disc": "M", "loc": "BLD1", "zone": "Z01", "lvl": "L02",
+            "sys": "HVAC", "func": "SUP", "prod": "AHU", "seq": "0001"}
+    base.update(over)
+    return base
+
+
+def delta(gid="g1", ts=NOW, **over) -> ChangeDelta:
+    return ChangeDelta(kind="tag", global_id=gid, payload=tokens(**over),
+                       last_modified_utc=iso(ts) if ts else None)
+
+
+def local(ts=NOW, **over) -> dict:
+    return {"tokens": tokens(**over),
+            "modified_utc": iso(ts) if ts else None,
+            "element": "host-handle"}
+
+
+class _Adapter:
+    """Records what it was asked to apply."""
+
+    def __init__(self, fail=False, raise_on=None):
+        self.applied: list[ChangeDelta] = []
+        self._fail = fail
+        self._raise_on = raise_on
+
+    def apply_remote_change(self, d: ChangeDelta) -> bool:
+        if self._raise_on and d.global_id == self._raise_on:
+            raise RuntimeError("host exploded")
+        self.applied.append(d)
+        return not self._fail
+
+
+# ── timestamp parsing ────────────────────────────────────────────────────────
+
+def test_parse_utc_handles_the_shapes_the_server_emits():
+    assert parse_utc("2026-07-20T12:00:00Z") == NOW
+    assert parse_utc("2026-07-20T12:00:00+00:00") == NOW
+    # Naive is assumed UTC — reading it as local time would compare hours out.
+    assert parse_utc("2026-07-20T12:00:00") == NOW
+    assert parse_utc(NOW) == NOW
+
+
+def test_parse_utc_rejects_junk_rather_than_guessing():
+    assert parse_utc(None) is None
+    assert parse_utc("") is None
+    assert parse_utc("not a date") is None
+
+
+def test_tokens_equal_ignores_non_tag_fields():
+    a = tokens()
+    b = dict(tokens(), categoryName="Walls", familyName="Basic")
+    assert tokens_equal(a, b), "a metadata-only difference must not force a write"
+
+
+def test_tokens_equal_detects_a_real_difference():
+    assert not tokens_equal(tokens(), tokens(seq="0002"))
+
+
+# ── rule 1: remote-only ──────────────────────────────────────────────────────
+
+def test_remote_only_element_is_applied():
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile([delta()], {})
+    assert r.applied == 1
+    assert r.remote_only == 1
+    assert len(a.applied) == 1
+
+
+# ── R1.4: cross-host identity alignment ───────────────────────────────────────
+# After R1.2 the server change feed emits the true IFC GlobalId (globalId =
+# IfcGlobalId ?? UniqueId), so a Revit-authored change carries the SAME key the
+# ArchiCAD/IFC host indexes its elements by — it matches the local element and
+# reconciles against it. Before R1.2 the feed emitted Revit's 45-char UniqueId,
+# which matched nothing: the StingBridge pull wrapper partitions such a delta out
+# as `absent` (it never reaches the host). These pin both halves.
+
+def test_revit_delta_matches_local_element_under_real_globalid():
+    """The real-GlobalId delta lands ON the existing local element (not treated
+    as a new/foreign element) — i.e. Revit's edit reconciles into ArchiCAD/IFC.
+    (Delta stamped newer than local so the conflict resolves to the remote and
+    the match is observable as an apply; the R1.4 property is remote_only == 0.)"""
+    gid = "1hJKl2mNODEfGHiJkLmNo0"          # a 22-char IFC GlobalId, shared by both hosts
+    index = {gid: local(ts=NOW, seq="0001")} # the ArchiCAD/IFC host's element
+    a = _Adapter()
+
+    r = ReconcileEngine(a).reconcile(
+        [delta(gid=gid, ts=NOW + timedelta(minutes=5), seq="0009")], index)
+
+    assert r.remote_only == 0, "matched an existing local element — not treated as new/foreign"
+    assert r.applied == 1                    # the Revit change reconciled onto the local element
+    assert a.applied[0].global_id == gid
+
+
+def test_revit_uniqueid_key_is_foreign_the_pre_R1_2_absent_case():
+    """A Revit 45-char UniqueId matches no local GlobalId — the engine sees it as
+    remote-only, which is exactly the delta StingBridge's pull wrapper drops as
+    `absent`. This is the failure R1.2 removes by emitting the real GlobalId."""
+    gid = "1hJKl2mNODEfGHiJkLmNo0"
+    index = {gid: local(seq="0001")}
+    a = _Adapter()
+    revit_uid = "9a8b7c6d-1234-5678-9abc-def012345678-0004d2"  # Revit UniqueId, NOT a GlobalId
+
+    r = ReconcileEngine(a).reconcile([delta(gid=revit_uid, seq="0009")], index)
+
+    assert r.remote_only == 1                 # unmatched — the "absent" case pre-R1.2
+    assert index[gid]["tokens"]["seq"] == "0001", "the real local element was left untouched"
+
+
+# ── rule 3: equal payloads ───────────────────────────────────────────────────
+
+def test_identical_payloads_are_a_noop_even_when_remote_is_newer():
+    # Applying a delta that changes nothing still costs a host write and an
+    # undo entry.
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=NOW + timedelta(hours=1))], {"g1": local(ts=NOW)})
+    assert r.applied == 0
+    assert r.skipped_equal == 1
+    assert a.applied == []
+    assert r.conflicts == []
+
+
+# ── rule 4: newer wins, both directions ──────────────────────────────────────
+
+def test_newer_remote_wins():
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=NOW + timedelta(minutes=5), seq="0009")],
+        {"g1": local(ts=NOW)})
+    assert r.applied == 1
+    assert a.applied[0].payload["seq"] == "0009"
+    assert len(r.conflicts) == 1
+
+
+def test_newer_local_wins_and_nothing_is_written():
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=NOW, seq="0009")],
+        {"g1": local(ts=NOW + timedelta(minutes=5))})
+    assert r.applied == 0
+    assert r.kept_local == 1
+    assert a.applied == []
+    assert len(r.conflicts) == 1, "a losing remote edit must still be surfaced"
+
+
+def test_a_local_edit_seconds_old_beats_a_remote_edit_a_minute_old():
+    # The exact case the old 60-second heuristic got backwards.
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=NOW - timedelta(seconds=59), seq="0009")],
+        {"g1": local(ts=NOW - timedelta(seconds=5))})
+    assert r.kept_local == 1
+    assert a.applied == []
+
+
+# ── rule 5: ties ─────────────────────────────────────────────────────────────
+
+def test_equal_timestamps_resolve_by_content_digest():
+    """A tie is broken by the DATA, not by which side is asking."""
+    from stingtools_core.sync.reconcile import token_digest
+
+    remote_tokens = tokens(seq="0009")
+    local_tokens = tokens()
+    expect_remote = token_digest(remote_tokens) > token_digest(local_tokens)
+
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile([delta(ts=NOW, seq="0009")], {"g1": local(ts=NOW)})
+
+    assert r.conflicts and "content tiebreak" in r.conflicts[0].reason
+    if expect_remote:
+        assert r.applied == 1 and len(a.applied) == 1
+    else:
+        assert r.kept_local == 1 and a.applied == []
+
+
+def test_tie_converges_when_run_from_BOTH_perspectives():
+    """The property that actually matters, and the one the old test missed.
+
+    The previous version re-ran the SAME side five times and asserted it kept
+    saying "local". That is not convergence — it is one host agreeing with
+    itself. Under the old local-preferred rule, host A kept A's value and host B
+    kept B's, forever, and this test would still have passed.
+
+    So: swap the perspectives. Host A holds X and receives Y; host B holds Y and
+    receives X. Both must finish holding the same thing.
+    """
+    x = tokens(seq="0001")
+    y = tokens(seq="0009")
+
+    def final_tokens(local_side: dict, remote_side: dict) -> dict:
+        adapter = _Adapter()
+        res = ReconcileEngine(adapter).reconcile(
+            [ChangeDelta(kind="tag", global_id="g1", payload=remote_side,
+                         last_modified_utc=iso(NOW))],
+            {"g1": {"tokens": local_side, "modified_utc": iso(NOW),
+                    "element": "host-handle"}},
+        )
+        assert res.conflicts, "a differing pair at equal timestamps IS a conflict"
+        return remote_side if res.applied else local_side
+
+    host_a = final_tokens(local_side=x, remote_side=y)
+    host_b = final_tokens(local_side=y, remote_side=x)
+
+    assert host_a == host_b, (
+        f"hosts diverged and will never reconcile: A={host_a['seq']} B={host_b['seq']}"
+    )
+
+
+def test_tie_break_is_stable_across_repeated_runs():
+    """Same inputs, same answer — no hash-seed or ordering dependence."""
+    x, y = tokens(seq="0001"), tokens(seq="0009")
+    winners = set()
+    for _ in range(5):
+        adapter = _Adapter()
+        res = ReconcileEngine(adapter).reconcile(
+            [ChangeDelta(kind="tag", global_id="g1", payload=y,
+                         last_modified_utc=iso(NOW))],
+            {"g1": {"tokens": x, "modified_utc": iso(NOW), "element": "h"}},
+        )
+        winners.add(res.resolutions[0].winner)
+    assert len(winners) == 1, f"tie-break is not stable: {winners}"
+
+
+# ── status propagation ───────────────────────────────────────────────────────
+
+def test_status_only_remote_change_is_applied():
+    """`status` is in the feed; excluding it from TOKEN_KEYS silently dropped it.
+
+    An element moving WIP -> Shared with no tag change compared equal and was
+    treated as a no-op, so the status never reached the host.
+    """
+    adapter = _Adapter()
+    remote = tokens()
+    remote["status"] = "Shared"
+    local_side = tokens()
+    local_side["status"] = "WIP"
+
+    res = ReconcileEngine(adapter).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote,
+                     last_modified_utc=iso(NOW + timedelta(minutes=1)))],
+        {"g1": {"tokens": local_side, "modified_utc": iso(NOW), "element": "h"}},
+    )
+
+    assert res.skipped_equal == 0, "status-only delta was treated as a no-op"
+    assert res.applied == 1
+    assert adapter.applied[0].payload["status"] == "Shared"
+
+
+def test_category_and_family_are_still_excluded():
+    """Deliberate: a family rename with an identical tag must not cause a write."""
+    adapter = _Adapter()
+    remote = tokens()
+    remote["family"] = "Renamed Family"
+    remote["category"] = "Ducts"
+
+    res = ReconcileEngine(adapter).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote,
+                     last_modified_utc=iso(NOW + timedelta(minutes=1)))],
+        {"g1": local(ts=NOW)},
+    )
+    assert res.skipped_equal == 1
+    assert adapter.applied == []
+
+
+# ── rule 4: blank-vs-set is adoption, not a conflict (P1) ─────────────────────
+
+def test_blank_local_seq_adopts_the_server_seq_even_when_local_is_newer():
+    """A fresh re-export (no STING pset, newest mtime) must NOT re-mint: the
+    server's SEQ fills the local blank regardless of the newer local timestamp."""
+    a = _Adapter()
+    local_side = tokens(seq="")                       # every inferred token, blank seq
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=NOW - timedelta(hours=1), seq="0042")],   # server OLDER…
+        {"g1": {"tokens": local_side, "modified_utc": iso(NOW), "element": "h"}})  # …local NEWER
+    assert r.applied == 1, "the blank seq must be filled from the server"
+    assert a.applied[0].payload["seq"] == "0042"
+    assert r.conflicts == [], "filling a blank is not a conflict"
+
+
+def test_all_blank_local_adopts_every_server_token_and_mints_nothing():
+    """The whole-element case: an untagged export adopts every server token."""
+    a = _Adapter()
+    blank = {k: "" for k in
+             ("disc", "loc", "zone", "lvl", "sys", "func", "prod", "seq", "status")}
+    server = tokens(seq="0007")
+    r = ReconcileEngine(a).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=server,
+                     last_modified_utc=iso(NOW - timedelta(days=1)))],  # server older
+        {"g1": {"tokens": blank, "modified_utc": iso(NOW), "element": "h"}})  # local newest
+    assert r.applied == 1
+    for k in ("disc", "seq", "sys"):
+        assert a.applied[0].payload[k] == server[k]
+    assert r.conflicts == [], "adopting into blanks is not a conflict"
+
+
+def test_blank_remote_keeps_and_pushes_the_local_value():
+    """Reverse direction: the server lacks a value the file has → local kept,
+    the push half sends it up, and the server value is never blanked out."""
+    a = _Adapter()
+    remote_blank_seq = tokens(seq="")
+    r = ReconcileEngine(a).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote_blank_seq,
+                     last_modified_utc=iso(NOW + timedelta(hours=1)))],  # server NEWER
+        {"g1": local(ts=NOW, seq="0099")})                              # file has the seq
+    assert r.kept_local == 1, "a value the server lacks must not blank out the file"
+    assert a.applied == []
+    assert r.conflicts == []
+
+
+def test_disjoint_blanks_merge_from_both_sides():
+    """Server fills seq, file fills zone — both survive, no conflict."""
+    a = _Adapter()
+    local_side = tokens(seq="", zone="Z09")      # local: zone set, seq blank
+    remote_side = tokens(seq="0042", zone="")    # remote: seq set, zone blank
+    r = ReconcileEngine(a).reconcile(
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote_side,
+                     last_modified_utc=iso(NOW))],
+        {"g1": {"tokens": local_side, "modified_utc": iso(NOW), "element": "h"}})
+    assert r.applied == 1
+    assert a.applied[0].payload["seq"] == "0042", "seq adopted from the server"
+    assert a.applied[0].payload["zone"] == "Z09", "zone kept from the file"
+    assert r.conflicts == [], "disjoint blank-fills are not a conflict"
+
+
+def test_local_wins_the_contest_but_still_adopts_the_server_blank_fill():
+    """The subtle merge: local wins a genuine zone disagreement AND still adopts
+    the server's SEQ into its blank — one element, one write, one conflict."""
+    a = _Adapter()
+    local_side = tokens(seq="", zone="Z01")      # local zone Z01, seq blank
+    remote_side = tokens(seq="0042", zone="Z99")  # server zone Z99, seq set
+    r = ReconcileEngine(a).reconcile(              # LOCAL newer → local zone wins
+        [ChangeDelta(kind="tag", global_id="g1", payload=remote_side,
+                     last_modified_utc=iso(NOW))],
+        {"g1": {"tokens": local_side,
+                "modified_utc": iso(NOW + timedelta(minutes=5)), "element": "h"}})
+    assert r.applied == 1, "a write is still needed — to adopt the server's seq"
+    assert a.applied[0].payload["seq"] == "0042", "blank-fill adopted despite losing zone"
+    assert a.applied[0].payload["zone"] == "Z01", "local won the real disagreement"
+    assert len(r.conflicts) == 1, "only the zone was a genuine conflict"
+
+
+# ── rule 6: missing timestamps ───────────────────────────────────────────────
+
+def test_remote_without_a_timestamp_cannot_win():
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=None, seq="0009")], {"g1": local(ts=NOW)})
+    assert r.kept_local == 1
+    assert a.applied == []
+    assert r.conflicts[0].reason == "remote has no usable timestamp"
+
+
+def test_unparseable_remote_timestamp_cannot_win():
+    a = _Adapter()
+    d = ChangeDelta(kind="tag", global_id="g1", payload=tokens(seq="0009"),
+                    last_modified_utc="whenever")
+    r = ReconcileEngine(a).reconcile([d], {"g1": local(ts=NOW)})
+    assert r.kept_local == 1
+
+
+def test_local_without_a_timestamp_yields_to_an_ordered_remote_edit():
+    # Common for an element the host has never written — not a real conflict.
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile(
+        [delta(ts=NOW, seq="0009")], {"g1": local(ts=None)})
+    assert r.applied == 1
+    assert r.conflicts == []
+
+
+# ── failures and non-tag kinds ───────────────────────────────────────────────
+
+def test_adapter_failure_is_counted_not_swallowed():
+    r = ReconcileEngine(_Adapter(fail=True)).reconcile([delta()], {})
+    assert r.applied == 0
+    assert r.failed == 1
+
+
+def test_one_raising_element_does_not_end_the_pass():
+    a = _Adapter(raise_on="bad")
+    r = ReconcileEngine(a).reconcile(
+        [delta(gid="bad"), delta(gid="good")], {})
+    assert r.failed == 1
+    assert r.applied == 1
+    assert [d.global_id for d in a.applied] == ["good"]
+
+
+def test_non_tag_kinds_are_counted_separately_not_treated_as_failures():
+    a = _Adapter()
+    r = ReconcileEngine(a).reconcile(
+        [ChangeDelta(kind="issue", global_id="g1"),
+         ChangeDelta(kind="bcf", global_id="g2")], {})
+    assert r.unhandled_kind == 2
+    assert r.failed == 0
+    assert a.applied == []
+
+
+# ── conflict reporting (§1.4.3) ──────────────────────────────────────────────
+
+def test_conflicts_are_reported_to_the_callback():
+    seen = []
+    e = ReconcileEngine(_Adapter(), on_conflict=seen.append)
+    e.reconcile([delta(ts=NOW + timedelta(minutes=1), seq="0009")],
+                {"g1": local(ts=NOW)})
+    assert len(seen) == 1
+    assert seen[0].global_id == "g1"
+    assert seen[0].winner == "remote"
+
+
+def test_a_raising_conflict_reporter_does_not_break_sync():
+    def boom(_):
+        raise RuntimeError("reporter down")
+    r = ReconcileEngine(_Adapter(), on_conflict=boom).reconcile(
+        [delta(ts=NOW + timedelta(minutes=1), seq="0009")], {"g1": local(ts=NOW)})
+    assert r.applied == 1
+
+
+def test_every_decision_is_recorded_with_a_reason():
+    r = ReconcileEngine(_Adapter()).reconcile(
+        [delta(gid="a"), delta(gid="b", ts=NOW, seq="0009")],
+        {"b": local(ts=NOW + timedelta(minutes=1))})
+    assert len(r.resolutions) == 2
+    assert all(res.reason for res in r.resolutions)
+
+
+# ── pull client ──────────────────────────────────────────────────────────────
+
+class _Resp:
+    def __init__(self, status=200, body=None):
+        self.status_code = status
+        self._body = body or {}
+
+    def json(self):
+        return self._body
+
+
+class _Http:
+    def __init__(self, pages):
+        self._pages = list(pages)
+        self.requests = []
+
+    def get(self, url, params=None):
+        self.requests.append(dict(params or {}))
+        return self._pages.pop(0) if self._pages else _Resp(200, {"items": [], "hasMore": False})
+
+
+def _page(items, next_cursor, has_more):
+    return _Resp(200, {"items": items, "nextCursor": next_cursor, "hasMore": has_more})
+
+
+def _item(gid, ts=NOW):
+    return {"kind": "tag", "globalId": gid, "lastModifiedUtc": iso(ts),
+            "payload": tokens()}
+
+
+def test_pull_drains_every_page_and_follows_the_cursor():
+    http = _Http([
+        _page([_item("a"), _item("b")], "c1", True),
+        _page([_item("c")], "c2", False),
+    ])
+    client = PullClient(http, "http://x", "p1")
+    got = list(client.drain())
+
+    assert [d.global_id for d in got] == ["a", "b", "c"]
+    assert client.last_cursor == "c2"
+    # Second request resumed from the first page's cursor.
+    assert http.requests[1]["since"] == "c1"
+
+
+def test_first_pull_sends_no_cursor():
+    http = _Http([_page([], None, False)])
+    list(PullClient(http, "http://x", "p1").drain())
+    assert "since" not in http.requests[0]
+
+
+def test_a_404_disables_pull_without_failing_the_run():
+    # An older server. Degrading to push-only beats refusing to sync at all.
+    http = _Http([_Resp(404)])
+    client = PullClient(http, "http://x", "p1")
+    assert list(client.drain("c0")) == []
+    assert client.last_cursor == "c0", "cursor must not advance past an error"
+
+
+def test_a_server_error_leaves_the_cursor_untouched():
+    http = _Http([_Resp(500)])
+    client = PullClient(http, "http://x", "p1")
+    assert list(client.drain("c0")) == []
+    assert client.last_cursor == "c0"
+
+
+def test_items_without_a_global_id_are_dropped():
+    # Nothing to key on, so it cannot be resolved cross-host.
+    http = _Http([_page([{"kind": "tag", "payload": {}}, _item("a")], "c1", False)])
+    got = list(PullClient(http, "http://x", "p1").drain())
+    assert [d.global_id for d in got] == ["a"]
+
+
+def test_has_more_with_an_empty_page_does_not_spin():
+    http = _Http([_page([], "c1", True)] * 10)
+    got = list(PullClient(http, "http://x", "p1").drain())
+    assert got == []
+    assert len(http.requests) == 1
+
+
+# ── cursor persistence ───────────────────────────────────────────────────────
+
+def test_cursor_round_trips():
+    with tempfile.TemporaryDirectory() as d:
+        store = CursorStore(Path(d) / "cursors.json")
+        assert store.read("p1", "archicad") is None
+        store.write("p1", "archicad", "c42")
+        assert store.read("p1", "archicad") == "c42"
+
+
+def test_cursors_are_scoped_per_project_and_host():
+    with tempfile.TemporaryDirectory() as d:
+        store = CursorStore(Path(d) / "cursors.json")
+        store.write("p1", "archicad", "a")
+        store.write("p1", "revit", "b")
+        store.write("p2", "archicad", "c")
+        assert store.read("p1", "archicad") == "a"
+        assert store.read("p1", "revit") == "b"
+        assert store.read("p2", "archicad") == "c"
+
+
+def test_writing_an_empty_cursor_is_ignored():
+    with tempfile.TemporaryDirectory() as d:
+        store = CursorStore(Path(d) / "cursors.json")
+        store.write("p1", "archicad", "c1")
+        store.write("p1", "archicad", None)
+        assert store.read("p1", "archicad") == "c1"
+
+
+def test_a_corrupt_cursor_file_costs_a_backfill_not_a_crash():
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "cursors.json"
+        p.write_text("{not json", encoding="utf-8")
+        store = CursorStore(p)
+        assert store.read("p1", "archicad") is None
+        store.write("p1", "archicad", "c1")   # recovers by rewriting
+        assert store.read("p1", "archicad") == "c1"

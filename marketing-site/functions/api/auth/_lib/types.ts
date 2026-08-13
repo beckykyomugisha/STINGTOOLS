@@ -121,4 +121,7 @@ export interface PublicTenant {
   slug: string;
   trialEndsAt: string;
   subscriptionStatus: string;
+  currency: string;
+  planProduct: string | null;
+  planTier: string | null;
 }

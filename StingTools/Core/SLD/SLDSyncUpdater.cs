@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.UI;
 
@@ -49,6 +50,60 @@ namespace StingTools.Core.SLD
             // Stable GUID for this updater — used to register/unregister.
             _updaterId = new UpdaterId(addInId,
                 new Guid("E6E3FD2A-4E9B-4F7B-9C42-0B7D1F9E4B17"));
+        }
+
+        private static SLDSyncUpdater _instance;
+
+        /// <summary>
+        /// Register the SLD sync updater at startup. Triggers are attached but the
+        /// updater is left DISABLED at the Revit level; Execute additionally self-gates
+        /// on project_config.json `sld_sync_enabled`, which SLDSyncToggleCommand writes.
+        /// Without this call the toggle wrote a flag nothing ever read.
+        /// </summary>
+        public static void Register(UIControlledApplication app)
+        {
+            if (_instance != null) return;
+            try
+            {
+                _instance = new SLDSyncUpdater(app.ActiveAddInId);
+                UpdaterRegistry.RegisterUpdater(_instance, true);
+
+                var cats = new List<BuiltInCategory>
+                {
+                    BuiltInCategory.OST_ElectricalEquipment,
+                    BuiltInCategory.OST_ElectricalFixtures,
+                    BuiltInCategory.OST_Conduit,
+                    BuiltInCategory.OST_CableTray,
+                };
+                var filter = new ElementMulticategoryFilter(cats);
+
+                UpdaterRegistry.AddTrigger(_instance._updaterId, filter, Element.GetChangeTypeElementAddition());
+                UpdaterRegistry.AddTrigger(_instance._updaterId, filter, Element.GetChangeTypeElementDeletion());
+                UpdaterRegistry.AddTrigger(_instance._updaterId, filter, Element.GetChangeTypeAny());
+                UpdaterRegistry.DisableUpdater(_instance._updaterId);
+
+                StingTools.Core.StingLog.Info("SLDSyncUpdater registered (disabled).");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Error("SLDSyncUpdater.Register failed", ex);
+            }
+        }
+
+        /// <summary>Enable/disable the Revit-level updater to match the project toggle.</summary>
+        public static void SetEnabled(bool enabled)
+        {
+            if (_instance == null) return;
+            try
+            {
+                if (enabled) UpdaterRegistry.EnableUpdater(_instance._updaterId);
+                else UpdaterRegistry.DisableUpdater(_instance._updaterId);
+                StingTools.Core.StingLog.Info($"SLDSyncUpdater {(enabled ? "enabled" : "disabled")}.");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SLDSyncUpdater.SetEnabled: {ex.Message}");
+            }
         }
 
         public UpdaterId GetUpdaterId() => _updaterId;

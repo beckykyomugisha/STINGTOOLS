@@ -94,12 +94,28 @@ public sealed class IfcIngestService : IIfcIngestService
                 .Where(g => !string.IsNullOrWhiteSpace(g))
                 .ToList();
 
-            var existingTagged = await _db.TaggedElements
+            // R1 (2b) — match on the canonical IfcGlobalId FIRST, so an ArchiCAD /
+            // Bonsai push converges onto an existing REVIT-origin row for the same
+            // element (RevitElementId > 0, UniqueId = the 45-char Revit id) instead
+            // of inserting a second row. Keep a UniqueId fallback for any legacy
+            // non-Revit row the Increment-1 backfill missed (IfcGlobalId still null,
+            // GlobalId parked in UniqueId). Keyed by IfcGlobalId ?? UniqueId.
+            var existingRows = await _db.TaggedElements
                 .IgnoreQueryFilters()
                 .Where(t => t.TenantId == tenantId
                             && t.ProjectId == projectId
-                            && batchGuids.Contains(t.UniqueId))
-                .ToDictionaryAsync(t => t.UniqueId, ct);
+                            && ((t.IfcGlobalId != null && batchGuids.Contains(t.IfcGlobalId))
+                                || batchGuids.Contains(t.UniqueId)))
+                .ToListAsync(ct);
+            var existingTagged = new Dictionary<string, TaggedElement>();
+            foreach (var row in existingRows)
+            {
+                var key = !string.IsNullOrEmpty(row.IfcGlobalId) ? row.IfcGlobalId! : row.UniqueId;
+                // Prefer a row that already carries the canonical key if a legacy
+                // duplicate also matched; reconciliation collapses the stragglers.
+                if (!existingTagged.TryGetValue(key, out var kept) || string.IsNullOrEmpty(kept.IfcGlobalId))
+                    existingTagged[key] = row;
+            }
 
             foreach (var el in batch)
             {
@@ -133,6 +149,10 @@ public sealed class IfcIngestService : IIfcIngestService
                         continue;
                     }
 
+                    // R1 — stamp the canonical key explicitly (not only via
+                    // UniqueId) + record origin, so the changes feed and cross-host
+                    // matching key on IfcGlobalId regardless of ingest door.
+                    t.IfcGlobalId = el.IfcGlobalId; t.Source = host;
                     t.Disc = el.Discipline; t.Loc = el.Location; t.Zone = el.Zone; t.Lvl = el.Level;
                     t.Sys = el.System; t.Func = el.Function; t.Prod = el.Product; t.Seq = el.Sequence;
                     t.Tag1 = el.FullTag;
@@ -141,6 +161,13 @@ public sealed class IfcIngestService : IIfcIngestService
                     t.IsComplete = el.IsComplete; t.IsFullyResolved = el.IsFullyResolved; t.IsStale = el.IsStale;
                     t.ValidationErrors = el.ValidationErrors;
                     t.LastModifiedUtc = elLastMod ?? nowUtc;
+                    // This path only carries LIVE elements (IFC ingest has no
+                    // delete channel), so re-ingesting a tombstoned element is
+                    // an undelete. The existing-row load above already uses
+                    // IgnoreQueryFilters, so a tombstoned row IS found here —
+                    // without clearing the stamp it would be updated yet stay
+                    // hidden behind the global soft-delete filter.
+                    t.DeletedAtUtc = null;
                     updElements++;
                 }
                 else
@@ -150,6 +177,8 @@ public sealed class IfcIngestService : IIfcIngestService
                         TenantId = tenantId,
                         ProjectId = projectId,
                         UniqueId = el.IfcGlobalId,
+                        IfcGlobalId = el.IfcGlobalId,  // R1 — explicit canonical key
+                        Source = host,                 // R1 — origin (archicad/bonsai/tekla/…)
                         RevitElementId = 0,  // host-agnostic — IFC GlobalId is the key
                         Disc = el.Discipline, Loc = el.Location, Zone = el.Zone, Lvl = el.Level,
                         Sys = el.System, Func = el.Function, Prod = el.Product, Seq = el.Sequence,

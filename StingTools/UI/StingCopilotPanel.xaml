@@ -10,19 +10,40 @@
             <RowDefinition Height="*"/>      <!-- chat history -->
             <RowDefinition Height="Auto"/>   <!-- running-tool status -->
             <RowDefinition Height="Auto"/>   <!-- usage / credit note -->
+            <RowDefinition Height="Auto"/>   <!-- suggestion chips -->
             <RowDefinition Height="Auto"/>   <!-- input -->
             <RowDefinition Height="Auto"/>   <!-- buttons -->
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,6">
-            <TextBlock Text="STING Copilot"
-                       FontSize="14" FontWeight="Bold"
-                       Foreground="{DynamicResource PrimaryText}"/>
-            <TextBlock Text="Ask in plain English. The AI drives StingTools through the MCP tools."
-                       FontSize="10" TextWrapping="Wrap" Opacity="0.8"
-                       Foreground="{DynamicResource PrimaryText}"/>
-        </StackPanel>
+        <!-- Header + toolbar -->
+        <Grid Grid.Row="0" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="STING Copilot"
+                           FontSize="14" FontWeight="Bold"
+                           Foreground="{DynamicResource PrimaryText}"/>
+                <TextBlock Text="Ask in plain English. The AI drives StingTools through the MCP tools — read, tag, size, and now BUILD."
+                           FontSize="10" TextWrapping="Wrap" Opacity="0.8"
+                           Foreground="{DynamicResource PrimaryText}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                <Button x:Name="ClearBtn" Content="🗑" Width="26" Height="26" FontSize="12"
+                        Margin="0,0,3,0" ToolTip="Clear chat (resets the conversation)"
+                        Click="ClearBtn_Click"/>
+                <Button x:Name="SaveBtn2" Content="💾" Width="26" Height="26" FontSize="12"
+                        Margin="0,0,3,0" ToolTip="Save chat transcript to Markdown (.md)"
+                        Click="SaveChatBtn_Click"/>
+                <Button x:Name="ShotBtn" Content="📷" Width="26" Height="26" FontSize="12"
+                        Margin="0,0,3,0" ToolTip="Screenshot the chat (PNG / clipboard)"
+                        Click="ScreenshotBtn_Click"/>
+                <Button x:Name="SettingsBtn" Content="⚙" Width="26" Height="26" FontSize="13"
+                        ToolTip="Copilot Settings (AI provider, API key, model)"
+                        Click="SettingsBtn_Click"/>
+            </StackPanel>
+        </Grid>
 
         <!-- Chat history -->
         <Border Grid.Row="1" BorderBrush="#55808080" BorderThickness="1" CornerRadius="3">
@@ -43,15 +64,18 @@
                    Foreground="{DynamicResource PrimaryText}" Opacity="0.7"
                    Text="Each turn calls the LLM API and consumes credits."/>
 
+        <!-- Suggestion chips + undo -->
+        <WrapPanel x:Name="ChipPanel" Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,4"/>
+
         <!-- Input -->
-        <TextBox x:Name="InputBox" Grid.Row="4"
+        <TextBox x:Name="InputBox" Grid.Row="5"
                  MinHeight="52" MaxHeight="120"
                  AcceptsReturn="True" TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto"
                  FontSize="11"/>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
             <Button x:Name="CancelBtn" Content="Cancel" Width="80" Height="26"
                     Margin="0,0,6,0" IsEnabled="False" Click="CancelBtn_Click"/>
             <Button x:Name="SendBtn" Content="Send" Width="90" Height="26"

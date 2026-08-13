@@ -7,8 +7,14 @@ using Newtonsoft.Json;
 
 namespace StingTools.Core
 {
-    /// <summary>Folder layout mode — full ISO 19650 BIM tree, or flat 5-folder mini.</summary>
-    public enum ProjectFolderMode { BIM, Mini }
+    /// <summary>
+    /// Folder layout mode. BIM = the numbered tree (01_WIP…20_MISC) alongside the CDE
+    /// states. Mini = flat 5-folder. CdeFirst = ISO 19650 "state-first": content types nest
+    /// inside the CDE state folders (00_WIP/&lt;type&gt;) with cross-cutting coordination
+    /// folders (transmittals/issues/registers…) kept at the top; used for brand-new
+    /// (greenfield) projects so exports are born in a state.
+    /// </summary>
+    public enum ProjectFolderMode { BIM, Mini, CdeFirst }
 
     /// <summary>Naming convention for files written into the export folders.</summary>
     public enum NamingConvention { ISO19650, Timestamp, Custom }
@@ -62,7 +68,7 @@ namespace StingTools.Core
             "A_Architectural", "E_Electrical", "M_Mechanical", "P_Plumbing", "S_Structural"
         };
 
-        // ── BIM folder defaults (16 numbered folders) ──────────────────────
+        // ── BIM folder defaults (20 numbered folders) ──────────────────────
         // Display names get suffixed with the project code at setup time
         // (e.g. "01_WIP" → "01_WIP_FIRESTONE_LIBERIA"). This makes every
         // folder uniquely identifiable when copied or zipped out of the root.
@@ -78,7 +84,12 @@ namespace StingTools.Core
             ("COBIE",        "08_COBie",        false, new string[0]),
             ("BEP",          "09_BEP",          false, new string[0]),
             ("TRANSMITTALS", "10_TRANSMITTALS", false, new string[0]),
-            ("ISSUES",       "11_ISSUES",       false, new[] { "RFI", "TQ", "NCR", "EWN" }),
+            // Full ISO 19650 issue-type set — this is the single definition; the
+            // legacy ProjectFolderEngine.CreateFolderStructure builder used to carry
+            // its own richer 14-type list, which made the tree differ by entry point.
+            ("ISSUES",       "11_ISSUES",       false, new[] { "RFI", "TQ", "NCR", "EWN", "SI", "VO", "AI",
+                                                               "CVI", "CE", "DESIGN", "CLASH", "SNAGGING",
+                                                               "RFA", "PMI" }),
             ("CLASHES",      "12_CLASHES",      false, new[] { "BCF", "Reports", "Snapshots" }),
             ("HANDOVER",     "13_HANDOVER",     false, new string[0]),
             ("REVISIONS",    "14_REVISIONS",    false, new string[0]),
@@ -100,15 +111,80 @@ namespace StingTools.Core
             ("REPORTS",   "Reports"),
         };
 
+        // ── CDE-first content types nested inside each state ──────────────
+        public static readonly string[] CdeFirstContentTypes =
+            { "Models", "Drawings", "Schedules", "Documents", "BOQ", "COBie", "Reports" };
+
+        // ── CDE-first folder defaults: states with content-type subfolders +
+        //    top-level cross-cutting coordination folders (not state-scoped) ──
+        public static readonly (string Id, string Name, bool DiscSubs, string[] SubFolders)[] CdeFirstFolderDefaults = new[]
+        {
+            ("WIP",          "00_WIP",          false, CdeFirstContentTypes),
+            ("SHARED",       "01_SHARED",       false, CdeFirstContentTypes),
+            ("PUBLISHED",    "02_PUBLISHED",    false, CdeFirstContentTypes),
+            ("ARCHIVE",      "03_ARCHIVE",      false, new string[0]),
+            ("BEP",          "09_BEP",          false, new string[0]),
+            ("TRANSMITTALS", "10_TRANSMITTALS", false, new string[0]),
+            ("ISSUES",       "11_ISSUES",       false, new[] { "RFI", "TQ", "NCR", "EWN", "SI", "VO", "AI",
+                                                               "CVI", "CE", "DESIGN", "CLASH", "SNAGGING",
+                                                               "RFA", "PMI" }),
+            ("CLASHES",      "12_CLASHES",      false, new[] { "BCF", "Reports", "Snapshots" }),
+            ("HANDOVER",     "13_HANDOVER",     false, new string[0]),
+            ("REGISTERS",    "15_REGISTERS",    false, new string[0]),
+            ("COMPLIANCE",   "16_COMPLIANCE",   false, new string[0]),
+            ("MISC",         "20_MISC",         false, new string[0]),
+        };
+
+        /// <summary>
+        /// Export routes for CdeFirst. Values are either "STATE|ContentType" (routed into a
+        /// CDE state's content-type subfolder — default state WIP) or a plain folder id
+        /// (routed to a top-level cross-cutting folder). "_DATA" routes to _data.
+        /// </summary>
+        public static Dictionary<string, string> DefaultCdeFirstRoutes() => new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["PDF"] = "WIP|Drawings",
+            ["IFC"] = "WIP|Models", ["NWC"] = "WIP|Models", ["RVT"] = "WIP|Models", ["DWG"] = "WIP|Models",
+            ["SCHEDULE"] = "WIP|Schedules", ["EXCEL"] = "WIP|Schedules", ["CSV"] = "WIP|Schedules",
+            ["BOQ"] = "WIP|BOQ",
+            ["COBIE"] = "WIP|COBie", ["COBie"] = "WIP|COBie", ["COBieStream"] = "WIP|COBie",
+            ["BEP"] = "BEP",
+            ["TRANSMITTAL"] = "TRANSMITTALS", ["Transmittal"] = "TRANSMITTALS",
+            ["ISSUE"] = "ISSUES", ["Issue"] = "ISSUES", ["RFI"] = "ISSUES",
+            ["BCF"] = "CLASHES", ["CLASH"] = "CLASHES", ["Clash"] = "CLASHES",
+            ["HANDOVER"] = "HANDOVER", ["Handover"] = "HANDOVER", ["OAM"] = "HANDOVER",
+            ["OandM"] = "HANDOVER", ["Maintenance"] = "HANDOVER", ["AssetHealth"] = "HANDOVER",
+            ["REVISION"] = "WIP|Reports", ["Revision"] = "WIP|Reports",
+            ["REGISTER"] = "REGISTERS", ["TagRegister"] = "REGISTERS",
+            ["DocRegister"] = "REGISTERS", ["AssetRegister"] = "REGISTERS",
+            ["COMPLIANCE"] = "COMPLIANCE", ["Compliance"] = "COMPLIANCE",
+            ["MODELHEALTH"] = "COMPLIANCE", ["ModelHealth"] = "COMPLIANCE", ["Validation"] = "COMPLIANCE",
+            ["Photo"] = "WIP|Reports",
+            ["JSON"] = "_DATA",
+        };
+
         /// <summary>
         /// Append `_<projectCode>` to a folder display name if not already suffixed.
         /// Idempotent: WithCodeSuffix("01_WIP", "FIRESTONE") → "01_WIP_FIRESTONE"
         /// but a second call returns the same string.
+        /// <para>
+        /// The suffix exists so a folder stays identifiable once copied or zipped out of
+        /// the root. It costs legibility everywhere else — it lengthens all ~20 folder
+        /// names in the very tree meant to look tidy, and FOLDER_INDEX.txt (written by
+        /// <c>WriteFolderIndex</c> at the root) already identifies the project.
+        /// </para>
+        /// <para>
+        /// Set FOLDER_CODE_SUFFIX=false in project_config.json to omit it. The default
+        /// stays TRUE deliberately: the suffixed names are baked into every existing
+        /// project's <c>project_setup.json</c>, and flipping the default would have those
+        /// projects start creating unsuffixed folders ALONGSIDE their suffixed ones —
+        /// more sprawl, not less. Set it before a project's first setup, not mid-project.
+        /// </para>
         /// </summary>
         public static string WithCodeSuffix(string folderName, string projectCode)
         {
             if (string.IsNullOrWhiteSpace(folderName)) return folderName;
             if (string.IsNullOrWhiteSpace(projectCode)) return folderName;
+            if (!TagConfig.FolderCodeSuffix) return folderName;
             string suffix = "_" + projectCode;
             if (folderName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) return folderName;
             return folderName + suffix;
@@ -165,6 +241,33 @@ namespace StingTools.Core
                 ExportRoutes = DefaultBimRoutes(),
             };
             foreach (var (id, name, discSubs, subs) in BimFolderDefaults)
+            {
+                s.CustomFolders.Add(new FolderDef
+                {
+                    Id = id,
+                    DisplayName = WithCodeSuffix(name, s.ProjectCode),
+                    HasDisciplineSubfolders = discSubs,
+                    SubFolders = subs.ToList(),
+                    IsCustom = false,
+                });
+            }
+            return s;
+        }
+
+        /// <summary>Build a default CdeFirst-mode setup: content types nested inside the CDE states.</summary>
+        public static ProjectSetup CreateCdeFirst(string projectCode, string rootPath, List<string> disciplines = null)
+        {
+            var s = new ProjectSetup
+            {
+                ProjectCode = projectCode ?? "PRJ",
+                RootPath = rootPath ?? "",
+                Mode = ProjectFolderMode.CdeFirst,
+                Disciplines = disciplines != null && disciplines.Count > 0
+                    ? new List<string>(disciplines)
+                    : new List<string>(DefaultBimDisciplines),
+                ExportRoutes = DefaultCdeFirstRoutes(),
+            };
+            foreach (var (id, name, discSubs, subs) in CdeFirstFolderDefaults)
             {
                 s.CustomFolders.Add(new FolderDef
                 {

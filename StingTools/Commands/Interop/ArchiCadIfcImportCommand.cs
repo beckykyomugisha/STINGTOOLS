@@ -2052,6 +2052,19 @@ namespace StingTools.Commands.Interop
                   ?? el.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
             p1?.Set("AC:" + src.GlobalId);
 
+            // R1 — carry the ArchiCAD-origin IFC GlobalId as the canonical
+            // cross-host key so it SURVIVES the Revit hop. Without this the element
+            // travels with only ARCHICAD_GUID; StabilizeIfcGuids then stamps Revit's
+            // own re-minted IfcGUID into IFC_GLOBAL_ID_TXT and the Planscape push
+            // keys on that Revit-local value — so the element can never be matched
+            // back to its ArchiCAD twin. StabilizeIfcGuids now treats an
+            // ArchiCAD-origin element's GlobalId as authoritative and preserves it.
+            if (!string.IsNullOrEmpty(src.GlobalId))
+            {
+                var pg = el.LookupParameter("IFC_GLOBAL_ID_TXT");
+                if (pg != null && !pg.IsReadOnly) pg.Set(src.GlobalId);
+            }
+
             if (!string.IsNullOrEmpty(src.Name))
             {
                 var p2 = el.LookupParameter("ARCHICAD_ELEMENT_NAME")

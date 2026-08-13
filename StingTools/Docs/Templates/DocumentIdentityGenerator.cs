@@ -1,4 +1,4 @@
-// DocumentIdentityGenerator.cs — template engine v1.1 (S04).
+﻿// DocumentIdentityGenerator.cs — template engine v1.1 (S04).
 //
 // Generates ISO 19650-style document numbers from a TemplateManifest's
 // identifier_format token string. Sequence counters are persisted atomically
@@ -123,7 +123,7 @@ namespace Planscape.Docs.Templates
         private static string StorePath(Document doc)
         {
             string root = TryProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "doc_sequences.json");
         }

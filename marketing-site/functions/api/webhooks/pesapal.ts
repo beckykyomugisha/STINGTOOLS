@@ -163,10 +163,21 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return ack(p, 200);
   }
 
-  // Dedupe on the tracking id (Pesapal can fire the IPN more than once).
+  // Dedupe on the tracking id — but ONLY once the order has actually been
+  // applied. Unlike Stripe (fresh Event.id per event), Pesapal reuses the same
+  // OrderTrackingId across payment retries on one order: a customer whose MTN
+  // prompt fails can retry on the same checkout page and succeed. Skipping on
+  // "we've seen this id" would drop that second, successful IPN and leave a
+  // paying customer with no subscription. Re-processing is safe because
+  // processCompleted() returns early when order.status is already 'completed'.
   const prior = await getWebhookByEventId(env.WAITLIST_DB, "pesapal", p.orderTrackingId);
   if (prior && (prior.status === "processed" || prior.status === "ignored")) {
-    return ack(p, 200);
+    const applied = await getPesapalOrderByTracking(env.WAITLIST_DB, p.orderTrackingId);
+    if (!applied || applied.status === "completed") {
+      return ack(p, 200);
+    }
+    // Order exists but is not completed (e.g. a failed first attempt) — fall
+    // through and re-query Pesapal in case this IPN reports a successful retry.
   }
 
   const logId =

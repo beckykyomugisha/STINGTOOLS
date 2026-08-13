@@ -1,4 +1,4 @@
-// StingTools — SpdCoordinator.cs
+﻿// StingTools — SpdCoordinator.cs
 //
 // Surge Protective Device coordination engine for the STING Lightning
 // Protection panel. Pure C# utility: loads STING_LPS_SPD_CATALOGUE.json,
@@ -167,7 +167,7 @@ namespace StingTools.Core.Lightning
                 if (string.IsNullOrEmpty(rvt)) return null;
                 string dir = Path.GetDirectoryName(rvt);
                 if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "_BIM_COORD", "lps_spd_catalogue.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "lps_spd_catalogue.json");
             }
             catch (Exception ex) { StingLog.Warn($"ResolveOverridePath: {ex.Message}"); return null; }
         }

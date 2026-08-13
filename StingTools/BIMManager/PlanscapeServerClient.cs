@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -111,6 +111,19 @@ public sealed partial class PlanscapeServerClient : IDisposable
         }
         if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = DefaultAppFallbackUrl;
 
+        // An explicit override always wins — needed when the API and web app
+        // are independently-named hosts that fit neither of FormatWebAppUrl's
+        // two conventions (e.g. split Render free-tier services). See
+        // ResolveWebAppUrlOverride in the Settings partial.
+        var overrideUrl = ResolveWebAppUrlOverride();
+        if (!string.IsNullOrWhiteSpace(overrideUrl))
+        {
+            string url = overrideUrl!.TrimEnd('/') + "/";
+            if (!string.IsNullOrWhiteSpace(hash))
+                url += hash!.StartsWith("#") ? hash : "#" + hash;
+            return url;
+        }
+
         // FormatWebAppUrl maps a cloud api.<domain> host to the sibling
         // app.<domain> SPA root, and keeps the same-origin <base>/app/
         // convention for localhost / self-hosted stacks. See Settings partial.
@@ -182,16 +195,38 @@ public sealed partial class PlanscapeServerClient : IDisposable
             // P1 — store the session so a Revit restart doesn't require
             // re-entering credentials. Encrypted with DPAPI (current-user).
             PersistSession();
-            // Remember the server URL machine-wide so every other document
-            // (and the "Open Planscape" buttons) default to the same cloud
-            // server without the user re-typing it. Idempotent on the same URL.
-            SaveDefaultServerUrl(_serverUrl);
+            // #563 — DELIBERATELY DOES NOT PERSIST THE SERVER URL.
+            //
+            // This used to call SaveDefaultServerUrl(_serverUrl) on every
+            // successful login, so merely connecting to a local docker stack
+            // once rewrote the machine-wide pointer in
+            // %APPDATA%\StingTools\planscape_server.json. That file holds the
+            // production pointer and is the fallback that makes the launcher
+            // script safe: a user who connected to localhost for an afternoon
+            // stayed pointed at it afterwards, against a dev database full of
+            // real-looking data, without ever having CHOSEN to be.
+            //
+            // The target is now written only by PlanscapeServerTargets
+            // .SetActiveTarget, from a confirmed choice in the server picker.
+            // Connecting is not a choice about where to point in future.
+            //
+            // Note this is not a loss of convenience: _serverUrl for THIS
+            // session is already whatever the user typed or the picker
+            // resolved, and the per-document link in planscape_connection.json
+            // still records the project. Only the machine-wide default is no
+            // longer written behind the user's back.
             StingLog.Info($"Planscape: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
 
             // C2 — fire-and-forget SignalR start so real-time updates flow without
             // blocking the login UX. Failures are logged but not fatal.
             if (TenantId != Guid.Empty && UserId != Guid.Empty)
             {
+                // IM Phase 3 — attach the warnings subscriber BEFORE the connection
+                // starts, so a broadcast arriving during startup is not missed.
+                // Wire() is idempotent, so reconnects cannot double-subscribe.
+                try { Core.WarningsRealtimeBridge.Wire(); }
+                catch (Exception ex) { StingLog.Warn($"Planscape: warnings bridge wire failed — {ex.Message}"); }
+
                 _ = Task.Run(async () =>
                 {
                     try { await PlanscapeRealtimeClient.Instance.StartAsync(_serverUrl, _accessToken, TenantId, UserId); }
@@ -513,92 +548,35 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// _bim_manager/issues.json so the BCC can see mobile-created issues.
     /// Existing local-only issues (no server id) are preserved. Server
     /// issues are upserted by their GUID. Returns the number merged.</summary>
+    /// <summary>
+    /// Pull all issues from the server and merge them into the project's issue register.
+    ///
+    /// Phase 2 (IM-4): the mapping used to live here and emitted BOTH "id" and "issue_id"
+    /// for the same record — one more variant of the schema fork — and passed the server's
+    /// own status vocabulary ("Open", "New") straight through, so server-pulled issues were
+    /// invisible to the has_open_issues gate. The mapping now lives in one place,
+    /// IssueStore.MergeFromServer.
+    ///
+    /// <paramref name="issuesJsonPath"/> is accepted for signature compatibility and is no
+    /// longer used to choose a destination — the register resolves through CoordStores.
+    /// </summary>
     public async Task<int> SyncIssuesFromServerAsync(Guid projectId, string issuesJsonPath)
+        => await SyncIssuesFromServerAsync(projectId, (Autodesk.Revit.DB.Document)null);
+
+    /// <summary>Document-based overload — the one new callers should use.</summary>
+    public async Task<int> SyncIssuesFromServerAsync(Guid projectId, Autodesk.Revit.DB.Document doc)
     {
         var arr = await GetIssuesAsync(projectId, "ALL");
         if (arr == null || arr.Count == 0) return 0;
+        if (doc == null)
+        {
+            StingLog.Warn("SyncIssuesFromServer: no Document — cannot resolve the issue register; skipped.");
+            return 0;
+        }
         try
         {
-            // Load existing local array so we can upsert.
-            JArray local;
-            try { local = File.Exists(issuesJsonPath) ? JArray.Parse(File.ReadAllText(issuesJsonPath)) : new JArray(); }
-            catch { local = new JArray(); }
-
-            // Index local items by their server id (if present) for O(1) lookup.
-            var localById = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
-            foreach (JObject loc in local)
-            {
-                string lid = loc.Value<string>("server_id") ?? loc.Value<string>("id") ?? "";
-                if (!string.IsNullOrEmpty(lid)) localById[lid] = loc;
-            }
-
-            int merged = 0;
-            foreach (JObject srv in arr)
-            {
-                string sid = srv.Value<string>("id") ?? "";
-                if (string.IsNullOrEmpty(sid)) continue;
-
-                // Map server camelCase → local snake_case schema expected by BuildCoordData.
-                string assignee = srv.Value<string>("assignee") ?? "";
-                string createdDate = srv.Value<string>("createdAt") ?? srv.Value<string>("created_date") ?? "";
-
-                // Build element_ids JArray from server's linkedElementIds string.
-                var elemArr = new JArray();
-                string linkedRaw = srv.Value<string>("linkedElementIds") ?? "";
-                if (!string.IsNullOrWhiteSpace(linkedRaw) && linkedRaw.StartsWith("["))
-                {
-                    try { elemArr = JArray.Parse(linkedRaw); } catch { /* ignore */ }
-                }
-
-                var mapped = new JObject
-                {
-                    ["id"]               = sid,
-                    ["server_id"]        = sid,
-                    ["issue_id"]         = srv.Value<string>("issueCode") ?? sid,
-                    ["type"]             = srv.Value<string>("type") ?? "",
-                    ["type_description"] = srv.Value<string>("type") ?? "",
-                    ["priority"]         = srv.Value<string>("priority") ?? "MEDIUM",
-                    ["title"]            = srv.Value<string>("title") ?? "",
-                    ["description"]      = srv.Value<string>("description") ?? "",
-                    ["status"]           = srv.Value<string>("status") ?? "OPEN",
-                    ["assignee"]         = assignee,
-                    ["assigned_to"]      = assignee,
-                    ["discipline"]       = srv.Value<string>("discipline") ?? "",
-                    ["revision"]         = srv.Value<string>("revision") ?? "",
-                    ["raised_by"]        = srv.Value<string>("createdBy") ?? "",
-                    ["created_by"]       = srv.Value<string>("createdBy") ?? "",
-                    ["created_date"]     = createdDate,
-                    ["modified_date"]    = srv.Value<string>("updatedAt") ?? createdDate,
-                    ["date_due"]         = srv.Value<string>("dueDate") ?? "",
-                    ["date_closed"]      = srv.Value<string>("resolvedAt") ?? "",
-                    ["source"]           = srv.Value<string>("source") ?? "server",
-                    ["element_ids"]      = elemArr,
-                    ["model_id"]         = srv.Value<string>("modelId") ?? "",
-                    ["model_element_guid"] = srv.Value<string>("modelElementGuid") ?? "",
-                    ["latitude"]         = srv.Value<double?>("latitude"),
-                    ["longitude"]        = srv.Value<double?>("longitude"),
-                    ["linked_transmittals"] = new JArray(),
-                    ["comments"]         = new JArray()
-                };
-
-                if (localById.TryGetValue(sid, out var existing))
-                {
-                    // Replace in-place so local additions (comments, linked_transmittals) survive.
-                    if (existing["comments"] is JArray c && c.Count > 0) mapped["comments"] = c;
-                    if (existing["linked_transmittals"] is JArray lt && lt.Count > 0) mapped["linked_transmittals"] = lt;
-                    int idx = local.IndexOf(existing);
-                    local[idx] = mapped;
-                }
-                else
-                {
-                    local.Add(mapped);
-                    localById[sid] = mapped;
-                }
-                merged++;
-            }
-
-            File.WriteAllText(issuesJsonPath, local.ToString(Newtonsoft.Json.Formatting.Indented));
-            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into {issuesJsonPath}");
+            int merged = Core.IssueStore.MergeFromServer(doc, arr);
+            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into the issue register.");
             return merged;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"SyncIssuesFromServer: {ex.Message}"); return 0; }
@@ -670,6 +648,67 @@ public sealed partial class PlanscapeServerClient : IDisposable
         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return new Dictionary<string, int>(); }
     }
 
+    /// <summary>
+    /// Reserve a block of sequence numbers per counter key via
+    /// <c>POST /api/projects/{id}/seq/reserve</c>.
+    ///
+    /// This is the cross-host-safe allocation path. <see cref="StingTools.Core.SeqAssigner"/>
+    /// otherwise allocates optimistically in memory and reconciles via the
+    /// max-per-key merge at <c>/seq/sync</c>, which cannot stop Revit and
+    /// StingBridge minting the same number on the same key concurrently — both
+    /// read the same high-water mark, and the merge accepts the higher of two
+    /// identical values. The reserve endpoint bumps and returns the counter in
+    /// one indivisible UPSERT, so each caller gets a disjoint block.
+    ///
+    /// Returns an EMPTY reservation when not connected or on any failure. That
+    /// is deliberate: callers treat "no reservation" as "allocate locally" and
+    /// keep working offline. It leaves the duplicate window open in that mode —
+    /// a documented limitation, not an oversight.
+    /// </summary>
+    /// <param name="reservations">counter key → how many numbers to reserve.</param>
+    public async Task<StingTools.Core.SeqBlockReservation> ReserveSeqBlocksAsync(
+        Guid projectId, Dictionary<string, int> reservations)
+    {
+        var result = new StingTools.Core.SeqBlockReservation();
+        if (reservations == null || reservations.Count == 0) return result;
+        if (!await EnsureAuthenticatedAsync())
+        {
+            StingLog.Info("Planscape: not connected — SEQ numbers will be allocated locally.");
+            return result;
+        }
+
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/seq/reserve",
+                new { reservations });
+            if (!resp.ok)
+            {
+                StingLog.Warn($"Planscape: SEQ reserve failed ({resp.body}) — allocating locally.");
+                return result;
+            }
+
+            var assignments = JObject.Parse(resp.body)["assignments"] as JObject;
+            if (assignments == null) return result;
+
+            foreach (var kv in assignments)
+            {
+                var block = kv.Value as JObject;
+                if (block == null) continue;
+                int start = block["start"]?.Value<int>() ?? 0;
+                int end   = block["end"]?.Value<int>()   ?? 0;
+                if (start > 0 && end >= start) result.Add(kv.Key, start, end);
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            // Numbering must never fail a tagging run — degrade to local.
+            StingLog.Warn($"Planscape: SEQ reserve error ({ex.Message}) — allocating locally.");
+            return new StingTools.Core.SeqBlockReservation();
+        }
+    }
+
     // ────────────────────────────────────────────────────────────────────────────
     //  Persist / Load connection settings
     // ────────────────────────────────────────────────────────────────────────────
@@ -679,15 +718,43 @@ public sealed partial class PlanscapeServerClient : IDisposable
     {
         try
         {
-            var settings = new JObject
+            // MERGE, never replace. This used to build a fresh JObject and write it
+            // over whatever was there, and the post-login call site passes no
+            // projectId - so saving connection settings silently DELETED the project
+            // link of an already-linked model (issue #571). That defect was dormant
+            // only because the block that calls this never ran: it dereferenced a
+            // null ExternalCommandData and died on an NRE that was logged as
+            // "non-fatal". Fixing the NRE without fixing this would have turned a
+            // harmless log line into link loss on every login.
+            JObject settings;
+            if (File.Exists(configPath))
             {
-                ["serverUrl"]       = _serverUrl,
-                ["email"]           = email,
-                ["lastConnected"]   = DateTime.UtcNow.ToString("o")
-            };
+                try { settings = JObject.Parse(File.ReadAllText(configPath)); }
+                catch (Exception parseEx)
+                {
+                    // Do not silently discard a file we cannot read - it may hold the
+                    // only copy of the project link.
+                    StingLog.Warn($"Planscape: {Path.GetFileName(configPath)} is unreadable " +
+                                  $"({parseEx.Message}); keeping a .corrupt backup before rewriting.");
+                    try { File.Copy(configPath, configPath + ".corrupt", true); } catch { }
+                    settings = new JObject();
+                }
+            }
+            else
+            {
+                settings = new JObject();
+            }
+
+            settings["serverUrl"]     = _serverUrl;
+            settings["email"]         = email;
+            settings["lastConnected"] = DateTime.UtcNow.ToString("o");
+            // Only ever ADD a project id. An absent argument means "not specified",
+            // never "clear the link".
             if (projectId != Guid.Empty)
                 settings["projectId"] = projectId.ToString();
 
+            var dir = Path.GetDirectoryName(configPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             File.WriteAllText(configPath, settings.ToString(Formatting.Indented));
         }
         catch (Exception ex) { StingLog.Warn($"Planscape: Could not save connection settings: {ex.Message}"); }
@@ -1090,6 +1157,25 @@ public sealed partial class PlanscapeServerClient : IDisposable
         {
             // Route is /warnings/report, not /warnings (was → 404).
             var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/report", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    /// <summary>
+    /// Save a warning baseline. Server action is <c>[HttpPost("baseline")]</c>
+    /// (WarningsController.SaveBaseline), so the <paramref name="payload"/> must match
+    /// <c>SaveWarningBaselineRequest</c>:
+    /// <c>{ warningCount, healthScore, totalElements, compliancePercent }</c>.
+    /// The server persists it as a ComplianceSnapshot — there is no dedicated
+    /// warning entity — which is what GET /warnings/trend reads back.
+    /// </summary>
+    public async Task<bool> PushWarningBaselineAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/baseline", payload);
             return resp.ok;
         }
         catch (Exception ex) { LastError = ex.Message; return false; }
@@ -2123,6 +2209,20 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// Server wins on conflict (last-write-wins by updatedAt).
     /// Uses <paramref name="since"/> for incremental pull; pass null for a full refresh.
     /// </summary>
+    /// <summary>
+    /// Pull issues from the server into the project's issue register.
+    ///
+    /// Phase 2 (IM-4): this used to write to
+    /// <c>OutputLocationHelper.GetOutputDirectory(doc)/issues.json</c> — the MISC *export*
+    /// folder, not the register. Nothing in the plugin ever read that file, so every issue
+    /// pulled here (including everything captured on mobile) was written to an orphan store
+    /// and silently discarded. It is called fire-and-forget on startup, so it had been
+    /// quietly doing this on every session.
+    ///
+    /// Now delegates to IssueStore.MergeFromServer: canonical path, canonical schema,
+    /// normalised status, and a three-way dedup (server_id → server_code → issue_id) so an
+    /// issue this plugin created and pushed is matched rather than duplicated.
+    /// </summary>
     public async Task<int> PullServerIssuesAsync(Autodesk.Revit.DB.Document doc, DateTime? since = null)
     {
         if (!IsConnected) return 0;
@@ -2144,48 +2244,9 @@ public sealed partial class PlanscapeServerClient : IDisposable
             var json = JObject.Parse(resp.body);
             var serverArr = (json["issues"] as JArray) ?? JArray.Parse(resp.body);
 
-            // Load local sidecar
-            var localPath = Path.Combine(Core.OutputLocationHelper.GetOutputDirectory(doc), "issues.json");
-            JArray local = new JArray();
-            if (File.Exists(localPath))
-            {
-                try { local = JArray.Parse(File.ReadAllText(localPath)); }
-                catch (Exception ex) { StingLog.Warn($"PullServerIssues: local parse failed — {ex.Message}"); }
-            }
-
-            // Merge by id — server entry wins when updatedAt is newer
-            var merged = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
-            foreach (var tok in local)
-            {
-                if (tok is JObject obj && obj["id"]?.ToString() is string id && !string.IsNullOrEmpty(id))
-                    merged[id] = obj;
-            }
-
-            int updated = 0;
-            foreach (var tok in serverArr)
-            {
-                if (tok is not JObject sv) continue;
-                var id = sv["id"]?.ToString();
-                if (string.IsNullOrEmpty(id)) continue;
-
-                if (merged.TryGetValue(id, out var lv))
-                {
-                    var svTime = sv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
-                    var lvTime = lv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
-                    if (svTime >= lvTime) { merged[id] = sv; updated++; }
-                }
-                else
-                {
-                    merged[id] = sv;
-                    updated++;
-                }
-            }
-
-            var result = new JArray(merged.Values.Cast<object>().ToArray());
-            Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
-            File.WriteAllText(localPath, result.ToString(Formatting.Indented));
-            StingLog.Info($"PullServerIssues: merged {updated} issue(s) from server into {localPath}");
-            return updated;
+            int merged = Core.IssueStore.MergeFromServer(doc, serverArr);
+            StingLog.Info($"PullServerIssues: merged {merged} issue(s) into the issue register.");
+            return merged;
         }
         catch (Exception ex)
         {

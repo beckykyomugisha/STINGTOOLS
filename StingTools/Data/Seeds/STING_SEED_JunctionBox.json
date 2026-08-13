@@ -134,12 +134,25 @@
           "default": ""
         }
       ],
+      "_connector_notes": [
+        "A junction / pull box is a physical conduit junction, so all four",
+        "connectors are Domain='Conduit' (-> Domain.DomainCableTrayConduit).",
+        "AutoConduitDrop.FindBestFreeConnector() and the drop engine can bond a",
+        "rising / branching conduit to any free one, making the JB an auto-route",
+        "anchor rather than a dead LocationPoint. Old x/y/z/direction keys did NOT",
+        "bind (creator reads offsetX/offsetY/offsetZ + facing), so before this fix",
+        "every connector collapsed to (0,0,0) facing -X and all four overlapped as",
+        "power (Electrical) connectors that conduit cannot bond to. facing points",
+        "outward along each box face so the stub conduit leaves the enclosure",
+        "cleanly. sizeMm=20 matches the Revit default conduit size list (BS 7671",
+        "final circuit / BS 7671 \u00a7522.8.5 draw-in box)."
+      ],
       "connectors": [
         {
-          "domain": "Electrical",
+          "domain": "Conduit",
           "systemType": "Power",
           "shape": "Round",
-          "sizeMm": 25,
+          "sizeMm": 20,
           "direction": "In",
           "offsetX": -0.5,
           "offsetY": 0.0,
@@ -148,10 +161,10 @@
           "_notes": "Upstream connector \u2014 incoming conduit from supply side"
         },
         {
-          "domain": "Electrical",
+          "domain": "Conduit",
           "systemType": "Power",
           "shape": "Round",
-          "sizeMm": 25,
+          "sizeMm": 20,
           "direction": "Out",
           "offsetX": 0.5,
           "offsetY": 0.0,
@@ -160,10 +173,10 @@
           "_notes": "Downstream connector \u2014 outgoing conduit to load side"
         },
         {
-          "domain": "Electrical",
+          "domain": "Conduit",
           "systemType": "Power",
           "shape": "Round",
-          "sizeMm": 25,
+          "sizeMm": 20,
           "direction": "Bidirectional",
           "offsetX": 0.0,
           "offsetY": -0.5,
@@ -172,10 +185,10 @@
           "_notes": "Side branch connector (for tee/cross junctions)"
         },
         {
-          "domain": "Electrical",
+          "domain": "Conduit",
           "systemType": "Power",
           "shape": "Round",
-          "sizeMm": 25,
+          "sizeMm": 20,
           "direction": "Bidirectional",
           "offsetX": 0.0,
           "offsetY": 0.5,

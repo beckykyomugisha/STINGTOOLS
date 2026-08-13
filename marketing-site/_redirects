@@ -3,20 +3,16 @@
 # 301 = permanent, 302 = temporary
 
 # Legacy URLs
-/docs           https://docs.planscape.build/    301
-/docs/*         https://docs.planscape.build/:splat 301
+/docs           /guides                          301
+/docs/*         /guides                          301
 
 # Note: Cloudflare Pages auto-canonicalises /signup.html → /signup, /pricing.html → /pricing, etc.
 # Never add /signup → /signup.html or /pricing → /pricing.html — they create a redirect loop.
 # Cloudflare automatically serves /signup.html when someone requests /signup.
 
-# Pre-launch: /login and /app/* land on the waitlist page (/signup).
-# Don't write /signup.html as the target — write the canonical /signup so CF doesn't loop.
-# When the real API is live, change these to point at api.planscape.build/auth/*.
-/login          /signup                          302
-/app            /signup                          302
-/app/*          /signup                          302
+# Note: /login and /account are real pages now (login.html / account.html).
+# Cloudflare auto-canonicalises .html → clean URL, so they need no rule here —
+# adding one for /login or /account would create a redirect loop (see d75f094a0).
 
 # Old WordPress-style paths (just in case)
-/?p=*           /blog/                          301
 /category/*     /blog/                          301

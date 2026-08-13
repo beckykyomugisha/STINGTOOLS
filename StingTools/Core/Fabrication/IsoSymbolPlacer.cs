@@ -787,7 +787,7 @@ namespace StingTools.Core.Fabrication
                 if (string.IsNullOrEmpty(projPath)) return "";
                 string projDir = Path.GetDirectoryName(projPath);
                 if (string.IsNullOrEmpty(projDir)) return "";
-                return Path.Combine(projDir, "_BIM_COORD", "Families", "Symbols", "ISO6412", familyFile);
+                return Path.Combine(StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols", "ISO6412"), familyFile);
             }
             catch (Exception ex) { StingLog.Warn($"IsoSymbolPlacer.ResolveGeneratedFamilyPath: {ex.Message}"); }
             return "";

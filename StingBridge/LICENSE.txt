@@ -1,0 +1,16 @@
+StingBridge
+Copyright (c) 2026 Planscape Limited. All rights reserved.
+
+This software is proprietary and is licensed, not sold.
+
+Use is permitted only in connection with an active Planscape subscription,
+under the Planscape Terms of Service (https://planscape.build/terms.html).
+
+You may not redistribute, resell, sublicense, publish, or make this software
+available to any third party, in source or binary form, without prior written
+permission from Planscape Limited.
+
+This software is provided "as is", without warranty of any kind, express or
+implied, to the maximum extent permitted by law.
+
+Contact: info@stingtools.io

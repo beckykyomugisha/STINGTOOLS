@@ -24,10 +24,30 @@ import logging
 import sys
 import time
 
+from . import __version__
 from .archicad.client import ArchiCadClient, ArchiCadError
 from .config import BridgeConfig
 from .planscape.client import PlanscapeClient, PlanscapeAuthError
 from .sync.engine import SyncEngine
+
+def _configure_console_encoding() -> None:
+    """Make the console tolerate the non-ASCII characters this CLI prints.
+
+    A default Windows console is cp1252, which cannot encode the arrows and
+    check marks used in the help text and progress messages; writing one raises
+    UnicodeEncodeError and takes the process down — ``stingbridge --help`` died
+    that way before this. Switching the streams to UTF-8 fixes rendering where
+    the terminal supports it, and ``errors="replace"`` guarantees that a stream
+    that still cannot encode a character degrades to "?" instead of crashing.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            # Not a reconfigurable TextIOWrapper (redirected/piped/embedded) —
+            # nothing to do; the streams stay as the host provided them.
+            pass
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,11 +68,7 @@ def _make_clients(cfg: BridgeConfig) -> tuple[ArchiCadClient, PlanscapeClient]:
         ac = ArchiCadClient.discover()
 
     # Planscape
-    if not cfg.planscape_email or not cfg.planscape_password:
-        log.error(
-            "STING_PLANSCAPE_EMAIL and STING_PLANSCAPE_PASSWORD must be set"
-        )
-        sys.exit(1)
+    _require_credentials(cfg)
     if not cfg.planscape_project_id:
         log.error("STING_PLANSCAPE_PROJECT_ID must be set")
         sys.exit(1)
@@ -61,7 +77,7 @@ def _make_clients(cfg: BridgeConfig) -> tuple[ArchiCadClient, PlanscapeClient]:
         base_url=cfg.planscape_url,
         project_id=cfg.planscape_project_id,
     )
-    ps.login(cfg.planscape_email, cfg.planscape_password)
+    _authenticate(cfg, ps)
     _warn_on_substrate_drift(ps)
 
     return ac, ps
@@ -74,6 +90,8 @@ def cmd_sync(cfg: BridgeConfig) -> int:
         planscape_client=ps,
         write_back=cfg.write_back_to_archicad,
         batch_size=cfg.batch_size,
+        verify_write_back=cfg.verify_write_back,
+        building_name=cfg.building_name,
     )
     result = engine.run()
     log.info("Sync complete — %s", result.summary())
@@ -121,16 +139,42 @@ def cmd_watch(cfg: BridgeConfig) -> int:
             return 0
 
 
+def _authenticate(cfg: BridgeConfig, ps: PlanscapeClient) -> None:
+    """Log the client in with whichever credential is configured.
+
+    A personal access token wins when both are present: it is the newer,
+    preferred path, and it is the ONLY credential an account provisioned
+    through the planscape.build identity handoff can have (those accounts are
+    created with an unusable password hash by design).
+    """
+    if cfg.planscape_token:
+        ps.login_with_token(cfg.planscape_token)
+    else:
+        ps.login(cfg.planscape_email, cfg.planscape_password)
+
+
+def _require_credentials(cfg: BridgeConfig) -> None:
+    """Exit with a usable message when no credential is configured."""
+    if cfg.planscape_token:
+        return
+    if cfg.planscape_email and cfg.planscape_password:
+        return
+    log.error(
+        "No Planscape credentials. Set STING_PLANSCAPE_TOKEN (recommended - "
+        "mint one in the Planscape cloud app), or STING_PLANSCAPE_EMAIL + "
+        "STING_PLANSCAPE_PASSWORD."
+    )
+    sys.exit(1)
+
+
 def _make_ps_client(cfg: BridgeConfig) -> PlanscapeClient:
     """Create and log in a PlanscapeClient without needing ArchiCAD."""
-    if not cfg.planscape_email or not cfg.planscape_password:
-        log.error("STING_PLANSCAPE_EMAIL and STING_PLANSCAPE_PASSWORD must be set")
-        sys.exit(1)
+    _require_credentials(cfg)
     if not cfg.planscape_project_id:
         log.error("STING_PLANSCAPE_PROJECT_ID must be set")
         sys.exit(1)
     ps = PlanscapeClient(base_url=cfg.planscape_url, project_id=cfg.planscape_project_id)
-    ps.login(cfg.planscape_email, cfg.planscape_password)
+    _authenticate(cfg, ps)
     _warn_on_substrate_drift(ps)
     return ps
 
@@ -244,8 +288,23 @@ def cmd_auto_publish(cfg: BridgeConfig, publisher_set_name: str | None) -> int:
 
 
 def main() -> None:
+    # Called here rather than at import so importing StingBridge.bridge as a
+    # library never mutates the host process's streams. reconfigure() mutates
+    # the stream objects in place, so the logging handler bound at import time
+    # picks up the new encoding too.
+    _configure_console_encoding()
+
     parser = argparse.ArgumentParser(
-        description="STING ArchiCAD ↔ Planscape sync bridge"
+        prog="stingbridge",
+        description="STING ArchiCAD ↔ Planscape sync bridge",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"stingbridge {__version__}"
+    )
+    parser.add_argument(
+        "--config", default=None, metavar="PATH",
+        help="Config file (default: stingbridge.toml, else .env in the working "
+             "directory). Environment variables always override it.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("sync",  help="Run a single sync pass (ArchiCAD must be open)")
@@ -274,7 +333,7 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    cfg = BridgeConfig.from_env()
+    cfg = BridgeConfig.from_env(getattr(args, "config", None))
 
     if args.command == "sync":
         sys.exit(cmd_sync(cfg))

@@ -316,6 +316,24 @@ internal static class PlatformSchemaPatcher
         // (…HostDocu~) so a fresh-EF DB's IF NOT EXISTS short-circuits exactly.
         @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ExternalElementMappings_ProjectId_IfcGlobalId_Host_HostDocu~"" ON ""ExternalElementMappings"" (""ProjectId"", ""IfcGlobalId"", ""Host"", ""HostDocumentGuid"")",
 
+        // PersonalAccessToken — headless credential for clients that cannot do an
+        // interactive login (handoff-provisioned accounts have an unusable password
+        // hash by design). Exchanged for a normal JWT at /api/auth/token/exchange.
+        @"CREATE TABLE IF NOT EXISTS ""PersonalAccessTokens"" (
+            ""Id"" uuid PRIMARY KEY,
+            ""TenantId"" uuid NOT NULL,
+            ""UserId"" uuid NOT NULL,
+            ""Name"" character varying(120) NOT NULL DEFAULT '',
+            ""TokenHash"" character varying(64) NOT NULL DEFAULT '',
+            ""TokenPrefix"" character varying(24) NOT NULL DEFAULT '',
+            ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+            ""LastUsedAt"" timestamp with time zone,
+            ""ExpiresAt"" timestamp with time zone,
+            ""RevokedAt"" timestamp with time zone)",
+        @"CREATE INDEX IF NOT EXISTS ""IX_PersonalAccessTokens_TenantId"" ON ""PersonalAccessTokens"" (""TenantId"")",
+        @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_PersonalAccessTokens_TokenHash"" ON ""PersonalAccessTokens"" (""TokenHash"")",
+        @"CREATE INDEX IF NOT EXISTS ""IX_PersonalAccessTokens_UserId_RevokedAt"" ON ""PersonalAccessTokens"" (""UserId"", ""RevokedAt"")",
+
         // IdempotencyRecord — offline-replay dedupe (Prompt 18; branch-era migration 20260602).
         @"CREATE TABLE IF NOT EXISTS ""IdempotencyRecords"" (
             ""Id"" uuid PRIMARY KEY,
@@ -394,6 +412,19 @@ internal static class PlatformSchemaPatcher
         @"CREATE INDEX IF NOT EXISTS ""IX_IfcAlignmentReports_TenantId"" ON ""IfcAlignmentReports"" (""TenantId"")",
         @"CREATE INDEX IF NOT EXISTS ""IX_IfcAlignmentReports_ProjectId_ProjectModelId"" ON ""IfcAlignmentReports"" (""ProjectId"", ""ProjectModelId"")",
         @"CREATE INDEX IF NOT EXISTS ""IX_IfcAlignmentReports_ProjectId_ValidatedAt"" ON ""IfcAlignmentReports"" (""ProjectId"", ""ValidatedAt"")",
+
+        // ── #552 — ApprovalChain.RevisionSnapshot ──
+        // Purely additive and nullable. Existing rows land on NULL, which the gate in
+        // DocumentsController.CheckApprovalGate treats as "matches any revision" — the
+        // same way DocumentApproval.RevisionSnapshot has always handled its own null
+        // case. So already-COMPLETED chains keep satisfying their gates and no live
+        // publish is blocked the day this ships. New chains stamp the revision at
+        // creation and are scoped from then on.
+        //
+        // No DEFAULT and no NOT NULL on purpose: a default would fabricate a revision
+        // for rounds whose real revision is unknown, which is exactly the confident-
+        // wrong-answer this field exists to prevent.
+        @"ALTER TABLE ""ApprovalChains"" ADD COLUMN IF NOT EXISTS ""RevisionSnapshot"" text",
     };
 
     public static async Task ApplyAsync(DbConnection conn)

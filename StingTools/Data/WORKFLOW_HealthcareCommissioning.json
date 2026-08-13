@@ -3,10 +3,10 @@
   "name": "Healthcare commissioning sweep",
   "description": "Runs the full healthcare validator chain plus RDS issue + COBie export.",
   "steps": [
-    { "tag": "Healthcare_RunAllValidators", "description": "Run all healthcare validators through profile gate" },
-    { "tag": "Healthcare_BatchRDS",         "description": "Issue Room Data Sheets for every clinical room" },
-    { "tag": "Healthcare_AdjacencyAudit",   "description": "Adjacency + clean/dirty flow audit" },
-    { "tag": "Healthcare_MgasAudit",        "description": "MGPS network audit" },
-    { "tag": "COBieExport",                 "description": "COBie export with healthcare overlay" }
+    { "commandTag": "Healthcare_RunAllValidators", "label": "Run all healthcare validators through profile gate" },
+    { "commandTag": "Healthcare_BatchRDS",         "label": "Issue Room Data Sheets for every clinical room" },
+    { "commandTag": "Healthcare_AdjacencyAudit",   "label": "Adjacency + clean/dirty flow audit" },
+    { "commandTag": "Healthcare_MgasAudit",        "label": "MGPS network audit" },
+    { "commandTag": "COBieExport",                 "label": "COBie export with healthcare overlay" }
   ]
 }

@@ -127,6 +127,18 @@
           "isInstance": false
         }
       ],
+      "_connector_notes": [
+        "Two power (Domain='Electrical') connectors for circuiting stay as-is per",
+        "the domain contract \u2014 a panel/DB is fed and loaded by power connectors, not",
+        "conduit. systemType='Power' -> ElectricalSystemType.PowerCircuit (was absent",
+        "before -> UndefinedSystemType, which CreateElectricalConnector rejects). Old",
+        "x/y/z/direction keys did NOT bind (creator reads offsetX/offsetY/offsetZ +",
+        "facing), so both collapsed to (0,0,0) facing -X; fixed to real box faces.",
+        "A third Domain='Conduit' terminal is ADDED so a panel also becomes a conduit",
+        "auto-route anchor: AutoConduitDrop.FindBestFreeConnector() bonds a rising",
+        "conduit from this stub to the nearest containment, matching the junction-box",
+        "and fixture seeds. Offset in X keeps it clear of the top load connector."
+      ],
       "connectors": [
         {
           "domain": "Electrical",
@@ -136,9 +148,9 @@
           "direction": "In",
           "offsetX": 0.0,
           "offsetY": 0.0,
-          "offsetZ": 0.5,
-          "facing": "+Z",
-          "_notes": "Top supply connector \u2014 incoming feeder from upstream panel (opposed on Z)"
+          "offsetZ": -0.5,
+          "facing": "-Z",
+          "_notes": "Supply connector (bottom face) \u2014 incoming feeder from upstream panel"
         },
         {
           "domain": "Electrical",
@@ -148,9 +160,21 @@
           "direction": "Out",
           "offsetX": 0.0,
           "offsetY": 0.0,
-          "offsetZ": -0.5,
-          "facing": "-Z",
-          "_notes": "Bottom load connector \u2014 outgoing to circuits / sub-DBs (opposed on Z)"
+          "offsetZ": 0.5,
+          "facing": "+Z",
+          "_notes": "Load connector (top face) \u2014 outgoing to circuits / sub-DBs"
+        },
+        {
+          "domain": "Conduit",
+          "systemType": "Power",
+          "shape": "Round",
+          "sizeMm": 25,
+          "direction": "Bidirectional",
+          "offsetX": 0.3,
+          "offsetY": 0.0,
+          "offsetZ": 0.5,
+          "facing": "+Z",
+          "_notes": "Conduit terminal (top face) \u2014 auto-route anchor for containment drop; domain='Conduit' -> Domain.DomainCableTrayConduit so AutoConduitDrop can bond to it."
         }
       ],
       "geometry": {

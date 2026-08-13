@@ -1,0 +1,223 @@
+// The download catalogue — one entry per distributable tool.
+//
+// This is deliberately data, not code: adding a tool (or a new version of an
+// existing one) means adding an object here, and the API and the downloads page
+// pick it up with no other changes. The same applies to tools that do not exist
+// yet — declare them with status "in-development" and they appear on the page as
+// "coming soon" rather than being invisible until launch day.
+//
+// Entitlement is by tenant subscription status, resolved in entitlementFor()
+// below. It is intentionally coarse: trial and active tenants get everything.
+// Per-product entitlement (STING Tools subscribers get only the plugin) would go
+// here too, via requiresProduct, once the plans justify it.
+//
+// Releasing a build: use tools/release-download.mjs — it uploads the files to
+// R2, computes sha256 + size from the bytes, and prints the entry to paste
+// here, so the catalogue cannot drift from what is actually in the bucket.
+
+export type ToolStatus = "available" | "beta" | "in-development";
+
+// One downloadable file within a version. A cross-platform tool ships several
+// (a Windows EXE zip, a platform-neutral source zip); a single-platform tool
+// keeps using ToolVersion.objectKey and never declares these.
+//
+// Ship ZIPS ONLY: the streaming endpoint serves everything as application/zip,
+// which is also kinder to browsers than a bare .exe download.
+//
+// Use tools/release-download.mjs to upload the files and generate this block —
+// it computes the sha256 and size so they can never drift from the object.
+export interface ToolArtifact {
+  // URL-safe slug, unique within the version (e.g. "win64", "any"). Shown on
+  // the download button and passed back as ?artifact= to select the file.
+  label: string;
+  // Short human label for where it runs, e.g. "Windows 64-bit" or
+  // "Any OS (Python 3.11+)". Display only.
+  platform?: string;
+  objectKey: string;
+  sizeMb?: number;
+  sha256?: string | null;
+}
+
+export interface ToolVersion {
+  version: string;
+  // Which Revit releases this build targets. Empty for tools that aren't
+  // Revit add-ins.
+  hosts?: string[];
+  sizeMb?: number;
+  releasedAt?: string; // ISO date
+  notes?: string;
+  // Key of the object in the private R2 bucket. Set this and the download
+  // becomes self-serve, streamed through /api/downloads/:tool/:version with an
+  // entitlement check. Null means we have no file yet and the page falls back
+  // to "request by email" — no code change either way.
+  objectKey?: string | null;
+  sha256?: string | null;
+  // Multi-file alternative to objectKey for tools that ship more than one
+  // build per version. When present it wins over objectKey.
+  artifacts?: ToolArtifact[];
+}
+
+// Normalise the two shapes: a version's downloadable files as a single list.
+// Single-file versions (objectKey) come back as one artifact with an empty
+// label, which the endpoint serves without needing ?artifact= — so existing
+// STING Tools links keep working unchanged.
+export function resolveArtifacts(v: ToolVersion): ToolArtifact[] {
+  if (v.artifacts && v.artifacts.length) return v.artifacts;
+  if (v.objectKey) {
+    return [
+      {
+        label: "",
+        objectKey: v.objectKey,
+        sizeMb: v.sizeMb,
+        sha256: v.sha256 ?? null,
+      },
+    ];
+  }
+  return [];
+}
+
+export interface Tool {
+  id: string;
+  name: string;
+  tagline: string;
+  // What kind of thing this is, so the page can group and label sensibly.
+  kind: "revit-plugin" | "connector" | "desktop" | "cloud" | "cli";
+  status: ToolStatus;
+  platform?: string;
+  // Product a tenant must be subscribed to in order to download. null = any
+  // entitled tenant. Reserved for when plans diverge.
+  requiresProduct?: "sting-tools" | "planscape" | null;
+  docsUrl?: string;
+  versions: ToolVersion[];
+}
+
+export const DOWNLOAD_CATALOG: Tool[] = [
+  {
+    id: "sting-tools",
+    name: "STING Tools",
+    tagline:
+      "The Revit plugin — tagging, drawing production, MEP sizing and coordination. Runs on your workstation; no internet connection needed.",
+    kind: "revit-plugin",
+    status: "available",
+    platform: "Windows · Revit 2025, 2026, 2027",
+    requiresProduct: null,
+    docsUrl: "/guides/revit-plugin-setup.html",
+    versions: [
+      {
+        version: "2026-07-05",
+        hosts: ["Revit 2025", "Revit 2026", "Revit 2027"],
+        sizeMb: 89,
+        releasedAt: "2026-07-05",
+        notes:
+          "One package covers all three Revit versions — the installer puts the files in the right place. Includes an install guide and an uninstaller.",
+        objectKey: "sting-tools/2026-07-05/StingTools_Deploy_20260705.zip",
+        // Hashed from the canonical bucket object (wrangler r2 object get →
+        // sha256), 2026-07-19.
+        sha256:
+          "9ed1036ad08c12653e15f1501cd282f773a6edf06523f770af1565697f91b00c",
+      },
+    ],
+  },
+  {
+    id: "sting-bridge",
+    name: "StingBridge",
+    tagline:
+      "Connects ArchiCAD models to Planscape, and watches a folder for IFC files to bring in automatically.",
+    kind: "connector",
+    status: "beta",
+    platform: "Windows · macOS · ArchiCAD (and any IFC-exporting tool)",
+    requiresProduct: null,
+    docsUrl: "/guides/stingbridge-setup.html",
+    versions: [
+      {
+        version: "0.1.0-beta.3",
+        releasedAt: "2026-07-20",
+        notes:
+          "Fixes re-processing the same IFC: sequence numbers are now kept instead of being handed out again, so re-exporting a corrected model no longer renumbers everything. Viewer files (.glb) are filed into done/ with their IFC instead of being left behind, and re-running a conversion over an existing file no longer hangs.",
+        artifacts: [
+          {
+            label: "win64",
+            platform: "Windows 64-bit",
+            objectKey: "sting-bridge/0.1.0-beta.3/StingBridge_0.1.0-beta.3_win64.zip",
+            sizeMb: 55,
+            sha256: "e0d0fa8c361603445751a9838717d11a7d0c4d57cffb25517cc36249f983bab7",
+          },
+          {
+            label: "any",
+            platform: "Any OS (Python 3.11+)",
+            objectKey: "sting-bridge/0.1.0-beta.3/StingBridge_0.1.0-beta.3_any.zip",
+            sizeMb: 1,
+            sha256: "dfa645b7263bbdbe46ab545c7382e00313ebe98ff8bdabc346d5bed6a8a8d055",
+          },
+        ],
+      },
+      // 0.1.0-beta.1 and 0.1.0-beta.2 retired 2026-07-31 — superseded by
+      // beta.3, which fixes the re-processing/renumbering bug both of them
+      // had. Their R2 objects are untouched (in case a support case needs
+      // them); only the catalogue listing was pruned.
+    ],
+  },
+  {
+    id: "planscape-cloud",
+    name: "Planscape cloud",
+    tagline:
+      "Shared project workspace, meetings with live video and collaborative markup, document " +
+      "register and issue tracking, with a corporate coordination UI. Open it from your account page " +
+      "— there is nothing to download here.",
+    kind: "cloud",
+    status: "beta",
+    platform: "Web (mobile app in progress)",
+    requiresProduct: null,
+    versions: [],
+  },
+];
+
+export type Entitlement = "allowed" | "locked" | "unavailable";
+
+export interface EntitlementResult {
+  entitlement: Entitlement;
+  reason: string;
+}
+
+// Coarse by design: what a tenant may download is decided by whether their
+// subscription is live, not by which plan they are on. A tool that is not yet
+// released is "unavailable" to everyone regardless of subscription — being a
+// paying customer does not conjure software that does not exist.
+export function entitlementFor(
+  tool: Tool,
+  subscriptionStatus: string | null | undefined
+): EntitlementResult {
+  if (tool.status === "in-development") {
+    return {
+      entitlement: "unavailable",
+      reason: "Still in development — not available to download yet.",
+    };
+  }
+
+  switch (subscriptionStatus) {
+    case "trial":
+      return { entitlement: "allowed", reason: "Included in your trial." };
+    case "active":
+      return { entitlement: "allowed", reason: "Included in your plan." };
+    case "past_due":
+      // Don't cut off access the moment a payment bounces — dunning may still
+      // recover it, and locking a working tool over a card problem is a good
+      // way to lose a customer who intended to pay.
+      return {
+        entitlement: "allowed",
+        reason: "Your last payment did not go through — please update it to keep access.",
+      };
+    case "read_only":
+      return {
+        entitlement: "locked",
+        reason: "Your trial has ended. Choose a plan to download.",
+      };
+    case "cancelled":
+      return {
+        entitlement: "locked",
+        reason: "Your subscription has ended. Choose a plan to download again.",
+      };
+    default:
+      return { entitlement: "locked", reason: "Choose a plan to download." };
+  }
+}

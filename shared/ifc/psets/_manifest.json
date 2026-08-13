@@ -3,8 +3,28 @@
   "format": "STING IFC PropertySetTemplate manifest",
   "generated_by": "tools/enums/compute_checksums.py",
   "generated_for_repo_relative_path": "shared/ifc/psets/",
-  "total_psets": 5,
+  "total_psets": 8,
   "psets": [
+    {
+      "name": "Pset_StingCostManagement",
+      "file": "Pset_StingCostManagement.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.7.0",
+      "ifd_guid": "uuid:a1d15c11-0007-4001-9000-000000000007",
+      "standards_basis": "RICS NRM2 (2nd ed.); ICE Database v3; BS ISO 15686-5 whole-life costing; ICMS 3rd edition",
+      "template_type": "PSET_TYPEDRIVENOVERRIDE",
+      "applicability": [
+        "IfcElement"
+      ],
+      "property_count": 14,
+      "validation_rule_count": 0,
+      "sha256": "a4a31828c8a871252a2714df60260a5586228665b02c16cf6aa1d3bc229ef29b",
+      "canonical_json_length": 1931
+    },
     {
       "name": "Pset_StingDrawing",
       "file": "Pset_StingDrawing.xml",
@@ -26,6 +46,51 @@
       "validation_rule_count": 3,
       "sha256": "d996df06a5c9fcfccb86fe0d4b95a67d394018801370471f98265d0e9082a0d1",
       "canonical_json_length": 2080
+    },
+    {
+      "name": "Pset_StingHealthcareClinical",
+      "file": "Pset_StingHealthcareClinical.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.7.0",
+      "ifd_guid": "uuid:a1d15c11-0008-4001-9000-000000000008",
+      "standards_basis": "HTM 02-01 (medical gas); HBN series (room classes); HTM 04-01 (water hygiene); BS EN ISO 7396-1; NFPA 99 §5.1; NCRP 147; IPEM Report 75; BS 8300 (anti-ligature)",
+      "template_type": "PSET_TYPEDRIVENOVERRIDE",
+      "applicability": [
+        "IfcSpace",
+        "IfcZone",
+        "IfcElement"
+      ],
+      "property_count": 14,
+      "validation_rule_count": 0,
+      "sha256": "c22ba6ffc66a14ee900fcf8fa7ce698ee2742a2af098e62634ea58cdc91d7366",
+      "canonical_json_length": 1964
+    },
+    {
+      "name": "Pset_StingHVACExecution",
+      "file": "Pset_StingHVACExecution.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.7.0",
+      "ifd_guid": "uuid:a1d15c11-0006-4001-9000-000000000006",
+      "standards_basis": "ASHRAE 90.1; CIBSE Guide A; SMACNA HVAC Duct Construction Standards; BS EN 13779; VDI 2081; NFPA 99 §5.1",
+      "template_type": "PSET_TYPEDRIVENOVERRIDE",
+      "applicability": [
+        "IfcDistributionFlowElement",
+        "IfcDuctSegment",
+        "IfcPipeSegment",
+        "IfcFlowSegment"
+      ],
+      "property_count": 21,
+      "validation_rule_count": 0,
+      "sha256": "59dd723bd6f122ac1df1b6d55b026e91a2fac66cc27c4c83678438902f90d1c0",
+      "canonical_json_length": 2864
     },
     {
       "name": "Pset_StingProjectOrg",

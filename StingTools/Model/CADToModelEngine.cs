@@ -173,6 +173,20 @@ namespace StingTools.Model
         public int TotalEntities { get; set; }
     }
 
+    /// <summary>A placement point captured from a DWG layer for the DWG-&gt;seed bridge,
+    /// used when the geometry is EXPLODED (no block inserts). CaptureMode records HOW the
+    /// point was found so placements stay auditable: "point" (a DWG Point entity, safe),
+    /// "cluster" (centroid of loose lines/arcs on a mapped layer, EXPERIMENTAL/heuristic).
+    /// Block inserts keep the existing DetectedBlock path.</summary>
+    public class DwgFixturePoint
+    {
+        public XYZ Point { get; set; }
+        public string LayerName { get; set; }
+        public string BlockName { get; set; }       // null for exploded captures
+        public string InferredCategory { get; set; }
+        public string CaptureMode { get; set; } = "point";   // "point" | "cluster"
+    }
+
     #endregion
 
     #region CAD Import Result
@@ -368,6 +382,137 @@ namespace StingTools.Model
         public CADExtractionResult PreviewImport(ImportInstance importInstance)
         {
             return ExtractGeometry(importInstance);
+        }
+
+        /// <summary>WS layer-capture — read-only fallback for EXPLODED DWGs (no block
+        /// inserts). Captures one placement point per DWG Point entity on a mapped fixture
+        /// layer ("point", safe) and, when <paramref name="includeLineClusters"/> is set,
+        /// one centroid per cluster of loose lines/arcs on a mapped layer ("cluster",
+        /// EXPERIMENTAL heuristic). Block inserts are intentionally NOT captured here — the
+        /// existing DetectedBlock path (PreviewImport().Blocks) handles those. Only layers
+        /// in <paramref name="fixtureLayers"/> are considered, so unmapped layers (walls,
+        /// dims, text) are never clustered. Does not create elements.</summary>
+        public List<DwgFixturePoint> CaptureFixturePoints(
+            ImportInstance importInstance, ISet<string> fixtureLayers,
+            bool includeLineClusters, double clusterToleranceMm = 600.0)
+        {
+            var pts = new List<DwgFixturePoint>();
+            if (importInstance == null || fixtureLayers == null || fixtureLayers.Count == 0) return pts;
+
+            // Per-layer bucket of segment midpoints, used only for the experimental cluster pass.
+            var lineBucket = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                var options = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false };
+                var geomElement = importInstance.get_Geometry(options);
+                if (geomElement == null) return pts;
+                foreach (var geomObj in geomElement)
+                {
+                    if (geomObj is GeometryInstance gInstance)
+                    {
+                        var instanceGeom = gInstance.GetInstanceGeometry();
+                        if (instanceGeom != null)
+                            CollectFixturePoints(instanceGeom, pts, lineBucket, fixtureLayers, includeLineClusters, 0);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CaptureFixturePoints walk: {ex.Message}"); }
+
+            // Experimental: cluster loose segments per mapped layer into one point per symbol.
+            if (includeLineClusters)
+            {
+                double tolFt = UnitUtils.ConvertToInternalUnits(clusterToleranceMm, UnitTypeId.Millimeters);
+                foreach (var kv in lineBucket)
+                {
+                    var inferred = LayerMapper.InferCategory(kv.Key);
+                    foreach (var centroid in ClusterPoints(kv.Value, tolFt))
+                        pts.Add(new DwgFixturePoint
+                        {
+                            Point = centroid, LayerName = kv.Key, BlockName = null,
+                            InferredCategory = inferred, CaptureMode = "cluster"
+                        });
+                }
+            }
+
+            return pts;
+        }
+
+        /// <summary>Recursive read-only collector for CaptureFixturePoints. Emits a "point"
+        /// per DWG Point on a mapped layer and buckets loose line/arc midpoints (for the
+        /// experimental cluster pass). Recurses into nested blocks only to find more Points.</summary>
+        private void CollectFixturePoints(GeometryElement geomElement, List<DwgFixturePoint> pts,
+            Dictionary<string, List<XYZ>> lineBucket, ISet<string> fixtureLayers,
+            bool includeLineClusters, int depth)
+        {
+            const int MaxRecursionDepth = 10;
+            if (depth > MaxRecursionDepth || geomElement == null) return;
+
+            foreach (var obj in geomElement)
+            {
+                if (obj is GeometryInstance nested)
+                {
+                    var nestedGeom = nested.GetInstanceGeometry();
+                    if (nestedGeom != null)
+                        CollectFixturePoints(nestedGeom, pts, lineBucket, fixtureLayers, includeLineClusters, depth + 1);
+                    continue;
+                }
+
+                string layer = GetLayerName(obj);
+                if (string.IsNullOrEmpty(layer) || !fixtureLayers.Contains(layer)) continue;
+
+                if (obj is Point pt)
+                {
+                    pts.Add(new DwgFixturePoint
+                    {
+                        Point = pt.Coord, LayerName = layer, BlockName = null,
+                        InferredCategory = LayerMapper.InferCategory(layer), CaptureMode = "point"
+                    });
+                }
+                else if (includeLineClusters)
+                {
+                    if (obj is Line ln) BucketAdd(lineBucket, layer, Midpoint(ln.GetEndPoint(0), ln.GetEndPoint(1)));
+                    else if (obj is Arc ac) BucketAdd(lineBucket, layer, Midpoint(ac.GetEndPoint(0), ac.GetEndPoint(1)));
+                    else if (obj is PolyLine pl)
+                    {
+                        var cs = pl.GetCoordinates();
+                        for (int i = 0; i < cs.Count - 1; i++) BucketAdd(lineBucket, layer, Midpoint(cs[i], cs[i + 1]));
+                    }
+                }
+            }
+        }
+
+        private static void BucketAdd(Dictionary<string, List<XYZ>> bucket, string layer, XYZ p)
+        {
+            if (!bucket.TryGetValue(layer, out var list)) { list = new List<XYZ>(); bucket[layer] = list; }
+            list.Add(p);
+        }
+
+        private static XYZ Midpoint(XYZ a, XYZ b) => new XYZ((a.X + b.X) / 2, (a.Y + b.Y) / 2, (a.Z + b.Z) / 2);
+
+        /// <summary>Greedy spatial clustering: one centroid per group of points within
+        /// <paramref name="tolFt"/> of each other. Heuristic — over/under-counts on messy
+        /// DWGs, which is why the cluster path is dry-run gated in the bridge.</summary>
+        private static List<XYZ> ClusterPoints(List<XYZ> points, double tolFt)
+        {
+            var centroids = new List<XYZ>();
+            if (points == null || points.Count == 0) return centroids;
+            var used = new bool[points.Count];
+            double tol2 = tolFt * tolFt;
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (used[i]) continue;
+                double sx = points[i].X, sy = points[i].Y, sz = points[i].Z; int n = 1; used[i] = true;
+                for (int j = i + 1; j < points.Count; j++)
+                {
+                    if (used[j]) continue;
+                    double dx = points[j].X - points[i].X, dy = points[j].Y - points[i].Y, dz = points[j].Z - points[i].Z;
+                    if (dx * dx + dy * dy + dz * dz <= tol2)
+                    { sx += points[j].X; sy += points[j].Y; sz += points[j].Z; n++; used[j] = true; }
+                }
+                centroids.Add(new XYZ(sx / n, sy / n, sz / n));
+            }
+            return centroids;
         }
 
         // ── Geometry Extraction ───────────────────────────────────────

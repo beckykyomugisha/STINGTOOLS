@@ -6,42 +6,42 @@
   "steps": [
     {
       "commandTag": "OpenSitePhotos",
-      "label": "1. Open BCC SITE PHOTOS tab",
-      "optional": false
+      "label": "(MANUAL - BIM Coordination Center > SITE PHOTOS tab; no runnable command) 1. Open BCC SITE PHOTOS tab",
+      "optional": true
     },
     {
       "commandTag": "RefreshPhotos",
-      "label": "2. Refresh review queue from server",
-      "optional": false,
+      "label": "(MANUAL - BIM Coordination Center > SITE PHOTOS tab; no runnable command) 2. Refresh review queue from server",
+      "optional": true,
       "retryCount": 2,
       "retryDelayMs": 1000
     },
     {
       "commandTag": "PhotoChecklistAudit",
-      "label": "3. Audit active photo checklists for this project",
+      "label": "(MANUAL - BIM Coordination Center > SITE PHOTOS tab; no runnable command) 3. Audit active photo checklists for this project",
       "optional": true
     },
     {
       "commandTag": "BulkApprovePending",
-      "label": "4. Bulk-approve pending photos with default caption",
+      "label": "(MANUAL - BIM Coordination Center > SITE PHOTOS tab; no runnable command) 4. Bulk-approve pending photos with default caption",
       "optional": true
     },
     {
       "commandTag": "DigestPreview",
-      "label": "5. Preview tonight's client digest",
-      "optional": false
+      "label": "(MANUAL - BIM Coordination Center > SITE PHOTOS tab; no runnable command) 5. Preview tonight's client digest",
+      "optional": true
     },
     {
       "commandTag": "PushDeliverableRegister",
-      "label": "6. Push the latest deliverable register so the digest finds it fresh",
+      "label": "(MANUAL - BIM Coordination Center > SITE PHOTOS tab; no runnable command) 6. Push the latest deliverable register so the digest finds it fresh",
       "optional": true,
       "retryCount": 1,
       "retryDelayMs": 1000
     },
     {
       "commandTag": "WorkflowComplete",
-      "label": "7. Done — daily field walk complete",
-      "optional": false
+      "label": "(MANUAL - BIM Coordination Center > SITE PHOTOS tab; no runnable command) 7. Done — daily field walk complete",
+      "optional": true
     }
   ]
 }

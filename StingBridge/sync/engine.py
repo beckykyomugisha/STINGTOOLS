@@ -24,11 +24,23 @@ from typing import Any
 
 from ..archicad.client import ArchiCadClient, ArchiCadError
 from ..archicad.element_types import SYNCABLE_TYPES
+from .seq_minter import assign_sequences
 from ..planscape.client import PlanscapeClient, PlanscapeError
 from .token_mapper import map_element_to_tokens
 from .property_writer import PropertyWriter
 
 log = logging.getLogger(__name__)
+
+# SB-1b — the live ArchiCAD sync's HostDocumentGuid. A live session is ONE
+# document per Planscape project, so a stable constant (scoped per-project by the
+# ProjectId already in the mapping key) is the right identity — not null. Null
+# left the (ProjectId, IfcGlobalId, Host, HostDocumentGuid) UNIQUE index unable to
+# enforce for live rows (Postgres treats NULLs as distinct), so a concurrent
+# double-sync could slip two mapping rows past it; a constant closes that. It is
+# deliberately DISTINCT from the IFC-drop path's per-file id: a live model and an
+# exported IFC file are genuinely different documents, and ArchiCAD exposes no
+# project GUID to unify them (only a Tapir add-on path, itself move-fragile).
+LIVE_DOCUMENT_GUID = "archicad-live"
 
 
 def _ifc_global_id_from_acguid(ac_guid: str) -> str:
@@ -70,6 +82,112 @@ _PROPS_TO_READ = [
     {"type": "BuiltIn",     "nonLocalizedName": "AC_Pset_RenovationInfo.RenovationStatus"},
     {"type": "BuiltIn",     "nonLocalizedName": "General_ElementID"},
 ]
+
+# Zone identity, read off the ZONE elements themselves (not their contents).
+# Number is preferred over name because ``derive_zone`` keys on the first digit
+# run — "101" → Z101 is meaningful, whereas "Open Plan Office" → ZZ.
+_ZONE_PROPS_TO_READ = [
+    {"type": "BuiltIn", "nonLocalizedName": "Zone_ZoneNumber"},
+    {"type": "BuiltIn", "nonLocalizedName": "Zone_ZoneName"},
+]
+
+
+def _extract_guid(obj: Any) -> str:
+    """Pull a GUID out of the several shapes the ArchiCAD JSON API uses.
+
+    Element references arrive variously as ``{"guid": …}`` and as
+    ``{"elementId": {"guid": …}}`` depending on the command; accepting both
+    keeps zone resolution working across API versions instead of silently
+    yielding an empty index.
+    """
+    if isinstance(obj, str):
+        return obj
+    if not isinstance(obj, dict):
+        return ""
+    if "guid" in obj:
+        return str(obj.get("guid") or "")
+    for key in ("elementId", "zoneId"):
+        inner = obj.get(key)
+        if isinstance(inner, dict) and "guid" in inner:
+            return str(inner.get("guid") or "")
+    return ""
+
+
+def _read_zone_property_values(ac: ArchiCadClient, zone_guids: list[str]):
+    """Yield property-value rows for the zones in batches of 100 — same batch
+    discipline as element processing, so huge zone counts cannot produce one
+    oversized API request."""
+    for i in range(0, len(zone_guids), 100):
+        yield from ac.get_property_values(zone_guids[i : i + 100], _ZONE_PROPS_TO_READ)
+
+
+def _build_zone_index(ac: ArchiCadClient) -> dict[str, str]:
+    """Map every zoned element's GUID → its zone's label (number, else name).
+
+    Without this the live-sync path never passed ``zone_name`` into
+    ``map_element_to_tokens``, so every element fell back to the ``ZZ``
+    default and the ZONE segment of the tag carried no information.
+
+    NOTE (assumption): the zone label is read from the BuiltIn
+    ``Zone_ZoneNumber`` / ``Zone_ZoneName`` properties. Those are ArchiCAD's
+    documented zone built-ins but are unverified against a live session here;
+    every failure path degrades to an empty index (tokens fall back to ``ZZ``,
+    exactly today's behaviour) rather than aborting the sync.
+    """
+    try:
+        relations = ac.get_elements_related_to_zones()
+    except ArchiCadError as e:
+        log.warning("Zone relations unavailable — ZONE falls back to default: %s", e)
+        return {}
+    if not relations:
+        return {}
+
+    # zone guid → [element guids]
+    zone_members: dict[str, list[str]] = {}
+    for rel in relations:
+        zone_guid = _extract_guid(rel.get("zoneId", rel))
+        if not zone_guid:
+            continue
+        members = [
+            g for g in (_extract_guid(e) for e in rel.get("elementIds", []) or []) if g
+        ]
+        if members:
+            zone_members.setdefault(zone_guid, []).extend(members)
+
+    if not zone_members:
+        return {}
+
+    # Resolve the zone labels in batched property reads — a campus model can
+    # carry thousands of zones, and one giant request risks the API's limits.
+    labels: dict[str, str] = {}
+    try:
+        for epv in _read_zone_property_values(ac, list(zone_members)):
+            zone_guid = _extract_guid(epv)
+            if not zone_guid:
+                continue
+            by_name: dict[str, str] = {}
+            for pv in epv.get("propertyValues", []):
+                val = pv.get("propertyValue", {})
+                if val.get("type") == "normal":
+                    by_name[_prop_key(pv.get("propertyId", {}))] = str(val.get("value", ""))
+            label = (by_name.get("Zone_ZoneNumber") or "").strip() \
+                or (by_name.get("Zone_ZoneName") or "").strip()
+            if label:
+                labels[zone_guid] = label
+    except ArchiCadError as e:
+        log.warning("Zone names unreadable — ZONE falls back to default: %s", e)
+        return {}
+
+    index: dict[str, str] = {}
+    for zone_guid, members in zone_members.items():
+        label = labels.get(zone_guid)
+        if not label:
+            continue
+        for guid in members:
+            index[guid] = label
+
+    log.info("Zone index: %d elements across %d zones", len(index), len(labels))
+    return index
 
 
 @dataclass
@@ -113,6 +231,7 @@ class SyncEngine:
         batch_size: int = 100,
         verify_write_back: bool = True,
         sync_errors_path: str | None = None,
+        building_name: str = "",
     ):
         self._ac = ac_client
         self._ps = planscape_client
@@ -121,6 +240,9 @@ class SyncEngine:
         self._verify = verify_write_back
         self._sync_errors_path = sync_errors_path or "sync_errors.json"
         self._writer = PropertyWriter(ac_client) if write_back else None
+        # ArchiCAD's JSON API exposes no building name, so LOC is supplied by
+        # the operator (STING_BUILDING_NAME). Empty keeps the BLD1 default.
+        self._building_name = building_name
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -153,6 +275,10 @@ class SyncEngine:
         except ArchiCadError as e:
             log.warning("Could not fetch story info: %s", e)
 
+        # Resolve zone membership once per run — one API round-trip for the
+        # whole model rather than per chunk.
+        zone_by_element = _build_zone_index(self._ac)
+
         all_sync_elements: list[dict] = []
         write_pairs: list[tuple[str, dict[str, str]]] = []
 
@@ -174,6 +300,7 @@ class SyncEngine:
                     chunk=chunk,
                     element_type=element_type,
                     stories=stories,
+                    zone_by_element=zone_by_element,
                     all_sync_elements=all_sync_elements,
                     write_pairs=write_pairs,
                     result=result,
@@ -198,11 +325,18 @@ class SyncEngine:
             )
 
         # ── Post to Planscape in batches ──────────────────────────────────────
+        # SB-1b — send a stable per-project document id (see LIVE_DOCUMENT_GUID)
+        # instead of null, so the cross-host mapping's unique index can enforce for
+        # live rows. (Investigated unifying this with the IFC-drop path's id: not
+        # achievable or desirable — different documents, and ArchiCAD has no project
+        # GUID. The live path's null was already deduped by the server upsert's
+        # null-matching; this hardens the concurrent case.)
         if all_sync_elements:
             for i in range(0, len(all_sync_elements), self._batch_size):
                 batch = all_sync_elements[i : i + self._batch_size]
                 try:
-                    self._ps.ingest_ifc_data(batch, host="archicad")
+                    self._ps.ingest_ifc_data(
+                        batch, host="archicad", host_document_guid=LIVE_DOCUMENT_GUID)
                     result.planscape_synced += len(batch)
                 except (PlanscapeError, Exception) as e:
                     msg = f"Planscape sync failed for batch {i//self._batch_size}: {e}"
@@ -233,6 +367,7 @@ class SyncEngine:
         chunk: list[str],
         element_type: str,
         stories: dict[int, dict],
+        zone_by_element: dict[str, str],
         all_sync_elements: list[dict],
         write_pairs: list[tuple[str, dict[str, str]]],
         result: SyncResult,
@@ -275,6 +410,7 @@ class SyncEngine:
             result.errors.append(f"get_property_values: {e}")
             return  # skip this chunk; token derivation would be empty
 
+        chunk_rows: list[tuple[str, dict, dict]] = []
         for guid in chunk:
             details = details_map.get(guid, {})
             props   = props_map.get(guid, {})
@@ -307,9 +443,26 @@ class SyncEngine:
                     props=props,
                     storey_name=storey_name,
                     storey_elevation_m=storey_elev,
+                    building_name=self._building_name or None,
+                    zone_name=zone_by_element.get(guid),
                     library_part_name=details.get("libPartName", ""),
                 )
 
+            chunk_rows.append((guid, tokens, details))
+
+        # SB-2 — mint the 8th tag segment before building the payloads. Batched
+        # once per chunk rather than per element, and only for elements that do
+        # not already carry a SEQ, so re-running over the same model neither
+        # renumbers stable elements nor burns counter values. A server that
+        # cannot reserve leaves tags 7-segment; it never fails the sync.
+        try:
+            minted = assign_sequences(self._ps, [t for _, t, _ in chunk_rows])
+            if minted:
+                log.info("Minted %d SEQ number(s) for %s", minted, element_type)
+        except Exception as e:  # noqa: BLE001 — numbering must never fail a sync
+            log.warning("SEQ minting skipped for %s: %s", element_type, e)
+
+        for guid, tokens, details in chunk_rows:
             # Build Planscape sync element
             is_complete = bool(
                 tokens.get("disc") and tokens.get("lvl") and

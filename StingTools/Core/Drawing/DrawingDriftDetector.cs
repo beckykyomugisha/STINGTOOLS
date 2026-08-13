@@ -394,15 +394,16 @@ namespace StingTools.Core.Drawing
                         bool actualVisible;
                         try { actualVisible = v.GetFilterVisibility(filter.Id); }
                         catch { continue; }
-                        if (actualVisible != rule.Visible)
-                            mismatches.Add($"visible={actualVisible} vs {rule.Visible}");
+                        // V-9: a rule that states nothing cannot drift.
+                        if (rule.Visible.HasValue && actualVisible != rule.Visible.Value)
+                            mismatches.Add($"visible={actualVisible} vs {rule.Visible.Value}");
 
                         OverrideGraphicSettings fogs;
                         try { fogs = v.GetFilterOverrides(filter.Id); } catch { fogs = null; }
                         if (fogs != null)
                         {
-                            if (fogs.Halftone != rule.Halftone)
-                                mismatches.Add($"halftone {fogs.Halftone} vs {rule.Halftone}");
+                            if (rule.Halftone.HasValue && fogs.Halftone != rule.Halftone.Value)
+                                mismatches.Add($"halftone {fogs.Halftone} vs {rule.Halftone.Value}");
                             if (rule.ProjectionLineWeight.HasValue
                                 && fogs.ProjectionLineWeight != rule.ProjectionLineWeight.Value)
                                 mismatches.Add($"projWeight {fogs.ProjectionLineWeight} vs {rule.ProjectionLineWeight.Value}");
@@ -590,14 +591,28 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(expectedMask)
                     && expectedMask.Length == 8)
                 {
-                    string actual = ReadStringParam(v, ParamRegistry.TAG_SEG_MASK);
-                    if (!string.Equals(actual, expectedMask, StringComparison.Ordinal))
+                    // FIX-3a made TAG_SEG_MASK a per-ELEMENT parameter — the produce
+                    // path (TokenProfileApplier) writes it on each model element, not
+                    // the view. Reading it off the view (the old behaviour) is always
+                    // empty, so it raised an unhealable false-positive drift for every
+                    // mask-configured type. Sample the view's model elements instead and
+                    // only flag drift when a POPULATED element disagrees with the
+                    // profile — an untagged/empty view yields no populated sample, so
+                    // there's no false positive.
+                    string actual = null; bool found = false;
+                    try
                     {
-                        if (TemplateControlsParameter(doc, v, ParamRegistry.TAG_SEG_MASK))
-                            report.Suppressed.Add($"DRIFT_SUPPRESSED_BY_TEMPLATE: TAG_SEG_MASK controlled by view template ('{actual ?? "(empty)"}' vs profile '{expectedMask}')");
-                        else
-                            report.Drifts.Add($"TOKEN_PROFILE: TAG_SEG_MASK '{actual ?? "(empty)"}' vs profile '{expectedMask}'");
+                        foreach (var el in new FilteredElementCollector(doc, v.Id)
+                            .WhereElementIsNotElementType())
+                        {
+                            var m = ParameterHelpers.GetString(el, ParamRegistry.TAG_SEG_MASK);
+                            if (!string.IsNullOrEmpty(m)) { actual = m; found = true; break; }
+                        }
                     }
+                    catch (Exception exMask) { StingTools.Core.StingLog.Warn($"TAG_SEG_MASK sample({v.Id}): {exMask.Message}"); }
+
+                    if (found && !string.Equals(actual, expectedMask, StringComparison.Ordinal))
+                        report.Drifts.Add($"TOKEN_PROFILE: TAG_SEG_MASK '{actual}' vs profile '{expectedMask}' (per-element sample)");
                 }
             }
             catch (Exception ex)

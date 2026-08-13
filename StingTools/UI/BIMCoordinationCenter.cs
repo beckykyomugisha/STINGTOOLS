@@ -594,6 +594,10 @@ namespace StingTools.UI
             public string WarningTrend = "→0";
             public bool WarningGatePass;
             public string WarningGateReason = "";
+            // IM Phase 3: "previous scan → now" delta from the local snapshot trend
+            // store, plus any hint left by another session's WarningsReported push.
+            // Empty when there is no earlier snapshot to compare against.
+            public string WarningTrendHint = "";
             public int WarningAdded;
             public int WarningRemoved;
             public Dictionary<WarningCategory, int> WarningByCategory = new();
@@ -628,6 +632,10 @@ namespace StingTools.UI
             public int RevisionCount;
             public int RevisionClouds;
             public List<RevisionRow> Revisions = new();
+            // Real sheets for the Issue Sheets panel: [0]=SheetNumber [1]=SheetName.
+            // Gathered on the Revit thread (WarningsManager) — the panel builder
+            // runs on the UI thread and must not touch the Document.
+            public List<string[]> IssueSheetList = new();
             public Dictionary<string, int> CloudsByDiscipline = new();
             public Dictionary<string, int> CloudsBySheet = new();
             public int RevisionsThisWeek { get; set; }
@@ -812,6 +820,15 @@ namespace StingTools.UI
             public string DueDate { get; set; }
             public bool IsOverdue { get; set; }
 
+            /// <summary>
+            /// Document sync — the local state of this deliverable on THIS
+            /// machine, resolved from the Planscape Companion's sync folder.
+            /// Set by BuildCoordData; empty when nothing is synced, which is the
+            /// normal case on a machine with no Companion.
+            /// </summary>
+            public string SyncBadge { get; set; } = "";
+            public string SyncTooltip { get; set; } = "";
+
             // ── v1.0 template-engine fields (S02) ──
             public string DocNumber { get; set; }
             public string Revision { get; set; }
@@ -844,6 +861,31 @@ namespace StingTools.UI
             public bool RequiresSignature { get; set; }
             public string SignatureStatus { get; set; } = "None";
             public string SignedFilePath { get; set; }
+        }
+
+        // ── Deliverable selection provider ────────────────────────────────
+        //
+        // The lifecycle and transmittal commands (Issue / ReIssue / Publish /
+        // Cancel / Supersede / Replace / Bulk-Issue / Create-Transmittal) need to
+        // know which deliverable rows the user picked in this window. They
+        // previously reflected over fields named SelectedDeliverable /
+        // SelectedDeliverables that never existed, so every one of those commands
+        // permanently behaved as "nothing selected". These are the real holders,
+        // populated from the deliverables grid's SelectionChanged.
+
+        /// <summary>First deliverable row currently selected in the BCC grid, or null.</summary>
+        internal static DeliverableRow SelectedDeliverable { get; private set; }
+
+        /// <summary>All deliverable rows currently selected in the BCC grid (never null).</summary>
+        internal static IReadOnlyList<DeliverableRow> SelectedDeliverables { get; private set; }
+            = new List<DeliverableRow>();
+
+        /// <summary>Record the current deliverables-grid selection for the lifecycle commands.</summary>
+        internal static void SetDeliverableSelection(IEnumerable<DeliverableRow> rows)
+        {
+            var list = (rows ?? Enumerable.Empty<DeliverableRow>()).Where(r => r != null).ToList();
+            SelectedDeliverables = list;
+            SelectedDeliverable = list.FirstOrDefault();
         }
 
         /// <summary>Template engine v1.0 — revision history entry captured in DeliverableRow.RevisionHistory.</summary>
@@ -1536,10 +1578,132 @@ namespace StingTools.UI
             return btn;
         }
 
+        /// <summary>
+        /// Document sync status + a "Sync now" button, talking to the Planscape
+        /// Companion over its named pipe.
+        ///
+        /// <para><b>Not running is information, not an error</b> (plan §1a/§1c).
+        /// A machine where nobody set sync up is the common case, and it renders
+        /// as a plain grey line explaining what is missing — not a red banner
+        /// implying something broke.</para>
+        ///
+        /// <para>Equally, <b>Offline is not an error</b>: a closed laptop or a
+        /// dropped VPN is expected and self-healing, so it reads grey. Only the
+        /// Error state gets the red treatment, because only Error needs a human.</para>
+        /// </summary>
+        private Border BuildDocumentSyncStrip()
+        {
+            var host = new Border
+            {
+                Background = Br(Color.FromRgb(0xF5, 0xF7, 0xFA)),
+                BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(10, 6, 10, 6),
+                Margin = new Thickness(0, 0, 0, 10),
+            };
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var dot = new Border
+            {
+                Width = 8, Height = 8, CornerRadius = new CornerRadius(4),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0),
+            };
+            var label = new TextBlock
+            {
+                FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap,
+            };
+            var syncBtn = new Button
+            {
+                Content = "Sync now", FontSize = 11, Cursor = Cursors.Hand,
+                Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(12, 0, 0, 0),
+                Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+            };
+
+            Action refresh = () =>
+            {
+                // Bounded by the pipe connect timeout, so the worst this can cost
+                // the UI thread is that timeout — not an indefinite block.
+                var st = BIMManager.CompanionSyncBridge.GetStatus();
+                if (!st.Running)
+                {
+                    dot.Background = Br(Color.FromRgb(0x9E, 0x9E, 0x9E));
+                    label.Text = "Document sync: the Planscape Companion is not running on this machine.";
+                    label.Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55));
+                    syncBtn.IsEnabled = false;
+                    return;
+                }
+                syncBtn.IsEnabled = true;
+                bool error = st.NeedsAttention;
+                dot.Background = Br(error
+                    ? Color.FromRgb(0xC6, 0x28, 0x28)
+                    : string.Equals(st.State, "Offline", StringComparison.OrdinalIgnoreCase)
+                        ? Color.FromRgb(0x9E, 0x9E, 0x9E)
+                        : Color.FromRgb(0x2E, 0x7D, 0x32));
+                label.Text = st.Summary
+                    + (st.LinkedProjects > 0 ? $"  ·  {st.LinkedProjects} linked project(s)" : "")
+                    + (error && !string.IsNullOrEmpty(st.LastError) ? $"  ·  {st.LastError}" : "");
+                label.Foreground = Br(error ? Color.FromRgb(0xC6, 0x28, 0x28) : Color.FromRgb(0x33, 0x33, 0x33));
+            };
+
+            syncBtn.Click += (s, e) =>
+            {
+                // Starts a sync; it does not wait for one. The Companion answers
+                // immediately and downloads in its own time.
+                bool started = BIMManager.CompanionSyncBridge.SyncNow();
+                label.Text = started
+                    ? "Sync requested — the Companion is working in the background."
+                    : "Could not reach the Planscape Companion. Is it running?";
+                Dispatcher.BeginInvoke(new Action(() => refresh()),
+                    System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            };
+
+            var refreshBtn = new Button
+            {
+                Content = "Refresh", FontSize = 11, Cursor = Cursors.Hand,
+                Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(6, 0, 0, 0),
+                Background = Brushes.Transparent, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+            };
+            refreshBtn.Click += (s, e) => refresh();
+
+            row.Children.Add(dot);
+            row.Children.Add(label);
+            row.Children.Add(syncBtn);
+            row.Children.Add(refreshBtn);
+            host.Child = row;
+            refresh();
+            return host;
+        }
+
         private void Nav_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string tabName)
                 NavigateTo(tabName);
+        }
+
+        /// <summary>
+        /// Public face of <see cref="NavigateTo"/>, for callers that opened the
+        /// BCC to land on a specific tab — currently the planscape:// link
+        /// handler (<c>planscape://issue/…</c> should arrive on ISSUES, not on
+        /// whatever tab was last used).
+        ///
+        /// Marshals to the window's own dispatcher: the link watcher runs on
+        /// Revit's Idling event, which is not the WPF UI thread.
+        /// An unknown tab name is a no-op, never a crash — the nav is built from
+        /// data and an optional tab (HVAC, HEALTHCARE) may not exist.
+        /// </summary>
+        internal void NavigateToTab(string tabName)
+        {
+            if (string.IsNullOrWhiteSpace(tabName)) return;
+            try
+            {
+                if (Dispatcher.CheckAccess()) NavigateTo(tabName);
+                else Dispatcher.Invoke(() => NavigateTo(tabName));
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"BCC NavigateToTab('{tabName}'): {ex.Message}");
+            }
         }
 
         private void NavigateTo(string tabName)
@@ -2119,8 +2283,8 @@ namespace StingTools.UI
                 "AutoFixWarnings"));
             kpiRow.Children.Add(MakeKPICard("STALE", _data.StaleCount.ToString(),
                 _data.StaleCount == 0 ? Br(CGreen) : Br(CRed),
-                "Elements with tags that no longer match context\n(moved level, changed system, changed location)\nDouble-click to retag stale elements",
-                "RetagStale"));
+                "Elements flagged STING_STALE_BOOL — geometry / material / spatial context changed since tagging.\nDouble-click to select, highlight, or re-tag them.",
+                "StaleCountAction"));
             stack.Children.Add(kpiRow);
 
             // ── RAG Summary Bars ──
@@ -2646,6 +2810,24 @@ namespace StingTools.UI
                 _data.WarningGatePass ? "Warning gate: PASS — deliverable OK" : $"Warning gate: FAIL — {_data.WarningGateReason}"));
             DockPanel.SetDock(kpiGrid, Dock.Top);
             dock.Children.Add(kpiGrid);
+
+            // IM Phase 3: one-line trend hint from the local snapshot store
+            // ("↓5 since 20 Jul 14:02") plus any remote WarningsReported notice.
+            // Hidden entirely when there is no prior snapshot to compare against.
+            if (!string.IsNullOrEmpty(_data.WarningTrendHint))
+            {
+                var trendLine = new TextBlock
+                {
+                    Text = _data.WarningTrendHint,
+                    FontSize = 11,
+                    Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
+                    Margin = new Thickness(2, 4, 2, 0),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    ToolTip = "Change since the previous full warning scan, from the local trend store."
+                };
+                DockPanel.SetDock(trendLine, Dock.Top);
+                dock.Children.Add(trendLine);
+            }
 
             // ── BOTTOM ACTION BAR ─────────────────────────────────────────
             var actionBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -3330,6 +3512,14 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"SaveHiddenIsoRevisions: {ex.Message}"); }
         }
 
+        // NOTE: StingTools.Core.RevisionSeries is the CANONICAL table of revision
+        // series (prefix → label → validation regex). RevisionEngine.ValidateRevisionNumber
+        // delegates to it, so every code enumerated below validates. When adding a
+        // series here, add the matching entry to RevisionSeries.Series or the new
+        // codes will be flagged by RevisionNamingEnforceCommand.
+        // This method stays hand-written because it also carries the per-code
+        // human labels and tooltips the dropdown needs, which the series table
+        // (deliberately) does not model.
         private static (string Code, string Label, string Series, string Tooltip)[] BuildIsoRevisionCodes()
         {
             var list = new List<(string, string, string, string)>();
@@ -3710,6 +3900,33 @@ namespace StingTools.UI
                 ToolTip = "Short revision description (e.g. 'Structural coordination update')" };
             descBox.Text = "Coordination update";
 
+            // Feeds Revision.IssuedBy — the "Issued by" column of the native
+            // revision schedules embedded in the title-block families. Defaults
+            // to the current Windows user so the column is never left blank.
+            var issuedByBox = new TextBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0),
+                MinWidth = 140, VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Approver name written to the revision's 'Issued by' field — shown in the title-block revision schedule's APPR./ISSUED BY column. Defaults to your Windows user name." };
+            issuedByBox.Text = Environment.UserName;
+
+            // Feeds Revision.IssuedTo — STING repurposes that native field as the
+            // SUIT column of the title-block revision schedule (Revit's Revision
+            // object has no suitability field). "— default" leaves it to
+            // CreateRevisionCommand, which inherits the drawing's current
+            // suitability so the column is never blank.
+            var suitDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0),
+                MinWidth = 170,
+                ToolTip = "ISO 19650 suitability stamped into the revision's SUIT column ('Issued to' field). '— default' inherits the drawing's current suitability (PRJ_DWG_SUITABILITY_COD_TXT)." };
+            foreach (var pair in new[] {
+                ("— default", ""), ("S0 — WIP", "S0"), ("S1 — Coordination", "S1"),
+                ("S2 — Information", "S2"), ("S3 — Review & comment", "S3"),
+                ("S4 — Stage approval", "S4"), ("S6 — PIM authorised", "S6"),
+                ("S7 — AIM authorised", "S7"), ("A1 — Approved", "A1"),
+                ("B1 — Partial sign-off", "B1") })
+            {
+                suitDropdown.Items.Add(new ComboBoxItem { Content = pair.Item1, Tag = pair.Item2 });
+            }
+            suitDropdown.SelectedIndex = 0;
+
             var createBtn = new Button
             {
                 Content = "Create Revision", Height = 28, Padding = new Thickness(14,0,14,0),
@@ -3747,7 +3964,9 @@ namespace StingTools.UI
                 string selDisc = (discDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "ALL";
                 string selDesc = descBox.Text?.Trim()?.Replace("|", "/");
                 if (string.IsNullOrEmpty(selDesc)) selDesc = "Revision";
-                DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}");
+                string selIssuedBy = issuedByBox.Text?.Trim()?.Replace("|", "/") ?? "";
+                string selSuit = (suitDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}|{selIssuedBy}|{selSuit}");
             };
 
             // Phase 104: "Delete code" removes the currently-selected ISO revision code
@@ -3807,6 +4026,10 @@ namespace StingTools.UI
             formRow.Children.Add(discDropdown);
             formRow.Children.Add(new TextBlock { Text = "Description: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
             formRow.Children.Add(descBox);
+            formRow.Children.Add(new TextBlock { Text = "Issued by: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
+            formRow.Children.Add(issuedByBox);
+            formRow.Children.Add(new TextBlock { Text = "Suitability: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
+            formRow.Children.Add(suitDropdown);
             formRow.Children.Add(createBtn);
             createFormBorder.Child = formRow;
             stack.Children.Add(createFormBorder);
@@ -3977,6 +4200,9 @@ namespace StingTools.UI
                 var ctxSupersede = new MenuItem { Header = "\u2298  Mark as Superseded" };
                 ctxSupersede.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"SupersedeRevision_{rev.Id}"); };
                 ctx.Items.Add(ctxSupersede);
+                var ctxDelete = new MenuItem { Header = "\ud83d\uddd1  Delete This Revision" };
+                ctxDelete.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"DeleteRevision_{rev.Id}"); };
+                ctx.Items.Add(ctxDelete);
 
                 var ctxExport = new MenuItem { Header = "\U0001F4E4  Export Revision Report to CSV" };
                 ctxExport.Click += (s2, e2) => { DispatchAction("RevisionExport"); };
@@ -4029,9 +4255,25 @@ namespace StingTools.UI
                 "Create/view Revit revision schedule showing all revisions and sheets"));
             issueWrap.Children.Add(MakeActionButton("Bulk Rev Stamp",       "BulkRevisionStamp",      Br(CRed),
                 "Stamp revision information across multiple sheets in batch"));
-            issueWrap.Children.Add(MakeActionButton("Export CSV",           "RevisionExport",         Br(Color.FromRgb(0x45,0x50,0x6E)),
-                "Export revision register to CSV for external tracking"));
+            issueWrap.Children.Add(MakeActionButton("Export XLSX",          "RevisionExport",         Br(Color.FromRgb(0x45,0x50,0x6E)),
+                "Export the full revision register + change history to Excel"));
             stack.Children.Add(issueWrap);
+
+            stack.Children.Add(MakeSectionHeader("TITLE BLOCKS & GOVERNANCE"));
+            var syncWrap = new WrapPanel { Margin = new Thickness(0,0,0,8) };
+            syncWrap.Children.Add(MakeActionButton("Sync Title Blocks", "RevisionSync",             Br(Color.FromRgb(0x2E,0x7D,0x32)),
+                "Mirror the newest revision (number / date / description) onto every sheet (SHT_REV_TXT) and its title-block revision box (PRJ_TB_REVISION_*)"));
+            syncWrap.Children.Add(MakeActionButton("Approval Flow",     "RevisionApprovalWorkflow", Br(Color.FromRgb(0x15,0x65,0xC0)),
+                "Multi-stage revision approval: advance the latest revision to Issued, or open a review revision"));
+            syncWrap.Children.Add(MakeActionButton("Distribution",      "RevisionDistribution",     Br(Color.FromRgb(0x45,0x50,0x6E)),
+                "Who received each issued revision, when, and acknowledgement status"));
+            syncWrap.Children.Add(MakeActionButton("Cloud Audit",       "Revision_CloudAudit",      Br(Color.FromRgb(0x6A,0x1B,0x9A)),
+                "Audit all revision clouds: per-revision totals, unassigned clouds, clouds per sheet"));
+            syncWrap.Children.Add(MakeActionButton("Delete Revision…",  "Revision_Delete",      Br(CRed),
+                "Pick one or more revisions to delete — un-issues them, deletes their clouds, removes them from every sheet, re-syncs title blocks. Also on the register's right-click menu."));
+            syncWrap.Children.Add(MakeActionButton("⚠ Purge Revisions", "Revision_Purge",       Br(CRed),
+                "START AFRESH: delete every revision cloud + every revision except one seed, clear revisions from all sheets, re-sync title blocks. Typed-PURGE confirmation required. For test/sandbox models."));
+            stack.Children.Add(syncWrap);
 
             // ── Inline Revision Dashboard panel ───────────────────────────
             stack.Children.Add(MakeSectionHeader("REVISION DASHBOARD"));
@@ -4516,7 +4758,7 @@ namespace StingTools.UI
                             // link file in case the in-memory CurrentProjectId
                             // wasn't restored this session.
                             var link = BIMManager.PlanscapeProjectLink.Load(
-                                BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                                BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                             if (link.IsLinked)
                             {
                                 projectGuid = link.ProjectId;
@@ -4622,7 +4864,7 @@ namespace StingTools.UI
                     if (projectGuid == Guid.Empty)
                     {
                         var link = BIMManager.PlanscapeProjectLink.Load(
-                            BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                            BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                         if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
                     }
                     if (projectGuid == Guid.Empty)
@@ -4718,6 +4960,84 @@ namespace StingTools.UI
                 else if (sbConnected)
                 {
                     _savedEmail = BIMManager.PlanscapeServerClient.Instance.ConnectedUser;
+                }
+
+                // ── #563 — WHICH SERVER AM I ON? ─────────────────────────
+                // This banner is the point of the issue. Switching targets was
+                // awkward, but what actually cost an evening was that the BCC
+                // never said which server it was talking to: a panel showing
+                // production data and a panel showing dev data looked identical,
+                // so a site-photo failure that could not be reproduced looked
+                // like the tests were wrong rather than the target being wrong.
+                //
+                // Non-production is styled loudly and deliberately. A dev session
+                // must not be mistakable for a real one at a glance.
+                {
+                    var activeTarget = BIMManager.PlanscapeServerTargets.GetActiveTarget();
+                    var banner = new Border
+                    {
+                        Background = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xFF, 0xF3, 0xE0)
+                            : Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                        BorderBrush = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xE6, 0x51, 0x00)
+                            : Color.FromRgb(0x2E, 0x7D, 0x32)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 6, 10, 6),
+                        Margin = new Thickness(0, 0, 0, 8),
+                    };
+                    var bannerGrid = new Grid();
+                    bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var bannerText = new StackPanel();
+                    bannerText.Children.Add(new TextBlock
+                    {
+                        Text = (activeTarget.IsNonProduction ? "⚠ SERVER: " : "SERVER: ") + activeTarget.Label,
+                        FontWeight = FontWeights.Bold, FontSize = 12,
+                        Foreground = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xE6, 0x51, 0x00)
+                            : Color.FromRgb(0x2E, 0x7D, 0x32)),
+                    });
+                    bannerText.Children.Add(new TextBlock
+                    {
+                        Text = activeTarget.Url
+                             + (activeTarget.EnvOverrideActive
+                                 ? $"   (from {BIMManager.PlanscapeServerClient.ServerUrlEnvVar})"
+                                 : ""),
+                        FontSize = 10, Foreground = Brushes.Gray,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                    });
+                    Grid.SetColumn(bannerText, 0);
+                    bannerGrid.Children.Add(bannerText);
+
+                    var changeBtn = new Button
+                    {
+                        Content = "Change…", Height = 26, Padding = new Thickness(10, 0, 10, 0),
+                        FontSize = 11, Cursor = Cursors.Hand,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        ToolTip = "Pick which Planscape server this machine connects to. "
+                                + "Takes effect after Revit restarts."
+                    };
+                    changeBtn.Click += (s, e) =>
+                    {
+                        try
+                        {
+                            if (PlanscapeServerTargetDialog.Show(Window.GetWindow(this)))
+                                ShowPlatformDetail("Planscape");   // redraw the banner
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[server-picker] {ex.Message}");
+                            ShowStatus($"Server picker failed: {ex.Message}");
+                        }
+                    };
+                    Grid.SetColumn(changeBtn, 1);
+                    bannerGrid.Children.Add(changeBtn);
+
+                    banner.Child = bannerGrid;
+                    detailStack.Children.Add(banner);
                 }
 
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
@@ -4829,7 +5149,7 @@ namespace StingTools.UI
                     Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
                 });
                 {
-                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath);
+                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath);
                     var curLink = BIMManager.PlanscapeProjectLink.Load(linkCfgPath);
                     // Keep the in-memory CurrentProjectId in step with the active
                     // document whenever this tab is shown (covers project switches
@@ -5627,7 +5947,8 @@ namespace StingTools.UI
                 "Token inconsistencies: DISC/SYS mismatch, invalid PROD codes,\ncross-discipline FUNC errors, empty TAG7 narratives"));
             valKpi.Children.Add(MakeKPICard("STALE", _data.StaleCount.ToString(),
                 _data.StaleCount > 0 ? Br(CRed) : Br(CGreen),
-                "Elements moved/changed since last tag — tags no longer match context"));
+                "Elements flagged STING_STALE_BOOL — moved/changed since last tag.\nDouble-click to select, highlight, or re-tag them.",
+                "StaleCountAction"));
             int totalIssues = _data.ValidationErrors.Values.Sum();
             valKpi.Children.Add(MakeKPICard("VALIDATION ERRORS", totalIssues.ToString(),
                 totalIssues > 0 ? Br(CRed) : Br(CGreen),
@@ -7597,17 +7918,25 @@ namespace StingTools.UI
                     sheetDg.Columns.Add(sheetCheckCol);
                     sheetDg.Columns.Add(new DataGridTextColumn { Header = "Sheet Number", Binding = new System.Windows.Data.Binding("SheetNumber"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                     sheetDg.Columns.Add(new DataGridTextColumn { Header = "Sheet Name", Binding = new System.Windows.Data.Binding("SheetName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    sheetDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<SheetIssueRow>
-                    {
-                        new SheetIssueRow { Include = true, SheetNumber = "A-001", SheetName = "Site Plan" },
-                        new SheetIssueRow { Include = true, SheetNumber = "A-100", SheetName = "Ground Floor Plan" },
-                        new SheetIssueRow { Include = false, SheetNumber = "S-001", SheetName = "Foundation Plan" }
-                    };
+                    // Real sheets from the last Refresh (gathered on the Revit
+                    // thread into CoordData.IssueSheetList) — this list used to
+                    // be hardcoded demo rows, so ticks never reached the command.
+                    var sheetRows = new System.Collections.ObjectModel.ObservableCollection<SheetIssueRow>();
+                    foreach (var s in _data.IssueSheetList)
+                        sheetRows.Add(new SheetIssueRow { Include = true, SheetNumber = s[0], SheetName = s[1] });
+                    if (sheetRows.Count == 0)
+                        sp.Children.Add(new TextBlock
+                        {
+                            Text = "No sheets found — click Refresh to load the sheet list from the model.",
+                            FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 4)
+                        });
+                    sheetDg.ItemsSource = sheetRows;
                     sp.Children.Add(sheetDg);
 
                     var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     dateRow.Children.Add(new TextBlock { Text = "Issue Date:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
-                    dateRow.Children.Add(new DatePicker { Width = 160, Margin = new Thickness(4, 0, 0, 0), SelectedDate = DateTime.Today });
+                    var issueDatePicker = new DatePicker { Width = 160, Margin = new Thickness(4, 0, 0, 0), SelectedDate = DateTime.Today };
+                    dateRow.Children.Add(issueDatePicker);
                     sp.Children.Add(dateRow);
 
                     var suitRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
@@ -7626,7 +7955,17 @@ namespace StingTools.UI
                         FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
                         HorizontalAlignment = HorizontalAlignment.Left
                     };
-                    issueBtn.Click += (s, e) => DispatchAction("IssueSheetsForRevision");
+                    issueBtn.Click += (s, e) =>
+                    {
+                        // Forward the TICKED sheets + date + suitability as pipe
+                        // params; IssueSheetsForRevisionCommand issues those in
+                        // addition to sheets detected via revision clouds.
+                        string csv = string.Join(",", sheetRows.Where(r => r.Include)
+                            .Select(r => (r.SheetNumber ?? "").Replace("|", "/").Replace(",", " ")));
+                        string dateStr = (issueDatePicker.SelectedDate ?? DateTime.Today).ToString("yyyy-MM-dd");
+                        string suit = (suitCb.SelectedItem as string ?? "S1").Split(' ')[0];
+                        DispatchAction($"IssueSheetsForRevision|{csv}|{dateStr}|{suit}");
+                    };
                     sp.Children.Add(issueBtn);
 
                     panelBorder.Child = sp;
@@ -8403,7 +8742,7 @@ namespace StingTools.UI
             var cdePanel = new StackPanel { Margin = new Thickness(0, 4, 0, 12) };
             // CDE flow diagram: WIP → SHARED → PUBLISHED → ARCHIVE
             var cdeFlow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 8) };
-            string[] cdeStates = { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+            string[] cdeStates = StingTools.Core.StingPaths.CdeStates;  // single source; parallel arrays below index-align
             string[] cdeSuit = { "S0-S2", "S3", "S4-S6", "S7" };
             string[] cdeDesc = { "Work In Progress\nInternal development", "Shared for\ncoordination review", "Published for\napproval & use", "Archived for\nrecord keeping" };
             Color[] cdeColors = { Color.FromRgb(0xFF, 0xB3, 0x00), Color.FromRgb(0x15, 0x65, 0xC0), CGreen, Color.FromRgb(0x75, 0x75, 0x75) };
@@ -8528,6 +8867,13 @@ namespace StingTools.UI
             }
 
             // ── DELIVERABLES DATA GRID ──────────────────────────────────
+            // ── DOCUMENT SYNC STRIP ─────────────────────────────────────
+            // The user-facing payoff of the Companion pipe client: is sync
+            // running, when did it last succeed, and a way to kick it. Placed
+            // above the register because that is where a user asks "do I have
+            // these files".
+            root.Children.Add(BuildDocumentSyncStrip());
+
             root.Children.Add(MakeSectionHeader("DELIVERABLE REGISTER"));
 
             // ── ISO Discipline legend strip ─────────────────────────────
@@ -8657,6 +9003,39 @@ namespace StingTools.UI
                 dg.Columns.Add(new DataGridTextColumn { Header = "Status",     Binding = new Binding("Status"),     Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Suit.",      Binding = new Binding("Suitability"),Width = 35 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "CDE",        Binding = new Binding("CDE"),        Width = 60 });
+
+                // Document sync — local state of the file on THIS machine.
+                //
+                // The design asks for "the same visual pattern already used for
+                // the Live meeting badge". That badge lives in the WEB app, not
+                // here — BCC has no meetings badge to copy. Rather than invent a
+                // new look, this reuses BCC's OWN existing chip idiom: the
+                // rounded Border + small bold white text used by the discipline
+                // legend a few lines above. Same instinct the design had (no new
+                // UI language), applied to the language this window actually
+                // speaks. Flagged in the plan so the discrepancy is a decision,
+                // not a drift.
+                var syncChip = new FrameworkElementFactory(typeof(Border));
+                syncChip.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+                syncChip.SetValue(Border.PaddingProperty, new Thickness(5, 1, 5, 1));
+                syncChip.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+                syncChip.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
+                syncChip.SetBinding(Border.ToolTipProperty, new Binding("SyncTooltip"));
+                syncChip.SetBinding(Border.BackgroundProperty,
+                    new Binding("SyncBadge") { Converter = new SyncBadgeBrushConverter() });
+                syncChip.SetBinding(Border.VisibilityProperty,
+                    new Binding("SyncBadge") { Converter = new EmptyToCollapsedConverter() });
+                var syncText = new FrameworkElementFactory(typeof(TextBlock));
+                syncText.SetBinding(TextBlock.TextProperty, new Binding("SyncBadge"));
+                syncText.SetValue(TextBlock.FontSizeProperty, 9.0);
+                syncText.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+                syncText.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+                syncChip.AppendChild(syncText);
+                var syncTemplate = new DataTemplate { VisualTree = syncChip };
+                dg.Columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "Local", Width = 70, CellTemplate = syncTemplate, CanUserSort = false,
+                });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Owner",      Binding = new Binding("Owner"),      Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Due",        Binding = new Binding("DueDate"),    Width = 80 });
                 dg.ItemsSource = _data.Deliverables;
@@ -8674,6 +9053,14 @@ namespace StingTools.UI
                 approvedT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xE8, 0xF5, 0xE9))));
                 rowStyle.Triggers.Add(approvedT);
                 dg.RowStyle = rowStyle;
+
+                // Publish the selection so the lifecycle / transmittal commands can
+                // see what the user picked (see SetDeliverableSelection).
+                dg.SelectionChanged += (s, e) =>
+                {
+                    try { SetDeliverableSelection(dg.SelectedItems.OfType<DeliverableRow>()); }
+                    catch (Exception ex2) { StingLog.Warn($"Deliverable selection capture: {ex2.Message}"); }
+                };
 
                 // Double-click to view/edit deliverable
                 dg.MouseDoubleClick += (s, e) =>
@@ -8699,6 +9086,26 @@ namespace StingTools.UI
                 var ctxCopyLink = new MenuItem { Header = "🔗 Copy permalink" };
                 ctxCopyLink.Click += (s, e) => { var r = CtxDelRow(); if (r != null) { try { Clipboard.SetText($"planscape://deliverable/{r.Code}"); } catch (Exception ex3) { StingLog.Warn($"Suppressed: {ex3.Message}"); } } };
                 dgCtx.Items.Add(ctxCopyLink);
+                dgCtx.Items.Add(new Separator());
+
+                // Slice E — full version history, per document, on request only.
+                // The design is explicit that this is never a default: a drawing
+                // with forty revisions would otherwise multiply the sync folder
+                // by forty on every machine for nobody's benefit. A menu item is
+                // the deliberate click that opts in.
+                var ctxHistory = new MenuItem { Header = "⤓ Download full version history" };
+                ctxHistory.Click += (s, e) =>
+                {
+                    var r = CtxDelRow();
+                    if (r == null) return;
+                    // The register carries no server document GUID (see the
+                    // CompanionSyncBridge remarks), so this hands the row code to
+                    // the dispatcher, which resolves it against the live project
+                    // before asking the Companion. Reported through the same
+                    // action pipeline as every other row command.
+                    DispatchAction("DownloadDocumentHistory_" + r.Code);
+                };
+                dgCtx.Items.Add(ctxHistory);
                 dgCtx.Items.Add(new Separator());
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
                 ctxCDE.Click += (s, e) => { DispatchAction("CDEStatus"); };
@@ -8786,9 +9193,11 @@ namespace StingTools.UI
             // "Rev" was bound to DataDrop (DD1-DD4) — a separate field.
             // Re-binding to the correct properties + adding explicit Suitability (S0-S7),
             // DataDrop (DD1-DD4), and CDE State dropdowns from the canonical ISO 19650 lists.
-            var delSuitabilities = new List<string> { "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7" };
+            // IM-14: suitability + CDE-status vocabularies come from the canonical
+            // Iso19650Vocabulary, not from inline copies that silently drift.
+            var delSuitabilities = StingTools.Core.Drawing.Iso19650Vocabulary.SharedSuitabilityCodes.ToList();
             var delDataDrops = new List<string> { "DD1", "DD2", "DD3", "DD4", "—" };
-            var delCDEStates = new List<string> { "WIP", "SHARED", "PUBLISHED", "ARCHIVE", "SUPERSEDED", "WITHDRAWN", "OBSOLETE" };
+            var delCDEStates = StingTools.Core.Drawing.Iso19650Vocabulary.CdeStatesWithTerminal.ToList();
             editDg.Columns.Add(new DataGridTextColumn     { Header = "ID",          Binding = new Binding("Code"),                                                 Width = 80 });
             editDg.Columns.Add(new DataGridTextColumn     { Header = "Title",       Binding = new Binding("Name"),                                                 Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",        ItemsSource = delTypes,          SelectedItemBinding = new Binding("Type"),         Width = 95 });
@@ -8914,8 +9323,10 @@ namespace StingTools.UI
                     section.Children.Add(new TextBlock { Text = "No active document.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
                     return section;
                 }
-                string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(doc);
-                string groupsPath = System.IO.Path.Combine(bimDir, "distribution_groups.json");
+                // Ask the owning store for its path rather than rebuilding it here —
+                // this used to look in the STING_BIM_MANAGER bucket while the writer
+                // used _BIM_COORD, so the file was never found.
+                string groupsPath = Planscape.Docs.Workflow.DistributionGroups.ResolveStorePath(doc);
                 if (!System.IO.File.Exists(groupsPath))
                 {
                     section.Children.Add(new TextBlock { Text = "No distribution_groups.json found. Run 'Create Transmittal' to seed the file.", Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontSize = 11 });
@@ -9675,12 +10086,10 @@ namespace StingTools.UI
             // projects can add sub-folders (e.g. "05_MODELS/COORDINATION") without leaving the combo.
             var cdeFolderList = GetDefaultFolderPermissions().Select(f => f.Folder).Distinct().ToList();
             // CDE states: strict — WIP/SHARED/PUBLISHED/ARCHIVE + 3 ISO 19650-2 terminal states
-            // (SUPERSEDED/WITHDRAWN/OBSOLETE). Matches BIMManagerEngine.CDEStates exactly.
-            var cdeStateList = new List<string>
-            {
-                "WIP", "SHARED", "PUBLISHED", "ARCHIVE",
-                "SUPERSEDED", "WITHDRAWN", "OBSOLETE"
-            };
+            // (SUPERSEDED/WITHDRAWN/OBSOLETE). IM-14: sourced from Iso19650Vocabulary so this
+            // list cannot drift away from BIMManagerEngine.CDEStates, which it used to only
+            // "match exactly" by hand.
+            var cdeStateList = StingTools.Core.Drawing.Iso19650Vocabulary.CdeStatesWithTerminal.ToList();
             // Role-list presets — match the strings produced by GetDefaultFolderPermissions()
             // so the matrix renders without diff on first open. Custom entries remain possible
             // because EditingElementStyle enables ComboBox.IsEditable for these columns.
@@ -10042,6 +10451,7 @@ namespace StingTools.UI
                 "RunDailyQA" => "Run Daily QA workflow: retag stale → validate → audit → dashboard",
                 "RunMorningCheck" => "Morning health check: warnings → tags → templates → issues → revisions",
                 "RetagStale" => "Find elements with stale tags (moved/changed) and re-derive their tags",
+                "StaleCountAction" => "Act on the flagged-stale elements: select, highlight in view, or re-tag",
                 "TagNewOnly" => "Tag only new/untagged elements — skips already-tagged elements",
                 "ExportCOBie" => "Export COBie V2.4 FM handover data (17 worksheets, XLSX)",
                 "FullComplianceDashboard" => "Full project compliance report with per-discipline breakdown",
@@ -10651,7 +11061,7 @@ namespace StingTools.UI
                 try
                 {
                     var lk = BIMManager.PlanscapeProjectLink.Load(
-                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                        BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                     if (lk.IsLinked) { attPid = lk.ProjectId; attClient.CurrentProjectId = attPid; }
                 }
                 catch (Exception lex) { StingLog.Warn($"[attendees] project-link resolve failed: {lex.Message}"); }
@@ -10938,7 +11348,7 @@ namespace StingTools.UI
                 try
                 {
                     var lk = BIMManager.PlanscapeProjectLink.Load(
-                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                        BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                     if (lk.IsLinked) { recPid = lk.ProjectId; recClient.CurrentProjectId = recPid; }
                 }
                 catch (Exception lex) { StingLog.Warn($"[recordings] project-link resolve failed: {lex.Message}"); }
@@ -10998,522 +11408,14 @@ namespace StingTools.UI
 
             return outerTabs;
         }
+        // The legacy Meetings tab builder (BuildMeetingsTab_Legacy_UNUSED) and its
+        // helpers lived here. It was unreachable — dispatch goes to BuildMeetingsTab —
+        // yet it held the ONLY loaders for meetings and action items, which is why the
+        // live tab rendered empty: CoordData.Meetings / .ActionItems were never assigned.
+        // Loading now happens in WarningsManager.BuildCoordData against the canonical
+        // CoordStores.Meetings(doc), so the live tab has real data and this dead copy
+        // (with its divergent doc-free path probe) is gone.
 
-        private UIElement BuildMeetingsTab_Legacy_UNUSED()
-        {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
-            var stack = new StackPanel();
-
-            // ── UPCOMING MEETINGS ──
-            stack.Children.Add(MakeSectionHeader("UPCOMING MEETINGS"));
-            var upcomingCard = MakeCard();
-            var ucStack = new StackPanel();
-            // Load meetings from JSON sidecar
-            var meetings = LoadMeetings();
-            var upcoming = meetings.Where(m => m.Status == "PLANNED" || m.Status == "IN_PROGRESS")
-                .OrderBy(m => m.Date).Take(5).ToList();
-            if (upcoming.Count == 0)
-            {
-                ucStack.Children.Add(new TextBlock
-                {
-                    Text = "No upcoming meetings scheduled", FontSize = 12,
-                    Foreground = Brushes.Gray, FontStyle = FontStyles.Italic, Margin = new Thickness(0, 4, 0, 4)
-                });
-            }
-            foreach (var mtg in upcoming)
-            {
-                var row = new Border
-                {
-                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(0, 0, 0, 1),
-                    Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 2)
-                };
-                var rGrid = new Grid();
-                rGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                rGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var leftSp = new StackPanel();
-                leftSp.Children.Add(new TextBlock { Text = mtg.Title, FontWeight = FontWeights.SemiBold, FontSize = 12 });
-                leftSp.Children.Add(new TextBlock
-                {
-                    Text = $"{mtg.Type}  •  {mtg.Date}  •  {mtg.Attendees} attendees",
-                    FontSize = 10, Foreground = Brushes.Gray
-                });
-                rGrid.Children.Add(leftSp);
-
-                var statusChip = MakeMetricChip(mtg.Status,
-                    mtg.Status == "IN_PROGRESS" ? Br(CAccent) : Br(Color.FromRgb(0x45, 0x50, 0x6E)));
-                Grid.SetColumn(statusChip, 1);
-                rGrid.Children.Add(statusChip);
-
-                row.Child = rGrid;
-                row.Cursor = Cursors.Hand;
-                row.ToolTip = new ToolTip
-                {
-                    Content = new TextBlock
-                    {
-                        Text = $"Meeting: {mtg.Title}\nType: {mtg.Type}\nDate: {mtg.Date}\nStatus: {mtg.Status}\nAttendees: {mtg.Attendees}\n\n" +
-                               "Click: View meeting history\nRight-click: Log minutes / Add action",
-                        MaxWidth = 350, TextWrapping = TextWrapping.Wrap, FontSize = 12
-                    },
-                    Background = Br(Color.FromRgb(0x2D, 0x2D, 0x30)),
-                    Foreground = Brushes.White, Padding = new Thickness(10, 6, 10, 6)
-                };
-                // Hover
-                row.MouseEnter += (s, e) => { row.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD)); };
-                row.MouseLeave += (s, e) => { row.Background = Brushes.Transparent; };
-                // Click → meeting history
-                row.MouseLeftButtonDown += (s, e) => { DispatchAction("MeetingHistory"); };
-                // Context menu
-                var mtgCtx = new ContextMenu();
-                var logMin = new MenuItem { Header = "Log Minutes" };
-                logMin.Click += (s, e) => { DispatchAction("LogMinutes"); };
-                mtgCtx.Items.Add(logMin);
-                var addAct = new MenuItem { Header = "Add Action Item" };
-                addAct.Click += (s, e) => { DispatchAction("AddActionItem"); };
-                mtgCtx.Items.Add(addAct);
-                var expMin = new MenuItem { Header = "Export Minutes" };
-                expMin.Click += (s, e) => { DispatchAction("ExportMinutes"); };
-                mtgCtx.Items.Add(expMin);
-                var sendRem = new MenuItem { Header = "Send Reminder" };
-                sendRem.Click += (s, e) => { DispatchAction("SendReminder"); };
-                mtgCtx.Items.Add(sendRem);
-                row.ContextMenu = mtgCtx;
-                ucStack.Children.Add(row);
-            }
-            upcomingCard.Child = ucStack;
-            stack.Children.Add(upcomingCard);
-
-            // ── PREPARE ──
-            stack.Children.Add(new Border { Height = 12 });
-            stack.Children.Add(MakeSectionHeader("PREPARE"));
-            var prepWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            prepWrap.Children.Add(MakeActionButton("New Meeting", "NewMeeting", Br(CHeaderBg),
-                "Create new meeting: BIM Coordination, Design Review, Client Review, Handover, or Clash Resolution"));
-            prepWrap.Children.Add(MakeActionButton("Auto Agenda", "AutoAgenda", Br(CGreen),
-                "Auto-generate agenda from open issues, pending transmittals, recent revisions, and compliance status"));
-            prepWrap.Children.Add(MakeActionButton("Meeting Templates", "MeetingTemplates", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
-                "Browse and apply meeting templates for recurring coordination sessions"));
-            stack.Children.Add(prepWrap);
-
-            // ── DURING MEETING ──
-            stack.Children.Add(MakeSectionHeader("DURING MEETING"));
-            var duringWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            duringWrap.Children.Add(MakeActionButton("Log Minutes", "LogMinutes", Br(CAccent),
-                "Record meeting minutes with timestamped notes"));
-            duringWrap.Children.Add(MakeActionButton("Add Action Item", "AddActionItem", Br(CGreen),
-                "Create action item with assignee, due date, and priority"));
-            duringWrap.Children.Add(MakeActionButton("Quick Issue", "RaiseIssue", Br(CRed),
-                "Raise RFI/NCR/SI issue directly from meeting context"));
-            duringWrap.Children.Add(MakeActionButton("Take Snapshot", "TakeSnapshot", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
-                "Capture model state snapshot for meeting record"));
-            stack.Children.Add(duringWrap);
-
-            // ── REVIEW ──
-            stack.Children.Add(MakeSectionHeader("REVIEW & FOLLOW-UP"));
-            var reviewWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            reviewWrap.Children.Add(MakeActionButton("Meeting History", "MeetingHistory", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
-                "View all past meetings with minutes, actions, and outcomes"));
-            reviewWrap.Children.Add(MakeActionButton("Open Actions", "OpenActions", Br(CRed),
-                "View all outstanding action items grouped by overdue/upcoming"));
-            reviewWrap.Children.Add(MakeActionButton("Export Minutes", "ExportMinutes", Br(CGreen),
-                "Export meeting minutes to timestamped text file"));
-            reviewWrap.Children.Add(MakeActionButton("Send Reminder", "SendReminder", Br(CAccent),
-                "Generate email reminder for outstanding action items"));
-            stack.Children.Add(reviewWrap);
-
-            // ── ACTION ITEMS SUMMARY ──
-            stack.Children.Add(MakeSectionHeader("ACTION ITEMS SUMMARY"));
-            var actionsCard = MakeCard();
-            var actStack = new StackPanel();
-            var actions = LoadActionItems();
-            int overdueActions = actions.Count(a => a.IsOverdue);
-            int openActions = actions.Count(a => a.Status == "OPEN");
-
-            var actChips = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            actChips.Children.Add(MakeMetricChip($"Total: {actions.Count}", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
-            actChips.Children.Add(MakeMetricChip($"Open: {openActions}", openActions > 0 ? Br(CAmber) : Br(CGreen)));
-            if (overdueActions > 0)
-                actChips.Children.Add(MakeMetricChip($"Overdue: {overdueActions}", Br(CRed)));
-            actStack.Children.Add(actChips);
-
-            // Show top 8 overdue/open actions — interactive with hover highlight and context menu
-            foreach (var act in actions.Where(a => a.Status == "OPEN").OrderByDescending(a => a.IsOverdue).Take(8))
-            {
-                var actBorder = new Border
-                {
-                    Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 1, 0, 1),
-                    CornerRadius = new CornerRadius(3), Cursor = Cursors.Hand,
-                    Background = act.IsOverdue
-                        ? Br(Color.FromRgb(0xFF, 0xEB, 0xEE))
-                        : Brushes.Transparent,
-                    BorderBrush = act.IsOverdue ? Br(Color.FromRgb(0xFF, 0xCD, 0xD2)) : Brushes.Transparent,
-                    BorderThickness = new Thickness(act.IsOverdue ? 1 : 0)
-                };
-
-                var actGrid = new Grid();
-                actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-                actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
-
-                var descText = new TextBlock
-                {
-                    Text = $"{(act.IsOverdue ? "⚠ " : "• ")}{act.Description}",
-                    FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis,
-                    Foreground = act.IsOverdue ? Br(CRed) : Brushes.Black,
-                    FontWeight = act.IsOverdue ? FontWeights.SemiBold : FontWeights.Normal,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                actGrid.Children.Add(descText);
-
-                var assignText = new TextBlock
-                {
-                    Text = act.Assignee, FontSize = 10,
-                    Foreground = Br(Color.FromRgb(0x60, 0x60, 0x60)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-                Grid.SetColumn(assignText, 1);
-                actGrid.Children.Add(assignText);
-
-                var dueText = new TextBlock
-                {
-                    Text = act.DueDate, FontSize = 10,
-                    Foreground = act.IsOverdue ? Br(CRed) : Br(Color.FromRgb(0x60, 0x60, 0x60)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                Grid.SetColumn(dueText, 2);
-                actGrid.Children.Add(dueText);
-
-                actBorder.Child = actGrid;
-
-                // Rich tooltip with full details
-                actBorder.ToolTip = new ToolTip
-                {
-                    Content = new TextBlock
-                    {
-                        Text = $"Action: {act.Description}\n" +
-                               $"Assignee: {act.Assignee}\n" +
-                               $"Due: {act.DueDate}\n" +
-                               $"Status: {act.Status}\n" +
-                               (act.IsOverdue ? "⚠ OVERDUE — right-click to escalate to NCR issue\n" : "") +
-                               "\nLeft-click: Open action details\nRight-click: Options menu",
-                        FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
-                        MaxWidth = 350, TextWrapping = TextWrapping.Wrap
-                    },
-                    Background = Br(Color.FromRgb(0x2D, 0x2D, 0x30)),
-                    Foreground = Brushes.White, Padding = new Thickness(10, 6, 10, 6)
-                };
-
-                // Hover effect
-                var origBg = actBorder.Background;
-                actBorder.MouseEnter += (s, e) =>
-                {
-                    actBorder.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD));
-                    actBorder.BorderBrush = Br(CAccent);
-                    actBorder.BorderThickness = new Thickness(1);
-                };
-                actBorder.MouseLeave += (s, e) =>
-                {
-                    actBorder.Background = origBg;
-                    actBorder.BorderBrush = act.IsOverdue ? Br(Color.FromRgb(0xFF, 0xCD, 0xD2)) : Brushes.Transparent;
-                    actBorder.BorderThickness = new Thickness(act.IsOverdue ? 1 : 0);
-                };
-
-                // Click to view open actions
-                actBorder.MouseLeftButtonDown += (s, e) =>
-                {
-                    DispatchAction("OpenActions");
-                };
-
-                // Context menu
-                var ctxMenu = new ContextMenu();
-                var markDone = new MenuItem { Header = "Mark as Completed" };
-                markDone.Click += (s, e) => { DispatchAction("OpenActions"); };
-                ctxMenu.Items.Add(markDone);
-
-                if (act.IsOverdue)
-                {
-                    var escalate = new MenuItem { Header = "Escalate to NCR Issue", Foreground = Br(CRed) };
-                    escalate.Click += (s, e) => { DispatchAction("EscalateActions"); };
-                    ctxMenu.Items.Add(escalate);
-                }
-
-                var reassign = new MenuItem { Header = "Reassign..." };
-                reassign.Click += (s, e) => { DispatchAction("OpenActions"); };
-                ctxMenu.Items.Add(reassign);
-
-                var addNote = new MenuItem { Header = "Add to Meeting Agenda" };
-                addNote.Click += (s, e) => { DispatchAction("AutoAgenda"); };
-                ctxMenu.Items.Add(addNote);
-
-                actBorder.ContextMenu = ctxMenu;
-                actStack.Children.Add(actBorder);
-            }
-
-            // Show count of remaining actions not displayed
-            int remaining = actions.Count(a => a.Status == "OPEN") - 8;
-            if (remaining > 0)
-            {
-                var moreText = new TextBlock
-                {
-                    Text = $"  + {remaining} more open action(s) — click 'Open Actions' to view all",
-                    FontSize = 10, FontStyle = FontStyles.Italic,
-                    Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
-                    Margin = new Thickness(0, 4, 0, 0), Cursor = Cursors.Hand
-                };
-                moreText.MouseLeftButtonDown += (s, e) => { DispatchAction("OpenActions"); };
-                moreText.MouseEnter += (s, e) => moreText.TextDecorations = TextDecorations.Underline;
-                moreText.MouseLeave += (s, e) => moreText.TextDecorations = null;
-                actStack.Children.Add(moreText);
-            }
-
-            actionsCard.Child = actStack;
-            stack.Children.Add(actionsCard);
-
-            // ── AUTOMATION RULES ──
-            stack.Children.Add(new Border { Height = 12 });
-            stack.Children.Add(MakeSectionHeader("AUTOMATION RULES"));
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Cross-system automation links meetings ↔ issues ↔ transmittals ↔ compliance for seamless BIM coordination workflows.",
-                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
-            });
-            var autoCard = MakeCard();
-            var autoStack = new StackPanel();
-
-            // Rule 1: Overdue actions → auto-escalate to issues
-            int overdueNotEscalated = actions.Count(a => a.IsOverdue && a.Status == "OPEN");
-            var rule1 = MakeAutomationRule(
-                "Overdue Action → Issue Escalation",
-                overdueNotEscalated > 0
-                    ? $"{overdueNotEscalated} overdue action(s) can be escalated to NCR issues"
-                    : "No overdue actions requiring escalation",
-                overdueNotEscalated > 0, "EscalateActions",
-                "Auto-create HIGH-priority NCR issues from overdue meeting actions with element linking");
-            autoStack.Children.Add(rule1);
-
-            // Rule 2: Open issues → auto-populate next meeting agenda
-            int openIssuesForAgenda = _data.IssuesOpen;
-            var rule2 = MakeAutomationRule(
-                "Open Issues → Next Meeting Agenda",
-                openIssuesForAgenda > 0
-                    ? $"{openIssuesForAgenda} open issue(s) will auto-populate next meeting agenda"
-                    : "No open issues for agenda",
-                openIssuesForAgenda > 0, "AutoAgenda",
-                "Auto-generate meeting agenda from open issues grouped by type and priority");
-            autoStack.Children.Add(rule2);
-
-            // Rule 3: Compliance gate → auto-transmittal trigger
-            bool complianceReady = _data.TagPct >= 80 && _data.ContainerCompletePct >= 80 && _data.WarningCritical == 0;
-            var rule3 = MakeAutomationRule(
-                "Compliance Gate → Transmittal Trigger",
-                complianceReady
-                    ? $"Model ready for transmittal: {_data.TagPct:F0}% tagged, {_data.ContainerCompletePct:F0}% containers, 0 critical warnings"
-                    : $"Not ready: {_data.TagPct:F0}% tagged (need ≥80%), {_data.WarningCritical} critical warnings (need 0)",
-                complianceReady, "CreateTransmittal",
-                "Auto-create SHARED transmittal when compliance ≥80%, containers ≥80%, and 0 critical warnings");
-            autoStack.Children.Add(rule3);
-
-            // Rule 4: Meeting closure → follow-up meeting creation
-            int plannedMeetings = meetings.Count(m => m.Status == "PLANNED");
-            var rule4 = MakeAutomationRule(
-                "Meeting Closure → Follow-Up Scheduling",
-                plannedMeetings == 0
-                    ? "No upcoming meetings scheduled — create follow-up"
-                    : $"{plannedMeetings} meeting(s) already scheduled",
-                plannedMeetings == 0, "NewMeeting",
-                "Auto-schedule follow-up meeting carrying forward open actions and unresolved issues");
-            autoStack.Children.Add(rule4);
-
-            // Rule 5: SLA violation → issue priority escalation
-            int slaViolations = _data.SLACriticalViolations + _data.SLAHighViolations;
-            var rule5 = MakeAutomationRule(
-                "SLA Violation → Priority Escalation",
-                slaViolations > 0
-                    ? $"{slaViolations} SLA violation(s) — issues should be escalated or reassigned"
-                    : "No SLA violations detected",
-                slaViolations > 0, "UpdateIssue",
-                "Auto-escalate issue priority when SLA threshold exceeded (CRITICAL=4h, HIGH=24h)");
-            autoStack.Children.Add(rule5);
-
-            // Rule 6: Stale elements → retag trigger
-            var rule6 = MakeAutomationRule(
-                "Stale Elements → Auto-Retag",
-                _data.StaleCount > 0
-                    ? $"{_data.StaleCount} stale element(s) detected — tags no longer match context"
-                    : "No stale elements",
-                _data.StaleCount > 0, "RetagStale",
-                "Auto-retag elements that have moved level, changed system, or been modified since last tag");
-            autoStack.Children.Add(rule6);
-
-            autoCard.Child = autoStack;
-            stack.Children.Add(autoCard);
-
-            // ── CROSS-SYSTEM LINKS ──
-            stack.Children.Add(new Border { Height = 8 });
-            stack.Children.Add(MakeSectionHeader("CROSS-SYSTEM LINKS"));
-            var linksCard = MakeCard();
-            var linksStack = new StackPanel();
-            linksStack.Children.Add(new TextBlock
-            {
-                Text = $"Meetings → Issues: {_data.IssuesOpen} open issues linked to coordination\n" +
-                       $"Issues → Transmittals: {_data.DeliverablesSubmitted} transmittals issued with linked issues\n" +
-                       $"Transmittals → Compliance: {_data.TagPct:F0}% tag compliance at last transmittal\n" +
-                       $"Compliance → Warnings: {_data.WarningsLinkedToIssues} warnings linked to issues\n" +
-                       $"Warnings → Stale: {_data.StaleLinkedToWarnings} stale elements with active warnings",
-                FontSize = 11, LineHeight = 20, TextWrapping = TextWrapping.Wrap
-            });
-            linksCard.Child = linksStack;
-            stack.Children.Add(linksCard);
-
-            // ── COORDINATION METRICS ──
-            stack.Children.Add(new Border { Height = 12 });
-            stack.Children.Add(MakeSectionHeader("COORDINATION METRICS"));
-            var metricsCard = MakeCard();
-            var metStack = new StackPanel();
-            int totalMeetings = meetings.Count;
-            int completedMeetings = meetings.Count(m => m.Status == "COMPLETED");
-            int totalActions2 = actions.Count;
-            int closedActions = actions.Count(a => a.Status == "CLOSED");
-            double actionCloseRate = totalActions2 > 0 ? (closedActions * 100.0 / totalActions2) : 0;
-
-            var metGrid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 8) };
-            metGrid.Children.Add(MakeKPICard("MEETINGS", totalMeetings.ToString(), Br(Color.FromRgb(0x15, 0x65, 0xC0)),
-                $"Completed: {completedMeetings}\nPlanned: {totalMeetings - completedMeetings}"));
-            metGrid.Children.Add(MakeKPICard("ACTIONS", totalActions2.ToString(), Br(CAccent),
-                $"Open: {openActions}\nOverdue: {overdueActions}\nClosed: {closedActions}"));
-            metGrid.Children.Add(MakeKPICard("CLOSE RATE", $"{actionCloseRate:F0}%",
-                actionCloseRate >= 80 ? Br(CGreen) : actionCloseRate >= 50 ? Br(CAmber) : Br(CRed),
-                "Percentage of action items closed vs total created"));
-            metGrid.Children.Add(MakeKPICard("OVERDUE", overdueActions.ToString(),
-                overdueActions == 0 ? Br(CGreen) : Br(CRed),
-                $"Action items past their due date\nRequires immediate follow-up"));
-            metStack.Children.Add(metGrid);
-
-            metricsCard.Child = metStack;
-            stack.Children.Add(metricsCard);
-
-            scroll.Content = stack;
-            return scroll;
-        }
-
-        // ── Automation rule helper ──
-        private UIElement MakeAutomationRule(string title, string status, bool actionable, string actionTag, string tooltip)
-        {
-            var border = new Border
-            {
-                BorderBrush = Br(actionable ? CAccent : CBorder),
-                BorderThickness = new Thickness(2, 0, 0, 0),
-                Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 2, 0, 2),
-                ToolTip = tooltip
-            };
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var textStack = new StackPanel();
-            textStack.Children.Add(new TextBlock
-            {
-                Text = title, FontSize = 12, FontWeight = FontWeights.SemiBold,
-                Foreground = actionable ? Br(CAccent) : Brushes.Black
-            });
-            textStack.Children.Add(new TextBlock
-            {
-                Text = status, FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
-            });
-            grid.Children.Add(textStack);
-
-            if (actionable)
-            {
-                var btn = MakeActionButton("Run", actionTag, Br(CAccent), tooltip);
-                btn.VerticalAlignment = VerticalAlignment.Center;
-                btn.Height = 24; btn.FontSize = 10;
-                Grid.SetColumn(btn, 1);
-                grid.Children.Add(btn);
-            }
-            else
-            {
-                var check = new TextBlock
-                {
-                    Text = "\u2714", FontSize = 14, Foreground = Br(CGreen),
-                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(8, 0, 0, 0)
-                };
-                Grid.SetColumn(check, 1);
-                grid.Children.Add(check);
-            }
-
-            border.Child = grid;
-            return border;
-        }
-
-        // ── Meeting data helpers ──
-        private class MeetingInfo { public string Title; public string Type; public string Date; public string Status; public int Attendees; }
-        private class ActionItemInfo { public string Description; public string Assignee; public string DueDate; public string Status; public bool IsOverdue; }
-
-        private List<MeetingInfo> LoadMeetings()
-        {
-            var result = new List<MeetingInfo>();
-            try
-            {
-                string dir = System.IO.Path.GetDirectoryName(_data.FilePath ?? "");
-                if (string.IsNullOrEmpty(dir)) return result;
-                string path = System.IO.Path.Combine(dir, "_bim_manager", "meetings.json");
-                if (!File.Exists(path)) return result;
-                var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
-                foreach (var item in arr)
-                {
-                    result.Add(new MeetingInfo
-                    {
-                        Title = item.Value<string>("title") ?? item.Value<string>("type") ?? "Meeting",
-                        Type = item.Value<string>("type") ?? "",
-                        Date = item.Value<string>("date") ?? "",
-                        Status = item.Value<string>("status") ?? "PLANNED",
-                        Attendees = (item["attendees"] as Newtonsoft.Json.Linq.JArray)?.Count ?? 0
-                    });
-                }
-            }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"LoadMeetings: {ex.Message}"); }
-            return result;
-        }
-
-        private List<ActionItemInfo> LoadActionItems()
-        {
-            var result = new List<ActionItemInfo>();
-            try
-            {
-                string dir = System.IO.Path.GetDirectoryName(_data.FilePath ?? "");
-                if (string.IsNullOrEmpty(dir)) return result;
-                string path = System.IO.Path.Combine(dir, "_bim_manager", "meetings.json");
-                if (!File.Exists(path)) return result;
-                var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
-                foreach (var mtg in arr)
-                {
-                    var actions = mtg["action_items"] as Newtonsoft.Json.Linq.JArray;
-                    if (actions == null) continue;
-                    foreach (var act in actions)
-                    {
-                        string due = act.Value<string>("due") ?? "";
-                        bool overdue = false;
-                        if (DateTime.TryParse(due, out DateTime dueDate))
-                            overdue = dueDate < DateTime.Now;
-                        string st = act.Value<string>("status") ?? "OPEN";
-                        if (st == "CLOSED") overdue = false;
-                        result.Add(new ActionItemInfo
-                        {
-                            Description = act.Value<string>("description") ?? "",
-                            Assignee = act.Value<string>("assignee") ?? "",
-                            DueDate = due.Length > 10 ? due.Substring(0, 10) : due,
-                            Status = st,
-                            IsOverdue = overdue
-                        });
-                    }
-                }
-            }
-            catch (Exception ex) { StingTools.Core.StingLog.Warn($"LoadActionItems: {ex.Message}"); }
-            return result;
-        }
 
         // ════════════════════════════════════════════════════════════════
         //  STATIC SHOW METHOD
@@ -11903,6 +11805,52 @@ namespace StingTools.UI
         public IsCheckedSetConverter(System.Collections.Generic.HashSet<string> set) { _set = set; }
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
             => value is string s && _set.Contains(s);
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// Document sync — badge label to chip colour.
+    ///
+    /// Green for a working copy (yours to edit), grey for a read-only reference
+    /// copy. Deliberately NOT red or amber for either: neither state is a
+    /// problem, and this window already spends red on overdue deliverables and
+    /// failing warnings. A colour that means "attention" spent on a routine state
+    /// is a colour that stops meaning attention.
+    /// </summary>
+    public sealed class SyncBadgeBrushConverter : System.Windows.Data.IValueConverter
+    {
+        private static readonly System.Windows.Media.SolidColorBrush Working =
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2E, 0x7D, 0x32));
+        private static readonly System.Windows.Media.SolidColorBrush Reference =
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x78, 0x90, 0x9C));
+
+        static SyncBadgeBrushConverter()
+        {
+            // Frozen: these are shared across every row of the grid, and an
+            // unfrozen brush bound into hundreds of cells is pure overhead.
+            Working.Freeze();
+            Reference.Freeze();
+        }
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => string.Equals(value as string, "WORKING", StringComparison.Ordinal)
+                ? Working
+                : (object)Reference;
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>Empty string → Collapsed, so a row with no local copy shows nothing
+    /// rather than an empty chip.</summary>
+    public sealed class EmptyToCollapsedConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => string.IsNullOrEmpty(value as string)
+                ? System.Windows.Visibility.Collapsed
+                : System.Windows.Visibility.Visible;
+
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
             => System.Windows.Data.Binding.DoNothing;
     }

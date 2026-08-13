@@ -1,4 +1,4 @@
-// Healthcare Pack H-8 — Room Data Sheet renderer.
+﻿// Healthcare Pack H-8 — Room Data Sheet renderer.
 // Façade over MiniWordAdapter: writes one .docx per room into
 // <project>/_BIM_COORD/healthcare/rds/<roomNum>.docx
 
@@ -18,7 +18,7 @@ namespace Planscape.Docs.Templates
 
             var docPath = doc.PathName;
             var root = string.IsNullOrEmpty(docPath) ? Path.GetTempPath() : Path.GetDirectoryName(docPath);
-            var outDir = Path.Combine(root ?? Path.GetTempPath(), "_BIM_COORD", "healthcare", "rds");
+            var outDir = StingPaths.MetaFile(doc, "_BIM_COORD", "healthcare", "rds");
             Directory.CreateDirectory(outDir);
 
             var roomNum = ReadString(room, "ASS_ROOM_NUM_TXT")

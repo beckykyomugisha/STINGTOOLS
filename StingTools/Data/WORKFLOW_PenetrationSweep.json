@@ -6,33 +6,33 @@
   "steps": [
     {
       "id": "build-seeds",
-      "name": "Build seed families (idempotent)",
-      "command": "BuildSeedFamilies",
+      "label": "Build seed families (idempotent)",
+      "commandTag": "Seeds_Build",
       "skipIfFamilyLoaded": "STING_SEED_SpecialityEquipment",
       "_notes": "First-time setup. No-op when the seed family is already in the project."
     },
     {
       "id": "load-shared-params",
-      "name": "Load shared parameters (PEN_*)",
-      "command": "LoadSharedParams",
+      "label": "Load shared parameters (PEN_*)",
+      "commandTag": "LoadSharedParams",
       "_notes": "Binds the 19 PEN_* shared params to Specialty Equipment + the routed MEP categories so the detector and placer can stamp them."
     },
     {
       "id": "detect-and-place",
-      "name": "Detect crossings and place / update FRP instances",
-      "command": "Penetrations_DetectAndPlace",
+      "label": "Detect crossings and place / update FRP instances",
+      "commandTag": "Penetrations_DetectAndPlace",
       "_notes": "Runs SlabPenetrationDetector + WallPenetrationDetector + BeamPenetrationDetector against every MEP curve in the active view. FrpPenetrationPlacer drops face-based instances at each crossing and stamps the parameter pack. Idempotent — re-runs update existing instances rather than duplicate."
     },
     {
       "id": "coverage-audit",
-      "name": "Audit firestop coverage + structural review",
-      "command": "Validation_PenetrationCoverage",
+      "label": "Audit firestop coverage + structural review",
+      "commandTag": "Validation_PenetrationCoverage",
       "_notes": "Read-only audit. Surfaces orphan members, orphan FRP instances, and beam STRUCT_FAIL / STRUCT_REVIEW findings."
     },
     {
       "id": "schedule",
-      "name": "Build / refresh Penetration Register schedule",
-      "command": "BatchSchedules",
+      "label": "Build / refresh Penetration Register schedule",
+      "commandTag": "BatchSchedules",
       "scheduleNameFilter": "STING - Penetration Register",
       "_notes": "Builds the Penetration Register from MR_SCHEDULES.csv — one row per FRP instance, grouped by host type."
     }

@@ -22,14 +22,33 @@ namespace StingTools.Core.Licensing
             string text = null;
             try { if (File.Exists(LicensePath)) text = File.ReadAllText(LicensePath).Trim(); }
             catch { /* unreadable => NoLicense */ }
-            return LicenseVerifier.Verify(text, LicensePublicKey.Pem, MachineCode, DateTimeOffset.UtcNow);
+            return VerifyEither(text, DateTimeOffset.UtcNow);
+        }
+
+        /// <summary>
+        /// Verify against the full-factor <see cref="MachineFingerprint.Current"/> code and,
+        /// if that fails, the MachineGuid-only <see cref="MachineFingerprint.Stable"/> code.
+        /// The fallback means a transient WMI failure on a secondary factor (CPU / board /
+        /// BIOS serial) — which flips Current and silently invalidates a valid license —
+        /// no longer locks the user out, provided the license was issued against Stable.
+        /// </summary>
+        private static LicenseResult VerifyEither(string text, DateTimeOffset now)
+        {
+            var r = LicenseVerifier.Verify(text, LicensePublicKey.Pem, MachineFingerprint.Current, now);
+            if (r.IsValid) return r;
+            if (!string.Equals(MachineFingerprint.Stable, MachineFingerprint.Current, StringComparison.Ordinal))
+            {
+                var rs = LicenseVerifier.Verify(text, LicensePublicKey.Pem, MachineFingerprint.Stable, now);
+                if (rs.IsValid) return rs;
+            }
+            return r; // Current-code result carries the most relevant message
         }
 
         /// <summary>Validate + persist a license string. Returns null on success, else error message.</summary>
         public static string Apply(string licenseText)
         {
             licenseText = (licenseText ?? "").Trim();
-            var r = LicenseVerifier.Verify(licenseText, LicensePublicKey.Pem, MachineCode, DateTimeOffset.UtcNow);
+            var r = VerifyEither(licenseText, DateTimeOffset.UtcNow);
             if (!r.IsValid) return r.Message;
             try
             {

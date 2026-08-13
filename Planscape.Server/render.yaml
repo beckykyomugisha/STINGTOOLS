@@ -17,7 +17,7 @@ services:
     dockerContext: .
     branch: main
     region: frankfurt  # eu-central-1 — closest to UK/Europe clients
-    plan: starter       # £6/mo — upgrade to standard (£19) when >60 concurrent users
+    plan: starter       # $7/mo — go to standard ($25) at ~30 ACTIVE coordinators
 
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -95,16 +95,36 @@ databases:
     # The connection string is injected automatically into the API via fromDatabase above
 
 # ── Upgrade Guide ──────────────────────────────────────────────────────────────
+# NOTE: this 2-service file is the LEAN variant (api + db only). The full
+# 7-service production blueprint is /render.yaml at the repo root — that is the
+# one Render auto-detects. Capacity table + connection budget live there and in
+# docs/DEPLOY_RUNBOOK.md.
+#
+# Distinguish "connected" (logged in, WebSocket open, light use) from "active"
+# (driving issues / markup / CRDT). Active is what consumes CPU, and it is the
+# number to size on.
+#
 # When to upgrade:
-#   starter → standard API:  > 60 concurrent users or CPU > 70% sustained
-#   starter → standard DB:   > 1GB data or need connection pooling (PgBouncer)
+#   starter → standard API ($7 → $25):  > ~30 ACTIVE coordinators, or CPU > 70%
+#                                       sustained. Starter holds ~20-30
+#                                       connected / 10-15 active.
+#   standard → pro ($25 → $85):         > ~50 active, or you need autoscaling —
+#                                       Pro is the first tier that has it, and
+#                                       below it a deploy drops every WebSocket.
+#   basic-256mb → basic-1gb DB:         > 1 GB data. NOTE: the connection
+#                                       ceiling does NOT move — every basic
+#                                       tier and pro-4gb allows 100 (~97
+#                                       usable). 200 at pro-8gb, 400 at
+#                                       pro-16gb. Enable PgBouncer (free on
+#                                       paid DBs) before buying RAM you don't
+#                                       need; see DEPLOY_RUNBOOK.md.
 #
-# Current cost at launch (3 projects, ~60 users):
-#   API starter:  £6/month
-#   DB starter:   £6/month
-#   Total:        £12/month (+ Cloudflare free)
+# Cost at launch (Render bills USD):
+#   API starter:  $7/month
+#   DB basic:     $6/month
+#   Total:        $13/month (+ Cloudflare free)
 #
-# At 10 projects / 200 users:
-#   API standard: £19/month
-#   DB standard:  £17/month
-#   Total:        £36/month
+# At ~50 active coordinators:
+#   API standard: $25/month
+#   DB basic-1gb: ~$19/month
+#   Total:        ~$44/month

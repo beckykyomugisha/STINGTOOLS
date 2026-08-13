@@ -5653,6 +5653,94 @@ namespace StingTools.Organise
     }
 
     // ════════════════════════════════════════════════════════════════════════════
+    //  MEP VISUAL TAG POLICY — one-tag-per-run vs tag-every-segment
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Set how many visual tags Smart Placement draws on linear MEP (pipes, ducts,
+    /// conduit, cable tray). Corporate default is PerRun — one tag per connected
+    /// run, breaking at size changes, branches and risers — so a drawing reads
+    /// cleanly instead of carrying an identical tag on every modelled segment.
+    /// This only affects the DRAWN annotations; token data (ASS_TAG_1, containers)
+    /// is still written to every segment for schedules and BOQ. Persists the choice
+    /// to project_config.json (CATEGORY_VISUAL_POLICY) for the standard linear
+    /// categories.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetMepTagPolicyCommand : IExternalCommand
+    {
+        // Standard linear-MEP category names the policy is applied to.
+        private static readonly string[] LinearCatNames =
+            { "Pipes", "Ducts", "Conduits", "Cable Trays", "Flex Pipes", "Flex Ducts" };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Show current effective policy for pipes as the status line.
+            string current = TagConfig.CategoryVisualPolicy != null
+                && TagConfig.CategoryVisualPolicy.TryGetValue("Pipes", out string cp)
+                ? cp : "PerRun (default)";
+
+            var options = new List<UI.StingModePicker.ModeOption>
+            {
+                new("One tag per run (recommended)",
+                    "Corporate standard. Pipes/ducts/conduit/tray get one tag per connected run; " +
+                    "a new tag starts at each size change, branch (tee/cross) and riser/drop.",
+                    "PerRun", true),
+                new("Tag every segment",
+                    "Legacy behaviour — one visual tag on every modelled segment. Dense, but nothing is missed.",
+                    "All"),
+                new("No visual tags (data only)",
+                    "Never draw tags on linear MEP; token data is still written for schedules/BOQ.",
+                    "None"),
+            };
+
+            string choice = UI.StingModePicker.Show(
+                "MEP Tag Policy",
+                "How should linear MEP (pipes, ducts, conduit, cable tray) be visually tagged?",
+                options,
+                $"Applies to: {string.Join(", ", LinearCatNames)}   |   Current (Pipes): {current}");
+
+            if (string.IsNullOrEmpty(choice)) return Result.Cancelled;
+
+            // Validate against the policy enum before persisting.
+            if (!Enum.TryParse(choice, ignoreCase: true, out StingTools.Core.Mep.TagVisualPolicy _))
+            {
+                TaskDialog.Show("MEP Tag Policy", $"Unrecognised policy '{choice}'.");
+                return Result.Failed;
+            }
+
+            if (TagConfig.CategoryVisualPolicy == null)
+                TagConfig.CategoryVisualPolicy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var cat in LinearCatNames)
+                TagConfig.CategoryVisualPolicy[cat] = choice;
+
+            // Persist to project_config.json next to the .rvt.
+            bool saved = false;
+            string projectDir = Path.GetDirectoryName(doc.PathName);
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                try { saved = TagConfig.SaveToFile(Path.Combine(projectDir, "project_config.json")); }
+                catch (Exception ex) { StingLog.Warn($"SetMepTagPolicy: save failed: {ex.Message}"); }
+            }
+
+            StingLog.Info($"SetMepTagPolicy: linear MEP visual policy → {choice} (saved={saved})");
+            TaskDialog.Show("MEP Tag Policy",
+                $"Linear MEP visual tag policy set to '{choice}'.\n\n" +
+                (saved
+                    ? "Saved to project_config.json.\n\n"
+                    : "Applied for this session (save the model in a folder to persist).\n\n") +
+                "Re-run 'Smart Place Tags' to apply. Existing tags are unchanged — " +
+                "delete them first if you want a clean re-place.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
     //  RETAG STALE ELEMENTS
     // ════════════════════════════════════════════════════════════════════════════
 

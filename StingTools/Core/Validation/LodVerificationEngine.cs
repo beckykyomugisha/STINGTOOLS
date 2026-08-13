@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -21,51 +21,11 @@ namespace StingTools.Core.Validation
     // The command output states this limitation.
     // ─────────────────────────────────────────────────────────────────────────
 
-    public class LodCheck
-    {
-        public bool? RequireGeometry { get; set; }
-        public bool? ForbidPlaceholderFamilies { get; set; }
-        public bool? RequireTypeNotGeneric { get; set; }
-        public bool? RequireManufacturerType { get; set; }
-        public bool? RequireNoUnresolvedClash { get; set; }
-        public List<string> RequiredParams { get; set; }
-        public List<string> RequiredDims { get; set; }
-        public string Inherit { get; set; }
-    }
-
-    public class LodCategoryRule
-    {
-        public string Category { get; set; }
-        public Dictionary<string, LodCheck> Checks { get; set; }
-    }
-
-    public class LodMilestone
-    {
-        public string Id { get; set; }
-        public string Name { get; set; }
-        public int Lod { get; set; }
-    }
-
-    public class LodMatrix
-    {
-        public string Version { get; set; }
-        public string Description { get; set; }
-        public List<LodMilestone> Milestones { get; set; } = new List<LodMilestone>();
-        public List<LodCategoryRule> CategoryRules { get; set; } = new List<LodCategoryRule>();
-        public List<string> PlaceholderFamilyPatterns { get; set; } = new List<string>();
-    }
-
-    /// <summary>Effective (inheritance-resolved) check for one (category, LOD).</summary>
-    public class ResolvedLodCheck
-    {
-        public bool RequireGeometry;
-        public bool ForbidPlaceholderFamilies;
-        public bool RequireTypeNotGeneric;
-        public bool RequireManufacturerType;
-        public bool RequireNoUnresolvedClash;
-        public List<string> RequiredParams = new List<string>();
-        public List<string> RequiredDims = new List<string>();
-    }
+    // LodCheck / LodCategoryRule / LodMilestone / LodMatrix / ResolvedLodCheck and
+    // the LodTally pass/skip accounting now live in LodMatrixModel.cs — same
+    // namespace, no Autodesk.Revit.* dependency, so StingTools.Tags.Tests can
+    // <Compile Include> them and assert the "empty scope is not a pass" rule
+    // against the real types. Everything below needs a Revit Document.
 
     public class LodElementResult
     {
@@ -76,15 +36,14 @@ namespace StingTools.Core.Validation
         public List<string> Reasons { get; set; } = new List<string>();
     }
 
-    public class LodVerificationResult
+    /// <summary>
+    /// One LOD run. The pass / fail / SKIP accounting — including
+    /// <see cref="LodTally.NoElementsInScope"/> and <see cref="LodTally.SkippedNoRule"/>
+    /// — lives on the Revit-free <see cref="LodTally"/> base in LodMatrixModel.cs so
+    /// it is unit-testable; this class adds the element-level detail that needs Revit.
+    /// </summary>
+    public class LodVerificationResult : LodTally
     {
-        public string MilestoneId { get; set; } = "";
-        public string MilestoneName { get; set; } = "";
-        public int Lod { get; set; }
-        public int Total { get; set; }
-        public int Passed { get; set; }
-        public int Failed => Total - Passed;
-        public double OverallPct => Total > 0 ? 100.0 * Passed / Total : 100.0;
         public List<LodElementResult> Elements { get; set; } = new List<LodElementResult>();
         public Dictionary<string, (int total, int pass)> ByCategory { get; set; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
@@ -112,7 +71,7 @@ namespace StingTools.Core.Validation
         {
             string dir = DocKey(doc);
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", ProjectFileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", ProjectFileName);
         }
 
         public static LodMatrix Get(Document doc) => _cache.GetOrAdd(DocKey(doc), _ => Load(doc));
@@ -213,7 +172,14 @@ namespace StingTools.Core.Validation
                     check = Resolve(matrix, cat, lodKey);
                     resolvedByCat[cat] = check;
                 }
-                if (check == null) continue; // no rule + no "*" default → element not in scope of this matrix
+                if (check == null)
+                {
+                    // No rule and no "*" default. Count it rather than dropping it
+                    // silently — an element the matrix cannot speak about is a gap
+                    // in the matrix, and the report has to say so.
+                    result.RecordSkip(cat);
+                    continue;
+                }
 
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc))
@@ -244,49 +210,13 @@ namespace StingTools.Core.Validation
             d[key] = (v.total + 1, v.pass + (pass ? 1 : 0));
         }
 
-        /// <summary>Resolve the effective check for (category, lod), folding inheritance.</summary>
+        /// <summary>
+        /// Resolve the effective check for (category, lod). Delegates to the
+        /// Revit-free <see cref="LodRuleResolver"/> so the plugin and the unit
+        /// tests exercise exactly the same resolution code, not two copies.
+        /// </summary>
         public static ResolvedLodCheck Resolve(LodMatrix matrix, string category, string lodKey)
-        {
-            var rule = matrix.CategoryRules?.FirstOrDefault(r =>
-                           string.Equals(r.Category, category, StringComparison.OrdinalIgnoreCase))
-                       ?? matrix.CategoryRules?.FirstOrDefault(r => r.Category == "*");
-            if (rule?.Checks == null) return null;
-            return ResolveCheck(rule.Checks, lodKey, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-        }
-
-        private static ResolvedLodCheck ResolveCheck(Dictionary<string, LodCheck> checks, string lodKey, HashSet<string> seen)
-        {
-            if (!checks.TryGetValue(lodKey, out var c) || c == null) return null;
-            if (!seen.Add(lodKey)) return new ResolvedLodCheck(); // inheritance loop guard
-
-            ResolvedLodCheck baseCheck = null;
-            if (!string.IsNullOrEmpty(c.Inherit))
-                baseCheck = ResolveCheck(checks, c.Inherit, seen);
-            baseCheck = baseCheck ?? new ResolvedLodCheck();
-
-            return new ResolvedLodCheck
-            {
-                RequireGeometry          = c.RequireGeometry          ?? baseCheck.RequireGeometry,
-                ForbidPlaceholderFamilies= c.ForbidPlaceholderFamilies?? baseCheck.ForbidPlaceholderFamilies,
-                RequireTypeNotGeneric    = c.RequireTypeNotGeneric    ?? baseCheck.RequireTypeNotGeneric,
-                RequireManufacturerType  = c.RequireManufacturerType  ?? baseCheck.RequireManufacturerType,
-                RequireNoUnresolvedClash = c.RequireNoUnresolvedClash ?? baseCheck.RequireNoUnresolvedClash,
-                RequiredParams = MergeList(baseCheck.RequiredParams, c.RequiredParams),
-                RequiredDims   = MergeList(baseCheck.RequiredDims,   c.RequiredDims),
-            };
-        }
-
-        // "+name" adds to the inherited list; a plain name replaces the inherited list.
-        private static List<string> MergeList(List<string> inherited, List<string> level)
-        {
-            if (level == null || level.Count == 0) return new List<string>(inherited ?? new List<string>());
-            var plus = level.Where(s => s != null && s.StartsWith("+")).Select(s => s.Substring(1).Trim());
-            var plain = level.Where(s => s != null && !s.StartsWith("+")).Select(s => s.Trim());
-            var baseList = plain.Any() ? plain.ToList() : new List<string>(inherited ?? new List<string>());
-            baseList.AddRange(plus);
-            return baseList.Where(s => !string.IsNullOrEmpty(s))
-                           .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        }
+            => LodRuleResolver.Resolve(matrix, category, lodKey);
 
         private static LodElementResult EvaluateElement(Element el, ResolvedLodCheck check, List<Regex> placeholderRx)
         {

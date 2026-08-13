@@ -434,3 +434,68 @@ When 1–4 behave as annotated, **B3b is done**.
 | `_lib/billing/tax.ts` | Country tax table (inclusive VAT / reverse charge) |
 | `_lib/billing/discounts.ts` | Validate / apply / record-redemption |
 | `marketing-site-cron/` | Standalone cron Worker (separate `wrangler.toml`, same D1) |
+
+---
+
+# The web funnel (Phase 1 + 2) — setup notes
+
+The pages that actually call all of the above. Until these landed, nothing on
+planscape.build touched the billing API: `/signup` posted to `/api/waitlist` and
+there was no login or account page.
+
+## Required environment variables — the gaps that bite
+
+Set per environment in **Pages → planscape-marketing → Settings → Environment
+variables**. Production and **Preview are separate** — a secret set only on
+Production leaves every preview deployment 500ing on any auth call, because
+`JWT_SECRET` is undefined and token minting throws. Preview's `JWT_SECRET` does
+**not** need to match production's: refresh tokens are opaque D1 rows, only the
+short-lived access token is a JWT.
+
+| Variable | Without it |
+|---|---|
+| `JWT_SECRET` | Signup/login 500 — no token can be minted |
+| `RESEND_API_KEY` | **Verification + reset email is silently skipped** (`email.ts` logs and returns). Users sign up and never receive the link |
+| `STRIPE_SECRET_KEY` | USD/EUR/GBP checkout returns `500 "Billing is not configured."` — only the Pesapal rail can take money |
+| `PESAPAL_CONSUMER_KEY` / `PESAPAL_IPN_ID` | UGX/KES/TZS/RWF checkout returns `500 "Mobile-money billing is not configured."` |
+
+## One-time data migration — tenant currency backfill
+
+`createTenant()` used to hardcode `currency = "USD"`, ignoring the country it
+already stored, so **no tenant could ever route to Pesapal**. It now derives the
+currency via `currencyForCountry()`. That fix only applies to *new* tenants —
+rows created earlier keep the wrong currency and must be backfilled **once**:
+
+```bash
+wrangler d1 execute planscape-waitlist --remote --command="
+UPDATE tenants
+   SET currency = CASE country WHEN 'UG' THEN 'UGX' WHEN 'KE' THEN 'KES'
+                               WHEN 'TZ' THEN 'TZS' WHEN 'RW' THEN 'RWF' END,
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+ WHERE country IN ('UG','KE','TZ','RW')
+   AND currency <> CASE country WHEN 'UG' THEN 'UGX' WHEN 'KE' THEN 'KES'
+                                WHEN 'TZ' THEN 'TZS' WHEN 'RW' THEN 'RWF' END
+   AND id NOT IN (SELECT tenant_id FROM subscriptions WHERE status <> 'cancelled');"
+```
+
+Idempotent (re-running changes 0 rows) and guarded: it never touches a tenant
+with a live subscription, since changing the currency under an open Stripe or
+Pesapal subscription would desync it from the provider. Applied to production on
+2026-07-17 — 11 rows.
+
+## Local development gotcha
+
+`wrangler pages dev` and `wrangler d1 execute --local` key their local SQLite
+files differently (two files under
+`.wrangler/state/v3/d1/miniflare-D1DatabaseObject/`), so a schema applied with
+`--local` is **invisible** to `pages dev` — signup fails with `no such table:
+users`. Workaround: copy the seeded `.sqlite` over the empty one, or seed
+through the dev server. Also put `JWT_SECRET` in `.dev.vars` (gitignored).
+
+## Why curl is not enough
+
+`isAllowedOrigin()` rejects any browser origin not in `ALLOWED_ORIGINS`, but
+**curl sends no `Origin` header and is always allowed**. Four phases of
+curl-verified backend therefore never revealed that the Functions rejected their
+own pages on every host except the two hardcoded production hostnames. Test the
+funnel in a real browser, on a preview URL, before trusting it.

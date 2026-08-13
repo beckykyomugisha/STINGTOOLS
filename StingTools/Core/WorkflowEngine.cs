@@ -344,8 +344,12 @@ namespace StingTools.Core
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
             "LOD_Verify", "LOD_Stamp", "Program_Audit", "OwnerStandards_Audit",
             "CSI_Assign", "SpecLink_Reconcile",
-            "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit", "DeviceCoord_Audit", "ComCheck_Export",
+            "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit",
+            "Fohlio_ExportFinishes", "Fohlio_ImportFinishes", "DeviceCoord_Audit", "ComCheck_Export",
             "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
+            "Niagara_ExportPoints", "Niagara_Reconcile", "Owner_KpiDashboard", "KUT_KpiDashboard",
+            "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
+            "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
             "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
@@ -367,11 +371,13 @@ namespace StingTools.Core
             "AuditTagsCSV", "ModelHealthDashboard", "FullComplianceDashboard", "ExportModelHealth",
             "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
             "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
-            "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp",
+            "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp", "RevisionSync",
+            "RevisionApprovalWorkflow", "RevisionDistribution", "Revision_CloudAudit", "Revision_Purge",
+            "Revision_Delete",
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
-            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "StageComplianceGate",
+            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "DocRegister_Unified", "Register_Consolidate", "Folders_ConsolidateAll", "StageComplianceGate",
             "WarningsSelectElements", "WarningsSuppress",
             "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
             "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
@@ -680,15 +686,11 @@ namespace StingTools.Core
                         {
                             try
                             {
-                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
-                                if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
-                                // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
-                                var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
-                                // PM-1 — normalise the status so the gate sees clash/ACC
-                                // issues too (they spell it "Open"/"open", not "OPEN").
-                                int openCount = issuesArr.Count(i => IssueStatusNormalizer.IsOpen((string)i["status"]));
-                                if (openCount == 0) { RecordSkip("no open issues"); continue; }
+                                // Phase 2 (IM-4): one predicate, shared with EvaluateSingleCondition
+                                // and with the BCC's KPI counts. IssueStore.Load also migrates
+                                // legacy rows, so a PascalCase LPS issue or an "id"-keyed
+                                // escalated warning is counted here like anything else.
+                                if (!IssueStore.HasOpen(doc)) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex2) { StingLog.Warn($"has_open_issues check: {ex2.Message}"); }
                         }
@@ -1438,6 +1440,17 @@ namespace StingTools.Core
                 case "Panel_SpacesToSpares":    return new Commands.Panels.ConvertSpacesToSparesCommand();
                 case "Panel_ClearSparesSpaces": return new Commands.Panels.ClearSparesAndSpacesCommand();
 
+                // Aliases for the tags the Electrical panel handler uses. The panel and
+                // this resolver named the same six commands differently, so any workflow
+                // preset written against the panel's tags resolved to null and the step
+                // was reported as failed. Both spellings now resolve to the same command.
+                case "Panel_FillSlots":            return new Commands.Panels.FillSparesAllSchedulesCommand();
+                case "Panel_AddSpare":             return new Commands.Panels.FillEmptySlotsWithSparesCommand();
+                case "Panel_AddSpace":             return new Commands.Panels.FillEmptySlotsWithSpacesCommand();
+                case "Panel_ConvertSpaceToSpare":  return new Commands.Panels.ConvertSpacesToSparesCommand();
+                case "Panel_ClearSlots":           return new Commands.Panels.ClearSparesAndSpacesCommand();
+                case "Panel_ExcelExport":          return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
+
                 // ── Plumbing (Phase 178c → 179) ──
                 case "Plumbing_AutoSizeDrainage": return new Commands.Plumbing.AutoSizeDrainageCommand();
                 case "Plumbing_BackflowAudit":    return new Commands.Plumbing.BackflowAuditCommand();
@@ -1492,6 +1505,43 @@ namespace StingTools.Core
                 case "Electrical_WireElementAnnotateBatch": return new Commands.Electrical.WireElementAnnotateBatchCommand();
                 case "Seeds_Build":              return new Commands.Symbols.BuildSeedFamiliesCommand();
                 case "Seeds_SwapToManufacturer": return new Commands.Symbols.SwapToManufacturerCommand();
+
+                // v4 place → route → validate pipeline (used by
+                // WORKFLOW_ElectricalRoughIn.json and WORKFLOW_PlumbingRoughIn.json).
+                // Without these three cases the rough-in workflows resolved to null
+                // in RunCommandByTag and every place/route/validate step reported
+                // FAILED despite valid JSON — the classic "green build, dead runtime"
+                // trap. PlaceFixturesCommand leaves its placed IDs selected, which
+                // AutoDropCommand then reads to route (electrical → AutoConduitDrop).
+                case "Placement_PlaceFixtures":  return new Commands.Placement.PlaceFixturesCommand();
+                case "Routing_AutoDrop":         return new Commands.Routing.AutoDropCommand();
+                case "Routing_PlaceSleeveConnectors": return new Commands.Routing.PlaceSleeveConnectorsCommand();
+                case "Routing_PlaceSleeveConnectorsAuto": return new Commands.Routing.PlaceSleeveConnectorsAutoCommand();
+                case "Validation_RunAll":        return new Commands.Validation.RunAllValidatorsCommand();
+
+                // Penetration pipeline — same "green build, dead runtime"
+                // trap as the rough-in steps above. These three tags existed
+                // only in StingCommandHandler's switch, so every step of
+                // WORKFLOW_PenetrationSweep.json and
+                // WORKFLOW_PenetrationRegister.json that used them resolved
+                // to null and reported FAILED.
+                //
+                // DrawingTypes_FromScopeBoxes resolves to the real command
+                // class; the dock-panel button for that tag runs a separate
+                // inline reimplementation in the handler (see W-5 in the
+                // drawings-production review) — converging the two is
+                // deliberately left out of this P0 pass.
+                case "Penetrations_DetectAndPlace":    return new Commands.Routing.PenetrationsDetectAndPlaceCommand();
+                case "Validation_PenetrationCoverage": return new Commands.Validation.PenetrationCoverageCommand();
+                case "DrawingTypes_FromScopeBoxes":    return new Commands.Drawing.GenerateFromScopeBoxesCommand();
+                case "DrawingTypes_SyncStyles":        return new Commands.Drawing.DrawingSyncStylesCommand();
+                // W-2: workflow-callable so a sheet-production workflow can
+                // generate and then sync match lines after renumbering.
+                case "MatchLine_Generate":             return new Commands.Drawing.MatchLineGenerateCommand();
+                case "MatchLine_Sync":                 return new Commands.Drawing.MatchLineSyncCommand();
+                case "MatchLine_Validate":             return new Commands.Drawing.MatchLineValidateCommand();
+                case "MatchLine_ValidateBundle":       return new Commands.Drawing.MatchLineValidateBundleCommand();
+                case "MatchLine_Inspect":              return new Commands.Drawing.MatchLineInspectCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
                 case "Symbols_CreateSLD_IEEE":      return new Commands.Symbols.CreateSLDSymbolsIEEECommand();
                 case "Symbols_CreateSLD_BS":        return new Commands.Symbols.CreateSLDSymbolsBSCommand();
@@ -1549,9 +1599,102 @@ namespace StingTools.Core
                 case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
                 case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
-                case "ComCheck_Export": return new Commands.Electrical.Lighting.ComCheckExportCommand();
+                // "Lite_ComCheck" is the Electrical panel's button tag for this same
+                // command. A user writing a project-local preset reasonably copies the
+                // tag off the button, and a preset tag that resolves to nothing is
+                // skipped in silence — so accept both spellings.
+                case "ComCheck_Export":
+                case "Lite_ComCheck":   return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
                 case "PrototypeDrift_Report": return new BIMManager.PrototypeDriftCommand();
+
+                // ── KUT-2: commands that existed in a panel handler but had no
+                // ResolveCommand case, so every workflow step naming them resolved to
+                // nothing and was skipped while the run still reported success. The
+                // command classes below are the ones the dock-panel handlers already
+                // dispatch (StingCommandHandler / Electrical / Hvac / Plumbing / Lps);
+                // nothing new was written, the tags were simply never wired here.
+                // WORKFLOW_DuctSpoolProduction.json
+                case "Fabrication_OpenWorkspace": return new Commands.Fabrication.FabricationWorkspaceCommand();
+                case "Hvac_DuctSeamAudit": return new Commands.FabricationExt.DuctSeamAuditCommand();
+                case "Hvac_FlangeRating": return new Commands.FabricationExt.FlangeRatingCommand();
+                case "Hvac_HangerTakedown": return new Commands.FabricationExt.HangerTakedownCommand();
+                case "Hvac_SpoolWeight": return new Commands.FabricationExt.SpoolWeightCommand();
+                case "Hvac_ExportCutList": return new Commands.Fabrication.ExportCutListCommand();
+                case "Hvac_ExportIsometrics": return new Commands.Fabrication.ExportIsometricsCommand();
+                case "Hvac_ExportNC": return new Commands.FabricationExt.ExportNCCommand();
+                // WORKFLOW_ElectricalDesignReview.json
+                case "Photo_Preflight": return new Commands.Electrical.Photometric.PhotometricPreflightCommand();
+                case "Elec_ExportDIALux": return new Commands.Electrical.Export.DIALuxExportCommand();
+                case "Photo_IfcImport": return new Commands.Electrical.IfcResults.IfcResultsImportCommand();
+                case "Photo_Aggregator": return new Commands.Electrical.IfcResults.MultiEngineAggregatorCommand();
+                case "Photo_DesignReview": return new Commands.Electrical.Photometric.PhotometricDesignReviewCommand();
+                case "Lite_LPD": return new Commands.Electrical.Lighting.LightingPowerDensityCommand();
+                case "Lite_EmergAudit": return new Commands.Electrical.Lighting.EmergencyLightingAuditCommand();
+                // WORKFLOW_ElectricalPostFitOut.json
+                case "Panel_SyncParams": return new Commands.Electrical.ElecPanelParamSyncCommand();
+                case "Calc_FaultCurrent": return new Commands.Electrical.FaultCurrent.FaultCurrentCommand();
+                case "Elec_ArcFlash": return new Commands.Electrical.ArcFlash.ArcFlashCommand();
+                case "Elec_ArcFlashLabels": return new Commands.Electrical.ArcFlash.ArcFlashLabelSheetCommand();
+                case "Rprt_DemandFactors": return new Commands.Electrical.Reports.DemandFactorReportCommand();
+                case "Rprt_PDF": return new Commands.Electrical.Reports.ElecPdfReportCommand();
+                // WORKFLOW_ElectricalSubmission.json
+                case "Panel_WriteParams": return new Commands.Electrical.ElecPanelWriteParamsCommand();
+                case "Calc_AicStamp": return new Commands.Electrical.FaultCurrent.AicRatingCommand();
+                case "Calc_FeederSize": return new Commands.Electrical.FeederSizing.FeederSizerCommand();
+                case "Cable_ValidateConduitFill": return new Commands.Electrical.ConduitFillValidateCommand();
+                case "Elec_SelectCoord": return new Commands.Electrical.Coordination.SelectiveCoordCommand();
+                case "Rprt_FaultSchedule": return new Commands.Electrical.Reports.FaultCurrentScheduleCommand();
+                case "Rprt_VDSchedule": return new Commands.Electrical.Reports.VoltageDropScheduleCommand();
+                case "Elec_ExportEasyPower": return new Commands.Electrical.Export.EasyPowerExportCommand();
+                // WORKFLOW_HVACCommissioning.json
+                case "Hvac_SystemAudit": return new Temp.MEPSystemAuditCommand();
+                case "Hvac_HardyCross": return new Commands.Routing.HardyCrossCommand();
+                case "Hvac_ValidateFills": return new Commands.Routing.ValidateFillsCommand();
+                case "Hvac_NcPredict": return new Commands.Hvac.HvacNcPredictionCommand();
+                case "Hvac_PressureClassAudit": return new Commands.Hvac.HvacPressureClassAuditCommand();
+                case "Hvac_Ventilation": return new Commands.StandardsExt.VentilationCommand();
+                case "Hvac_AutoFireDamper": return new Commands.RoutingExt.AutoFireDamperCommand();
+                case "Hvac_RunAllValidators": return new Commands.Validation.RunAllValidatorsCommand();
+                // WORKFLOW_HVACDesign.json
+                case "Hvac_BlockLoad": return new Commands.Hvac.HvacBlockLoadCommand();
+                case "Hvac_PropagateLoads": return new Commands.Hvac.HvacPropagateLoadsCommand();
+                case "Hvac_ConnectionAudit": return new Temp.MEPConnectionAuditCommand();
+                case "Hvac_DetectStaleSizes": return new Commands.Hvac.HvacDetectStaleSizesCommand();
+                case "Hvac_EquipmentSchedule": return new Temp.MechanicalEquipmentScheduleCommand();
+                // WORKFLOW_LpsCommissioning.json
+                case "Lps_LoadModel": return new Commands.Lightning.LpsLoadFromModelCommand();
+                case "Lps_RunRiskInline": return new Commands.Lightning.LpsRiskAssessmentInlineCommand();
+                case "Lps_ClassSetup": return new Commands.Lightning.LpsClassSetupCommand();
+                case "Lps_MarkTypes": return new Commands.Lightning.LpsMarkElementTypesCommand();
+                case "Lps_DownConductor": return new Commands.Lightning.LpsDownConductorCheckerCommand();
+                case "Lps_RecalcKc": return new Commands.Lightning.LpsRecalcKcFactorCommand();
+                case "Lps_SepDistance": return new Commands.Lightning.LpsSeparationDistanceCheckerCommand();
+                case "Lps_EarthCheck": return new Commands.Lightning.LpsEarthResistanceValidatorCommand();
+                case "Lps_Bonding": return new Commands.Lightning.LpsBondingInventoryCommand();
+                case "Lps_ZoneTagRooms": return new Commands.Lightning.LpsRoomZoneTagCommand();
+                case "Lps_ColourZones": return new Commands.Lightning.LpsColourZonesCommand();
+                case "Lps_SpdRecommend": return new Commands.Lightning.SpdRecommendCommand();
+                case "Lps_SpdCoordinate": return new Commands.Lightning.SpdCoordinationCheckCommand();
+                case "Lps_PlanVisualise": return new Commands.Lightning.LpsPlanViewVisualizerCommand();
+                case "Lps_3DCoverage": return new Commands.Lightning.LpsRollingSphere3DCommand();
+                case "Lps_Compliance": return new Commands.Lightning.LpsComplianceCheckCommand();
+                case "Lps_InspectionSchedule": return new Commands.Lightning.LpsInspectionSchedulerCommand();
+                case "Lps_CreateSchedules": return new Commands.Lightning.LpsCreateRevitScheduleCommand();
+                case "Lps_FullReport": return new Commands.Lightning.LpsFullReportCommand();
+                case "Lps_SyncToServer": return new Commands.Lightning.LpsSyncToServerCommand();
+                // WORKFLOW_PlumbingDesign.json
+                case "Plumb_BuildNetwork": return new Commands.Plumbing.PlumbBuildNetworkCommand();
+                case "Plumb_SlopeAutomation": return new Commands.Plumbing.PlumbSlopeAutomationCommand();
+                case "Plumb_CreateVents": return new Commands.Plumbing.PlumbCreateVentsCommand();
+                case "Plumb_NetworkPressure": return new Commands.Plumbing.PlumbNetworkPressureCommand();
+                case "Plumb_PumpSelect": return new Commands.Plumbing.PlumbPumpSelectCommand();
+                case "Plumb_TMVEngine": return new Commands.Plumbing.PlumbTMVEngineCommand();
+                case "Plumb_LegionellaReport": return new Commands.Plumbing.PlumbLegionellaReportCommand();
+                case "Plumb_DrainageSchematic": return new Commands.Plumbing.PlumbDrainageSchematicCommand();
+                // WORKFLOW_TierConversionHandover.json
+                case "ApplyParagraphPreset": return new Tags.ApplyParagraphPresetCommand();
+                case "SetParagraphDepth": return new Tags.SetParagraphDepthCommand();
                 case "ReviewComments_Import": return new Docs.ReviewCommentsImportCommand();
                 case "ReviewComments_Dashboard": return new Docs.ReviewCommentsDashboardCommand();
                 case "ReviewComments_Export": return new Docs.ReviewCommentsExportCommand();
@@ -1678,6 +1821,10 @@ namespace StingTools.Core
                 case "AutoPopulate": return new Temp.AutoPopulateCommand();
                 case "CombineParameters": return new Tags.CombineParametersCommand();
                 case "RetagStale": return new Organise.RetagStaleCommand();
+                case "SelectStaleFlagged": return new Select.SelectStaleFlaggedCommand();
+                case "HighlightStale": return new Select.HighlightStaleCommand();
+                case "ClearStaleHighlight": return new Select.ClearStaleHighlightCommand();
+                case "StaleCountAction": return new Select.StaleCountActionCommand();
                 case "AnomalyAutoFix": return new Organise.AnomalyAutoFixCommand();
                 case "ResolveAllIssues": return new Tags.ResolveAllIssuesCommand();
                 case "SmartPlaceTags": return new Tags.SmartPlaceTagsCommand();
@@ -1722,7 +1869,9 @@ namespace StingTools.Core
                 case "SmartNumbering":
                 case "GraitecNumbering":     return new Organise.SmartNumberingCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
-                case "KUT_KpiDashboard":     return new Commands.Kpi.KutKpiDashboardCommand();
+                // Owner_KpiDashboard is the name; KUT_KpiDashboard is the retained alias.
+                case "Owner_KpiDashboard":
+                case "KUT_KpiDashboard":     return new Commands.Kpi.OwnerKpiDashboardCommand();
 
                 // Phase 72: Doc/Schedule Automation
                 case "DrawingRegisterSync":     return new Docs.DrawingRegisterSyncCommand();
@@ -1759,6 +1908,12 @@ namespace StingTools.Core
                 case "RevisionCompare":         return new BIMManager.RevisionCompareCommand();
                 case "TrackElementRevisions":   return new BIMManager.TrackElementRevisionsCommand();
                 case "IssueSheetsForRevision":  return new BIMManager.IssueSheetsForRevisionCommand();
+                case "RevisionSync":            return new Docs.RevisionSyncCommand();
+                case "RevisionApprovalWorkflow": return new BIMManager.RevisionApprovalWorkflowCommand();
+                case "RevisionDistribution":    return new BIMManager.RevisionDistributionCommand();
+                case "Revision_CloudAudit":     return new BIMManager.RevisionCloudAuditCommand();
+                case "Revision_Purge":          return new BIMManager.RevisionPurgeCommand();
+                case "Revision_Delete":         return new BIMManager.RevisionDeleteCommand();
                 case "RevisionNamingEnforce":   return new BIMManager.RevisionNamingEnforceCommand();
                 case "BulkRevisionStamp":       return new BIMManager.BulkRevisionStampCommand();
                 case "PlatformSync":            return new BIMManager.PlatformSyncCommand();
@@ -1778,6 +1933,9 @@ namespace StingTools.Core
                 case "ListWorkflowPresets":     return new ListWorkflowPresetsCommand();
                 case "AddDocument":             return new BIMManager.AddDocumentCommand();
                 case "DocumentRegister":        return new BIMManager.DocumentRegisterCommand();
+                case "DocRegister_Unified":     return new UnifiedRegisterExportCommand();
+                case "Register_Consolidate":    return new RegisterConsolidateCommand();
+                case "Folders_ConsolidateAll":  return new Commands.Folders.FolderConsolidateCommand();
                 case "StageComplianceGate":     return new BIMManager.StageComplianceGateCommand();
                 case "WarningsSelectElements":  return new WarningsSelectElementsCommand();
                 case "WarningsSuppress":        return new WarningsSuppressCommand();
@@ -1814,8 +1972,15 @@ namespace StingTools.Core
                 case "ClashSessionRefresh":     return new Core.Clash.ClashSessionRefreshCommand();
                 case "ClashSessionClear":       return new Core.Clash.ClashSessionClearCommand();
                 case "ClashMatrixEdit":         return new Core.Clash.ClashMatrixEditCommand();
-                case "ACC_PullClashes":         return new Core.Clash.AccPullClashesCommand();
-                case "ACC_SyncIssueStatus":     return new Core.Clash.AccSyncIssueStatusCommand();
+                // Both spellings resolve. The dock-panel buttons and the shipped KUT
+                // presets use the ACC_-prefixed form, but the BIM Coordination Center's
+                // ACC card dispatches "AccPullClashes"/"AccSyncIssueStatus" and
+                // StingCommandHandler already accepts either — so a preset copied from
+                // the card would otherwise resolve to nothing and be skipped silently.
+                case "ACC_PullClashes":
+                case "AccPullClashes":          return new Core.Clash.AccPullClashesCommand();
+                case "ACC_SyncIssueStatus":
+                case "AccSyncIssueStatus":      return new Core.Clash.AccSyncIssueStatusCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
@@ -2126,18 +2291,24 @@ namespace StingTools.Core
                     case "has_open_issues":
                     case "has_overdue_issues":
                     {
-                        // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues
-                        string issuePath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
-                        if (!File.Exists(issuePath)) return false;
-                        JArray cachedIssues = JArray.Parse(File.ReadAllText(issuePath));
+                        // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues.
+                        //
+                        // Phase 2 (IM-4): this compared the raw status to the literal "OPEN",
+                        // while the OTHER implementation of the same gate (RunWorkflow, above)
+                        // routed through IssueStatusNormalizer. The same gate therefore
+                        // answered differently depending on which entry point evaluated it —
+                        // and this one never saw a clash ("Open"), an ACC ("open") or a
+                        // server-pulled ("New") issue. Both now share IssueStore's predicate.
+                        JArray cachedIssues = IssueStore.Load(doc);
+                        if (cachedIssues.Count == 0) return false;
                         if (condition == "has_open_issues")
-                            return cachedIssues.Any(i => (string)i["status"] == "OPEN");
+                            return cachedIssues.OfType<JObject>().Any(IssueSchema.IsOpen);
                         // has_overdue_issues
                         var slaHrs = new Dictionary<string, int>
                             { { "CRITICAL", 4 }, { "HIGH", 24 }, { "MEDIUM", 168 }, { "LOW", 336 } };
-                        foreach (var oi in cachedIssues)
+                        foreach (var oi in cachedIssues.OfType<JObject>())
                         {
-                            if (oi["status"]?.ToString() != "OPEN") continue;
+                            if (!IssueSchema.IsOpen(oi)) continue;
                             string pri = oi["priority"]?.ToString() ?? "MEDIUM";
                             if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created_date"]?.ToString(), out var created)) continue;
                             int ageH = (int)(DateTime.Now - created).TotalHours;
@@ -2256,8 +2427,8 @@ namespace StingTools.Core
                         // or a resolvable design-day site.
                         try
                         {
-                            string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+                            var setup = Core.Sustainability.SustainProjectSetup.Load(
+                                StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out _);
                             if (!string.IsNullOrWhiteSpace(setup.ClimateSiteId) || !string.IsNullOrWhiteSpace(setup.ClimateZone))
                                 return true;
                             return !string.IsNullOrWhiteSpace(Core.Climate.ClimateRegistry.ActiveSite(doc)?.Id);
@@ -2373,21 +2544,6 @@ namespace StingTools.Core
             _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
             _cachedBuiltInPresetsDataPath = dataDir;
 
-            // Remove any null entries from failed lookups
-            presets.RemoveAll(p => p == null);
-
-            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
-            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
-            _cachedBuiltInPresetsDataPath = dataDir;
-
-            // Remove any null entries from failed lookups
-            presets.RemoveAll(p => p == null);
-
-            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
-            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
-            _cachedBuiltInPresetsDataPath = dataDir;
-
-            // User-defined JSON files
             // Append user-defined JSON presets on top
             AppendUserPresets(presets, dataDir);
 

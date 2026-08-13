@@ -165,8 +165,12 @@ namespace StingTools.Core
         /// <summary>
         /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
         /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
+        /// Defaults to 5 (full 8-segment): ASS_DISPLAY_TXT is the on-drawing tag and
+        /// must start from the full string so a segment mask (TAG_SEG_MASK_TXT /
+        /// STING_VIEW_TOKEN_MASK_TXT / UI "TokenMask") has all 8 segments to shorten.
+        /// Masks only apply in modes 0/5 — the only modes that carry every segment.
         /// </summary>
-        public static int DisplayModeDefault = 2;
+        public static int DisplayModeDefault = 5;
         public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
         public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
         public const string TAG_POS = "STING_TAG_POS";
@@ -378,7 +382,7 @@ namespace StingTools.Core
         public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
-        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
+        public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";
 
         // ── Annotation marker constants (Phase 179) ──────────────────────
         public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
@@ -495,19 +499,38 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
-        // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
-        // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
-        // constants below are kept on ViewSheet for backwards compat with sheets that
-        // were authored before STING TB v1; new title block families should bind to the
-        // GROUP 26 TB_ versions.
-        public const string TB_SHOW_KEYPLAN        = "TB_SHOW_KEY_PLAN_BOOL";
+        // P4 — MEP system/service code shown on the title block SYSTEM cell.
+        // Instance param on OST_TitleBlocks; filled from DrawingType.System via
+        // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
+        public const string PRJ_SHEET_SYSTEM       = "PRJ_SHEET_SYSTEM_TXT";
+        public const string PRJ_SHEET_SYSTEM_GUID  = "972024c1-53c5-5b57-b9f7-98e89fa53572";
+        // Canonical home for these toggles is the GROUP 26 TBL_TITLEBLOCK FamilyInstance
+        // (added in Drawing Template Manager). All five constants below name GROUP 26
+        // params; the root title-block spec A1_common_v2.0 declares them, so
+        // TitleBlockFactory mints them as INSTANCE family params onto every family it
+        // builds, and TITLE_BLOCK.csv seeds them through TitleBlockPopulate.
+        //
+        // Their GROUP 13 near-namesakes (PRJ_TB_SHOW_KEYPLAN_BOOL, ...SCALEBAR...,
+        // ...NORTHARROW..., ...DISCBAND...) are NOT a project-wide override tier — no
+        // code reads or writes them, and they bind to Generic Models / Project
+        // Information rather than Title Blocks. They remain in MR_PARAMETERS.txt only so
+        // models that already bound them keep the binding.
+        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
-        public const string TB_SHOW_SCALEBAR       = "TB_SHOW_SCALEBAR_BOOL";
+        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
         public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
-        public const string TB_SHOW_NORTHARROW     = "TB_SHOW_NORTH_ARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTH_ARROW_BOOL";
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
-        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
-        public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        // NB: this pair pointed at the GROUP 13 legacy param (PRJ_TB_SHOW_DISCBAND_BOOL
+        // / 483f47d7) while its three siblings above already pointed at their GROUP 26
+        // equivalents — the odd one out in a block whose stated contract is "the GROUP 26
+        // TB_ versions". Repointed to match.
+        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL";
+        public const string TB_SHOW_DISCBAND_GUID  = "fcd1f7f2-8b64-5cd7-9d27-982d604a231e";
+        // Gates the revision-history zone (the native Revit revision schedule
+        // created by TitleBlockFactory for slots with purposeTag "revision-history").
+        public const string TB_SHOW_REV_TABLE      = "PRJ_TB_SHOW_REV_TABLE_BOOL";
+        public const string TB_SHOW_REV_TABLE_GUID = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
         public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
@@ -527,11 +550,14 @@ namespace StingTools.Core
         public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
 
-        /// <summary>All 19 PRJ_TB_* parameters added in STING Title Block System v1.0.</summary>
+        /// <summary>All 20 title-block parameters added in STING Title Block System v1.0
+        /// (19 originals plus PRJ_TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
+        /// schedule created by TitleBlockFactory).</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
             TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SHOW_REV_TABLE,
             TB_SCALE_OVERRIDE, TB_ISSUE_SUMMARY,
             TB_DELIVERABLE_DATADROP, TB_DELIVERABLE_STATUS, TB_DELIVERABLE_DUE, TB_DELIVERABLE_CDE,
             TB_LAST_TRANSMITTAL, TB_LAST_TRANSMITTAL_DATE, TB_NOTES_LEGEND_REF
@@ -540,7 +566,8 @@ namespace StingTools.Core
         /// <summary>Subset of TB params that are YESNO flags (for TitleBlockPopulate type coercion).</summary>
         public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
         {
-            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SHOW_REV_TABLE
         };
 
         // ── Organisation parameters (v1.1 template engine + workflow) ──
@@ -1290,9 +1317,9 @@ namespace StingTools.Core
         public static string GATE_DATA_STATUS { get; private set; } = "STING_GATE_DATA_STATUS_INT";
         /// <summary>QA / sign-off gate status (instance INTEGER, 0/1/2).</summary>
         public static string GATE_QA_STATUS { get; private set; } = "STING_GATE_QA_STATUS_INT";
-        /// <summary>Terse data-gate reason (instance TEXT, blank when green) — left message label.</summary>
+        /// <summary>Data gate terse reason for the label next to the left badge (instance TEXT, blank when green).</summary>
         public static string GATE_DATA_MSG { get; private set; } = "STING_GATE_DATA_MSG_TXT";
-        /// <summary>Terse QA-gate reason (instance TEXT, blank when green) — right message label.</summary>
+        /// <summary>QA gate terse reason for the label next to the right badge (instance TEXT, blank when green).</summary>
         public static string GATE_QA_MSG { get; private set; } = "STING_GATE_QA_MSG_TXT";
 
         // ── Semantic color meaning registry ──────────────────────────────

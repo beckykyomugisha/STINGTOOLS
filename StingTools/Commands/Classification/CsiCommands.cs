@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,7 +33,7 @@ namespace StingTools.Commands.Classification
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string p = Path.Combine(dir, "_BIM_COORD", "csi_map.csv");
+                    string p = StingPaths.MetaFile(doc, "_BIM_COORD", "csi_map.csv");
                     if (File.Exists(p))
                     {
                         var r = CsiMasterFormat.ParseCsvLines(File.ReadAllLines(p));
@@ -59,6 +59,30 @@ namespace StingTools.Commands.Classification
 
         public static List<Element> Scope(UIDocument uidoc, Document doc, out string label)
             => StingTools.Tags.TagSchemeCommandHelper.CollectScope(uidoc, doc, out label);
+
+        /// <summary>
+        /// The type name to match TypeRegex against.
+        ///
+        /// <para>ParameterHelpers.GetFamilySymbolName only answers for FamilyInstance;
+        /// it returns "" for every system element — Walls, Floors, Roofs, Ceilings,
+        /// Pipes, Ducts, Conduits, Cable Trays, Stairs, Railings, Toposolids. Score()
+        /// treats an empty candidate as "does not match", so before this fallback ANY
+        /// FamilyRegex/TypeRegex rule on those categories was unmatchable — the shipped
+        /// "Walls (?i)masonry|block|brick → 04 20 00" and "(?i)concrete → 03 30 00" rows
+        /// had never once fired, and every wall silently took the 09 29 00 Gypsum Board
+        /// default. Falling back to the element type's own name is what makes those rows,
+        /// and the site/civil discriminators, actually resolve.</para>
+        ///
+        /// <para>For a FamilyInstance the symbol name IS the type name, so the fallback
+        /// only ever fires for system elements and changes nothing for loadable families.</para>
+        /// </summary>
+        public static string TypeName(Document doc, Element el)
+        {
+            string t = ParameterHelpers.GetFamilySymbolName(el);
+            if (!string.IsNullOrEmpty(t)) return t;
+            try { return doc.GetElement(el.GetTypeId())?.Name ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"CSI TypeName {el?.Id}: {ex.Message}"); return ""; }
+        }
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -103,7 +127,7 @@ namespace StingTools.Commands.Classification
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
                     string fam = ParameterHelpers.GetFamilyName(el);
-                    string type = ParameterHelpers.GetFamilySymbolName(el);
+                    string type = CsiMap.TypeName(doc, el);
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                     var rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys);
                     if (rule == null)

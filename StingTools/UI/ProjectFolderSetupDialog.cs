@@ -768,10 +768,10 @@ namespace StingTools.UI
             if (_doc == null) return;
             try
             {
-                var rep = ProjectFolderEngine.MigrateFromLegacy(_doc);
-                TaskDialog.Show("STING Migration",
-                    $"Moved {rep.FilesMoved} files. Removed {rep.FoldersRemoved} legacy folders." +
-                    (rep.Warnings.Count > 0 ? $"\n\nWarnings: {rep.Warnings.Count}" : ""));
+                // Route through the shared consent gate rather than migrating outright:
+                // this button used to move files the moment it was clicked, with no
+                // preview and no confirmation.
+                StingTools.Commands.Folders.FolderConsolidateCommand.RunWithConsent(_doc);
                 CheckMigrationBanner();
             }
             catch (Exception ex)

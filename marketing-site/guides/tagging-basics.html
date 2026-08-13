@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tagging basics — what a tag is made of — Planscape</title>
+<meta name="description" content="What the eight parts of an ISO 19650 tag mean, why elements need a unique identity, and how STING assembles and checks tags in Revit.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/tagging-basics.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Tagging basics</div>
+  <h1>Tagging basics — what a tag is made of</h1>
+  <div class="meta">📖 9-minute read · Beginner</div>
+
+  <p>A tag is the name an element answers to for the rest of its life. It appears on drawings, in schedules, in the handover data the facilities team inherits, and in the clash report someone opens two years from now. This guide explains what goes into one and why, then how STING builds them.</p>
+
+  <h2>Why "AHU-1" is not enough</h2>
+  <p>Most projects start by numbering equipment in the order it was drawn: AHU-1, AHU-2, AHU-3. This survives until the second building arrives, or a second floor gets its own air handling unit, and suddenly there are two things called AHU-2 in the same information model.</p>
+  <p>The deeper problem is that a bare number carries no meaning. Given "AHU-2" alone you cannot tell which discipline owns it, which building or floor it serves, or what system it belongs to. Every one of those questions then has to be answered by opening the model — which is exactly the manual lookup that coordinated information is supposed to eliminate.</p>
+  <p>A structured tag answers all of them in the name itself.</p>
+
+  <h2>The eight parts</h2>
+  <p>STING assembles tags from eight parts joined by hyphens, in a fixed order:</p>
+  <table class="tbl">
+    <thead><tr><th>Part</th><th>Answers</th><th>Examples</th></tr></thead>
+    <tbody>
+      <tr><td><strong>DISC</strong></td><td>Which discipline owns it</td><td>M, E, P, A, S, FP, LV, G</td></tr>
+      <tr><td><strong>LOC</strong></td><td>Which building or site area</td><td>BLD1, BLD2, EXT</td></tr>
+      <tr><td><strong>ZONE</strong></td><td>Which zone within that</td><td>Z01, Z02</td></tr>
+      <tr><td><strong>LVL</strong></td><td>Which level</td><td>L01, L02</td></tr>
+      <tr><td><strong>SYS</strong></td><td>Which system</td><td>HVAC, DCW, DHW, SAN, LV</td></tr>
+      <tr><td><strong>FUNC</strong></td><td>What it does in that system</td><td>SUP, HTG, DCW, SAN, PWR</td></tr>
+      <tr><td><strong>PROD</strong></td><td>What kind of thing it is</td><td>AHU, LUM, DB, DR, COL</td></tr>
+      <tr><td><strong>SEQ</strong></td><td>Which one of those</td><td>0001, 0042</td></tr>
+    </tbody>
+  </table>
+  <p>Put together, a supply air handling unit on level 2 of building 1 reads:</p>
+  <pre><code>M-BLD1-Z01-L02-HVAC-SUP-AHU-0003</code></pre>
+  <p>You can read that without opening anything. Mechanical, building 1, zone 1, level 2, HVAC system, supply function, air handling unit, the third one. That legibility is the whole point.</p>
+
+  <h2>Where each part comes from</h2>
+  <p>Almost none of this is typed by hand — that is what makes it viable at scale.</p>
+  <p><strong>DISC and PROD</strong> come from what the element already is. A lighting fixture is electrical and gets <code>LUM</code>; a duct is mechanical and gets <code>DU</code>; a structural column gets <code>COL</code>. STING keeps a lookup from Revit category to discipline and product code, and refines it using the family name — so a mechanical equipment family named as a chiller does not get labelled as an air handling unit just because both live in the same category.</p>
+  <p><strong>SYS and FUNC</strong> come from the element's system where one exists. A pipe assigned to a domestic cold water system gets <code>DCW</code>, and its function follows from the system. Where no system is assigned, STING falls back to a sensible default for the category — which is one reason unassigned MEP elements are worth fixing before a big tagging run.</p>
+  <p><strong>LVL</strong> comes from the element's level. <strong>LOC and ZONE</strong> are inferred from the room the element sits in, matched against name patterns — a room named "Block A" resolves to <code>BLD1</code>, something in "car park" or "landscape" resolves to <code>EXT</code>. These patterns are yours to adjust; the defaults are a starting point, not a standard.</p>
+
+  <h2>How numbering works, and why it surprises people</h2>
+  <p><strong>SEQ</strong> is the only part that is genuinely arbitrary, and it is the part that causes the most confusion.</p>
+  <p>STING does not keep one running counter for the whole project. It keeps a separate counter for each combination of discipline, system and level. So the first supply-air unit on level 1 and the first on level 2 are <em>both</em> numbered <code>0001</code> — they are distinguished by the <code>L01</code> and <code>L02</code> parts, not by the number.</p>
+  <p>This is deliberate. Per-level numbering means adding a floor does not renumber the floors below it, and each level's schedule reads from 1 rather than starting at 47. If you would rather include zone or location in the counter, that is configurable.</p>
+
+  <div class="callout">
+    <strong>Four digits means 9,999 per counter.</strong> That is ample per discipline-system-level, but it is a real ceiling. STING refuses to wrap around silently — if a counter runs out it reports the failure rather than producing a duplicate.
+  </div>
+
+  <h2>Collisions</h2>
+  <p>When STING is about to write a tag that already exists, it has three ways to behave, and you choose:</p>
+  <ul>
+    <li><strong>Auto-increment</strong> — take the next free number. The default, and usually what you want.</li>
+    <li><strong>Skip</strong> — leave anything already tagged completely alone. Right when you are adding to a model whose existing tags are correct and issued.</li>
+    <li><strong>Overwrite</strong> — replace existing tags with newly generated ones. Right when you have inherited an inconsistent model and want to re-tag from scratch.</li>
+  </ul>
+  <p>Overwrite is the one to be careful with. If tags have already gone out on a drawing, overwriting them breaks the link between the issued document and the model.</p>
+
+  <h2>How STING approaches it</h2>
+  <p>Tagging lives on the <strong>TAGGING</strong> tab of the main panel. The buttons are grouped by what they do, and the order below is the order you would normally use them.</p>
+
+  <h3>Audit before you write</h3>
+  <p><strong>Pre-Audit</strong> is a complete dry run that changes nothing. It reports what would be tagged, what would be skipped, which collisions would occur and how they would resolve, which elements are missing information, and a breakdown by discipline. It asks whether you want to audit the <strong>Active View</strong> or the <strong>Entire Project</strong>.</p>
+  <p>On a model you did not build, run this first. It is the cheapest way to discover that half the pipework has no system assigned, before rather than after you have written several thousand tags.</p>
+
+  <h3>Then tag</h3>
+  <ul>
+    <li><strong>Auto Tag</strong> — tags what is in the current view, filtered to the disciplines that view is actually about.</li>
+    <li><strong>Batch Tag</strong> — tags the whole project. It sorts elements by level, then discipline, then category first, so that numbering runs in a sensible contiguous order instead of scattering.</li>
+    <li><strong>Tag New</strong> — only what has appeared since the last run. This is the one to use on a live model.</li>
+    <li><strong>Tag+Combine</strong> — tags and assembles the combined text in a single pass.</li>
+    <li><strong>Re-Tag</strong>, <strong>Copy Tags</strong>, <strong>Swap Tags</strong>, <strong>Fix Dupes</strong> — repair operations for inherited models.</li>
+  </ul>
+  <p>Both tagging commands skip elements you do not own in a shared model, and skip demolished elements, so running them on a workshared project will not fight your colleagues.</p>
+
+  <h3>Then tidy</h3>
+  <p><strong>▶ SMART ORGANISE</strong> deals with the separate problem of tags that exist but sit badly — overlapping, covering geometry, or trailing leaders across a drawing. <strong>Quick</strong> is a fast pass, <strong>Deep</strong> works harder, and <strong>Anneal</strong> keeps rearranging until it settles on the least-crowded result it can find. <strong>↻ Undo</strong> reverses a run.</p>
+  <p>Use Quick during the working day and save Deep or Anneal for just before an issue — they are slower by design.</p>
+
+  <div class="callout warn">
+    <strong>Known gap worth checking:</strong> fire alarm devices are assigned the discipline code <code>FLS</code>, but <code>FLS</code> is not in the built-in list of codes the strict validator accepts. If you tag fire alarm devices and see validation complaints, add <code>FLS</code> to the accepted discipline codes in your project settings — the tags themselves are fine.
+  </div>
+
+  <h2>A sensible first run</h2>
+  <ol>
+    <li><strong>Pre-Audit</strong> on the active view. Read it properly.</li>
+    <li>Fix what it flags — usually unassigned systems and missing levels.</li>
+    <li><strong>Auto Tag</strong> on one view, with collisions set to skip.</li>
+    <li>Check a handful of resulting tags read the way you expect.</li>
+    <li>Only then <strong>Batch Tag</strong> the project.</li>
+  </ol>
+  <p>Tagging a whole model is easy to do and tedious to undo. The audit step costs a minute and routinely saves an afternoon.</p>
+
+  <div class="cta-band">
+    <p>Next: <a href="/guides/drawing-production.html">Drawing production</a> covers how those tagged elements end up on properly formatted, consistently numbered sheets.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

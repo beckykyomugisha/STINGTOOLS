@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BoqWbsMap.cs — Phase 2E. User-defined WBS / CBS assignment rules.
 //
 //  Rules assign a Work-/Cost-Breakdown-Structure code to each BOQ line from its
@@ -85,7 +85,7 @@ namespace StingTools.BOQ
         {
             string parent = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(parent)) return null;
-            return Path.Combine(parent, "_BIM_COORD", FileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
         }
     }
 }

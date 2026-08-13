@@ -53,10 +53,8 @@ namespace StingTools.Core.Placement
             if (string.IsNullOrWhiteSpace(projectPath)) return new ProjectBuildingProfile();
             try
             {
-                string dir = Path.GetDirectoryName(projectPath);
-                if (string.IsNullOrEmpty(dir)) return new ProjectBuildingProfile();
-                string path = Path.Combine(dir, "_BIM_COORD", FileName);
-                if (!File.Exists(path)) return new ProjectBuildingProfile();
+                string path = StingPaths.MetaFileFrom(projectPath, "_BIM_COORD", FileName);
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new ProjectBuildingProfile();
                 var profile = JsonConvert.DeserializeObject<ProjectBuildingProfile>(File.ReadAllText(path));
                 return profile ?? new ProjectBuildingProfile();
             }
@@ -72,11 +70,10 @@ namespace StingTools.Core.Placement
             if (string.IsNullOrWhiteSpace(projectPath) || profile == null) return false;
             try
             {
-                string dir = Path.GetDirectoryName(projectPath);
-                if (string.IsNullOrEmpty(dir)) return false;
-                string folder = Path.Combine(dir, "_BIM_COORD");
-                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
-                string path = Path.Combine(folder, FileName);
+                string path = StingPaths.MetaFileFrom(projectPath, "_BIM_COORD", FileName);
+                if (string.IsNullOrEmpty(path)) return false;
+                string folder = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(folder) && !Directory.Exists(folder)) Directory.CreateDirectory(folder);
                 File.WriteAllText(path, JsonConvert.SerializeObject(profile, Formatting.Indented));
                 return true;
             }

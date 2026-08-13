@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Downloads — Planscape</title>
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/downloads">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.dl-wrap { max-width: 780px; margin: 40px auto; padding: 0 16px; }
+.dl-head { margin-bottom: 8px; }
+.dl-head h1 { margin: 0 0 4px; font-size: 26px; }
+.dl-head .sub { color: var(--muted); margin: 0 0 20px; }
+.state { display: none; }
+.state.shown { display: block; }
+.spinner { font-size: 28px; text-align: center; padding: 40px 0; }
+.banner { padding: 13px 16px; border-radius: 10px; font-size: 14px; margin-bottom: 22px; border: 1px solid var(--line); background: #faf8f5; }
+.banner.warn { background: rgba(232,145,45,.08); border-color: rgba(232,145,45,.35); color: #8a5210; }
+.banner.stop { background: rgba(204,51,34,.07); border-color: rgba(204,51,34,.3); color: #8b2018; }
+.tool { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 20px 22px; margin-bottom: 16px; }
+.tool h2 { margin: 0 0 2px; font-size: 19px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.tool .tagline { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+.tool .plat { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.pill.available { background: rgba(40,167,69,.12); color: #1e7e34; }
+.pill.beta { background: rgba(232,145,45,.16); color: #b5670f; }
+.pill.in-development { background: rgba(90,100,120,.12); color: #56607a; }
+.ver { border-top: 1px solid var(--line); padding-top: 13px; margin-top: 13px; }
+.ver:first-of-type { border-top: 0; }
+.ver .meta { font-size: 13px; color: var(--muted); margin: 0 0 9px; }
+.btn-primary { display: inline-block; background: var(--accent); color: #fff; border: 0; padding: 10px 18px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; text-decoration: none; }
+.btn-primary:hover { background: #d57f1f; }
+.btn-secondary { display: inline-block; background: none; color: var(--ink); border: 1px solid var(--line); padding: 9px 16px; font-size: 14px; font-weight: 600; border-radius: 8px; text-decoration: none; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.locked-note { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+.req { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+.acts { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <div class="links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/account">Account</a>
+  </div>
+</nav>
+
+<div class="dl-wrap">
+  <div class="state shown" id="loading">
+    <div class="spinner">⏳</div>
+    <p class="sub" style="text-align:center">Checking your account…</p>
+  </div>
+
+  <div class="state" id="ready">
+    <div class="dl-head">
+      <h1>Downloads</h1>
+      <p class="sub" id="head-sub">Everything your plan includes.</p>
+    </div>
+    <div id="banner-slot"></div>
+    <div id="tools"></div>
+    <p class="req">Need something that isn't here, or a build for an older Revit version? Email <a href="mailto:hello@planscape.build">hello@planscape.build</a>.</p>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function toLogin(){ window.location.href = '/login'; }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  // Session convention (see billing-success.html): mint an access token from the
+  // HttpOnly ps_refresh cookie and keep it in memory only. Never persisted.
+  var accessToken = null;
+
+  function daysLeft(iso){
+    if (!iso) return null;
+    var end = new Date(iso).getTime();
+    if (isNaN(end)) return null;
+    return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+  }
+
+  function banner(data){
+    var s = data.subscriptionStatus, d = daysLeft(data.trialEndsAt), el = $('banner-slot');
+    if (s === 'trial') {
+      el.innerHTML = '<div class="banner">You are on the free trial' +
+        (d !== null ? ' — <strong>' + d + ' day' + (d === 1 ? '' : 's') + ' left</strong>' : '') +
+        '. Everything below is yours to use meanwhile. No card is on file.</div>';
+    } else if (s === 'past_due') {
+      el.innerHTML = '<div class="banner warn">Your last payment did not go through. Downloads still work, but please ' +
+        '<a href="/account">update your payment method</a> to keep them.</div>';
+    } else if (s === 'read_only' || s === 'cancelled') {
+      el.innerHTML = '<div class="banner stop">Your access has ended, so downloads are locked. ' +
+        '<a href="/account">Choose a plan</a> to switch them back on.</div>';
+    }
+  }
+
+  // The download href carries the access token because a navigation cannot
+  // send an Authorization header, and the ps_refresh cookie is scoped to
+  // /api/auth so it never reaches the download endpoint. Safe only because
+  // this token is short-lived; it is built from the in-memory token.
+  function tokenHref(url){
+    return esc(url) + (url.indexOf('?') === -1 ? '?' : '&') +
+      't=' + encodeURIComponent(accessToken || '');
+  }
+
+  function artifactRow(a){
+    var bits = [];
+    if (a.platform) bits.push(esc(a.platform));
+    if (a.sizeMb) bits.push(a.sizeMb + ' MB');
+    if (a.sha256) bits.push('<span title="SHA-256: ' + esc(a.sha256) + '" style="cursor:help">sha256 ' +
+      esc(a.sha256.slice(0, 12)) + '…</span>');
+    var meta = bits.length ? '<span class="meta" style="margin:0">' + bits.join(' &middot; ') + '</span>' : '';
+    var text = a.label ? 'Download — ' + esc(a.label) : 'Download';
+    return '<div class="acts" style="margin-bottom:8px"><a class="btn-primary" href="' +
+      tokenHref(a.downloadUrl) + '">' + text + '</a>' + meta + '</div>';
+  }
+
+  function versionBlock(t, v){
+    var bits = [];
+    if (v.version && v.version !== 'current') bits.push('Version ' + esc(v.version));
+    if (v.hosts && v.hosts.length) bits.push(esc(v.hosts.join(' · ')));
+    if (v.sizeMb) bits.push(v.sizeMb + ' MB');
+    var meta = bits.length ? '<p class="meta">' + bits.join(' &middot; ') + '</p>' : '';
+    var note = v.notes ? '<p class="meta">' + esc(v.notes) + '</p>' : '';
+
+    // One button per downloadable file. Most tools have exactly one; a
+    // cross-platform tool (e.g. StingBridge) lists a build per platform.
+    // A version with no files is not an error — it means we do not have a
+    // self-serve link for it yet. Say so plainly and give the way that works,
+    // rather than showing a button that goes nowhere.
+    var arts = (v.artifacts || []).filter(function(a){ return a.downloadUrl; });
+    var action;
+    if (arts.length) {
+      action = arts.map(artifactRow).join('');
+    } else if (v.downloadUrl) {
+      // Fallback for an API that predates artifacts (deploy skew).
+      action = '<div class="acts"><a class="btn-primary" href="' + tokenHref(v.downloadUrl) + '">Download</a></div>';
+    } else {
+      action = '<div class="acts"><a class="btn-secondary" href="mailto:hello@planscape.build?subject=' +
+        encodeURIComponent('Download request: ' + t.name) +
+        '">Request by email</a><span class="meta" style="margin:0">Self-serve download coming soon</span></div>';
+    }
+
+    return '<div class="ver">' + meta + note + action + '</div>';
+  }
+
+  function render(data){
+    banner(data);
+    var html = data.tools.map(function(t){
+      var head = '<h2>' + esc(t.name) +
+        '<span class="pill ' + esc(t.status) + '">' +
+        (t.status === 'in-development' ? 'IN DEVELOPMENT' : t.status.toUpperCase()) +
+        '</span></h2>';
+      var body = '<p class="tagline">' + esc(t.tagline) + '</p>' +
+        (t.platform ? '<p class="plat">' + esc(t.platform) + '</p>' : '');
+
+      var inner;
+      if (t.entitlement === 'allowed' && t.versions.length) {
+        inner = t.versions.map(function(v){ return versionBlock(t, v); }).join('');
+      } else if (t.entitlement === 'locked') {
+        inner = '<p class="locked-note">🔒 ' + esc(t.entitlementReason) +
+          ' <a href="/account">See plans</a></p>';
+      } else {
+        inner = '<p class="locked-note">' + esc(t.entitlementReason) + '</p>';
+      }
+
+      var docs = t.docsUrl
+        ? '<p class="req" style="margin-top:12px">Setup guide: <a href="' + esc(t.docsUrl) + '">' + esc(t.name) + '</a></p>'
+        : '';
+
+      return '<div class="tool">' + head + body + inner + docs + '</div>';
+    }).join('');
+
+    $('tools').innerHTML = html;
+    $('loading').classList.remove('shown');
+    $('ready').classList.add('shown');
+  }
+
+  fetch('/api/auth/refresh', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: '{}'
+  }).then(function(r){
+    if (!r.ok) throw new Error('refresh');
+    return r.json();
+  }).then(function(j){
+    accessToken = j && j.token;
+    if (!accessToken) throw new Error('no token');
+    return fetch('/api/downloads', { headers: { 'Authorization': 'Bearer ' + accessToken } });
+  }).then(function(r){
+    if (!r.ok) throw new Error('downloads');
+    return r.json();
+  }).then(render)
+    .catch(toLogin);
+})();
+</script>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-// StingTools — CategoryToSeedRegistry.
+﻿// StingTools — CategoryToSeedRegistry.
 //
 // The missing link that lets "tick a category, run, and place even with
 // no manufacturer family loaded" work end-to-end. Maps a placement rule's
@@ -90,7 +90,7 @@ namespace StingTools.Core.Placement
                 try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
                 catch { }
                 if (string.IsNullOrEmpty(baseDir)) return;
-                string ovr = Path.Combine(baseDir, "_BIM_COORD", "category_to_seed_map.json");
+                string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "category_to_seed_map.json");
                 if (!File.Exists(ovr)) return;
                 // Project entries win (overwrite). A null/empty seed value
                 // suppresses the corporate seed for that category.

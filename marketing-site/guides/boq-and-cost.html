@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bills of quantities — measurement, rates and cost — Planscape</title>
+<meta name="description" content="What NRM2 measurement rules are for, where rates come from and how much to trust them, and how STING produces a bill of quantities from a Revit model.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/boq-and-cost.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Bills of quantities</div>
+  <h1>Bills of quantities — measurement, rates and cost</h1>
+  <div class="meta">📖 10-minute read · Intermediate</div>
+
+  <p>A bill of quantities is a priced list of everything a project requires, written so that several contractors pricing it independently arrive at comparable numbers. This guide explains what makes that possible, then how STING produces one from a model.</p>
+
+  <h2>Why measurement needs rules</h2>
+  <p>Ask two quantity surveyors to measure the same wall and you can easily get two answers. Does the area include the door opening or not? Is the wall measured to the underside of the slab or to finished floor level above? Are returns at corners counted twice?</p>
+  <p>None of these has a naturally correct answer — but if the two surveyors resolve them differently, their totals differ, and tenders based on them cannot be compared. The whole point of tendering is that the difference between bids reflects the contractors' pricing, not their measuring.</p>
+  <p>A <strong>measurement standard</strong> settles those questions in advance. It fixes what unit each item is measured in, what is included in the rate, what gets deducted, and how items are described and grouped. Everyone measures the same way, so the numbers mean the same thing.</p>
+
+  <h3>The standards STING implements</h3>
+  <table class="tbl">
+    <thead><tr><th>Standard</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td><strong>NRM2</strong> (RICS, 2nd ed.)</td><td>Building work. The default, and the UK norm.</td></tr>
+      <tr><td><strong>CESMM4</strong></td><td>Civil engineering work.</td></tr>
+      <tr><td><strong>POMI</strong> (RICS)</td><td>International projects.</td></tr>
+      <tr><td><strong>ICMS 3</strong></td><td>Cost <em>and</em> carbon reporting together.</td></tr>
+      <tr><td><strong>MMHW</strong></td><td>Highway works.</td></tr>
+    </tbody>
+  </table>
+  <p>They genuinely differ. Reinforcement is measured in kilograms under NRM2 but in tonnes under CESMM4 — the same steel, a different number, because the trades pricing it think in different units.</p>
+
+  <h3>De-minimis, or why small holes are ignored</h3>
+  <p>One rule worth understanding because it looks like an error. Measurement standards do not deduct every opening. Below a threshold, a hole in a wall is <em>not</em> taken out of the measured area.</p>
+  <p>This is deliberate. A bricklayer working around a small opening does more work per square metre, not less — cutting, forming a reveal, making good. Deducting the hole would under-pay work that is actually harder. So openings below the threshold stay in the measurement, and the rate absorbs the extra effort. STING defaults to 0.5&nbsp;m² for openings and 1.0&nbsp;m² for voids.</p>
+
+  <h2>Where rates come from</h2>
+  <p>A quantity is only half a bill. The other half is the rate — the price per unit — and rates come from sources of very different reliability.</p>
+  <p>STING resolves them in priority order, taking the first source that has a usable answer:</p>
+  <ol>
+    <li><strong>A rate you set on the element itself</strong> — an explicit decision, so it beats everything.</li>
+    <li><strong>A stored per-element override</strong> — a previous priced decision that persists in the model.</li>
+    <li><strong>The material library</strong> — rates attached to materials.</li>
+    <li><strong>The project rate card</strong> — what the quantity surveyor has priced for this job. This deliberately sits above the corporate defaults.</li>
+    <li><strong>The corporate rate tables</strong> — matched first on category plus system, then category, then product code, then material code. Each step down is a looser match and carries lower confidence.</li>
+    <li><strong>The baseline defaults</strong> — global benchmark figures, last resort.</li>
+  </ol>
+  <p>Every resolved rate carries where it came from and a <strong>confidence score</strong>. A rate matched on category and system is worth more than one matched on a material code alone, and the export records the difference. If nothing matches, STING returns a zero rate with low confidence and says so explicitly, rather than inventing a plausible number.</p>
+
+  <div class="callout">
+    <strong>Read the confidence column before the totals.</strong> A bill where most lines resolved from the baseline defaults is an order-of-magnitude estimate. One where most lines came from the project rate card is a tender document. The grand total looks identical either way.
+  </div>
+
+  <h3>Waste is applied to quantity, not rate</h3>
+  <p>Materials are ordered with an allowance for offcuts and breakage. That allowance belongs on the quantity, not in the rate — if it were folded into both, it would compound, and two 5% allowances would silently become 10.25%.</p>
+  <p>Waste also only applies to measured items. You can waste 5% of a tonne of screed; you cannot waste 5% of a pump. STING applies waste to area, volume, length and mass, and never to counted items.</p>
+
+  <h2>Carbon alongside cost</h2>
+  <p>Embodied carbon is measured from the same quantities as cost — the same cubic metre of concrete has both a price and a footprint — so it belongs in the same process rather than a separate exercise months later.</p>
+  <p>STING looks for a carbon factor in order of authority, starting with a verified environmental product declaration for the specific product, and falling back through material properties and reference tables to a regional default. As with rates, the source is recorded, so a figure backed by a manufacturer's declaration is distinguishable from a generic default.</p>
+  <p>The export prints the <strong>RIBA 2030 benchmark of 300 kgCO₂e per m² of floor area</strong> alongside your result, so the number has a reference point instead of being an abstract quantity.</p>
+
+  <h2>How STING approaches it</h2>
+  <p>Quantities come off the model by rule: each category maps to a measurement source — a length, a volume, a computed area, or a named property — with the unit conversion attached. Rules are corporate by default and can be overridden per project.</p>
+
+  <div class="callout warn">
+    <strong>A zero quantity is a signal, not a nil.</strong> When a measured item cannot be measured — geometry missing, property empty — STING reports <strong>0</strong> rather than defaulting to 1. A quiet 1 would price as a real item and be nearly impossible to spot in a thousand-line bill. Zeroes on measured lines mean "this needs looking at", and the at-risk summary collects them.
+  </div>
+
+  <h3>What the export contains</h3>
+  <p>The bill exports as a workbook with a sheet per purpose:</p>
+  <ul>
+    <li><strong>BOQ Summary</strong> — the priced bill, grouped by work section with subtotals</li>
+    <li><strong>Item Schedule</strong> — the full detail, including rate confidence and the labour, plant and material split</li>
+    <li><strong>Material Schedule</strong> — quantities by material</li>
+    <li><strong>Provisional Sums</strong> and <strong>Preliminaries</strong> — the latter only if itemised</li>
+    <li><strong>NRM2 Reference</strong> — the work-section structure behind the grouping</li>
+    <li><strong>Carbon &amp; Lifecycle</strong> — carbon by line, with data quality and factor source</li>
+    <li><strong>Audit Trail</strong> — every line traced back to its element, rate source and pricing date</li>
+    <li><strong>Snapshot Comparison</strong> — appears once there are two snapshots to compare</li>
+  </ul>
+  <p>Totals are written as live spreadsheet formulas rather than fixed values, so a quantity surveyor can adjust a rate and watch the bill respond. The totals run in the conventional order: subtotal, preliminaries, contingency, overhead and profit, grand total.</p>
+  <p>The Audit Trail is the sheet that matters in a dispute. Any line can be traced to the element it was measured from and the rate source that priced it — which is the difference between a bill you can defend and a spreadsheet you have to re-do.</p>
+
+  <div class="callout">
+    <strong>On the descriptions:</strong> the narrative descriptions are STING-authored, written to follow NRM2 work-section structure. They are not reproduced from the RICS NRM2 document, and the export says so on the sheet.
+  </div>
+
+  <h2>A sensible order of work</h2>
+  <ol>
+    <li>Confirm the measurement standard for the project — NRM2 unless there is a reason.</li>
+    <li>Load the project rate card if the quantity surveyor has priced one. This single step moves most lines from low to high confidence.</li>
+    <li>Export, then read the Item Schedule <em>before</em> the Summary.</li>
+    <li>Investigate every zero on a measured line — those are missing quantities, not free items.</li>
+    <li>Check the confidence spread. If the bill leans on baseline defaults, describe it as an estimate.</li>
+    <li>Re-export as the model develops and use the Snapshot Comparison to see what moved.</li>
+  </ol>
+  <p>The discipline that matters is reading the audit columns before the grand total. A bill of quantities is only as good as its worst-sourced rate, and the total conceals that entirely.</p>
+
+  <div class="cta-band">
+    <p>Next: <a href="/guides/clash-coordination.html">Clash detection and coordination</a> — how detection actually works, and how to get to a genuinely coordinated model.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

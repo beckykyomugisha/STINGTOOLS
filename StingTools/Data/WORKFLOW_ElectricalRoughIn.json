@@ -1,0 +1,31 @@
+{
+  "name": "Electrical Rough-In Pipeline",
+  "description": "Four-step electrical pipeline strung from existing commands: build the electrical-fixture seed (now carrying a conduit terminal connector) -> place fixtures from room rules -> auto-drop conduit from every fixture connector to the nearest containment -> run the full validator suite. Select the target rooms before launching; PlaceFixturesCommand leaves the placed fixtures selected so AutoDropCommand (AutoConduitDrop) routes them in the next step with no manual re-selection. NOTE: step field names are commandTag/label to match the WorkflowStep POCO ([JsonProperty]); 'command'/'name' do NOT bind and produce a dead workflow.",
+  "steps": [
+    {
+      "commandTag": "Seeds_Build",
+      "label": "Build electrical fixture seed family",
+      "_notes": "Generates STING_SEED_ElectricalFixture.rfa (protectExisting=true, so re-runs are safe). The seed authors one Domain=Conduit terminal connector (facing +Z, 20 mm) on every variant, giving AutoConduitDrop.FindBestFreeConnector() a real terminal instead of a LocationPoint fallback."
+    },
+    {
+      "commandTag": "Placement_PlaceFixtures",
+      "label": "Place fixtures from room rules",
+      "_notes": "FixturePlacementEngine reads STING_PLACEMENT_RULES.electrical / .mk-electrical / .conduiting-phase + room types. Sockets / switches / FCUs / isolators / data outlets land per BS 7671 / BS 8300. On live placement PlaceFixturesCommand calls Selection.SetElementIds(placedIds) so the next step sees them selected."
+    },
+    {
+      "commandTag": "Routing_PlaceSleeveConnectorsAuto",
+      "label": "Author conduit terminals on connector-less fixtures (sleeve method)",
+      "_notes": "Non-interactive sleeve pass (no dialog) so the workflow runs unattended. For fixtures that lack a free CableTrayConduit connector — chiefly manufacturer families after Seeds_SwapToManufacturer — SleeveConnectorEngine authors a short conduit stub carrying a real conduit terminal (rise +Z for wall/ceiling, drop -Z for floor boxes). Idempotent: seed fixtures that already carry the seed's conduit connector are skipped, and a re-run places nothing new. Reads the same selection PlaceFixturesCommand left behind. The next step (Routing_AutoDrop) extends these stubs to containment via AutoConduitDrop.ResolveRoutingSource instead of duplicating a drop from the LocationPoint."
+    },
+    {
+      "commandTag": "Routing_AutoDrop",
+      "label": "Auto-drop conduit to containment",
+      "_notes": "AutoDropCommand groups the selection by discipline; Electrical fixtures dispatch to AutoConduitDrop, which starts at each fixture's conduit connector and routes a rising conduit to the nearest cable tray / conduit within the search radius, wiring both ends via Connector.ConnectTo. Also runs the Slab/Wall/Beam penetration detectors + FrpPenetrationPlacer sweep."
+    },
+    {
+      "commandTag": "Validation_RunAll",
+      "label": "Run full validator suite",
+      "_notes": "ConnectivityValidator flags any conduit connector left open (CONN.OPEN) so unrouted fixtures surface immediately; PenetrationCoverageValidator flags any run that crossed a fire-rated barrier without a placed firestop."
+    }
+  ]
+}

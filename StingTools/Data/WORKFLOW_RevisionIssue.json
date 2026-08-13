@@ -1,0 +1,33 @@
+{
+  "name": "RevisionIssue",
+  "description": "One-click revision issue chain — create the revision, cloud what changed, issue the affected sheets, refresh title blocks, and export the revision register",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "CreateRevision",
+      "label": "1. Create revision + snapshot baseline",
+      "optional": false
+    },
+    {
+      "commandTag": "AutoRevisionCloud",
+      "label": "2. Cloud changed elements in active view",
+      "optional": true
+    },
+    {
+      "commandTag": "IssueSheetsForRevision",
+      "label": "3. Assign revision to clouded sheets + mark issued",
+      "optional": false
+    },
+    {
+      "commandTag": "RevisionSync",
+      "label": "4. Sync revision number/date/description to title blocks",
+      "optional": false
+    },
+    {
+      "commandTag": "RevisionSchedule",
+      "label": "5. Export revision register CSV",
+      "optional": true
+    }
+  ]
+}

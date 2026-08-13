@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "description": "Named Tokens & Depth presets (E3). Corporate baseline; per-project presets are added at <project>/_BIM_COORD/token_depth_presets.json (merged by name, project wins). Each preset captures mask (8-char DISC LOC ZONE LVL SYS FUNC PROD SEQ), separator, seqPad, segOrder, depth (1-10), handoverMode, scope.",
+  "presets": {
+    "Full (8-seg / 4-digit / T10)": {
+      "Mask": "11111111", "Separator": "-", "SeqPad": 4,
+      "SegOrder": "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ", "Depth": 10,
+      "HandoverMode": "Handover", "Scope": "View"
+    },
+    "Coordination": {
+      "Mask": "10011011", "Separator": "-", "SeqPad": 3,
+      "SegOrder": "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ", "Depth": 4,
+      "HandoverMode": "DesignConstruction", "Scope": "View"
+    },
+    "Presentation": {
+      "Mask": "00001011", "Separator": "-", "SeqPad": 2,
+      "SegOrder": "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ", "Depth": 1,
+      "HandoverMode": "DesignConstruction", "Scope": "View"
+    },
+    "FM Handover": {
+      "Mask": "11111111", "Separator": "-", "SeqPad": 4,
+      "SegOrder": "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ", "Depth": 10,
+      "HandoverMode": "Handover", "Scope": "Project"
+    },
+    "Tight-space (2-digit compact)": {
+      "Mask": "00011011", "Separator": "-", "SeqPad": 2,
+      "SegOrder": "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ", "Depth": 2,
+      "HandoverMode": "DesignConstruction", "Scope": "View"
+    }
+  }
+}

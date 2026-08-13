@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stingbridge"
+description = "ArchiCAD ↔ Planscape sync bridge (STING tokens, IFC ingest, drop-folder watcher)."
+readme = "QUICKSTART.md"
+requires-python = ">=3.11"
+# Proprietary — distributed only through the gated planscape.build downloads
+# area to active subscribers. An OSI licence here would grant recipients
+# redistribution rights the business model depends on NOT granting.
+license = { text = "Proprietary" }
+authors = [{ name = "Planscape Limited", email = "info@stingtools.io" }]
+keywords = ["BIM", "IFC", "ArchiCAD", "STING", "ISO19650", "Planscape"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+]
+# Single source of truth: StingBridge/__init__.py
+dynamic = ["version"]
+
+dependencies = [
+    "requests>=2.31.0",
+    "watchdog>=4.0.0",
+    # Phase A5 — pin to the ifcopenshell major that Bonsai bundles (0.8.x).
+    # Kept in lockstep with requirements.txt and the Bonsai manifest.
+    "ifcopenshell>=0.8.0,<0.9",
+    # Shared STING core — the single source of the Planscape /ifc/data wire
+    # contract (_element_to_wire). Not on PyPI: it is built from
+    # ../stingtools-core/python and shipped as a wheel alongside this one in
+    # the release zips (see QUICKSTART.md → Install).
+    "stingtools-core>=0.1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.4"]
+build = ["pyinstaller>=6.0", "build>=1.0"]
+
+[project.scripts]
+stingbridge = "StingBridge.bridge:main"
+
+[project.urls]
+"Source" = "https://github.com/beckykyomugisha/STINGTOOLS"
+"Issues" = "https://github.com/beckykyomugisha/STINGTOOLS/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "StingBridge.__version__" }
+
+# This directory IS the StingBridge package (imports are `StingBridge.*` and
+# the monorepo checkout puts the sources here, not under a src/ layout), so the
+# package root maps onto ".". Subpackages are listed explicitly to keep the
+# build artefacts (bin/, obj/, .vs/) and the non-Python src/ tree out.
+[tool.setuptools]
+package-dir = { "StingBridge" = "." }
+packages = [
+    "StingBridge",
+    "StingBridge.archicad",
+    "StingBridge.planscape",
+    "StingBridge.sync",
+    "StingBridge.watch",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

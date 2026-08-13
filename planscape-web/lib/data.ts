@@ -21,6 +21,9 @@ import type {
   SearchResponse,
   Transmittal,
   SitePhoto,
+  AccessToken,
+  MintedAccessToken,
+  TenantDashboard,
 } from './types';
 
 // ── Projects ──
@@ -39,6 +42,63 @@ export function createProject(body: {
   phase?: string;
 }): Promise<Project> {
   return api<Project>('/api/projects', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/**
+ * Update project settings. The body is deliberately narrower than
+ * `UpdateProjectRequest`: that record also accepts `status`, `tagSeparator`,
+ * `seqNumPad`, `tagPrefix`, `tagSuffix` and `configJson`, none of which the
+ * grid edits.
+ *
+ * `documentSyncAutoEnabled` is in the list because it genuinely is a project
+ * setting this route accepts — the per-project "Auto-sync this project" toggle
+ * from the document-sync design.
+ *
+ * `status` in particular stays out on purpose — writing it here would be a
+ * second, unconfirmed route to `Archived`, bypassing the confirm-code gate that
+ * `archiveProject` exists to honour. Note it is NOT accepting `code`: the server
+ * has no write for it, and it is the archive confirmation token.
+ *
+ * Null-valued fields are "leave unchanged" server-side, so a partial body is safe.
+ */
+export function updateProject(
+  id: string,
+  body: { name?: string; description?: string; phase?: string; documentSyncAutoEnabled?: boolean },
+): Promise<Project> {
+  return api<Project>(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+/**
+ * Archive a project — a SOFT delete. `Status` flips to `Archived`; every row is
+ * kept and the project stays visible under the archived filter. There is no hard
+ * delete on this route by design; a true purge is separate admin tooling.
+ *
+ * The server double-gates it (`ProjectsController.ArchiveProject`):
+ *  - **403** unless the caller is the project author (`CreatedById`) or a tenant
+ *    admin. That is correct behaviour, not a bug — surface it as "you don't have
+ *    permission", not as a generic failure.
+ *  - **400** unless `confirmCode` equals the project's own `Code`
+ *    (case-insensitive), with `{ message, expectedField, expectedValue }`.
+ *
+ * The client asks for the code too — see `ArchiveProjectDialog`. The 400 is the
+ * server's backstop, not the UI's confirmation step.
+ */
+export function archiveProject(id: string, confirmCode: string): Promise<void> {
+  return api<void>(`/api/projects/${id}?confirmCode=${encodeURIComponent(confirmCode)}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Toggle a project's pinned flag. The server has had `PATCH /{id}/pin` since
+ * Phase 169 (pinned projects sort first) but nothing in the web app called it,
+ * so the flag could only ever be set from another client.
+ *
+ * Server-side toggle, not a set: it flips whatever is stored rather than taking
+ * a value, so callers can't push a stale local guess back.
+ */
+export function toggleProjectPin(id: string): Promise<void> {
+  return api<void>(`/api/projects/${id}/pin`, { method: 'PATCH' });
 }
 
 // ── Issues ──
@@ -197,13 +257,30 @@ export async function uploadModel(
 // ── Meetings ──
 const mBase = (projectId: string) => `/api/projects/${projectId}/meetings`;
 
-export function listMeetings(projectId: string, status?: string): Promise<Meeting[]> {
+export async function listMeetings(projectId: string, status?: string): Promise<Meeting[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-  return api<Meeting[]>(`${mBase(projectId)}${qs}`);
+  // MeetingsController.GetMeetings returns { items, total, page, pageSize }, not a flat
+  // array — same envelope as listIssues. This was silently mismatched: the type annotation
+  // said Meeting[], api<T>() just casts the JSON to it, and nothing checks at runtime. The
+  // crash only shows up once real data flows through .slice()/.filter() downstream, which
+  // is why it took a live browser load (not tsc, not a build, not a vitest run) to surface.
+  const raw = await api<Meeting[] | { items: Meeting[] }>(`${mBase(projectId)}${qs}`);
+  return Array.isArray(raw) ? raw : (raw.items ?? []);
 }
 
 export function getMeeting(projectId: string, meetingId: string): Promise<Meeting> {
   return api<Meeting>(`${mBase(projectId)}/${meetingId}`);
+}
+
+/** Mirrors the server's AttendeeDto. `userId` is what makes an attendee real —
+ *  it is the FK the meeting-invite push and the ICS export both key off. */
+export interface MeetingAttendeeInput {
+  userId?: string;
+  name?: string;
+  email?: string;
+  company?: string;
+  discipline?: string;
+  role?: string;
 }
 
 export interface CreateMeetingBody {
@@ -213,6 +290,8 @@ export interface CreateMeetingBody {
   durationMinutes?: number;
   location?: string;
   meetingUrl?: string;
+  /** Persisted by MeetingsController.CreateMeeting into MeetingAttendee rows. */
+  attendees?: MeetingAttendeeInput[];
 }
 
 export function createMeeting(projectId: string, body: CreateMeetingBody): Promise<Meeting> {
@@ -382,6 +461,44 @@ export function removeMember(projectId: string, memberId: string): Promise<void>
   return api(`/api/projects/${projectId}/members/${memberId}`, { method: 'DELETE' });
 }
 
+// ── Tenant (firm-wide) administration ──
+// Every route here lives on TenantAdminController, which is
+// [Authorize(Roles = "Owner,Admin")] as a whole. A 403 from any of them means
+// "you are not an Owner or Admin", not "something went wrong" — render it that
+// way. There is no tenant id in the path: the tenant is resolved from the token
+// and the global query filter, so an admin cannot even type the wrong one.
+
+/** Plan, live usage vs limits, and the firm's user list — one payload. */
+export function getTenantDashboard(): Promise<TenantDashboard> {
+  return api<TenantDashboard>('/api/tenant/dashboard');
+}
+
+/**
+ * Invite someone to the FIRM, not to a single project — the counterpart to
+ * `inviteMember`, which adds a seat on one project. This is the path that was
+ * server-only until now: `POST /api/tenant/invite` had no client code anywhere.
+ *
+ * `role` is `"Author"` or anything else, which the server maps to
+ * `"Coordinator"` — those are the two axes the plan meters separately.
+ *
+ * Failures worth handling by hand rather than as a generic toast:
+ *  - **402** `{ error: 'quota_exceeded', axis, current, max, reason }` — the
+ *    plan's Author/Coordinator cap is full. `ApiError.body` carries the detail.
+ *  - **409** the email already belongs to a user.
+ *  - **403** the caller is not an Owner/Admin.
+ *
+ * The invited row is planted inactive with a stub password; the server's real
+ * invite-email flow is still a TODO on its side, so treat "invited" as "seat
+ * reserved", not "they got a link".
+ */
+export function inviteTenantMember(body: {
+  email: string;
+  displayName: string;
+  role: string;
+}): Promise<{ id: string; email: string; displayName: string; role: string }> {
+  return api('/api/tenant/invite', { method: 'POST', body: JSON.stringify(body) });
+}
+
 // ── Cross-project search ──
 export function search(q: string, types?: string[], limit = 25): Promise<SearchResponse> {
   const params = new URLSearchParams({ q, limit: String(limit) });
@@ -509,4 +626,33 @@ export function rejectPhoto(projectId: string, photoId: string, reason: string):
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
+}
+
+// ── Personal access tokens ──
+// Long-lived headless credentials, used by StingBridge (STING_PLANSCAPE_TOKEN)
+// and any other non-interactive client. A PAT is exchanged for a normal JWT at
+// /api/auth/token/exchange; it is never accepted as a bearer token directly, so
+// the API stays single-scheme.
+
+export function listAccessTokens(): Promise<AccessToken[]> {
+  return api<AccessToken[]>('/api/auth/tokens');
+}
+
+/**
+ * Mint a token. The plaintext in the response is unrecoverable afterwards —
+ * the server keeps only a hash — so the caller MUST surface it immediately.
+ */
+export function createAccessToken(body: {
+  name: string;
+  expiresInDays?: number;
+}): Promise<MintedAccessToken> {
+  return api<MintedAccessToken>('/api/auth/tokens', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Soft-revoke, so the audit trail survives. Returns 204. */
+export function revokeAccessToken(id: string): Promise<void> {
+  return api<void>(`/api/auth/tokens/${id}`, { method: 'DELETE' });
 }

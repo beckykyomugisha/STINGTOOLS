@@ -9,7 +9,7 @@
     { "commandTag": "Hvac_PropagateLoads",    "label": "Propagate loads → HVC_FLOW_LS on ducts" },
     { "commandTag": "Hvac_SystemAudit",       "label": "System topology audit" },
     { "commandTag": "Hvac_ConnectionAudit",   "label": "Connector graph audit" },
-    { "commandTag": "Hvac_AutoSizeDuct",      "label": "Auto-size ducts (strategy + scope from HVAC panel)" },
+    { "commandTag": "Hvac_AutoSizeDuct", "optional": true,      "label": "(MANUAL - run from the STING HVAC panel: the sizing strategy comes from the panel header, not a standalone command) Auto-size ducts (strategy + scope from HVAC panel)" },
     { "commandTag": "Hvac_HardyCross",        "label": "Hardy-Cross balance" },
     { "commandTag": "Hvac_NcPredict",         "label": "NC prediction (VDI 2081 / ASHRAE A48 + regenerated noise)" },
     { "commandTag": "Hvac_PressureClassAudit","label": "Pressure-class audit (DW/144 A-D)" },

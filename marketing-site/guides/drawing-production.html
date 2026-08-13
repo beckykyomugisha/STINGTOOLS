@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drawing production — sheets, views and drawing types — Planscape</title>
+<meta name="description" content="Why drawings drift out of consistency, what a drawing type is, and how STING produces properly formatted, consistently numbered sheets in Revit.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/drawing-production.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Drawing production</div>
+  <h1>Drawing production — sheets, views and drawing types</h1>
+  <div class="meta">📖 10-minute read · Intermediate</div>
+
+  <p>A model is not a deliverable. What gets issued, checked, priced and built from is a set of drawings, and producing them consistently is where most project time quietly disappears. This guide explains why that happens and how STING attacks it.</p>
+
+  <h2>Why drawing sets drift</h2>
+  <p>Ask three engineers in the same office to produce a mechanical plan and you will get three drawings. Different scales, different line weights, different text heights, different crop extents, different title block entries, different numbering.</p>
+  <p>None of them is wrong exactly — each made reasonable choices. But together they read as three firms' work, and every inconsistency is a question the reviewer has to resolve. Worse, the choices are invisible: they live in each view's settings, so nobody can see the standard, only its results.</p>
+  <p>The usual response is a written standard nobody reads and a template that drifts. The better response is to make the standard something the software applies rather than something people remember.</p>
+
+  <h2>What a drawing type is</h2>
+  <p>A <strong>drawing type</strong> is a named bundle that answers every presentation question for one kind of drawing, in one place:</p>
+  <ul>
+    <li><strong>Sheet identity</strong> — paper size, title block family, orientation</li>
+    <li><strong>View appearance</strong> — scale, detail level, view template</li>
+    <li><strong>Cropping</strong> — follow a scope box, tighten to the geometry, follow a room boundary, or leave alone, plus the margin to leave</li>
+    <li><strong>Naming</strong> — the patterns that generate sheet number and sheet name</li>
+    <li><strong>Layout</strong> — where viewports sit on the sheet</li>
+    <li><strong>Annotation</strong> — what gets dimensioned and tagged automatically, and with which tag families</li>
+    <li><strong>Print appearance</strong> — colour scheme, line weight scaling, whether links go halftone</li>
+  </ul>
+  <p>"Architectural plan at 1:100 on A1" becomes a thing with a name that can be applied, audited and corrected — instead of a convention people approximate.</p>
+  <p>STING ships <strong>93</strong> of these covering architectural, structural, mechanical, electrical, public health, healthcare, coordination, fabrication and client-presentation work. They sit on <strong>A1</strong> and <strong>A3</strong>, at the scales those disciplines actually use.</p>
+
+  <h3>Text size follows scale</h3>
+  <p>One detail worth calling out because it is so often got wrong by hand: annotation text height is derived from drawing scale, not chosen per view. A drawing at 1:50 gets 2.5&nbsp;mm text — the ISO default — while 1:100 drops to 2.0&nbsp;mm and 1:20 rises to 3.5&nbsp;mm. Text that is legible at one scale is unreadable or overbearing at another, and deriving it removes the judgement call entirely.</p>
+
+  <h2>Routing — picking the right one automatically</h2>
+  <p>Having 93 drawing types would be worse than useless if someone had to choose correctly every time. Instead a routing table maps <em>discipline + project phase + document kind</em> to a drawing type. There are <strong>118</strong> routing rules, evaluated in order, first match wins.</p>
+  <p>So an electrical drawing in the presentation phase routes to a presentation type, while the same discipline in the construction phase routes to a production type — same model, different treatment, no decision required.</p>
+  <p>If nothing matches, STING deliberately does nothing rather than guessing. Your view keeps its existing settings. Silence means "no rule covered this", not "this is correct".</p>
+
+  <h2>Corporate standard versus project reality</h2>
+  <p>Every practice hits the same tension: there is a house standard, and there is what this particular client demands. STING handles it in layers.</p>
+  <p>The corporate catalogue is the baseline, and it is integrity-checked — each entry carries a fingerprint, so if a corporate definition is edited, STING notices and reclassifies it as a project-specific entry rather than pretending the house standard still applies. You cannot quietly diverge from the standard and still claim to be on it.</p>
+  <p>Project-specific drawing types layer on top and win where the identifiers match, and project routing rules are inserted ahead of corporate ones. The house standard on disk is never modified.</p>
+  <p>Project overrides are stored inside the Revit file itself, so they survive Save As and renaming the project — a common way this kind of configuration gets lost.</p>
+
+  <h3>View style packs</h3>
+  <p>A catalogue of 93 drawing types does not mean 93 visual styles. Most differ in scale and layout while sharing an appearance, so the graphics — line weights, text and dimension styles, hatching, filters, category overrides, link handling — are factored out into <strong>view style packs</strong>. STING ships 35, aligned to <strong>BS 1192:2007+A2:2016</strong>, <strong>ISO 13567</strong> and CIBSE discipline colours. Change a pack once and every drawing type using it follows.</p>
+
+  <h2>ISO 19650 naming</h2>
+  <p>Sheet numbers follow the container naming convention from <strong>BS EN ISO 19650-2</strong>: project, originator, volume, level, type, role, number, suitability and revision. Suitability is the part teams most often skip and most need — the code saying whether something is work in progress, shared for coordination, or issued for construction. A drawing without it is a drawing whose status is a matter of opinion.</p>
+
+  <h2>How STING approaches it</h2>
+  <p>Drawing work lives on the <strong>DOCS</strong> tab. It is a dense tab; these are the parts you will actually use.</p>
+
+  <h3>Laying out sheets</h3>
+  <p>The alignment row works on a viewport selection — <strong>↑Top</strong>, <strong>↕MidY</strong>, <strong>↓Bot</strong>, <strong>←Left</strong>, <strong>↔MidX</strong> — and <strong>L→R</strong> and <strong>T→B</strong> distribute them evenly. <strong>Grid Align</strong> snaps viewport centres to a grid, and <strong>Align Edges</strong> and <strong>Distribute</strong> handle the rest.</p>
+  <p>For a whole sheet, <strong>Auto-Layout</strong> arranges viewports in rows, and <strong>MaxRects</strong> uses a denser packing strategy that fits more onto the same paper. Both work out the usable area from the title block rather than assuming it, so a non-standard title block does not break the layout.</p>
+  <p><strong>Optimal Scale</strong> answers "what scale will actually fit" by comparing view extents to the available area and rounding to a standard scale — up, never down, so nothing gets clipped.</p>
+
+  <h3>Numbering</h3>
+  <p><strong>+1</strong> and <strong>-1</strong> shift a run of sheet numbers to make room for an inserted drawing, and <strong>Prefix</strong> and <strong>Suffix</strong> change a shared part across a set. <strong>Renumber</strong> handles the whole set in two passes, which avoids the collisions you get renaming sheets one at a time.</p>
+
+  <h3>Producing and checking</h3>
+  <p><strong>Produce Per Level</strong> and <strong>Produce Sections</strong> generate drawings from the routing rules rather than one at a time. <strong>Inspect</strong> shows which drawing type a view resolved to — the first thing to check when a drawing does not look how you expected. <strong>Doctor</strong> and <strong>Heal TBs</strong> repair drift, and <strong>Sync Styles</strong> pushes style changes back through the views that use them.</p>
+  <p><strong>ISO Check</strong> audits the sheet set against ten naming and completeness rules: empty or duplicated numbers and names, numbers that do not begin with a discipline letter or contain no sequence, spaces where hyphens belong, missing title blocks, sheets with no viewports, all-lowercase names, and characters that will break file export. It reports a compliance percentage and the worst offenders. <strong>Register</strong> exports the full sheet register.</p>
+
+  <div class="callout">
+    <strong>Run ISO Check before an issue, not after.</strong> Most of what it finds takes seconds to fix in the model and is genuinely painful to correct once drawings have been transmitted under those numbers.
+  </div>
+
+  <h2>A sensible order of work</h2>
+  <ol>
+    <li><strong>Inspect</strong> a representative view and confirm it resolves to the drawing type you expect.</li>
+    <li>If it does not, fix the routing rather than the individual view.</li>
+    <li><strong>Produce Per Level</strong> for the bulk of the set.</li>
+    <li><strong>Auto-Layout</strong> or <strong>MaxRects</strong>, then tidy with the alignment buttons.</li>
+    <li><strong>ISO Check</strong>, and clear what it raises.</li>
+    <li><strong>Register</strong> for the drawing register, then issue.</li>
+  </ol>
+  <p>The habit that pays off is fixing the rule instead of the drawing. Correcting one view takes a minute and lasts until the next revision; correcting the drawing type fixes every drawing that will ever route to it.</p>
+
+  <div class="cta-band">
+    <p>Next: <a href="/guides/iso-19650-workflow.html">ISO 19650 in practice</a> goes deeper into suitability codes, revisions and what the standard asks of a drawing set.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

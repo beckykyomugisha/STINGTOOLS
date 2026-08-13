@@ -1,6 +1,8 @@
 // GET /api/billing/plans — public-ish plan catalog with computed prices.
 // No auth: the pricing page and signup flow read this. Optional query
-// ?currency=USD|EUR|GBP narrows the price matrix to one currency (default: all).
+// ?currency=<one of the 7 supported> narrows the price matrix to one currency
+// (default: all). Every advertised currency routes to a provider (Stripe or
+// Pesapal); NGN/ZAR are deliberately NOT advertised (deferred).
 
 import { withHandler } from "../auth/_lib/handler";
 import { handlePreflight } from "../auth/_lib/cors";
@@ -8,12 +10,11 @@ import { bad } from "../auth/_lib/errors";
 import {
   PLAN_CATALOG,
   ANNUAL_DISCOUNT,
-  FX_FROM_USD,
-  isStripeCurrency,
+  FX_FROM_USD_ALL,
+  providerForCurrency,
   type PlanProduct,
-  type StripeCurrency,
 } from "../_lib/billing/catalog";
-import { unitAmountMinor } from "../_lib/billing/pricing";
+import { unitAmountMinorFor } from "../_lib/billing/pricing";
 
 export const onRequestOptions: PagesFunction = async ({ request }) =>
   handlePreflight(request);
@@ -21,13 +22,23 @@ export const onRequestOptions: PagesFunction = async ({ request }) =>
 export const onRequestGet = withHandler(async ({ request }) => {
   const url = new URL(request.url);
   const cur = url.searchParams.get("currency");
-  let currencies: StripeCurrency[];
+  let currencies: string[];
   if (cur) {
     const upper = cur.toUpperCase();
-    if (!isStripeCurrency(upper)) throw bad("Unsupported currency.");
+    // providerForCurrency covers exactly the 7 payable currencies; unsupported
+    // (incl. deferred NGN/ZAR) → 400.
+    if (!providerForCurrency(upper)) throw bad("Unsupported currency.");
     currencies = [upper];
   } else {
-    currencies = Object.keys(FX_FROM_USD) as StripeCurrency[];
+    currencies = Object.keys(FX_FROM_USD_ALL);
+  }
+
+  // Payment provider per advertised currency, so the front-end can branch on
+  // Stripe (redirect to Checkout) vs Pesapal (redirect to the mobile-money URL).
+  const providers: Record<string, string> = {};
+  for (const c of currencies) {
+    const p = providerForCurrency(c);
+    if (p) providers[c] = p;
   }
 
   const products = (Object.keys(PLAN_CATALOG) as PlanProduct[]).map((product) => {
@@ -46,8 +57,11 @@ export const onRequestGet = withHandler(async ({ request }) => {
             entry.usdMonthly === null
               ? null // enterprise — contact sales
               : {
-                  monthly: unitAmountMinor(entry.usdMonthly, c, "monthly"),
-                  annual: unitAmountMinor(entry.usdMonthly, c, "annual"),
+                  // unitAmountMinorFor honours zero-decimal currencies (UGX/RWF)
+                  // and every FX rate — unlike the Stripe-only pricing helper,
+                  // which returns NaN for Pesapal currencies.
+                  monthly: unitAmountMinorFor(entry.usdMonthly, c, "monthly"),
+                  annual: unitAmountMinorFor(entry.usdMonthly, c, "annual"),
                 };
         }
         return {
@@ -64,7 +78,8 @@ export const onRequestGet = withHandler(async ({ request }) => {
   return {
     products,
     currencies,
+    providers,
     annualDiscount: ANNUAL_DISCOUNT,
-    fxFromUsd: FX_FROM_USD,
+    fxFromUsd: FX_FROM_USD_ALL,
   };
 });

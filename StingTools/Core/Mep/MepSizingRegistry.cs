@@ -129,6 +129,15 @@ namespace StingTools.Core.Mep
         public Dictionary<string, double> DuctFittingLossK { get; set; }
             = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         /// <summary>
+        /// Fixed external-static allowances (Pa) for in-line AHU/system
+        /// components — coils, filters, terminals, attenuators. Added to the
+        /// index-run friction total by <c>HvacFanStaticReportCommand</c> to
+        /// estimate fan External Static Pressure. Keyed case-insensitively
+        /// (e.g. "coil_cooling", "filter_bag", "terminal").
+        /// </summary>
+        public Dictionary<string, double> DuctComponentAllowancesPa { get; set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
         /// Manufacturer-specific fitting C values. Outer key is the brand
         /// (e.g. "lindab", "trox"), inner key is the product code (case
         /// insensitive). Resolved via <see cref="GetManufacturerC"/>.
@@ -190,6 +199,22 @@ namespace StingTools.Core.Mep
         public double ConduitMaxFillPct { get; set; } = 45.0;
         public double CableTrayMaxFillPct { get; set; } = 50.0;
 
+        /// <summary>
+        /// Nominal diameter (mm) of the short conduit stub authored by
+        /// SleeveConnectorEngine on manufacturer fixtures that lack a
+        /// conduit connector. Default 20 mm = BS 7671 final-circuit conduit.
+        /// Override via conduit.sleeveStubSizeMm in the project rules file.
+        /// </summary>
+        public double ConduitSleeveStubSizeMm { get; set; } = 20.0;
+
+        /// <summary>
+        /// Length (mm) of the sleeve stub — long enough to expose a free,
+        /// grabbable conduit terminal outside the fixture face but short
+        /// enough not to look like a real run. Override via
+        /// conduit.sleeveStubLengthMm in the project rules file.
+        /// </summary>
+        public double ConduitSleeveStubLengthMm { get; set; } = 150.0;
+
         // Strategy + balancing + acoustics
         public List<SizingStrategyOption> SizingStrategies { get; set; } = new();
         public BalancingSettings Balancing { get; set; } = new();
@@ -209,6 +234,19 @@ namespace StingTools.Core.Mep
             if (DuctStandardSizesMm.TryGetValue(region ?? DuctDefaultRegion, out var arr) && arr != null) return arr;
             if (DuctStandardSizesMm.TryGetValue(DuctDefaultRegion, out var def) && def != null) return def;
             return new double[] { 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200 };
+        }
+
+        /// <summary>Air density (kg/m³) for the duct default region, used by the
+        /// friction solver. Falls back to 1.20 (sea-level ~20 °C) when the region
+        /// carries no value. Callers with a live header/climate density should
+        /// prefer that; this is the engine-local default the dialog-free
+        /// <c>DuctSizingApplyEngine</c> reads.</summary>
+        public double DefaultAirDensityKgM3()
+        {
+            if (Regions != null && Regions.TryGetValue(DuctDefaultRegion ?? "", out var reg)
+                && reg != null && reg.AirDensityKgM3 > 0)
+                return reg.AirDensityKgM3;
+            return 1.20;
         }
 
         public double[] PipeBoresForRegion(string region)
@@ -285,8 +323,7 @@ namespace StingTools.Core.Mep
                 // 2. Project override
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-                    string projPath = Path.Combine(projDir, ProjectOverrideRelPath);
+                    string projPath = ProjectFolderEngine.ResolveProjectOverridePath(doc, ProjectOverrideRelPath);
                     if (File.Exists(projPath))
                     {
                         JObject projJ = JObject.Parse(File.ReadAllText(projPath));
@@ -409,6 +446,22 @@ namespace StingTools.Core.Mep
                     }
                 }
 
+                // Component external-static allowances (coils/filters/terminals).
+                var comps = duct["componentAllowancesPa"] as JObject;
+                if (comps != null)
+                {
+                    foreach (var kv in comps)
+                    {
+                        if (kv.Key.StartsWith("_")) continue; // _notes etc.
+                        if (kv.Value is JValue cv &&
+                            (cv.Type == JTokenType.Float || cv.Type == JTokenType.Integer))
+                        {
+                            try { rules.DuctComponentAllowancesPa[kv.Key] = (double)kv.Value; }
+                            catch { /* skip malformed entry */ }
+                        }
+                    }
+                }
+
                 // Manufacturer-specific fittings (brand → product → C).
                 var mfg = duct["manufacturerFittings"] as JObject;
                 if (mfg != null)
@@ -521,7 +574,12 @@ namespace StingTools.Core.Mep
             }
 
             var conduit = j["conduit"] as JObject;
-            if (conduit != null) rules.ConduitMaxFillPct = (double?)conduit["maxFillPct"] ?? rules.ConduitMaxFillPct;
+            if (conduit != null)
+            {
+                rules.ConduitMaxFillPct = (double?)conduit["maxFillPct"] ?? rules.ConduitMaxFillPct;
+                rules.ConduitSleeveStubSizeMm   = (double?)conduit["sleeveStubSizeMm"]   ?? rules.ConduitSleeveStubSizeMm;
+                rules.ConduitSleeveStubLengthMm = (double?)conduit["sleeveStubLengthMm"] ?? rules.ConduitSleeveStubLengthMm;
+            }
             var tray = j["cableTray"] as JObject;
             if (tray != null) rules.CableTrayMaxFillPct = (double?)tray["maxFillPct"] ?? rules.CableTrayMaxFillPct;
 

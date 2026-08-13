@@ -1,4 +1,4 @@
-<Page x:Class="StingTools.UI.StingDockPanel"
+﻿<Page x:Class="StingTools.UI.StingDockPanel"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="STING Tools"
@@ -162,6 +162,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="28"/>
+                    <ColumnDefinition Width="34"/>
                 </Grid.ColumnDefinitions>
                 <Grid>
                     <TextBox x:Name="txtCommandBar"
@@ -234,6 +235,16 @@
                         Cursor="Hand"
                         ToolTip="Ask AI — design briefs, BIM knowledge, draft documents"
                         Click="AskAI_Click"/>
+                <!-- Schedules are needed from every tab, so the Scheduler lives
+                     in the header rather than inside one of them. -->
+                <Button x:Name="btnScheduler" Grid.Column="2"
+                        Content="SCH" Width="32" Height="23"
+                        Margin="2,0,0,0" FontSize="9" FontWeight="Bold"
+                        Background="#4CAF50" Foreground="White"
+                        BorderBrush="#388E3C" BorderThickness="1"
+                        Cursor="Hand"
+                        ToolTip="STING Scheduler — every view-schedule function in one dialog: create &amp; populate, audit, manage, export, format, corporate/MEP, and the per-category tag schedules with automatic sheet placement"
+                        Tag="Scheduler" Click="Cmd_Click"/>
             </Grid>
             </StackPanel>
         </Border>
@@ -1420,8 +1431,10 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Reload JSON" Tag="DrawingTypes_Reload" Click="Cmd_Click" ToolTip="Clear registry cache so on-disk edits to STING_DRAWING_TYPES.json or _BIM_COORD/drawing_types.json take effect"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Pres Setup" Tag="DrawingTypes_PresentationSetup" Click="Cmd_Click" ToolTip="Create the custom fill patterns (STING-Pres-Herringbone / HorizontalCladding / RoofHatch) and entourage / Generic Models subcategories (STING-LargeTree / STING-SmallShrub / STING-PresGround) required by the pres-* presentation style packs. Idempotent — safe to re-run."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_GroupBrowser" Click="Cmd_Click" ToolTip="Pivot the registry by discipline — quick overview of every drawing type that exists per discipline"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="Reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="Scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Style Refs" Tag="DrawingTypes_AuditStyleRefs" Click="Cmd_Click" ToolTip="Read-only — reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project. Does not modify views."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="WRITES — re-apply every stamped view's profile (scale / detail / template / style pack / annotation) so views snap back into line after editing a Drawing Type or View Style Pack. Views flagged STING_STYLE_LOCKED_BOOL are skipped."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suggest From Scope Boxes" Tag="DrawingTypes_SuggestFromScopeBoxes" Click="Cmd_Click" ToolTip="Read-only — scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name). Creates nothing."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Generate From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="WRITES — create a view per scope box named STING::&lt;drawing-type&gt;::&lt;level&gt;, cropped to that box, with the profile's scale / template / style pack applied. Idempotent per (drawing type, scope box)."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↓ Export to Excel" Tag="DrawingTypes_ExportExcel" Click="Cmd_Click" ToolTip="Export all Drawing Types and Style Packs to an editable Excel workbook (8 sheets, colour swatches, validation dropdowns)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↑ Import from Excel" Tag="DrawingTypes_ImportExcel" Click="Cmd_Click" ToolTip="Import Drawing Types and Style Packs from an edited Excel workbook (validation pre-flight, change preview, applies to project _BIM_COORD/ overrides)"/>
                                 </WrapPanel>
@@ -1433,7 +1446,7 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Migrate CSV" Tag="DrawingTypes_MigrateCsv" Click="Cmd_Click" ToolTip="Phase 168 — Export TITLE_BLOCK.csv as a recipe-ready JSON snippet (baseline + per-discipline deltas) ready to paste into the Drawing Types editor."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Migrate Params" Tag="DrawingTypes_MigrateParams" Click="Cmd_Click" ToolTip="One-time migration: copy PRJ_TB_* values from title blocks into PRJ_ORG_* on ProjectInformation, then re-stamp all sheets."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Audit Params" Tag="DrawingTypes_AuditLegacyParams" Click="Cmd_Click" ToolTip="Read-only audit: shows which PRJ_TB_* values would be migrated without writing anything."/>
-                                        <Button Style="{StaticResource ActionBtn}" Content="Sync Rev" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Sync Revit Revision sequence into title-block revision-strip rows (PRJ_TB_REV_COL_n / DATE / DESC) on all STING-stamped sheets."/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Sync Rev" Tag="DrawingTypes_SyncRevisions" Click="Cmd_Click" ToolTip="Mirror the newest Revit revision (number / date / description) onto every sheet (SHT_REV_TXT, SHT_REV_DATE_TXT) and its title blocks (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT / PRJ_TB_ISSUE_SUMMARY_TXT). Same engine as 'Rev Sync'."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Re-Stamp" Tag="DrawingTypes_BulkReStamp" Click="Cmd_Click" ToolTip="Re-apply a DrawingType profile (scale / template / style pack / annotation) to selected sheets or all project sheets."/>
                                     </WrapPanel>
                                 </Expander>
@@ -1477,15 +1490,15 @@
                                     <StackPanel Margin="0,4">
                                         <WrapPanel>
                                             <Button Style="{StaticResource ActionBtn}" Content="Count" Tag="SheetCountAutoUpdate" Click="Cmd_Click" ToolTip="Refresh PRJ_TB_TOTAL_NO_SHEETS_TXT — counts sheets where 'Appears in Sheet List' is Yes"/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Rev Sync" Tag="RevisionSync" Click="Cmd_Click" ToolTip="Mirror Revit native revision number/date into PRJ_TB_REVISION_NR_TXT / PRJ_TB_REVISION_DATE_TXT"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Rev Sync" Tag="RevisionSync" Click="Cmd_Click" ToolTip="Mirror the newest Revit revision (number / date / description) onto every sheet (SHT_REV_TXT, SHT_REV_DATE_TXT) and its title blocks (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT / PRJ_TB_ISSUE_SUMMARY_TXT). Same engine as 'Sync Rev'."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Stamp TX" Tag="TransmittalAutoIssue" Click="Cmd_Click" ToolTip="Stamp transmittal metadata (PRJ_TB_LAST_TRANSMITTAL_*, PRJ_TB_DELIVERABLE_*) onto selected sheets"/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Pre-Export" Tag="PreExportValidate" Click="Cmd_Click" ToolTip="Run pre-export completeness gate — blocks PDF/DWF when critical fields are empty"/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Build…" Tag="TitleBlock_Create" Click="Cmd_Click" ToolTip="Phase 170 factory — mint a STING title-block .rfa from STING_TITLE_BLOCKS.json. Picker appears when multiple concrete (non-abstract) families exist; abstract base specs are filtered out."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Build All" Tag="TitleBlock_CreateAll" Click="Cmd_Click" ToolTip="Mint every concrete (non-abstract) family in STING_TITLE_BLOCKS.json in one batch. Abstract `_common` bases are skipped — they're inheritance scaffolding only."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Auto-VPs" Tag="TitleBlock_AutoPlaceViewports" Click="Cmd_Click" ToolTip="For each selected view, look up its purpose tag via STING_VIEWPORT_PLACEMENT_RULES.json and place a Viewport at the active sheet's matching slot. Slot bounds are read from the title-block .rfa's named reference planes; scaleHint + viewportType applied at creation time."/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="BIM Mode" Tag="TitleBlock_ToggleBIMMode" Click="Cmd_Click" ToolTip="Swap the active sheet's title block between its BIM and NONBIM family variants. Auto-loads the target .rfa from Families/TitleBlocks/ when not already in the project. Updates STING_SHEET_BIM_MODE_TXT."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="BIM Mode" Tag="TitleBlock_ToggleBIMMode" Click="Cmd_Click" ToolTip="Swap the active sheet's title block between its BIM and NONBIM family variants. Auto-loads the target .rfa from Families/TitleBlocks/ when not already in the project. Updates PRJ_SHEET_BIM_MODE_TXT."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Audit Legacy" Tag="TitleBlock_AuditLegacy" Click="Cmd_Click" ToolTip="Read-only — list every sheet whose title block follows the pre-May-2026 single-family naming (STING_TB_&lt;SIZE&gt;_v&lt;N&gt;). Reports counts + sample sheet numbers grouped by legacy family. Run before Migrate Legacy."/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Migrate Legacy" Tag="TitleBlock_MigrateLegacy" Click="Cmd_Click" ToolTip="For each legacy single-family title block, swap to the BIM variant of the same paper size + version. Auto-loads the target .rfa. Sets STING_SHEET_BIM_MODE_TXT = 'BIM'. Run Toggle BIM Mode afterwards on individual sheets that should be NONBIM."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Migrate Legacy" Tag="TitleBlock_MigrateLegacy" Click="Cmd_Click" ToolTip="For each legacy single-family title block, swap to the BIM variant of the same paper size + version. Auto-loads the target .rfa. Sets PRJ_SHEET_BIM_MODE_TXT = 'BIM'. Run Toggle BIM Mode afterwards on individual sheets that should be NONBIM."/>
                                         </WrapPanel>
                                     </StackPanel>
                                 </Expander>
@@ -1579,6 +1592,7 @@
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="SCHEDULE MANAGEMENT"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ SCHEDULER" Tag="Scheduler" Click="Cmd_Click" ToolTip="STING Scheduler — every view-schedule function in one dialog. The buttons below are shortcuts into it." FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="ScheduleAudit" Click="Cmd_Click" ToolTip="Audit all schedules for issues and CSV coverage"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Refresh" Tag="ScheduleRefresh" Click="Cmd_Click" ToolTip="Re-apply formatting from CSV definitions"/>
                                 </WrapPanel>
@@ -1760,6 +1774,12 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Create" Tag="AecFilters_Create" Click="Cmd_Click" ToolTip="Mint the AEC ParameterFilterElements from the JSON registry."/>
+                                <!-- W-2: the MatchLine suite had handler cases but no button, no NLP intent, no workflow step — five commands and a ~900-line engine with no way to run them. -->
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Generate" Tag="MatchLine_Generate" Click="Cmd_Click" ToolTip="WRITES — place match-line pairs between adjacent scope boxes, with paired sheet references and tip captions. Idempotent; prunes pairs whose adjacency is gone."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Sync" Tag="MatchLine_Sync" Click="Cmd_Click" ToolTip="WRITES — refresh existing match-line pairs in place after a renumber or sheet change. Captions are replaced, not stacked."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Validate" Tag="MatchLine_Validate" Click="Cmd_Click" ToolTip="Read-only — confirm every placed match line still points at a live sheet and every adjacency still has a pair."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Validate Bundle" Tag="MatchLine_ValidateBundle" Click="Cmd_Click" ToolTip="Read-only — validate match lines across a whole sheet bundle."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Match Lines: Inspect" Tag="MatchLine_Inspect" Click="Cmd_Click" ToolTip="Read-only — list the match-line pairs stamped in this project with their scope boxes, views and references."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Inspect" Tag="AecFilters_Inspect" Click="Cmd_Click" ToolTip="List filter definitions and whether each is present in the active document."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AEC Filters: Reload" Tag="AecFilters_Reload" Click="Cmd_Click" ToolTip="Invalidate the AEC filter registry cache (re-read JSON)."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Browser Organize" Tag="Drawing_BrowserOrganize" Click="Cmd_Click" ToolTip="Apply the Project Browser organization grouped by Drawing Type."/>
@@ -1952,6 +1972,14 @@
                                             ToolTip="Build the full MEP/FP/SLD symbol library (~190 families) into _BIM_COORD/Families/Symbols and load into the project" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Set Profile" Tag="Symbols_SetProfile" Click="Cmd_Click" ToolTip="Set the active mixed-standard profile (Uganda / US-Intl / UK / Full-IEC)" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Place MEP" Tag="Symbols_PlaceMepDetail" Click="Cmd_Click" ToolTip="Place scale-aware MEP detail symbols (FamilyInstance) on MEP elements in the active view. Distinct from tag overlays — uses MepSymbolEngine + CSV catalogue." FontWeight="Bold"/>
+                                    <!-- Seeds_Build was reachable only from inside five workflow presets
+                                         (Penetration Sweep / Penetration Register / Plumbing Rough-In /
+                                         Electrical Rough-In / SLD Production) until this button. It builds
+                                         the 16 model SEED families from Data/Seeds/*.json — a different
+                                         thing from Symbols_CreateAll, which builds the ~190 annotation
+                                         symbol families. -->
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Build Seeds" Tag="Seeds_Build" Click="Cmd_Click"
+                                            ToolTip="Build the 16 model seed families from Data/Seeds/*.json (plumbing/electrical/mech/fire/medgas/lab fixtures + equipment). Idempotent — protectExisting, so re-runs are safe." FontWeight="Bold"/>
                                 </WrapPanel>
                                 <Expander Header="Create &amp; standards" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
@@ -1959,7 +1987,9 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="Symbols_CreateLighting" Click="Cmd_Click" ToolTip="Create lighting tag families"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="Symbols_CreateFP" Click="Cmd_Click" ToolTip="Fire protection — sprinklers, detectors, alarm devices, valves"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Reload" Tag="Symbols_Reload" Click="Cmd_Click" ToolTip="Reload every previously-created symbol family from disk"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Rebuild" Tag="Symbols_Rebuild" Click="Cmd_Click" ToolTip="Rebuild generated symbol families whose catalogue or generator has changed (or force-rebuild all)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="Symbols_Inspect" Click="Cmd_Click" ToolTip="Read-only diagnostic — defined vs loaded counts per group"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="Symbols_Validate" Click="Cmd_Click" ToolTip="Read-only data-integrity check — catalogue parsing, empty geometry, extent violations, param-less annotations, connector and concept-reference integrity"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Proj" Tag="Symbols_SwitchProject" Click="Cmd_Click" ToolTip="Switch Project Standard — swap every symbol overlay in the project to a chosen standard"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std View" Tag="Symbols_SwitchView" Click="Cmd_Click" ToolTip="Switch View Standard — set the symbol standard for the active view only"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Elem" Tag="Symbols_SetElementStandard" Click="Cmd_Click" ToolTip="Set Element Standard — STING_SYMBOL_STD on selected instances (IEC/ANSI/BS/NFPA/CIBSE)"/>
@@ -2016,7 +2046,7 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="★ Wizard" Tag="ScheduleWizard" Click="Cmd_Click" ToolTip="Schedule Wizard — unified schedule wizard: create, populate, audit, export in one dialog" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ SCHEDULER" Tag="Scheduler" Click="Cmd_Click" ToolTip="STING Scheduler — every view-schedule function in one dialog: create &amp; populate, audit, manage, export, format, corporate/MEP, and the per-category tag schedules with sheet placement" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Full AutoPopulate — zero-input full pipeline" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click" ToolTip="Excel Link — ExLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
                                 </WrapPanel>
@@ -2295,7 +2325,7 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Load all STING shared parameters into the project (2-pass binding)"/>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Create STING tag families for all 50 categories"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Mint STING tag families (shell + params + type variants) for all categories. Then run 'Propagate Universal' to apply the universal label, and 'Set depth' for the tier count. Label rows are not authored here."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Cfg Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family. Merge-only: re-runs skip already-configured families."/>
                                 </WrapPanel>
                                 <Expander Header="Advanced setup, schema &amp; migration" FontSize="10" Margin="0,4,0,0">
@@ -2321,8 +2351,9 @@
                                             <Button Style="{StaticResource PurpleBtn}" Content="Migrate Fams" Tag="MigrateTagFamilies"       Click="Cmd_Click" ToolTip="Upgrade loaded STING tag families: add PARA_STATE_4..10, 128 style BOOLs, box/leader colour params, pre-create standard type variants"/>
                                             <Button Style="{StaticResource PurpleBtn}" Content="Migrate Refs" Tag="MigrateTagLabelRefs"      Click="Cmd_Click" ToolTip="Rewrite renamed-parameter references inside loaded tag families using SCHEDULE_FIELD_REMAP.csv. FamilyManager.ReplaceParameter preserves every label cell + formula + type value."/>
                                             <Button Style="{StaticResource PurpleBtn}" Content="Propagate Universal" Tag="Propagate_UniversalTag" Click="Cmd_Click" ToolTip="Universal-tag pivot: clone the hand-built universal master label to loaded STING tag families — EditFamily → recategorise → rename → re-create type variants → SaveAs/LoadFamily. Re-run = safe re-sync. Smoke-test on Duct first."/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Stamp Gates" Tag="Gate_StampStatus" Click="Cmd_Click" ToolTip="Compute + stamp STING_GATE_DATA_STATUS_INT / STING_GATE_QA_STATUS_INT (0=red/1=amber/2=green) on every taggable element. Feeds the universal tag's two status badges (data gate + QA gate). Binds the params first if needed."/>
-                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Schedules" Tag="Schedule_DisciplineTagExpander" Click="Cmd_Click" ToolTip="Build one ViewSchedule per model category from SCHEDULE_SPEC_all_disciplines.json — col1 ASS_TAG_1_TXT + the discipline columns dropped from the universal tag + Comments. Sheet / Full as-built / Both. Skips empty entries + unresolved categories."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Stamp Gates" Tag="Gate_StampStatus" Click="Cmd_Click" ToolTip="Compute + stamp STING_GATE_DATA_STATUS_INT / STING_GATE_QA_STATUS_INT (0=red/1=amber/2=green) on every taggable element. Binds the params first if needed."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Status Register" Tag="Status_Register" Click="Cmd_Click" ToolTip="Export a colour-coded data/QA status register to Excel (Register + Summary sheets) to share with modellers. Read-only — computes each element's data + QA gate fresh, reds sorted to top, auto-filtered."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Tag Schedules" Tag="Schedule_DisciplineTagExpander" Click="Cmd_Click" ToolTip="Build one ViewSchedule per model category from SCHEDULE_SPEC_all_disciplines.json — col1 ASS_TAG_1_TXT + the discipline columns dropped from the universal tag + Comments. Sheet / Full as-built / Both. For bundle filtering and automatic sheet placement, use SETUP → ★ SCHEDULER → TAG SCHEDULES."/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Style Audit"  Tag="StyleAudit"               Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
                                         </WrapPanel>
                                     </StackPanel>
@@ -2380,7 +2411,10 @@
                                 <Button Style="{StaticResource BlueBtn}"   Content="PROD Cover" Tag="Prod_CoverageAudit"    Click="Cmd_Click" ToolTip="PROD coverage audit: per-category how many elements got a family-specific PROD code vs the generic category default; lists the unmatched families + writes a CSV"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="PROD Rules" Tag="Prod_GenerateRules"    Click="Cmd_Click" ToolTip="Generate a project prod_codes.csv overlay seeded from the families that currently get the generic default (gaps only); curate then Tag &amp; Combine"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Dupes"      Tag="FindDuplicates"        Click="Cmd_Click" ToolTip="Find duplicate tag values + select affected elements"/>
-                                <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stale"      Tag="SelectStale"           Click="Cmd_Click" ToolTip="Select elements with stale tags (live recompute — stored vs current LVL/SYS/PROD/FUNC)"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stale ⚑"    Tag="SelectStaleFlagged"    Click="Cmd_Click" ToolTip="Select elements flagged STING_STALE_BOOL=1 (the exact set the dashboard STALE count reports)"/>
+                                <Button Style="{StaticResource RedBtn}"    Content="Stale HL"   Tag="HighlightStale"        Click="Cmd_Click" ToolTip="Highlight flagged-stale elements in the active view with a red parameter-filter override"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clear HL"   Tag="ClearStaleHighlight"   Click="Cmd_Click" ToolTip="Remove the stale highlight filter from the active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
@@ -2924,7 +2958,7 @@
                             <StackPanel>
                                 <TextBlock Text="WORKFLOW &amp; COORDINATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Scheduler" Tag="WorkflowScheduler" Click="Cmd_Click" ToolTip="Manage scheduled workflow triggers (on-open, compliance-fall, SLA, periodic)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Workflow Triggers" Tag="WorkflowScheduler" Click="Cmd_Click" ToolTip="Manage scheduled workflow triggers (on-open, compliance-fall, SLA, periodic). Not related to view schedules — for those use SETUP → ★ SCHEDULER."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Mid-Day" Tag="MidDayCoordination" Click="Cmd_Click" ToolTip="Mid-Day Check — quick coordination checkpoint before meetings (2-3 min)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Review Prep" Tag="DesignReviewPrep" Click="Cmd_Click" ToolTip="Prepare model for design review (retag, fix, validate, report)"/>
                                 </WrapPanel>
@@ -3045,6 +3079,10 @@
                                             ToolTip="Re-run the local Revit clash kernel from the active 3D view. (Not a server-streamed live feed — clash detection runs in-Revit.)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Matrix" Tag="ClashMatrixEdit" Click="Cmd_Click"
                                             ToolTip="Edit the category-pair matrix that drives clash detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ACC Pull" Tag="ACC_PullClashes" Click="Cmd_Click"
+                                            ToolTip="Pull clash results from ACC Model Coordination, rank them, write a CSV and escalate the top-ranked back to ACC Issues. Needs %APPDATA%\Planscape\acc_credentials.json."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ACC Sync" Tag="ACC_SyncIssueStatus" Click="Cmd_Click"
+                                            ToolTip="Reconcile ACC Issue status back onto the escalation sidecar, so a closed ACC issue lets a recurring clash re-raise. Needs %APPDATA%\Planscape\acc_credentials.json."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3286,6 +3324,12 @@
                                                 ToolTip="Check sheet names against ISO 19650 naming convention"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Register" Tag="DocumentRegister" Click="Cmd_Click"
                                                 ToolTip="View document register: incoming/outgoing docs, suitability, CDE status"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Unified Register" Tag="DocRegister_Unified" Click="Cmd_Click"
+                                                ToolTip="Export one merged register (deliverables + document register) to CSV — read-only, touches neither store"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Consolidate Register" Tag="Register_Consolidate" Click="Cmd_Click"
+                                                ToolTip="Dry-run preview, then write the canonical _data/register.json (source stores kept intact — reversible)"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Consolidate Folders" Tag="Folders_ConsolidateAll" Click="Cmd_Click"
+                                                ToolTip="Dry-run preview, then move legacy STING folders next to the model into the one unified project root"/>
                                         <Button Style="{StaticResource GreenBtn}" Content="Add Doc" Tag="AddDocument" Click="Cmd_Click"
                                                 ToolTip="Register incoming or outgoing document with ISO 19650 naming"/>
                                         <Button Style="{StaticResource PurpleBtn}" Content="Transmittal" Tag="CreateTransmittal" Click="Cmd_Click"
@@ -3674,7 +3718,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="FOHLIO FF&amp;E"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
                             <StackPanel>
-                                <TextBlock Text="Owner FF&amp;E single source of truth — link, never duplicate (FOHLIO_REF_TXT)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="Owner FF&amp;E single source of truth — link, never duplicate (FOHLIO_REF_TXT). FF&amp;E objects match by tag; room finishes match by Room Number." FontSize="9" Foreground="#888" Margin="0,0,0,4" TextWrapping="Wrap"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="Fohlio Export" Tag="Fohlio_Export" Click="Cmd_Click"
                                             ToolTip="Export the FF&amp;E register in Fohlio import shape (CSV)"/>
@@ -3682,6 +3726,10 @@
                                             ToolTip="Import a Fohlio export — preview the diff, then write FOHLIO_REF_TXT + selected fields back"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Fohlio Audit" Tag="Fohlio_Audit" Click="Cmd_Click"
                                             ToolTip="FF&amp;E missing FOHLIO_REF_TXT + stale rows (model ≠ last Fohlio snapshot); per-category currency KPI"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Finishes Export" Tag="Fohlio_ExportFinishes" Click="Cmd_Click"
+                                            ToolTip="Export room floor / wall / ceiling / base finishes in Fohlio shape (CSV) — one row per placed room, keyed by ROOM NUMBER (not by tag), with area in m²"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Finishes Import" Tag="Fohlio_ImportFinishes" Click="Cmd_Click"
+                                            ToolTip="Import a Fohlio finishes export — preview the diff, then write the four built-in room finish parameters + FOHLIO_REF_TXT back. Rows are matched by ROOM NUMBER, so a renumbered room will not match"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3700,14 +3748,16 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- KUT KPI DASHBOARD (proposal §4.6) -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="KUT KPI DASHBOARD"/>
+                        <!-- OWNER KPI DASHBOARD. Shaped by the KUT proposal §4.6 KPI set,
+                             but the command derives its code from PRJ_ORG_PROJECT_CODE_TXT,
+                             so the section is not named after one client. -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="OWNER KPI DASHBOARD"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1A237E">
                             <StackPanel>
                                 <TextBlock Text="§4.6 monthly KPI dashboard — compliance, clash burn-down, model health, Owner-system coverage" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="KUT_KpiDashboard" Click="Cmd_Click"
-                                            ToolTip="Kampala Temple KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="KPI Dashboard" Tag="Owner_KpiDashboard" Click="Cmd_Click"
+                                            ToolTip="Owner KPI dashboard — RAG bars + per-discipline + clash burn-down + Fohlio/SpecLink/BMS coverage; exports HTML + CSV. Reports under PRJ_ORG_PROJECT_CODE_TXT (falls back to STING)."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -4255,6 +4305,19 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">
 
+                                        <!-- PRESETS + LIVE (E3/E5) -->
+                                        <TextBlock Text="PRESETS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="cmbTokenPreset" FontSize="9" Height="22" IsEditable="True" IsTextSearchEnabled="False" SelectionChanged="OnTokenPresetSelected" ToolTip="Pick a preset to recall it — or type a name and click Save to store the current settings as a project preset"/>
+                                                    <Button Grid.Column="1" Content="Save" Width="50" Height="22" Margin="4,0,0,0" FontSize="9" Click="OnSaveTokenPreset" ToolTip="Save the current controls as a project preset"/>
+                                                </Grid>
+                                                <CheckBox x:Name="chkLiveTokenDepth" Content="Live — apply to active view as I change controls" FontSize="9" Margin="0,4,0,0" ToolTip="When on, mask / separator / pad / order / depth changes apply to the active view automatically (debounced) — no Set depth press."/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- TOKEN SEGMENT VISIBILITY -->
                                         <TextBlock Text="TOKEN SEGMENT VISIBILITY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
@@ -4283,6 +4346,7 @@
                                                     <ComboBox Grid.Column="1" x:Name="cmbSeqPad" FontSize="9" Height="22">
                                                         <ComboBoxItem Content="0001 (4-digit)" IsSelected="True"/>
                                                         <ComboBoxItem Content="001 (3-digit)"/>
+                                                        <ComboBoxItem Content="01 (2-digit)"/>
                                                         <ComboBoxItem Content="00001 (5-digit)"/>
                                                     </ComboBox>
                                                 </Grid>
@@ -4294,7 +4358,7 @@
                                                         <ComboBoxItem Content="LOC-ZONE-LVL-DISC-SYS-FUNC-PROD-SEQ"/>
                                                     </ComboBox>
                                                 </Grid>
-                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline. Note: separator / pad / order only RE-PAD or reformat tags that already exist when Overwrite = Yes — with Overwrite = No they apply to newly built tags only." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 
@@ -4327,6 +4391,9 @@
                                                     <TextBlock x:Name="lblParaTier10" Grid.Column="9" FontSize="7" Foreground="#666" TextWrapping="Wrap" Text="T10 —"/>
                                                 </Grid>
                                                 <TextBlock x:Name="lblParaDepthHint" Text="Full — all 10 data tiers. Each tier activates TAG_PARA_STATE_N_BOOL" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                <Button Style="{StaticResource GreenBtn}" Content="Set depth" Tag="SetParagraphDepth" Click="Cmd_Click"
+                                                        Height="24" MinWidth="90" HorizontalAlignment="Left" Margin="0,5,0,0"
+                                                        ToolTip="Apply the slider depth (tiers T1..N ON, N+1..10 OFF) to the SELECTED tags' type — or all tag types if nothing is selected. This is what makes the slider take effect."/>
                                             </StackPanel>
                                         </Border>
 

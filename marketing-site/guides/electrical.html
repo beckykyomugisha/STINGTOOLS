@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Electrical — cable sizing, voltage drop and fault current — Planscape</title>
+<meta name="description" content="Why cables are sized by voltage drop rather than current, what fault current and arc flash mean, and how STING calculates and schedules them in Revit.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/guides/electrical.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Electrical</div>
+  <h1>Electrical — cables, voltage drop and fault current</h1>
+  <div class="meta">📖 11-minute read · Intermediate</div>
+
+  <p>Electrical design asks four questions of every circuit: is the cable big enough to carry the load without overheating, will enough voltage survive the journey, what happens when something shorts out, and how dangerous is the equipment to work on live. This guide covers each, then how STING calculates them.</p>
+
+  <h2>Why cables are not sized by current</h2>
+  <p>The intuitive approach is to look up the load current, find a cable rated for it, and stop. On short runs that works. On long runs it produces circuits that are technically compliant and functionally useless.</p>
+  <p>The reason is <strong>voltage drop</strong>. Every metre of cable has resistance, and current flowing through resistance loses voltage. Deliver 230&nbsp;V to a distribution board and the far end of a long circuit may see appreciably less. Motors run hot and start badly on low voltage, lighting dims and shifts colour, and electronics behave unpredictably.</p>
+  <p>So on any appreciable run, voltage drop — not current-carrying capacity — is what decides the size. <strong>BS 7671</strong> limits it to <strong>3% for lighting circuits and 5% for power circuits</strong>. Lighting is stricter because the effect is directly visible.</p>
+  <p>STING reflects this: rather than reading a size off an ampacity table, it works up through standard sizes and picks the first one whose voltage drop is within limits.</p>
+
+  <h3>Derating — the capacity you don't get</h3>
+  <p>A cable's tabulated rating assumes reference conditions. Real installations rarely match them, and the tabulated figure has to be corrected downwards for:</p>
+  <ul>
+    <li><strong>Installation method</strong> — a cable clipped to a surface in free air sheds heat well. The same cable buried in insulation cannot, and loses roughly a quarter of its capacity.</li>
+    <li><strong>Insulation type</strong> — cross-linked polyethylene tolerates a higher operating temperature than PVC, so the same conductor carries appreciably more.</li>
+    <li><strong>Ambient temperature</strong> — a cable in a hot plant room, or in a tropical climate, starts closer to its limit and can carry less.</li>
+  </ul>
+  <p>These multiply together. A cable in a poor installation method, in PVC, in a hot room, can end up with well under half its headline rating. This is the step most often skipped by hand, and it is the one that causes cables to run hot in service.</p>
+
+  <div class="callout warn">
+    <strong>Know what is not corrected for.</strong> STING applies installation method, insulation type and ambient temperature. It does <em>not</em> apply a grouping factor for cables bunched together, nor soil thermal resistivity or burial depth for buried cables. Where cables are grouped or buried, apply that correction yourself — it can be significant.
+  </div>
+
+  <h2>Fault current</h2>
+  <p>Voltage drop is about normal operation. Fault current is about the worst moment.</p>
+  <p>Short line and neutral together and the only thing limiting current is the impedance of the supply and the cable — so current surges to a value far beyond any normal load. Two things must be true: the protective device must interrupt it fast enough to prevent a fire, and the device must be <em>capable</em> of interrupting it at all.</p>
+  <p>That second point is the one that gets missed. Every breaker has a breaking capacity. Present it with more fault current than it can clear and it may fail to open — welding shut or failing violently. The available fault current at each board must be checked against the rating of the device installed there.</p>
+  <p>Fault current is highest near the supply and falls as you move away, because each length of cable adds impedance. So the main board needs the highest-rated devices, and a small final board far from the supply may need much less.</p>
+
+  <div class="callout warn">
+    <strong>Two assumptions to check.</strong> STING's fault calculation follows the simplified resistive method of <strong>IEC 60909</strong> — resistance only, no reactance, which is reasonable at low voltage but less so on large feeders. More importantly, where a feeder has no recorded length it assumes a conservative 5&nbsp;m and copper conductors. On a real feeder run of 40&nbsp;m that understates impedance and therefore <em>overstates</em> fault current downstream. Record feeder lengths before relying on the numbers.
+  </div>
+
+  <h2>Arc flash</h2>
+  <p>Arc flash is the safety case for the people who will maintain the installation, not the equipment.</p>
+  <p>When a fault arcs across an air gap inside a panel, the arc releases intense heat and light in milliseconds. The measure that matters is <strong>incident energy</strong> — how much energy would land on someone standing at working distance — expressed in calories per square centimetre. That number sets the protective clothing required to work on the equipment live, and the boundary beyond which it is safe to stand.</p>
+  <p>The counterintuitive part: incident energy depends on how <em>long</em> the arc burns as much as how large it is. Since clearing time comes from the upstream protective device, a slower upstream breaker can make a downstream panel far more dangerous without changing anything about the panel itself.</p>
+  <p>STING implements the <strong>IEEE 1584-2018</strong> model and maps the result to <strong>NFPA 70E</strong> protective equipment categories, producing labels for the equipment.</p>
+
+  <div class="callout warn">
+    <strong>Above 600 V the model is simplified,</strong> not the full IEEE 1584-2018 treatment. And the clearing time is a value you supply — STING does not read it from the upstream device's trip curve. Since incident energy scales directly with clearing time, an optimistic input produces an optimistic and unsafe label. Have arc flash results reviewed by a competent engineer before anything is fixed to a panel.
+  </div>
+
+  <h2>How STING approaches it</h2>
+  <p>Electrical work has its own panel with seven tabs: <strong>PNLS</strong>, <strong>CIRCTS</strong>, <strong>CALCS</strong>, <strong>CABLE</strong>, <strong>SLD</strong>, <strong>LITE</strong> and <strong>RPRT</strong>.</p>
+
+  <h3>Boards and circuits</h3>
+  <p><strong>PNLS</strong> handles distribution boards and their schedules. <strong>+ Spare</strong> and <strong>+ Space</strong> fill empty ways — a distinction worth keeping straight, since a spare is a fitted device with nothing connected while a space is an empty way with no device, and contractors price them differently. <strong>▶ Run Slot Fill</strong> does this across the project.</p>
+  <p><strong>CIRCTS</strong> covers circuit assignment: <strong>▶ Preview All</strong> before <strong>▶ Apply to Selected</strong>, <strong>▶ Propose Circuits (in panel)</strong> for suggestions, and <strong>▶ Apply Balance</strong> to even the load across phases. Phase balance matters more than it appears — an unbalanced three-phase supply puts current in the neutral and wastes capacity you have already paid for.</p>
+
+  <h3>Calculations</h3>
+  <p>On <strong>CALCS</strong>, the natural order is <strong>▶ Recalculate Load Summary</strong>, then <strong>▶ Calculate Fault Levels</strong> and <strong>▶ Stamp to Panels</strong>, then <strong>▶ Run BS 7671 Audit</strong>. <strong>▶ Flag Exceedances</strong> and <strong>▶ Auto-Upsize Failing</strong> deal with circuits outside limits.</p>
+  <p>Arc flash sits here too — <strong>⚡ Arc Flash Calc</strong>, then <strong>🏷 Arc Flash Label Sheet</strong> and <strong>📋 Arc Flash Schedule</strong>. <strong>📈 Selective Coordination Viewer</strong> addresses a related question: whether a fault at a final circuit trips only its local device, or takes out the main board and the whole building with it. Coordinated protection means the nearest device operates first.</p>
+
+  <h3>Cables</h3>
+  <p><strong>CABLE</strong> carries sizing and containment: <strong>▶ Calculate</strong> then <strong>▶ Apply to Circuit</strong>, plus <strong>Cable size</strong>, <strong>Voltage drop</strong>, <strong>CPC size</strong> and <strong>Route validate</strong>. <strong>▶ Calculate Fill</strong> and <strong>▶ Validate containment fill in model</strong> check that conduits and trays are not overfilled — overfilling traps heat, which derates every cable in the bundle.</p>
+
+  <div class="callout">
+    <strong>The sizing calculator does not write to the model.</strong> <strong>▶ Calculate</strong> reports a result; <strong>▶ Apply to Circuit</strong> and the <strong>Stamp</strong> buttons are what commit it. If sizes are not appearing on elements, that separation is usually why.
+  </div>
+
+  <h3>Diagrams and reports</h3>
+  <p><strong>SLD</strong> generates the single line diagram — the one drawing that shows the whole distribution system as a tree, from incoming supply through main board to sub-boards and final circuits. <strong>▶ Generate SLD Drafting View</strong> traces the circuits already in your model and draws them, so the diagram reflects the model rather than being maintained alongside it. <strong>▶ Generate Riser Diagram</strong> does the vertical equivalent.</p>
+  <p>If it reports finding no distribution roots, it means no electrical equipment is modelled as a supply origin — everything is wired as a downstream load, so there is no top of the tree to draw from.</p>
+  <p><strong>RPRT</strong> holds <strong>▶ Full Compliance Audit</strong>, register and schedule exports, and handoffs to specialist analysis tools.</p>
+
+  <div class="callout warn">
+    <strong>On placing panel schedules on sheets:</strong> the Revit feature for doing this automatically has been broken since Revit 2024. STING offers guided manual placement, conversion to a linked schedule, or export and embed — but this step is not fully automatic, and that is Revit's limitation rather than a missing feature.
+  </div>
+
+  <h2>A sensible order of work</h2>
+  <ol>
+    <li><strong>CIRCTS</strong> — get circuits assigned and phases balanced first. Everything downstream depends on it.</li>
+    <li><strong>CALCS</strong> &rsaquo; <strong>▶ Recalculate Load Summary</strong>.</li>
+    <li><strong>CABLE</strong> &rsaquo; <strong>▶ Calculate</strong>, check the results, then <strong>▶ Apply to Circuit</strong>.</li>
+    <li><strong>CALCS</strong> &rsaquo; <strong>▶ Calculate Fault Levels</strong> and <strong>▶ Stamp to Panels</strong> — with real feeder lengths recorded.</li>
+    <li><strong>CALCS</strong> &rsaquo; <strong>▶ Run BS 7671 Audit</strong> and clear what it raises.</li>
+    <li><strong>SLD</strong> &rsaquo; <strong>▶ Generate SLD Drafting View</strong>.</li>
+    <li><strong>RPRT</strong> &rsaquo; <strong>▶ Full Compliance Audit</strong> before issue.</li>
+  </ol>
+  <p>Circuits first is the rule worth internalising. Load summaries, cable sizes, fault levels and the single line diagram are all derived from the circuit tree — build it wrong and every calculation after it is confidently incorrect.</p>
+
+  <div class="cta-band">
+    <p>Next: <a href="/guides/">back to the guides index</a>. Bills of quantities and clash coordination are being written now.</p>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.build">hello@planscape.build</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

@@ -80,6 +80,10 @@ public class DocumentsController : ControllerBase
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IPushNotificationService _push;
     private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
+    // Document sync push. Optional so every existing construction site (and the
+    // test factory) keeps working without knowing about it; a null just means no
+    // Companion gets told, which degrades to the reconnect-delta path.
+    private readonly IHubContext<DocumentSyncHub>? _syncHub;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
@@ -94,7 +98,8 @@ public class DocumentsController : ControllerBase
         IAuditService audit,
         IHubContext<NotificationHub> hub,
         IPushNotificationService push,
-        Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null)
+        Planscape.Infrastructure.Services.OutboundWebhookDispatcher? webhooks = null,
+        IHubContext<DocumentSyncHub>? syncHub = null)
     {
         _db = db;
         _storage = storage!;
@@ -105,6 +110,7 @@ public class DocumentsController : ControllerBase
         _hub = hub;
         _push = push;
         _webhooks = webhooks;
+        _syncHub = syncHub;
     }
 
     /// <summary>
@@ -901,7 +907,7 @@ public class DocumentsController : ControllerBase
             $"{{\"oldState\":\"{oldState}\",\"newState\":\"{newState}\",\"source\":\"{source}\"}}");
 
         // Gap 1 — SignalR broadcast now shared (was missing from mobile path).
-        await _hub.Clients.Groups(
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Groups(
                 $"project-{projectId}-cde-{oldState}",
                 $"project-{projectId}-cde-{doc.CdeStatus}")
             .SendAsync("DocumentUpdated", new
@@ -911,7 +917,7 @@ public class DocumentsController : ControllerBase
                 oldState, suitability = doc.SuitabilityCode,
                 revision = doc.Revision, updatedAt = doc.UpdatedAt,
                 kind = "cde_transition", source
-            });
+            }), _logger, "DocumentUpdated");
 
         // Gap 1 — webhook dispatch now shared (was missing from mobile path).
         _webhooks?.FireAndForget(tenantId, projectId, WebhookEventType.DocumentTransitioned, new
@@ -921,7 +927,128 @@ public class DocumentsController : ControllerBase
             transitionedAt = doc.UpdatedAt
         });
 
+        // Document sync — tell every Companion on this project that something
+        // moved. Deliberately after SaveChangesAsync: a Companion answers this by
+        // calling changed-since, and a push sent before the commit would race the
+        // read and return the pre-transition row.
+        if (_syncHub != null)
+        {
+            var autoSync = await _db.Projects.Where(p => p.Id == projectId)
+                .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync();
+            // Same best-effort contract as the broadcast above: the comment in the
+            // else-branch already says a missed push is non-fatal (the Companion
+            // catches up via changed-since on reconnect) — but an unguarded call
+            // let a Redis-backplane outage throw straight out of a transition that
+            // had ALREADY been committed, turning a degraded notification into a
+            // 500 and a client that believes the transition failed.
+            await HubBroadcastExtensions.SafeAsync(
+                () => DocumentSyncHub.NotifyDocumentChanged(_syncHub, projectId,
+                    DocumentSyncHub.Payload(projectId, doc.Id, "cde_transition", doc.CdeStatus, autoSync)),
+                _logger, "DocumentSync.DocumentChanged");
+            _logger.LogInformation("DocumentSync push sent for {DocumentId} on {ProjectId}", doc.Id, projectId);
+        }
+        else
+        {
+            // Not fatal - the Companion catches up on its next reconnect delta -
+            // but it means the push path is silently dead, which is worth knowing.
+            _logger.LogWarning("DocumentSync hub context unavailable; no push sent for {DocumentId}", doc.Id);
+        }
+
         return Ok(doc);
+    }
+
+    /// <summary>
+    /// Delta feed for the Planscape Companion's local-disk sync — the reconnect
+    /// fallback and the initial-link path from
+    /// <c>docs/superpowers/specs/2026-07-31-document-sync-design.md</c>.
+    ///
+    /// <para><paramref name="since"/> omitted means "everything currently
+    /// visible", which is the initial-sync case. Supplied, it means "what changed
+    /// after this instant" — a delta, never a full re-scan.</para>
+    ///
+    /// <para>Three properties this endpoint must keep, because sync is a
+    /// long-lived background copy of whatever it returns:</para>
+    /// <list type="number">
+    /// <item><b>Never wider than the documents list.</b> The same
+    /// <see cref="ProjectMemberAcl"/> narrowing runs here. A caller whose
+    /// <c>AllowedCdeStates</c> excludes PUBLISHED must not receive published
+    /// documents on disk when they cannot see them in the UI.</item>
+    /// <item><b>Latest revision only.</b> Metadata for the current state of each
+    /// document, not its history — full history is a deliberate per-document
+    /// action, never something that silently grows on every machine.</item>
+    /// <item><b>Ordered by change time, and it returns the server's clock.</b> The
+    /// caller stores <c>serverTimeUtc</c> as its next <c>since</c> rather than its
+    /// own clock, so a machine whose clock runs fast cannot skip documents by
+    /// asking for changes since an instant that has not happened yet.</item>
+    /// </list>
+    /// </summary>
+    [HttpGet("changed-since")]
+    public async Task<ActionResult> ChangedSince(Guid projectId, [FromQuery] DateTime? since = null,
+        [FromQuery] int limit = 500)
+    {
+        var tenantId = GetTenantId();
+        // Captured BEFORE the query so a document written while this request is in
+        // flight is caught by the NEXT call rather than falling in the gap between
+        // the query and the timestamp the caller stores.
+        var serverTimeUtc = DateTime.UtcNow;
+
+        limit = Math.Clamp(limit, 1, 2000);
+
+        var query = _db.Documents
+            .Where(d => d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+
+        if (since.HasValue)
+        {
+            // Model-bound DateTimes arrive as Unspecified/Local depending on the
+            // format; normalising to UTC keeps the comparison honest against
+            // UpdatedAt/UploadedAt, which are always UTC.
+            var sinceUtc = since.Value.Kind == DateTimeKind.Utc
+                ? since.Value
+                : since.Value.ToUniversalTime();
+            query = query.Where(d => (d.UpdatedAt ?? d.UploadedAt) > sinceUtc);
+        }
+
+        var acl = await ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        query = ProjectMemberAcl.ApplyTo(query, acl);
+
+        var docs = await query
+            .OrderBy(d => d.UpdatedAt ?? d.UploadedAt)
+            .Take(limit)
+            .Select(d => new
+            {
+                d.Id,
+                d.FileName,
+                d.DocumentType,
+                d.CdeStatus,
+                d.SuitabilityCode,
+                d.Revision,
+                d.Discipline,
+                d.FileSizeBytes,
+                d.ContentHash,
+                d.ScanStatus,
+                changedAt = d.UpdatedAt ?? d.UploadedAt,
+            })
+            .ToListAsync();
+
+        // The project's auto-sync flag rides along on every delta so a Companion
+        // that reconnects after an offline stretch learns the current setting in
+        // the same call it uses to catch up, rather than needing a second one.
+        var autoSyncEnabled = await _db.Projects.Where(p => p.Id == projectId)
+            .Select(p => p.DocumentSyncAutoEnabled).FirstOrDefaultAsync();
+
+        return Ok(new
+        {
+            items = docs,
+            count = docs.Count,
+            autoSyncEnabled,
+            // True when the page was filled exactly — the caller should immediately
+            // re-query with since = the last item's changedAt rather than assume it
+            // has caught up. Without this a project with more than `limit` changes
+            // since the last sync would silently lose the tail.
+            hasMore = docs.Count == limit,
+            serverTimeUtc,
+            since,
+        });
     }
 
     [HttpGet("{docId}/history")]
@@ -1057,14 +1184,14 @@ public class DocumentsController : ControllerBase
         }
 
         // Gap 5 — broadcast ApprovalDecided so the web UI can prompt "Publish now?" on APPROVED.
-        await _hub.Clients.Group($"project-{projectId}").SendAsync("ApprovalDecided", new
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"project-{projectId}").SendAsync("ApprovalDecided", new
         {
             projectId, documentId = docId, approvalId,
             transition = approval.Transition, decision = req.Decision,
             decidedBy = approval.DecidedBy, decidedAt = approval.DecidedAt,
             comments = approval.Comments,
             kind = "approval_decided"
-        });
+        }), _logger, "ApprovalDecided");
 
         return Ok(approval);
     }
@@ -1230,14 +1357,14 @@ public class DocumentsController : ControllerBase
             }));
 
         // Phase 177 — broadcast only to members whose ACL covers the new state.
-        await _hub.Clients.Group($"project-{projectId}-cde-{doc.CdeStatus}")
+        await HubBroadcastExtensions.SafeAsync(() => _hub.Clients.Group($"project-{projectId}-cde-{doc.CdeStatus}")
             .SendAsync("DocumentUpdated", new
         {
             projectId, documentId = doc.Id,
             fileName = doc.FileName, cdeStatus = doc.CdeStatus,
             revision = doc.Revision, suitability = doc.SuitabilityCode,
             kind = "plugin_sync"
-        });
+        }), _logger, "DocumentUpdated");
 
         return Ok(new { doc.Id, doc.FileName, doc.CdeStatus, doc.SuitabilityCode, doc.Revision, isCreate });
     }
@@ -1424,8 +1551,20 @@ public class DocumentsController : ControllerBase
             var hasLegacyApproval = await _db.DocumentApprovals
                 .AnyAsync(a => a.DocumentId == docId && a.Transition == transitionKey && a.Status == "APPROVED"
                     && (a.RevisionSnapshot == null || a.RevisionSnapshot == currentRevision));
+            // #552 — scope the CHAIN path exactly as the legacy path above. Until
+            // ApprovalChain carried a RevisionSnapshot there was no field to filter on,
+            // so this branch matched on (DocumentId, Transition) alone. The two are
+            // OR'd, which meant the UNSCOPED branch won: a chain completed against P01
+            // satisfied the gate for P02, P03 and every revision after, while the
+            // scoped legacy check beside it correctly refused. The bypass left a
+            // COMPLETED chain in the audit trail, so it was invisible after the fact.
+            //
+            // NULL still matches, mirroring the legacy predicate — see the field's own
+            // remarks on ApprovalChain for why that compatible choice is deliberate and
+            // what exposure it leaves.
             var hasCompletedChain = await _db.ApprovalChains
-                .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED");
+                .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED"
+                    && (c.RevisionSnapshot == null || c.RevisionSnapshot == currentRevision));
             if (!hasLegacyApproval && !hasCompletedChain)
                 return BadRequest(new
                 {

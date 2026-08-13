@@ -6,53 +6,53 @@
   "steps": [
     {
       "id": "build-seeds",
-      "name": "Build seed families (idempotent)",
-      "command": "BuildSeedFamilies",
+      "label": "Build seed families (idempotent)",
+      "commandTag": "Seeds_Build",
       "skipIfFamilyLoaded": "STING_SEED_SpecialityEquipment",
       "_notes": "First-time setup. Builds STING_SEED_SpecialityEquipment, STING_SEED_FireDamper, STING_SEED_AcousticSeal from JSON specs. No-op when all three seed families are already loaded."
     },
     {
       "id": "load-shared-params",
-      "name": "Load shared parameters (PEN_* + ASS_*)",
-      "command": "LoadSharedParams",
+      "label": "Load shared parameters (PEN_* + ASS_*)",
+      "commandTag": "LoadSharedParams",
       "_notes": "Binds PEN_* penetration parameters and ASS_TAG_* containers to Specialty Equipment and the routed MEP categories so the detector, placer, and auto-tagger can read and write them."
     },
     {
       "id": "detect-and-place",
-      "name": "Detect crossings and place / update penetration families",
-      "command": "Penetrations_DetectAndPlace",
+      "label": "Detect crossings and place / update penetration families",
+      "commandTag": "Penetrations_DetectAndPlace",
       "_notes": "Runs SlabPenetrationDetector + WallPenetrationDetector + BeamPenetrationDetector across every MEP curve in the active view. PenetrationProductSelector picks the right seed family and type variant (FR30–FR240, round/rect, combined fire+smoke, acoustic, sleeve). FrpPenetrationPlacer drops face-based instances and stamps the PEN_* parameter pack. Idempotent — re-runs update existing instances rather than duplicating."
     },
     {
       "id": "auto-tag",
-      "name": "Auto-tag penetration family instances",
-      "command": "AutoTag",
+      "label": "Auto-tag penetration family instances",
+      "commandTag": "AutoTag",
       "_notes": "Runs the standard STING tag pipeline on every newly placed or updated penetration family instance: TypeTokenInherit → PopulateAll → NativeParamMapper → FormulaEngine → BuildAndWriteTag → WriteContainers → WriteTag7. Each instance gets a unique DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ reference visible in the register schedule."
     },
     {
       "id": "coverage-audit",
-      "name": "Audit firestop coverage + structural review",
-      "command": "Validation_PenetrationCoverage",
+      "label": "Audit firestop coverage + structural review",
+      "commandTag": "Validation_PenetrationCoverage",
       "_notes": "Read-only audit. Surfaces orphan members (MEP curves crossing rated barriers with no penetration family), orphan penetration families (instances with no matching MEP curve), and beam structural review findings (STRUCT_REVIEW / STRUCT_FAIL). Results appear in the result panel; no model changes."
     },
     {
       "id": "build-register-schedule",
-      "name": "Build / refresh Penetration Register schedule",
-      "command": "BatchSchedules",
+      "label": "Build / refresh Penetration Register schedule",
+      "commandTag": "BatchSchedules",
       "scheduleNameFilter": "STING - Penetration Register",
       "_notes": "Creates or refreshes the 'STING - Penetration Register' Revit schedule from MR_SCHEDULES.csv. The schedule includes PEN_CONTROL_NR, PEN_HOST_REF, PEN_FIRE_RATING, PEN_PRODUCT_FAMILY, PEN_TYPE_VARIANT, PEN_OD_MM, PEN_SLAB_THICK_MM, PEN_INSTALL_DATE, PEN_INSPECTOR, and the ASS_TAG_1 asset reference — one row per penetration family instance, grouped by host type."
     },
     {
       "id": "place-on-sheet",
-      "name": "Place register schedule on A1 sheet",
-      "command": "DrawingTypes_FromScopeBoxes",
+      "label": "Place register schedule on A1 sheet",
+      "commandTag": "DrawingTypes_FromScopeBoxes",
       "drawingTypeId": "penetration-register-A1",
       "_notes": "Creates or updates the A1 Penetration Register sheet using the 'penetration-register-A1' drawing type profile. The schedule is placed in the single Main slot. Idempotent — re-running on an existing sheet refreshes the viewport without creating a duplicate."
     },
     {
       "id": "export-register",
-      "name": "Export Penetration Register to PDF + CSV",
-      "command": "ExportSheetRegister",
+      "label": "Export Penetration Register to PDF + CSV",
+      "commandTag": "ExportSheetRegister",
       "sheetNumberFilter": "FP-PEN",
       "_notes": "Exports all FP-PEN-* sheets to PDF (ISO A1, black-and-white) and writes a flat CSV of the schedule data to <project>/_BIM_COORD/exports/PenetrationRegister_<date>.csv. Both outputs are ready for client delivery and COBie FM handover."
     }

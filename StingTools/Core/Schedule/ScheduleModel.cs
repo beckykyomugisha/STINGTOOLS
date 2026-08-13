@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  ScheduleModel.cs — Phase 1 (slice a) of the BOQ 5D Enhanced Rebuild.
 //
 //  ONE canonical schedule model + ONE store. Until now there were two
@@ -50,7 +50,7 @@ namespace StingTools.Core.Schedule
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", FileName);
+                return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
             }
             catch { return null; }
         }
@@ -58,7 +58,7 @@ namespace StingTools.Core.Schedule
         private static string BimCoordDir(Document doc)
         {
             string parent = Path.GetDirectoryName(doc?.PathName ?? "");
-            return string.IsNullOrEmpty(parent) ? null : Path.Combine(parent, "_BIM_COORD");
+            return string.IsNullOrEmpty(parent) ? null : StingPaths.Meta(doc, "_BIM_COORD");
         }
 
         /// <summary>Load the unified schedule. If the canonical file is absent,
@@ -332,6 +332,8 @@ namespace StingTools.Core.Schedule
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
+                // path-discipline: legacy-fallback -- reads the PRE-consolidation location
+                // on purpose, to find a 4D schedule written before the move.
                 return Path.Combine(parent, "STING_BIM_MANAGER", Legacy4dFileName);
             }
             catch { return null; }

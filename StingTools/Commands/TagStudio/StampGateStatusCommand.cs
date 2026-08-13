@@ -112,11 +112,9 @@ namespace StingTools.Commands.TagStudio
 
                         bool okData = ParameterHelpers.SetInt(el, ParamRegistry.GATE_DATA_STATUS, g.DataGate, overwrite: true);
                         bool okQa   = ParameterHelpers.SetInt(el, ParamRegistry.GATE_QA_STATUS, g.QaGate, overwrite: true);
-
-                        // Terse reason strings drive the message labels beside each
-                        // badge (blank when green). Best-effort — never blocks the ints.
+                        // Terse reason text for the gated labels beside each badge (blank when green).
                         ParameterHelpers.SetString(el, ParamRegistry.GATE_DATA_MSG, g.DataMsg ?? "", overwrite: true);
-                        ParameterHelpers.SetString(el, ParamRegistry.GATE_QA_MSG,   g.QaMsg   ?? "", overwrite: true);
+                        ParameterHelpers.SetString(el, ParamRegistry.GATE_QA_MSG, g.QaMsg ?? "", overwrite: true);
 
                         if (okData || okQa)
                         {
@@ -169,7 +167,7 @@ namespace StingTools.Commands.TagStudio
             if (defFile == null) return;
 
             string[] wanted = { ParamRegistry.GATE_DATA_STATUS, ParamRegistry.GATE_QA_STATUS,
-                                ParamRegistry.GATE_DATA_MSG,    ParamRegistry.GATE_QA_MSG };
+                                ParamRegistry.GATE_DATA_MSG, ParamRegistry.GATE_QA_MSG };
             var defs = new List<ExternalDefinition>();
             foreach (string name in wanted)
             {

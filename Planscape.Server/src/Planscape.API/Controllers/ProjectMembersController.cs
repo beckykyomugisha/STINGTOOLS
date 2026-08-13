@@ -6,6 +6,13 @@ using Microsoft.Extensions.Logging;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.API.Authorization;
+// Imported for the capability extension methods (CanCurateProjectAsync /
+// CanApproveSitePhotosAsync). This namespace also declares an IEmailService,
+// which collides with Planscape.Core.Interfaces.IEmailService — the one this
+// controller's constructor has always bound to. The alias below pins that
+// binding so adding the import cannot silently re-resolve it.
+using Planscape.API.Services;
+using IEmailService = Planscape.Core.Interfaces.IEmailService;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
@@ -108,6 +115,53 @@ public class ProjectMembersController : ControllerBase
             allowedCdeStates     = ProjectMember.ParseAllowList(member?.AllowedCdeStates)     ?? Array.Empty<string>(),
             allowedDisciplines   = ProjectMember.ParseAllowList(member?.AllowedDisciplines)   ?? Array.Empty<string>(),
             allowedSuitabilities = ProjectMember.ParseAllowList(member?.AllowedSuitabilities) ?? Array.Empty<string>(),
+        });
+    }
+
+    /// <summary>
+    /// The caller's capabilities on this project, resolved server-side.
+    ///
+    /// WHY THIS EXISTS. Clients were re-deriving authority from
+    /// <c>projectRole</c> / <c>iso19650Role</c> returned by
+    /// <see cref="GetMyAccess"/>. Three surfaces re-implementing one rule is
+    /// exactly how the eleven dead <c>ProjectRole == "PM"</c> gates happened.
+    /// The server owns the rule; clients render what it returns.
+    ///
+    /// CLIENT CONTRACT — 404 MEANS ALL CAPABILITIES ARE FALSE.
+    /// A 404 says the caller cannot see this project at all. Treat every
+    /// capability as false. Never "unknown, so proceed" — a fail-open default
+    /// here would undo the gate on all three surfaces at once. The same
+    /// applies to a network error, a timeout, or a body you cannot parse:
+    /// absence of an explicit <c>true</c> is <c>false</c>.
+    ///
+    /// Deliberately two booleans, matching the two predicates that actually
+    /// exist on <see cref="ProjectRoles"/>. A third does not get added inline
+    /// — it goes through the same propose-first step these two did.
+    ///
+    /// Deliberately a separate endpoint rather than extra fields on
+    /// <c>members/me</c>: that response is already consumed and widening it
+    /// is a breaking-shape change.
+    /// </summary>
+    [HttpGet("capabilities")]
+    public async Task<ActionResult> GetMyCapabilities(Guid projectId, CancellationToken ct = default)
+    {
+        // 404 (not 403) so this agrees with GetMyAccess above, which uses the
+        // same visibility check. Two adjacent endpoints disagreeing about the
+        // same condition is a bug generator.
+        if (!await CanAccessProjectAsync(projectId)) return NotFound();
+
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(subClaim, out var userId)) return Unauthorized();
+
+        // Both resolve tenant Admin/Owner without a ProjectMember row, matching
+        // every site the capability layer replaced.
+        return Ok(new
+        {
+            projectId,
+            userId,
+            canCurateProject     = await this.CanCurateProjectAsync(_db, projectId, ct),
+            canApproveSitePhotos = await this.CanApproveSitePhotosAsync(_db, projectId, ct),
         });
     }
 
@@ -414,6 +468,18 @@ public class ProjectMembersController : ControllerBase
             member.AllowedDisciplines   = profile.AllowedDisciplines;
             member.AllowedSuitabilities = profile.AllowedSuitabilities;
         }
+
+        // ProjectRole used to accept ANY string here with no validation, which
+        // is how the vocabulary drifted far enough for eleven gates to end up
+        // testing an Iso19650Role code ("PM") against this column. Reject
+        // anything outside the canonical set; same error shape as invalid_kind
+        // in DistributionGroupsController.
+        //
+        // Iso19650Role is deliberately NOT validated in this pass — its
+        // vocabulary lives in GetRoles() below and constraining it is a
+        // separate, wider change.
+        if (req.ProjectRole != null && !ProjectRoles.IsCanonical(req.ProjectRole))
+            return BadRequest(new { error = "invalid_project_role", allowed = ProjectRoles.All });
 
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;

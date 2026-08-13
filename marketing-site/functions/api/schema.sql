@@ -359,3 +359,56 @@ CREATE INDEX        IF NOT EXISTS idx_discount_active   ON discount_codes(active
 -- Step 3 — (re-)apply this schema file; idx_subs_provider_unique now creates:
 --   cd marketing-site && npm run schema:remote
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Issued plugin licences (self-serve licence automation).
+--
+-- The STING Tools licence is verified entirely offline by the plugin: a signed
+-- payload bound to one machine fingerprint, with an expiry. There is no
+-- call-home, so once issued a licence cannot be revoked remotely — it simply
+-- expires. That makes the seat check at ISSUE time the only enforcement point,
+-- which is why we record every machine we have licensed.
+--
+-- One row per (tenant, machine_code). Re-issuing for a machine we have already
+-- licensed updates the row and does NOT consume another seat, so a user who
+-- reinstalls or loses their .lic file is not punished for it.
+CREATE TABLE IF NOT EXISTS licenses (
+  id            TEXT    PRIMARY KEY,            -- uuid v4, also the licenseId in the payload
+  tenant_id     TEXT    NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id       TEXT,                           -- who requested it (audit only)
+  machine_code  TEXT    NOT NULL,               -- e.g. ADD3-E01C-3412-14C8-175E
+  licensee      TEXT    NOT NULL,               -- shown in the plugin's About box
+  issued_at     TEXT    NOT NULL,               -- ISO 8601 UTC
+  expires_at    TEXT    NOT NULL,               -- ISO 8601 UTC
+  revoked_at    TEXT,                           -- set to stop it counting against seats
+  created_at    TEXT    NOT NULL,
+  updated_at    TEXT,
+
+  -- Licence presentation (functions/api/license/present.ts). The plugin reports
+  -- its licence on startup so we can see which of the machines we licensed are
+  -- actually running, on what. REPORTING ONLY — never read to gate anything.
+  -- A licence that has never been presented is exactly as valid as one that
+  -- has; the plugin verifies offline and cannot be made to depend on us.
+  --
+  -- Note these are NOT covered by updated_at: being observed is not a change to
+  -- the licence, so updated_at keeps meaning "when the record last changed".
+  last_seen_at             TEXT,  -- ISO 8601 UTC of the most recent presentation
+  last_seen_plugin_version TEXT,  -- e.g. "2.2.0"
+  last_seen_revit_version  TEXT   -- e.g. "2025"
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_tenant_machine
+  ON licenses(tenant_id, machine_code);
+CREATE INDEX IF NOT EXISTS idx_licenses_tenant ON licenses(tenant_id);
+
+-- ---------------------------------------------------------------------------
+-- One-time migration for databases created before licence presentation existed.
+-- SQLite can't guard ADD COLUMN with IF NOT EXISTS — run these ONCE and ignore
+-- "duplicate column name" errors. Fresh databases get the columns above.
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE licenses ADD COLUMN last_seen_at TEXT;"
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE licenses ADD COLUMN last_seen_plugin_version TEXT;"
+--   wrangler d1 execute planscape-waitlist --remote \
+--     --command="ALTER TABLE licenses ADD COLUMN last_seen_revit_version TEXT;"
+-- ---------------------------------------------------------------------------

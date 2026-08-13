@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { LoadingBlock } from '@/components/ui';
+import { MemberPicker } from '@/components/MemberPicker';
 import { getIssue, updateIssue, listComments, addComment } from '@/lib/data';
 import type { BimIssue, IssueComment, IssueStatus } from '@/lib/types';
 
@@ -18,7 +20,7 @@ export default function IssueDetailPage() {
   const [comments, setComments] = useState<IssueComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [assignee, setAssignee] = useState('');
+  const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState('');
   const [savingAssign, setSavingAssign] = useState(false);
 
@@ -26,7 +28,7 @@ export default function IssueDetailPage() {
     getIssue(projectId, issueId)
       .then((i) => {
         setIssue(i);
-        setAssignee(i.assignee ?? '');
+        setAssigneeUserId(i.assigneeUserId ?? null);
         setDueDate(i.dueDate ? i.dueDate.slice(0, 10) : '');
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load issue'));
@@ -38,14 +40,27 @@ export default function IssueDetailPage() {
     setSavingAssign(true);
     setError(null);
     try {
+      // Send the FK, not a display name. The server validates it against
+      // project membership and 400s otherwise, which is precisely why this
+      // used to fail silently when someone typed a name by hand.
+      //
+      // Clearing is the awkward case: a null AssigneeUserId is "leave
+      // unchanged" server-side, not "unassign", so selecting Unassigned would
+      // do nothing at all. Sending an empty display name takes the server's
+      // name-only path and clears the visible assignee, which is as far as
+      // unassigning has ever gone here — UpdateIssue deliberately never clears
+      // AssigneeUserId. Truly releasing the FK needs a server change.
       const body: Partial<BimIssue> = {
-        assignee: assignee.trim(),
+        ...(assigneeUserId ? { assigneeUserId } : { assignee: '' }),
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       };
       const updated = await updateIssue(projectId, issueId, body);
       setIssue(updated);
-    } catch {
-      setError('Failed to save assignment');
+      setAssigneeUserId(updated.assigneeUserId ?? null);
+    } catch (e) {
+      // Surface the server's reason — "not an active member of this project"
+      // is actionable; "Failed to save assignment" is not.
+      setError(e instanceof Error ? e.message : 'Failed to save assignment');
     } finally {
       setSavingAssign(false);
     }
@@ -79,37 +94,37 @@ export default function IssueDetailPage() {
 
   return (
     <AppShell>
-      <Link href={`/projects/${projectId}`} className="text-sm text-slate-400 hover:underline">
+      <Link href={`/projects/${projectId}`} className="text-sm text-fg-subtle hover:underline">
         ← Back to issues
       </Link>
 
-      {error && <p className="my-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {!issue && !error && <p className="mt-3 text-slate-400">Loading…</p>}
+      {error && <p className="my-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {!issue && !error && <LoadingBlock />}
 
       {issue && (
         <>
           <h1 className="mt-1 text-xl font-semibold">{issue.title}</h1>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="mt-1 text-xs text-fg-subtle">
             {issue.type} · {issue.priority}
             {issue.discipline ? ` · ${issue.discipline}` : ''}
             {issue.assignee ? ` · ${issue.assignee}` : ''}
           </div>
 
           {issue.description && (
-            <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm ring-1 ring-slate-200">
+            <p className="mt-4 whitespace-pre-wrap rounded-lg bg-surface p-4 text-sm ring-1 ring-border">
               {issue.description}
             </p>
           )}
 
           <div className="mt-4">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Status</span>
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-fg-subtle">Status</span>
             <div className="flex flex-wrap gap-2">
               {STATUSES.map((s) => (
                 <button
                   key={s}
                   onClick={() => changeStatus(s)}
                   className={`rounded-full px-3 py-1 text-xs ${
-                    issue.status === s ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'
+                    issue.status === s ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-muted ring-1 ring-border'
                   }`}
                 >
                   {s.replace('_', ' ')}
@@ -118,41 +133,42 @@ export default function IssueDetailPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg bg-white p-3 ring-1 ring-slate-200">
+          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg bg-surface p-3 ring-1 ring-border">
+            <div className="block">
+              <span className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Assignee</span>
+              <div className="mt-1 w-64">
+                <MemberPicker
+                  projectId={projectId}
+                  value={assigneeUserId}
+                  onChange={(v) => setAssigneeUserId(v as string | null)}
+                />
+              </div>
+            </div>
             <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Assignee</span>
-              <input
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                placeholder="name or email"
-                className="mt-1 block w-56 rounded border border-slate-300 px-2 py-1.5 text-sm"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Due date</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-fg-subtle">Due date</span>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="mt-1 block rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="mt-1 block rounded border border-border-strong px-2 py-1.5 text-sm"
               />
             </label>
             <button
               onClick={saveAssignment}
               disabled={savingAssign}
-              className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+              className="rounded border border-border-strong px-3 py-2 text-sm hover:bg-surface-2 disabled:opacity-50"
             >
               {savingAssign ? 'Saving…' : 'Save'}
             </button>
           </div>
 
           <section className="mt-8">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Comments</h2>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-subtle">Comments</h2>
             <ul className="space-y-2">
-              {comments.length === 0 && <li className="text-sm text-slate-400">No comments yet.</li>}
+              {comments.length === 0 && <li className="text-sm text-fg-subtle">No comments yet.</li>}
               {comments.map((c) => (
-                <li key={c.id} className="rounded-lg bg-white p-3 text-sm ring-1 ring-slate-200">
-                  <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+                <li key={c.id} className="rounded-lg bg-surface p-3 text-sm ring-1 ring-border">
+                  <div className="mb-1 flex items-center justify-between text-xs text-fg-subtle">
                     <span>{c.authorName ?? 'User'}</span>
                     <span>{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
                   </div>
@@ -166,12 +182,12 @@ export default function IssueDetailPage() {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Add a comment…"
-                className="flex-1 rounded border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                className="flex-1 rounded border border-border-strong px-3 py-2 outline-none focus:border-accent"
               />
               <button
                 type="submit"
                 disabled={!newComment.trim()}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                className="rounded bg-accent px-4 py-2 text-sm font-medium text-fg-on-accent hover:bg-accent-hover disabled:opacity-60"
               >
                 Post
               </button>

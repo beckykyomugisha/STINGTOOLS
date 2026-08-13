@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 290" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0.5" y="0.5" width="719" height="289" rx="10" fill="#ffffff" stroke="#CFD8DC"/>
+  <text x="28" y="38" font-size="20" font-weight="700" fill="#263238">What the annotation colour is telling you</text>
+  <text x="28" y="60" font-size="12.5" fill="#607D8B">Auto-colour (colour code = 0). The ticks and label take the colour of the first rule that matches.</text>
+
+  <!-- black -->
+  <line x1="40" y1="100" x2="150" y2="100" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="88" y1="115" x2="106" y2="85" stroke="#212121" stroke-width="4" stroke-linecap="round"/>
+  <line x1="104" y1="115" x2="122" y2="85" stroke="#212121" stroke-width="4" stroke-linecap="round"/>
+  <rect x="180" y="88" width="20" height="20" rx="3" fill="#212121"/>
+  <text x="212" y="104" font-size="15" fill="#37474F"><tspan font-weight="700">Black</tspan> &#8212; normal, nothing to flag</text>
+
+  <!-- red -->
+  <line x1="40" y1="150" x2="150" y2="150" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="88" y1="165" x2="106" y2="135" stroke="#C62828" stroke-width="4" stroke-linecap="round"/>
+  <line x1="104" y1="165" x2="122" y2="135" stroke="#C62828" stroke-width="4" stroke-linecap="round"/>
+  <rect x="180" y="138" width="20" height="20" rx="3" fill="#C62828"/>
+  <text x="212" y="154" font-size="15" fill="#37474F"><tspan font-weight="700" fill="#C62828">Red</tspan> &#8212; voltage drop OR fill over the limit &#8212; check this run</text>
+
+  <!-- orange -->
+  <line x1="40" y1="200" x2="150" y2="200" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="88" y1="215" x2="106" y2="185" stroke="#EF6C00" stroke-width="4" stroke-linecap="round"/>
+  <line x1="104" y1="215" x2="122" y2="185" stroke="#EF6C00" stroke-width="4" stroke-linecap="round"/>
+  <rect x="180" y="188" width="20" height="20" rx="3" fill="#EF6C00"/>
+  <text x="212" y="204" font-size="15" fill="#37474F"><tspan font-weight="700" fill="#EF6C00">Orange</tspan> &#8212; fire-rated cable (FR)</text>
+
+  <!-- blue -->
+  <line x1="40" y1="250" x2="150" y2="250" stroke="#455A64" stroke-width="6" stroke-linecap="round"/>
+  <line x1="88" y1="265" x2="106" y2="235" stroke="#1565C0" stroke-width="4" stroke-linecap="round"/>
+  <line x1="104" y1="265" x2="122" y2="235" stroke="#1565C0" stroke-width="4" stroke-linecap="round"/>
+  <rect x="180" y="238" width="20" height="20" rx="3" fill="#1565C0"/>
+  <text x="212" y="254" font-size="15" fill="#37474F"><tspan font-weight="700" fill="#1565C0">Blue</tspan> &#8212; armoured (SWA) or shielded cable</text>
+</svg>

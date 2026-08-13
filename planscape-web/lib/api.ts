@@ -21,10 +21,19 @@ export function setToken(token: string | null): void {
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /**
+   * The parsed error body, when there was one. `message` is still the field a
+   * caller should show by default; this exists for the handful of responses that
+   * carry structured detail worth rendering differently — e.g. the 402
+   * `{ error: 'quota_exceeded', axis, current, max, reason, upgrade_url }`,
+   * whose useful sentence is `reason`, not `error`.
+   */
+  body?: unknown;
+  constructor(status: number, message: string, body?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -46,13 +55,15 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     let message = `Request failed (HTTP ${res.status})`;
+    let parsed: unknown;
     try {
       const body = await res.json();
+      parsed = body;
       message = body.message || body.error || message;
     } catch {
       /* non-JSON error body — keep the generic message */
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, parsed);
   }
 
   if (res.status === 204) return undefined as T;

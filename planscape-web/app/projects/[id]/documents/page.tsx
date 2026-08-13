@@ -1,32 +1,48 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
-import { listDocuments, documentDownloadUrl, uploadDocument, transitionDocument } from '@/lib/data';
+import {
+  Badge,
+  Button,
+  DataGrid,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  useToast,
+  type Column,
+} from '@/components/ui';
+import { documentDownloadUrl, listDocuments, transitionDocument, uploadDocument } from '@/lib/data';
 import type { ProjectDocument } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 const CDE = ['ALL', 'WIP', 'SHARED', 'PUBLISHED', 'ARCHIVE'] as const;
+const PAGE_SIZE = 50;
 
-// First valid forward transition per CDE state + the suitability it implies
-// (server enforces the full matrix; this is the common-path shortcut).
+/**
+ * U4 — Documents.
+ *
+ * Like transmittals, and per the grid contract, this is NOT an editable grid:
+ * `PUT …/documents/{id}/state` is a CDE state transition the server validates
+ * against the full ISO 19650 matrix. Offering a free status dropdown would
+ * advertise transitions that get rejected, so the row exposes only the single
+ * legal forward move.
+ */
 const NEXT_STATE: Record<string, { to: string; suitability: string; label: string } | undefined> = {
   WIP: { to: 'SHARED', suitability: 'S2', label: 'Share' },
   SHARED: { to: 'PUBLISHED', suitability: 'S4', label: 'Publish' },
   PUBLISHED: { to: 'ARCHIVE', suitability: 'S7', label: 'Archive' },
 };
 
-const cdeClass: Record<string, string> = {
-  WIP: 'bg-slate-100 text-slate-600',
-  SHARED: 'bg-amber-100 text-amber-700',
-  PUBLISHED: 'bg-green-100 text-green-700',
-  ARCHIVE: 'bg-slate-200 text-slate-500',
-  SUPERSEDED: 'bg-red-50 text-red-600',
-  WITHDRAWN: 'bg-red-50 text-red-600',
-};
+function cdeTone(s: string): 'neutral' | 'warning' | 'success' | 'danger' {
+  if (s === 'PUBLISHED') return 'success';
+  if (s === 'SHARED') return 'warning';
+  if (s === 'SUPERSEDED' || s === 'WITHDRAWN' || s === 'OBSOLETE') return 'danger';
+  return 'neutral';
+}
 
 function fmtSize(b?: number): string {
   if (!b) return '';
@@ -36,25 +52,17 @@ function fmtSize(b?: number): string {
 }
 
 export default function DocumentsPage() {
-  const params = useParams<{ id: string }>();
-  const projectId = params.id;
+  const { id: projectId } = useParams<{ id: string }>();
+  const { toast } = useToast();
   const [docs, setDocs] = useState<ProjectDocument[] | null>(null);
   const [cde, setCde] = useState<(typeof CDE)[number]>('ALL');
-  const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [discipline, setDiscipline] = useState('');
   const [busy, setBusy] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-
-  const PAGE_SIZE = 50;
-  const filters = () => ({
-    cdeStatus: cde === 'ALL' ? undefined : cde,
-    search: query || undefined,
-  });
 
   const load = useCallback(() => {
     setDocs(null);
@@ -78,29 +86,31 @@ export default function DocumentsPage() {
     if (!docs) return;
     const page = Math.floor(docs.length / PAGE_SIZE) + 1;
     try {
-      const more = await listDocuments(projectId, { ...filters(), page, pageSize: PAGE_SIZE });
+      const more = await listDocuments(projectId, {
+        cdeStatus: cde === 'ALL' ? undefined : cde,
+        search: query || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      });
       setDocs([...docs, ...more]);
       setHasMore(more.length === PAGE_SIZE);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load more');
+      toast(e instanceof Error ? e.message : 'Failed to load more', 'error');
     }
   }
 
-  async function onUpload(e: React.FormEvent) {
-    e.preventDefault();
+  async function onUpload() {
     if (!file) return;
     setBusy(true);
-    setError(null);
-    setNotice(null);
     try {
       await uploadDocument(projectId, file, { discipline: discipline.trim() || undefined });
-      setNotice('Document uploaded (WIP).');
+      toast(`${file.name} uploaded (WIP)`, 'success');
       setFile(null);
       setDiscipline('');
-      if (fileRef.current) fileRef.current.value = '';
+      setUploadOpen(false);
       load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Upload failed', 'error');
     } finally {
       setBusy(false);
     }
@@ -109,136 +119,148 @@ export default function DocumentsPage() {
   async function onTransition(d: ProjectDocument) {
     const n = NEXT_STATE[d.cdeStatus];
     if (!n) return;
-    setError(null);
-    setNotice(null);
     try {
       await transitionDocument(projectId, d.id, { newState: n.to, suitabilityCode: n.suitability });
-      setNotice(`${d.fileName} → ${n.to}.`);
+      toast(`${d.fileName} → ${n.to}`, 'success');
       load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transition failed');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Transition failed', 'error');
     }
   }
 
+  const columns: Column<ProjectDocument>[] = [
+    { key: 'fileName', header: 'File', className: 'min-w-[18rem]' },
+    {
+      key: 'cdeStatus',
+      header: 'CDE state',
+      className: 'w-32',
+      render: (d) => <Badge tone={cdeTone(d.cdeStatus)}>{d.cdeStatus}</Badge>,
+    },
+    { key: 'suitabilityCode', header: 'Suitability', className: 'w-28' },
+    { key: 'revision', header: 'Rev', className: 'w-20' },
+    { key: 'discipline', header: 'Discipline', className: 'w-28' },
+    {
+      key: 'fileSizeBytes',
+      header: 'Size',
+      className: 'w-24 text-right',
+      value: (d) => d.fileSizeBytes ?? 0,
+      render: (d) => fmtSize(d.fileSizeBytes) || <span className="text-fg-subtle">—</span>,
+    },
+    {
+      key: 'uploadedAt',
+      header: 'Uploaded',
+      className: 'w-28',
+      render: (d) =>
+        d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString() : <span className="text-fg-subtle">—</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-44',
+      sortable: false,
+      render: (d) => {
+        const n = NEXT_STATE[d.cdeStatus];
+        return (
+          <span className="flex gap-1">
+            {n && (
+              <Button size="sm" onClick={() => void onTransition(d)}>
+                {n.label}
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" asChild>
+              <a href={documentDownloadUrl(projectId, d.id)} target="_blank" rel="noreferrer">
+                Download
+              </a>
+            </Button>
+          </span>
+        );
+      },
+    },
+  ];
+
   return (
     <AppShell>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <Link href={`/projects/${projectId}`} className="text-sm text-slate-400 hover:underline">
-            ← Project
-          </Link>
-          <h1 className="text-xl font-semibold">Documents</h1>
-        </div>
-      </div>
-
-      <form onSubmit={onUpload} className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-3">
-        <input
-          ref={fileRef}
-          type="file"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="text-sm"
-        />
-        <input
-          value={discipline}
-          onChange={(e) => setDiscipline(e.target.value)}
-          placeholder="Discipline (e.g. A)"
-          className="w-32 rounded border border-slate-300 px-2 py-1 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={!file || busy}
-          className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {busy ? 'Uploading…' : 'Upload (WIP)'}
-        </button>
-      </form>
-
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {CDE.map((s) => (
-          <button
-            key={s}
-            onClick={() => setCde(s)}
-            className={`rounded-full px-3 py-1 text-xs ${
-              cde === s ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setQuery(search.trim());
-          }}
-          className="ml-auto"
-        >
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search documents…"
-            className="rounded border border-slate-300 px-2 py-1 text-sm"
-          />
-        </form>
-      </div>
-
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {notice && <p className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{notice}</p>}
-      {!docs && !error && <p className="text-slate-400">Loading…</p>}
-      {docs && docs.length === 0 && <p className="text-slate-500">No documents.</p>}
-
-      {docs && docs.length > 0 && (
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
-          {docs.map((d) => (
-            <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium">{d.fileName}</span>
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${cdeClass[d.cdeStatus] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {d.cdeStatus}
-                  </span>
-                </div>
-                <div className="mt-0.5 text-xs text-slate-400">
-                  {d.documentType ? `${d.documentType} · ` : ''}
-                  {d.suitabilityCode ? `${d.suitabilityCode} · ` : ''}
-                  {d.revision ? `${d.revision} · ` : ''}
-                  {d.discipline ? `${d.discipline} · ` : ''}
-                  {fmtSize(d.fileSizeBytes)}
-                  {d.scanStatus && d.scanStatus !== 'CLEAN' && d.scanStatus !== 'SKIPPED' ? ` · ${d.scanStatus}` : ''}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {NEXT_STATE[d.cdeStatus] && (
-                  <button
-                    onClick={() => onTransition(d)}
-                    className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
-                  >
-                    {NEXT_STATE[d.cdeStatus]!.label}
-                  </button>
-                )}
-                <a
-                  href={documentDownloadUrl(projectId, d.id)}
-                  className="text-sm text-blue-600 hover:underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Download
-                </a>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
+      <PageHeader
+        title="Documents"
+        description="CDE state advances through the ISO 19650 transitions, not by editing."
+        actions={
+          <Button variant="primary" onClick={() => setUploadOpen(true)}>
+            Upload
+          </Button>
+        }
+      />
+      <DataGrid<ProjectDocument>
+        rows={docs}
+        columns={columns}
+        rowId={(d) => d.id}
+        loading={!docs && !error}
+        error={error}
+        // The list is server-filtered + paged, so the grid's own text filter
+        // would only search the page in hand and quietly look broken.
+        filterable={false}
+        emptyTitle="No documents"
+        emptyDescription="Upload a drawing, model or report to start the CDE workflow."
+        toolbar={() => (
+          <>
+            <Select
+              value={cde}
+              onChange={(e) => setCde(e.target.value as (typeof CDE)[number])}
+              aria-label="Filter by CDE state"
+              className="h-7 w-36"
+            >
+              {CDE.map((c) => (
+                <option key={c} value={c}>
+                  {c === 'ALL' ? 'All states' : c}
+                </option>
+              ))}
+            </Select>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const v = new FormData(e.currentTarget).get('q');
+                setQuery(String(v || ''));
+              }}
+            >
+              <Input name="q" placeholder="Search documents…" aria-label="Search documents" className="h-7 w-52" />
+            </form>
+          </>
+        )}
+      />
       {hasMore && (
-        <div className="mt-3 text-center">
-          <button
-            onClick={loadMore}
-            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
-          >
-            Load more
-          </button>
+        <div className="mt-3 flex justify-center">
+          <Button onClick={() => void loadMore()}>Load more</Button>
         </div>
       )}
+
+      <Modal
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        title="Upload document"
+        description="Uploads land in WIP; share and publish from the row actions."
+        footer={
+          <>
+            <Button onClick={() => setUploadOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={() => void onUpload()} disabled={busy || !file}>
+              {busy ? 'Uploading…' : 'Upload'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-fg-muted">File</span>
+            <input
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="text-sm text-fg file:mr-2 file:rounded file:border-0 file:bg-surface-3 file:px-2 file:py-1 file:text-sm file:text-fg"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-fg-muted">Discipline (optional)</span>
+            <Input value={discipline} onChange={(e) => setDiscipline(e.target.value)} placeholder="e.g. Structural" />
+          </label>
+        </div>
+      </Modal>
     </AppShell>
   );
 }

@@ -241,7 +241,9 @@ Walks every cable in the manifest with no `RouteTrayIds`, computes a Manhattan L
 For each unrouted cable:
 
 1. Resolve ElectricalSystem by CircuitId (BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)
-2. Resolve start (load location) + end (panel location) from LocationPoint
+2. Resolve start (load) + end (panel) via RoutingOriginResolver:
+   free conduit connector → any free connector → LocationPoint (fallback)
+   (one origin contract shared with AutoConduitDrop's fixture drops)
 3. Resolve level from loadEl.LevelId or active view
 4. SelectConduitDiameterMm — ≤40% fill (BS EN 61386)
 5. ComputeRoute(start, end, diameter, label) — 3-segment L/Z
@@ -319,6 +321,49 @@ After all cables are routed:
 - **"No conduit type found"** → Load a `ConduitType` family before running.
 - **All cables skip with "no panel"** → Run `Circuit_AssignAuto` first so cables have `BaseEquipment` set.
 - **Junction boxes show "NEEDED:..." instead of placing** → `STING_SEED_JunctionBox` family not loaded. Run `Build Seed Families`, finish per `Families/Seeds/README.md`.
+
+---
+
+## Sleeve connectors (the "sleeve method")
+
+### What it does
+Authors a short conduit **stub** carrying a real `Domain.DomainCableTrayConduit` connector on electrical fixtures that have **no free conduit connector** — chiefly manufacturer families after `Symbols_SwapToManufacturer`, which drop the seed's authored connector. Gives `RoutingOriginResolver` / `AutoConduitDrop` a genuine terminal to start from instead of the family `LocationPoint`. This is the connector-authorship gap no third-party conduit tool (EasyConduit, ConduiTool, Automatic Conduit, EVOLVE) fills — they all *require* a connector and none author one.
+
+### Command
+- **Tag**: `Routing_PlaceSleeveConnectors` (interactive — previews, then places) / `Routing_PlaceSleeveConnectorsAuto` (headless, workflow step)
+- **Class**: `PlaceSleeveConnectorsCommand` / `PlaceSleeveConnectorsAutoCommand`
+- **Engine**: `SleeveConnectorEngine` (`Core/Mep/`)
+
+### Pipeline
+
+```
+Target set: selection (electrical fixtures) else active-view electrical fixtures
+For each fixture:
+
+1. HasFreeConduitConnector? → AlreadyRoutable, skip
+2. terminal = LocationPoint (+ FIXTURE_DROP_OFFSET_Z_MM hint; Double=feet, String=mm)
+3. AlreadySleeved(fixtureId, terminal)? → skip (idempotent)
+   ├── primary: a conduit stub stamped
+   │            ELC_CDT_INSTALL_METHOD_TXT = "STING_SLEEVE_STUB:<fixtureId>"
+   └── fallback: a conduit End connector ≤ 10 mm from the terminal
+4. dirZ = -1 for floor boxes (ELE_FIX_MOUNT_HEIGHT_MM≈0 / "FLOOR" / Floor host), else +1
+5. Conduit.Create(doc, conduitType, from, from + dirZ*StubLength, level)
+   ├── RBS_CONDUIT_DIAMETER_PARAM = StubSizeMm (default 20 mm)
+   └── ELC_CDT_INSTALL_METHOD_TXT  = "STING_SLEEVE_STUB:<fixtureId>"
+```
+
+### Inputs
+- Loaded `ConduitType` (first available)
+- `MepSizingRegistry`: `conduit.sleeveStubSizeMm` (20) / `sleeveStubLengthMm` (150); project override at `<project>/_BIM_COORD/mep_sizing_rules.json`
+
+### Outputs
+- One `Conduit` stub per connector-less fixture; the free (outward) end is the routable terminal `Routing_AutoDrop` extends to containment
+- Dry-run mode plans + reports counts/positions without opening a transaction or creating geometry
+
+### Notes
+- **Idempotent** — the per-fixture ElementId stamp means re-runs are no-ops, and two connector-less fixtures ~30 mm apart each get their **own** stub (not merged).
+- **Not bonded to the fixture** — a connector-less fixture has nothing to bond to; the stub floats at the face and *provides* the terminal. Bonding is stub ↔ drop ↔ containment.
+- **Pre-flight**: `RoutingPreflightValidator` (in `Run All Validators` and inside Auto Drop) flags `CONN.DOMAIN.NOCONDUIT` (a sleeve target) and `SIZE.MISMATCH` (a connector Ø not in the project Conduit Standards size list — the "no auto-route solution" cause).
 
 ---
 
@@ -760,7 +805,7 @@ Because every STING parameter has a stable shared-param GUID:
 - ✅ `LTG_*` lighting params — UF/MF/lumens carry over
 - ✅ `ELC_PHOTO_*` photometric params — Dialux references survive
 - ✅ `STING_DESIGN_REF_TXT` — original seed identity audit-trail preserved
-- ⚠️ Connectors — Revit re-creates them on `ChangeTypeId`; mismatches drop. RestitchSwappedConnectors rejoins what it can.
+- ⚠️ Connectors — Revit re-creates them on `ChangeTypeId`; mismatches drop. RestitchSwappedConnectors rejoins what it can; for fixtures the swap leaves with **no conduit connector**, the **sleeve method** (`Routing_PlaceSleeveConnectors`, see above) authors a stub terminal so auto-drop can still route them.
 
 ---
 
@@ -792,6 +837,20 @@ End-to-end panel-schedule pipeline:
 5. Panel_Audit              (re-audit to confirm convergence)
 ```
 
+### `WORKFLOW_ElectricalRoughIn.json`
+Place → sleeve → drop → validate, from selected rooms to routed conduit in one run.
+Each step hands the next its selection (`PlaceFixturesCommand` calls `Selection.SetElementIds`).
+
+```
+1. Seeds_Build                       (build STING_SEED_ElectricalFixture, incl. conduit terminal)
+2. Placement_PlaceFixtures           (place per room rules; leaves them selected)
+3. Routing_PlaceSleeveConnectorsAuto (sleeve connector-less fixtures; no-op if already routable)
+4. Routing_AutoDrop                  (AutoConduitDrop → nearest containment)
+5. Validation_RunAll                 (CONN.OPEN + SIZE.MISMATCH + penetration coverage)
+```
+
+Field names are `commandTag`/`label` per the `WorkflowStep` POCO; every tag resolves in `WorkflowEngine.ResolveCommand`.
+
 ### Conditions implemented in `WorkflowEngine.EvaluateSingleCondition`
 | Condition | Returns true when |
 |---|---|
@@ -820,7 +879,7 @@ End-to-end panel-schedule pipeline:
 | `ELC_CDT_CABLE_COUNT_NR` | Conduits | `ConsolidatorApply`, manual | `ElectricalStandardsValidator` (fill table row) |
 | `ELC_CDT_BREAKPOINT_TXT` | Conduits, Conduit Fittings | `JBAutoPlacer` | `SlabPenetrationDetector` (Wave J3 inheritance) |
 | `ELC_CDT_PENETRATION_COUNT_NR` | Conduits, Pipes, Ducts | `SlabPenetrationDetector` | schedule, JBAutoPlacer (avoid-collision) |
-| `ELC_CDT_INSTALL_METHOD_TXT` | Conduits, Conduit Fittings | `AutoConduitDrop` | takeoff, schedule |
+| `ELC_CDT_INSTALL_METHOD_TXT` | Conduits, Conduit Fittings | `AutoConduitDrop`, `SleeveConnectorEngine` (`STING_SLEEVE_STUB:<fixtureId>`) | takeoff, schedule, sleeve idempotency |
 | `ELC_CDT_FAB_METHOD_TXT` | Conduits | `AutoConduitDrop` | fabrication |
 | `ELC_CDT_CBL_FILL_PCT` | Conduits | `ConduitFillValidate` | `ElectricalStandardsValidator` |
 | `ELC_CONDUIT_ROUTE` | Conduits | `ConduitAutoRouteCommand`, `Consolidator` | route grouping |
