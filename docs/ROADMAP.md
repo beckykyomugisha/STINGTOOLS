@@ -1413,3 +1413,43 @@ Pooled client for `PluginTelemetry` (currently `new HttpClient()` per call), rou
 ad-hoc unauthenticated clients through `PlanscapeServerClient`, and resolving the
 workflow-state dual storage (ES `StingWorkflowStateSchema` vs `workflow_state.json`) —
 pick one, migrate, document the storage-ownership rule in CLAUDE.md.
+## ArchiCAD ↔ Planscape ↔ Revit ↔ ArchiCAD round-trip — cross-tool gaps (deep review)
+
+Four-leg audit of the full loop (StingBridge/Python · Planscape.Server/C# · StingTools/Revit-C# ·
+shared `stingtools_core`). **Verdict: today it is two disjoint half-loops (ArchiCAD↔Planscape and
+Revit↔Planscape) that share a database but not an element identity, a merge policy, or a return path.**
+Both *push* directions work; both *return* legs are missing/stubbed; and the working push legs do not
+share a stable identity, so a change made in one tool cannot be re-found in another. The design intent —
+key everything on the **IFC GlobalId** and unify via `ExternalElementMapping` — is correct and
+documented in the code, just not wired end-to-end.
+
+Hop status: **①ArchiCAD→Planscape** ✅ push works · **②Planscape→Revit** ❌ pull transport exists
+(`PlanscapeServerClient.GetElementsDeltaAsync`) with zero callers, no native write-back ·
+**③Revit→Planscape** ⚠️ push works but keyed on a Revit-minted GUID (or none) not the ArchiCAD
+GlobalId · **④→ArchiCAD** ❌ `StingTools.ArchiCAD` is a scaffold; StingBridge live "Planscape-wins"
+writes back stale local data; the IFC path writes a `_sting.ifc` side-file, never the authored model.
+
+| ID | Gap | Severity | Where | Status |
+|---|---|---|---|---|
+| **R1** | **Identity doesn't survive the loop.** Same physical element = two un-mergeable `TaggedElement` rows (Revit keyed on `RevitElementId`/`UniqueId`; IFC/ArchiCAD keyed on `IfcGlobalId`), and the Revit row never even stores the GlobalId (`TagSyncController.MapDtoToEntity` drops `dto.IfcGlobalId`). `ExternalElementMapping` is populated but never read to merge them. Revit re-mints a fresh IfcGUID on export instead of carrying the ArchiCAD GlobalId (`ARCHICAD_GUID` vs `IFC_GLOBAL_ID_TXT`). The `/changes` feed keys on `TaggedElement.UniqueId`, so a Revit edit reaches a Python/ArchiCAD host with an unmatchable key and is dropped as `absent`. | CRITICAL | server + Revit + core + bridge | OPEN |
+| **R2** | **Both return legs unimplemented.** Planscape→Revit tag write-back has no caller and no native-stamp path; →ArchiCAD does not exist (`StingTools.ArchiCAD` C++ stub: no HTTP impl, placeholder dialogs, `CollectElements()` returns empty, stale base URL `api.planscape.app`). StingBridge live conflict "Planscape wins" writes back the *same local values* because it only pulls timestamps (`get_element_timestamps`), not remote values. | HIGH | Revit + StingTools.ArchiCAD + bridge | OPEN |
+| **R3** | **`/ifc/data` never refreshed compliance/`LastSyncAt`**, so ArchiCAD/Bonsai-only projects read 0%/stale forever and the 6-hourly `ComplianceSnapshotJob` (filters on `LastSyncAt`) skipped them. | HIGH | server | **CLOSED** — `IfcIngestService.UpdateProjectComplianceAsync` (this branch) |
+| **R4** | **Divergent implementations.** The shared `stingtools_core` (reconcile engine, cursor `/changes` feed, digest-tiebreak convergence, conflict sidecar) spans **only the Python hosts**. Revit reimplements it in C# on a *different* pull endpoint (watermark `GET /tagsync/elements`), with *no* `ReconcileEngine`, and a max-per-key SEQ merge whose own comment admits it "cannot stop Revit and StingBridge minting the same number concurrently". | HIGH | Revit + core | OPEN |
+| **R5** | **Provenance not stamped.** `TaggedElement.Source` is written only by the .ifc file-upload path; both live doors (`/tagsync`, `/ifc/data`) leave it null, so the server can't tell a Revit-origin row from an ArchiCAD-origin one. | MEDIUM | server | OPEN |
+| **R6** | **Deletions never propagate.** No tombstones in the feed or `ChangeDelta`; an absent GlobalId is dropped. The loop can create but never retract. | MEDIUM | core + server | OPEN |
+| **R7** | **Units.** `level_for_storey_name` is metre-only while IFC is often mm (fixed for the Bonsai/core path in PR #639; still live elsewhere); Revit geometry GLB ships raw **feet** (3.28× off vs metric ArchiCAD, `GeometrySyncHandler`); `GeorefDescriptor` mixes mm/m. | MEDIUM | Revit + core + bridge | PARTIAL |
+| **R8** | **Two conflict policies.** The `/tagsync` door has real LWW + `Version` + `SyncConflict` log; the `/ifc/data` door only "skips if strictly older" (equal timestamps overwrite, no version bump, no audit). Two overlapping identity tables (`ExternalElementMapping` + self-marked-SUPERSEDED `ElementGlobalIdRegistry`) also coexist. | MEDIUM/LOW | server | OPEN |
+| **R3-fu** | **Follow-up to R3:** `UpdateProjectComplianceAsync` duplicates `TagSyncController.ComputeComplianceAsync`'s scalar formula — extract one shared compliance calculator so the two doors (and `ComplianceSnapshotJob`, a third copy) can never drift. Also: this recompute counts `TaggedElement` rows, which R1 double-counts for mixed Revit+IFC projects. | LOW | server | OPEN |
+
+**Recommended order to actually close the loop:** (1) make the IFC GlobalId the one true key end-to-end
+— Revit carries the ArchiCAD GlobalId through on import instead of re-minting, and the server dedups
+`TaggedElement` + has pull/issues/compliance consume `ExternalElementMapping`; (2) wire the two return
+legs (a caller for `GetElementsDeltaAsync` that stamps `ASS_*` params; a real →ArchiCAD writer — the
+complete `ArchiCadHostAdapter.apply_remote_change` already exists but is wired only into tests); (3)
+R3 (done); then tombstones (R6), unit normalization (R7), and unifying conflict policy on the core
+`ReconcileEngine` (R4/R8). Items (1)–(2) are architectural (identity redesign + two new write paths)
+and warrant a short spec + owner decisions (dedup strategy; whether Revit should consume the Python
+core via a service or stay C#).
+
+**Spec:** the R1/R2 implementation plan (work items per codebase, owner decisions D1–D6, phasing, and
+end-to-end acceptance tests) is written up in [`ROUND_TRIP_R1_R2_SPEC.md`](ROUND_TRIP_R1_R2_SPEC.md).
