@@ -314,6 +314,14 @@ class SyncEngine:
             )
 
         # ── Post to Planscape in batches ──────────────────────────────────────
+        # R1.4 residual — the live path sends NO host_document_guid (null); the
+        # IFC-drop path sends a per-file id. So the SAME project synced live vs via
+        # an exported IFC lands under different HostDocumentGuids and forks into two
+        # ExternalElementMapping rows. Unifying them is a design question, not a
+        # quick patch: the IFC path is deliberately PER-FILE (federated models are
+        # distinct documents — see ifc_watcher doc_guid), so "consistency" can't
+        # just mean one shared key. Tracked as SB-1b; a first step is an ArchiCAD
+        # project-GUID command on the client so the live path can send a stable id.
         if all_sync_elements:
             for i in range(0, len(all_sync_elements), self._batch_size):
                 batch = all_sync_elements[i : i + self._batch_size]
