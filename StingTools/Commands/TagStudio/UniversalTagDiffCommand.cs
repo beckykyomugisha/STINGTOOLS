@@ -70,11 +70,24 @@ namespace StingTools.Commands.TagStudio
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData?.Application?.ActiveUIDocument;
+            // ExternalCommandData is ALWAYS null when the dock panel dispatches:
+            // StingCommandHandler.RunCommand<T> calls Execute(null, ref message,
+            // elSet) and discards `message`. A command that only reads
+            // commandData therefore sees no document, returns Failed, and the
+            // button does nothing at all — which is what this one did on its
+            // first run in Revit. CurrentApp is the documented fallback.
+            UIApplication uiapp = commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
+            UIDocument uidoc = uiapp?.ActiveUIDocument;
             Document doc = uidoc?.Document;
             if (doc == null)
             {
+                // Never return Failed silently from a panel button. `message` is
+                // dropped on this path, so the dialog IS the error report.
                 message = "No active document.";
+                TaskDialog.Show("Universal Tag Diff",
+                    "No active document.\n\n" +
+                    "Open the universal master in the Family Editor, or a project " +
+                    "with tag families loaded, and run this again.");
                 return Result.Failed;
             }
 
@@ -131,6 +144,9 @@ namespace StingTools.Commands.TagStudio
             {
                 StingLog.Error("UniversalTagDiffCommand", ex);
                 message = ex.Message;
+                // Same reason as above: RunCommand discards `message`, so an
+                // exception here would otherwise present as a dead button.
+                TaskDialog.Show("Universal Tag Diff", "Failed:\n\n" + ex.Message);
                 return Result.Failed;
             }
         }
