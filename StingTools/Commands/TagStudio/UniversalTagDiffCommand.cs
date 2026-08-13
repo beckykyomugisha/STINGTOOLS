@@ -1,33 +1,35 @@
 // ============================================================================
-// UniversalTagDiffCommand.cs — does this tag family match the build sheet?
+// UniversalTagDiffCommand.cs — audit a tag family's gates and bindings.
 //
-// WHY THIS EXISTS
+// WHAT THIS COMMAND IS FOR
 //
-// The universal tag label is 65 rows, each a calculated value whose formula
-// gates its tier: if(TAG_PARA_STATE_n_BOOL, <source>, ""). Revit omits a
-// parameter that evaluates to empty, so a gate turned off collapses its rows and
-// the tag gets shorter. That is how tier depth was designed to work, and
-// UNIVERSAL_TAG_FINALIZE_RUNNER.md records it working.
+// The universal tag renders its tiers by content gating: each label row is a
+// calculated value whose formula is if(TAG_PARA_STATE_n_BOOL, <source>, ""), and
+// Revit omits a parameter that evaluates to empty, so a gate turned off collapses
+// its rows. Verified live on STING_Tag_Universal 2026-08-13: unticking
+// TAG_PARA_STATE_2_BOOL collapsed the tag to the ISO code alone.
 //
-// On the master family in front of us it does not work, and the reason is not
-// the design: the Formula column in Family Types is empty on every row. The
-// gates exist as parameters; nothing reads them; every row renders
-// unconditionally. Toggling a gate does nothing because no formula consults it.
+// This command reports the parts of that machinery the Revit API can actually
+// observe: which gates are bound, whether each is an instance or a type
+// parameter, and which of the spec's source parameters exist in the family.
 //
-// This command reports that difference precisely, per row, rather than leaving
-// it to be inferred from a screenshot. It is READ-ONLY. It is also the oracle
-// for any code that authors these formulas: author into a copy, run this, and a
-// clean report is the proof. FamilyLabelAuthor currently writes the formula onto
-// the SOURCE parameter rather than the calculated value, which this command
-// flags as SELF-REFERENTIAL — so the check earns its keep before anything is
-// automated.
+// WHAT IT DELIBERATELY DOES NOT CLAIM
 //
-// WHAT IT DOES NOT DO
+// It cannot see label calculated values. They live in the label's own field
+// definition, NOT in FamilyManager.Parameters, and the API exposes no reader for
+// them. An earlier version of this command enumerated family parameters, failed
+// to find names like "Show T4 - Commissioning - State", and reported all 64 rows
+// "calculated value missing" — then concluded from that absence that the rows had
+// never been built. Every one of them existed, correctly formulated, in the
+// label. The absence was an artefact of looking in the wrong place.
 //
-// It does not create, repair or reorder label rows. The Revit API cannot author
-// label rows at all (build sheet, line 7), and even the parts that ARE possible
-// — binding a parameter, setting a formula — stay out of a command whose whole
-// value is being trustworthy about what it found.
+// So the row-by-row comparison is gone rather than reworded. A check that cannot
+// observe its subject must not report on it: a confident wrong answer cost more
+// here than no answer would have. To inspect label rows, open Edit Label in the
+// Family Editor and read the Formula field of a calculated value — that is the
+// only reliable route, and the report says so.
+//
+// READ-ONLY. Writes two CSVs and changes nothing.
 // ============================================================================
 
 using System;
@@ -43,76 +45,57 @@ using StingTools.Tags;
 namespace StingTools.Commands.TagStudio
 {
     /// <summary>
-    /// Compares a tag family against STING_UNIVERSAL_TAG_ROWS.csv (generated from
-    /// the build sheet) and reports, per row, whether the calculated value exists
-    /// and carries the correct gated formula.
+    /// Read-only audit of a tag family's tier gates and spec source bindings.
+    /// Reports gate presence and instance/type binding, flags the mixed-binding
+    /// inconsistency, and writes a full parameter inventory.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class UniversalTagDiffCommand : IExternalCommand
     {
-        /// <summary>Per-row outcome. Order matters: worst first in the summary.</summary>
-        private enum RowVerdict
-        {
-            Ok,                 // calc value present, formula matches the spec
-            FormulaMismatch,    // present with a formula, but not the spec's
-            SelfReferential,    // formula sits on the source parameter — will not work
-            NoFormula,          // parameter exists, Formula cell empty  <- the master's state
-            MissingParam,       // no family parameter of that name at all
-            SourceUnbound,      // calc value fine, but the parameter it reads is not in the family
-        }
+        private const string WarnGate = "TAG_WARN_VISIBLE_BOOL";
+        private const string DialogTitle = "Universal Tag — Gate Audit";
 
-        private sealed class RowResult
+        /// <summary>All eleven gates the tier system uses, in tier order.</summary>
+        private static IEnumerable<string> AllGates()
         {
-            public UniversalTagRow Spec;
-            public RowVerdict Verdict;
-            public string Found;      // what the family actually has, for the report
+            for (int i = 1; i <= 10; i++) yield return "TAG_PARA_STATE_" + i + "_BOOL";
+            yield return WarnGate;
         }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            // ExternalCommandData is ALWAYS null when the dock panel dispatches:
-            // StingCommandHandler.RunCommand<T> calls Execute(null, ref message,
-            // elSet) and discards `message`. A command that only reads
-            // commandData therefore sees no document, returns Failed, and the
-            // button does nothing at all — which is what this one did on its
-            // first run in Revit. CurrentApp is the documented fallback.
+            // ExternalCommandData is always null on the dock-panel path; RunCommand
+            // discards `message`, so every exit here has to speak for itself.
             UIApplication uiapp = commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
-            UIDocument uidoc = uiapp?.ActiveUIDocument;
-            Document doc = uidoc?.Document;
+            Document doc = uiapp?.ActiveUIDocument?.Document;
             if (doc == null)
             {
-                // Never return Failed silently from a panel button. `message` is
-                // dropped on this path, so the dialog IS the error report.
                 message = "No active document.";
-                TaskDialog.Show("Universal Tag Diff",
+                TaskDialog.Show(DialogTitle,
                     "No active document.\n\n" +
-                    "Open the universal master in the Family Editor, or a project " +
-                    "with tag families loaded, and run this again.");
+                    "Open a tag family in the Family Editor, or a project with tag " +
+                    "families loaded, and run this again.");
                 return Result.Failed;
             }
 
             try
             {
-                UniversalTagRowSpec.Reload();   // pick up an edited CSV without restarting Revit
+                UniversalTagRowSpec.Reload();
                 var spec = UniversalTagRowSpec.Load();
                 if (spec.Count == 0)
                 {
-                    // An empty spec must never read as "nothing wrong".
-                    TaskDialog.Show("Universal Tag Diff",
+                    TaskDialog.Show(DialogTitle,
                         $"The row spec is unavailable — {UniversalTagRowSpec.DataFileName} was not found\n" +
                         "in the plugin's data folder.\n\n" +
                         "Regenerate it from the build sheet:\n" +
                         "  python tools/extract_universal_tag_rows.py\n\n" +
-                        "No comparison was made.");
+                        "No audit was made.");
                     return Result.Cancelled;
                 }
 
                 if (doc.IsFamilyDocument)
-                    return ReportOn(doc.FamilyManager, doc.Title, spec, doc, openedByUs: null);
+                    return ReportOn(doc.FamilyManager, doc.Title, doc);
 
-                // In a project: pick one loaded tag family and inspect it via
-                // EditFamily, which hands back a family Document without taking
-                // over the UI. We close it again in the finally.
                 Family fam = PickTagFamily(doc);
                 if (fam == null) return Result.Cancelled;
 
@@ -122,17 +105,13 @@ namespace StingTools.Commands.TagStudio
                     fdoc = doc.EditFamily(fam);
                     if (fdoc == null || !fdoc.IsFamilyDocument)
                     {
-                        TaskDialog.Show("Universal Tag Diff",
-                            $"Could not open '{fam.Name}' for inspection.");
+                        TaskDialog.Show(DialogTitle, $"Could not open '{fam.Name}' for inspection.");
                         return Result.Failed;
                     }
-                    return ReportOn(fdoc.FamilyManager, fam.Name, spec, doc, openedByUs: fdoc);
+                    return ReportOn(fdoc.FamilyManager, fam.Name, doc);
                 }
                 finally
                 {
-                    // Close what we opened. Closing is best-effort: a family the
-                    // user already had open in an editor tab cannot be closed
-                    // from here, and that is not an error worth surfacing.
                     if (fdoc != null)
                     {
                         try { fdoc.Close(false); }
@@ -144,26 +123,21 @@ namespace StingTools.Commands.TagStudio
             {
                 StingLog.Error("UniversalTagDiffCommand", ex);
                 message = ex.Message;
-                // Same reason as above: RunCommand discards `message`, so an
-                // exception here would otherwise present as a dead button.
-                TaskDialog.Show("Universal Tag Diff", "Failed:\n\n" + ex.Message);
+                TaskDialog.Show(DialogTitle, "Failed:\n\n" + ex.Message);
                 return Result.Failed;
             }
         }
 
         // ------------------------------------------------------------------
 
-        private static Result ReportOn(FamilyManager fm, string familyName,
-                                       List<UniversalTagRow> spec, Document contextDoc,
-                                       Document openedByUs)
+        private static Result ReportOn(FamilyManager fm, string familyName, Document contextDoc)
         {
             if (fm == null)
             {
-                TaskDialog.Show("Universal Tag Diff", $"'{familyName}' has no FamilyManager.");
+                TaskDialog.Show(DialogTitle, $"'{familyName}' has no FamilyManager.");
                 return Result.Failed;
             }
 
-            // Index the family's parameters once, by name.
             var byName = new Dictionary<string, FamilyParameter>(StringComparer.Ordinal);
             foreach (FamilyParameter fp in fm.Parameters)
             {
@@ -171,140 +145,90 @@ namespace StingTools.Commands.TagStudio
                 if (!string.IsNullOrEmpty(n)) byName[n] = fp;
             }
 
-            var results = new List<RowResult>();
-            foreach (UniversalTagRow row in spec)
-            {
-                if (!row.IsCalculated) continue;   // T1 primary row carries no formula
-                results.Add(Judge(row, byName));
-            }
-
-            // Per-family rows. The universal spec covers T1/T2/T4-T10 — the rows
-            // that are identical on all 206 families. T3 is the per-family
-            // engineering block (wall build-up on a wall tag, duct-terminal data
-            // on a duct tag) and lives in the v5 CSVs instead. Checking only the
-            // universal spec would report a correctly-authored T3 row as
-            // something the family should not have.
-            int perFamilyRows = 0;
-            var perFamily = LoadPerFamilyRows(contextDoc, familyName, out perFamilyRows);
-            foreach (UniversalTagRow row in perFamily)
-                results.Add(Judge(row, byName));
-
-            // Gate parameters: the formulas cannot work without them, and the
-            // master is missing several (STATE_1/2/3 and the warning gate).
-            var gatesMissing = UniversalTagRowSpec.GateParameters()
-                .Where(g => !byName.ContainsKey(g))
-                .ToList();
-            const string WarnGate = "TAG_WARN_VISIBLE_BOOL";
-            bool warnGateMissing = !byName.ContainsKey(WarnGate);
-
             var sb = new StringBuilder();
             sb.AppendLine($"Family: {familyName}");
-            sb.AppendLine($"Spec:   {UniversalTagRowSpec.DataFileName} — {spec.Count} universal rows");
-            sb.AppendLine(perFamilyRows > 0
-                ? $"        + {perFamilyRows} per-family row(s) from the v5 tag-config CSVs (T3)"
-                : "        no per-family (T3) rows declared for this family");
-            sb.AppendLine($"        {results.Count} calculated rows checked");
+            sb.AppendLine($"Family parameters: {byName.Count}");
             sb.AppendLine();
 
-            foreach (RowVerdict v in new[]
-                     {
-                         RowVerdict.Ok, RowVerdict.NoFormula, RowVerdict.MissingParam,
-                         RowVerdict.SelfReferential, RowVerdict.FormulaMismatch, RowVerdict.SourceUnbound
-                     })
+            // ---- gates -------------------------------------------------------
+            var missing = new List<string>();
+            var instanceGates = new List<string>();
+            var typeGates = new List<string>();
+
+            foreach (string g in AllGates())
             {
-                int n = results.Count(r => r.Verdict == v);
-                if (n > 0) sb.AppendLine($"  {Describe(v),-46} {n,3}");
+                FamilyParameter fp;
+                if (!byName.TryGetValue(g, out fp)) { missing.Add(g); continue; }
+                bool isInstance;
+                try { isInstance = fp.IsInstance; } catch { isInstance = false; }
+                (isInstance ? instanceGates : typeGates).Add(g);
             }
 
-            if (gatesMissing.Count > 0 || warnGateMissing)
+            sb.AppendLine("  TIER GATES");
+            sb.AppendLine($"    bound as TYPE parameters      {typeGates.Count,3}");
+            sb.AppendLine($"    bound as INSTANCE parameters  {instanceGates.Count,3}");
+            sb.AppendLine($"    not present                   {missing.Count,3}");
+
+            if (missing.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("  MISSING GATE PARAMETERS — rows gated on these can never render:");
-                foreach (string g in gatesMissing) sb.AppendLine($"    {g}");
-                if (warnGateMissing) sb.AppendLine($"    {WarnGate}  (status badges)");
+                sb.AppendLine("    NOT PRESENT — rows gated on these can never be switched:");
+                foreach (string g in missing) sb.AppendLine($"      {g}");
             }
 
-            // WHAT THE FAMILY ACTUALLY HAS.
-            //
-            // When every spec row comes back "calculated value missing", the
-            // absence is the least informative thing that can be said — it has
-            // two very different causes and reporting only the miss cannot tell
-            // them apart:
-            //
-            //   never created   the label holds the SOURCE parameters directly.
-            //                   Raw parameters always render and no gate is ever
-            //                   consulted, which matches the symptom exactly.
-            //   named otherwise the calculated values exist under names the build
-            //                   sheet does not use, so the lookup misses and this
-            //                   is a naming mismatch, not a structural gap.
-            //
-            // The two need different amounts of work, so the inventory decides it
-            // rather than a reading of a screenshot.
-            int sourcesBound = UniversalTagRowSpec.SourceParameters().Count(byName.ContainsKey);
-            int sourcesTotal = UniversalTagRowSpec.SourceParameters().Count;
-            var formulaBearing = byName.Values
-                .Where(fp => !string.IsNullOrWhiteSpace(fp.Formula))
-                .ToList();
-
-            sb.AppendLine();
-            sb.AppendLine("  What the family actually carries:");
-            sb.AppendLine($"    family parameters, total              {byName.Count,4}");
-            sb.AppendLine($"    spec SOURCE parameters bound          {sourcesBound,4} of {sourcesTotal}");
-            sb.AppendLine($"    parameters carrying ANY formula       {formulaBearing.Count,4}");
-
-            int ok = results.Count(r => r.Verdict == RowVerdict.Ok);
-            int missing = results.Count(r => r.Verdict == RowVerdict.MissingParam);
-            sb.AppendLine();
-            if (ok == results.Count && gatesMissing.Count == 0)
+            // The split is the defect worth surfacing. Tier Defaults and
+            // SetParagraphDepth both write gates on the FamilySymbol — the TYPE.
+            // A gate bound as an instance parameter is not on the symbol, so those
+            // writes cannot reach it and report success anyway.
+            if (instanceGates.Count > 0 && typeGates.Count > 0)
             {
-                sb.AppendLine("CONFORMS. Every calculated row carries its gated formula, and every");
-                sb.AppendLine("gate the spec references is bound. Tier depth will work on this family.");
-            }
-            else if (missing == results.Count && formulaBearing.Count == 0 && sourcesBound > 0)
-            {
-                // The decisive combination: none of the calculated values exist,
-                // nothing in the family has a formula at all, but the sources ARE
-                // bound. The label is holding raw parameters.
-                sb.AppendLine("NO CALCULATED VALUES AT ALL. None of the spec's calculated values");
-                sb.AppendLine($"exist, no parameter in this family carries a formula, and {sourcesBound} of the");
-                sb.AppendLine($"{sourcesTotal} source parameters ARE bound. The label is holding the source");
-                sb.AppendLine("parameters directly, which is why every row renders and why toggling a");
-                sb.AppendLine("gate changes nothing — there is no formula to consult one.");
                 sb.AppendLine();
-                sb.AppendLine("This is NOT 65 empty Formula cells. Gating this family means creating");
-                sb.AppendLine($"{missing} calculated values AND swapping {missing} rows in Edit Label by hand — the");
-                sb.AppendLine("Revit API can create the parameters but cannot put them in a label.");
+                sb.AppendLine("    MIXED BINDING — this family gates on both, which splits control:");
+                sb.AppendLine($"      instance: {string.Join(", ", instanceGates.Select(Short))}");
+                sb.AppendLine($"      type:     {string.Join(", ", typeGates.Select(Short))}");
+                sb.AppendLine();
+                sb.AppendLine("    Instance gates do NOT appear in Edit Type — look in the Properties");
+                sb.AppendLine("    palette of a selected tag. 'Tier Defaults' writes the TYPE, so it");
+                sb.AppendLine("    cannot set the instance ones. Run 'Normalise Gates' to make them");
+                sb.AppendLine("    all type parameters.");
             }
-            else if (missing == results.Count && formulaBearing.Count > 0)
+
+            // ---- spec sources ------------------------------------------------
+            var sources = UniversalTagRowSpec.SourceParameters();
+            int bound = sources.Count(byName.ContainsKey);
+            sb.AppendLine();
+            sb.AppendLine("  SOURCE PARAMETERS the build sheet's rows read");
+            sb.AppendLine($"    bound in this family          {bound,3} of {sources.Count}");
+            sb.AppendLine("    (a row can still render a source that is not bound here — a label");
+            sb.AppendLine("     pulls category parameters from the tagged element directly)");
+
+            // ---- the honest limit --------------------------------------------
+            sb.AppendLine();
+            sb.AppendLine("  NOT CHECKED — label calculated values");
+            sb.AppendLine("    The tier formulas live in the label's field definition, which the");
+            sb.AppendLine("    Revit API does not expose. This audit cannot confirm or deny that a");
+            sb.AppendLine("    row is gated. To check one: Family Editor > select the label >");
+            sb.AppendLine("    Edit Label > select a row > fx, and read its Formula.");
+            sb.AppendLine("    A gated row reads  if(TAG_PARA_STATE_n_BOOL, <source>, \"\")");
+
+            // ---- verdict ------------------------------------------------------
+            sb.AppendLine();
+            if (missing.Count == 0 && instanceGates.Count == 0)
             {
-                sb.AppendLine($"NAME MISMATCH, LIKELY. None of the spec's calculated values exist, but");
-                sb.AppendLine($"{formulaBearing.Count} parameter(s) in this family DO carry formulas — so gated rows");
-                sb.AppendLine("were authored under different names. Compare the inventory CSV against");
-                sb.AppendLine("the build sheet before creating anything new.");
+                sb.AppendLine("GATES OK. All eleven are bound as type parameters, so Tier Defaults");
+                sb.AppendLine("and per-drawing depth can drive every tier.");
             }
-            else if (ok == 0 && results.All(r => r.Verdict == RowVerdict.NoFormula || r.Verdict == RowVerdict.MissingParam))
+            else if (missing.Count == 0)
             {
-                sb.AppendLine("NO GATING AT ALL. Every row renders unconditionally, so the tier");
-                sb.AppendLine("gates do nothing when toggled.");
-                sb.AppendLine("Fix: give each calculated value the formula from the build sheet.");
+                sb.AppendLine($"GATES PRESENT BUT SPLIT. All eleven are bound, {instanceGates.Count} as instance");
+                sb.AppendLine("parameters. Tier depth works, but only from two different places.");
             }
             else
             {
-                sb.AppendLine($"PARTIAL: {ok} of {results.Count} rows are correct. Detail is in the log");
-                sb.AppendLine("and the CSV below.");
+                sb.AppendLine($"{missing.Count} GATE(S) MISSING. Rows depending on them cannot be switched at all.");
             }
 
-            // Full per-row detail goes to the log + a CSV, not the dialog — 65
-            // rows do not fit in a TaskDialog and truncating them would hide the
-            // ones that matter.
-            string csvPath = WriteDetail(familyName, results, contextDoc);
             string invPath = WriteInventory(familyName, byName, contextDoc);
-            if (!string.IsNullOrEmpty(csvPath))
-            {
-                sb.AppendLine();
-                sb.AppendLine("Per-row detail:");
-                sb.AppendLine("  " + csvPath);
-            }
             if (!string.IsNullOrEmpty(invPath))
             {
                 sb.AppendLine();
@@ -312,95 +236,27 @@ namespace StingTools.Commands.TagStudio
                 sb.AppendLine("  " + invPath);
             }
 
-            foreach (RowResult r in results.Where(x => x.Verdict != RowVerdict.Ok))
-                StingLog.Info($"UniversalTagDiff [{familyName}] row {r.Spec.Row} {r.Spec.Tier} " +
-                              $"'{r.Spec.Name}': {r.Verdict} — {r.Found}");
+            StingLog.Info($"UniversalTagDiff [{familyName}]: gates type={typeGates.Count} " +
+                          $"instance={instanceGates.Count} missing={missing.Count}; " +
+                          $"spec sources bound {bound}/{sources.Count}");
 
-            TaskDialog.Show("Universal Tag Diff", sb.ToString());
+            TaskDialog.Show(DialogTitle, sb.ToString());
             return Result.Succeeded;
         }
 
-        private static RowResult Judge(UniversalTagRow row, Dictionary<string, FamilyParameter> byName)
+        /// <summary>TAG_PARA_STATE_4_BOOL -> T4; TAG_WARN_VISIBLE_BOOL -> WARN.</summary>
+        private static string Short(string gate)
         {
-            var res = new RowResult { Spec = row };
-
-            // The self-referential case first: a formula written onto the SOURCE
-            // parameter rather than onto the calculated value. It is the shape
-            // FamilyLabelAuthor produces, and it is worth naming explicitly
-            // because Revit's own error ("circular chain of references") does not
-            // say which of the two parameters was the wrong target.
-            FamilyParameter source;
-            if (!string.IsNullOrEmpty(row.SourceParameter) &&
-                byName.TryGetValue(row.SourceParameter, out source) &&
-                !string.IsNullOrEmpty(source.Formula) &&
-                source.Formula.IndexOf(row.SourceParameter, StringComparison.Ordinal) >= 0)
-            {
-                res.Verdict = RowVerdict.SelfReferential;
-                res.Found = $"{row.SourceParameter}.Formula = {source.Formula}";
-                return res;
-            }
-
-            FamilyParameter calc;
-            if (!byName.TryGetValue(row.Name, out calc))
-            {
-                res.Verdict = RowVerdict.MissingParam;
-                res.Found = "(no family parameter of this name)";
-                return res;
-            }
-
-            string actual = calc.Formula;
-            if (string.IsNullOrWhiteSpace(actual))
-            {
-                res.Verdict = RowVerdict.NoFormula;
-                res.Found = "(Formula cell empty)";
-                return res;
-            }
-
-            if (!UniversalTagRowSpec.FormulaEquals(actual, row.Formula))
-            {
-                res.Verdict = RowVerdict.FormulaMismatch;
-                res.Found = actual;
-                return res;
-            }
-
-            if (!string.IsNullOrEmpty(row.SourceParameter) && !byName.ContainsKey(row.SourceParameter))
-            {
-                // Formula is right but reads a parameter the family does not
-                // carry: it will evaluate to nothing and the row stays blank
-                // whatever the gate says.
-                res.Verdict = RowVerdict.SourceUnbound;
-                res.Found = $"formula reads {row.SourceParameter}, which is not bound in this family";
-                return res;
-            }
-
-            res.Verdict = RowVerdict.Ok;
-            res.Found = actual;
-            return res;
-        }
-
-        private static string Describe(RowVerdict v)
-        {
-            switch (v)
-            {
-                case RowVerdict.Ok: return "correct — gated formula present";
-                case RowVerdict.NoFormula: return "no formula (row always renders)";
-                case RowVerdict.MissingParam: return "calculated value missing";
-                case RowVerdict.SelfReferential: return "formula on the SOURCE param (broken)";
-                case RowVerdict.FormulaMismatch: return "formula differs from the spec";
-                case RowVerdict.SourceUnbound: return "reads an unbound parameter";
-                default: return v.ToString();
-            }
+            if (string.Equals(gate, WarnGate, StringComparison.Ordinal)) return "WARN";
+            var m = System.Text.RegularExpressions.Regex.Match(gate, @"STATE_(\d+)_");
+            return m.Success ? "T" + m.Groups[1].Value : gate;
         }
 
         /// <summary>
-        /// Where to put the reports.
-        ///
         /// In the Family Editor there is no project to anchor to, so
-        /// OutputLocationHelper falls all the way through to the system temp
-        /// folder and raises its "could not write to the project directory"
-        /// dialog. A saved family has an obvious better home: its own folder,
-        /// next to the .rfa being diffed. Only when the family has never been
-        /// saved do we hand over to the normal resolver.
+        /// OutputLocationHelper falls through to system temp and raises its
+        /// "could not write to the project directory" dialog. A saved family has a
+        /// better home: its own folder, beside the .rfa.
         /// </summary>
         private static string ResolveOutputDir(Document contextDoc)
         {
@@ -418,11 +274,7 @@ namespace StingTools.Commands.TagStudio
             return OutputLocationHelper.GetOutputDirectory(contextDoc);
         }
 
-        /// <summary>
-        /// Every family parameter, with its formula. This is the file that
-        /// distinguishes "the calculated values were never created" from "they
-        /// exist under other names" — sort by Formula and the answer is visible.
-        /// </summary>
+        /// <summary>Every family parameter, with binding kind and formula.</summary>
         private static string WriteInventory(string familyName,
             Dictionary<string, FamilyParameter> byName, Document contextDoc)
         {
@@ -434,9 +286,10 @@ namespace StingTools.Commands.TagStudio
                 string path = System.IO.Path.Combine(dir, $"universal_tag_params_{safe}.csv");
 
                 var specSources = new HashSet<string>(UniversalTagRowSpec.SourceParameters(), StringComparer.Ordinal);
+                var gates = new HashSet<string>(AllGates(), StringComparer.Ordinal);
 
                 var sb = new StringBuilder();
-                sb.AppendLine("Name,IsShared,IsInstance,HasFormula,IsSpecSource,Formula");
+                sb.AppendLine("Name,IsShared,Binding,HasFormula,IsTierGate,IsSpecSource,Formula");
                 foreach (var kv in byName.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
                 {
                     FamilyParameter fp = kv.Value;
@@ -451,6 +304,7 @@ namespace StingTools.Commands.TagStudio
                         shared ? "yes" : "no",
                         instance ? "instance" : "type",
                         string.IsNullOrWhiteSpace(formula) ? "no" : "yes",
+                        gates.Contains(kv.Key) ? "yes" : "no",
                         specSources.Contains(kv.Key) ? "yes" : "no",
                         Q(formula)));
                 }
@@ -465,93 +319,7 @@ namespace StingTools.Commands.TagStudio
             }
         }
 
-        private static string WriteDetail(string familyName, List<RowResult> results, Document contextDoc)
-        {
-            try
-            {
-                string safe = string.Join("_", (familyName ?? "family").Split(System.IO.Path.GetInvalidFileNameChars()));
-                string dir = ResolveOutputDir(contextDoc);
-                if (string.IsNullOrEmpty(dir)) return null;
-                string path = System.IO.Path.Combine(dir, $"universal_tag_diff_{safe}.csv");
-
-                var sb = new StringBuilder();
-                sb.AppendLine("Row,Tier,CalcValueName,Verdict,Expected,Found");
-                foreach (RowResult r in results)
-                    sb.AppendLine(string.Join(",",
-                        r.Spec.Row,
-                        Q(r.Spec.Tier),
-                        Q(r.Spec.Name),
-                        Q(r.Verdict.ToString()),
-                        Q(r.Spec.Formula),
-                        Q(r.Found)));
-
-                System.IO.File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
-                return path;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"UniversalTagDiff.WriteDetail: {ex.Message}");
-                return null;
-            }
-        }
-
-        private static string Q(string s)
-        {
-            return "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
-        }
-
-        /// <summary>
-        /// The per-family (T3) rows this family declares in the v5 tag-config
-        /// CSVs, shaped like universal rows so one Judge covers both.
-        ///
-        /// The CSV's own Formula column is used verbatim. It has always carried
-        /// the correct <c>if(TAG_PARA_STATE_3_BOOL, SOURCE, "")</c> text; the
-        /// reader simply skipped column 10 and FamilyLabelAuthor re-derived a
-        /// wrong one. Reading it back is what makes this an oracle rather than a
-        /// second opinion.
-        /// </summary>
-        private static List<UniversalTagRow> LoadPerFamilyRows(Document contextDoc,
-                                                               string familyName,
-                                                               out int declaredCount)
-        {
-            declaredCount = 0;
-            var rows = new List<UniversalTagRow>();
-            if (string.IsNullOrEmpty(familyName)) return rows;
-
-            try
-            {
-                Dictionary<string, TierPlan> plans = TagConfigPlanResolver.LoadAll(contextDoc);
-                TierPlan plan;
-                if (plans == null || !plans.TryGetValue(familyName, out plan) || plan == null)
-                    return rows;
-                if (plan.T3Rows == null || plan.T3Rows.Count == 0) return rows;
-
-                declaredCount = plan.T3Rows.Count;
-                int n = 0;
-                foreach (TierRow tr in plan.T3Rows)
-                {
-                    if (string.IsNullOrEmpty(tr.Name) || string.IsNullOrEmpty(tr.Formula)) continue;
-                    rows.Add(new UniversalTagRow
-                    {
-                        // Negative row numbers keep per-family rows visually
-                        // distinct from the build sheet's 1..65 in the CSV report.
-                        Row = -(++n),
-                        Tier = tr.Tier,
-                        Name = tr.Name,
-                        Formula = tr.Formula,
-                        Prefix = tr.Prefix,
-                        Suffix = tr.Suffix,
-                        Break = tr.Brk,
-                        SourceParameter = tr.Parameter,
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"UniversalTagDiff.LoadPerFamilyRows('{familyName}'): {ex.Message}");
-            }
-            return rows;
-        }
+        private static string Q(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
 
         private static Family PickTagFamily(Document doc)
         {
@@ -565,16 +333,16 @@ namespace StingTools.Commands.TagStudio
 
             if (fams.Count == 0)
             {
-                TaskDialog.Show("Universal Tag Diff",
+                TaskDialog.Show(DialogTitle,
                     "No tag families are loaded in this project.\n\n" +
-                    "Open the universal master in the Family Editor and run this again, " +
+                    "Open a tag family in the Family Editor and run this again, " +
                     "or load the tag families first.");
                 return null;
             }
 
             string chosen = StingTools.Select.StingListPicker.Show(
-                "Universal Tag Diff",
-                "Which tag family should be compared against the build sheet?",
+                DialogTitle,
+                "Which tag family should be audited?",
                 fams.Select(f => f.Name).ToList());
 
             if (string.IsNullOrEmpty(chosen)) return null;
