@@ -19,8 +19,25 @@ tools/smoke_test_lib.py                         the parsing both share
 Nothing in the tooling is owner-specific: it globs `docs/examples/*/smoke_test.json`,
 so a second engagement is a new folder, not a fork.
 
-**Do not hand-edit the `.md` or the `.docx`.** The checker fails if the committed
-markdown is not a byte-identical regeneration of the source.
+**Do not hand-edit the `.md` or the `.docx`.** Both are enforced, by different
+means, because they can only be checked in different ways:
+
+| Output | How it is proved current | Catches |
+|---|---|---|
+| `REVIT_SMOKE_TEST.md` | re-rendered in memory and byte-compared | any edit to either the markdown or the source |
+| `<OWNER>_Revit_Smoke_Test_Checklist.docx` | two digests stamped into `docProps/core.xml`, read back with `zipfile` | `inputs-sha256` — source or generator changed and the document did not; `parts-sha256` — the document body was edited after generation |
+
+The `.docx` gets stamps rather than a re-render because rendering needs
+`python-docx` and the checker is deliberately stdlib-only so it runs on a bare
+CI runner. Writing the document needs the library; proving it is current does
+not. This matters more than it sounds: the `.docx` is the copy the tester
+physically carries into the Revit session, so it is the copy whose staleness
+actually costs a session.
+
+A `.docx` that is missing, unstamped or corrupt is reported the same way —
+regenerate it. Regeneration is byte-deterministic (fixed epoch in the core
+properties, fixed zip entry timestamps), so a rebuild with no content change
+produces no diff.
 
 ---
 

@@ -30,8 +30,10 @@ does not exist wastes a Revit session.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import zipfile
 from pathlib import Path
 
 # The six dockable panels. Keep in step with the $panels list in
@@ -283,3 +285,120 @@ def load_sources(root: Path) -> list[tuple[str, Path, dict]]:
     for p in sorted((root / "docs" / "examples").glob("*/smoke_test.json")):
         out.append((p.parent.name, p, json.loads(p.read_text(encoding="utf-8-sig"))))
     return out
+
+
+def docx_path_for(source_path: Path, owner: str) -> Path:
+    """The generated checklist that sits beside an owner's source."""
+    return source_path.parent / f"{owner}_Revit_Smoke_Test_Checklist.docx"
+
+
+# ── the .docx staleness stamp ─────────────────────────────────────────────────
+#
+# The markdown is gated by regeneration: CI re-renders it and byte-compares. The
+# .docx cannot be gated that way, because rendering it needs python-docx and the
+# checker is deliberately stdlib-only so it runs on a bare runner.
+#
+# Without a gate the .docx is the one hand-carried copy left, and it is the copy
+# the tester physically holds in the Revit session — so an edit to smoke_test.json
+# that regenerated only the markdown would put a stale checklist in their hands.
+# That is the exact drift this whole pipeline exists to stop, one level down.
+#
+# So the generator stamps a digest of its inputs into the .docx core properties,
+# and the checker reads it back out of the zip with `zipfile` — stdlib, no
+# python-docx, no new CI dependency. Mismatch means "regenerate", which is one
+# command on any machine that has python-docx.
+#
+# The digest covers the SOURCE **and THE GENERATOR**, not the source alone. A
+# change to render_docx() alters the document without touching the JSON, and the
+# markdown byte-diff would not notice — source-only hashing would leave that hole
+# open. Hashing the generator closes it at the cost of one regeneration whenever
+# the generator changes, which is correct: the generator determines the output.
+#
+# Bytes are LF-normalised before hashing so a Windows checkout with
+# core.autocrlf=true produces the same digest as a Linux CI runner. .gitattributes
+# pins the source to LF for the same reason; this is defence in depth, and it also
+# covers tools/*.py, which is not pinned.
+
+# TWO STAMPS, because one digest cannot answer both questions.
+#
+#   inputs-sha256  what the document was BUILT FROM. Catches the real failure
+#                  mode: smoke_test.json changed, only the markdown was
+#                  regenerated, and the .docx quietly describes the old pack.
+#
+#   parts-sha256   what the document now CONTAINS — every OPC part except
+#                  docProps/core.xml, which is excluded because it carries this
+#                  stamp and cannot hash itself. Catches a hand-edit in Word,
+#                  which the inputs digest sails straight past: the source and
+#                  generator are unchanged, so the provenance stamp still
+#                  matches while the body says something else.
+#
+# Neither is a tamper-proof seal — anyone determined can regenerate both. That
+# is not the threat. The threat is someone opening the checklist in Word the
+# night before the session, fixing a typo, and shipping a document that no
+# longer round-trips to the source. Accidents are what a gate is for.
+
+DOCX_STAMP_PREFIX = "inputs-sha256:"
+DOCX_PARTS_PREFIX = "parts-sha256:"
+
+# The part that carries the stamps, and therefore cannot be inside parts-sha256.
+DOCX_STAMP_PART = "docProps/core.xml"
+
+_DOCX_STAMP_RX = re.compile(re.escape(DOCX_STAMP_PREFIX) + r"([0-9a-f]{64})")
+_DOCX_PARTS_RX = re.compile(re.escape(DOCX_PARTS_PREFIX) + r"([0-9a-f]{64})")
+
+
+def docx_inputs_digest(root: Path, source_path: Path) -> str:
+    """SHA-256 over one owner's source plus the generator that renders it."""
+    h = hashlib.sha256()
+    for p in (source_path,
+              root / "tools" / "build_smoke_test.py",
+              root / "tools" / "smoke_test_lib.py"):
+        h.update(p.name.encode("utf-8") + b"\0")
+        h.update(p.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return h.hexdigest()
+
+
+def read_docx_stamp(docx_path: Path) -> str | None:
+    """The digest stamped into a generated .docx, or None if absent/unreadable.
+
+    Reads `docProps/core.xml` straight out of the OPC zip. None means "no usable
+    stamp" — a missing file, a corrupt zip, or a document that predates stamping
+    — and every one of those cases is a regenerate, so the caller does not need
+    to tell them apart.
+    """
+    return _stamp(docx_path, _DOCX_STAMP_RX)
+
+
+def read_docx_parts_stamp(docx_path: Path) -> str | None:
+    """The content digest stamped into a generated .docx, or None if absent."""
+    return _stamp(docx_path, _DOCX_PARTS_RX)
+
+
+def _stamp(docx_path: Path, rx: re.Pattern) -> str | None:
+    try:
+        with zipfile.ZipFile(docx_path) as z:
+            xml = z.read(DOCX_STAMP_PART).decode("utf-8", "replace")
+    except (OSError, KeyError, zipfile.BadZipFile):
+        return None
+    m = rx.search(xml)
+    return m.group(1) if m else None
+
+
+def docx_parts_digest(docx_path: Path) -> str | None:
+    """SHA-256 over every OPC part of a .docx except the one holding the stamps.
+
+    Order-independent (parts are sorted by name) so a zip rewritten in a
+    different entry order still hashes the same — it is the content that matters,
+    not the packaging. Returns None if the file cannot be read as a zip, which
+    the caller treats the same as a missing stamp: regenerate.
+    """
+    try:
+        with zipfile.ZipFile(docx_path) as z:
+            names = sorted(n for n in z.namelist() if n != DOCX_STAMP_PART)
+            h = hashlib.sha256()
+            for n in names:
+                h.update(n.encode("utf-8") + b"\0")
+                h.update(z.read(n) + b"\0")
+    except (OSError, zipfile.BadZipFile):
+        return None
+    return h.hexdigest()

@@ -22,7 +22,9 @@ This absorbs the substance of the pre-flight from `claude/session-8tl9ga`
 WHAT IT PROVES — and what it cannot
 It proves WIRING: the tag resolves, the button is really there with that label
 under that tab and section, the fixture is on disk, the parameter is registered
-and bound, the preset parses and its steps resolve. It cannot open Revit, so it
+and bound, the preset parses and its steps resolve. It also proves both generated
+copies are current — the markdown by regeneration, the .docx by the digest the
+generator stamps into it. It cannot open Revit, so it
 proves nothing about geometry, about whether a tag is right, or whether an LOD
 verdict is fair. A green run here is not a tested pack.
 """
@@ -337,6 +339,55 @@ def check_markdown_freshness(root: Path, ctx: dict, f: Findings):
             f.ok()
 
 
+# ── 10. the committed .docx is current ────────────────────────────────────────
+#
+# The markdown is proved by regeneration; the .docx cannot be, because rendering
+# it needs python-docx and this checker is stdlib-only so it runs on a bare
+# runner. Left ungated, the .docx would be the one hand-carried copy remaining —
+# and it is the copy the tester actually holds in the Revit session, so a stale
+# one costs exactly what this pipeline was built to stop costing.
+#
+# So the generator stamps a digest of (source + generator) into the document's
+# core properties and this reads it back with `zipfile`. See
+# smoke_test_lib.docx_inputs_digest for why the generator is in the digest.
+
+def check_docx_current(root: Path, ctx: dict, f: Findings):
+    for owner, path, _doc in ctx["sources"]:
+        docx_path = L.docx_path_for(path, owner)
+        rel = docx_path.relative_to(root).as_posix()
+        if not docx_path.exists():
+            f.fail(rel, "missing — run `python tools/build_smoke_test.py` "
+                        "(needs python-docx). This is the sheet the tester carries.")
+            continue
+        want = L.docx_inputs_digest(root, path)
+        got = L.read_docx_stamp(docx_path)
+        if got is None:
+            f.fail(rel, "carries no generator stamp — it was hand-made or predates stamping. "
+                        "Run `python tools/build_smoke_test.py`.")
+            continue
+        if got != want:
+            f.fail(rel, f"is stale — stamped {got[:12]}…, source + generator hash to {want[:12]}…. "
+                        "Run `python tools/build_smoke_test.py`; do not hand-edit the document.")
+            continue
+        f.ok()
+
+        # Provenance matched; now content. A hand-edit in Word leaves the inputs
+        # digest intact — same source, same generator — so without this the
+        # "do not edit" instruction is advice rather than a rule.
+        want_parts = L.docx_parts_digest(docx_path)
+        got_parts = L.read_docx_parts_stamp(docx_path)
+        if got_parts is None:
+            f.fail(rel, "carries no content stamp — regenerate with "
+                        "`python tools/build_smoke_test.py`.")
+        elif want_parts != got_parts:
+            f.fail(rel, "has been edited since it was generated — its content no longer "
+                        f"matches its own stamp ({got_parts[:12]}… vs {want_parts[:12]}…). "
+                        "Put the change in smoke_test.json and regenerate; a hand-edit is lost "
+                        "on the next build and cannot round-trip to the source.")
+        else:
+            f.ok()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo-root", default=None)
@@ -375,6 +426,7 @@ def main() -> int:
     check_named_presets(root, ctx, f)
     check_readonly_claims(root, ctx, f, args.verbose)
     check_markdown_freshness(root, ctx, f)
+    check_docx_current(root, ctx, f)
 
     if f.errors:
         print(f"Smoke-test gate FAILED — {len(f.errors)} problem(s):")
@@ -396,6 +448,7 @@ def main() -> int:
     print(f"  Workflow presets parsed              : {len(ctx['presets'])}")
     print(f"  Registered params / bound params     : {len(ctx['registry'])}/{len(ctx['bindings'])}")
     print("  Markdown regeneration                : byte-identical")
+    print("  .docx stamps (provenance + content)  : both match")
     hints = readonly_prose_hints(ctx)
     if hints:
         print()

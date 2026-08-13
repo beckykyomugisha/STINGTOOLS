@@ -2,6 +2,57 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Smoke-test .docx — the last hand-carried copy gets a gate)
+
+The reconciliation below made the checklist a generated projection of
+`smoke_test.json` and gated the markdown by regeneration. The `.docx` was left
+out: rendering it needs `python-docx` and `tools/check_smoke_test.py` is
+deliberately stdlib-only so it runs on a bare CI runner, so the gate ran
+`build_smoke_test.py --no-docx` and diffed the markdown alone.
+
+That left the `.docx` as the one unproved copy — and it is the copy the tester
+physically carries into the Revit session. An edit to `smoke_test.json` that
+regenerated only the markdown would have put a stale checklist in their hands:
+the same drift this pipeline was built to stop, one level down.
+
+Closed with two digests stamped into `docProps/core.xml` at generation and read
+back with `zipfile` — stdlib, no new CI dependency. Writing the document needs
+`python-docx`; proving it is current does not.
+
+- **`inputs-sha256`** — SHA-256 over the owner's `smoke_test.json` **plus
+  `build_smoke_test.py` and `smoke_test_lib.py`**. The generator is in the digest
+  because a change to `render_docx()` alters the document without touching the
+  JSON, and the markdown byte-diff would not notice; source-only hashing would
+  leave that hole open. The cost is one regeneration whenever the generator
+  changes, which is correct — the generator determines the output.
+- **`parts-sha256`** — SHA-256 over every OPC part except `docProps/core.xml`
+  (which carries the stamps and so cannot hash itself). This is what catches a
+  hand-edit in Word: same source, same generator, so the provenance digest still
+  matches while the body says something else. Injected during
+  `_normalise_docx_zip`, after every part exists.
+
+Bytes are LF-normalised before hashing so a Windows checkout with
+`core.autocrlf=true` and a Linux runner agree. Regeneration stays byte-identical
+(verified: rebuild produces no diff), so a rebuild without a content change still
+shows nothing — a diff that always fires is a diff people learn to ignore.
+
+**Verified by breaking it, five ways**, each producing a distinct actionable
+message and each reverting cleanly: source edited with only the markdown
+regenerated; generator changed without regeneration; `.docx` deleted; `.docx`
+body hand-edited; `.docx` corrupted. The fourth is the one that mattered — it
+**passed** against the inputs digest alone, which is why `parts-sha256` exists.
+
+Neither stamp is a tamper-proof seal; anyone determined can regenerate both. That
+is not the threat. The threat is someone fixing a typo in Word the night before
+the session and shipping a document that no longer round-trips to the source.
+
+Files: `tools/smoke_test_lib.py` (`docx_inputs_digest`, `docx_parts_digest`,
+`read_docx_stamp`, `read_docx_parts_stamp`, `docx_path_for`),
+`tools/build_smoke_test.py` (stamp on write), `tools/check_smoke_test.py`
+(assertion 10, `check_docx_current`), `.github/workflows/smoke-test-gate.yml`
+and `docs/examples/_smoke_test_schema.md` (both previously stated the `.docx` was
+unchecked).
+
 #### Completed (KUT smoke-test reconciliation — the checklist becomes a generated, gated projection)
 
 The Phase 192 KUT alignment pack shipped with a 27-step manual Revit smoke-test

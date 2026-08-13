@@ -21,9 +21,12 @@ name: Smoke-Test Source Gate
 # engagement is a new folder, not a fork of the tooling.
 #
 # NO PYTHON DEPENDENCIES. The checker is stdlib-only on purpose: it must run on a
-# bare runner. The .docx generator uses python-docx, but the gate never builds the
-# .docx — it asserts markdown freshness only, so a runner without python-docx
-# still gates the thing that matters.
+# bare runner. The .docx generator uses python-docx, but the gate never BUILDS the
+# .docx — it still CHECKS it: the generator stamps a digest of (source + generator)
+# into the document's core properties, and the checker reads that back with
+# `zipfile`. Writing the document needs python-docx; proving it is current does
+# not. That matters because the .docx is the copy the tester physically carries
+# into the Revit session, and it was the last unproved hand-carried copy left.
 #
 # WHAT THIS GATE CANNOT PROVE: everything about real Revit geometry. It proves the
 # checklist's wiring — the tag resolves, the button is there, the fixture exists,
