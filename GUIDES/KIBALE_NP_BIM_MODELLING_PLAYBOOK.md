@@ -863,17 +863,28 @@ toposolid by subdividing it. Do not mix the two generations.
     `Show Previous + New`**. Existing ground then draws as demolished/halftone
     behind the proposed. If you skip this you will be grading blind, or editing
     the wrong toposolid without noticing.
-30. **Cut the platforms.** For each structure — seven cottage platforms, the pool
-    terrace, the kitchen/dining apron, the camp fire terrace — select the
-    **New Construction** toposolid → *Modify | Toposolid tab → **Subdivide*** →
-    sketch the boundary → **✓ Finish**. Sketch it as the **footprint plus a
-    1.5–2 m working margin**, for the apron, the drainage falls and the edge of
-    the cut.
-31. **Flatten each platform.** Select the finished subdivision → *Modify |
-    Toposolid Sub-Division tab → **Modify Sub Elements*** → window-select all its
-    points → type the platform elevation once. Every point levels to it.
-    That elevation is the building's **FFL minus the build-up** (screed + slab).
-    **Write it down** — it becomes that building's level datum in Stage D.
+30. **Cut the graded areas.** Select the **New Construction** toposolid →
+    *Modify | Toposolid tab → **Subdivide*** → sketch the boundary →
+    **✓ Finish**. Sketch each as the **footprint plus a 1.5–2 m working margin**,
+    for the apron, the drainage falls and the edge of the cut.
+
+    > For **building platforms** — the seven cottages, the pool terrace, the
+    > kitchen/dining apron, the camp fire terrace — read **C7 first**. A
+    > subdivision is defined by the points inside its boundary, so a platform
+    > between contours can contain none and resists flattening; a floor is flat
+    > by definition and is the better tool. Subdivisions are for ground that
+    > stays ground.
+
+31. **Flatten a subdivision.** Select the **subdivision** (not the host — if
+    Properties reads `Toposolid (1)` with the whole-site area, you have the
+    host; press TAB to cycle) → *Modify | Toposolid Sub-Division tab →
+    **Modify Sub Elements*** → window-select all its points → type the elevation
+    once. Every point levels to it. Boundary vertices alone are enough — a
+    subdivision needs no interior points to flatten; use **Add Point** only if a
+    large area still bows.
+    Where the subdivision IS a building platform, that elevation is the
+    building's **FFL minus the build-up** (screed + slab). **Write it down** —
+    it becomes that building's level datum in Stage D.
 32. Subdivisions excavate the host toposolid automatically, are individually
     selectable, and sit on their own Visibility/Graphics subcategory, so
     platforms can be styled separately from existing ground.
@@ -893,10 +904,88 @@ toposolid by subdividing it. Do not mix the two generations.
     Existing and New Construction toposolid volumes gives the difference. This
     does **not** work for masses or generic models — only a total is reported —
     so build platforms from toposolids or floors, **never from masses**.
-35. Retaining walls, steps, ramps, paths. On 27.75 m of fall these are a real
-    cost item; model them properly at LOD 300.
-36. Hide the imported DXF once the toposolid is verified. **Do not delete it** —
+35. Hide the imported DXF once the toposolid is verified. **Do not delete it** —
     it is the evidence if the survey is later questioned.
+
+#### C7 — Cutting the ground with a slab
+
+A subdivision is the wrong tool for a building platform. It is defined by the
+points inside its boundary, so a platform whose boundary falls between contours
+may contain no interior points at all, and flattening becomes a fight — the
+symptom is "some subdivisions have no points to align horizontally", and the
+usual cause is editing the HOST's sub-elements (Properties reads `Toposolid (1)`
+and the area is the whole site) instead of the subdivision's.
+
+A **floor is flat by definition**. It needs no point editing, sits at a level
+typed once, carries a real construction build-up, and schedules as a slab.
+
+Use each for what it is:
+
+| | Use for |
+|---|---|
+| **Toposolid subdivision** | ground that stays ground — batters, cut slopes, road and path falls |
+| **Floor / slab** | building platforms, terraces, aprons — anything with a construction build-up |
+
+36. Draw the **floor** at the platform's FFL-minus-build-up. One level, no
+    points, no flattening.
+37. **Make it cut the ground:** select the New Construction toposolid →
+    *Modify | Toposolid* → **Excavate** → pick the floor. Without this the slab
+    sits *inside* the earth and the cut volume is wrong — the model looks right
+    and the quantity is silently short.
+38. Confirm it worked on the toposolid's Properties: **Cut**, **Fill** and
+    **Net cut/fill** must move off `0.000 m³`. While all three read zero,
+    nothing has been graded, and the BOQ earthworks row will read
+    `[QUANTITY NOT RESOLVED]` because `VOLUME_CUT` is genuinely absent — which
+    is correct behaviour, not a fault.
+
+#### C8 — Retaining sides to paths and platforms
+
+Model retaining as **walls**, never as toposolid geometry. It is a structure
+with a material, a design and a rate; buried in the ground it disappears from
+the bill.
+
+Each path cut across the slope has two different sides, and they are two
+different items:
+
+- **uphill** — retaining proper, holding the cut face
+- **downhill** — a batter (graded earth, no structure) where there is room, a
+  wall where there is not. On 27.75 m of fall you will run out of room often.
+
+39. Model the **path** first — a floor, or a subdivision for a graded earth
+    path — so the retaining has something to sit against.
+40. Draw the **wall** along the path edge, using a wall TYPE that matches the
+    real construction (stone-faced, gabion, masonry, RC). The type carries the
+    rate and the material; a generic wall bills as nothing meaningful.
+41. **Base:** Base Constraint = the path's level, Base Offset to suit.
+42. **Top: attach it to the ground.** Select the wall → *Modify | Walls* →
+    **Attach Top/Base** → **Top** → pick the toposolid. The wall top then
+    follows the ground profile and **re-follows it when the grading changes** —
+    which matters because hand-set heights all become wrong the moment a
+    platform moves.
+43. **Excavate** the toposolid with the wall, exactly as for the slab (C7 §37).
+    A wall sitting in the earth is the same silent error.
+44. **Slope:** Revit walls do not slope along their length. Split into
+    **stepped segments**, each with its own top and base — which is also how
+    masonry retaining is actually built, so it is not a modelling compromise,
+    and Attach Top keeps working per segment. (Edit Profile gives one raked
+    wall but will not re-attach to the ground afterwards.)
+
+**By retained height — because it changes who designs it:**
+
+| Height | Model as | Note |
+|---|---|---|
+| < 600 mm | kerb / edging — wall or wall sweep | landscape item, not structural |
+| 600 mm – 1.5 m | masonry or gabion retaining wall | still needs a drainage detail behind |
+| > 1.5 m | RC retaining wall | **structural design required — do not invent a thickness** |
+
+At LOD 300 model the wall, its foundation, and the fact that drainage exists
+behind it. Do not model the drainage stone.
+
+**Kibale:** with local stone and a national-park setting, gabion or stone-faced
+is the likely construction, and it bills very differently from RC. Settle it
+with ACE before modelling hundreds of metres — the geometry is identical, the
+rate is not. Anything over 1.5 m also depends on **bearing capacity** and **rock
+head depth**, both still outstanding from the surveyor (Part 2B).
 
 #### The two failures that cost a day
 
@@ -906,7 +995,7 @@ toposolid by subdividing it. Do not mix the two generations.
   toposolid, but the FFLs you wrote down no longer mean what they said.
 ### Stage D — The typical cottage (the highest-leverage hour of the project)
 
-37. Model **COT01 completely and correctly**, because you are about to multiply every mistake by seven.
+45. Model **COT01 completely and correctly**, because you are about to multiply every mistake by seven.
     - Radial grid A–G / 1–6, set out at the drawn **22°** and **45°**.
     - `R5795` external wall — one curved wall, not a polygon of segments.
     - Internal partitions, en-suites, `duct` risers.
@@ -915,45 +1004,45 @@ toposolid by subdividing it. Do not mix the two generations.
     - Rooms, with finish codes from the annotation (`timber panquette ff`, `cem. screed ff`).
     - Sanitaryware and FF&E as scheduled families, not as decoration.
     - Full parameter/type naming per D10 as you go — *not* as a clean-up pass.
-38. Run the **tagging and validation pass on COT01 alone**. Fix every warning. Only then multiply.
-39. Link COT01 into the site model **7×**, position and rotate per the setting-out schedule.
+46. Run the **tagging and validation pass on COT01 alone**. Fix every warning. Only then multiply.
+47. Link COT01 into the site model **7×**, position and rotate per the setting-out schedule.
 
 ### Stage E — The one-offs
 
-40. **Twin cottage** — start as a copy of the COT01 model, mirror the spine, add the `bt`.
-41. **Staff lodge** — the 3600 module repeats 10×; here a group *inside* that one model is appropriate, because all rooms share a level.
-42. **Kitchen / dining / reception / back space** — the most services-heavy building; coordinate extract, gas, grease, drainage early.
-43. **Pool, camp fire terrace, laundry cage.**
+48. **Twin cottage** — start as a copy of the COT01 model, mirror the spine, add the `bt`.
+49. **Staff lodge** — the 3600 module repeats 10×; here a group *inside* that one model is appropriate, because all rooms share a level.
+50. **Kitchen / dining / reception / back space** — the most services-heavy building; coordinate extract, gas, grease, drainage early.
+51. **Pool, camp fire terrace, laundry cage.**
 
 ### Stage F — Federate and check
 
-44. Build the **federated model**: links only.
-45. Clash and coordination pass. On this project the real clashes are not duct-vs-beam, they are **building-vs-ground**: platforms that do not work, doors that open onto a 900 mm drop, paths steeper than 1:12, drainage that has to run uphill. Check those explicitly.
-46. Produce and issue the **setting-out drawing** with the coordinate table.
+52. Build the **federated model**: links only.
+53. Clash and coordination pass. On this project the real clashes are not duct-vs-beam, they are **building-vs-ground**: platforms that do not work, doors that open onto a 900 mm drop, paths steeper than 1:12, drainage that has to run uphill. Check those explicitly.
+54. Produce and issue the **setting-out drawing** with the coordinate table.
 
 ### Stage G — Data completeness before documentation
 
-47. Run the **pre-tag audit** (dry run) → fix → **batch tag** → **validate**. Nothing goes to BOQ or to sheets until validation is clean. Data first, drawings second — a drawing produced from incomplete data is a drawing you will re-issue.
-48. Check the room schedule, door schedule and window schedule are complete and unique-marked **per building**.
+55. Run the **pre-tag audit** (dry run) → fix → **batch tag** → **validate**. Nothing goes to BOQ or to sheets until validation is clean. Data first, drawings second — a drawing produced from incomplete data is a drawing you will re-issue.
+56. Check the room schedule, door schedule and window schedule are complete and unique-marked **per building**.
 
 ### Stage H — Documentation
 
-49. Create **scope boxes** (Part 2).
-50. Apply the **drawing types**: `arch-site-A1-1to500` for the site plan, `arch-setting-out-A1-1to50` for cottage setting-out, `arch-plan-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `arch-floor-finishes-A1-1to100`, `door-schedule-A3`, `arch-window-schedule-A3`. These carry the sheet size, title block, scale, view template, crop strategy and sheet-number pattern as one bundle, so every drawing of a type comes out identical.
-51. Produce sheets from the drawing types, not by hand. Let the sheet numbering pattern generate the numbers.
-52. Run the **ISO 19650 sheet compliance check** before the first issue.
+57. Create **scope boxes** (Part 2).
+58. Apply the **drawing types**: `arch-site-A1-1to500` for the site plan, `arch-setting-out-A1-1to50` for cottage setting-out, `arch-plan-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `arch-floor-finishes-A1-1to100`, `door-schedule-A3`, `arch-window-schedule-A3`. These carry the sheet size, title block, scale, view template, crop strategy and sheet-number pattern as one bundle, so every drawing of a type comes out identical.
+59. Produce sheets from the drawing types, not by hand. Let the sheet numbering pattern generate the numbers.
+60. Run the **ISO 19650 sheet compliance check** before the first issue.
 
 ### Stage I — BOQ
 
-53. Set the standard with **`Cost_SetMeasurementStandard`** (POMI, per D7); author `_BIM_COORD\takeoff_rules.json` for the pool and anything else with no corporate rule; run **`Cost_ReloadRules`**.
-54. Put the project rate card at **`_BIM_COORD\rate_card.json`** and the project bill descriptions at **`_bim_manager\boq_custom_templates.json`**.
-55. Run **`BOQPrepForExport`** → **`BOQ_RateGapReport`** → fix gaps → **`BOQExportProfessional`**. Sanity-check total walling and roofing m² by hand before you believe the total (Part 4, trap 1).
-56. Add the **measured additions** (`BOQAddManualRow`) for everything in the right-hand column of D8.
-57. **`BOQSnapshotSave`** on every issue. From the second issue on, **`BOQSnapshotCompare`** — that is the single most valuable BOQ artefact for a client, because it answers "what changed and why did the price move".
+61. Set the standard with **`Cost_SetMeasurementStandard`** (POMI, per D7); author `_BIM_COORD\takeoff_rules.json` for the pool and anything else with no corporate rule; run **`Cost_ReloadRules`**.
+62. Put the project rate card at **`_BIM_COORD\rate_card.json`** and the project bill descriptions at **`_bim_manager\boq_custom_templates.json`**.
+63. Run **`BOQPrepForExport`** → **`BOQ_RateGapReport`** → fix gaps → **`BOQExportProfessional`**. Sanity-check total walling and roofing m² by hand before you believe the total (Part 4, trap 1).
+64. Add the **measured additions** (`BOQAddManualRow`) for everything in the right-hand column of D8.
+65. **`BOQSnapshotSave`** on every issue. From the second issue on, **`BOQSnapshotCompare`** — that is the single most valuable BOQ artefact for a client, because it answers "what changed and why did the price move".
 
 ### Stage J — Issue and control
 
-58. Transmittals for every issue. Revision management on every re-issue. Nothing leaves `02_PUBLISHED` without a transmittal record.
+66. Transmittals for every issue. Revision management on every re-issue. Nothing leaves `02_PUBLISHED` without a transmittal record.
 
 ---
 
