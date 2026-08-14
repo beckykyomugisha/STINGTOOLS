@@ -16,7 +16,9 @@
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "test:queue": "node --experimental-transform-types tests/offlineQueue.terminal.test.mjs"
+    "test:queue": "node --experimental-transform-types tests/offlineQueue.terminal.test.mjs",
+    "test:lint-rule": "node tests/lintRule.test.mjs",
+    "test": "npm run test:queue && npm run test:lint-rule && npm run typecheck"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",

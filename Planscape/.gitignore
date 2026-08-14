@@ -6,3 +6,6 @@ web-build/
 .DS_Store
 ios/Pods/
 android/.gradle/
+
+# Materialised by tests/lintRule.test.mjs; deleted again in its finally block.
+lint-rule-fixture.tmp.ts
