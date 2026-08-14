@@ -1,54 +1,172 @@
 {
-  "version": 1,
-  "description": "STING Visibility Center — corporate baseline presets. Project-scoped presets layer on top from <project>/_BIM_COORD/visibility_presets.json and win by name. Categories may be named by BuiltInCategory ('OST_DuctCurves'); the plugin resolves the id and display name at load, so this file stays readable and Revit-version safe.",
+  "version": 2,
+  "description": "STING Visibility Center — corporate baseline presets. Project-scoped presets layer on top from <project>/_BIM_COORD/visibility_presets.json and win by name. Categories may be named by BuiltInCategory ('OST_DuctCurves'); the plugin resolves the id and display name at load, so this file stays readable and Revit-version safe. Token VALUES here are the STING defaults (DISC: A E FLS FP G LV M P S · LOC: BLD1-3 EXT · ZONE: Z01-Z04 · LVL: GF LG B1 L01.. MZ RF XX) — edit them to match your project's codes. A preset may use Hide OR ShowOnly, never both: the two have opposite meanings and a mixed set is rejected with a message.",
+
   "presets": [
+
     {
       "name": "Zone isolation",
       "mode": "Temporary",
       "target": "ActiveView",
       "description": "Show only the elements in one zone. Edit the ZONE value to the zone you are working in.",
       "rules": [
-        {
-          "kind": "Token",
-          "tokenKey": "ZONE",
-          "values": [ "Z01" ],
-          "action": "ShowOnly"
-        }
+        { "kind": "Token", "tokenKey": "ZONE", "values": [ "Z01" ], "action": "ShowOnly" }
       ]
     },
+    {
+      "name": "Hide other zones (saved to view)",
+      "mode": "ViewFilter",
+      "target": "ActiveView",
+      "description": "Persistent version of zone isolation — saved in the view, so it prints and can be pushed onto a view template for a whole sheet package. Hides the zones you are NOT working in; edit the list.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "ZONE", "values": [ "Z02", "Z03", "Z04" ], "action": "Hide" }
+      ]
+    },
+
+    {
+      "name": "Level solo",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show only one level's elements. The fastest way to read a congested 3D view. Edit LVL to your level code (GF, L01, B1, LG, MZ, RF).",
+      "rules": [
+        { "kind": "Token", "tokenKey": "LVL", "values": [ "GF" ], "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Hide roof and mezzanine",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Drop the roof and mezzanine out of a 3D or section view so you can see into the occupied floors.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "LVL", "values": [ "RF", "MZ" ], "action": "Hide" }
+      ]
+    },
+    {
+      "name": "Hide below ground",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Hide basement and lower-ground levels. Edit the list if the project has more than two below-ground levels.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "LVL", "values": [ "B1", "B2", "LG" ], "action": "Hide" }
+      ]
+    },
+    {
+      "name": "QA — unresolved level",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show only elements whose level token never resolved (XX) or is blank. These are the elements that will tag wrongly and schedule into the wrong floor — fix them before issue.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "LVL", "values": [ "XX", "(unset)" ], "action": "ShowOnly" }
+      ]
+    },
+
+    {
+      "name": "Building solo",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show one building on a multi-building site. Edit LOC (BLD1, BLD2, BLD3).",
+      "rules": [
+        { "kind": "Token", "tokenKey": "LOC", "values": [ "BLD1" ], "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Hide external works",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Hide everything located outside the buildings (LOC = EXT) — site drainage, external lighting, hardstanding.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "LOC", "values": [ "EXT" ], "action": "Hide" }
+      ]
+    },
+
     {
       "name": "Discipline solo",
       "mode": "Temporary",
       "target": "ActiveView",
-      "description": "Show only one discipline's elements — the coordination equivalent of soloing a track.",
+      "description": "Show only one discipline's elements — the coordination equivalent of soloing a track. Edit DISC (A, S, M, E, P, FP, FLS, LV, G).",
       "rules": [
-        {
-          "kind": "Token",
-          "tokenKey": "DISC",
-          "values": [ "M" ],
-          "action": "ShowOnly"
-        }
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "M" ], "action": "ShowOnly" }
       ]
     },
+    {
+      "name": "Architecture only",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show only architectural elements.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "A" ], "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Structure only",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show only structural elements.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "S" ], "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Architecture + structure",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "The base model MEP coordinates against — architecture and structure, no services.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "A", "S" ], "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Electrical only",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show only electrical elements, including LV distribution.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "E", "LV" ], "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Fire systems only",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show only fire protection and fire/life-safety elements — sprinklers, alarms, detection.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "FP", "FLS" ], "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Hide all MEP",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Strip every service out of the view, leaving the architectural and structural shell.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "M", "E", "P", "FP", "FLS", "LV", "G" ], "action": "Hide" }
+      ]
+    },
+
     {
       "name": "Hide untagged",
       "mode": "Temporary",
       "target": "ActiveView",
       "description": "Hide everything that has no discipline token yet, leaving only tagged work visible.",
       "rules": [
-        {
-          "kind": "Token",
-          "tokenKey": "DISC",
-          "values": [ "(unset)" ],
-          "action": "Hide"
-        }
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "(unset)" ], "action": "Hide" }
       ]
     },
+    {
+      "name": "QA — show untagged only",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "The inverse audit: show ONLY elements with no discipline token, so the work still to be tagged is all that is on screen.",
+      "rules": [
+        { "kind": "Token", "tokenKey": "DISC", "values": [ "(unset)" ], "action": "ShowOnly" }
+      ]
+    },
+
     {
       "name": "MEP only",
       "mode": "Temporary",
       "target": "ActiveView",
-      "description": "Show only mechanical, electrical and public-health categories.",
+      "description": "Show only mechanical, electrical and public-health categories. Category-based, so it works on an untagged model where the discipline presets cannot.",
       "rules": [
         { "kind": "Category", "categoryName": "OST_DuctCurves",           "action": "ShowOnly" },
         { "kind": "Category", "categoryName": "OST_DuctFitting",          "action": "ShowOnly" },
@@ -66,6 +184,51 @@
         { "kind": "Category", "categoryName": "OST_LightingFixtures",     "action": "ShowOnly" },
         { "kind": "Category", "categoryName": "OST_CableTray",            "action": "ShowOnly" },
         { "kind": "Category", "categoryName": "OST_Conduit",              "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Ceiling void coordination",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "The services that fight for ceiling void space, plus the ceilings themselves — what you want on screen when resolving a tight soffit.",
+      "rules": [
+        { "kind": "Category", "categoryName": "OST_DuctCurves",       "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_DuctFitting",      "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_PipeCurves",       "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_PipeFitting",      "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_CableTray",        "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_Conduit",          "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_Sprinklers",       "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_LightingFixtures", "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_Ceilings",         "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_StructuralFraming","action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Rooms and spaces only",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Show only Rooms and MEP Spaces — for checking spatial coverage, room bounding and area take-off without the model in the way.",
+      "rules": [
+        { "kind": "Category", "categoryName": "OST_Rooms",     "action": "ShowOnly" },
+        { "kind": "Category", "categoryName": "OST_MEPSpaces", "action": "ShowOnly" }
+      ]
+    },
+    {
+      "name": "Hide annotation clutter",
+      "mode": "Temporary",
+      "target": "ActiveView",
+      "description": "Hide tags, dimensions, text and reference planes so the model geometry reads clearly. Model elements are untouched.",
+      "rules": [
+        { "kind": "Category", "categoryName": "OST_Dimensions",      "action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_TextNotes",       "action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_CLines",          "action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_GenericAnnotation","action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_RoomTags",        "action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_DuctTags",        "action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_PipeTags",        "action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_MechanicalEquipmentTags", "action": "Hide" },
+        { "kind": "Category", "categoryName": "OST_LightingFixtureTags",     "action": "Hide" }
       ]
     }
   ]

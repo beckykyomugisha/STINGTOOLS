@@ -412,7 +412,7 @@ namespace StingTools.Commands.Visibility
                 return Result.Cancelled;
             }
 
-            var chosen = StingTools.UI.VisibilityCenter.VisibilityDropdownHost.PromptForPreset(presets);
+            var chosen = StingTools.UI.VisibilityCenter.VisibilityDropdownHost.PromptForPresets(presets);
             if (chosen == null) return Result.Cancelled;
 
             VisibilityEngine.ResolveCategoryRules(doc, chosen);

@@ -121,6 +121,13 @@ namespace StingTools.UI
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
             catch { /* non-fatal */ }
+
+            // Publish this instance for LastInstance. The field was declared and read in
+            // ~20 places but NEVER assigned, so LastInstance was permanently null and every
+            // `LastInstance?.X()` call silently no-opped — including the sync-status chip
+            // that INT-07 added it for. The null-conditional made the failure invisible.
+            // Assigned last so a partially-constructed panel is never published.
+            _instance = this;
         }
 
         /// <summary>

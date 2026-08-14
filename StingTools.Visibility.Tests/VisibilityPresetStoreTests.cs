@@ -27,18 +27,71 @@ namespace StingTools.Visibility.Tests
                 "assertion in this file would be vacuously passing on an empty library.");
         }
 
+        // Deliberately a FLOOR, not an exact count. This asserted `4` and broke the moment
+        // the baseline grew, which teaches people to edit the number rather than read the
+        // test. What matters is that the file parsed into real presets, not how many.
         [Fact]
-        public void ShippedBaseline_HasFourPresets_WithNonNullRules()
+        public void ShippedBaseline_HasPresets_WithNonNullRules()
         {
             var lib = VisibilityPresetStore.Parse(File.ReadAllText(ShippedBaselinePath()));
 
-            Assert.Equal(4, lib.Presets.Count);
+            Assert.True(lib.Presets.Count >= 15,
+                $"Expected the shipped baseline to carry the full preset set; found {lib.Presets.Count}. " +
+                "A small number here usually means Newtonsoft silently dropped entries after a " +
+                "schema typo rather than that presets were removed on purpose.");
+
             Assert.All(lib.Presets, p =>
             {
                 Assert.False(string.IsNullOrWhiteSpace(p.Name));
                 Assert.NotNull(p.Rules);
                 Assert.NotEmpty(p.Rules);
             });
+        }
+
+        [Fact]
+        public void ShippedBaseline_PresetNamesAreUnique()
+        {
+            var lib = VisibilityPresetStore.Parse(File.ReadAllText(ShippedBaselinePath()));
+            var dupes = lib.Presets.GroupBy(p => p.Name, System.StringComparer.OrdinalIgnoreCase)
+                                   .Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+
+            Assert.True(dupes.Count == 0,
+                "Preset names must be unique — project overrides win by name, so a duplicate " +
+                "in the baseline makes which one an override replaces arbitrary. Duplicates: " +
+                string.Join(", ", dupes));
+        }
+
+        // The engine REJECTS a set that mixes Hide and ShowOnly, so a baseline preset that
+        // mixes them is dead on arrival — it can only ever produce an error dialog. Catch it
+        // here rather than in front of a user.
+        [Fact]
+        public void ShippedBaseline_NoPresetMixesHideAndShowOnly()
+        {
+            var lib = VisibilityPresetStore.Parse(File.ReadAllText(ShippedBaselinePath()));
+
+            var mixed = lib.Presets
+                .Where(p => p.Rules.Any(r => r.Action == VisibilityAction.Hide)
+                         && p.Rules.Any(r => r.Action == VisibilityAction.ShowOnly))
+                .Select(p => p.Name).ToList();
+
+            Assert.True(mixed.Count == 0,
+                "These presets mix Hide and ShowOnly and would be rejected on use: " +
+                string.Join(", ", mixed));
+        }
+
+        [Fact]
+        public void ShippedBaseline_AllTokenKeysAreKnown()
+        {
+            var lib = VisibilityPresetStore.Parse(File.ReadAllText(ShippedBaselinePath()));
+
+            var bad = lib.Presets
+                .SelectMany(p => p.Rules.Select(r => new { p.Name, r.Kind, r.TokenKey }))
+                .Where(x => x.Kind == VisibilityRuleKind.Token && !VisibilityTokens.IsKnown(x.TokenKey))
+                .Select(x => $"{x.Name}:{x.TokenKey}").ToList();
+
+            Assert.True(bad.Count == 0,
+                "Unknown tag tokens in the shipped baseline (these rules would match nothing): " +
+                string.Join(", ", bad));
         }
 
         [Fact]
