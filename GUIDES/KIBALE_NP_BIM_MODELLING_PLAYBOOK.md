@@ -778,12 +778,32 @@ usable from that, and the failure is not obvious until you try to subdivide.
     centrelines will drag points to wrong elevations.
 18. Give the toposolid a type with a real thickness (300–500 mm) and a material.
     It is a solid, so it will appear in every section you cut.
-19. **Contour interval — where the setting actually lives:** *Massing & Site tab
-    → Model Site panel → the small dialog-launcher arrow at the panel's
-    bottom-right → **Site Settings***. Set **Display Contours → Interval = 0.5 m**
-    with Passthrough Elevation 0, to match the surveyor's sheet. This is
-    **project-wide**, not a toposolid type parameter. Use *Additional Contours*
-    to add a heavier line at 2.5 m so the fall reads on a plan.
+19. **Contour interval — a TYPE parameter, not Site Settings.** Select the
+    toposolid (or start the Toposolid tool) → Properties → **Edit Type** →
+    **Graphics → Contour Display → Edit…**. That opens a table of ranges:
+
+    | Start | Stop | Interval | Range Type | Subcategory |
+    |---|---|---|---|---|
+    | -30000 | 3000000 | **1000** | Multiple Values | Primary Contours |
+    | -30000 | 3000000 | **500** | Multiple Values | Secondary Contour |
+
+    Interval is in **project units (mm)**, so `500` is the 0.5 m that matches
+    the surveyor's sheet, and the 1 m primary gives the heavier line that makes
+    27.75 m of fall readable. The shipped `Grassland - 1200mm` type already
+    carries both — verified in KNP26 on 2026-08-14 — so there is usually
+    nothing to change.
+
+    **The `Site Settings` dialog no longer exists in Revit 2025.** It went with
+    Toposurface. Checked live: the *Model Site* panel expander holds only
+    *Property Line Data* and *Toposolid Smooth Shading* (the small icon at its
+    bottom-left is a pin, not a dialog launcher), and *Manage → Additional
+    Settings* has no Site Settings entry. Any tutorial that sends you there is
+    pre-2024.
+
+    **Consequence for C5:** because this is now per **type**, two toposolid
+    types can display different contours. If you give the proposed/graded
+    ground its own type, set its Contour Display too — otherwise existing and
+    proposed will draw at different intervals and the section will mislead.
 20. **Verify before building on it.** Spot-check three known survey levels
     against the issued drawing. This is the last cheap moment to find a bad
     import.
