@@ -744,6 +744,28 @@ namespace StingTools.BOQ
                 out string carbonSource, out string carbonQuality, out string carbonMaterial,
                 out double biogenicKg, out bool carbonEstimated);
 
+            // A-1 extended to carbon. ComputeElementCarbonSplit measures the
+            // element's own material VOLUME (GetMaterialVolume / ReadElementVolumeM3),
+            // not the billed quantity, so it happily returns a number for a line
+            // whose quantity never resolved. KNP26: the site toposolid priced at
+            // UGX 0 with [QUANTITY NOT RESOLVED] still carried 7,392,950 kg —
+            // 7,393 tCO₂e — and that figure was the project's entire A1-A3
+            // headline. A carbon report is a deliverable; a number we refuse to
+            // price must not appear in one.
+            //
+            // Same rule as the quantity: if we would not bill it, we do not count
+            // it. The row keeps its material and source so the cause stays
+            // visible, and the carbon returns the moment the quantity resolves.
+            if (qtyUnresolved && (carbonKg > 0 || biogenicKg > 0))
+            {
+                StingLog.WarnRateLimited("BOQ.CarbonUnresolved",
+                    $"BOQ carbon zeroed: element {el?.Id} carries {carbonKg:N0} kg A1-A3 " +
+                    $"({biogenicKg:N0} kg biogenic) but its quantity did not resolve — " +
+                    "not counted, to keep the carbon headline consistent with the bill.");
+                carbonKg = 0;
+                biogenicKg = 0;
+            }
+
             // (e) Lifecycle cost (capital + simple NPV maintenance)
             double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
             // CA-4 — TRUE whole-life cost: fold the monetised embodied carbon
@@ -4085,11 +4107,24 @@ namespace StingTools.BOQ
             // Map common NRM2 sections to human-readable names. Fallback = category.
             switch ((section ?? "").Trim())
             {
-                case "1": return "Demolitions";
-                case "2": return "Substructure";
-                case "3": return "Groundworks";
-                case "4": return "Foundations";
-                case "5": return "In-situ concrete";
+                // Sections 1-13 were shifted against the real NRM2 work-section
+                // list — "5" returned "In-situ concrete", so the earthworks rule
+                // (which correctly assigns section 5) printed its excavation row
+                // under a concrete heading. Only became visible once a toposolid
+                // billed by volume instead of area. Corrected against NRM2 Part 3.
+                case "1":  return "Preliminaries";
+                case "2":  return "Off-site manufactured materials and components";
+                case "3":  return "Demolitions";
+                case "4":  return "Alterations, repairs and conservation";
+                case "5":  return "Excavating and filling";
+                case "6":  return "Ground remediation and soil stabilisation";
+                case "7":  return "Piling";
+                case "8":  return "Underpinning";
+                case "9":  return "Diaphragm walls and embedded retaining walls";
+                case "10": return "Crib walls, gabions and reinforced earth";
+                case "11": return "In-situ concrete works";
+                case "12": return "Precast/composite concrete";
+                case "13": return "Precast concrete";
                 case "14": return "Masonry";
                 case "15": return "Structural metalwork";
                 case "16": return "Carpentry";
