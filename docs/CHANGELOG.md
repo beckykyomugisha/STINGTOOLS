@@ -2,6 +2,142 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Document Manager — delete/restore repair, honest outcomes, one store layer)
+
+Full accuracy/consistency review of the Document Management Center
+([`UI/DocumentManagementDialog.cs`](../StingTools/UI/DocumentManagementDialog.cs)), triggered by a
+delete that reported success while the file stayed on disk — which also meant Restore had never
+been exercised.
+
+**The delete bug was two stacked defects.** `DeleteSelected` logged a DELETE, dropped the row and
+updated the counts *without reading* `DeleteFile`'s return value; `DeleteFile` returns false
+whenever the file is absent, which is routine because only 3 of the 14 loaders build rows from
+files on disk — the rest read JSON stores whose `file_path` is frequently stale. Separately,
+`DeleteFile` chose its recycle bin by walking **up from the file** for an existing `_data` folder,
+while `RestoreFromRecycle` read `<root>/_data/recycle`. Folders are created lazily, so on a fresh
+project `_data` often did not exist at delete time and the file went to a sibling `_RECYCLE` that
+Restore structurally could not see. `DeleteFile` now takes the `Document` and resolves through the
+same `GetRecyclePath` Restore reads; new `ProjectFolderEngine.EnumerateRecycleBins` sweeps the tree
+for orphan bins, so files stranded by the old code are recoverable.
+
+**Silent failure removed as a class.** `UpdateDocRegisterField`/`UpdateIssueField` returned void and
+dropped out quietly when the store was missing or the id did not match, while the caller set the
+property and refreshed — the grid showed a save that reverted on next open. Both now return `bool`
+behind `ApplyRegisterEdit`/`ApplyIssueEdit`, which mutate the row only after a confirmed write. Same
+treatment for `BulkCloseIssues`, `BulkUpdateTransmittalStatus`, `BulkDeleteStickyNotes`,
+`EditStickyNote`, `MoveSelected`, `RenameSelected`, Auto-correct, Copy-to and Open Folder. Bulk
+operations now separate "no file on disk" from genuine failures and name the failures.
+
+**`status_history` had two incompatible shapes in one store.** The canonical writers
+(`IssueSchema.ApplyStatus`, `BIMManagerCommands`' transmittal creator) store a JArray of
+`{from,to,by,at,note}`; the Document Manager did
+`row["status_history"] = row["status_history"]?.ToString() + "|<text>"`, which serialises the array
+to JSON text and replaces it with a string. The next canonical write then hits
+`is not JArray` and **discards the entire prior history** — audit-trail loss on an ISO 19650
+register. New `CoordStores.AppendHistory` is the one accessor; it converts a legacy string into
+entries rather than dropping it. `CoordStores.FormatHistory` renders either shape for display.
+
+**One store layer.** All 23 hand-rolled `Path.Combine(GetBimManagerDir(doc), "*.json")` sites now
+resolve through `CoordStores` or `IssueStore`. They landed on the right file but bypassed
+`CoordStores.Resolve`'s legacy merge, so whether a project's pre-consolidation rows appeared
+depended on which subsystem happened to touch the store first that session. `GetBimManagerDir` is
+deleted — handing out the *directory* was what enabled the hand-rolling. New typed accessors:
+`StickyNotes`, `Notifications`, `ModelHealth`, `Bep`, `Team` (object store, merge-free via
+`ResolvePathOnly`). New `IssueStore.SetField` for non-status edits, so priority/assignee/revision
+changes get the repository's locking, atomic write and history shape. `BulkCloseIssues` runs as one
+`IssueStore` batch — single atomic save plus audit and server push.
+
+**Other defects found and fixed**
+
+- Every transmittal was minted **TX-0001**: the max-suffix scan read `t["id"]`, but the rows are
+  keyed `transmittal_id`, so `maxNum` was always 0 — the exact collision the max-suffix pattern was
+  introduced to prevent. Meetings, actions and notifications still used `Count + 1`; all now use a
+  shared `NextSeq` helper.
+- `BulkUpdateCDE` raised **N+1 transmittals** per promotion — `MoveFile` auto-raises one per file
+  and the caller raised another for the batch — and the batch record carried pre-move paths that no
+  longer existed. `MoveFile` gained `autoTransmittal` and `out newPath`.
+- `MoveFile` raised its watcher event with `Path.Combine(targetDir, fileName)` rather than the real
+  destination, so a de-duplicated name pointed watchers at a nonexistent path.
+- `MakeMenuItem` had no exception guard while `MakeActBtn` did — 23 context-menu items doing raw
+  file I/O could throw to the WPF dispatcher inside a modal dialog.
+- Rename silently no-opped when the target name was taken.
+- 24 inline buttons had `ToolTip = ""` (WPF renders an empty popup); the "Update Trans" tooltip key
+  said "Update Trans Status" and never matched. Tooltips written for all 24; blank now yields none.
+- Two agenda builders called `ComplianceScan.Scan` directly — a full collector sweep freezing the
+  dialog 2–5s — against the established `GetCached() ?? Scan()` convention.
+- `EditStickyNote` wrote atomically twice (`WriteAllTextAtomic` to a `.tmp`, then `File.Replace`).
+- Hard-delete fallback in `DeleteFile` swallowed the reason it could not recycle; it now logs why
+  and reports the outcome so "moved to recycle bin" is never claimed for a destroyed file.
+
+**Follow-up (from live testing): the guards were the bug.** Testing surfaced two complaints —
+"Delete is lifeless, but Bulk Delete brings a message" and "Quick Transmittal says select a doc yet
+the doc IS selected". Both were the same defect, and neither was what the first pass assumed.
+
+Single-row actions failed into `SetStatus` — a 10px grey label in the footer — while their bulk
+counterparts popped a MessageBox for the identical condition. Delete had **three** silent exits: no
+selection, a selected row carrying no file path (issue/compliance/register rows), and an exception,
+since `MakeActBtn`'s catch also only wrote to the footer, making a crash and a no-op
+indistinguishable. The first pass had made only the file-missing-from-disk case visible and left the
+two a user actually hits.
+
+Quick Transmittal filtered on `Category == "DOCUMENT" && !string.IsNullOrEmpty(FilePath)`, but a
+register entry added through Add Doc legitimately carries an empty `file_path` — so the selected
+document was dropped and the message blamed the selection. The FilePath requirement was **wrong**,
+not just badly reported: it feeds one optional token (`TokenContext.cs`: `{ "file", d.FilePath ?? "" }`)
+and nothing downstream needs a file on disk. Issuing a transmittal for a register entry is what a
+transmittal is for. Requirement removed.
+
+Three guard helpers now cover every entry point — `RequireRows` (multi-select: distinguishes
+*nothing selected* from *nothing qualifies*, and names the categories picked plus how many lacked a
+file), `RequireFileRow` (single row needing a file) and `RequireRow` (single row, register edits).
+Applied across Open/Rename/Delete/Move/Copy/Auto-correct/Set CDE, Quick Transmittal, Bulk
+Move/Delete, Close Issues, Update CDE, Delete Notes, Update Trans, Set Document Status and Set
+Suitability. Handler exceptions are now visible and logged with a stack trace via `StingLog.Error`.
+
+Also hardened while there: the dialog was a fixed 1280x850 with no clamp, taller than the logical
+desktop on a 1366x768 laptop or 1080p at 150% DPI — and `CenterScreen` pushes the overflow off both
+edges, taking the action-bar tab strip with it. Now clamped to `SystemParameters.WorkArea`, with the
+tab strip capped at 190px and each tab's buttons scrolling inside so a 20-button tab cannot crowd
+out the document list.
+
+**Documentation reconciled.** The Center has **9 tabs**, not 8 —
+[`docs/guides/DOCUMENT_MANAGER_GUIDE.md`](guides/DOCUMENT_MANAGER_GUIDE.md) documented 7 of them
+under wrong names with buttons that are not on those tabs. Part 4 regenerated from source: all 9
+tabs, all ~146 buttons in their real groups, plus keyboard shortcuts and the right-click menu.
+Counts corrected in `CLAUDE.md` and `Data/CODE_LEGEND.json`.
+
+**Follow-up after in-Revit testing — the guards were the real "dead button" cause.** Two reports
+("Delete is lifeless, but Bulk Delete brings a message"; "Quick Transmittal says select a doc yet
+the doc IS selected") both traced to guard clauses, not to the operations.
+
+- **Feedback asymmetry.** Single-row actions failed into `SetStatus` — a 10px grey footer label —
+  while their bulk counterparts showed a MessageBox for the identical condition. Three paths made
+  Delete silent: nothing selected, a selected row with no file path (issue / compliance /
+  register-only), and an exception, because `MakeActBtn`'s catch also only called `SetStatus`, so a
+  crash and a no-op looked the same. Handler exceptions now show a dialog and log via
+  `StingLog.Error` with the stack trace.
+- **Quick Transmittal required a file that it does not need.** The guard demanded
+  `Category == "DOCUMENT"` **and** a non-empty `FilePath`, but a register entry added through Add
+  Doc legitimately carries an empty `file_path`, so the obvious document was filtered out and the
+  message blamed the selection. `FilePath` feeds exactly one optional token
+  (`TokenContext.cs`: `{ "file", d.FilePath ?? "" }`) and nothing downstream requires it —
+  transmitting a register entry is what transmittals are for. Requirement removed.
+- **Four right-click issue actions used a bare `return;`** — Link to Revision, Change Priority,
+  Assign To, Close Issue did nothing at all, with no message, on a non-issue row.
+- **Double-click fell off the end of the method** for every category except sticky notes, files and
+  compliance — a register, issue, revision or transmittal row responded to a double-click with
+  silence. Now shows the row's detail.
+- Three guard helpers replace the ad-hoc tests: `RequireFileRow` (7 sites), `RequireIssueRow` (4),
+  `RequireRows` (7). `RequireRows` distinguishes *nothing selected* from *nothing qualifies*, and in
+  the second case names the categories picked, how many lacked a file, and what the action needs.
+- Window size now clamps to `SystemParameters.WorkArea` instead of a fixed 1280x850 (taller than the
+  logical desktop at 150% DPI, and `CenterScreen` then pushes the action bar off-screen); the action
+  bar is capped at 190px with each tab's buttons scrolling inside.
+
+Build 0 errors / 0 warnings (Debug + Release). Path-discipline gate clean, Tier 1 and Tier 2 both
+zero. All 82 dispatch tags resolve against the handler switch and command modules.
+
+
 #### Completed (Folder structure — end the sibling sprawl)
 
 Acts on [`FOLDER_STRUCTURE_REVIEW_2026-08.md`](FOLDER_STRUCTURE_REVIEW_2026-08.md),

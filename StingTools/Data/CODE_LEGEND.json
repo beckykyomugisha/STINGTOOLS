@@ -2550,7 +2550,7 @@
         {
           "code": "DMD",
           "label": "Document Management Dialog",
-          "description": "The 8-tab ISO 19650 Document Management Center (UI/DocumentManagementDialog.cs)."
+          "description": "The 9-tab ISO 19650 Document Management Center (UI/DocumentManagementDialog.cs)."
         },
         {
           "code": "STG",
