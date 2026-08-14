@@ -1618,6 +1618,52 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
         // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
         await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
 
+        // #631 — report the per-folder ACL population at boot.
+        //
+        // ProjectMemberAcl.ResolveAsync narrows what a member sees inside a
+        // project using three allow-list columns on ProjectMembers. Between
+        // cb503b024 (2026-05-16) and the fix for #631 those columns were
+        // hard-coded to null, so the ACL restricted nothing. Turning it back on
+        // is inert for a member whose allow-lists are empty (null = "all") and
+        // NARROWS access for a member whose are not.
+        //
+        // Nobody could answer "how many rows are populated in production?"
+        // without database access, so the server answers it itself, once per
+        // boot, before it matters.
+        //
+        // Deliberately logged at Warning in BOTH cases. render.yaml sets
+        // Serilog__MinimumLevel__Default=Warning in production, so an
+        // Information line would be invisible there — and "no line appeared"
+        // would then be indistinguishable between "zero rows" and "the check
+        // never ran". One line per deploy is a fair price for an unambiguous
+        // answer.
+        try
+        {
+            var aclScoped = await db.ProjectMembers
+                .IgnoreQueryFilters()
+                .CountAsync(m => m.IsActive && (
+                       (m.AllowedCdeStates     != null && m.AllowedCdeStates     != "")
+                    || (m.AllowedDisciplines   != null && m.AllowedDisciplines   != "")
+                    || (m.AllowedSuitabilities != null && m.AllowedSuitabilities != "")));
+
+            if (aclScoped > 0)
+                app.Logger.LogWarning(
+                    "[ACL] {Count} active ProjectMember row(s) carry a per-folder allow-list. " +
+                    "ProjectMemberAcl WILL narrow document visibility for them. To restore full " +
+                    "access for a member, set their AllowedCdeStates/AllowedDisciplines/" +
+                    "AllowedSuitabilities back to NULL (null = all). See #631.",
+                    aclScoped);
+            else
+                app.Logger.LogWarning(
+                    "[ACL] No active ProjectMember row carries a per-folder allow-list. " +
+                    "ProjectMemberAcl is active but narrows nothing for anyone. See #631.");
+        }
+        catch (Exception ex)
+        {
+            // Never let a diagnostic stop the boot — but never swallow it either.
+            app.Logger.LogWarning(ex, "[ACL] Could not read the per-folder ACL population.");
+        }
+
         // Postgres RLS policies (#545). OFF unless Database:RlsEnabled is set —
         // the same key that gates RlsConnectionInterceptor above, so the
         // session variable and the policies that read it turn on together
