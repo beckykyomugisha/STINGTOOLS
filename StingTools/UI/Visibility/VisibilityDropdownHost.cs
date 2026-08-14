@@ -28,10 +28,21 @@ namespace StingTools.UI.VisibilityCenter
         /// <summary>Harvest on the current (API) thread, then show the popup on the UI thread.</summary>
         public static void ShowWindow(UIApplication app)
         {
-            var uidoc = app?.ActiveUIDocument;
+            // Callers must resolve this via VisibilityCommandHelper.ResolveApp — on a panel or
+            // Hub dispatch ExternalCommandData is null by design, so cmd.Application alone
+            // arrives here as null and every launch dies as a bogus "No active view."
+            if (app == null)
+            {
+                TaskDialog.Show("STING Visibility",
+                    "No Revit application context — the STING command handler has not been " +
+                    "initialised yet. Open the STING panel once, then try again.");
+                return;
+            }
+
+            var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null)
             {
-                TaskDialog.Show("STING Visibility", "No active view.");
+                TaskDialog.Show("STING Visibility", "No active view. Open a model view and try again.");
                 return;
             }
 

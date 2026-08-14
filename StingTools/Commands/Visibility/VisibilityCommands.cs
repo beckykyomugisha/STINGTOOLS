@@ -23,14 +23,44 @@ namespace StingTools.Commands.Visibility
     {
         internal const string Title = "STING Visibility";
 
+        /// <summary>
+        /// The live <see cref="UIApplication"/>, however this command was launched.
+        /// <para><b>ExternalCommandData is null on every panel and Hub dispatch.</b>
+        /// <c>StingCommandHandler.RunCommand&lt;T&gt;</c> calls <c>Execute(null, …)</c> on
+        /// purpose — see its comment at StingCommandHandler.cs:4417 — because building a real
+        /// ExternalCommandData needed a reflection hack that broke across Revit versions.
+        /// Commands are expected to fall back to <c>StingCommandHandler.CurrentApp</c>, which
+        /// 53 other files in this repo already do. Reading <c>cmd.Application</c> alone makes a
+        /// command work when invoked from a ribbon PushButton and fail with a misleading
+        /// "No active view." from the dock panel or the Hub.</para>
+        /// </summary>
+        internal static UIApplication ResolveApp(ExternalCommandData cmd)
+            => cmd?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
+
         /// <summary>Active view, or null with a message already shown.</summary>
         internal static View ActiveView(ExternalCommandData cmd, out Document doc)
         {
             doc = null;
-            var uidoc = cmd?.Application?.ActiveUIDocument;
+
+            // Distinguish "no Revit context" from "no view open". Collapsing both into
+            // "No active view." is what made the null-ExternalCommandData dispatch bug read
+            // as a view problem while a view was plainly open on screen.
+            var app = ResolveApp(cmd);
+            if (app == null)
+            {
+                StingLog.Error("VisibilityCommandHelper.ActiveView: no UIApplication — " +
+                               "ExternalCommandData was null and StingCommandHandler.CurrentApp " +
+                               "was never set.", null);
+                TaskDialog.Show(Title, "No Revit application context — the STING command handler " +
+                                       "has not been initialised yet. Open the STING panel once, " +
+                                       "then try again.");
+                return null;
+            }
+
+            var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null)
             {
-                TaskDialog.Show(Title, "No active view.");
+                TaskDialog.Show(Title, "No active view. Open a model view and try again.");
                 return null;
             }
             doc = uidoc.Document;
@@ -162,7 +192,8 @@ namespace StingTools.Commands.Visibility
         {
             try
             {
-                StingTools.UI.VisibilityCenter.VisibilityDropdownHost.ShowWindow(cmd?.Application);
+                StingTools.UI.VisibilityCenter.VisibilityDropdownHost.ShowWindow(
+                    VisibilityCommandHelper.ResolveApp(cmd));
                 return Result.Succeeded;
             }
             catch (Exception ex)
