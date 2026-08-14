@@ -10,10 +10,11 @@
       "unit": "m3",
       "quantitySource": "VOLUME_CUT",
       "unitConversion": "ft3_to_m3",
+      "strictUnit": true,
       "wastePercent": 0,
       "nrm2Section": "5",
       "description": "Excavate to reduce levels",
-      "notes": "B-2. VOLUME_CUT is the real graded cut, verified present in RevitAPI 2025/2026/2027. Supersedes any rule measuring SolidVolume, which measures the whole solid rather than the cut. Ordered BEFORE toposolid-area so a graded toposolid bills by volume, not area. Revit cut/fill accuracy approx +/-2%. Site_CutFillTakeoff is the fuller path: it also emits cart-away, imported fill and compaction, which no single per-element rule can derive."
+      "notes": "B-2. VOLUME_CUT is the real graded cut, verified present in RevitAPI 2025/2026/2027. Supersedes any rule measuring SolidVolume, which measures the whole solid rather than the cut. strictUnit: there is no toposolid-area rule and there must not be one. Ground is not a supply-and-fix item; if the rate found is per m2 the RATE is wrong, not the quantity, so the element is reported unresolved rather than measured by area. Revit cut/fill accuracy approx +/-2%. Site_CutFillTakeoff is the fuller path: it also emits cart-away, imported fill and compaction, which no single per-element rule can derive."
     },
     {
       "id": "earthworks-fill",
@@ -23,6 +24,7 @@
       "unit": "m3",
       "quantitySource": "VOLUME_FILL",
       "unitConversion": "ft3_to_m3",
+      "strictUnit": true,
       "wastePercent": 0,
       "nrm2Section": "5",
       "description": "Fill deposited and compacted in layers",

@@ -1078,6 +1078,24 @@ namespace StingTools.BOQ
                         // unit across tonne↔kg (1× otherwise).
                         return q * MassFactor(rule.Unit, unit);
                     }
+
+                    // A rule matched but the rate's unit disagrees with the
+                    // rule's. Falling through to the legacy geometry path here
+                    // measures the element by a completely different method than
+                    // the rule that governs it — which is how a Toposolid, whose
+                    // rule measures m³ of graded cut, came back as 13,698 m² of
+                    // "supply and fix generic toposolid" once an m² rate was
+                    // found for it. Rules opt in to refusing that.
+                    if (rule != null && rule.StrictUnit)
+                    {
+                        unresolved = true;
+                        StingLog.WarnRateLimited("BOQ.QtyUnitMismatch",
+                            $"BOQ quantity unresolved: element {el?.Id} under rule '{rule.Id}' " +
+                            $"measures in {rule.Unit} but the rate is per {unit}. The rule is " +
+                            "strictUnit, so the element is NOT measured by the legacy geometry " +
+                            "path — supply a rate in " + rule.Unit + " to bill it.");
+                        return 0.0;
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DeriveQuantity rule lookup: {ex.Message}"); }

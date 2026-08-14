@@ -63,6 +63,28 @@ namespace StingTools.BOQ.Takeoff
         public string Origin { get; set; } = "corporate"; // "corporate" | "project"
 
         /// <summary>
+        /// When TRUE, this rule's Unit is the ONLY unit its elements may be
+        /// measured in. If the rate's unit disagrees, the element is reported
+        /// unresolved instead of falling through to the legacy geometry path.
+        ///
+        /// WHY THIS EXISTS. DeriveQuantity consults a matching rule only when
+        /// UnitsAlign(rule.Unit, callerUnit); on a mismatch it silently measured
+        /// by legacy geometry instead. So a Toposolid — whose rule says m³ of
+        /// graded cut — met an m² rate and was billed as 13,698 m² of "supply and
+        /// fix generic toposolid": UGX 3.04bn and 7,393 tCO₂e of existing ground,
+        /// 64% of a project total, for an element nobody supplies or fixes.
+        ///
+        /// The unresolved path already refuses to guess when a measured source
+        /// does not resolve, for exactly this reason ("a legacy guess would bury
+        /// the failure under a plausible number"). A unit mismatch is the same
+        /// failure — the rule matched, so the rule governs — and it now behaves
+        /// the same way where a rule opts in.
+        ///
+        /// Opt-in, so no existing category changes behaviour.
+        /// </summary>
+        public bool StrictUnit { get; set; } = false;
+
+        /// <summary>
         /// Returns true when this rule matches the element's category /
         /// discipline / PROD code. Match is contains+case-insensitive on
         /// strings, "*" matches anything.
