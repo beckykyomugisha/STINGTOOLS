@@ -408,7 +408,11 @@ namespace StingTools.UI
             cardGrid.Children.Add(MakeOperationCard(
                 "Doc Package",
                 "Full documentation package export",
-                "DocPackage"));
+                // The operation key becomes a command tag via SetCommand(result.Operation),
+                // so it must be a real dispatch name. It said "DocPackage", which nothing
+                // handles -- this card selected fine and then did nothing. The command is
+                // Docs.DocumentationPackageCommand, dispatched as "DocumentationPackage".
+                "DocumentationPackage"));
             content.Children.Add(cardGrid);
 
             // ── Output path ─────────────────────────────────────────────

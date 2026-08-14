@@ -79,7 +79,7 @@ prototype.
 | Server (`Planscape.Server/`) | 583 C# files · 119,867 lines |
 | Workspace | 23 `.csproj`, 9 test projects, **140 markdown docs** (23 root + 117 `docs/`) |
 | Build | `dotnet build` → **0 errors, 0 warnings** (Windows + Revit 2025 + .NET 8 SDK) |
-| Tests | **774 test methods; 0 exercise `StingTools.csproj`** |
+| Tests | **856 declared test methods across 10 projects, all now runnable** (was 759 runnable / 97 counted-but-dead until 2026-08-06 — see §3); 1 project exercises `StingTools.dll` |
 | Empty `catch` blocks | 683 · `TaskDialog` sites 7,650 · `StingLog` sites 9,530 |
 | Stub/placeholder markers | 646 · `NotImplementedException` 10 · `TODO/FIXME/HACK` 51 |
 | EF migrations | 83 (present & applied — see §9) |
@@ -121,12 +121,41 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
 
 ### 3. Testing — the biggest structural gap
 
-- **774 test methods across 9 projects, but none reference `StingTools.csproj`.** Every test targets
-  a Revit-free side library (`Sustainability` 365 · `Boq` 121 · `Tags` 84 · `Cost` 63 · `Clash` 56 ·
-  `Routing` 41 · `Scheduling` 30 · `Licensing` 14). `StingTools.Connectivity.Tests` is **empty (0)**.
+- **856 declared test methods across 10 projects** (`[Fact]`/`[Theory]` count — the metric this file
+  has always used). Re-measured 2026-08-06:
+
+  | Project | Declared | Runs |
+  |---|---|---|
+  | Sustainability | 365 | ✅ 438 cases, 0 failing |
+  | Tags | 158 | ✅ 241 cases, **2 failing** (#554) |
+  | Boq | 121 | ✅ 196 cases, 0 failing |
+  | Cost | 63 | ✅ 90 cases, 0 failing |
+  | Clash | 56 | ✅ 64 cases, **1 failing** (#596) |
+  | Routing | 41 | ✅ 45 cases, **1 failing** (#597) |
+  | Scheduling | 30 | ✅ 38 cases, 0 failing |
+  | Licensing | 14 | ✅ 14 cases, 0 failing |
+  | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
+  | Connectivity | 0 | empty project |
+
+  Declared methods and *executed cases* are different metrics and get conflated: one `[Theory]`
+  with `InlineData` expands into many cases, which is why the totals above do not match.
+
+- **The 774 in this table until 2026-08-06 was overstated by 97 and understated by 82.** `Clash` (56)
+  and `Routing` (41) **had not compiled since mid-May 2026** — from `c98500b5a` and `3e43f16e1`
+  respectively — and a test project that does not compile reports *nothing*: no red, no count, no
+  signal. Their 97 methods were still being counted. Meanwhile `Tags` had grown 84 → 158 and two new
+  projects had appeared, so the figure was stale in both directions at once. Both projects were
+  repaired in #553 and are now runnable; `.github/workflows/stingtools-unit-tests.yml` builds every
+  project and fails on any that will not compile, so this cannot go silent again.
+  **A coverage number that counts tests which cannot execute is worse than a smaller honest one** —
+  it is the same failure mode as an empty list standing in for an error.
+- **Only `StingTools.SitePhotos.Tests` references the built plugin.** The other nine target Revit-free
+  side libraries or `<Compile Include>` selected plugin sources behind hand-written Revit stubs.
 - Consequence: the ~656k-line plugin — every command, the auto-tagger `IUpdater`, the dispatch layer,
-  the placement/routing/fabrication engines — has **zero direct automated coverage**. Regressions are
-  only caught by a human loading Revit.
+  the placement/routing/fabrication engines — has **effectively no direct automated coverage**. The
+  clash and routing projects reach real plugin *source* through `<Compile Include>`, and SitePhotos
+  reaches the built *assembly*, but that is a handful of engines out of ~1,580 command classes.
+  Regressions are still caught by a human loading Revit.
 - Root cause is architectural (§5): command logic is fused to the Revit API and `TaskDialog`, so it
   can't run headlessly. The fix is **extraction, not more test files**.
 
@@ -161,8 +190,13 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   without a Revit UI thread. **Extracting a pure "compute → result record" layer from a thin
   "present" layer is the single highest-leverage refactor available.**
 - **Command sprawl.** ~1,580 command classes is a lot of surface to keep discoverable; dead/silent
-  commands are already tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
-  and `SILENT_BUTTONS_TODO.md`.
+  commands are tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
+  (commands with no button) and [`SILENT_BUTTONS_TODO.md`](SILENT_BUTTONS_TODO.md) — **repo root, not
+  `docs/`** (buttons with no command). As of 2026-08-06 there are **no** silent buttons: all 1,323
+  `Cmd_Click` button tags dispatch, and Tier 4 of `tools/check_workflow_wiring.ps1` keeps it that way.
+  Beware any count derived from the `StingCommandHandler` switch alone — dispatch is three layers
+  (`CommandRegistry` modules → `Cmd_Click` suite runners → handler `case` labels), and one-layer
+  audits have twice produced large false-positive figures.
 
 ### 6. Stubs & "for-now" scaffolding
 
@@ -1880,7 +1914,7 @@ Sibling dockable panel to `StingElectricalPanel` and `StingPlumbingPanel` — sa
 | DUCT | Duct types + per-region standard-size table + gauge/seam breakpoints + insulation + fab defaults | `CreateDuctsCommand`, `ModelCreateDuctCommand`, `AutoDropCommand`, `GenerateLayoutCommand`, `DuctSeamAuditCommand`, `PlaceHangersCommand`, `ValidateFillsCommand` |
 | LOADS | Spaces × envelope × internal gains × ventilation × computed loads; engine + code pickers | TaskDialog stubs for `Hvac_RunLoads` / `Hvac_ExportGbxml` (Phase 181 Loads + gbXML wizard target); `MEPSpaceAnalysisCommand`, `VentilationCommand` |
 | FAB | Spool grid + Assembly / Hangers / Outputs expanders | `Fabrication_OpenWorkspace`, `ExportCutListCommand`, `ExportIsometricsCommand`, `ExportWeldMapCommand`, `HangerTakedownCommand`, `FlangeRatingCommand`, `SpoolWeightCommand`, `ExportNCCommand` |
-| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync` |
+| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync`, `Hvac_FanStaticReport` (index-run fan external static) |
 
 ### Header context strip
 
@@ -1911,7 +1945,7 @@ Edit either JSON in a text editor and click **RPRT → Reload rules** to pick up
 ### Caveats
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
-2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection (rather than the project-wide `branch` / `chw` defaults) is still pending — the data path is in place.
+2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection is **shipped**: `Core/Mep/HvacSegmentRoleDetector.cs` (Phase 182 — connector-graph walk classifying each duct as main / branch / runout, cached to `HVC_SEGMENT_ROLE_TXT`) and `Core/Mep/PipeServiceDetector.cs` (Phase 183 — `MEPSystem` abbreviation match against `STING_MEP_SERVICE_MAP.json`) replace the old project-wide `branch` / `chw` defaults and are used per-element in the auto-size pass (`DuctSizingApplyEngine.DetectRoles` → `HvacSegmentRoleDetector.DetectRolesBatch`). The old project-wide defaults survive only as fail-soft fallbacks when the connector graph is disconnected or the system carries no abbreviation.
 3. `Hvac_RunLoads` (`Commands/Hvac/HvacRunLoadsCommand`) posts `PostableCommand.AnalyzeHeatingAndCoolingLoads` after an MEP-Spaces pre-flight. `Hvac_ExportGbxml` (`Commands/Hvac/HvacExportGbxmlCommand`) calls `Document.Export` with `GBXMLExportOptions` after a 3D-view check. Both are real, no TaskDialog stubs.
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — commands push rows back into the panel singleton (`StingHvacPanel.Instance`) on completion (same pattern `StingElectricalPanel` uses).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` is stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
@@ -2072,21 +2106,26 @@ The Cost Management module extends the BOQ system into a full construction cost 
 | `GUIDES/KUT_BIM_MANAGER_PLAYBOOK.md` | BIM Manager self-guide playbook for the KUT project — step-by-step checklist for weekly / monthly / milestone BIM management tasks |
 | `GUIDES/KUT_MIDP_TEMPLATE.csv` | Master Information Delivery Plan CSV template pre-seeded with KUT deliverable codes |
 
-#### KUT KPI Dashboard
+#### Owner KPI Dashboard (was KUT KPI Dashboard)
 
-`Commands/Kpi/KutKpiDashboardCommand.cs` — tag `KUT_KpiDashboard`. Read-only command generating a monthly BIM status report for the KUT project:
+`Commands/Kpi/OwnerKpiDashboardCommand.cs` — tag `Owner_KpiDashboard`, with `KUT_KpiDashboard` retained as a dispatch alias in both `StingCommandHandler` and `WorkflowEngine.ResolveCommand`. Read-only command generating a monthly BIM status report:
 - Gathers: tag/naming compliance %, per-discipline breakdown
-- Persists `KutKpiSnapshot` records to `<project>/_BIM_COORD/kpi/kut_kpi_log.jsonl`
-- Exports HTML + CSV for monthly status report attachment
+- Derives the reporting code from `PRJ_ORG_PROJECT_CODE_TXT` on Project Information, falling back to `STING` — nothing in the 471 lines was ever temple-specific, only the surface was
+- Persists `OwnerKpiSnapshot` records to `<project>/_BIM_COORD/kpi/<CODE>_kpi_log.jsonl`; an existing `kut_kpi_log.jsonl` is read and appended to rather than orphaned
+- Exports HTML + CSV (`STING_<CODE>_KPI_*`) for monthly status report attachment
 - Snapshot fields: `CompliancePct`, `StrictPct`, `RevisionPct`
 
 ### Phase 192B1 — LOD Verification Engine
 
-`Core/LODValidationCommand.cs` + validation rules in `Core/Validation/`. Per-element LOD (Level of Detail / Level of Development) audit:
-- Reads `STING_LOD_VERIFICATION_RULES.json`
-- Commands: `LOD_Verify`, `LOD_SetTarget`, `LOD_Report`, `LOD_Colorize`
-- Writes `LOD_TARGET_TXT` + `LOD_ACTUAL_TXT` + `LOD_PASS_BOOL` per element
-- Integrates with `ComplianceScan` as an additional compliance dimension
+`Core/Validation/LodVerificationEngine.cs` + `Commands/Validation/LodVerifyCommand.cs`. Per-element LOD (Level of Development) audit:
+- Reads `Data/STING_LOD_MATRIX.json` (corporate baseline) layered with a project overlay at `<project>/_BIM_COORD/lod_matrix.json`, merged by milestone `id` / rule `category`
+- Milestones are **deliverable-keyed**, not RIBA-keyed, and the matrix defines the full standard ladder **100 / 200 / 300 / 350 / 400 / 500** for every category
+- Commands: `LOD_Verify` (ReadOnly — summary TaskDialog + CSV + JSON gate report under `_BIM_COORD/lod_reports/`), `LOD_Stamp` (Manual), and `LODValidation` ("LOD Check" — same engine, `StingResultPanel` output, plus the `STING_LOD_*_VISIBLE` family-switch audit)
+- **Read-only by default.** Only `LOD_Stamp` writes, and it writes exactly one parameter: `ASS_LOD_VERIFIED_TXT` (the milestone id) on passing elements. There is no `LOD_TARGET_TXT` / `LOD_ACTUAL_TXT` / `LOD_PASS_BOOL`
+- Checks are a **parameter + naming + geometry-presence maturity proxy, not a geometric survey** — STING cannot verify dimensional accuracy
+- Not wired into `ComplianceScan`; LOD is reported separately
+- **An empty scope is not a pass.** An element whose category resolves to no check (no rule and no `*` fallback) is *skipped*, not counted, so it leaves the denominator. `OverallPct` returns `100.0` when `Total == 0`, which is why `LodTally.NoElementsInScope` exists and why every caller branches on it first. Skips are counted per category and surfaced in the TaskDialog, the CSV header and the JSON gate report (`skippedNoRule` / `skippedByCategory`); a run with nothing in scope reports "NO ELEMENTS IN SCOPE" and the gate report's `overallPct` is `null`
+- The Revit-free half — the matrix model, `*`-fallback resolution (`LodRuleResolver`) and the pass/fail/skip tally (`LodTally`) — lives in `Core/Validation/LodMatrixModel.cs` and is `<Compile Include>`d by `StingTools.Tags.Tests`. `LodVerificationEngine.Resolve` delegates to `LodRuleResolver`, so the plugin and the tests exercise one copy of the resolution code
 
 ### Phase 192C1 — Fohlio Room Finishes Integration
 
@@ -2454,10 +2493,37 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 
 ### Deployment
 
-1. Build to produce `StingTools.dll`
-2. Copy `StingTools.addin` to `C:\ProgramData\Autodesk\Revit\Addins\2025\` (machine) or `%APPDATA%\Autodesk\Revit\Addins\2025\` (user)
-3. Copy `StingTools.dll` + `Newtonsoft.Json.dll` + `ClosedXML.dll` + `data/` folder alongside
-4. Restart Revit
+> **Confirm where Revit is actually loading from before trusting any deploy
+> instruction, including this one.** One command settles it:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> Copying into a folder that is *not* in that manifest **fails silently** — the
+> copy succeeds, Revit loads a different DLL, and you debug code that never ran.
+
+| Script | What it does |
+|---|---|
+| `build.bat` | Compile Release + stage to **this checkout's** `CompiledPlugin/`. Does **not** touch Revit — a parallel agent can verify a build without hijacking the add-in slot. |
+| `deploy.bat` | `STING_DEPLOY=1` + `build.bat` → also rewrites the manifest to point at **this checkout's** `CompiledPlugin/`. This is "make my checkout the live plugin". |
+
+`deploy.bat` is the only script that repoints Revit. Run it from the checkout you
+want live, then restart Revit.
+
+Close Revit first — it holds `StingTools.dll` and ~17 dependencies, and the
+Planscape Companion tray app holds them too and must be stopped, or the copy
+half-fails silently.
+
+**`C:\Dev\STING_PLACEMENT_GOLD` is retired.** It was an isolated deploy folder
+with its own `deploy-gold.bat`, which re-pinned the manifest to GOLD to escape
+parallel agents rebuilding the shared `CompiledPlugin`. The two scripts were
+mutually exclusive — whichever ran last won — so the deploy target moved, and the
+loser's folder went stale unannounced. That is the root cause of a long-running
+"my change did nothing" class of bug. The script was deleted on 2026-08-06, when
+the manifest had been on `CompiledPlugin` for some time and GOLD had sat unbuilt
+for 16 days. **Older runners that name GOLD as the deploy target are wrong** —
+use the manifest.
 
 ### Branching
 

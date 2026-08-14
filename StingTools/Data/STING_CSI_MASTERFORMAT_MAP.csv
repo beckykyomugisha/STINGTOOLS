@@ -2,7 +2,15 @@
 # MasterFormat section + title for SpecLink reconciliation. Columns:
 #   Category    Revit category name (exact, case-insensitive). "*" = any.
 #   FamilyRegex optional regex tested against the family name (case-insensitive).
-#   TypeRegex   optional regex tested against the type/symbol name.
+#               ONLY USABLE ON LOADABLE-FAMILY CATEGORIES. ParameterHelpers.GetFamilyName
+#               returns "" for anything that is not a FamilyInstance, and Score treats an
+#               empty candidate as no-match — so a FamilyRegex on a SYSTEM category (Walls,
+#               Floors, Roofs, Ceilings, Pipes, Ducts, Conduits, Cable Trays, Stairs,
+#               Railings, Ramps, Topography, Toposolid, Pads) can NEVER fire. Put those
+#               discriminators in TypeRegex instead. Mixed categories exist: Structural
+#               Foundations isolated footings are FamilyInstance, wall footings are not.
+#   TypeRegex   optional regex tested against the type/symbol name. Safe on every category —
+#               CsiMap.TypeName falls back to the element type's name for system elements.
 #   Sys         optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.
 #   Section     CSI MasterFormat number (e.g. 23 31 00).
 #   Title       CSI section title.
@@ -18,8 +26,12 @@ Windows,,,,08 50 00,Windows
 Curtain Panels,,,,08 44 00,Curtain Wall and Glazed Assemblies
 Curtain Wall Mullions,,,,08 44 00,Curtain Wall and Glazed Assemblies
 Walls,,,,09 29 00,Gypsum Board
-Walls,(?i)masonry|block|brick,,,04 20 00,Unit Masonry
-Walls,(?i)concrete,,,03 30 00,Cast-in-Place Concrete
+# Walls/Floors/Roofs/Ceilings/Pipes/Ducts/Conduits/Stairs/Railings/Toposolids are
+# SYSTEM elements: they have no family, so their discriminators must sit in the
+# TypeRegex column (3rd), not FamilyRegex (2nd). These two rows were on
+# FamilyRegex and had never fired — see CsiMap.TypeName in CsiCommands.cs.
+Walls,,(?i)masonry|block|brick,,04 20 00,Unit Masonry
+Walls,,(?i)concrete,,03 30 00,Cast-in-Place Concrete
 Floors,,,,09 60 00,Flooring
 Ceilings,,,,09 51 00,Acoustical Ceilings
 Roofs,,,,07 50 00,Membrane Roofing
@@ -96,3 +108,100 @@ Security Devices,,,,28 20 00,Electronic Surveillance
 Security Devices,(?i)cctv|camera,,,28 23 00,Video Surveillance
 Security Devices,(?i)access control|card reader,,,28 13 00,Access Control and Intrusion Detection
 Nurse Call Devices,,,,28 17 00,Nurse Call Systems
+#
+# ── Division 02 — Existing Conditions — DELIBERATELY ABSENT ──────────────────
+# Naming-based Division 02 rows were drafted and then WITHDRAWN. Revit expresses
+# demolition through the PHASE system (Phase Created / Phase Demolished), and this
+# resolver matches on category / family / type / SYS only — it is never handed the
+# element's phase state. Nobody names a toposolid "demolition", so a rule keyed on
+# naming could not fire on a real model. It would have read as Division 02 coverage
+# in a review while delivering nothing, which is worse than the gap it papered over.
+#
+# Supporting it properly means passing phase state into CsiMasterFormat.Resolve and
+# adding an optional Phase qualifier column. That is a rule-shape change: it widens
+# every row from 6 fields to 7, and ParseCsvLines drops any row with fewer fields
+# than it expects — so every project's existing _BIM_COORD/csi_map.csv overlay would
+# silently stop loading. That needs its own change with its own verification pass.
+# Tracked as KUT-5 in docs/ROADMAP.md. Until then, Division 02 is UNSUPPORTED and
+# A1 Deliverable B's Existing Conditions & Removals Plan is classified by hand.
+#
+# ── Division 05 — Metals ─────────────────────────────────────────────────────
+# A2 Structural is full-service (floor/roof framing, columns, shear walls,
+# equipment grillages, and the exterior framing carrying the stone skin).
+# Framing defaults to steel and columns/foundations default to cast-in-place
+# concrete: that is the common split on this building type, and the concrete /
+# precast / steel discriminators above each default override it when the family
+# name says otherwise. Confirm against the SpecLink books and override in
+# _BIM_COORD/csi_map.csv.
+Structural Framing,(?i)precast,,,03 41 00,Precast Structural Concrete
+Structural Framing,(?i)concrete|\bRC\b,,,03 30 00,Cast-in-Place Concrete
+Structural Framing,(?i)joist|purlin,,,05 21 00,Steel Joist Framing
+Structural Framing,,,,05 12 00,Structural Steel Framing
+Structural Columns,(?i)precast,,,03 41 00,Precast Structural Concrete
+Structural Columns,(?i)steel|\bUC\b|\bW\d|HSS|CHS|SHS|RHS,,,05 12 00,Structural Steel Framing
+Structural Columns,,,,03 30 00,Cast-in-Place Concrete
+Structural Foundations,(?i)bored pile|\bCFA\b,,,31 63 00,Bored Piles
+Structural Foundations,(?i)pile,,,31 62 00,Driven Piles
+Structural Foundations,(?i)shoring|underpin|sheet pile,,,31 40 00,Shoring and Underpinning
+Structural Foundations,,,,03 30 00,Cast-in-Place Concrete
+Floors,,(?i)metal deck|steel deck|profiled deck,,05 31 00,Steel Decking
+Walls,,(?i)cold.?formed|\bSFS\b|stone skin|rainscreen,,05 40 00,Cold-Formed Metal Framing
+Stairs,,(?i)metal|steel,,05 51 00,Metal Stairs
+Stairs,,(?i)wood|timber,,06 43 00,Wood Stairs and Railings
+Stairs,,,,03 30 00,Cast-in-Place Concrete
+Railings,,(?i)wood|timber,,06 43 00,Wood Stairs and Railings
+Railings,,(?i)decorative|ornamental|bronze|brass,,05 73 00,Decorative Metal Railings
+Railings,,(?i)fence|gate,,32 31 00,Fences and Gates
+Railings,,,,05 52 00,Metal Railings
+Ramps,,,,03 30 00,Cast-in-Place Concrete
+#
+# ── Division 14 — Conveying Equipment ────────────────────────────────────────
+# A1 Deliverable C: "CIRCULATION: vertical circulation stairs and elevators".
+# Revit has no Elevators category — lifts are modelled as Specialty Equipment
+# or Generic Models, so both are matched by name.
+Specialty Equipment,(?i)elevator|\blift\b,,,14 20 00,Elevators
+Specialty Equipment,(?i)escalator|moving walk,,,14 31 00,Escalators
+Specialty Equipment,(?i)wheelchair lift|platform lift,,,14 42 00,Wheelchair Lifts
+Generic Models,(?i)elevator|\blift\b,,,14 20 00,Elevators
+Mechanical Equipment,(?i)elevator|\blift\b,,,14 20 00,Elevators
+#
+# ── Division 31 — Earthwork (A2 Civil) ───────────────────────────────────────
+Topography,,,,31 20 00,Earth Moving
+Toposolid,,,,31 20 00,Earth Moving
+Toposolid,,(?i)grading|regrade|formation,,31 22 00,Grading
+Pads,,,,31 23 00,Excavation and Fill
+Generic Models,(?i)erosion|silt fence|sediment|swale,,,31 25 00,Erosion and Sedimentation Controls
+#
+# ── Division 32 — Exterior Improvements (A2 Civil + A1 Site/Landscape) ───────
+Roads,,(?i)concrete,,32 13 13,Concrete Paving
+Roads,,,,32 12 16,Asphalt Paving
+Parking,(?i)stripe|marking|bay line,,,32 17 23,Pavement Markings
+Parking,,,,32 12 16,Asphalt Paving
+Floors,,(?i)paving|pavement|sidewalk|walkway|hardstand|plaza,,32 14 00,Unit Paving
+Generic Models,(?i)\bkerb\b|\bcurb\b|gutter,,,32 16 13,Concrete Curbs and Gutters
+Walls,,(?i)retaining,,32 32 00,Retaining Walls
+Generic Models,(?i)fence|gate|balustrade,,,32 31 00,Fences and Gates
+Site,(?i)bench|bollard|litter|planter|seat|shelter,,,32 33 00,Site Furnishings
+Site,,,,32 30 00,Site Improvements
+Entourage,,,,32 30 00,Site Improvements
+Planting,(?i)tree,,,32 93 43,Trees
+Planting,(?i)turf|grass|lawn|sod,,,32 92 00,Turf and Grasses
+Planting,,,,32 93 00,Plants
+Pipes,,,IRR,32 84 00,Planting Irrigation
+Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation
+#
+# ── Division 33 — Utilities (A2 Civil) ───────────────────────────────────────
+# Site runs are separated from in-building services by a TypeRegex on the pipe /
+# conduit TYPE name (site pipe types are named "Site …", "Buried …" etc.), which
+# scores above the plain SYS rows in Divisions 22/23/26 so the site utility wins.
+Pipes,,(?i)site|external|buried|underground,DCW,33 11 00,Water Utility Distribution Piping
+Pipes,,(?i)site|external|buried|underground,GAS,33 51 00,Natural-Gas Distribution
+Pipes,,,BGD,33 31 00,Sanitary Utility Sewerage Piping
+Pipes,,,SWD,33 41 00,Storm Utility Drainage Piping
+Pipes,,,SDS,33 46 00,Subdrainage
+Conduits,,(?i)site|external|buried|underground,,33 71 00,Electrical Utility Transmission and Distribution
+Generic Models,(?i)manhole|inspection chamber,,,33 39 00,Sanitary Utility Sewerage Structures
+Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Water Drains
+Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks
+Generic Models,(?i)water tank|reservoir|storage tank,,,33 16 00,Water Utility Storage Tanks
+Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities

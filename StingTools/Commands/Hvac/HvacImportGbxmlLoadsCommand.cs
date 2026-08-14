@@ -89,8 +89,88 @@ namespace StingTools.Commands.Hvac
                 var spaceById = spaces.ToDictionary(s => s.Id.Value.ToString(),
                                                     s => s, StringComparer.OrdinalIgnoreCase);
 
-                int stamped = 0, missing = 0;
                 string srcLabel = Path.GetFileName(xmlPath);
+
+                // ── Pre-apply delta pass (Tier-3 3.4) ────────────────────
+                // Before touching the model, compute per-zone deltas of the
+                // incoming simulator value against the STING BlockLoad value
+                // already on the Space (HVC_PEAK_SENS_W; HVC_LOAD_COOLING_KW
+                // used as a secondary source). Zones with no prior STING value
+                // are flagged "new". The user reviews the diff + CSV and must
+                // explicitly confirm before any stamping happens.
+                var deltas = new List<DeltaRow>();
+                int missing = 0;
+                foreach (var z in zones)
+                {
+                    Space sp = null;
+                    if (!spaceByNumber.TryGetValue(z.ZoneId, out sp) &&
+                        !spaceByName.TryGetValue(z.ZoneId, out sp) &&
+                        !spaceById.TryGetValue(z.ZoneId, out sp))
+                    { missing++; deltas.Add(new DeltaRow { ZoneId = z.ZoneId, Matched = false, NewCoolingW = z.PeakCoolingW }); continue; }
+
+                    double priorW = ReadStingCoolingW(sp);
+                    bool isNew = priorW <= 0;
+                    double deltaPct = (!isNew && z.PeakCoolingW > 0)
+                        ? 100.0 * (z.PeakCoolingW - priorW) / priorW : double.NaN;
+                    deltas.Add(new DeltaRow
+                    {
+                        ZoneId = z.ZoneId, Matched = true, IsNew = isNew,
+                        PriorCoolingW = priorW, NewCoolingW = z.PeakCoolingW,
+                        NewLatentW = z.PeakLatentW, NewOaLs = z.OaLs, DeltaPct = deltaPct,
+                        SpaceId = sp.Id
+                    });
+                }
+
+                int matchedCount = deltas.Count(d => d.Matched);
+                int newCount     = deltas.Count(d => d.Matched && d.IsNew);
+                int changedCount = deltas.Count(d => d.Matched && !d.IsNew);
+                string deltaCsv  = WriteDeltaCsv(doc, deltas, srcLabel);
+
+                // Build the diff summary (worst / new zones first).
+                var sbDiff = new StringBuilder();
+                sbDiff.AppendLine($"Source: {srcLabel}");
+                sbDiff.AppendLine($"Zones parsed: {zones.Count}  ·  matched Spaces: {matchedCount}  ·  " +
+                                  $"unmatched: {missing}");
+                sbDiff.AppendLine($"Of matched: {newCount} NEW (no prior STING value), {changedCount} with a prior value.");
+                sbDiff.AppendLine();
+                sbDiff.AppendLine("Per-zone Δ (STING vs incoming gbXML sensible cooling), worst 15:");
+                foreach (var d in deltas.Where(x => x.Matched)
+                             .OrderByDescending(x => x.IsNew ? double.PositiveInfinity
+                                                              : Math.Abs(double.IsNaN(x.DeltaPct) ? 0 : x.DeltaPct))
+                             .Take(15))
+                {
+                    if (d.IsNew)
+                        sbDiff.AppendLine($"  {d.ZoneId}: NEW → {d.NewCoolingW/1000:F1} kW");
+                    else
+                        sbDiff.AppendLine($"  {d.ZoneId}: STING {d.PriorCoolingW/1000:F1} kW → " +
+                                          $"gbXML {d.NewCoolingW/1000:F1} kW  (Δ {d.DeltaPct,+6:+0.0;-0.0;0.0} %)");
+                }
+                if (deltaCsv != null) { sbDiff.AppendLine(); sbDiff.AppendLine($"Full diff CSV: {deltaCsv}"); }
+
+                if (matchedCount == 0)
+                {
+                    TaskDialog.Show("STING HVAC — gbXML Import",
+                        sbDiff.ToString() + "\nNo Spaces matched — nothing to stamp.");
+                    return Result.Cancelled;
+                }
+
+                // Require explicit confirmation before overwriting Space loads.
+                var confirm = new TaskDialog("STING HVAC — gbXML Import (review before applying)")
+                {
+                    MainInstruction = $"Overwrite loads on {matchedCount} Space(s)?",
+                    MainContent = sbDiff.ToString(),
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel
+                };
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Apply — stamp the incoming gbXML values onto matched Spaces");
+                confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Cancel — keep the CSV diff, change nothing");
+                var choice = confirm.Show();
+                if (choice != TaskDialogResult.CommandLink1)
+                    return Result.Cancelled;
+
+                int stamped = 0;
                 using (var tx = new Transaction(doc, "STING gbXML Loads Import"))
                 {
                     tx.Start();
@@ -100,7 +180,7 @@ namespace StingTools.Commands.Hvac
                         if (!spaceByNumber.TryGetValue(z.ZoneId, out sp) &&
                             !spaceByName.TryGetValue(z.ZoneId, out sp) &&
                             !spaceById.TryGetValue(z.ZoneId, out sp))
-                        { missing++; continue; }
+                        { continue; }
                         try
                         {
                             if (z.PeakCoolingW > 0)
@@ -126,7 +206,10 @@ namespace StingTools.Commands.Hvac
                 panel.AddSection("SUMMARY")
                      .Metric("Zones parsed",        zones.Count.ToString())
                      .Metric("Stamped on Spaces",   stamped.ToString())
+                     .Metric("New (no prior value)", newCount.ToString())
+                     .Metric("Changed (had value)", changedCount.ToString())
                      .Metric("Unmatched Zone IDs",  missing.ToString())
+                     .Metric("Diff CSV",            deltaCsv ?? "(not written)")
                      .Metric("Match rule",          "Space Number → Name → ElementId");
 
                 panel.AddSection("FIRST 20 ZONES");
@@ -134,9 +217,12 @@ namespace StingTools.Commands.Hvac
                     panel.Text($"  {z.ZoneId}: cool {z.PeakCoolingW/1000:F1} kW · lat {z.PeakLatentW/1000:F1} kW · OA {z.OaLs:F0} L/s");
 
                 panel.Text("Parses gbXML <Zone> elements with peak / OA child elements. " +
-                           "Stamps HVC_PEAK_SENS_W + HVC_PEAK_LAT_W + HVC_OA_LS + " +
-                           "HVC_LOAD_SOURCE_TXT='gbXML:<filename>' on matched STING Spaces. " +
-                           "Use Hvac_CompareLoads for a non-destructive diff instead.");
+                           "Computes a per-zone delta against the existing STING BlockLoad " +
+                           "value (HVC_PEAK_SENS_W / HVC_LOAD_COOLING_KW), writes a diff CSV, " +
+                           "and requires explicit confirmation before stamping HVC_PEAK_SENS_W + " +
+                           "HVC_PEAK_LAT_W + HVC_OA_LS + HVC_LOAD_SOURCE_TXT='gbXML:<filename>' " +
+                           "on matched Spaces. Zones with no prior STING value are shown as 'new'. " +
+                           "Use Hvac_CompareLoads for a purely non-destructive diff.");
                 panel.Show();
                 try { StingHvacPanel.Instance?.PushRunRow($"gbXML import ({stamped} stamped)", "⬤"); }
                 catch (Exception ex) { StingLog.Warn($"Panel push: {ex.Message}"); }
@@ -158,6 +244,73 @@ namespace StingTools.Commands.Hvac
             public double PeakCoolingW;
             public double PeakLatentW;
             public double OaLs;
+        }
+
+        // Per-zone pre-apply delta (Tier-3 3.4).
+        private class DeltaRow
+        {
+            public string    ZoneId = "";
+            public bool      Matched;
+            public bool      IsNew;          // matched but no prior STING value
+            public double    PriorCoolingW;  // existing HVC_PEAK_SENS_W
+            public double    NewCoolingW;    // incoming gbXML sensible cooling
+            public double    NewLatentW;
+            public double    NewOaLs;
+            public double    DeltaPct;       // NaN when new / no prior
+            public ElementId SpaceId;
+        }
+
+        /// <summary>
+        /// Read the existing STING BlockLoad cooling value on a Space, in W.
+        /// Prefers HVC_PEAK_SENS_W (BlockLoad sensible stamp); falls back to
+        /// HVC_LOAD_COOLING_KW (kW → W) when the sensible stamp is absent.
+        /// Returns 0 when neither carries a value (→ treated as "new").
+        /// </summary>
+        private static double ReadStingCoolingW(Space sp)
+        {
+            double w = ReadParamDouble(sp, "HVC_PEAK_SENS_W");
+            if (w > 0) return w;
+            double kw = ReadParamDouble(sp, "HVC_LOAD_COOLING_KW");
+            return kw > 0 ? kw * 1000.0 : 0;
+        }
+
+        private static double ReadParamDouble(Element el, string name)
+        {
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null) return 0;
+                if (p.StorageType == StorageType.Double) return p.AsDouble();
+                if (p.StorageType == StorageType.String &&
+                    double.TryParse(p.AsString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
+                    return v;
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>
+        /// Write the per-zone STING-vs-gbXML delta table via OutputLocationHelper.
+        /// Returns the path, or null on failure.
+        /// </summary>
+        private static string WriteDeltaCsv(Document doc, List<DeltaRow> rows, string srcLabel)
+        {
+            try
+            {
+                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_gbXML_delta", ".csv");
+                var sb = new StringBuilder();
+                sb.AppendLine($"# gbXML delta report — source: {srcLabel}");
+                sb.AppendLine("ZoneId,Matched,IsNew,PriorCoolingKw,NewCoolingKw,DeltaPct,NewLatentKw,NewOaLs,SpaceId");
+                foreach (var d in rows)
+                    sb.AppendLine($"\"{d.ZoneId}\",{d.Matched},{d.IsNew}," +
+                                  $"{d.PriorCoolingW/1000:F2},{d.NewCoolingW/1000:F2}," +
+                                  $"{(double.IsNaN(d.DeltaPct) ? "" : d.DeltaPct.ToString("F1", CultureInfo.InvariantCulture))}," +
+                                  $"{d.NewLatentW/1000:F2},{d.NewOaLs:F1}," +
+                                  $"{(d.SpaceId?.Value.ToString() ?? "")}");
+                File.WriteAllText(path, sb.ToString());
+                return path;
+            }
+            catch (Exception ex) { StingLog.Warn($"WriteDeltaCsv: {ex.Message}"); return null; }
         }
 
         private static List<ZoneRow> ParseGbxml(string path, out string parseError)

@@ -131,3 +131,9 @@ planscape-web/playwright-report/
 
 # Test bundle emitted by tests/run.mjs
 marketing-site/tests/.bundle.test.mjs
+
+# wrangler local build cache (marketing-site / Pages Functions)
+.wrangler/
+
+# Bonsai extension: core wheel is built at package time (see BUILD.md)
+stingtools-bonsai/wheels/*.whl

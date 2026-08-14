@@ -537,11 +537,11 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.INotificationService, Pl
 // redis:// URL, which StackExchange.Redis's own parser does not understand —
 // see RedisConnectionStrings for the full failure mode this avoids.
 var redisConn = RedisConnectionStrings.Normalise(builder.Configuration["Redis:Connection"]);
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = redisConn;
-    options.InstanceName = "Planscape:";
-});
+// NOTE: the AddStackExchangeRedisCache call that used to sit here (fed the raw
+// connection string) is deliberately NOT duplicated — the distributed cache is
+// registered further down against the SHARED multiplexer via
+// ConnectionMultiplexerFactory. See the comment there for why a raw-string
+// registration is actively harmful during a Redis outage.
 // Phase 175 — single shared multiplexer reused by the SignalR
 // backplane, the cache, the permission-revocation store, AND the
 // Redis-backed rate limiter below. Avoid creating a second connection
@@ -553,6 +553,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // Add a 5s ConnectTimeout so the app doesn't hang on startup if the
 // DNS/network is slow. A blanket try/catch wraps the whole thing as a
 // last-resort guard against any other unexpected failure mode.
+// Built BEFORE the distributed cache so the cache can reuse this exact
+// multiplexer (see ConnectionMultiplexerFactory below).
 ConnectionMultiplexer redisMux;
 try
 {
@@ -583,6 +585,22 @@ catch (Exception ex)
     redisMux = ConnectionMultiplexer.Connect(fallbackOptions);
 }
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
+
+// Distributed cache MUST reuse the shared multiplexer above via
+// ConnectionMultiplexerFactory. Feeding AddStackExchangeRedisCache a raw
+// connection string instead makes RedisCache build its OWN multiplexer with
+// the library defaults (AbortOnConnectFail=true, 5s ConnectTimeout) — so
+// during a Redis outage every cache Get/Set pays its own multi-second connect
+// timeout instead of failing fast against the already-disconnected shared mux
+// (which was created with AbortOnConnectFail=false). InstanceName stays as the
+// key prefix; Configuration is intentionally omitted because it is ignored once
+// a factory is supplied.
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.InstanceName = "Planscape:";
+    options.ConnectionMultiplexerFactory =
+        () => Task.FromResult<IConnectionMultiplexer>(redisMux);
+});
 
 builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {
@@ -720,6 +738,8 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
 // TagSyncController + ArchiCADController (mapping upsert).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngestService,
     Planscape.Infrastructure.Services.IfcIngestService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityReconciliationService,
+    Planscape.Infrastructure.Services.IdentityReconciliationService>();
 // K2 — Platform event spine (durable cross-surface channel → STING plugin).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
     Planscape.Infrastructure.Services.PlatformEventService>();
@@ -1239,6 +1259,20 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
 // CSP / Referrer-Policy / Permissions-Policy). Inserted early so even
 // short-circuit responses from the rate limiter or auth middleware
 // still carry the hardening headers. /health endpoints are skipped.
+//
+// NOT early enough to cover STATIC FILES, and that is deliberate.
+// UseStaticFiles is registered above (see the viewer's no-cache block) and
+// short-circuits the pipeline, so /viewer.html and the viewer bundles come
+// back with NONE of these headers — verified with `curl -D -` against the
+// live API. Two consequences that are easy to reason wrongly about:
+//   • X-Frame-Options: DENY / frame-ancestors 'none' do NOT apply to
+//     viewer.html, which is why planscape-web can embed it in an iframe;
+//   • Permissions-Policy: camera=(), microphone=() does NOT block the
+//     in-viewer meeting's camera. Media permission for that frame comes
+//     solely from the embedding page's iframe `allow` attribute.
+// Both were mistaken for causes while chasing a camera bug. If you move
+// UseSecurityHeaders above UseStaticFiles you will break the embed and the
+// meeting camera at once.
 app.UseSecurityHeaders();
 app.UseSerilogRequestLogging();
 // MON-02: request/response metrics (latency histogram, status codes, in-flight).
@@ -1583,6 +1617,27 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
         // pre-existing DBs (EnsureCreated short-circuits once Tenants exists;
         // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
         await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
+
+        // Postgres RLS policies (#545). OFF unless Database:RlsEnabled is set —
+        // the same key that gates RlsConnectionInterceptor above, so the
+        // session variable and the policies that read it turn on together
+        // rather than one without the other. The key is set nowhere in this
+        // repository, so this branch does not execute by default.
+        //
+        // The policies live here rather than in the (never-run) migration
+        // 20260506200000_EnablePostgresRowLevelSecurity because production does
+        // not run migrations — see docs/adr/0001-schema-management.md. The
+        // migration is left untouched as history.
+        //
+        // These policies FAIL CLOSED: a connection that has not set
+        // app.current_tenant sees no rows. Read RlsPolicyPatcher's remarks
+        // before enabling — BypassTenantFilter paths (Hangfire, admin scans)
+        // never set the GUC and will find nothing until they are given a role
+        // carrying BYPASSRLS.
+        if (rlsEnabled)
+        {
+            await Planscape.API.RlsPolicyPatcher.ApplyAsync(patchConn);
+        }
 
         // Pre-merge Gate 2 — schema-drift self-check. The patcher path (above)
         // is the OFFICIAL schema-management mechanism for this codebase (see
@@ -1968,6 +2023,37 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // they did before.
         "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"DeletedAtUtc\" timestamp with time zone NULL",
         "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_DeletedAtUtc\" ON \"TaggedElements\" (\"ProjectId\", \"DeletedAtUtc\")",
+        // R1 — TaggedElements.IfcGlobalId (the canonical cross-host key). Same
+        // idempotent-patch rationale as DeletedAtUtc above: fresh DBs get it from
+        // the EF model via CreateTables; pre-existing DBs get it here. Nullable so
+        // existing rows read as "unknown GlobalId" until the next push populates
+        // it. NON-unique index for now (Increment 1) — the unique constraint +
+        // dedup lands in Increment 2.
+        "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"IfcGlobalId\" text NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" (\"ProjectId\", \"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL",
+        // Safe backfill: non-Revit rows (RevitElementId = 0) already carry the
+        // IFC GlobalId in UniqueId, so copy it across. Revit rows are backfilled
+        // from ExternalElementMapping during the Increment-2 merge; until then
+        // they populate IfcGlobalId on their next push (MapDtoToEntity).
+        "UPDATE \"TaggedElements\" SET \"IfcGlobalId\" = \"UniqueId\" WHERE \"RevitElementId\" = 0 AND (\"IfcGlobalId\" IS NULL OR \"IfcGlobalId\" = '') AND \"UniqueId\" <> ''",
+        // R1 (2b) — enforce ONE row per (project, GlobalId) by making the Increment-1
+        // index UNIQUE. Postgres cannot alter an index's uniqueness in place, so it
+        // is dropped + recreated — but ONLY when (a) it is not already unique and
+        // (b) the data holds no (ProjectId, IfcGlobalId) duplicates. That guard
+        // means: a fresh DB (already unique from the model) is skipped; a clean DB
+        // is converted once; a DB that still has duplicates keeps its non-unique
+        // index (lookups keep working) until an operator runs
+        // POST /api/admin/identity/reconcile/apply and restarts. Atomic (single DO
+        // block) so a failed convert can never leave the table with no index.
+        "DO $$ BEGIN " +
+        "IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' " +
+            "AND indexname='IX_TaggedElements_ProjectId_IfcGlobalId' AND indexdef ILIKE '%UNIQUE%') " +
+        "AND NOT EXISTS (SELECT 1 FROM (SELECT \"ProjectId\",\"IfcGlobalId\" FROM \"TaggedElements\" " +
+            "WHERE \"IfcGlobalId\" IS NOT NULL GROUP BY \"ProjectId\",\"IfcGlobalId\" HAVING COUNT(*)>1) d) THEN " +
+        "DROP INDEX IF EXISTS \"IX_TaggedElements_ProjectId_IfcGlobalId\"; " +
+        "CREATE UNIQUE INDEX \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" " +
+            "(\"ProjectId\",\"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL; " +
+        "END IF; END $$;",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)

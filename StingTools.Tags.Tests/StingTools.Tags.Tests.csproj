@@ -38,6 +38,11 @@
     <Compile Include="..\StingTools\Core\SeqAssigner.cs" Link="Core\SeqAssigner.cs" />
     <Compile Include="..\StingTools\Core\SeqBlockReservation.cs" Link="Core\SeqBlockReservation.cs" />
     <Compile Include="..\StingTools\Core\Validation\ProgramAuditEngine.cs" Link="Core\Validation\ProgramAuditEngine.cs" />
+    <!-- WI-7: the Revit-free half of the LOD engine — matrix model, "*"-fallback
+         resolution and the pass/fail/SKIP tally. Split out of
+         LodVerificationEngine.cs (which needs a Document) precisely so the
+         "an empty scope is not a green gate" rule is provable here. -->
+    <Compile Include="..\StingTools\Core\Validation\LodMatrixModel.cs" Link="Core\Validation\LodMatrixModel.cs" />
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Core\Classification\CsiMasterFormat.cs" />
     <Compile Include="..\StingTools\Core\Validation\DeviceCoordination.cs" Link="Core\Validation\DeviceCoordination.cs" />

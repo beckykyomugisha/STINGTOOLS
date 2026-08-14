@@ -313,40 +313,20 @@ namespace StingTools.BIMManager
             string? revision = null, int elementCount = 0) => Task.FromResult((true, ""));
         public Task<(bool ok, string error)> DeleteModelAsync(Guid projectId, Guid modelId) => Task.FromResult((true, ""));
 
-        // Site Photos — NDA / policy
-        public Task<StingTools.UI.PhotoPolicyDto?> GetPhotoPolicyAsync(Guid projectId) => Task.FromResult<StingTools.UI.PhotoPolicyDto?>(null);
-        public Task<bool>     AcceptPhotoNdaAsync(Guid projectId, string? ndaSha = null) => Task.FromResult(false);
-        public Task<bool>     AcceptPhotoNdaAsync(Guid projectId, Guid photoId) => Task.FromResult(false);
-        public HashSet<Guid>  LastNdaRequiredIds { get; set; } = new();
-
-        // Site Photos — checklists / albums / distribution
-        public Task<List<StingTools.UI.PhotoChecklistDto>?> ListPhotoChecklistsAsync(Guid projectId, string? status = null) => Task.FromResult<List<StingTools.UI.PhotoChecklistDto>?>(new List<StingTools.UI.PhotoChecklistDto>());
-        public Task<List<StingTools.UI.PhotoAlbumDto>?>     ListPhotoAlbumsAsync(Guid projectId) => Task.FromResult<List<StingTools.UI.PhotoAlbumDto>?>(new List<StingTools.UI.PhotoAlbumDto>());
-        public Task<StingTools.UI.PhotoAlbumDto?>           GetPhotoAlbumAsync(Guid projectId, Guid albumId) => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
-        public Task<StingTools.UI.PhotoAlbumDto?>           CreatePhotoAlbumAsync(Guid projectId, string name, string? description = null, string visibility = "Project") => Task.FromResult<StingTools.UI.PhotoAlbumDto?>(null);
-        public Task<bool> AddPhotosToAlbumAsync(Guid projectId, Guid albumId, IEnumerable<Guid> photoIds) => Task.FromResult(false);
-        public Task<bool> LockPhotoAlbumAsync(Guid projectId, Guid albumId, bool locked) => Task.FromResult(false);
-        public Task<StingTools.UI.PhotoShareLinkDto?> CreatePhotoShareLinkAsync(Guid projectId, Guid albumId, TimeSpan? expiry = null, string? label = null) => Task.FromResult<StingTools.UI.PhotoShareLinkDto?>(null);
-        public Task<string?> ExportPhotosAsync(Guid projectId, string outputPath, Guid? albumId = null, string format = "zip") => Task.FromResult<string?>(null);
-        public Task<bool>    ExportPhotosAsync(Guid projectId, IEnumerable<Guid>? photoIds = null, string format = "zip") => Task.FromResult(false);
-
-        // Site Photos — admin bulk — return the count of affected photos
-        // (callers do `n > 0` on the result).
-        public Task<int> BulkReclassifyPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, string newClass) => Task.FromResult(0);
-        public Task<int> BulkReanchorPhotosAsync(Guid projectId, IEnumerable<Guid> photoIds, object? payload = null, string? levelCode = null, string? zoneCode = null) => Task.FromResult(0);
-        public Task<List<DistributionGroupDto>?> ListDistributionGroupsAsync(Guid projectId) => Task.FromResult<List<DistributionGroupDto>?>(new List<DistributionGroupDto>());
-        public Task<bool> CreateDistributionGroupAsync(Guid projectId, string name, IEnumerable<string>? recipients = null, string? kind = null) => Task.FromResult(false);
-    }
-
-    /// <summary>Stub — distribution group DTO mirroring the server contract.</summary>
-    public sealed class DistributionGroupDto
-    {
-        public Guid   Id   { get; set; }
-        public string Name { get; set; } = "";
-        public string Kind { get; set; }
-        public int    MemberCount { get; set; }
-        public bool   IncludeInDailyDigest { get; set; }
-        public bool   ForceRedacted { get; set; }
+        // Site Photos — REAL implementation lives in
+        // PlanscapeServerClient.SitePhotos.cs (Phase 2). The stubs that were here
+        // returned null/false/0 — and, worse, `new List<T>()` for the three list
+        // calls, which made "the server is unreachable" render identically to
+        // "this project has no albums". Routes and DTOs in the replacement are
+        // derived from the controller source; several stub parameter names did not
+        // match the wire (visibility "Project" is not a valid value; the bulk
+        // reclassify field is `toReason`, not `newClass`; album lock/unlock are two
+        // routes, not a boolean).
+        //
+        // Distribution groups are likewise no longer stubs. Their real
+        // implementations AND DistributionGroupDto live in
+        // BIMManager/PlanscapeServerClient.DistributionGroups.cs — one file owns
+        // that surface, rather than a DTO here and the calls somewhere else.
     }
 }
 

@@ -34,7 +34,17 @@ public class IssuesController : ControllerBase
     private readonly Planscape.Infrastructure.Services.OutboundWebhookDispatcher? _webhooks;
     private readonly IBackgroundJobClient _backgroundJobs;
 
-    private static readonly Dictionary<string, int> SLAHours = new()
+    // #551 - OrdinalIgnoreCase is load-bearing, not tidiness. The default
+    // comparer is case-SENSITIVE, so a client sending "critical" missed every
+    // key here and ComputeSLADeadline's GetValueOrDefault(priority, 168) served
+    // the MEDIUM fallback: a 4-hour SLA silently became one week, with nothing
+    // logged and nothing failed.
+    //
+    // Fixed in the CONTAINER rather than by normalising at the call site -
+    // ComputeSLADeadline is not the only way in, and a caller-side .ToUpper()
+    // leaves the next caller free to reintroduce exactly this. Guarded by
+    // IssueSlaLookupTests, which asserts the comparer directly.
+    internal static readonly Dictionary<string, int> SLAHours = new(StringComparer.OrdinalIgnoreCase)
     {
         ["CRITICAL"] = 4, ["HIGH"] = 24, ["MEDIUM"] = 168, ["LOW"] = 336
     };
@@ -117,6 +127,43 @@ public class IssuesController : ControllerBase
             .ToListAsync();
 
         return Ok(new { items = issues, total, page, pageSize });
+    }
+
+    /// <summary>
+    /// Fetch a single issue.
+    ///
+    /// This route was missing entirely: the collection GET, the activity and
+    /// attachment sub-routes and the PUT all existed, but there was no
+    /// `GET issues/{issueId}`, so the web app's issue detail page — its only
+    /// consumer — 404'd on load and rendered nothing but "Failed to load
+    /// issue". No test covered it, which is why it stayed invisible.
+    ///
+    /// Returns the assignee FK fields (AssigneeUserId / AssigneeEmail) as well
+    /// as the legacy display name, because a client that offers a member picker
+    /// has to be able to preselect the current assignee by id — matching on the
+    /// display name is exactly the ambiguity the picker exists to remove.
+    /// </summary>
+    [HttpGet("{issueId:guid}")]
+    public async Task<ActionResult> GetIssue(Guid projectId, Guid issueId)
+    {
+        var tenantId = GetTenantId();
+        var issue = await _db.Issues
+            .Where(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId)
+            .Select(i => new
+            {
+                i.Id, i.IssueCode, i.Type, i.Title, i.Description, i.Priority, i.Status,
+                i.Assignee, i.AssigneeEmail, i.AssigneeUserId, i.CoAssigneeUserIds,
+                i.Discipline, i.Revision, i.CreatedBy, i.CreatedAt, i.DueDate,
+                i.ResolvedAt, i.ResolvedBy, i.LinkedElementIds, i.WatcherUserIds,
+                i.ModelId, i.ModelElementGuid, i.ModelX, i.ModelY, i.ModelZ,
+                IsOverdue = i.DueDate.HasValue && i.DueDate < DateTime.UtcNow && i.Status != "CLOSED" && i.Status != "RESOLVED",
+                DaysOpen = (int)(DateTime.UtcNow - i.CreatedAt).TotalDays
+            })
+            .FirstOrDefaultAsync();
+        if (issue == null) return NotFound();
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
+
+        return Ok(issue);
     }
 
     [HttpPost]

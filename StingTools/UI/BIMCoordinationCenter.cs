@@ -4758,7 +4758,7 @@ namespace StingTools.UI
                             // link file in case the in-memory CurrentProjectId
                             // wasn't restored this session.
                             var link = BIMManager.PlanscapeProjectLink.Load(
-                                BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                                BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                             if (link.IsLinked)
                             {
                                 projectGuid = link.ProjectId;
@@ -4864,7 +4864,7 @@ namespace StingTools.UI
                     if (projectGuid == Guid.Empty)
                     {
                         var link = BIMManager.PlanscapeProjectLink.Load(
-                            BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                            BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                         if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
                     }
                     if (projectGuid == Guid.Empty)
@@ -4960,6 +4960,84 @@ namespace StingTools.UI
                 else if (sbConnected)
                 {
                     _savedEmail = BIMManager.PlanscapeServerClient.Instance.ConnectedUser;
+                }
+
+                // ── #563 — WHICH SERVER AM I ON? ─────────────────────────
+                // This banner is the point of the issue. Switching targets was
+                // awkward, but what actually cost an evening was that the BCC
+                // never said which server it was talking to: a panel showing
+                // production data and a panel showing dev data looked identical,
+                // so a site-photo failure that could not be reproduced looked
+                // like the tests were wrong rather than the target being wrong.
+                //
+                // Non-production is styled loudly and deliberately. A dev session
+                // must not be mistakable for a real one at a glance.
+                {
+                    var activeTarget = BIMManager.PlanscapeServerTargets.GetActiveTarget();
+                    var banner = new Border
+                    {
+                        Background = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xFF, 0xF3, 0xE0)
+                            : Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                        BorderBrush = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xE6, 0x51, 0x00)
+                            : Color.FromRgb(0x2E, 0x7D, 0x32)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 6, 10, 6),
+                        Margin = new Thickness(0, 0, 0, 8),
+                    };
+                    var bannerGrid = new Grid();
+                    bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var bannerText = new StackPanel();
+                    bannerText.Children.Add(new TextBlock
+                    {
+                        Text = (activeTarget.IsNonProduction ? "⚠ SERVER: " : "SERVER: ") + activeTarget.Label,
+                        FontWeight = FontWeights.Bold, FontSize = 12,
+                        Foreground = Br(activeTarget.IsNonProduction
+                            ? Color.FromRgb(0xE6, 0x51, 0x00)
+                            : Color.FromRgb(0x2E, 0x7D, 0x32)),
+                    });
+                    bannerText.Children.Add(new TextBlock
+                    {
+                        Text = activeTarget.Url
+                             + (activeTarget.EnvOverrideActive
+                                 ? $"   (from {BIMManager.PlanscapeServerClient.ServerUrlEnvVar})"
+                                 : ""),
+                        FontSize = 10, Foreground = Brushes.Gray,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                    });
+                    Grid.SetColumn(bannerText, 0);
+                    bannerGrid.Children.Add(bannerText);
+
+                    var changeBtn = new Button
+                    {
+                        Content = "Change…", Height = 26, Padding = new Thickness(10, 0, 10, 0),
+                        FontSize = 11, Cursor = Cursors.Hand,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        ToolTip = "Pick which Planscape server this machine connects to. "
+                                + "Takes effect after Revit restarts."
+                    };
+                    changeBtn.Click += (s, e) =>
+                    {
+                        try
+                        {
+                            if (PlanscapeServerTargetDialog.Show(Window.GetWindow(this)))
+                                ShowPlatformDetail("Planscape");   // redraw the banner
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"[server-picker] {ex.Message}");
+                            ShowStatus($"Server picker failed: {ex.Message}");
+                        }
+                    };
+                    Grid.SetColumn(changeBtn, 1);
+                    bannerGrid.Children.Add(changeBtn);
+
+                    banner.Child = bannerGrid;
+                    detailStack.Children.Add(banner);
                 }
 
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
@@ -5071,7 +5149,7 @@ namespace StingTools.UI
                     Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
                 });
                 {
-                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath);
+                    string linkCfgPath = BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath);
                     var curLink = BIMManager.PlanscapeProjectLink.Load(linkCfgPath);
                     // Keep the in-memory CurrentProjectId in step with the active
                     // document whenever this tab is shown (covers project switches
@@ -10983,7 +11061,7 @@ namespace StingTools.UI
                 try
                 {
                     var lk = BIMManager.PlanscapeProjectLink.Load(
-                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                        BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                     if (lk.IsLinked) { attPid = lk.ProjectId; attClient.CurrentProjectId = attPid; }
                 }
                 catch (Exception lex) { StingLog.Warn($"[attendees] project-link resolve failed: {lex.Message}"); }
@@ -11270,7 +11348,7 @@ namespace StingTools.UI
                 try
                 {
                     var lk = BIMManager.PlanscapeProjectLink.Load(
-                        BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                        BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                     if (lk.IsLinked) { recPid = lk.ProjectId; recClient.CurrentProjectId = recPid; }
                 }
                 catch (Exception lex) { StingLog.Warn($"[recordings] project-link resolve failed: {lex.Message}"); }

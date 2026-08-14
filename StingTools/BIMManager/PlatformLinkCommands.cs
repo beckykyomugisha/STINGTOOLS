@@ -2423,9 +2423,15 @@ namespace StingTools.BIMManager
                         return;
                     }
 
-                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-                    string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
-                    Guid projectId = PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
+                    // Prefer the in-memory link, then the canonical bucket via
+                    // RestoreInto (which also migrates a legacy sibling link written
+                    // by an older build). Reading only the file, only from the
+                    // canonical bucket, is issue #570: this tick logged "no Planscape
+                    // project linked" every five minutes for a model that HAD been
+                    // linked - the id had simply been written somewhere nothing read.
+                    Guid projectId = client.CurrentProjectId;
+                    if (projectId == Guid.Empty)
+                        projectId = PlanscapeProjectLink.RestoreInto(doc).ProjectId;
                     if (projectId == Guid.Empty)
                     {
                         StingLog.Info($"PluginSyncTickBridge tick: no Planscape project linked for {doc.Title}, skipping payload build");
@@ -2674,8 +2680,15 @@ namespace StingTools.BIMManager
                 // that downgrades to a log line and still reports success.
                 try
                 {
-                    // Persist connection settings (no password stored)
-                    var doc = commandData.Application.ActiveUIDocument?.Document;
+                    // StingCommandHandler.RunCommand<T> passes null for
+                    // ExternalCommandData BY DESIGN and says so - commands are
+                    // expected to fall back to CurrentApp. This block did not, and
+                    // `commandData.Application` threw an NRE on EVERY login, caught
+                    // below and logged as "non-fatal". It had therefore never run
+                    // once (issue #571). The `?.` guarded ActiveUIDocument, which was
+                    // never the null one.
+                    var app = commandData?.Application ?? StingCommandHandler.CurrentApp;
+                    var doc = app?.ActiveUIDocument?.Document;
                     if (doc != null)
                     {
                         string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
@@ -2699,7 +2712,24 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception persistEx)
                 {
-                    StingLog.Warn($"Planscape: post-login persist step failed (non-fatal) — {persistEx.Message}");
+                    // Downgrading I/O failure here is right - a failed settings write
+                    // must not turn a working connection into an error dialog. But a
+                    // NullReferenceException is not an I/O failure, it is a bug, and
+                    // logging the two identically is how #571 hid for as long as it
+                    // did: "post-login persist step failed (non-fatal)" read as an
+                    // occasional disk problem when it actually meant this code has
+                    // never executed. Name it so the next one is obvious.
+                    bool programmingError = persistEx is NullReferenceException
+                                         || persistEx is ArgumentNullException;
+                    if (programmingError)
+                    {
+                        StingLog.Error("Planscape: post-login persist step hit a PROGRAMMING ERROR " +
+                                       "(not an I/O failure) - connection settings were NOT saved", persistEx);
+                    }
+                    else
+                    {
+                        StingLog.Warn($"Planscape: post-login persist step failed (non-fatal) — {persistEx.Message}");
+                    }
                 }
 
                 var client = PlanscapeServerClient.Instance;

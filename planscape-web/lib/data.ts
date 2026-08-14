@@ -272,6 +272,17 @@ export function getMeeting(projectId: string, meetingId: string): Promise<Meetin
   return api<Meeting>(`${mBase(projectId)}/${meetingId}`);
 }
 
+/** Mirrors the server's AttendeeDto. `userId` is what makes an attendee real —
+ *  it is the FK the meeting-invite push and the ICS export both key off. */
+export interface MeetingAttendeeInput {
+  userId?: string;
+  name?: string;
+  email?: string;
+  company?: string;
+  discipline?: string;
+  role?: string;
+}
+
 export interface CreateMeetingBody {
   title: string;
   meetingType?: string;
@@ -279,6 +290,8 @@ export interface CreateMeetingBody {
   durationMinutes?: number;
   location?: string;
   meetingUrl?: string;
+  /** Persisted by MeetingsController.CreateMeeting into MeetingAttendee rows. */
+  attendees?: MeetingAttendeeInput[];
 }
 
 export function createMeeting(projectId: string, body: CreateMeetingBody): Promise<Meeting> {

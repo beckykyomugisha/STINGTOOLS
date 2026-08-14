@@ -77,7 +77,10 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 
 `PARAMETER_DUPLICATES.md` · `PARAM_BINDING_DOMAIN_MAP.md` · `CATEGORY_BINDING_COVERAGE_REPORT.md` ·
 `TAGGING_WORKFLOW_ANALYSIS.md` · `UNIVERSAL_TAG_*.md` (build sheets and runners) ·
-`TOKEN_DEPTH_LIVE_ENHANCEMENTS_RUNNER.md` · `tagstudio-family-stage-tests.md`
+`tagstudio-family-stage-tests.md`
+
+*(`TOKEN_DEPTH_LIVE_ENHANCEMENTS_RUNNER.md` retired — E1–E5 all shipped; see the
+Token-Depth Live entry in [`CHANGELOG.md`](CHANGELOG.md).)*
 
 ## Audits, findings & triage
 
@@ -95,9 +98,19 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 
 ## Smoke tests & QA
 
+| Doc | Status |
+|---|---|
+| [`examples/_smoke_test_schema.md`](examples/_smoke_test_schema.md) | ✅ **Current.** The contract for a generated, CI-gated smoke-test checklist: what a step may declare, what `tools/check_smoke_test.py` proves, and — stated plainly — what it cannot (anything about real Revit geometry). Owner-agnostic; read this before adding an owner pack. |
+| [`examples/KUT/README.md`](examples/KUT/README.md) | ✅ **Current.** What lives in the KUT example folder. The *deployable* overlay pack is `project-templates/KUT/_BIM_COORD/`, not here. |
+| [`examples/KUT/REVIT_SMOKE_TEST.md`](examples/KUT/REVIT_SMOKE_TEST.md) | ✅ **Current — GENERATED, do not edit.** Rendered from `examples/KUT/smoke_test.json` by `tools/build_smoke_test.py`. Hand edits are reverted by the gate. |
+
+The hand-maintained checklists below predate that pipeline. They are still the
+only coverage for their areas, but none is gated — treat each as a point-in-time
+artefact and check its date before trusting a step:
+
 `SMOKE_TEST_ConduitSleeve.md` · `SMOKE_TEST_PM_COMPLETE.md` · `ELECTRICAL_SMOKETEST_CHECKLIST.md` ·
 `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` · `PR306_MANUAL_QA.md` · `GOLD_CONSOLIDATED_SWEEP_CHECKLIST.md`
 
 ## Domain packs
 
-`HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`
+`HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`

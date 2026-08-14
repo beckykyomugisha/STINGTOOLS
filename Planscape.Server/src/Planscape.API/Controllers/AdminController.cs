@@ -17,13 +17,24 @@ public class AdminController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly Planscape.Infrastructure.Authorization.IPermissionRevocationStore _revocations;
+    private readonly Planscape.Core.Interfaces.IIdentityReconciliationService _identityReconcile;
+
+    /// <summary>
+    /// Can this account reach the admin surfaces? Mirrors
+    /// <c>[Authorize(Roles = "Admin,Owner")]</c>, and an inactive account cannot
+    /// sign in, so it does not count.
+    /// </summary>
+    private static bool IsAdministrator(UserRole role, bool isActive)
+        => isActive && (role == UserRole.Owner || role == UserRole.Admin);
 
     public AdminController(
         PlanscapeDbContext db,
-        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations)
+        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations,
+        Planscape.Core.Interfaces.IIdentityReconciliationService identityReconcile)
     {
         _db = db;
         _revocations = revocations;
+        _identityReconcile = identityReconcile;
     }
 
     // ── Organization Management ──
@@ -109,6 +120,37 @@ public class AdminController : ControllerBase
         // can't pivot through policy-gated endpoints. Display-name
         // changes don't trigger revocation — they're not security-
         // relevant.
+        // ── Last-administrator guard ────────────────────────────────────────
+        //
+        // Every admin surface is [Authorize(Roles = "Admin,Owner")]. Demote or
+        // deactivate the last account holding one of those roles and NOBODY can
+        // administer the tenant again — including undoing the change that caused
+        // it. There is no self-service recovery; it takes a manual database edit
+        // by the platform operator.
+        //
+        // Both routes are checked because they are the same lockout: a role
+        // change away from Owner/Admin, and IsActive = false, are equally final.
+        var intendedRole = req.Role != null
+                        && Enum.TryParse<UserRole>(req.Role, true, out var parsedRole)
+            ? parsedRole
+            : user.Role;
+        var intendedActive = req.IsActive ?? user.IsActive;
+
+        if (IsAdministrator(user.Role, user.IsActive) &&
+            !IsAdministrator(intendedRole, intendedActive))
+        {
+            var otherAdministrators = await _db.Users.CountAsync(u =>
+                u.TenantId == tenantId && u.Id != user.Id && !u.IsDeleted && u.IsActive &&
+                (u.Role == UserRole.Owner || u.Role == UserRole.Admin));
+
+            if (otherAdministrators == 0)
+                return BadRequest(
+                    "This is the tenant's last active Owner or Admin. Demoting or "
+                  + "deactivating them would leave nobody able to administer the "
+                  + "tenant, and the change could not be undone from the app. "
+                  + "Promote another user to Admin first.");
+        }
+
         var permissionChanged = false;
         if (req.DisplayName != null) user.DisplayName = req.DisplayName;
         if (req.Role != null && Enum.TryParse<UserRole>(req.Role, true, out var r) && user.Role != r)
@@ -205,6 +247,23 @@ public class AdminController : ControllerBase
 
     private static string HashPassword(string password)
         => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+
+    // ── R1 identity reconciliation (Phase A / Increment 2) ──
+    // Backfill IfcGlobalId onto Revit rows from ExternalElementMapping, then merge
+    // each (ProjectId, IfcGlobalId) group down to one row. Human-triggered with a
+    // dry-run first, because it mutates element rows; re-running is a no-op once
+    // clean. Admin/Owner only (class-level [Authorize]). Optional ?projectId
+    // scopes to one project; omit to reconcile the whole tenant.
+
+    /// <summary>Dry-run: report what identity reconciliation WOULD do. Mutates nothing.</summary>
+    [HttpPost("identity/reconcile/analyze")]
+    public async Task<ActionResult> AnalyzeIdentityReconciliation([FromQuery] Guid? projectId, CancellationToken ct)
+        => Ok(await _identityReconcile.AnalyzeAsync(GetTenantId(), projectId, ct));
+
+    /// <summary>Apply identity reconciliation (backfill + merge). Idempotent.</summary>
+    [HttpPost("identity/reconcile/apply")]
+    public async Task<ActionResult> ApplyIdentityReconciliation([FromQuery] Guid? projectId, CancellationToken ct)
+        => Ok(await _identityReconcile.ApplyAsync(GetTenantId(), projectId, ct));
 }
 
 public record CreateUserRequest(string Email, string DisplayName, string Password, string? Role, string? Iso19650Role);

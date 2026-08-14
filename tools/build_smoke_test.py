@@ -1,0 +1,323 @@
+#!/usr/bin/env python3
+"""Render every `docs/examples/<OWNER>/smoke_test.json` into its checklist.
+
+    python tools/build_smoke_test.py             # markdown + docx
+    python tools/build_smoke_test.py --no-docx   # markdown only
+
+Outputs, next to the source:
+    REVIT_SMOKE_TEST.md                          the reference copy
+    <OWNER>_Revit_Smoke_Test_Checklist.docx      the printable session sheet
+
+**These are outputs.** Edit the JSON. `tools/check_smoke_test.py` fails CI if the
+committed markdown is not a byte-identical regeneration, which is what stops the
+three-hand-maintained-copies problem coming back.
+
+DOCX DEPENDENCY — the decision, stated
+`python-docx` is present in this environment (1.2.0), so the Word document is
+generated with it rather than by hand-rolling OOXML. The CI gate still does NOT
+depend on it: this script stamps a digest of its inputs into the document's core
+properties, and `check_smoke_test.py` reads that back with plain `zipfile` to
+prove the committed .docx is current. Writing needs python-docx; checking does
+not. This script degrades to markdown-only with an explicit warning if the
+library is missing — and the checker will then correctly call the .docx stale.
+The alternative — emitting raw OOXML to avoid the dependency — costs a large
+amount of fragile XML to buy something the stamp already gives us.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import sys
+from pathlib import Path
+
+# Fixed timestamp for the .docx core properties — see render_docx().
+EPOCH = datetime.datetime(2020, 1, 1, 0, 0, 0)
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import smoke_test_lib as L  # noqa: E402
+
+
+# ── markdown ──────────────────────────────────────────────────────────────────
+
+def _reach_note(s: dict) -> str:
+    reach = s.get("reach")
+    if reach == "button":
+        return f"**{s['button']}** ({s['panel']} panel · {s['tab']} · {s['panelSection']})"
+    if reach == "workflow":
+        return f"run **{s['preset']}** (workflow only — no standalone button)"
+    return "_Revit-native action — no STING command_"
+
+
+def render_markdown(doc: dict) -> str:
+    out: list[str] = []
+    out.append(f"# {doc['title']}")
+    out.append("")
+    out.append("> **Generated file — do not edit.** Source:")
+    out.append("> [`smoke_test.json`](smoke_test.json) · regenerate with")
+    out.append("> `python tools/build_smoke_test.py` · gated by `tools/check_smoke_test.py`.")
+    out.append("")
+    if doc.get("intro"):
+        out.append(doc["intro"])
+        out.append("")
+
+    steps = sorted(doc.get("steps") or [], key=lambda s: s["id"])
+    section = None
+    for s in steps:
+        if s["section"] != section:
+            section = s["section"]
+            out.append(f"## {section}")
+            out.append("")
+        flags = []
+        if s.get("preclearedOffline"):
+            flags.append("pre-cleared offline")
+        if s.get("optional"):
+            flags.append("optional")
+        flag_txt = f" _({', '.join(flags)})_" if flags else ""
+        out.append(f"{s['id']}. **{s['title']}** — {_reach_note(s)}{flag_txt}")
+        out.append(f"   - Expected: {s['expected']}")
+        if s.get("commandTag"):
+            out.append(f"   - Command tag: `{s['commandTag']}`")
+        if s.get("fixture"):
+            out.append(f"   - Fixture: `{s['fixture']}`")
+        if s.get("artefact"):
+            out.append(f"   - Artefact: `{s['artefact']}`")
+        if s.get("dependsOn"):
+            out.append(f"   - Depends on: step(s) {', '.join(str(d) for d in s['dependsOn'])}")
+        if s.get("notes"):
+            out.append(f"   - Note: {s['notes']}")
+        out.append("")
+
+    if doc.get("outro"):
+        out.append(doc["outro"])
+        out.append("")
+    return "\n".join(out)
+
+
+# ── docx ──────────────────────────────────────────────────────────────────────
+
+def render_docx(doc: dict, path: Path, stamp: str) -> bool:
+    try:
+        from docx import Document
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Pt, RGBColor
+    except ImportError:
+        print("  ! python-docx not installed — skipping the .docx "
+              "(`pip install python-docx`). The markdown is still generated, but the "
+              "committed .docx now reads as STALE to tools/check_smoke_test.py, "
+              "because it no longer matches the source. Install python-docx and "
+              "re-run before committing.")
+        return False
+
+    d = Document()
+    for sect in d.sections:
+        sect.left_margin = sect.right_margin = Pt(40)
+
+    title = d.add_heading(doc["title"], level=0)
+    title.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    warn = d.add_paragraph()
+    r = warn.add_run("Generated from docs/examples/%s/smoke_test.json — do not edit this document; "
+                     "edit the JSON and re-run tools/build_smoke_test.py." % doc["owner"])
+    r.italic = True
+    r.font.size = Pt(8)
+    r.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
+
+    # ── Session header block ──
+    d.add_heading("Session", level=1)
+    hdr = d.add_table(rows=5, cols=2)
+    hdr.style = "Table Grid"
+    for i, label in enumerate(["Project / model", "Revit version + build", "Tester", "Date", "Plugin DLL path (from the live .addin)"]):
+        hdr.cell(i, 0).text = label
+        hdr.cell(i, 1).text = ""
+        for p in hdr.cell(i, 0).paragraphs:
+            for run in p.runs:
+                run.bold = True
+
+    if doc.get("intro"):
+        d.add_heading("Before you start", level=1)
+        for para in doc["intro"].split("\n\n"):
+            if para.strip():
+                d.add_paragraph(para.strip())
+
+    # ── Steps ──
+    steps = sorted(doc.get("steps") or [], key=lambda s: s["id"])
+    section = None
+    for s in steps:
+        if s["section"] != section:
+            section = s["section"]
+            d.add_heading(section, level=1)
+
+        t = d.add_table(rows=0, cols=2)
+        t.style = "Table Grid"
+
+        def row(k: str, v: str, bold_value: bool = False):
+            cells = t.add_row().cells
+            cells[0].text = k
+            for p in cells[0].paragraphs:
+                for run in p.runs:
+                    run.bold = True
+                    run.font.size = Pt(9)
+            cells[1].text = v
+            for p in cells[1].paragraphs:
+                for run in p.runs:
+                    run.font.size = Pt(9)
+                    run.bold = bold_value
+
+        flags = []
+        if s.get("preclearedOffline"):
+            flags.append("pre-cleared offline")
+        if s.get("optional"):
+            flags.append("OPTIONAL")
+        head = f"{s['id']}. {s['title']}"
+        if flags:
+            head += f"   [{', '.join(flags)}]"
+        row("Step", head, bold_value=True)
+        row("Run it via", _reach_note(s).replace("**", "").replace("_", ""))
+        row("Expected", s["expected"])
+        if s.get("commandTag"):
+            row("Command tag", s["commandTag"])
+        if s.get("fixture"):
+            row("Fixture", s["fixture"])
+        if s.get("artefact"):
+            row("Artefact", s["artefact"])
+        if s.get("dependsOn"):
+            row("Depends on", "step(s) " + ", ".join(str(x) for x in s["dependsOn"]))
+        if s.get("notes"):
+            row("Note", s["notes"])
+        # The tick box, as literal characters so no font substitution is needed.
+        row("Result", "[  ] PASS      [  ] FAIL      [  ] NOT RUN")
+        d.add_paragraph("")
+
+    # ── Failure log ──
+    d.add_heading("Failure log", level=1)
+    d.add_paragraph("One row per failure. Attach the StingTools.log excerpt.")
+    fl = d.add_table(rows=1, cols=4)
+    fl.style = "Table Grid"
+    for i, h in enumerate(["Step", "Command", "What happened", "StingTools.log excerpt / model context"]):
+        fl.cell(0, i).text = h
+        for p in fl.cell(0, i).paragraphs:
+            for run in p.runs:
+                run.bold = True
+    for _ in range(8):
+        fl.add_row()
+
+    # ── Sign-off ──
+    d.add_heading("Sign-off", level=1)
+    so = d.add_table(rows=4, cols=4)
+    so.style = "Table Grid"
+    for i, h in enumerate(["Role", "Name", "Signature", "Date"]):
+        so.cell(0, i).text = h
+        for p in so.cell(0, i).paragraphs:
+            for run in p.runs:
+                run.bold = True
+    for i, role in enumerate(["Tester", "BIM Manager", "Information Manager"], start=1):
+        so.cell(i, 0).text = role
+
+    if doc.get("outro"):
+        d.add_heading("Notes", level=1)
+        for para in doc["outro"].split("\n\n"):
+            if para.strip():
+                d.add_paragraph(para.strip())
+
+    # Deterministic output. python-docx stamps `created` / `modified` in
+    # docProps/core.xml from the wall clock, so an unpinned build produces a
+    # different binary every run and `git diff --exit-code` reports a change on a
+    # tree nobody edited — which trains people to ignore the diff. Pinning both to
+    # a fixed epoch makes regeneration a genuine no-op, so a real content change
+    # is the only thing that ever shows up.
+    cp = d.core_properties
+    cp.created = EPOCH
+    cp.modified = EPOCH
+    cp.last_modified_by = ""
+    cp.revision = 1
+    cp.title = doc["title"]
+    # The staleness stamp rides in dc:description because it costs nothing: it is
+    # a core property python-docx already writes, so the checker can read it with
+    # plain `zipfile` and stay stdlib-only. A custom part (docProps/custom.xml)
+    # would mean hand-plumbing a content-type override and a relationship for no
+    # gain. See smoke_test_lib.docx_inputs_digest for what the digest covers.
+    cp.comments = ("Generated by tools/build_smoke_test.py from "
+                   f"docs/examples/{doc['owner']}/smoke_test.json — do not edit this document. "
+                   f"{L.DOCX_STAMP_PREFIX}{stamp}")
+
+    d.save(str(path))
+    _normalise_docx_zip(path)
+    return True
+
+
+def _normalise_docx_zip(path: Path) -> None:
+    """Rewrite the .docx zip with fixed entry timestamps, and stamp its content.
+
+    Pinning the core properties is not enough: python-docx writes each zip entry
+    with the current wall clock in its local header, so two builds a second apart
+    differ in bytes. `git diff --exit-code` then reports a change on a tree nobody
+    edited, and a diff that always fires is a diff people learn to ignore.
+
+    Entry order is preserved (OPC readers tolerate any order, but keeping it
+    stable keeps the diff meaningful) and only the timestamp is normalised — the
+    part bytes are untouched.
+
+    This is also where the content digest goes in, and it has to be here rather
+    than in render_docx: it hashes the finished parts, so it cannot be written
+    until every part exists. docProps/core.xml carries the stamp and is excluded
+    from it, so patching that one part afterwards leaves the digest valid.
+    """
+    import os
+    import shutil
+    import tempfile
+    import zipfile
+
+    fixed = (EPOCH.year, EPOCH.month, EPOCH.day, EPOCH.hour, EPOCH.minute, EPOCH.second)
+    with zipfile.ZipFile(path) as zin:
+        entries = [(i, zin.read(i.filename)) for i in zin.infolist()]
+
+    parts = L.docx_parts_digest(path)
+    marker = f"{L.DOCX_STAMP_PREFIX}"
+    entries = [
+        (i, data.replace(marker.encode("utf-8"),
+                         f"{L.DOCX_PARTS_PREFIX}{parts} {marker}".encode("utf-8"), 1)
+            if i.filename == L.DOCX_STAMP_PART else data)
+        for i, data in entries
+    ]
+
+    fd, tmp_name = tempfile.mkstemp(suffix=".docx")
+    os.close(fd)                 # Windows will not rename a file that is still open
+    tmp = Path(tmp_name)
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+        for info, data in entries:
+            new = zipfile.ZipInfo(info.filename, date_time=fixed)
+            new.compress_type = info.compress_type
+            new.external_attr = info.external_attr
+            new.create_system = 0            # pin to FAT so the host OS is not encoded
+            zout.writestr(new, data)
+    shutil.move(str(tmp), str(path))
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--repo-root", default=None)
+    ap.add_argument("--no-docx", action="store_true", help="markdown only")
+    args = ap.parse_args()
+
+    root = Path(args.repo_root).resolve() if args.repo_root else Path(__file__).resolve().parent.parent
+    sources = L.load_sources(root)
+    if not sources:
+        print("No docs/examples/*/smoke_test.json found — nothing to build.")
+        return 1
+
+    for owner, path, doc in sources:
+        md_path = path.parent / "REVIT_SMOKE_TEST.md"
+        md_path.write_text(render_markdown(doc), encoding="utf-8", newline="\n")
+        print(f"  wrote {md_path.relative_to(root).as_posix()}")
+
+        if not args.no_docx:
+            docx_path = L.docx_path_for(path, owner)
+            if render_docx(doc, docx_path, L.docx_inputs_digest(root, path)):
+                print(f"  wrote {docx_path.relative_to(root).as_posix()}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

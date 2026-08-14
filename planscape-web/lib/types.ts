@@ -47,6 +47,13 @@ export interface BimIssue {
   status: IssueStatus;
   assignee: string;
   assigneeEmail?: string;
+  /**
+   * FK to the assigned AppUser — what the server actually enforces against
+   * project membership. `assignee` is the legacy display-name twin and is kept
+   * because plugin/mobile callers still send it; prefer this when writing, and
+   * use it to preselect a member picker on read.
+   */
+  assigneeUserId?: string | null;
   discipline: string;
   createdAt: string;
   dueDate?: string;
