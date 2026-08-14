@@ -928,10 +928,32 @@ Use each for what it is:
 
 36. Draw the **floor** at the platform's FFL-minus-build-up. One level, no
     points, no flattening.
-37. **Make it cut the ground:** select the New Construction toposolid →
-    *Modify | Toposolid* → **Excavate** → pick the floor. Without this the slab
-    sits *inside* the earth and the cut volume is wrong — the model looks right
-    and the quantity is silently short.
+
+    **It must physically intersect the toposolid.** This is the step everything
+    else depends on: Excavate is greyed out until an intersecting element
+    exists, and a floor that floats above the ground or sits below the solid
+    intersects nothing. Remember the toposolid is a SOLID with real depth — on
+    KNP26 its Elevation at Bottom is −27,987.8 mm — so "cutting" it means the
+    floor passes through that solid, not merely over the surface.
+
+37. **Excavate — order matters, and the button lies about being unavailable:**
+
+    1. **Select the New Construction toposolid** (the host being cut, not the floor)
+    2. *Modify | Toposolid* tab → **Toposolid Shaping** panel → **Excavate ▾**
+    3. **Pick the intersecting floor**
+    4. Click **Modify** to finish
+
+    Only **floors, roofs and other toposolids** can excavate. Walls do not
+    appear in that list — see C8 for how retaining is handled instead.
+
+    > **If Excavate is greyed out, nothing intersects.** It sits next to
+    > `Sub-Divide` and `Simplify Toposolid`, and all of them grey together when
+    > the selection has no intersecting element. Do not go looking for the tool
+    > elsewhere — go and check the floor's level and offset against the ground.
+    > `Excavate ▾` also carries **Remove Excavation** for undoing it later.
+
+    Without this the slab sits *inside* the earth and the cut volume is wrong —
+    the model looks right and the quantity is silently short.
 38. Confirm it worked on the toposolid's Properties: **Cut**, **Fill** and
     **Net cut/fill** must move off `0.000 m³`. While all three read zero,
     nothing has been graded, and the BOQ earthworks row will read
@@ -962,8 +984,19 @@ different items:
     follows the ground profile and **re-follows it when the grading changes** —
     which matters because hand-set heights all become wrong the moment a
     platform moves.
-43. **Excavate** the toposolid with the wall, exactly as for the slab (C7 §37).
-    A wall sitting in the earth is the same silent error.
+43. **The wall does NOT cut the ground — only floors, roofs and toposolids can
+    excavate.** Do not go hunting for an Excavate that will accept a wall; it
+    does not exist. Cut the ground first and stand the wall against the result:
+
+    - the **path floor** excavates the toposolid (C7 §37), leaving the cut face,
+      and the retaining wall is placed along that face; or
+    - **grade the toposolid** — subdivision or point editing — so the ground
+      steps at the wall line, for an earth cut with no slab.
+
+    Either way the ground is shaped by something that is allowed to shape it,
+    and the wall is the structure holding the result. A wall simply drawn into
+    ungraded ground leaves the earth uncut and the cut volume short, with
+    nothing on screen to say so.
 44. **Slope:** Revit walls do not slope along their length. Split into
     **stepped segments**, each with its own top and base — which is also how
     masonry retaining is actually built, so it is not a modelling compromise,
