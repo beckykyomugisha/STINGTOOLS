@@ -2697,6 +2697,13 @@ namespace StingTools.Core
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,      typeof(HubAutoTagCommand).FullName),
                 ("ExportCenter",         "Export Center", "EC", DrawingColor.DarkSlateBlue,  typeof(HubExportCenterCommand).FullName),
+                // Visibility Center. It lives here rather than only on the dock
+                // panel's SELECT tab because the Quick Access Toolbar can only
+                // be populated by right-clicking a RIBBON button — there is no
+                // API for it, and a dock-panel button can never be pinned.
+                // Ribbon registration is also what puts it in Revit's
+                // Keyboard Shortcuts list.
+                ("Vis_OpenDropdown",     "Show / Hide",   "SH", DrawingColor.MediumSeaGreen, typeof(HubVisibilityCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -3212,6 +3219,17 @@ namespace StingTools.Core
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "StrCADWizard", ref message);
+    }
+
+    /// <summary>Opens the Visibility Center dropdown (show/hide by category or
+    /// ISO tag token). ReadOnly: the popup only reads to build its lists — the
+    /// writes happen in Vis_Apply / Vis_Isolate / Vis_ResetAll.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubVisibilityCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "Vis_OpenDropdown", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]
