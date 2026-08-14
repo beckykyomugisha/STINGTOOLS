@@ -812,43 +812,70 @@ misplacement, so this happens now (see D3 for the values).
 
 #### C5 — Grading and platforms
 
-Grading is not a later tidy-up: it is the second half of Stage C. Keep existing
-and proposed ground as **two phased elements** — that is what makes the
-earthworks quantity arguable rather than asserted, and what lets a section show
-existing against proposed.
+**Which model:** the **site model** — `KNP26-ACE-SI-ZZ-M3-A-0001.rvt` — still open
+from C2. Not the federated model, not a building model. The federated model
+comes later at Stage F and contains only links; nothing is ever modelled in it.
+
+**Which toposolid:** the one you built in **C2 step 17** from the imported DXF.
+That is the only toposolid in the model at this point. From here on it is called
+the **existing** toposolid, and the copy you are about to make is the
+**proposed** one.
+
+**Why two of them:** so the earthworks quantity is the *difference between two
+measured volumes* rather than an assertion, and so a section can show existing
+ground against proposed. Phasing is what keeps them apart — they occupy the same
+space, and the phase is what tells Revit (and any view) which one to draw.
 
 The legacy **Graded Region** tool works on *Toposurface*, not Toposolid, and
 **Building Pad** is likewise the Toposurface-era tool. On Revit 2024+ you grade a
 toposolid by subdividing it. Do not mix the two generations.
 
-26. Set the imported toposolid's **Phase Created = Existing**.
-27. **Copy it in place**, set the copy to **New Construction**. Grade the copy.
-28. For each structure — seven cottage platforms, the pool terrace, the
-    kitchen/dining apron, the camp fire terrace — select the New Construction
-    toposolid → **Modify | Toposolid → Subdivide**, and sketch the platform
-    boundary as the **footprint plus a 1.5–2 m working margin** for the apron,
-    drainage falls and the edge of the cut.
-29. **Flatten each platform:** select the finished subdivision → **Modify Sub
-    Elements** → window-select all its points → type the platform elevation
-    once. Every point levels to it. That elevation is the building's
-    **FFL minus the build-up** (screed + slab) — record it, because it becomes
-    that building's level datum.
-30. Subdivisions excavate the host toposolid automatically, are individually
+26. **Mark the existing ground as existing.** Select the toposolid from C2 →
+    Properties palette → **Phasing → Phase Created = `Existing`**.
+27. **Make the proposed copy.** With it still selected: `Ctrl+C`, then
+    *Modify tab → Paste ▾ → **Aligned to Same Place***. You now have two
+    toposolids occupying the same space.
+28. **Phase the copy.** The pasted one stays selected — set its
+    **Phase Created = `New Construction`**. From here on you only ever edit this
+    one. The existing toposolid is never touched again.
+29. **Set the view up so you can see what you are doing.** In the site plan view
+    Properties: **Phase = `New Construction`**, **Phase Filter =
+    `Show Previous + New`**. Existing ground then draws as demolished/halftone
+    behind the proposed. If you skip this you will be grading blind, or editing
+    the wrong toposolid without noticing.
+30. **Cut the platforms.** For each structure — seven cottage platforms, the pool
+    terrace, the kitchen/dining apron, the camp fire terrace — select the
+    **New Construction** toposolid → *Modify | Toposolid tab → **Subdivide*** →
+    sketch the boundary → **✓ Finish**. Sketch it as the **footprint plus a
+    1.5–2 m working margin**, for the apron, the drainage falls and the edge of
+    the cut.
+31. **Flatten each platform.** Select the finished subdivision → *Modify |
+    Toposolid Sub-Division tab → **Modify Sub Elements*** → window-select all its
+    points → type the platform elevation once. Every point levels to it.
+    That elevation is the building's **FFL minus the build-up** (screed + slab).
+    **Write it down** — it becomes that building's level datum in Stage D.
+32. Subdivisions excavate the host toposolid automatically, are individually
     selectable, and sit on their own Visibility/Graphics subcategory, so
     platforms can be styled separately from existing ground.
-31. Add the batters, cut slopes, road and path grading to the same New
-    Construction toposolid.
+33. **Grade everything between the platforms** — batters, cut slopes, the access
+    road, the paths — on the same New Construction toposolid, using further
+    subdivisions or by editing its points directly.
+
+> **If you only ever see one toposolid**, the view's Phase Filter is hiding the
+> other (step 29). If you find yourself editing points and the *existing* ground
+> changes, you selected the wrong one — undo, and check Phase Created before
+> continuing. Both are easy to do and neither announces itself.
 
 #### C6 — Quantities and the built landscape
 
-32. **Cut/fill.** Elements that intersect a toposolid (floors, roofs, other
+34. **Cut/fill.** Elements that intersect a toposolid (floors, roofs, other
     toposolids) excavate it and the excavated volumes schedule; scheduling the
     Existing and New Construction toposolid volumes gives the difference. This
     does **not** work for masses or generic models — only a total is reported —
     so build platforms from toposolids or floors, **never from masses**.
-33. Retaining walls, steps, ramps, paths. On 27.75 m of fall these are a real
+35. Retaining walls, steps, ramps, paths. On 27.75 m of fall these are a real
     cost item; model them properly at LOD 300.
-34. Hide the imported DXF once the toposolid is verified. **Do not delete it** —
+36. Hide the imported DXF once the toposolid is verified. **Do not delete it** —
     it is the evidence if the survey is later questioned.
 
 #### The two failures that cost a day
@@ -859,7 +886,7 @@ toposolid by subdividing it. Do not mix the two generations.
   toposolid, but the FFLs you wrote down no longer mean what they said.
 ### Stage D — The typical cottage (the highest-leverage hour of the project)
 
-35. Model **COT01 completely and correctly**, because you are about to multiply every mistake by seven.
+37. Model **COT01 completely and correctly**, because you are about to multiply every mistake by seven.
     - Radial grid A–G / 1–6, set out at the drawn **22°** and **45°**.
     - `R5795` external wall — one curved wall, not a polygon of segments.
     - Internal partitions, en-suites, `duct` risers.
@@ -868,45 +895,45 @@ toposolid by subdividing it. Do not mix the two generations.
     - Rooms, with finish codes from the annotation (`timber panquette ff`, `cem. screed ff`).
     - Sanitaryware and FF&E as scheduled families, not as decoration.
     - Full parameter/type naming per D10 as you go — *not* as a clean-up pass.
-36. Run the **tagging and validation pass on COT01 alone**. Fix every warning. Only then multiply.
-37. Link COT01 into the site model **7×**, position and rotate per the setting-out schedule.
+38. Run the **tagging and validation pass on COT01 alone**. Fix every warning. Only then multiply.
+39. Link COT01 into the site model **7×**, position and rotate per the setting-out schedule.
 
 ### Stage E — The one-offs
 
-38. **Twin cottage** — start as a copy of the COT01 model, mirror the spine, add the `bt`.
-39. **Staff lodge** — the 3600 module repeats 10×; here a group *inside* that one model is appropriate, because all rooms share a level.
-40. **Kitchen / dining / reception / back space** — the most services-heavy building; coordinate extract, gas, grease, drainage early.
-41. **Pool, camp fire terrace, laundry cage.**
+40. **Twin cottage** — start as a copy of the COT01 model, mirror the spine, add the `bt`.
+41. **Staff lodge** — the 3600 module repeats 10×; here a group *inside* that one model is appropriate, because all rooms share a level.
+42. **Kitchen / dining / reception / back space** — the most services-heavy building; coordinate extract, gas, grease, drainage early.
+43. **Pool, camp fire terrace, laundry cage.**
 
 ### Stage F — Federate and check
 
-42. Build the **federated model**: links only.
-43. Clash and coordination pass. On this project the real clashes are not duct-vs-beam, they are **building-vs-ground**: platforms that do not work, doors that open onto a 900 mm drop, paths steeper than 1:12, drainage that has to run uphill. Check those explicitly.
-44. Produce and issue the **setting-out drawing** with the coordinate table.
+44. Build the **federated model**: links only.
+45. Clash and coordination pass. On this project the real clashes are not duct-vs-beam, they are **building-vs-ground**: platforms that do not work, doors that open onto a 900 mm drop, paths steeper than 1:12, drainage that has to run uphill. Check those explicitly.
+46. Produce and issue the **setting-out drawing** with the coordinate table.
 
 ### Stage G — Data completeness before documentation
 
-45. Run the **pre-tag audit** (dry run) → fix → **batch tag** → **validate**. Nothing goes to BOQ or to sheets until validation is clean. Data first, drawings second — a drawing produced from incomplete data is a drawing you will re-issue.
-46. Check the room schedule, door schedule and window schedule are complete and unique-marked **per building**.
+47. Run the **pre-tag audit** (dry run) → fix → **batch tag** → **validate**. Nothing goes to BOQ or to sheets until validation is clean. Data first, drawings second — a drawing produced from incomplete data is a drawing you will re-issue.
+48. Check the room schedule, door schedule and window schedule are complete and unique-marked **per building**.
 
 ### Stage H — Documentation
 
-47. Create **scope boxes** (Part 2).
-48. Apply the **drawing types**: `arch-site-A1-1to500` for the site plan, `arch-setting-out-A1-1to50` for cottage setting-out, `arch-plan-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `arch-floor-finishes-A1-1to100`, `door-schedule-A3`, `arch-window-schedule-A3`. These carry the sheet size, title block, scale, view template, crop strategy and sheet-number pattern as one bundle, so every drawing of a type comes out identical.
-49. Produce sheets from the drawing types, not by hand. Let the sheet numbering pattern generate the numbers.
-50. Run the **ISO 19650 sheet compliance check** before the first issue.
+49. Create **scope boxes** (Part 2).
+50. Apply the **drawing types**: `arch-site-A1-1to500` for the site plan, `arch-setting-out-A1-1to50` for cottage setting-out, `arch-plan-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `arch-floor-finishes-A1-1to100`, `door-schedule-A3`, `arch-window-schedule-A3`. These carry the sheet size, title block, scale, view template, crop strategy and sheet-number pattern as one bundle, so every drawing of a type comes out identical.
+51. Produce sheets from the drawing types, not by hand. Let the sheet numbering pattern generate the numbers.
+52. Run the **ISO 19650 sheet compliance check** before the first issue.
 
 ### Stage I — BOQ
 
-51. Set the standard with **`Cost_SetMeasurementStandard`** (POMI, per D7); author `_BIM_COORD\takeoff_rules.json` for the pool and anything else with no corporate rule; run **`Cost_ReloadRules`**.
-52. Put the project rate card at **`_BIM_COORD\rate_card.json`** and the project bill descriptions at **`_bim_manager\boq_custom_templates.json`**.
-53. Run **`BOQPrepForExport`** → **`BOQ_RateGapReport`** → fix gaps → **`BOQExportProfessional`**. Sanity-check total walling and roofing m² by hand before you believe the total (Part 4, trap 1).
-54. Add the **measured additions** (`BOQAddManualRow`) for everything in the right-hand column of D8.
-55. **`BOQSnapshotSave`** on every issue. From the second issue on, **`BOQSnapshotCompare`** — that is the single most valuable BOQ artefact for a client, because it answers "what changed and why did the price move".
+53. Set the standard with **`Cost_SetMeasurementStandard`** (POMI, per D7); author `_BIM_COORD\takeoff_rules.json` for the pool and anything else with no corporate rule; run **`Cost_ReloadRules`**.
+54. Put the project rate card at **`_BIM_COORD\rate_card.json`** and the project bill descriptions at **`_bim_manager\boq_custom_templates.json`**.
+55. Run **`BOQPrepForExport`** → **`BOQ_RateGapReport`** → fix gaps → **`BOQExportProfessional`**. Sanity-check total walling and roofing m² by hand before you believe the total (Part 4, trap 1).
+56. Add the **measured additions** (`BOQAddManualRow`) for everything in the right-hand column of D8.
+57. **`BOQSnapshotSave`** on every issue. From the second issue on, **`BOQSnapshotCompare`** — that is the single most valuable BOQ artefact for a client, because it answers "what changed and why did the price move".
 
 ### Stage J — Issue and control
 
-56. Transmittals for every issue. Revision management on every re-issue. Nothing leaves `02_PUBLISHED` without a transmittal record.
+58. Transmittals for every issue. Revision management on every re-issue. Nothing leaves `02_PUBLISHED` without a transmittal record.
 
 ---
 
