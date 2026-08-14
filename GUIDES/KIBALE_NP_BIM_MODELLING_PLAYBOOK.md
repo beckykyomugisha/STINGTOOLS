@@ -221,6 +221,53 @@ So: run **`CreateFolders`** deliberately, and confirm the mode you got, before y
 - `_data/` — machine state only. **No deliverables ever go in here.** It holds the coordination bucket, staging, recycle, and `project_setup.json`.
 - Never hand-build a path into these folders. If you find yourself typing `_BIM_COORD` into a dialog, stop — that is the symptom of a call site that should have gone through the path resolver.
 
+#### What KNP26 actually got, and where each file goes
+
+Setup ran on 2026-08-10 and produced **`BIM` mode**, not the `CdeFirst`
+recommended above — 20 numbered folders with the `_KNP26` suffix. That is
+persisted; do not try to convert it now, it would fork the tree.
+
+**The single most expensive thing to get wrong: the tree is a *sibling* of the
+`.rvt`, and the model's location decides where it goes.**
+`ProjectFolderEngine` resolves the root as
+`Path.Combine(Path.GetDirectoryName(doc.PathName), <CODE>)`, and the cache that
+remembers it is keyed on the file path, in memory — there is no stamp in the
+model saying "my tree is over there". So a model opened from a different folder
+grows its own `KNP26\` tree in that folder, half-populated, and exports start
+landing in the wrong one. Silently.
+
+```
+D:\Work 2026\Tayebwa 2026\KIBALE NP\
+├── KNP26-ACE-ZZ-ZZ-M3-A-0001.rvt      ← live working models live HERE,
+├── KNP26-ACE-SI-ZZ-M3-A-0001.rvt         as siblings of KNP26\, never inside it
+├── KNP26-ACE-ZZ-ZZ-M3-S-0001.rvt
+└── KNP26\
+    ├── 01_WIP_KNP26\<A|S|M|E|P>_…\   WIP drawing + schedule exports, by discipline
+    ├── 05_MODELS_KNP26\              IFC / NWC / RVT export snapshots — not live files
+    ├── 17_BRIEFCASE_KNP26\           incoming reference: ACE's DWG/PDF, surveyor's DXF
+    ├── 18_PHOTOS_KNP26\              site photos
+    ├── 19_CORRESPONDENCE_KNP26\      the covering emails and transmittal notes
+    ├── 04_ARCHIVE_KNP26\             superseded incoming revisions
+    └── _data\                        machine state — no deliverables, ever
+```
+
+**Never** put a working `.rvt` in `01_WIP_…` or `05_MODELS_…`. `05_MODELS` is for
+*exports* (the FOLDER_INDEX says so); `01_WIP` is for WIP *deliverables*. Both
+would spawn a nested tree.
+
+**Incoming files from ACE and the surveyor → `17_BRIEFCASE_KNP26\`,** subfoldered
+by originator (`ACE\`, `SURVEY\`). Three rules:
+
+- **Keep their filenames.** Our ISO convention identifies *our* deliverables; a
+  received file renamed to look like ours cannot be traced back to what was
+  actually issued.
+- **Copy before linking.** Never link a DWG from Downloads or a network path —
+  linked CAD resolves by path, and Revit keeps showing the last-loaded geometry,
+  so a broken link is invisible until someone else opens the model.
+- **Supersede, don't overwrite.** A revised survey moves the superseded copy to
+  `04_ARCHIVE_KNP26\`. On this site a survey revision shifts levels under
+  buildings already modelled; you will need to show what changed.
+
 ### D3 — Coordinates and levels
 
 The site sits at ~1471–1499 m. Three separate things, do not conflate them:
@@ -699,15 +746,120 @@ Inside each **building model**, you generally do not need scope boxes at all —
 
 ### Stage C — Ground first
 
-14. Import the survey **points file** (not the PDF). Build the **Toposolid** from it. Set the contour display to **0.5 m** to match the survey so you can visually verify against the issued sheet.
-15. Model the **boundary** and the existing features that matter: the existing structure, the surveyed trees you are keeping (`mango`, `ovacado`), the access road.
-16. Model the **platforms**. In Revit 2026 use **toposolid subdivisions with a negative offset** — they excavate the host toposolid automatically, are individually selectable, and are a separate subcategory in Visibility/Graphics so you can style them. One subdivision per cottage platform, one for the pool terrace, one for the kitchen/dining apron, one for the camp fire terrace.
-17. **Cut/fill.** Elements that intersect a toposolid (floors, roofs, other toposolids) can excavate it, and the excavated volumes schedule. This gives you an earthwork quantity you can defend. It does **not** work for masses or generic models — only total cut/fill is reported for those — so build platforms from toposolids or floors, never from masses.
-18. Retaining walls, steps, ramps, paths. On 27.75 m of fall these are a real cost item; model them properly at LOD 300.
+Everything downstream is measured from the ground, so this stage is done once,
+carefully, and verified before a single wall is drawn. The platform level *is*
+the building datum — grade after the buildings and you are moving finished
+models vertically.
 
+All of Stage C happens in the **site model** (`…-SI-…`). Never import survey CAD
+into a building model.
+
+#### C1 — Check the DXF before importing it
+
+Surveyors routinely issue "flattened" CAD where every contour polyline sits at
+Z=0 and the elevation exists only as text. `Create from Import` produces nothing
+usable from that, and the failure is not obvious until you try to subdivide.
+
+14. Open the DXF and confirm the contours carry **real Z values**. After import,
+    look at it in elevation or 3D: contours should stack. If they lie in one
+    flat plane, **stop** and ask the surveyor to reissue as 3D polylines or a
+    points file (`.csv`/`.txt`, N-E-Z). Confirm units (m vs mm) at the same
+    time — Kibale reads ~1471–1499 m, so Z values must land in that range.
+
+#### C2 — Import, then build the toposolid
+
+15. **Insert → Import CAD** (import, *not* link — `Create from Import` requires
+    an import instance). Positioning **Auto – Origin to Internal Origin**,
+    correct units, *Orient to View* off.
+16. **Pin the import instance immediately.** An unpinned survey that gets nudged
+    on a 27.75 m site is a silent catastrophe.
+17. **Massing & Site → Toposolid → Create from Import → Select Import Instance.**
+    Tick **only the contour layers** — text, boundaries, trees and road
+    centrelines will drag points to wrong elevations.
+18. Give the toposolid a type with a real thickness (300–500 mm) and a material.
+    It is a solid, so it will appear in every section you cut.
+19. **Contour interval — where the setting actually lives:** *Massing & Site tab
+    → Model Site panel → the small dialog-launcher arrow at the panel's
+    bottom-right → **Site Settings***. Set **Display Contours → Interval = 0.5 m**
+    with Passthrough Elevation 0, to match the surveyor's sheet. This is
+    **project-wide**, not a toposolid type parameter. Use *Additional Contours*
+    to add a heavier line at 2.5 m so the fall reads on a plan.
+20. **Verify before building on it.** Spot-check three known survey levels
+    against the issued drawing. This is the last cheap moment to find a bad
+    import.
+
+#### C3 — Coordinates, before anything is modelled
+
+Re-coordinating eight populated models is a day of rework and a source of silent
+misplacement, so this happens now (see D3 for the values).
+
+21. Make the points visible: `VG` → **Model Categories → Site** → tick **Survey
+    Point** (triangle with an X) and **Project Base Point** (circle with an X).
+22. **Do not drag the Survey Point.** Use *Manage tab → Project Location panel →
+    **Coordinates → Specify Coordinates at Point***, click a point whose real
+    coordinate you know (a survey marker in the DXF), and enter **N/S**, **E/W**,
+    **Elevation** and **Angle to True North**. The shared coordinate system is
+    defined and no geometry moves.
+23. **Project Base Point:** select it and set **Elev** in Properties to the clean
+    readable datum (**1485.000 mAOD**). Check the **paperclip** first — *clipped*
+    means moving it moves the model; unclip, set the value, re-clip.
+24. Every building model then runs **Acquire Coordinates** from this site model.
+
+#### C4 — Existing features
+
+25. Model the **boundary** and the existing features that matter: the existing
+    structure, the surveyed trees being kept (`mango`, `ovacado`), the access road.
+
+#### C5 — Grading and platforms
+
+Grading is not a later tidy-up: it is the second half of Stage C. Keep existing
+and proposed ground as **two phased elements** — that is what makes the
+earthworks quantity arguable rather than asserted, and what lets a section show
+existing against proposed.
+
+The legacy **Graded Region** tool works on *Toposurface*, not Toposolid, and
+**Building Pad** is likewise the Toposurface-era tool. On Revit 2024+ you grade a
+toposolid by subdividing it. Do not mix the two generations.
+
+26. Set the imported toposolid's **Phase Created = Existing**.
+27. **Copy it in place**, set the copy to **New Construction**. Grade the copy.
+28. For each structure — seven cottage platforms, the pool terrace, the
+    kitchen/dining apron, the camp fire terrace — select the New Construction
+    toposolid → **Modify | Toposolid → Subdivide**, and sketch the platform
+    boundary as the **footprint plus a 1.5–2 m working margin** for the apron,
+    drainage falls and the edge of the cut.
+29. **Flatten each platform:** select the finished subdivision → **Modify Sub
+    Elements** → window-select all its points → type the platform elevation
+    once. Every point levels to it. That elevation is the building's
+    **FFL minus the build-up** (screed + slab) — record it, because it becomes
+    that building's level datum.
+30. Subdivisions excavate the host toposolid automatically, are individually
+    selectable, and sit on their own Visibility/Graphics subcategory, so
+    platforms can be styled separately from existing ground.
+31. Add the batters, cut slopes, road and path grading to the same New
+    Construction toposolid.
+
+#### C6 — Quantities and the built landscape
+
+32. **Cut/fill.** Elements that intersect a toposolid (floors, roofs, other
+    toposolids) excavate it and the excavated volumes schedule; scheduling the
+    Existing and New Construction toposolid volumes gives the difference. This
+    does **not** work for masses or generic models — only a total is reported —
+    so build platforms from toposolids or floors, **never from masses**.
+33. Retaining walls, steps, ramps, paths. On 27.75 m of fall these are a real
+    cost item; model them properly at LOD 300.
+34. Hide the imported DXF once the toposolid is verified. **Do not delete it** —
+    it is the evidence if the survey is later questioned.
+
+#### The two failures that cost a day
+
+- **Flat contours** (C1). Found at C2 it costs ten minutes; found at C5 it costs
+  the stage.
+- **Subdividing before coordinates are set** (C3). The platforms move with the
+  toposolid, but the FFLs you wrote down no longer mean what they said.
 ### Stage D — The typical cottage (the highest-leverage hour of the project)
 
-19. Model **COT01 completely and correctly**, because you are about to multiply every mistake by seven.
+35. Model **COT01 completely and correctly**, because you are about to multiply every mistake by seven.
     - Radial grid A–G / 1–6, set out at the drawn **22°** and **45°**.
     - `R5795` external wall — one curved wall, not a polygon of segments.
     - Internal partitions, en-suites, `duct` risers.
@@ -716,45 +868,45 @@ Inside each **building model**, you generally do not need scope boxes at all —
     - Rooms, with finish codes from the annotation (`timber panquette ff`, `cem. screed ff`).
     - Sanitaryware and FF&E as scheduled families, not as decoration.
     - Full parameter/type naming per D10 as you go — *not* as a clean-up pass.
-20. Run the **tagging and validation pass on COT01 alone**. Fix every warning. Only then multiply.
-21. Link COT01 into the site model **7×**, position and rotate per the setting-out schedule.
+36. Run the **tagging and validation pass on COT01 alone**. Fix every warning. Only then multiply.
+37. Link COT01 into the site model **7×**, position and rotate per the setting-out schedule.
 
 ### Stage E — The one-offs
 
-22. **Twin cottage** — start as a copy of the COT01 model, mirror the spine, add the `bt`.
-23. **Staff lodge** — the 3600 module repeats 10×; here a group *inside* that one model is appropriate, because all rooms share a level.
-24. **Kitchen / dining / reception / back space** — the most services-heavy building; coordinate extract, gas, grease, drainage early.
-25. **Pool, camp fire terrace, laundry cage.**
+38. **Twin cottage** — start as a copy of the COT01 model, mirror the spine, add the `bt`.
+39. **Staff lodge** — the 3600 module repeats 10×; here a group *inside* that one model is appropriate, because all rooms share a level.
+40. **Kitchen / dining / reception / back space** — the most services-heavy building; coordinate extract, gas, grease, drainage early.
+41. **Pool, camp fire terrace, laundry cage.**
 
 ### Stage F — Federate and check
 
-26. Build the **federated model**: links only.
-27. Clash and coordination pass. On this project the real clashes are not duct-vs-beam, they are **building-vs-ground**: platforms that do not work, doors that open onto a 900 mm drop, paths steeper than 1:12, drainage that has to run uphill. Check those explicitly.
-28. Produce and issue the **setting-out drawing** with the coordinate table.
+42. Build the **federated model**: links only.
+43. Clash and coordination pass. On this project the real clashes are not duct-vs-beam, they are **building-vs-ground**: platforms that do not work, doors that open onto a 900 mm drop, paths steeper than 1:12, drainage that has to run uphill. Check those explicitly.
+44. Produce and issue the **setting-out drawing** with the coordinate table.
 
 ### Stage G — Data completeness before documentation
 
-29. Run the **pre-tag audit** (dry run) → fix → **batch tag** → **validate**. Nothing goes to BOQ or to sheets until validation is clean. Data first, drawings second — a drawing produced from incomplete data is a drawing you will re-issue.
-30. Check the room schedule, door schedule and window schedule are complete and unique-marked **per building**.
+45. Run the **pre-tag audit** (dry run) → fix → **batch tag** → **validate**. Nothing goes to BOQ or to sheets until validation is clean. Data first, drawings second — a drawing produced from incomplete data is a drawing you will re-issue.
+46. Check the room schedule, door schedule and window schedule are complete and unique-marked **per building**.
 
 ### Stage H — Documentation
 
-31. Create **scope boxes** (Part 2).
-32. Apply the **drawing types**: `arch-site-A1-1to500` for the site plan, `arch-setting-out-A1-1to50` for cottage setting-out, `arch-plan-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `arch-floor-finishes-A1-1to100`, `door-schedule-A3`, `arch-window-schedule-A3`. These carry the sheet size, title block, scale, view template, crop strategy and sheet-number pattern as one bundle, so every drawing of a type comes out identical.
-33. Produce sheets from the drawing types, not by hand. Let the sheet numbering pattern generate the numbers.
-34. Run the **ISO 19650 sheet compliance check** before the first issue.
+47. Create **scope boxes** (Part 2).
+48. Apply the **drawing types**: `arch-site-A1-1to500` for the site plan, `arch-setting-out-A1-1to50` for cottage setting-out, `arch-plan-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `arch-floor-finishes-A1-1to100`, `door-schedule-A3`, `arch-window-schedule-A3`. These carry the sheet size, title block, scale, view template, crop strategy and sheet-number pattern as one bundle, so every drawing of a type comes out identical.
+49. Produce sheets from the drawing types, not by hand. Let the sheet numbering pattern generate the numbers.
+50. Run the **ISO 19650 sheet compliance check** before the first issue.
 
 ### Stage I — BOQ
 
-35. Set the standard with **`Cost_SetMeasurementStandard`** (POMI, per D7); author `_BIM_COORD\takeoff_rules.json` for the pool and anything else with no corporate rule; run **`Cost_ReloadRules`**.
-36. Put the project rate card at **`_BIM_COORD\rate_card.json`** and the project bill descriptions at **`_bim_manager\boq_custom_templates.json`**.
-37. Run **`BOQPrepForExport`** → **`BOQ_RateGapReport`** → fix gaps → **`BOQExportProfessional`**. Sanity-check total walling and roofing m² by hand before you believe the total (Part 4, trap 1).
-38. Add the **measured additions** (`BOQAddManualRow`) for everything in the right-hand column of D8.
-39. **`BOQSnapshotSave`** on every issue. From the second issue on, **`BOQSnapshotCompare`** — that is the single most valuable BOQ artefact for a client, because it answers "what changed and why did the price move".
+51. Set the standard with **`Cost_SetMeasurementStandard`** (POMI, per D7); author `_BIM_COORD\takeoff_rules.json` for the pool and anything else with no corporate rule; run **`Cost_ReloadRules`**.
+52. Put the project rate card at **`_BIM_COORD\rate_card.json`** and the project bill descriptions at **`_bim_manager\boq_custom_templates.json`**.
+53. Run **`BOQPrepForExport`** → **`BOQ_RateGapReport`** → fix gaps → **`BOQExportProfessional`**. Sanity-check total walling and roofing m² by hand before you believe the total (Part 4, trap 1).
+54. Add the **measured additions** (`BOQAddManualRow`) for everything in the right-hand column of D8.
+55. **`BOQSnapshotSave`** on every issue. From the second issue on, **`BOQSnapshotCompare`** — that is the single most valuable BOQ artefact for a client, because it answers "what changed and why did the price move".
 
 ### Stage J — Issue and control
 
-40. Transmittals for every issue. Revision management on every re-issue. Nothing leaves `02_PUBLISHED` without a transmittal record.
+56. Transmittals for every issue. Revision management on every re-issue. Nothing leaves `02_PUBLISHED` without a transmittal record.
 
 ---
 
