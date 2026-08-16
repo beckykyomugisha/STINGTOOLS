@@ -42,6 +42,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\MaterialScheduleModel.cs" Link="MaterialSchedule\MaterialScheduleModel.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\SupplierUnitConverter.cs" Link="MaterialSchedule\SupplierUnitConverter.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityRateResolver.cs" Link="MaterialSchedule\CommodityRateResolver.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\StageMapper.cs" Link="MaterialSchedule\StageMapper.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -61,6 +62,11 @@
     <!-- MAT-SCHED — the shipped commodity price list; the seam test proves every
          measurable commodity is also priceable. -->
     <None Include="..\StingTools\Data\STING_COMMODITY_RATES.csv" Link="Data\STING_COMMODITY_RATES.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- MAT-SCHED — the shipped stage library; unique orders and single-routing
+         kinds are what keep body and summary in step. -->
+    <None Include="..\StingTools\Data\STING_MATERIAL_STAGES.json" Link="Data\STING_MATERIAL_STAGES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

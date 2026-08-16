@@ -1212,7 +1212,7 @@ git commit -m "feat(material-schedule): commodity price list with unpriced-key t
 
 This is where PATMAC defects **D1** (letters `C`, `D`, `E` each used twice) and **D2** (summary order not matching body order) are eliminated.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `StingTools.Boq.Tests/StageMapperTests.cs`:
 
@@ -1337,7 +1337,7 @@ namespace StingTools.Boq.Tests
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~StageMapperTests"
@@ -1345,7 +1345,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: build failure — `The name 'StageMapper' does not exist`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `StingTools/Core/MaterialSchedule/StageMapper.cs`:
 
@@ -1454,13 +1454,13 @@ namespace StingTools.Core.MaterialSchedule
 }
 ```
 
-- [ ] **Step 4: Add to the test project**
+- [x] **Step 4: Add to the test project**
 
 ```xml
     <Compile Include="..\StingTools\Core\MaterialSchedule\StageMapper.cs" Link="MaterialSchedule\StageMapper.cs" />
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~StageMapperTests"
@@ -1468,7 +1468,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 7`.
 
-- [ ] **Step 6: Create the shipped stage library**
+- [x] **Step 6: Create the shipped stage library**
 
 Create `StingTools/Data/STING_MATERIAL_STAGES.json`:
 
@@ -1564,7 +1564,7 @@ Create `StingTools/Data/STING_MATERIAL_STAGES.json`:
 }
 ```
 
-- [ ] **Step 7: Add the shipped-file parse test**
+- [x] **Step 7: Add the shipped-file parse test**
 
 Append to `StageMapperTests.cs`, inside the class:
 
@@ -1594,7 +1594,7 @@ Append to `StageMapperTests.cs`, inside the class:
         }
 ```
 
-- [ ] **Step 8: Ship the JSON**
+- [x] **Step 8: Ship the JSON**
 
 ```xml
     <None Include="..\StingTools\Data\STING_MATERIAL_STAGES.json" Link="Data\STING_MATERIAL_STAGES.json">
@@ -1602,7 +1602,7 @@ Append to `StageMapperTests.cs`, inside the class:
     </None>
 ```
 
-- [ ] **Step 9: Run the tests**
+- [x] **Step 9: Run the tests**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~StageMapperTests"
@@ -1610,7 +1610,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 8`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add StingTools/Core/MaterialSchedule/StageMapper.cs StingTools/Data/STING_MATERIAL_STAGES.json StingTools.Boq.Tests/StageMapperTests.cs StingTools.Boq.Tests/StingTools.Boq.Tests.csproj StingTools/StingTools.csproj
