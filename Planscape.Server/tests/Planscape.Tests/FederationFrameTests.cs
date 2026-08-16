@@ -283,4 +283,44 @@ public class FederationFrameTests
             Assert.Equal(15.0, a.RotationDeg, 6);   // 25 model − 10 frame
         }
     }
+
+    [Fact]
+    public async Task A_shared_point_coincides_even_when_the_frame_is_rotated()
+    {
+        // The rotated-frame counterpart of
+        // A_point_shared_by_two_models_maps_to_one_world_coordinate. The stored
+        // rotation is frame-relative (θ_model − θ_frame), so the geometry is spun
+        // by −θ_frame into the project's declared axes. The translation is a CRS-
+        // grid displacement and must live in those SAME axes, or geometry and
+        // translation disagree: two models with DIFFERENT survey origins stop
+        // overlaying, the error being (R(−θ_frame) − I)·(originB − originA) —
+        // zero only when θ_frame = 0, which is why the un-rotated cases passed.
+        // Here the frame is rotated 30° and the two blocks are 500 m / 400 m
+        // apart, so the bug throws them ~100+ m out of registration.
+        var w = NewWorld(frameEasting: 431_000.0, frameNorthing: 314_000.0);
+        using (w.Conn)
+        {
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                var pcs = await seed.ProjectCoordinateSystems.SingleAsync();
+                pcs.TrueNorthDeg = 30.0;
+                await seed.SaveChangesAsync();
+            }
+
+            var (a, b) = await PlaceBoth(w);
+
+            const double pillarE = 432_200.0, pillarN = 315_150.0;
+            var localA = ((pillarE - AEast) * 1000.0, (pillarN - ANorth) * 1000.0);
+            var localB = ((pillarE - BEast) * 1000.0, (pillarN - BNorth) * 1000.0);
+
+            var wa = ModelTransformMath.ApplyMm(a.TranslationX, a.TranslationY, a.TranslationZ,
+                                                a.RotationDeg, a.ScaleFactor, localA.Item1, localA.Item2, 0);
+            var wb = ModelTransformMath.ApplyMm(b.TranslationX, b.TranslationY, b.TranslationZ,
+                                                b.RotationDeg, b.ScaleFactor, localB.Item1, localB.Item2, 0);
+
+            Assert.Equal(wa.X, wb.X, 3);
+            Assert.Equal(wa.Y, wb.Y, 3);
+            Assert.Equal(wa.Z, wb.Z, 3);
+        }
+    }
 }

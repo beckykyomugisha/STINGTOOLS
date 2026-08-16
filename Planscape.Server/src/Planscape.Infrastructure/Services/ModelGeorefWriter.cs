@@ -185,8 +185,23 @@ public sealed class ModelGeorefWriter : IModelGeorefWriter
         // → mm. NOT negated: see the class remarks. t = +origin - frameOrigin is
         // what makes a point shared by two models land on the same world
         // coordinate; the old negation mirrored models about the origin.
-        double txMm = (georef.EastingM!.Value  - frame.EastingM)  * 1000.0;
-        double tyMm = (georef.NorthingM!.Value - frame.NorthingM) * 1000.0;
+        //
+        // P5b — the displacement is measured on CRS grid axes, but the rendered
+        // world is the project FRAME: the rotation below is frame-relative
+        // (θ_model − θ_frame), so a frame declared off grid north spins the
+        // geometry by −θ_frame. The translation has to live in those same axes,
+        // or geometry and translation disagree and two models with different
+        // survey origins stop overlaying — the error is (R(−θ_frame) − I)·
+        // (originB − originA), which grows with frame rotation and separation and
+        // is zero only at θ_frame = 0. So rotate the grid displacement by
+        // −θ_frame too. Identity for a grid-aligned frame, which is why those
+        // projects were unaffected. Z is orthogonal to the planar frame spin.
+        double dxE = georef.EastingM!.Value  - frame.EastingM;    // metres, CRS grid axes
+        double dyN = georef.NorthingM!.Value - frame.NorthingM;
+        double frameRad = -frame.TrueNorthDeg * Math.PI / 180.0;  // −θ_frame, same CCW convention as ApplyMm
+        double frameCos = Math.Cos(frameRad), frameSin = Math.Sin(frameRad);
+        double txMm = (frameCos * dxE - frameSin * dyN) * 1000.0; // grid displacement, rotated into frame axes
+        double tyMm = (frameSin * dxE + frameCos * dyN) * 1000.0;
         double tzMm = ((georef.ElevationM ?? 0) - frame.ElevationM) * 1000.0;
 
         // Rotation is likewise relative to the frame: a project whose declared
