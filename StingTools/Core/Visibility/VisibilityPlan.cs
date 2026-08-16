@@ -125,6 +125,10 @@ namespace StingTools.Core.Visibility
     {
         public bool Ok { get; set; }
         public int ElementsAffected { get; set; }
+
+        /// <summary>Categories whose per-view visibility changed via SetCategoryHidden.</summary>
+        public int CategoriesAffected { get; set; }
+
         public int FiltersCreated { get; set; }
         public int FiltersReused { get; set; }
         public int ViewsAffected { get; set; }
@@ -139,6 +143,7 @@ namespace StingTools.Core.Visibility
         {
             if (!string.IsNullOrEmpty(Error)) return Error;
             var parts = new List<string> { $"{ElementsAffected:N0} elements" };
+            if (CategoriesAffected > 0) parts.Add($"{CategoriesAffected} categor{(CategoriesAffected == 1 ? "y" : "ies")}");
             if (FiltersCreated > 0) parts.Add($"{FiltersCreated} filter(s) created");
             if (FiltersReused > 0) parts.Add($"{FiltersReused} reused");
             if (ViewsAffected > 1) parts.Add($"{ViewsAffected} views");

@@ -187,16 +187,85 @@ namespace StingTools.Core.Visibility
                 : ApplyViewFilters(doc, view, plan, result);
         }
 
+        /// <summary>
+        /// Apply category rows through <c>View.SetCategoryHidden</c> — the same mechanism as
+        /// Revit's own V/G dialog. Returns how many categories changed.
+        /// <para><b>Why not temporary hide.</b> Temporary hide is one-way: it adds elements to a
+        /// hidden set and nothing takes them out again short of clearing the whole mode. That is
+        /// what made unticking a DWG import hide it while re-ticking never restored it, and it
+        /// also flipped the view into temporary-view-mode for what the user experienced as an
+        /// ordinary V/G change. <c>SetCategoryHidden</c> is declarative in both directions,
+        /// survives save, prints, and is undoable with Ctrl+Z.</para>
+        /// <para>Requires an open transaction.</para>
+        /// </summary>
+        internal static int ApplyCategoryVisibility(View view, VisibilityPlan plan, VisibilityResult result)
+        {
+            int changed = 0;
+            var set = plan?.Set;
+            if (view == null || set == null) return 0;
+
+            // Hide the unticked ones.
+            foreach (var rule in set.Rules ?? new List<VisibilityRule>())
+            {
+                if (rule == null || rule.Kind != VisibilityRuleKind.Category || rule.CategoryId == 0) continue;
+                if (rule.Action == VisibilityAction.ShowOnly) continue;   // isolate is handled elsewhere
+                changed += SetCategoryVisible(view, rule.CategoryId, false, rule.CategoryName, result) ? 1 : 0;
+            }
+
+            // Show the ticked ones. This half is the fix — without it an apply only ever hides.
+            foreach (int catId in set.VisibleCategoryIds ?? new List<int>())
+            {
+                if (catId == 0) continue;
+                changed += SetCategoryVisible(view, catId, true, null, result) ? 1 : 0;
+            }
+            return changed;
+        }
+
+        private static bool SetCategoryVisible(View view, int catId, bool visible, string name, VisibilityResult result)
+        {
+            try
+            {
+                var id = new ElementId((BuiltInCategory)catId);
+                if (catId > 0) id = new ElementId((long)catId);   // import categories are document-created
+
+                // CanCategoryBeHidden is the honest gate: a category the view cannot control
+                // must be reported, not silently skipped.
+                if (!view.CanCategoryBeHidden(id))
+                {
+                    result?.Blockers.Add($"'{name ?? id.ToString()}' cannot be hidden in this view " +
+                                         "(the view template or Revit itself controls it).");
+                    return false;
+                }
+                if (view.GetCategoryHidden(id) == !visible) return false;   // already right
+                view.SetCategoryHidden(id, !visible);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetCategoryVisible({name ?? catId.ToString()}, visible={visible}): {ex.Message}");
+                result?.Blockers.Add($"Could not change visibility of '{name ?? catId.ToString()}': {ex.Message}");
+                return false;
+            }
+        }
+
         private static VisibilityResult ApplyTemporary(View view, VisibilityPlan plan, VisibilityResult result)
         {
+            // Categories go through SetCategoryHidden (declarative, reversible); only TOKEN
+            // matches fall through to temporary element hide.
+            int cats = ApplyCategoryVisibility(view, plan, result);
+
             var ids = plan.MatchedIds.Select(id => new ElementId(id)).ToList();
             try
             {
+                bool hasTokenWork = plan.Set?.Rules != null &&
+                                    plan.Set.Rules.Any(r => r != null && r.Kind == VisibilityRuleKind.Token);
+
                 if (plan.IsIsolate) view.IsolateElementsTemporary(ids);
-                else view.HideElementsTemporary(ids);
+                else if (hasTokenWork && ids.Count > 0) view.HideElementsTemporary(ids);
 
                 result.Ok = true;
                 result.ElementsAffected = ids.Count;
+                result.CategoriesAffected = cats;
             }
             catch (Exception ex)
             {

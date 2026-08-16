@@ -102,6 +102,18 @@ namespace StingTools.Core.Visibility
         [JsonProperty("origin", NullValueHandling = NullValueHandling.Ignore)]
         public string Origin { get; set; } = "corporate";
 
+        /// <summary>
+        /// Categories the user has left TICKED, i.e. explicitly wants visible. Not serialised
+        /// with presets — it is live UI state, not a saved intent.
+        /// <para>This is what makes the panel declarative for categories. Without it a set says
+        /// only "hide these", so re-ticking a row sent an apply that no longer mentioned the
+        /// category and nothing brought it back — the reported bug where unticking a DWG import
+        /// hid it and re-ticking never restored it. With it, apply states the full desired
+        /// visibility of every category it knows about, so the same gesture reverses.</para>
+        /// </summary>
+        [JsonIgnore]
+        public List<int> VisibleCategoryIds { get; set; } = new List<int>();
+
         [JsonProperty("rules")]
         public List<VisibilityRule> Rules { get; set; } = new List<VisibilityRule>();
     }

@@ -39,7 +39,8 @@ namespace StingTools.Core.Visibility
         }
 
         /// <summary>Replace the working set's rules and mode in one atomic swap.</summary>
-        public static void Snapshot(VisibilityMode mode, VisibilityTarget target, List<VisibilityRule> rules)
+        public static void Snapshot(VisibilityMode mode, VisibilityTarget target,
+                                    List<VisibilityRule> rules, List<int> visibleCategoryIds = null)
         {
             lock (_lock)
             {
@@ -49,7 +50,8 @@ namespace StingTools.Core.Visibility
                     Origin = "project",
                     Mode = mode,
                     Target = target,
-                    Rules = rules ?? new List<VisibilityRule>()
+                    Rules = rules ?? new List<VisibilityRule>(),
+                    VisibleCategoryIds = visibleCategoryIds ?? new List<int>()
                 };
             }
         }

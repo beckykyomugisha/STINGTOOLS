@@ -5,9 +5,11 @@
 // report dialog, and the plan+apply sequence with its transaction rules.
 //
 // Transaction rules that are easy to get wrong and are therefore centralised here:
-//   · Temporary hide/isolate must run with NO open transaction (Revit throws inside one).
-//   · View filters need one.
-//   · VisibilityEngine.Reset sequences both halves itself — do not wrap it.
+//   · EVERYTHING here needs a transaction, temporary hide/isolate included. They modify the
+//     View element; "temporary" means the state is not saved with the document, NOT that it
+//     is transaction-free. Believing otherwise made Apply fail outright with "Attempt to
+//     modify the model outside of transaction".
+//   · VisibilityEngine.Reset opens its own — do not wrap it.
 
 using System;
 using System.Collections.Generic;
@@ -121,14 +123,24 @@ namespace StingTools.Commands.Visibility
         /// preset ("MEP only" would hide all MEP). Isolate passes ShowOnly explicitly, because
         /// that button *is* the user stating the action.</para>
         /// </summary>
-        internal static Result Run(ExternalCommandData cmd, VisibilityAction? forceAction)
+        /// <param name="quiet">
+        /// True for the live-apply path. Live apply fires on every tick, so a report dialog per
+        /// apply would make the feature unusable — the footer and badge already say what
+        /// happened. Blockers are still logged, and still surface on the next explicit Apply.
+        /// </param>
+        internal static Result Run(ExternalCommandData cmd, VisibilityAction? forceAction, bool quiet = false)
         {
             Document doc;
             var view = ActiveView(cmd, out doc);
             if (view == null) return Result.Cancelled;
 
             var set = VisibilitySession.Current;
-            if (set.Rules == null || set.Rules.Count == 0)
+
+            // An empty rule set is NOT necessarily nothing to do: re-ticking every category
+            // produces zero hide rules but a full VisibleCategoryIds list, and that apply is
+            // exactly how a user un-hides. Only bail when there is genuinely nothing either way.
+            bool hasRestoreWork = set.VisibleCategoryIds != null && set.VisibleCategoryIds.Count > 0;
+            if ((set.Rules == null || set.Rules.Count == 0) && !hasRestoreWork)
             {
                 TaskDialog.Show(Title,
                     "Nothing is selected yet.\n\nOpen 'Show / Hide' on the SELECT tab, tick the " +
@@ -192,7 +204,9 @@ namespace StingTools.Commands.Visibility
             // invalidates it first.
             StingTools.UI.VisibilityCenter.VisibilityBadge.Refresh(doc, view);
 
-            Report(plan.IsIsolate ? "Isolated" : "Hidden", result);
+            if (!quiet) Report(plan.IsIsolate ? "Isolated" : "Hidden", result);
+            else if (result.Blockers.Count > 0)
+                StingLog.Info("Vis live apply blockers: " + string.Join(" | ", result.Blockers.Distinct()));
             return result.Ok ? Result.Succeeded : Result.Failed;
         }
     }

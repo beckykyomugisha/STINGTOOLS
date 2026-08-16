@@ -777,6 +777,8 @@ namespace StingTools.UI
                     // the dock panel even when the panel is open.
                     case "Vis_OpenFloating": RunCommand<Commands.Visibility.OpenVisibilityDropdownFloatingCommand>(app); break;
                     case "Vis_Apply": RunCommand<Commands.Visibility.ApplyVisibilityCommand>(app); break;
+                    // Live tick apply — same path, no report dialog.
+                    case "Vis_ApplyLive": RunCommand<Commands.Visibility.ApplyVisibilityLiveCommand>(app); break;
                     case "Vis_Isolate": RunCommand<Commands.Visibility.IsolateVisibilityCommand>(app); break;
                     case "Vis_ResetAll": RunCommand<Commands.Visibility.ResetVisibilityCommand>(app); break;
                     case "Vis_PurgeFilters": RunCommand<Commands.Visibility.PurgeVisibilityFiltersCommand>(app); break;
@@ -4510,13 +4512,42 @@ namespace StingTools.UI
             _clonedSourceViewName = null;
         }
 
+        /// <summary>
+        /// Run a temporary hide/isolate change inside a transaction.
+        /// <para><b>These need one.</b> `HideElementsTemporary`, `IsolateElementsTemporary` and
+        /// `DisableTemporaryViewMode` all modify the View element, so Revit throws "Attempt to
+        /// modify the model outside of transaction" without an open transaction. The state not
+        /// being SAVED with the document is what makes it temporary — that is a different thing
+        /// from not needing a transaction. These three helpers had no transaction, so Hide,
+        /// Isolate and Reset on the SELECT tab's VIEW row silently failed.</para>
+        /// </summary>
+        private static void InTempViewTransaction(UIApplication app, string name, Action<View> act)
+        {
+            var uidoc = app?.ActiveUIDocument;
+            if (uidoc?.ActiveView == null) return;
+            try
+            {
+                using (var t = new Transaction(uidoc.Document, name))
+                {
+                    t.Start();
+                    act(uidoc.ActiveView);
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"{name}", ex);
+                TaskDialog.Show("STING Tools", $"{name} failed: {ex.Message}");
+            }
+        }
+
         private static void ViewIsolateSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Isolate", "Select elements first."); return; }
-            uidoc.ActiveView.IsolateElementsTemporary(ids);
+            InTempViewTransaction(app, "STING Isolate", v => v.IsolateElementsTemporary(ids));
         }
 
         private static void ViewHideSelected(UIApplication app)
@@ -4525,7 +4556,7 @@ namespace StingTools.UI
             if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Hide", "Select elements first."); return; }
-            uidoc.ActiveView.HideElementsTemporary(ids);
+            InTempViewTransaction(app, "STING Hide", v => v.HideElementsTemporary(ids));
         }
 
         // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
@@ -4550,9 +4581,8 @@ namespace StingTools.UI
 
         private static void ViewResetIsolate(UIApplication app)
         {
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc?.ActiveView == null) return;
-            uidoc.ActiveView.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+            InTempViewTransaction(app, "STING Reset hide/isolate",
+                v => v.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate));
         }
 
         private static void SelectAllVisible(UIApplication app)
