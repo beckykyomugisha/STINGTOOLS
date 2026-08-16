@@ -20,6 +20,7 @@ import { Miniflare } from "miniflare";
 
 import { onRequestPost as issueLicense } from "../functions/api/license/issue";
 import { onRequestPost as presentLicense } from "../functions/api/license/present";
+import { onRequestGet as listLicenses } from "../functions/api/license/index";
 import { countLicensedSeats } from "../functions/api/license/_lib/seats";
 import { signLicense } from "../functions/api/license/_lib/crypto";
 import { signJwt } from "../functions/api/auth/_lib/jwt";
@@ -178,6 +179,41 @@ const issue = (h: Harness, machineCode: string) =>
   call(issueLicense, h, { machineCode }, { Authorization: `Bearer ${h.token}` });
 
 const present = (h: Harness, body: unknown) => call(presentLicense, h, body);
+
+// call() is POST-only; the list endpoint is a GET with no body.
+function callGet(
+  handler: unknown,
+  h: Harness,
+  headers: Record<string, string> = {}
+): Promise<Response> {
+  const request = new Request("https://planscape.build/api/license", {
+    method: "GET",
+    headers,
+  });
+  return (handler as (ctx: unknown) => Promise<Response>)({
+    request,
+    env: h.env,
+    params: {},
+  });
+}
+
+interface ListBody {
+  cap: number | null;
+  inUse: number;
+  licences: Array<{
+    machineCode: string;
+    licensee: string;
+    issuedAt: string;
+    expiresAt: string;
+    revokedAt: string | null;
+    lastSeenAt: string | null;
+    lastSeenPluginVersion: string | null;
+    lastSeenRevitVersion: string | null;
+  }>;
+}
+
+const list = (h: Harness) =>
+  callGet(listLicenses, h, { Authorization: `Bearer ${h.token}` });
 
 const seats = (h: Harness) =>
   countLicensedSeats(h.db, TENANT_ID, new Date().toISOString());
@@ -408,4 +444,33 @@ test("a .lic that disagrees with our record is flagged, not corrected", async (t
   const body = (await res.json()) as { matchesRecord: boolean; expiresAt: string };
   assert.equal(body.matchesRecord, false, "the divergence is surfaced");
   assert.equal(body.expiresAt, moved, "we report OUR record, not the file's");
+});
+
+// --- the list endpoint -----------------------------------------------------
+
+test("the list reports the same seat numbers the cap is checked against", async (t) => {
+  const h = await harness();
+
+  const issued = await issue(h, "ADD3-E01C-3412-14C8-175E");
+  assert.equal(issued.status, 200);
+  const { license } = (await issued.json()) as { license: string };
+  await present(h, { license, pluginVersion: "2.2.0", revitVersion: "2025" });
+
+  const res = await list(h);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as ListBody;
+
+  assert.equal(body.licences.length, 1);
+  assert.equal(body.licences[0].machineCode, "ADD3-E01C-3412-14C8-175E");
+  assert.equal(body.licences[0].lastSeenPluginVersion, "2.2.0");
+  assert.equal(body.licences[0].lastSeenRevitVersion, "2025");
+  assert.notEqual(body.licences[0].lastSeenAt, null);
+  assert.equal(body.licences[0].revokedAt, null);
+
+  // The numbers must come from the same helper issue.ts gates on. If the
+  // endpoint grew its own query, this drifts silently — which is the exact
+  // failure seats.ts exists to prevent.
+  assert.equal(body.cap, CAP);
+  assert.equal(body.inUse, await seats(h));
+  assert.equal(body.inUse, 1);
 });
