@@ -93,7 +93,7 @@ These unblock everything else and are independently shippable.
 
 Today the constituent kind survives only as a string prefix in `Note` (`"[Compound: mortar_cement]"`). Stage routing needs it as a field.
 
-- [ ] **Step 1: Add the field to `BOQLineItem`**
+- [x] **Step 1: Add the field to `BOQLineItem`**
 
 In `StingTools/BOQ/BOQModels.cs`, immediately after the `public string Unit;` declaration (around line 129), add:
 
@@ -109,7 +109,7 @@ In `StingTools/BOQ/BOQModels.cs`, immediately after the `public string Unit;` de
         public string ConstituentKind;
 ```
 
-- [ ] **Step 2: Carry it through `Clone()`**
+- [x] **Step 2: Carry it through `Clone()`**
 
 In the same file, inside `BOQLineItem.Clone()`, after the `Unit = this.Unit,` line, add:
 
@@ -117,7 +117,7 @@ In the same file, inside `BOQLineItem.Clone()`, after the `Unit = this.Unit,` li
                 ConstituentKind = this.ConstituentKind,
 ```
 
-- [ ] **Step 3: Populate it where the Note prefix is written**
+- [x] **Step 3: Populate it where the Note prefix is written**
 
 In `StingTools/BOQ/Takeoff/CompoundTakeoffBuilder.cs`, inside the `new BOQLineItem { … }` initialiser (around line 275), add immediately before the `Note = …` line:
 
@@ -125,7 +125,7 @@ In `StingTools/BOQ/Takeoff/CompoundTakeoffBuilder.cs`, inside the `new BOQLineIt
                     ConstituentKind = c.Kind,
 ```
 
-- [ ] **Step 4: Build the plugin to verify it compiles**
+- [x] **Step 4: Build the plugin to verify it compiles**
 
 ```bash
 dotnet build StingTools/StingTools.csproj -c Debug --nologo
@@ -133,7 +133,7 @@ dotnet build StingTools/StingTools.csproj -c Debug --nologo
 
 Expected: `0 Error(s)`. Warning count must not increase from the current baseline of 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add StingTools/BOQ/BOQModels.cs StingTools/BOQ/Takeoff/CompoundTakeoffBuilder.cs

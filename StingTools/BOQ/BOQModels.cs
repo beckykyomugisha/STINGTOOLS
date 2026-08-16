@@ -128,6 +128,16 @@ namespace StingTools.BOQ
         public double Quantity;             // NET measured quantity — the value used for cost
         public string Unit;                 // "m²" / "m³" / "m" / "each" / "item" / "kg" / "tonne"
 
+        /// <summary>
+        /// MAT-SCHED — the CompoundTakeoff constituent kind that produced this row
+        /// ("mortar_cement" / "plaster_sand" / "rebar" / …), or null for rows from
+        /// the non-compound path. Additive: defaults null so existing JSON
+        /// snapshots deserialise unchanged. The material schedule routes rows to
+        /// construction stages by this value; the "[Compound: …]" Note prefix
+        /// stays for human readers.
+        /// </summary>
+        public string ConstituentKind;
+
         // ── Phase 2A — NRM2 rules-based measurement audit trail ─────────────
         // The gross→net derivation so a QS can see exactly how a modelled
         // geometry became a measured quantity. GrossQuantity is the raw Revit
@@ -263,6 +273,7 @@ namespace StingTools.BOQ
                 TypeName = this.TypeName,
                 Quantity = this.Quantity,
                 Unit = this.Unit,
+                ConstituentKind = this.ConstituentKind,
                 GrossQuantity = this.GrossQuantity,
                 DeductionQuantity = this.DeductionQuantity,
                 WastageQuantity = this.WastageQuantity,
