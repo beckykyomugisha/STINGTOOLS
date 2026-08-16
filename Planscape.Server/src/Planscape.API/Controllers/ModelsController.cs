@@ -289,6 +289,10 @@ public class ModelsController : ControllerBase
             BoundsMaxX = req.BoundsMaxX,
             BoundsMaxY = req.BoundsMaxY,
             BoundsMaxZ = req.BoundsMaxZ,
+            // C7 — an IFC is not renderable until the sidecar converts it. Say so
+            // in the data, not only in the 202 response body, so the viewer and
+            // the dashboard can tell "still working" from "gave up".
+            ConversionStatus = willConvertIfc ? "Pending" : null,
             UploadedBy = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "",
             UploadedByUserId = CurrentUserId(),
             UploadedAt = DateTime.UtcNow,
@@ -724,7 +728,11 @@ public class ModelsController : ControllerBase
         m.BoundsMaxX, m.BoundsMaxY, m.BoundsMaxZ,
         m.UploadedBy, m.UploadedAt,
         StorageOk: m.StorageMissingAt == null,
-        StorageMissingAt: m.StorageMissingAt);
+        StorageMissingAt: m.StorageMissingAt,
+        // C7 - appended rather than inserted: this is a POSITIONAL record, so
+        // adding a parameter mid-list silently re-maps every argument after it.
+        ConversionStatus: m.ConversionStatus,
+        ConversionError: m.ConversionError);
 
     private static ModelFormat InferFormat(string fileName)
     {
@@ -977,4 +985,7 @@ public record ModelMetaDto(
     string UploadedBy,
     DateTime UploadedAt,
     bool StorageOk,
-    DateTime? StorageMissingAt);
+    DateTime? StorageMissingAt,
+    /// <summary>C7 - Pending | Converting | Done | Failed, or null when no conversion was needed.</summary>
+    string? ConversionStatus = null,
+    string? ConversionError = null);
