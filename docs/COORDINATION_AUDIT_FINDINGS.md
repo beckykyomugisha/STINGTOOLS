@@ -834,3 +834,79 @@ NOT covered: end-to-end MVC wiring — no host is booted, because a
 `WebApplicationFactory` cannot run against SQLite (Program.cs issues a
 Postgres-only `information_schema` query with no try/catch) and a second factory
 is unreliable in this assembly (ROADMAP DEP-7).
+
+## 19. Track B / P1 — auto-applied transforms (CLOSED)
+
+### The defect
+
+The alignment machinery was sound and **not wired to the screen**. Both automatic
+writers — the IFC ingest path and `AutoAlignService` — store
+`IsConfirmed = false`, and the viewer's gate was:
+
+```js
+const confirmed = (t.isConfirmed !== false);
+if (!confirmed || isIdentity) return;
+```
+
+So a correct, survey-derived alignment was computed, persisted, sent to the
+viewer, and then discarded by that one line — every time — until a human
+confirmed it by hand. That is the whole "same-site models from different tools
+don't line up on their own" symptom, and it lived in four tokens of JavaScript.
+
+### The fix
+
+`IsAutoComputed` records HOW the numbers were obtained; it could not also record
+whether they are LIVE. `ProjectModelTransform` gains three columns:
+
+| Column | Meaning |
+|---|---|
+| `AppliedAutomatically` | the platform applied this on its own, because the georeferencing graded HIGH |
+| `Confidence` | `HIGH` / `LOW` / `NONE` — what was trusted |
+| `Source` | `manual` / `ifc-map-conversion` / `auto-align` / `revit-georef` — which pipeline produced it |
+
+The viewer now applies when `isConfirmed === true` **OR**
+`appliedAutomatically === true`.
+
+**Only HIGH-confidence transforms move a model.** `TransformConfidencePolicy`
+(`Planscape.Core/Coordinates/`) is the single shared rule: a survey origin from
+IfcMapConversion, plus a CRS that either declares itself (IfcProjectedCRS) or
+matches the project's own, plus a non-FAIL alignment report. Anything less is
+stored as a suggestion and left for a coordinator. A model with **no** usable
+georeference stays at the origin — deliberately not "apply a best guess": an
+un-placed model at the origin is obviously un-placed and is fixed in seconds,
+whereas a model flung 500 km by a guess looks placed and costs an investigation.
+
+The policy is shared and Revit-free precisely because three pipelines produce
+automatic transforms (ingest, auto-align, and the Revit GLB path in P2); if each
+carried its own notion of "good enough", the same model would render in different
+places depending on which one touched it last.
+
+**Precedence is enforced at WRITE time, not render time.** The automatic writers
+refuse to touch a row with `IsConfirmed = true`, so a confirmed row always holds
+the coordinator's numbers and there is nothing to reconcile when drawing. A
+manual PUT additionally clears `AppliedAutomatically` and stamps
+`Source = "manual"`, which makes the rule total.
+
+### Verification
+
+- **19 policy unit tests** (`TransformConfidencePolicyTests`) — exhaustive over a
+  pure function. Includes the load-bearing case that `CrsEquivalent(null, null)`
+  is **false**: if unknown matched unknown, every model without a declared CRS in
+  a project without one would grade HIGH and be moved on no evidence at all.
+- **3 write-path tests** on `AutoAlignService` — HIGH is marked auto-applied;
+  unanchored and FAILed evidence are stored but NOT auto-applied.
+- **12 viewer-gate assertions** (`tests/web-harness/transform-gate.mjs`) — the
+  shipped `applyModelTransform` is extracted from `viewer.html` on disk and run in
+  a `vm` sandbox against a fake three.js root. Re-introducing the old gate
+  (`const live = confirmed;`) was tried: **3 of 12 fail**, including the headline
+  "auto-applied transform actually moves the model".
+- **Schema patch proven on real Postgres 16**: against a database recreated in its
+  pre-B1 shape, the three `ADD COLUMN IF NOT EXISTS` statements applied cleanly,
+  were idempotent on a second pass, and left a pre-existing row at
+  `AppliedAutomatically = false` — so no existing project starts rendering
+  differently because of a deploy.
+- Full suite **691 passed / 0 failed / 11 skipped**; build 0 errors.
+
+Schema follows ADR 0001 (EnsureCreated + idempotent patcher). `dotnet ef
+migrations add` remains unsafe here — the model snapshot is stale and a new
+migration would try to re-create existing tables.

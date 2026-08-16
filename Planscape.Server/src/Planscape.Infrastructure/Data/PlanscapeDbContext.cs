@@ -1494,6 +1494,12 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => x.TenantId);
             e.Property(x => x.AppliedBy).HasMaxLength(200);
             e.Property(x => x.Notes).HasMaxLength(2000);
+            // B1 — auto-apply. Left unconstrained in length deliberately: the
+            // startup patcher adds these to pre-existing DBs as plain `text`,
+            // and a HasMaxLength here would make SchemaDriftChecker report a
+            // type mismatch between the EF model and the patched column.
+            e.Property(x => x.Confidence);
+            e.Property(x => x.Source);
             e.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
         });
 

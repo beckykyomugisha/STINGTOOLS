@@ -3,6 +3,7 @@ namespace Planscape.Infrastructure.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
@@ -234,21 +235,39 @@ public sealed class AutoAlignService : IAutoAlignService
             existing.UpdatedAt = DateTime.UtcNow;
         }
 
-        existing.TranslationX   = tx;
-        existing.TranslationY   = ty;
-        existing.TranslationZ   = tz;
-        existing.RotationDeg    = rotDeg;
-        existing.ScaleFactor    = scaleFactor;
-        existing.IsAutoComputed = true;
-        existing.IsConfirmed    = false;
-        existing.AppliedBy      = "auto-align-service";
-        existing.AppliedAt      = DateTime.UtcNow;
+        // ── 6b. Grade the evidence, and apply it if it is strong enough ───────
+        // B1 — computing a transform and trusting it are different claims. The
+        // shared policy makes this path agree with the IFC ingest path, so the
+        // same model does not render in two different places depending on which
+        // pipeline touched it last.
+        var confidence = TransformConfidencePolicy.Evaluate(
+            hasMapConversion : targetReport.HasMapConversion,
+            hasProjectedCrs  : targetReport.HasProjectedCrs,
+            crsMatchesProject: TransformConfidencePolicy.CrsEquivalent(
+                                   targetReport.CrsName, pcs?.CrsEpsgCode ?? pcs?.CrsName),
+            surveyEasting    : targetReport.SurveyEasting,
+            surveyNorthing   : targetReport.SurveyNorthing,
+            verdict          : targetReport.Verdict);
+
+        existing.TranslationX         = tx;
+        existing.TranslationY         = ty;
+        existing.TranslationZ         = tz;
+        existing.RotationDeg          = rotDeg;
+        existing.ScaleFactor          = scaleFactor;
+        existing.IsAutoComputed       = true;
+        existing.IsConfirmed          = false;
+        existing.AppliedAutomatically = TransformConfidencePolicy.ShouldAutoApply(confidence);
+        existing.Confidence           = TransformConfidencePolicy.ToStorageString(confidence);
+        existing.Source               = "auto-align";
+        existing.AppliedBy            = "auto-align-service";
+        existing.AppliedAt            = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "AutoAlign computed for model {ModelId}: TX={TX:F3} TY={TY:F3} TZ={TZ:F3} Rot={Rot:F4}° Scale={Scale:F6} ref={Ref}",
-            targetModelId, tx, ty, tz, rotDeg, scaleFactor, referenceModelId ?? "PCS");
+            "AutoAlign computed for model {ModelId}: TX={TX:F3} TY={TY:F3} TZ={TZ:F3} Rot={Rot:F4}° Scale={Scale:F6} ref={Ref} confidence={Confidence} autoApplied={AutoApplied}",
+            targetModelId, tx, ty, tz, rotDeg, scaleFactor, referenceModelId ?? "PCS",
+            confidence, existing.AppliedAutomatically);
 
         // Gap K — broadcast the new transform so viewer clients refresh their
         // coordinate frame without polling.

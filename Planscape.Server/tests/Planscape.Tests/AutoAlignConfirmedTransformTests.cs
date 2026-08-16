@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -48,12 +49,26 @@ public class AutoAlignConfirmedTransformTests
     private sealed record World(SqliteConnection Conn, Guid Tenant, Guid Project, Guid Target, Guid Reference);
 
     /// <summary>
+    /// Georeferencing quality of the TARGET model's report, which is what
+    /// <see cref="TransformConfidencePolicy"/> grades.
+    /// </summary>
+    public enum Georef   // public: xunit [InlineData] carries it into a public test signature
+    {
+        /// <summary>IfcProjectedCRS present + PASS → HIGH → auto-applied.</summary>
+        Strong,
+        /// <summary>Survey origin but no CRS anchor → LOW → suggestion only.</summary>
+        Unanchored,
+        /// <summary>Anchored, but the validator FAILed → LOW → suggestion only.</summary>
+        Failed,
+    }
+
+    /// <summary>
     /// A project with two georeferenced models: a reference at survey origin
     /// (1000, 2000) and a target at (1500, 2500). Auto-align therefore has real
     /// work to do — a fixture where it fails for lack of data would make the
     /// "did not overwrite" assertion pass for the wrong reason.
     /// </summary>
-    private static World NewWorld(bool targetTransformConfirmed)
+    private static World NewWorld(bool targetTransformConfirmed, Georef georef = Georef.Strong)
     {
         var conn = new SqliteConnection("DataSource=:memory:");
         conn.Open();
@@ -101,9 +116,14 @@ public class AutoAlignConfirmedTransformTests
             {
                 TenantId = tenant, ProjectId = project, ProjectModelId = target,
                 HasMapConversion = true,
+                // Only the STRONG case declares a projected CRS; the other two
+                // are what a real-world file without one looks like.
+                HasProjectedCrs = georef == Georef.Strong,
+                CrsName = georef == Georef.Strong ? "EPSG:27700" : null,
                 SurveyEasting = 1500, SurveyNorthing = 2500, SurveyElevation = 0,
                 MapConversionRotationDeg = 0,
-                Verdict = "PASS", ValidatedAt = DateTime.UtcNow,
+                Verdict = georef == Georef.Failed ? "FAIL" : "PASS",
+                ValidatedAt = DateTime.UtcNow,
             });
 
             ctx.Set<ProjectModelTransform>().Add(new ProjectModelTransform
@@ -188,6 +208,56 @@ public class AutoAlignConfirmedTransformTests
             Assert.True(xf.IsAutoComputed);
             Assert.False(xf.IsConfirmed);
             Assert.Equal("auto-align-service", xf.AppliedBy);
+        }
+    }
+
+    // ── B1 — does the computed transform actually go LIVE? ───────────────────
+
+    [Fact]
+    public async Task A_high_confidence_result_is_marked_auto_applied()
+    {
+        // The P1 fix. Before it, this row was written with IsConfirmed=false and
+        // nothing else, and the viewer's `isConfirmed !== false` gate discarded
+        // it — so a correct survey-derived alignment never rendered.
+        var w = NewWorld(targetTransformConfirmed: false, georef: Georef.Strong);
+        using (w.Conn)
+        {
+            var result = await NewService(w).ComputeAsync(w.Project, w.Tenant, w.Target);
+            Assert.True(result.Success, result.Message);
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            var xf = await check.Set<ProjectModelTransform>().SingleAsync();
+
+            Assert.True(xf.AppliedAutomatically);
+            Assert.Equal("HIGH", xf.Confidence);
+            Assert.Equal("auto-align", xf.Source);
+            // Still not "confirmed" — that word is reserved for a human.
+            Assert.False(xf.IsConfirmed);
+        }
+    }
+
+    [Theory]
+    [InlineData(Georef.Unanchored)]   // survey origin, but no CRS to anchor it
+    [InlineData(Georef.Failed)]       // anchored, but the validator FAILed
+    public async Task A_low_confidence_result_is_stored_but_not_auto_applied(Georef georef)
+    {
+        // The other half of the contract, and the reason this is not just
+        // "apply everything": a model whose georeference cannot be trusted stays
+        // where it is instead of being flung across the site by a guess.
+        var w = NewWorld(targetTransformConfirmed: false, georef: georef);
+        using (w.Conn)
+        {
+            var result = await NewService(w).ComputeAsync(w.Project, w.Tenant, w.Target);
+            Assert.True(result.Success, result.Message);
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            var xf = await check.Set<ProjectModelTransform>().SingleAsync();
+
+            // Computed and stored — a coordinator can still confirm it.
+            Assert.Equal(-500_000.0, xf.TranslationX, 3);
+            // But not live.
+            Assert.False(xf.AppliedAutomatically);
+            Assert.Equal("LOW", xf.Confidence);
         }
     }
 }
