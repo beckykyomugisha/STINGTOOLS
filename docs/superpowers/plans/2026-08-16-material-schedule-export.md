@@ -2768,7 +2768,7 @@ git commit -m "feat(material-schedule): branded XLSX renderer with prices toggle
 - Create: `StingTools/UI/Modules/MaterialScheduleCommandModule.cs`
 - Modify: `StingTools/UI/CommandRegistry.cs`
 
-- [ ] **Step 1: Write the export command**
+- [x] **Step 1: Write the export command**
 
 Create `StingTools/Commands/MaterialSchedule/MaterialScheduleCommands.cs`:
 
@@ -2881,7 +2881,7 @@ namespace StingTools.Commands.MaterialSchedule
 }
 ```
 
-- [ ] **Step 2: Write the registry module**
+- [x] **Step 2: Write the registry module**
 
 Create `StingTools/UI/Modules/MaterialScheduleCommandModule.cs`:
 
@@ -2902,7 +2902,7 @@ namespace StingTools.UI.Modules
 }
 ```
 
-- [ ] **Step 3: Yield the module**
+- [x] **Step 3: Yield the module**
 
 In `StingTools/UI/CommandRegistry.cs`, inside `EnumerateModules()`, after the `Modules.HealthcareCommandModule()` line, add:
 
@@ -2910,7 +2910,7 @@ In `StingTools/UI/CommandRegistry.cs`, inside `EnumerateModules()`, after the `M
             yield return new Modules.MaterialScheduleCommandModule();
 ```
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 ```bash
 dotnet build StingTools/StingTools.csproj -c Debug --nologo
@@ -2918,7 +2918,7 @@ dotnet build StingTools/StingTools.csproj -c Debug --nologo
 
 Expected: `0 Error(s)`.
 
-- [ ] **Step 5: Verify the tag dispatches**
+- [x] **Step 5: Verify the tag dispatches**
 
 ```bash
 pwsh -File tools/check_workflow_wiring.ps1
@@ -2926,7 +2926,7 @@ pwsh -File tools/check_workflow_wiring.ps1
 
 Expected: no new silent-button or unreachable-command findings. If the script reports `MaterialSchedule_Export` as a command with no button, that is expected until a button is added to the XAML — record it and continue.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add StingTools/Commands/MaterialSchedule/ StingTools/UI/Modules/MaterialScheduleCommandModule.cs StingTools/UI/CommandRegistry.cs
