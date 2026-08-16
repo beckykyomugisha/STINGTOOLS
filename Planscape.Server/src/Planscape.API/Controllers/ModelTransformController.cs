@@ -59,12 +59,28 @@ public class ModelTransformController : ControllerBase
                   && t.TenantId       == _tenant.TenantId,
                 ct);
 
+        // P3 — the mesh's own length unit travels with the transform because
+        // this is the one payload the viewer already fetches per model, and the
+        // two are multiplied at render time anyway. It is reported even when
+        // there is NO transform: a model whose mesh is in millimetres needs
+        // rescaling whether or not it is georeferenced, and before this the
+        // viewer never read ProjectModel.Units at all, so such a model rendered
+        // 1000x too large. Alone that is invisible (the camera fits to bounds);
+        // federated with a metre model it is a thousand-fold mismatch.
+        var meshUnits = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.Id == modelId && m.ProjectId == projectId && m.TenantId == _tenant.TenantId)
+            .Select(m => m.Units)
+            .FirstOrDefaultAsync(ct);
+        double meshUnitScale = MeshUnits.ToMetres(meshUnits);
+
         if (xf == null)
         {
             return Ok(new
             {
                 modelId          = modelId,
                 hasTransform     = false,
+                meshUnits        = meshUnits,
+                meshUnitScale    = meshUnitScale,
                 translationX     = 0.0,
                 translationY     = 0.0,
                 translationZ     = 0.0,
@@ -85,6 +101,8 @@ public class ModelTransformController : ControllerBase
         {
             modelId          = modelId,
             hasTransform     = true,
+            meshUnits        = meshUnits,
+            meshUnitScale    = meshUnitScale,
             translationX     = xf.TranslationX,
             translationY     = xf.TranslationY,
             translationZ     = xf.TranslationZ,
@@ -111,15 +129,21 @@ public class ModelTransformController : ControllerBase
     {
         if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
 
-        // Validate ownership
-        var projectExists = await _db.ProjectModels.AsNoTracking()
-            .AnyAsync(m => m.Id        == modelId
-                        && m.ProjectId == projectId
-                        && m.TenantId  == _tenant.TenantId
-                        && m.DeletedAt == null,
-                      ct);
-        if (!projectExists)
+        // Validate ownership. Selecting Units at the same time serves the
+        // response below, which echoes the mesh unit so a client that PUTs a
+        // transform sees the same shape GET returns.
+        var model = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.Id        == modelId
+                     && m.ProjectId == projectId
+                     && m.TenantId  == _tenant.TenantId
+                     && m.DeletedAt == null)
+            .Select(m => new { m.Units })
+            .FirstOrDefaultAsync(ct);
+        if (model == null)
             return NotFound(new { message = "Model not found or does not belong to this project/tenant." });
+
+        var meshUnits = model.Units;
+        double meshUnitScale = MeshUnits.ToMetres(meshUnits);
 
         if (dto.ScaleFactor <= 0)
             return BadRequest(new { message = "ScaleFactor must be greater than zero." });
@@ -212,6 +236,8 @@ public class ModelTransformController : ControllerBase
         {
             modelId          = modelId,
             hasTransform     = true,
+            meshUnits        = meshUnits,
+            meshUnitScale    = meshUnitScale,
             translationX     = xf.TranslationX,
             translationY     = xf.TranslationY,
             translationZ     = xf.TranslationZ,

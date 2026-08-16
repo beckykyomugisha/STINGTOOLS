@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -153,7 +154,16 @@ public class IfcToGlbConversionJob
             StoragePath = key,
             ContentHash = result.Sha256,
             FileSizeBytes = sizeBytes > 0 ? sizeBytes : result.Bytes,
-            Units = string.IsNullOrWhiteSpace(ifc.Units) ? "mm" : ifc.Units,
+            // P3 — the GLB's own mesh unit, NOT the source IFC's.
+            //
+            // This used to copy `ifc.Units` across, which describes the IFC file
+            // (commonly millimetres) rather than the geometry the converter
+            // emits. Harmless while nothing read the field; actively wrong now
+            // that Units drives the viewer's mesh scaling, because it would
+            // shrink every converted model by 1000. glTF 2.0 defines metres and
+            // the converter emits glTF, so the derivative is metres by
+            // construction.
+            Units = MeshUnits.Canonical,
             Revision = ifc.Revision,
             UploadedBy = "IFC→GLB converter",
             UploadedAt = DateTime.UtcNow,

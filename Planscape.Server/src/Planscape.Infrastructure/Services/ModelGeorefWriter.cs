@@ -25,6 +25,13 @@ namespace Planscape.Infrastructure.Services;
 /// being non-null so a host can supply a code it is not certain about.
 /// </param>
 /// <param name="LengthUnit">The model's own length unit — "mm" | "m" | "ft".</param>
+/// <param name="MapConversionScale">
+/// The GEOREFERENCING scale declared by the source (IfcMapConversion.Scale) —
+/// a survey correction, e.g. a grid-to-ground factor. Null or 1.0 means none.
+/// Emphatically NOT the mesh's unit scale: that is <see cref="MeshUnits"/>,
+/// applied separately at render time. Conflating the two turns a unit fix into
+/// a survey error.
+/// </param>
 /// <param name="SourceLabel">
 /// Which pipeline produced this: "ifc-map-conversion" | "revit-georef".
 /// Stored on the transform so the UI can explain why a model moved.
@@ -37,7 +44,8 @@ public sealed record ModelGeoref(
     string? CrsCode,
     bool HasDeclaredCrs,
     string? LengthUnit,
-    string SourceLabel)
+    string SourceLabel,
+    double? MapConversionScale = null)
 {
     /// <summary>True when there is enough here to place the model at all.</summary>
     public bool HasSurveyOrigin => EastingM.HasValue && NorthingM.HasValue;
@@ -128,6 +136,14 @@ public sealed class ModelGeorefWriter : IModelGeorefWriter
         double tyMm = -georef.NorthingM!.Value * 1000.0;
         double tzMm = -(georef.ElevationM ?? 0) * 1000.0;
 
+        // The source's declared survey scale, inverted to undo it — the same
+        // convention AutoAlignService uses. The IFC ingest path used to compute
+        // this into a variable whose two branches both returned 1.0, so a
+        // declared map-conversion scale was silently discarded.
+        double scaleFactor = (georef.MapConversionScale is { } mcs && mcs != 0 && mcs != 1.0)
+            ? 1.0 / mcs
+            : 1.0;
+
         var existing = await _db.ProjectModelTransforms
             .FirstOrDefaultAsync(t => t.ProjectId == projectId
                                    && t.ProjectModelId == projectModelId
@@ -154,7 +170,7 @@ public sealed class ModelGeorefWriter : IModelGeorefWriter
                 TranslationY         = tyMm,
                 TranslationZ         = tzMm,
                 RotationDeg          = georef.TrueNorthDeg,
-                ScaleFactor          = 1.0,
+                ScaleFactor          = scaleFactor,
                 IsAutoComputed       = true,
                 IsConfirmed          = false,
                 AppliedAutomatically = autoApply,
@@ -170,7 +186,7 @@ public sealed class ModelGeorefWriter : IModelGeorefWriter
             existing.TranslationY         = tyMm;
             existing.TranslationZ         = tzMm;
             existing.RotationDeg          = georef.TrueNorthDeg;
-            existing.ScaleFactor          = 1.0;
+            existing.ScaleFactor          = scaleFactor;
             existing.IsAutoComputed       = true;
             existing.AppliedAutomatically = autoApply;
             existing.Confidence           = confidenceText;

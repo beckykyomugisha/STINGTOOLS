@@ -259,7 +259,7 @@ namespace StingTools.BIMManager
                 description: $"Published from Revit {doc.Application.VersionName}",
                 discipline: DetectDocDiscipline(doc),
                 revision: PhaseAutoDetect.DetectProjectRevision(doc),
-                units: "mm",
+                units: "m",   // P3 — the GLB vertices are metres (glTF 2.0)
                 elementCount: elementCount,
                 bounds: bounds,
                 force: force,
@@ -268,7 +268,7 @@ namespace StingTools.BIMManager
                 georefElevationM:   hasGeoref ? georef!.ElevationM   : (double?)null,
                 georefTrueNorthDeg: hasGeoref ? georef!.TrueNorthDeg : (double?)null,
                 georefCrsEpsg:      hasGeoref ? georef!.CrsEpsg      : null,
-                georefLengthUnit:   hasGeoref ? "mm"                 : null,
+                georefLengthUnit:   hasGeoref ? "m"                  : null,
                 georefExportMode:   hasGeoref ? georef!.ExportMode   : null)).GetAwaiter().GetResult();
 
             if (!result.ok)
@@ -650,15 +650,24 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex) { StingLog.Warn($"[sys] summary failed: {ex.Message}"); }
 
-            // Convert feet → mm for the bounds (Revit internal units are feet).
+            // P3 — bounds are in METRES, matching the GLB vertices.
+            //
+            // These describe the same geometry the exporter writes, so they have
+            // to use the same unit or the manifest AABB disagrees with what is
+            // rendered. Both were millimetres before; both are metres now,
+            // because glTF 2.0 defines metres as the unit for linear distances
+            // and the other GLB writer in this repo (GlbSerializer) already
+            // complied. Changing one without the other would swap a visible
+            // 1000x scale bug for an invisible bounds one.
+            //
             // If nothing contributed bounds (e.g. empty 3D view), send zeros so
             // the server's [Range] validators don't see ±Infinity.
-            const double feetToMm = 304.8;
+            const double feetToMetres = 0.3048;
             bounds = boundsContributors > 0
                 ? new[]
                 {
-                    bb.Min.X * feetToMm, bb.Min.Y * feetToMm, bb.Min.Z * feetToMm,
-                    bb.Max.X * feetToMm, bb.Max.Y * feetToMm, bb.Max.Z * feetToMm,
+                    bb.Min.X * feetToMetres, bb.Min.Y * feetToMetres, bb.Min.Z * feetToMetres,
+                    bb.Max.X * feetToMetres, bb.Max.Y * feetToMetres, bb.Max.Z * feetToMetres,
                 }
                 : new[] { 0d, 0d, 0d, 0d, 0d, 0d };
             elementCount = count;
