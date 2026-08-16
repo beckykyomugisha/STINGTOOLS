@@ -46,7 +46,7 @@ public class IfcRemovalPropagationTests
         => new(new DbContextOptionsBuilder<PlanscapeDbContext>().UseSqlite(conn).Options,
                httpContextAccessor: null!, tenantContext: new FixedTenant(tenantId));
 
-    private sealed record World(SqliteConnection Conn, Guid Tenant, Guid Project);
+    private sealed record World(SqliteConnection Conn, Guid Tenant, Guid Project, Guid Caller);
 
     private const string ArchiDoc = "doc-archicad";
     private const string RevitDoc = "doc-revit";
@@ -59,6 +59,7 @@ public class IfcRemovalPropagationTests
         conn.Open();
         var tenant = Guid.NewGuid();
         var project = Guid.NewGuid();
+        var caller = Guid.NewGuid();
 
         using (var ctx = NewContext(conn, tenant))
         {
@@ -73,6 +74,20 @@ public class IfcRemovalPropagationTests
             {
                 Id = project, TenantId = tenant, Name = "Tower",
                 Code = $"TW-{Guid.NewGuid():N}"[..8], Status = ProjectStatus.Active,
+            });
+
+            // The host push is authenticated as a project member: IngestData is
+            // gated by RequireProjectMemberAsync (a removals push mutates project
+            // identity, so it requires membership just like an element push).
+            ctx.Users.Add(new AppUser
+            {
+                Id = caller, TenantId = tenant, Email = $"caller-{Guid.NewGuid():N}@example.com",
+                DisplayName = "Caller", PasswordHash = "x", IsActive = true,
+            });
+            ctx.ProjectMembers.Add(new ProjectMember
+            {
+                TenantId = tenant, ProjectId = project, UserId = caller,
+                ProjectRole = "Contributor", Iso19650Role = "M", IsActive = true,
             });
 
             // One element from each host, each with its attribution mapping.
@@ -96,7 +111,7 @@ public class IfcRemovalPropagationTests
             }
             ctx.SaveChanges();
         }
-        return new World(conn, tenant, project);
+        return new World(conn, tenant, project, caller);
     }
 
     private static IfcController NewController(World w, PlanscapeDbContext db)
@@ -111,7 +126,7 @@ public class IfcRemovalPropagationTests
                     User = new ClaimsPrincipal(new ClaimsIdentity(new[]
                     {
                         new Claim("tenant_id", w.Tenant.ToString()),
-                        new Claim("user_id", Guid.NewGuid().ToString()),
+                        new Claim("user_id", w.Caller.ToString()),
                     }, "test")),
                 },
             },
