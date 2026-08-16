@@ -182,11 +182,11 @@ git commit -m "feat(paths): route MaterialSchedule exports to the SCHEDULES fold
 
 `BannerRow` / `WriteHeader` / `SourceLabel` are private instance methods; a second renderer cannot reach them.
 
-- [ ] **Step 1: Read the current helpers**
+- [x] **Step 1: Read the current helpers**
 
 Open `StingTools/BOQ/BOQExportCommand.cs` and read lines 525-585. Note the exact colour constants (`NavyFill`, `HeaderFill`) declared at the top of the class (lines 28-35) — they move too.
 
-- [ ] **Step 2: Create the shared static**
+- [x] **Step 2: Create the shared static**
 
 Create `StingTools/BOQ/BoqXlsxStyle.cs`:
 
@@ -246,7 +246,7 @@ namespace StingTools.BOQ
 
 > If the real `BannerRow` / `WriteHeader` bodies in `BOQExportCommand` differ from the above (merged cells, different row height, borders), **copy the real bodies verbatim** rather than the approximations here. The goal is byte-identical output, not a rewrite.
 
-- [ ] **Step 3: Delegate from `BOQExportCommand`**
+- [x] **Step 3: Delegate from `BOQExportCommand`**
 
 Replace the bodies of the two private methods in `BOQExportCommand.cs` so all existing call sites keep working:
 
@@ -258,7 +258,7 @@ Replace the bodies of the two private methods in `BOQExportCommand.cs` so all ex
 
 Leave `SourceLabel` alone — it is BOQ-specific and the material schedule has no use for it.
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 ```bash
 dotnet build StingTools/StingTools.csproj -c Debug --nologo
@@ -266,7 +266,7 @@ dotnet build StingTools/StingTools.csproj -c Debug --nologo
 
 Expected: `0 Error(s)`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add StingTools/BOQ/BoqXlsxStyle.cs StingTools/BOQ/BOQExportCommand.cs
