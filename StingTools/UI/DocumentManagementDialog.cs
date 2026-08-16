@@ -2179,6 +2179,12 @@ namespace StingTools.UI
                     : $"\n\nRendered: {renderedPath}" +
                       (string.IsNullOrEmpty(templateId) ? "" : $"\nTemplate: {templateId}") +
                       (string.IsNullOrEmpty(workflowInst) ? "" : $"\nWorkflow instance: {workflowInst}");
+                // Update the footer BEFORE the modal dialog. RefreshData (which rewrites the
+                // status line) only runs after the user dismisses it, so without this the footer
+                // sits there still reading "Quick Transmittal: nothing selected" from an earlier
+                // attempt while the dialog announces the transmittal was created — the status
+                // line contradicting the result, which is the defect class this review chased.
+                SetStatus($"Created {transId} — {selected.Count} doc(s) → {recipientNames.Count} recipient(s)");
                 var completion = MessageBox.Show(
                     $"Transmittal {transId} created:\n{selected.Count} documents → {recipientNames.Count} recipients\n\n" +
                     $"Recipients: {string.Join(", ", recipientNames)}\nSuitability: {suitCode}\nStatus: {trans["status"]}" +
