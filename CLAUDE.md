@@ -2542,6 +2542,67 @@ use the manifest.
 
 ---
 
+## The failure mode this codebase produces
+
+**Nothing here fails loudly.** Every serious defect found in the 2026-08 audit
+looked like it was working:
+
+- The 3D viewer **fabricated clash data**, synthesising pairs from real element
+  GUIDs so the fakes carried genuine element names. It never queried the server
+  at all — a `USE_MOCK_CLASHES = true` flag commented *"server endpoint may not
+  exist yet"* long after it did.
+- **"Run clash detection" ran nothing** — it invented results client-side and
+  toasted "complete".
+- A **Create-issue** handler fabricated a stand-in issue on failure, inserted it,
+  and reported success; the row vanished on reload.
+- A **validation toast rendered underneath the modal backdrop**, so the only
+  feedback was invisible.
+- The BCC **"Save" wrote a local JSON file the server never saw**, so members
+  silently vanished on refresh. Three separate panels had this shape.
+- A documented cleanup command **could never run** — RESTRICT foreign keys made
+  it abort every time, leaving full residue.
+- Eleven permission gates compared `ProjectRole == "PM"`, a code that only
+  exists in the *other* column's vocabulary, so they **could never open for
+  anyone**.
+- A quota axis counted `ProjectRole == "Author"`, a literal **no writer
+  produces** — so one axis read 0 forever and the other counted everyone.
+- A data-rights export returned **200 with an unparseable archive**; its tests
+  asserted substrings and never parsed.
+- A Pages Function was **merged but never deployed** (`marketing-site` has no
+  git-connected build), and the static fallback made an undeployed route
+  indistinguishable from a nonexistent one.
+
+### What to do about it
+
+**Never invent fallback data.** Real data, an empty state, or a visible error.
+A fabricated value a user can act on is worse than a blank screen.
+
+**Prefer fixes that make the failure inexpressible, not merely absent.** The
+ones that held up:
+
+- one seat-count function that both the spending and reporting paths call, so
+  the two cannot drift
+- deleting an unused enum member so a stale reference is a *compile error*
+  rather than falling through to a permissive default
+- a test that enumerates `Enum.GetValues<T>()` instead of listing cases, so a
+  new member is covered without anyone remembering
+- a migration that refuses to run against a half-approved sheet
+- a probe that distinguishes *undeployed* from *nonexistent*
+
+**Prove the error path is reachable.** When you touch a failure branch, show a
+user can actually see it. Several of the above were error handling that could
+never execute.
+
+**"Merged" is not "deployed", and 200 is not "working".** Verify the artefact
+that actually serves the request. Compare a target route against both a
+known-good and a known-bad one.
+
+**Assert on non-empty data.** `PlanscapeDbContext`'s tenant filter falls back to
+`Guid.Empty` without an `ITenantContext`, so a test can pass against an empty
+result set. Prove RED before GREEN and report both numbers.
+
+---
+
 ## Conventions for AI Assistants
 
 ### General Rules
