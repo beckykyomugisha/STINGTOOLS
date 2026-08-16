@@ -2,6 +2,80 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 235 — Material Schedule export: stage-sectioned commodities in supplier units)
+
+StingTools could not produce the document a site or procurement team actually buys from. The BOQ
+measures **finished work** in **measured units** (m² of wall, m³ of concrete); a material schedule
+answers *what do I buy, in what unit, how much* — bags of cement, trips of sand, No. of blocks.
+Nothing converted between them. `BOQExportCommand` shipped a sheet **named** "Material Schedule"
+([`BOQExportCommand.cs:362`](../StingTools/BOQ/BOQExportCommand.cs)) that filtered BOQ rows whose
+unit happened to be m²/m³/kg and printed them unchanged — which is why the capability looked
+present when it was not. That sheet is untouched here; renaming it is separate cleanup.
+
+Built against a supplied reference document, `PATMAC MALL, Material Schedule.pdf` (4 pages, 11
+sections, UGX 347,914,455). **Its four arithmetic defects became the acceptance fixtures:** section
+letters `C`/`D`/`E` each used twice; a summary whose order did not match the body; a row reading
+`DPM 1 Roll × 300,000 = 150,000`; and sand priced at both 1,500,000 and 1,400,000 per trip.
+
+**1 — Three of the four defect classes are structural, not detected.** `AmountUGX`,
+`StageSection.SubTotalUGX` and `WorksSubtotalUGX` are **derived properties**, so an amount that
+disagrees with quantity × rate cannot be represented. Section letters are assigned at build time by
+`StageMapper.AssignLetters` and never authored, and `MaterialScheduleDocument.Summary` **projects
+from the same `Stages` list the body renders** — so body and summary cannot diverge. Only
+one-commodity-two-rates needs a reconciler.
+
+**2 — Six of eight load-bearing assumptions in the plan were false.** Every one was caught by
+checking the code rather than trusting the plan, and every one changed the implementation.
+Compound take-off is **off by default** (`COST_COMPOUND_TAKEOFF`), so without it there are no
+constituent rows at all and the schedule would have built empty — the builder now detects and
+reports that. The constituent kind survived only as a `"[Compound: …]"` prefix inside `Note`, so
+kind-routing was not free; it is now a first-class `BOQLineItem.ConstituentKind`, additive and
+null-defaulting so existing JSON snapshots deserialise unchanged. **No commodity rates existed
+anywhere** — both shipped rate CSVs key on Revit *category*, so `ResolveConstituentRate` returned
+`(0, "None", 20)` for every constituent; a price list and resolver are new. The BOQ's `LabourUGX`
+split is nulled on manual override and on modal-rate aggregation, so deriving labour from it would
+silently under-report — labour is a QS lump with an advisory suggestion. `ViewSchedule.CreateKeySchedule`
+is used **nowhere** in this codebase, so schedule views are deferred behind a timeboxed spike with a
+named fallback. And the export-routing fix needed two entries, not one (see 4).
+
+**3 — Three defects were found reviewing the implementation, all introduced by the plan.** An
+empty provisional-sum category matched the **first** section, because `"ANYTHING".IndexOf("")`
+returns 0 — an uncategorised UGX 30m sum could file itself under Tools & Equipment. The labour
+suggestion summed **every** model row once per section, so all eight stages advertised the whole
+project's labour as their own (no total was wrong, `AmountUGX` stayed 0, but a QS would reasonably
+read it as per-stage). And provisional sums matched their category against section **titles** while
+the stage library routes by **category** — `"Electrical Equipment"` does not appear in
+`"ELEMENT 06: ELECTRICAL INSTALLATION"`, so a services sum minted a duplicate section at the end of
+the document while the correct routing sat unused in the JSON. All three now live in the Revit-free
+`ManualRowPlacer` with tests; they had shipped because they were in `MaterialScheduleBuilder`, which
+needs a `Document` and therefore had no tests.
+
+**4 — One pre-existing bug surfaced: `ProjectSetup.Load` never backfilled export routes.** It only
+null-guarded `ExportRoutes`, so a key added to the shipped defaults reached **only projects set up
+after the change**. Under CdeFirst that is not cosmetic — `ProjectFolderEngine.GetExportFolder`
+returns `MISC` for any unrouted key *before* `ExportTypeToFolder` is consulted, silently. This has
+applied to every export type ever added. Fixed as a v1 → v2 schema migration beside the existing
+v0 → v1. A customised route is never overwritten and a deliberately-blanked one stays blank;
+`SchemaVersion`'s default stays **1 on purpose**, because bumping it to 2 would make a file written
+without the field look already-migrated and skip the backfill.
+
+**Shape.** `Core/MaterialSchedule/` (7 files, Revit-free): model, `SupplierUnitConverter`,
+`CommodityRateResolver`, `StageMapper`, `CommodityAggregator`, `Reconciler`, `ManualRowPlacer`.
+`BOQ/MaterialSchedule/` (builder + XLSX writer) and `Commands/MaterialSchedule/`. Three data files
+— `STING_SUPPLIER_UNITS.json`, `STING_MATERIAL_STAGES.json`, `STING_COMMODITY_RATES.csv` — each
+corporate baseline plus project override, and each with a test that deserialises the **shipped**
+file so a Newtonsoft field-name or type mismatch fails at build rather than going runtime-dead.
+`BoqXlsxStyle` extracts the banner/header helpers from `BOQExportCommand` **verbatim** (the real
+banner merges columns 1–16 at font size 12; the real header does not wrap) so both workbooks stay
+one visual family. Prices are a **renderer flag** — the engine computes identically either way.
+
+**Verified:** `dotnet build` 0 errors / 0 warnings; `StingTools.Boq.Tests` **254 passing**, up from
+a 196 baseline; `tools/check_path_discipline.ps1` clean. PR #700.
+
+**Not verified — this has never run inside Revit.** Tasks 14–16 of the plan are open: end-to-end
+verification, the `CreateKeySchedule` spike, and the view builder that is deliberately blocked until
+the spike records an outcome. See ROADMAP MATSCHED-1..5.
+
 #### Completed (Phase 234 — self-serve licences, and the licensing chain proven end to end)
 
 `POST /api/license/issue` had been implemented, deployed and working for weeks. **Nothing called
