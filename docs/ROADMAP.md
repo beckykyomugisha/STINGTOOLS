@@ -12,6 +12,15 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 | VIS-4 | **The document-scoped pass is unbounded** | When anything is hidden, the reader harvests the whole document (`TokenValueHarvester.Harvest(doc, null)`) to recover rows for hidden elements — a hidden element is by definition absent from a view-scoped collector. On a 50k-element federated model that is a full token read per dropdown open (30 s cache, per-scope). Not measured on a large model. If it bites, scope the widening pass to the categories and token values the view's own filters and hidden-category set name, rather than the whole document. |
 | VIS-5 | **Deliberately not built, per runner §5** | Live hover-highlight of matching elements (expensive per tick; the live count already answers it). Category **isolate** in Saved mode (structurally impossible — a view filter only acts on the categories it binds to — and already reported as a clear blocker; do not attempt a workaround). Worksets / phases / design options as visibility axes. Any use of `Autodesk.Windows` / `AdWindows` (undocumented, version-fragile, and it can corrupt the user's saved QAT layout; the one legitimate need is already met by the supported `UIApplication.MainWindowHandle`). |
 | VIS-6 | **`View.IsElementVisibleInTemporaryViewMode` under temporary ISOLATE over-reports** | Under isolate, everything outside the isolated set answers "not visible" — including elements the view never drew. The out-of-scope guard cannot separate those, so the hidden count under an active isolate is an upper bound. Hide mode is exact. |
+## KUT smoke test + checklist tooling — after the reconciliation (2026-08-08)
+
+| ID | Item | Detail |
+|---|---|---|
+| SMK-1 | **`origin/claude/session-8tl9ga` is SUPERSEDED — do not merge it** | It carries the hand-generated `KUT_Revit_Smoke_Test_Checklist.docx`, `tools/kut_preflight.py` (779 lines) and a `CATEGORY_BINDINGS.csv` change, and is ~100 commits behind `main`, predating #623 / #635 / #638. Everything still true was reconciled **by content** into `claude/kut-smoke-test-reconciliation`: the pre-flight's substance is now `tools/check_smoke_test.py` driven from `smoke_test.json`; the `WorkflowEngine` alias fix landed in two passes — `Owner_`/`KUT_` with the KPI rename, and the `ACC_`/`Acc` + `Lite_ComCheck`/`ComCheck_Export` dual-accepts only when the branch was re-read immediately before deletion, where they were found still missing despite this row previously claiming otherwise (a reconciliation is not done because the summary says it is); the README prose (ACC read path, `ffe-fohlio-ref` severity) was folded in. **Its `CATEGORY_BINDINGS.csv` change was deliberately NOT ported** — it scopes `LTG_HOIST_*` to Generic Models as well as Lighting Fixtures, but `PARAMETER_REGISTRY.json` declares `"binding": "LightingFixtures"` and `RESOLVED_BINDINGS.csv` (the file `SharedParamGuids` treats as the source of truth) lists Lighting Fixtures alone. The branch copied the pattern of the sibling `LTG_FIX_*` params, which are genuinely `universal`. Merging the branch now would re-introduce a 100-commit-stale checklist and a wrong binding. **Delete it.** |
+| SMK-2 | **The Revit smoke test itself has still never been run** | 33 steps, all wiring-checked offline, none exercised against a model. That is the BIM Manager's session, and it is what the CI gate explicitly cannot substitute for — the gate proves the checklist is *answerable*, not that the answers are right. Until the session happens, keep the "verify in Revit" caveat on the Phase 192 CHANGELOG blocks. |
+| SMK-3 | **Two presets read as read-only but do not declare it** | `tools/check_smoke_test.py` proves `"readOnly": true` and prints a non-fatal advisory for prose that sounds like the claim without the field. Currently advisory on `WORKFLOW_KUT_MonthlyReport.json` and `WORKFLOW_PlumbingAudit.json`. Both descriptions were corrected to state what is true, so neither is a lie any more — but neither can declare `readOnly` while it contains `Manual` steps. The real question is whether `CompletenessDashboard` should build its legend inside the reporting chain at all; if the legend build were split out, MonthlyReport could declare the flag and be enforced. |
+| SMK-4 | **`Plumb_ScanFixtures` writes from inside an "audit" preset** | `WORKFLOW_PlumbingAudit`'s first step stamps `PLM_DRN_DU` / `PLM_SUP_LU` / `PLM_SUP_WSFU` onto every fixture (`FixtureUnitScanner.Scan(writeBack: true)`). The description now says so, but a scan-and-report variant with `writeBack: false` would let the audit preset be genuinely read-only and would be a small change to an existing call site. |
+| SMK-5 | **`docs/examples/` has one owner** | The tooling is owner-agnostic and globs `docs/examples/*/smoke_test.json`, but only KUT exercises it. The second owner pack is the real test of whether the abstraction holds; expect the panel/tab/section assertions to be the part that needs loosening, since a different pack may drive the same commands from different panels. |
 
 ## Coordination viewer — after the zoom fixes (2026-08-06)
 
@@ -1438,3 +1447,43 @@ Delivered in Phase 232 (see [`CHANGELOG.md`](CHANGELOG.md)); these are the gaps 
 - **Out of scope by decision, logged here as asked:** worksets and phases as visibility axes;
   design-option visibility (already `DesignOptions_LockView`); per-element graphic overrides beyond
   show/hide (that is `RevitVgEditor`'s job); syncing visibility state to Planscape Server.
+## ArchiCAD ↔ Planscape ↔ Revit ↔ ArchiCAD round-trip — cross-tool gaps (deep review)
+
+Four-leg audit of the full loop (StingBridge/Python · Planscape.Server/C# · StingTools/Revit-C# ·
+shared `stingtools_core`). **Verdict: today it is two disjoint half-loops (ArchiCAD↔Planscape and
+Revit↔Planscape) that share a database but not an element identity, a merge policy, or a return path.**
+Both *push* directions work; both *return* legs are missing/stubbed; and the working push legs do not
+share a stable identity, so a change made in one tool cannot be re-found in another. The design intent —
+key everything on the **IFC GlobalId** and unify via `ExternalElementMapping` — is correct and
+documented in the code, just not wired end-to-end.
+
+Hop status: **①ArchiCAD→Planscape** ✅ push works · **②Planscape→Revit** ❌ pull transport exists
+(`PlanscapeServerClient.GetElementsDeltaAsync`) with zero callers, no native write-back ·
+**③Revit→Planscape** ⚠️ push works but keyed on a Revit-minted GUID (or none) not the ArchiCAD
+GlobalId · **④→ArchiCAD** ❌ `StingTools.ArchiCAD` is a scaffold; StingBridge live "Planscape-wins"
+writes back stale local data; the IFC path writes a `_sting.ifc` side-file, never the authored model.
+
+| ID | Gap | Severity | Where | Status |
+|---|---|---|---|---|
+| **R1** | **Identity doesn't survive the loop.** Same physical element = two un-mergeable `TaggedElement` rows (Revit keyed on `RevitElementId`/`UniqueId`; IFC/ArchiCAD keyed on `IfcGlobalId`), and the Revit row never even stores the GlobalId (`TagSyncController.MapDtoToEntity` drops `dto.IfcGlobalId`). `ExternalElementMapping` is populated but never read to merge them. Revit re-mints a fresh IfcGUID on export instead of carrying the ArchiCAD GlobalId (`ARCHICAD_GUID` vs `IFC_GLOBAL_ID_TXT`). The `/changes` feed keys on `TaggedElement.UniqueId`, so a Revit edit reaches a Python/ArchiCAD host with an unmatchable key and is dropped as `absent`. | CRITICAL | server + Revit + core + bridge | OPEN |
+| **R2** | **Both return legs unimplemented.** Planscape→Revit tag write-back has no caller and no native-stamp path; →ArchiCAD does not exist (`StingTools.ArchiCAD` C++ stub: no HTTP impl, placeholder dialogs, `CollectElements()` returns empty, stale base URL `api.planscape.app`). StingBridge live conflict "Planscape wins" writes back the *same local values* because it only pulls timestamps (`get_element_timestamps`), not remote values. | HIGH | Revit + StingTools.ArchiCAD + bridge | OPEN |
+| **R3** | **`/ifc/data` never refreshed compliance/`LastSyncAt`**, so ArchiCAD/Bonsai-only projects read 0%/stale forever and the 6-hourly `ComplianceSnapshotJob` (filters on `LastSyncAt`) skipped them. | HIGH | server | **CLOSED** — `IfcIngestService.UpdateProjectComplianceAsync` (this branch) |
+| **R4** | **Divergent implementations.** The shared `stingtools_core` (reconcile engine, cursor `/changes` feed, digest-tiebreak convergence, conflict sidecar) spans **only the Python hosts**. Revit reimplements it in C# on a *different* pull endpoint (watermark `GET /tagsync/elements`), with *no* `ReconcileEngine`, and a max-per-key SEQ merge whose own comment admits it "cannot stop Revit and StingBridge minting the same number concurrently". | HIGH | Revit + core | OPEN |
+| **R5** | **Provenance not stamped.** `TaggedElement.Source` is written only by the .ifc file-upload path; both live doors (`/tagsync`, `/ifc/data`) leave it null, so the server can't tell a Revit-origin row from an ArchiCAD-origin one. | MEDIUM | server | OPEN |
+| **R6** | **Deletions never propagate.** No tombstones in the feed or `ChangeDelta`; an absent GlobalId is dropped. The loop can create but never retract. | MEDIUM | core + server | OPEN |
+| **R7** | **Units.** `level_for_storey_name` is metre-only while IFC is often mm (fixed for the Bonsai/core path in PR #639; still live elsewhere); Revit geometry GLB ships raw **feet** (3.28× off vs metric ArchiCAD, `GeometrySyncHandler`); `GeorefDescriptor` mixes mm/m. | MEDIUM | Revit + core + bridge | PARTIAL |
+| **R8** | **Two conflict policies.** The `/tagsync` door has real LWW + `Version` + `SyncConflict` log; the `/ifc/data` door only "skips if strictly older" (equal timestamps overwrite, no version bump, no audit). Two overlapping identity tables (`ExternalElementMapping` + self-marked-SUPERSEDED `ElementGlobalIdRegistry`) also coexist. | MEDIUM/LOW | server | OPEN |
+| **R3-fu** | **Follow-up to R3:** `UpdateProjectComplianceAsync` duplicates `TagSyncController.ComputeComplianceAsync`'s scalar formula — extract one shared compliance calculator so the two doors (and `ComplianceSnapshotJob`, a third copy) can never drift. Also: this recompute counts `TaggedElement` rows, which R1 double-counts for mixed Revit+IFC projects. | LOW | server | OPEN |
+
+**Recommended order to actually close the loop:** (1) make the IFC GlobalId the one true key end-to-end
+— Revit carries the ArchiCAD GlobalId through on import instead of re-minting, and the server dedups
+`TaggedElement` + has pull/issues/compliance consume `ExternalElementMapping`; (2) wire the two return
+legs (a caller for `GetElementsDeltaAsync` that stamps `ASS_*` params; a real →ArchiCAD writer — the
+complete `ArchiCadHostAdapter.apply_remote_change` already exists but is wired only into tests); (3)
+R3 (done); then tombstones (R6), unit normalization (R7), and unifying conflict policy on the core
+`ReconcileEngine` (R4/R8). Items (1)–(2) are architectural (identity redesign + two new write paths)
+and warrant a short spec + owner decisions (dedup strategy; whether Revit should consume the Python
+core via a service or stay C#).
+
+**Spec:** the R1/R2 implementation plan (work items per codebase, owner decisions D1–D6, phasing, and
+end-to-end acceptance tests) is written up in [`ROUND_TRIP_R1_R2_SPEC.md`](ROUND_TRIP_R1_R2_SPEC.md).

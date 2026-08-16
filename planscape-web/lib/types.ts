@@ -299,8 +299,9 @@ export interface TenantDashboard {
     createdAt?: string;
   };
   usage: {
-    authors: TenantQuotaAxis;
-    coordinators: TenantQuotaAxis;
+    // No authors / coordinators: the .NET per-user quota axes are retired
+    // (#619) and seat entitlement is the StingTools licence counted in D1
+    // (#621). The dashboard no longer sends them.
     projects: TenantQuotaAxis;
     storage: { currentMb: number; maxMb: number };
     memberSeats?: number;

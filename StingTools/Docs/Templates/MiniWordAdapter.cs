@@ -34,6 +34,12 @@ namespace Planscape.Docs.Templates
             @"\{\{link:(?<path>[^}]+)\}\}",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // MiniWord repeats the whole table row for a foreach, INCLUDING the opening and closing
+        // markers, so they survive into the finished document once per iteration. Strip them.
+        private static readonly Regex LoopMarkerRx = new Regex(
+            @"\{\{\s*(?:#?(?:foreach|each|loop)\s+[^}]*|/?(?:foreach|each|loop)|end(?:foreach|each|loop))\s*\}\}",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         /// <summary>Renders <paramref name="templatePath"/> with the supplied context to <paramref name="outputPath"/>.</summary>
         public static void Render(string templatePath, TokenContext ctx, string outputPath)
         {
@@ -150,7 +156,9 @@ namespace Planscape.Docs.Templates
                         foreach (var p in body.Descendants<Paragraph>().ToList())
                         {
                             string txt = p.InnerText ?? "";
-                            if (!txt.Contains("{{link:", StringComparison.OrdinalIgnoreCase)) continue;
+                            bool hasLink = txt.Contains("{{link:", StringComparison.OrdinalIgnoreCase);
+                            bool hasLoopMarker = LoopMarkerRx.IsMatch(txt);
+                            if (!hasLink && !hasLoopMarker) continue;
 
                             string rewritten = LinkTokenRx.Replace(txt, match =>
                             {
@@ -160,6 +168,8 @@ namespace Planscape.Docs.Templates
                                     return "";
                                 return resolved;
                             });
+                            // Remove loop scaffolding MiniWord left behind in each repeated row.
+                            rewritten = LoopMarkerRx.Replace(rewritten, "");
 
                             if (rewritten != txt)
                             {

@@ -26,7 +26,7 @@ drafting:
 | `StingTools/Data/STING_TAG_SCHEMES.json` | Tag-scheme library incl. a disabled `kut-temple-example` |
 | `StingTools/Data/STING_CLIMATE_DATA.json` | Kampala already present (`id: kampala`, elev 1155 m) |
 | `STING_UGANDA_REGIONAL_LOADS.json`, `Core/UgandaRegionalDefaults.cs`, `StingTools.Standards/{UNBS,SSBS,CIBSE}` | Uganda localisation |
-| `WORKFLOW_GateAudit.json` | Per-gate audit chain (KUT) |
+| `WORKFLOW_KUT_GateAudit.json` | Per-gate audit chain (KUT). Superseded `WORKFLOW_GateAudit.json`, which shipped alongside it until it was deleted — the old one contained `ValidateTags` and `CompletenessDashboard`, both `[Transaction(TransactionMode.Manual)]` writers that build legends, so it was not the read-only pre-gate check its successor's description argues for |
 | Commands: `LOD_Verify`, `LOD_Stamp`, `TokenConfidenceAudit`, `TagScheme_Audit`, `Program_Audit`, `CSI_Assign`, `SpecLink_Reconcile`, `ReviewComments_Import` | Phase 192 KUT commands |
 
 **This pack adds only the missing pieces:** an *activated* project overlay
@@ -38,16 +38,25 @@ proposal describes that had no preset yet.
 ## 2. What this pack adds
 
 ### A. Project overlay — the activated Owner-standards profile
-Copy the whole `_BIM_COORD/` folder into the temple project folder (next to the
-central `.rvt`). Each file **merges by id over the corporate baseline, project
-wins** — so you are activating/localising, never forking.
+
+**This is the single deployable KUT overlay pack.** Copy the whole
+`_BIM_COORD/` folder into the temple project folder (next to the central
+`.rvt`). Each file **merges by id over the corporate baseline, project wins** —
+so you are activating/localising, never forking.
+[`_BIM_COORD/manifest.json`](_BIM_COORD/manifest.json) records, per file, what
+it overlays, the corporate baseline it merges over, the merge key and the code
+that reads it — start there when building a pack for a different owner.
 
 | File | Effect |
 |---|---|
-| `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); adds a (disabled) Fohlio FF&E link check |
-| `_BIM_COORD/lod_matrix.json` | Restates the confirmed 6-milestone matrix as the client-facing record; adds Lighting Fixtures + Plumbing Fixtures category rules |
+| `_BIM_COORD/manifest.json` | Not deployed data — the index of this pack (what each file overlays, its merge key, its reader) |
+| `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); enables the `ffe-fohlio-ref` FF&E link check at severity **WARN** (non-blocking — it reports FF&E not yet linked to Fohlio, it does not fail a gate) |
+| `_BIM_COORD/lod_matrix.json` | Restates the confirmed 6-milestone matrix as the client-facing record. **`categoryRules` is deliberately empty** — see below |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
-| `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the now-enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
+| `_BIM_COORD/project_config.json` | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack |
+| `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
+| `_BIM_COORD/sting_classification.json` | Sets CSI MasterFormat as the leading classification standard (the Owner mandates RIB SpecLink) |
+| `_BIM_COORD/climate_data.json` | **Optional.** The corporate baseline already carries Kampala; deploy this only to replace it with engineer-confirmed ASHRAE 2021 Entebbe (HUEN / 636800) values |
 
 ### B. Workflow presets (in `StingTools/Data/`, auto-loaded)
 | Preset | Proposal ref | Rhythm |
@@ -119,9 +128,18 @@ parameter set via `IoTDeviceRegistry`; live read-back stays an FM add-on.
 - **Clash in ACC *and* STING.** ACC Model Coordination is the system of record;
   the Coordination Cycle runs STING's rule-based clash (discipline tolerance /
   access / maintenance-space checks ACC can't express) and pushes results as
-  **BCF 2.1 → ACC Issues**. *Open item:* an ACC Model-Coordination **read**
-  client (ingest ACC clash results for triage) — small follow-on, reuses the
-  existing `AccIssueSync` OAuth.
+  **BCF 2.1 → ACC Issues**. The ACC Model-Coordination **read** path is built:
+  `ACC_PullClashes` (`Clash/AccPullClashesCommand.cs` + `V6/AccModelCoordSync.cs`)
+  lists the coordination model sets, pulls the latest test's clashes, ranks them
+  with `ClashTriageEngine`, writes a CSV, and escalates the top-ranked back to
+  ACC Issues idempotently (order-invariant signature, sidecar at
+  `_BIM_COORD/acc/pushed_clashes.json`). `ACC_SyncIssueStatus` reconciles the
+  other way so a closed ACC issue lets a recurring clash re-raise. Both sit on
+  the BIM Coordination Center ACC card, on the BIM tab's clash section, and in
+  the fortnightly Coordination Cycle preset; credentials stay in
+  `%APPDATA%\Planscape\acc_credentials.json`. Endpoint paths are verified
+  against the public APS sample but **not** against a live tenant — do one live
+  pull during mobilisation.
 - **Fohlio = link, never duplicate.** Stay on the shipped CSV/XLSX link
   (`ExLink Fohlio_Import`, key `FOHLIO_REF_TXT`). The REST tier stays stubbed —
   no API key needed for this contract (see §6 of the chat advisory).
@@ -175,6 +193,27 @@ deliverable. The A1 figure is read as a drafting error in the client document.
 milestone, covering Work Program item *3.1 Supervise the Building Construction
 Contract*. Nothing that was verifiable before became unverifiable.
 
+### The LOD overlay pins no categories, on purpose
+
+`_BIM_COORD/lod_matrix.json` used to restate the corporate `Lighting Fixtures`
+and `Plumbing Fixtures` category rules. `LodVerificationEngine` **replaces a
+category rule wholesale**, so an overlay copy silently discards every future
+corporate improvement to that category — and both copies had already paid for
+that:
+
+- `Lighting Fixtures` was byte-identical to corporate. Pure loss of future
+  improvements, in exchange for nothing.
+- `Plumbing Fixtures` had quietly dropped `+MNT_TYPE_TXT` from rung **400**,
+  which corporate has carried since Phase 192 B1 — *before* this overlay was
+  written. That is drift, not a decision: this file's own description says the
+  rules are "restated" from corporate, and they were not.
+
+Both are removed and KUT now inherits corporate for those categories.
+**Behaviour change to expect:** Plumbing Fixtures at LOD 400 (the `construction`
+milestone) require `MNT_TYPE_TXT` again. Add a rule back only to state a genuine
+temple-specific difference, and say in the file's `_categoryRulesNote` what the
+difference is and why.
+
 **Raise this with the Owner** at the next BEP review so the contract record and
 the verification gate agree. If the Owner confirms 400 is intended, change
 `deliverable-d` back to `"lod": 400` in `_BIM_COORD/lod_matrix.json` — the project
@@ -185,7 +224,11 @@ needs no code change.
 
 ## 5. Deployment checklist
 
-1. Copy `_BIM_COORD/` into the temple project folder.
+**This is the only copy of the deployment sequence.**
+`docs/examples/KUT/README.md` points here rather than restating it.
+
+1. Copy this whole `_BIM_COORD/` folder into the temple project folder — all of
+   it, not a selection. (`manifest.json` is an index, harmless to copy.)
 2. Set `PRJ_ORG_PROJECT_CODE_TXT = KUT` and `PRJ_ORG_ORIGINATOR_CODE_TXT` on
    Project Information (drives the sheet pattern + tag scheme).
 3. **Set `PLM_PRJ_PLUMBING_CODE_TXT = IPC-US` on Project Information.**

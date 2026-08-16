@@ -491,6 +491,11 @@ namespace StingTools.UI
 
                     // ── Phase 175: MEP/FP/SLD Symbol Library ──
                     case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
+                    // Model SEED families (Data/Seeds/*.json) — distinct from the
+                    // annotation symbol library above. Resolvable in WorkflowEngine
+                    // since Phase 185; this case gives it a panel button too, so a
+                    // checklist step can name it without lying about how to run it.
+                    case "Seeds_Build":            RunCommand<Commands.Symbols.BuildSeedFamiliesCommand>(app); break;
                     case "Symbols_CreateSLD":      RunCommand<Commands.Symbols.CreateSLDSymbolsCommand>(app); break;
                     case "Symbols_CreateSLD_IEEE":  RunCommand<Commands.Symbols.CreateSLDSymbolsIEEECommand>(app); break;
                     case "Symbols_CreateSLD_BS":    RunCommand<Commands.Symbols.CreateSLDSymbolsBSCommand>(app); break;
@@ -2826,8 +2831,16 @@ namespace StingTools.UI
                     // ACC (Autodesk Construction Cloud) live coordination — wired
                     // to the existing plugin-side ACC client (V6.AccIssueSync /
                     // AccModelCoordSync), not the server OAuth scaffold.
-                    case "AccPullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
-                    case "AccSyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
+                    // Two spellings resolve deliberately. The BIM Coordination Center
+                    // ACC card dispatches "AccPullClashes"/"AccSyncIssueStatus"; the
+                    // shipped KUT presets and the BIM-tab clash buttons use the
+                    // ACC_-prefixed form that WorkflowEngine.ResolveCommand already
+                    // accepts. Accepting either stops a hand-written project workflow
+                    // failing on the spelling a user reasonably copied off a button.
+                    case "AccPullClashes":
+                    case "ACC_PullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
+                    case "AccSyncIssueStatus":
+                    case "ACC_SyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {
@@ -3786,7 +3799,12 @@ namespace StingTools.UI
                     case "Fohlio_ImportFinishes": RunCommand<ExLink.FohlioImportFinishesCommand>(app); break;
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
-                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.KutKpiDashboardCommand>(app); break;
+                    // Owner_KpiDashboard is the name; KUT_KpiDashboard is kept as an
+                    // alias so the existing button, WORKFLOW_KUT_MonthlyReport and any
+                    // muscle memory keep working. The command derives its code from
+                    // PRJ_ORG_PROJECT_CODE_TXT either way.
+                    case "Owner_KpiDashboard":
+                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.OwnerKpiDashboardCommand>(app); break;
 
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
                     case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;

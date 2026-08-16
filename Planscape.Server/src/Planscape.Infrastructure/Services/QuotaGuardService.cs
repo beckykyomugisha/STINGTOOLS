@@ -34,16 +34,6 @@ public class QuotaGuardService : IQuotaGuardService
         return Result(QuotaAxis.Projects, current, limits.MaxProjects);
     }
 
-    public async Task<QuotaResult> CheckCanAddUserAsync(string projectRole, CancellationToken ct = default)
-    {
-        // Authors and coordinators have separate caps.
-        var axis = string.Equals(projectRole, "Author", StringComparison.OrdinalIgnoreCase)
-                 ? QuotaAxis.Authors : QuotaAxis.Coordinators;
-        var (limits, current) = await CountAsync(axis, ct);
-        var max = axis == QuotaAxis.Authors ? limits.MaxAuthors : limits.MaxCoordinators;
-        return Result(axis, current, max);
-    }
-
     public async Task<QuotaResult> CheckCanUploadBytesAsync(long incomingBytes, CancellationToken ct = default)
     {
         var tenant = await _db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == _tenantContext.TenantId, ct);
@@ -72,10 +62,8 @@ public class QuotaGuardService : IQuotaGuardService
         var tid = _tenantContext.TenantId;
         var current = axis switch
         {
-            QuotaAxis.Projects     => await _db.Projects.CountAsync(p => p.TenantId == tid, ct),
-            QuotaAxis.Authors      => await _db.ProjectMembers.Where(m => m.TenantId == tid && m.ProjectRole == "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
-            QuotaAxis.Coordinators => await _db.ProjectMembers.Where(m => m.TenantId == tid && m.ProjectRole != "Author").Select(m => m.UserId).Distinct().CountAsync(ct),
-            _                      => 0,
+            QuotaAxis.Projects => await _db.Projects.CountAsync(p => p.TenantId == tid, ct),
+            _                  => 0,
         };
         return (limits, current);
     }
@@ -93,11 +81,21 @@ public class QuotaGuardService : IQuotaGuardService
 public interface IQuotaGuardService
 {
     Task<QuotaResult> CheckCanAddProjectAsync(CancellationToken ct = default);
-    Task<QuotaResult> CheckCanAddUserAsync(string projectRole, CancellationToken ct = default);
     Task<QuotaResult> CheckCanUploadBytesAsync(long incomingBytes, CancellationToken ct = default);
 }
 
-public enum QuotaAxis { Projects, Authors, Coordinators, Storage }
+/// <summary>
+/// Authors and Coordinators are DELETED, not merely unused. Seat entitlement is
+/// the StingTools licence, counted in D1 by
+/// <c>marketing-site/functions/api/license/_lib/seats.ts</c> (#621).
+///
+/// Deleting the members rather than leaving them is the safer of the two: a
+/// stray <c>[Quota(QuotaAxis.Authors)]</c> is now a COMPILE error, where an
+/// unused member would have fallen to the filter's default arm and silently
+/// ALLOWED — which is indistinguishable from a working cap right up until
+/// someone relies on it. See #619 for what the removed arms actually counted.
+/// </summary>
+public enum QuotaAxis { Projects, Storage }
 
 public sealed record QuotaResult(bool Allowed, QuotaAxis Axis, long Current, long Max, string? Reason)
 {

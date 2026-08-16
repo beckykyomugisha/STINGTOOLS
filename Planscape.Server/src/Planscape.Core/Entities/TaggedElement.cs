@@ -12,6 +12,14 @@ public class TaggedElement : ITenantScoped, ISoftDeletable
     public long RevitElementId { get; set; }
     public string UniqueId { get; set; } = ""; // Revit UniqueId for cross-session tracking
 
+    // The 22-char IFC GlobalId — the canonical CROSS-HOST identity (R1). Every
+    // host can produce it: Revit sends it (stabilised into IFC_GLOBAL_ID_TXT),
+    // Bonsai/ArchiCAD send it natively. It is what unifies a Revit-authored row
+    // and its ArchiCAD/IFC twin — unlike UniqueId, which is Revit's local
+    // 45-char id for Revit rows but carries the GlobalId for non-Revit rows.
+    // Nullable: pre-existing rows and pushes that omit it read as null.
+    public string? IfcGlobalId { get; set; }
+
     // 8 source tokens
     public string Disc { get; set; } = "";
     public string Loc { get; set; } = "";

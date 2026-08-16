@@ -59,29 +59,49 @@ namespace Planscape.Docs.Templates
 
         // ── Control-flow token classification ───────────────────────────────
 
+        /// <summary>
+        /// True for a loop-opening marker in ANY supported spelling.
+        /// <para>
+        /// The bare <c>foreach </c> form matters: it is what MiniWord itself understands and what
+        /// every shipped template uses. Accepting only the hash-prefixed form meant
+        /// <see cref="MiniWordAdapter"/> classified <c>{{foreach documents}}</c> as an ordinary
+        /// token, added <c>dict["foreach documents"] = "&lt;TOKEN_NOT_FOUND:…&gt;"</c>, and so
+        /// OVERWROTE the marker before MiniWord could expand the loop — every generated table
+        /// came out empty. <see cref="IsLoopEnd"/> already accepted bare <c>endforeach</c>; the
+        /// asymmetry was the bug.
+        /// </para>
+        /// </summary>
         public static bool IsLoopStart(string s)
             => !string.IsNullOrEmpty(s) && (s.StartsWith("#foreach ", StringComparison.OrdinalIgnoreCase)
                                           || s.StartsWith("#each ",    StringComparison.OrdinalIgnoreCase)
-                                          || s.StartsWith("#loop ",    StringComparison.OrdinalIgnoreCase));
+                                          || s.StartsWith("#loop ",    StringComparison.OrdinalIgnoreCase)
+                                          || s.StartsWith("foreach ",  StringComparison.OrdinalIgnoreCase)
+                                          || s.StartsWith("each ",     StringComparison.OrdinalIgnoreCase)
+                                          || s.StartsWith("loop ",     StringComparison.OrdinalIgnoreCase));
 
         public static bool IsLoopEnd(string s)
             => !string.IsNullOrEmpty(s) && (s.Equals("/foreach", StringComparison.OrdinalIgnoreCase)
                                          || s.Equals("/each",    StringComparison.OrdinalIgnoreCase)
                                          || s.Equals("/loop",    StringComparison.OrdinalIgnoreCase)
-                                         || s.Equals("endforeach",StringComparison.OrdinalIgnoreCase));
+                                         || s.Equals("endforeach",StringComparison.OrdinalIgnoreCase)
+                                         || s.Equals("endeach",  StringComparison.OrdinalIgnoreCase)
+                                         || s.Equals("endloop",  StringComparison.OrdinalIgnoreCase));
 
+        // Same asymmetry guarded here: MiniWord also accepts a bare "if(...)" spelling.
         public static bool IsIfStart(string s)
-            => !string.IsNullOrEmpty(s) && s.StartsWith("#if ", StringComparison.OrdinalIgnoreCase);
+            => !string.IsNullOrEmpty(s) && (s.StartsWith("#if ", StringComparison.OrdinalIgnoreCase)
+                                         || s.StartsWith("if(",  StringComparison.OrdinalIgnoreCase));
 
         public static bool IsIfEnd(string s)
             => !string.IsNullOrEmpty(s) && (s.Equals("/if", StringComparison.OrdinalIgnoreCase)
                                          || s.Equals("endif", StringComparison.OrdinalIgnoreCase));
 
-        /// <summary>Extracts the loop variable from "#foreach items" → "items".</summary>
+        /// <summary>Extracts the loop variable from "foreach items" / "#foreach items" → "items".</summary>
         public static string LoopName(string s)
         {
             if (string.IsNullOrEmpty(s)) return null;
-            foreach (var prefix in new[] { "#foreach ", "#each ", "#loop " })
+            // Hash-prefixed spellings first — "#foreach " must win over "each ".
+            foreach (var prefix in new[] { "#foreach ", "#each ", "#loop ", "foreach ", "each ", "loop " })
             {
                 if (s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     return s.Substring(prefix.Length).Trim();

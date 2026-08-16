@@ -188,6 +188,10 @@ class IFCDropHandler:
         # composite key is (ProjectId, IfcGlobalId, Host, HostDocumentGuid);
         # leaving the doc guid null collapsed every federated doc together.
         # Derived from the resolved file path (≤64 chars to match the column).
+        # NOTE (R1.4): this is deliberately PER-FILE, not per-IfcProject — two
+        # exports of the same project are distinct documents (see
+        # test_cursor_is_per_document_not_per_project). Keyed on the path hash
+        # for that reason; do not "stabilise" it to IfcProject.GlobalId.
         #
         # Computed here rather than at push time because the pull cursor is
         # keyed on it too — see ifc_reconcile.cursor_host_key.

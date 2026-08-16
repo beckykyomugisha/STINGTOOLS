@@ -1,7 +1,15 @@
-﻿// KutKpiDashboardCommand.cs — Kampala Temple KPI dashboard (proposal §4.6).
+﻿// OwnerKpiDashboardCommand.cs — owner-facing monthly KPI dashboard.
 //
-// A real, visual KPI dashboard for the monthly BIM status report. Gathers the
-// §4.6 KPI set from the existing engines (no new metric infrastructure):
+// Was KutKpiDashboardCommand. Nothing in the 471 lines was ever temple-specific
+// — only the command tag, the output filenames, the snapshot log name and the
+// dialog title were, which meant a second owner engagement would have forked the
+// file. The owner code now comes from PRJ_ORG_PROJECT_CODE_TXT on Project
+// Information (falling back to "STING"), so the same command serves any client.
+// KUT_KpiDashboard survives as a dispatch alias, and an existing
+// kut_kpi_log.jsonl is read and carried forward rather than orphaned.
+//
+// Shaped by the Kampala Uganda Temple proposal §4.6 KPI set, gathered from the
+// existing engines (no new metric infrastructure):
 //
 //   - Tag / naming / metadata compliance %      (ComplianceScan)
 //   - Per-discipline compliance                 (ComplianceScan.ByDisc)
@@ -11,9 +19,9 @@
 //   - Compliance trend vs prior snapshots       (ComplianceTrendTracker)
 //
 // Renders through the reusable StingResultPanel (RAG bars + metrics + tables),
-// persists a KPI snapshot to _BIM_COORD/kpi/kut_kpi_log.jsonl for fortnight-on-
-// fortnight burn-down, and writes an HTML + CSV report for attachment to the
-// monthly status report. Read-only; no Revit transaction.
+// persists a KPI snapshot to _BIM_COORD/kpi/<CODE>_kpi_log.jsonl for
+// fortnight-on-fortnight burn-down, and writes an HTML + CSV report for
+// attachment to the monthly status report. Read-only; no Revit transaction.
 //
 // Exchange-punctuality, review-comment close-out and as-built capture currency
 // are surfaced with their data source (workflow log / ReviewComments_Import /
@@ -39,7 +47,7 @@ using StingTools.UI;
 namespace StingTools.Commands.Kpi
 {
     /// <summary>One persisted KPI snapshot (JSONL line) for trend / burn-down.</summary>
-    public sealed class KutKpiSnapshot
+    public sealed class OwnerKpiSnapshot
     {
         public string Ts { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
         public double CompliancePct { get; set; }
@@ -66,12 +74,12 @@ namespace StingTools.Commands.Kpi
         public int BmsNoEndpoint { get; set; }
     }
 
-    public static class KutKpiEngine
+    public static class OwnerKpiEngine
     {
         // Health-score normalisation caps (documented, tunable).
         private const double ClashCap = 200.0, WarningCap = 500.0, StaleCap = 100.0;
 
-        public static KutKpiSnapshot Gather(Document doc)
+        public static OwnerKpiSnapshot Gather(Document doc)
         {
             var cs = ComplianceScan.Scan(doc, forceRefresh: true);
             int warnings = 0;
@@ -98,7 +106,7 @@ namespace StingTools.Commands.Kpi
                     }
                 }
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI clash load: " + ex.Message); }
+            catch (Exception ex) { StingLog.Warn("Owner KPI clash load: " + ex.Message); }
 
             // ── Owner-system coverage: Fohlio (FF&E) / SpecLink (CSI) / Niagara (BMS) ──
             // Single combined pass over taggable categories: SpecLink CSI coverage (all
@@ -146,7 +154,7 @@ namespace StingTools.Commands.Kpi
                     }
                 }
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI coverage scan: " + ex.Message); }
+            catch (Exception ex) { StingLog.Warn("Owner KPI coverage scan: " + ex.Message); }
 
             int bmsPoints = 0, bmsNoEndpoint = 0;
             try
@@ -155,7 +163,7 @@ namespace StingTools.Commands.Kpi
                 bmsPoints = devs.Count;
                 bmsNoEndpoint = devs.Count(d => string.IsNullOrEmpty(d.EndpointAddress));
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI BMS: " + ex.Message); }
+            catch (Exception ex) { StingLog.Warn("Owner KPI BMS: " + ex.Message); }
 
             double compliance = cs.TotalElements > 0 ? cs.CompliancePercent : 0;
             double clashClean = 100.0 * (1.0 - Math.Min(1.0, openClashes / ClashCap));
@@ -163,7 +171,7 @@ namespace StingTools.Commands.Kpi
             double staleClean = 100.0 * (1.0 - Math.Min(1.0, cs.StaleCount / StaleCap));
             double health = 0.40 * compliance + 0.25 * clashClean + 0.20 * warnClean + 0.15 * staleClean;
 
-            return new KutKpiSnapshot
+            return new OwnerKpiSnapshot
             {
                 CompliancePct      = Math.Round(compliance, 1),
                 StrictPct          = Math.Round(cs.StrictPercent, 1),
@@ -196,41 +204,74 @@ namespace StingTools.Commands.Kpi
             return p;
         }
 
-        public static KutKpiSnapshot LoadPrevious(Document doc)
+        /// <summary>
+        /// The owner/project code this dashboard reports under, from
+        /// PRJ_ORG_PROJECT_CODE_TXT on Project Information. Falls back to "STING"
+        /// so an unconfigured model still produces a usable, non-KUT-named report
+        /// rather than mislabelling itself as somebody else's project.
+        /// </summary>
+        public static string OwnerCode(Document doc)
+        {
+            string code = null;
+            try { code = ParameterHelpers.GetString(doc?.ProjectInformation, ParamRegistry.ORG_PROJECT_CODE); }
+            catch (Exception ex) { StingLog.Warn("Owner KPI project code read: " + ex.Message); }
+            if (string.IsNullOrWhiteSpace(code)) return "STING";
+            var clean = new string(code.Trim().Where(ch => char.IsLetterOrDigit(ch) || ch == '_' || ch == '-').ToArray());
+            return clean.Length == 0 ? "STING" : clean.ToUpperInvariant();
+        }
+
+        /// <summary>
+        /// Snapshot log for this owner code. Legacy note: before the rename every
+        /// project wrote "kut_kpi_log.jsonl". If that file exists and the
+        /// code-named one does not, the legacy file IS the history — return it so
+        /// a KUT model keeps its burn-down instead of silently starting from zero.
+        /// </summary>
+        private static string LogPath(Document doc, string dir)
+        {
+            if (dir == null) return null;
+            string current = Path.Combine(dir, OwnerCode(doc) + "_kpi_log.jsonl");
+            if (File.Exists(current)) return current;
+            string legacy = Path.Combine(dir, "kut_kpi_log.jsonl");
+            return File.Exists(legacy) ? legacy : current;
+        }
+
+        public static OwnerKpiSnapshot LoadPrevious(Document doc)
         {
             try
             {
-                string dir = KpiDir(doc);
-                string log = dir != null ? Path.Combine(dir, "kut_kpi_log.jsonl") : null;
+                string log = LogPath(doc, KpiDir(doc));
                 if (log == null || !File.Exists(log)) return null;
                 var last = File.ReadLines(log).LastOrDefault(l => !string.IsNullOrWhiteSpace(l));
-                return last != null ? JsonConvert.DeserializeObject<KutKpiSnapshot>(last) : null;
+                return last != null ? JsonConvert.DeserializeObject<OwnerKpiSnapshot>(last) : null;
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI load previous: " + ex.Message); return null; }
+            catch (Exception ex) { StingLog.Warn("Owner KPI load previous: " + ex.Message); return null; }
         }
 
-        public static void Append(Document doc, KutKpiSnapshot snap)
+        public static void Append(Document doc, OwnerKpiSnapshot snap)
         {
             try
             {
                 string dir = KpiDir(doc);
                 if (dir == null) return;
-                File.AppendAllText(Path.Combine(dir, "kut_kpi_log.jsonl"),
+                // LogPath resolves to the legacy file when that is where the history
+                // lives, so appends continue the same series rather than forking it.
+                File.AppendAllText(LogPath(doc, dir),
                     JsonConvert.SerializeObject(snap) + Environment.NewLine);
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI append: " + ex.Message); }
+            catch (Exception ex) { StingLog.Warn("Owner KPI append: " + ex.Message); }
         }
 
-        public static string WriteHtml(Document doc, KutKpiSnapshot s, KutKpiSnapshot prev)
+        public static string WriteHtml(Document doc, OwnerKpiSnapshot s, OwnerKpiSnapshot prev)
         {
             try
             {
                 var sb = new StringBuilder();
-                sb.Append("<html><head><meta charset='utf-8'><title>KUT KPI</title>");
+                string code = OwnerCode(doc);
+                sb.Append($"<html><head><meta charset='utf-8'><title>{Esc(code)} KPI</title>");
                 sb.Append("<style>body{font-family:Segoe UI,Arial;margin:24px;color:#222}h1{color:#1A237E}");
                 sb.Append("table{border-collapse:collapse;margin:8px 0}td,th{border:1px solid #ccc;padding:6px 10px}");
                 sb.Append("th{background:#1A237E;color:#fff;text-align:left}</style></head><body>");
-                sb.Append($"<h1>Kampala Temple — KPI Dashboard</h1><p>Generated {s.Ts} UTC</p>");
+                sb.Append($"<h1>{Esc(code)} — KPI Dashboard</h1><p>Generated {s.Ts} UTC</p>");
                 sb.Append("<table><tr><th>KPI</th><th>Value</th><th>Δ since last</th></tr>");
                 Row(sb, "Tag / metadata compliance", $"{s.CompliancePct:F1}%", Delta(s.CompliancePct, prev?.CompliancePct, "pp"));
                 Row(sb, "Fully-resolved (strict)", $"{s.StrictPct:F1}%", Delta(s.StrictPct, prev?.StrictPct, "pp"));
@@ -280,11 +321,11 @@ namespace StingTools.Commands.Kpi
                     sb.Append("</table>");
                 }
                 sb.Append("</body></html>");
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_KUT_KPI_{Stamp()}.html");
+                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_{code}_KPI_{Stamp()}.html");
                 File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
                 return path;
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI html: " + ex.Message); return null; }
+            catch (Exception ex) { StingLog.Warn("Owner KPI html: " + ex.Message); return null; }
         }
 
         private static void Row(StringBuilder sb, string k, string v, string d)
@@ -309,7 +350,7 @@ namespace StingTools.Commands.Kpi
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class KutKpiDashboardCommand : IExternalCommand
+    public class OwnerKpiDashboardCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
@@ -317,27 +358,27 @@ namespace StingTools.Commands.Kpi
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var snap = KutKpiEngine.Gather(doc);
+            var snap = OwnerKpiEngine.Gather(doc);
             if (snap.TotalElements == 0)
             {
-                TaskDialog.Show("KUT KPI Dashboard",
+                TaskDialog.Show($"{OwnerKpiEngine.OwnerCode(doc)} KPI Dashboard",
                     "No taggable elements found (or compliance scan still warming up). " +
                     "Load TagConfig / run a tag pass first, then retry.");
                 return Result.Succeeded;
             }
-            var prev = KutKpiEngine.LoadPrevious(doc);
+            var prev = OwnerKpiEngine.LoadPrevious(doc);
 
             var cs = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
             (string trendDir, double trendDelta) = ("unknown", 0);
             try { (trendDir, trendDelta) = ComplianceTrendTracker.GetTrend(doc, 30); } catch { }
             try { ComplianceTrendTracker.RecordSnapshot(doc, cs); } catch { }
 
-            string html = KutKpiEngine.WriteHtml(doc, snap, prev);
+            string html = OwnerKpiEngine.WriteHtml(doc, snap, prev);
             string csv = WriteCsv(doc, snap, prev);
-            KutKpiEngine.Append(doc, snap);
+            OwnerKpiEngine.Append(doc, snap);
 
             var b = new StingResultPanel.Builder()
-                .SetTitle("Kampala Temple — KPI Dashboard")
+                .SetTitle($"{OwnerKpiEngine.OwnerCode(doc)} — KPI Dashboard")
                 .SetSubtitle($"Monthly BIM status report · {snap.Ts} UTC · proposal §4.6")
                 .SetOverallPct(snap.CompliancePct);
 
@@ -348,7 +389,7 @@ namespace StingTools.Commands.Kpi
                      "compliance 40% · clash 25% · warnings 20% · stale 15%",
                      null)
              .Metric("Open clashes", snap.OpenClashes.ToString(),
-                     prev != null ? $"burn-down {KutKpiEngine.Delta(snap.OpenClashes, prev.OpenClashes, "", invert: true)}" : "no prior snapshot");
+                     prev != null ? $"burn-down {OwnerKpiEngine.Delta(snap.OpenClashes, prev.OpenClashes, "", invert: true)}" : "no prior snapshot");
 
             // Tag compliance by discipline
             if (cs?.ByDisc != null && cs.ByDisc.Count > 0)
@@ -440,32 +481,32 @@ namespace StingTools.Commands.Kpi
             return Result.Succeeded;
         }
 
-        private static string WriteCsv(Document doc, KutKpiSnapshot s, KutKpiSnapshot prev)
+        private static string WriteCsv(Document doc, OwnerKpiSnapshot s, OwnerKpiSnapshot prev)
         {
             try
             {
                 var rows = new List<string> { "KPI,Value,DeltaSinceLast" };
                 void R(string k, string v, string d) => rows.Add($"\"{k}\",\"{v}\",\"{d}\"");
-                R("Tag/metadata compliance %", $"{s.CompliancePct:F1}", KutKpiEngine.Delta(s.CompliancePct, prev?.CompliancePct, "pp"));
-                R("Strict %", $"{s.StrictPct:F1}", KutKpiEngine.Delta(s.StrictPct, prev?.StrictPct, "pp"));
-                R("Model-health score", $"{s.HealthScore:F0}", KutKpiEngine.Delta(s.HealthScore, prev?.HealthScore, ""));
-                R("Open clashes", $"{s.OpenClashes}", KutKpiEngine.Delta(s.OpenClashes, prev?.OpenClashes, "", invert: true));
-                R("Revision %", $"{s.RevisionPct:F1}", KutKpiEngine.Delta(s.RevisionPct, prev?.RevisionPct, "pp"));
-                R("Sheet compliance %", $"{s.SheetCompliancePct:F1}", KutKpiEngine.Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
-                R("Stale elements", $"{s.Stale}", KutKpiEngine.Delta(s.Stale, prev?.Stale, "", invert: true));
-                R("Model warnings", $"{s.Warnings}", KutKpiEngine.Delta(s.Warnings, prev?.Warnings, "", invert: true));
-                R("Fohlio FF&E linked %", $"{s.FfeLinkedPct:F1}", KutKpiEngine.Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
-                R("FF&E stale", $"{s.FfeStale}", KutKpiEngine.Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
-                R("SpecLink CSI coverage %", $"{s.SpecCoveragePct:F1}", KutKpiEngine.Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
+                R("Tag/metadata compliance %", $"{s.CompliancePct:F1}", OwnerKpiEngine.Delta(s.CompliancePct, prev?.CompliancePct, "pp"));
+                R("Strict %", $"{s.StrictPct:F1}", OwnerKpiEngine.Delta(s.StrictPct, prev?.StrictPct, "pp"));
+                R("Model-health score", $"{s.HealthScore:F0}", OwnerKpiEngine.Delta(s.HealthScore, prev?.HealthScore, ""));
+                R("Open clashes", $"{s.OpenClashes}", OwnerKpiEngine.Delta(s.OpenClashes, prev?.OpenClashes, "", invert: true));
+                R("Revision %", $"{s.RevisionPct:F1}", OwnerKpiEngine.Delta(s.RevisionPct, prev?.RevisionPct, "pp"));
+                R("Sheet compliance %", $"{s.SheetCompliancePct:F1}", OwnerKpiEngine.Delta(s.SheetCompliancePct, prev?.SheetCompliancePct, "pp"));
+                R("Stale elements", $"{s.Stale}", OwnerKpiEngine.Delta(s.Stale, prev?.Stale, "", invert: true));
+                R("Model warnings", $"{s.Warnings}", OwnerKpiEngine.Delta(s.Warnings, prev?.Warnings, "", invert: true));
+                R("Fohlio FF&E linked %", $"{s.FfeLinkedPct:F1}", OwnerKpiEngine.Delta(s.FfeLinkedPct, prev?.FfeLinkedPct, "pp"));
+                R("FF&E stale", $"{s.FfeStale}", OwnerKpiEngine.Delta(s.FfeStale, prev?.FfeStale, "", invert: true));
+                R("SpecLink CSI coverage %", $"{s.SpecCoveragePct:F1}", OwnerKpiEngine.Delta(s.SpecCoveragePct, prev?.SpecCoveragePct, "pp"));
                 R("BMS points (Niagara)", $"{s.BmsPoints}", "");
                 R("BMS points without endpoint", $"{s.BmsNoEndpoint}", "");
                 foreach (var kv in s.OpenClashBySeverity.OrderByDescending(k => k.Value))
                     R($"Open clashes — {kv.Key}", kv.Value.ToString(), "");
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_KUT_KPI_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_{OwnerKpiEngine.OwnerCode(doc)}_KPI_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }
-            catch (Exception ex) { StingLog.Warn("KUT KPI csv: " + ex.Message); return null; }
+            catch (Exception ex) { StingLog.Warn("Owner KPI csv: " + ex.Message); return null; }
         }
     }
 }

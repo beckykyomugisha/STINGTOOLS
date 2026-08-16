@@ -16,6 +16,7 @@ import { theme, getCDEColor } from '@/utils/theme';
 import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval, getMyProjectAccess, type MyProjectAccess, type ListDocumentsFilters } from '@/api/endpoints';
 import type { DocumentRecord, Project, CDEStatus } from '@/types/api';
 import { crashReporter } from '@/services/crashReporter';
+import { describeTransitionFailure } from '@/utils/cdeTransitionMessage';
 import { useAuthStore } from '@/stores/authStore';
 
 const CDE_STATES: CDEStatus[] = ['WIP', 'SHARED', 'PUBLISHED', 'ARCHIVE'];
@@ -150,32 +151,50 @@ export default function DocumentsScreen() {
   async function handleTransition(doc: DocumentRecord, newStatus: CDEStatus) {
     if (!activeProject) return;
     setTransitioning(true);
+
+    // #624 — the two branches below are separate outcomes and must report
+    // separately. They used to share one `catch` whose 403 arm said "The
+    // request has been sent", which was untrue on BOTH paths: on the direct
+    // path no approval request was ever attempted, and on the approval path
+    // the request is precisely what was refused. Either way nothing is
+    // pending, and the user was told to wait for an approval that would never
+    // arrive. Keep the attempts — and the messages — apart.
     try {
       if (requiresApproval(doc.cdeStatus, newStatus)) {
         // Fire the approval request — does NOT actually move the CDE state;
         // the approver's decideDocumentApproval call does that server-side.
-        await requestDocumentApproval(activeProject.id, doc.id, newStatus);
+        try {
+          await requestDocumentApproval(activeProject.id, doc.id, newStatus);
+        } catch (err: unknown) {
+          const failure = describeTransitionFailure(err, 'approval-request');
+          Alert.alert(failure.title, failure.body);
+          return;
+        }
         Alert.alert(
           'Approval requested',
           `CDE transition to ${newStatus} submitted for approval per ISO 19650-2 §5.6. You will be notified when it is approved or rejected.`,
         );
-        // Refresh so the "approval pending" badge appears if the server renders it
-        await loadData(activeProject.id);
+        // Refresh so the "approval pending" badge appears if the server renders it.
+        // A failure here is a refresh failure, not a transition failure — the
+        // request above did land — so it must not be reported as either.
+        try {
+          await loadData(activeProject.id);
+        } catch (refreshErr: unknown) {
+          crashReporter.warn('documents.handleTransition: refresh after approval request failed', {
+            e: String(refreshErr),
+          });
+        }
       } else {
-        const updated = await transitionCDE(activeProject.id, doc.id, newStatus);
+        let updated: DocumentRecord;
+        try {
+          updated = await transitionCDE(activeProject.id, doc.id, newStatus);
+        } catch (err: unknown) {
+          const failure = describeTransitionFailure(err, 'transition');
+          Alert.alert(failure.title, failure.body);
+          return;
+        }
         setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
         setSelectedDoc(updated);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Transition failed';
-      // 403 on a gated transition means the user tried to bypass approval
-      if (msg.includes('HTTP 403')) {
-        Alert.alert(
-          'Approval required',
-          'This transition needs BIM Coordinator sign-off. The request has been sent — check back when it is approved.',
-        );
-      } else {
-        Alert.alert('CDE Transition Failed', msg);
       }
     } finally {
       setTransitioning(false);

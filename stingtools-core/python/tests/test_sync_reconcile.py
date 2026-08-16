@@ -96,6 +96,46 @@ def test_remote_only_element_is_applied():
     assert len(a.applied) == 1
 
 
+# ── R1.4: cross-host identity alignment ───────────────────────────────────────
+# After R1.2 the server change feed emits the true IFC GlobalId (globalId =
+# IfcGlobalId ?? UniqueId), so a Revit-authored change carries the SAME key the
+# ArchiCAD/IFC host indexes its elements by — it matches the local element and
+# reconciles against it. Before R1.2 the feed emitted Revit's 45-char UniqueId,
+# which matched nothing: the StingBridge pull wrapper partitions such a delta out
+# as `absent` (it never reaches the host). These pin both halves.
+
+def test_revit_delta_matches_local_element_under_real_globalid():
+    """The real-GlobalId delta lands ON the existing local element (not treated
+    as a new/foreign element) — i.e. Revit's edit reconciles into ArchiCAD/IFC.
+    (Delta stamped newer than local so the conflict resolves to the remote and
+    the match is observable as an apply; the R1.4 property is remote_only == 0.)"""
+    gid = "1hJKl2mNODEfGHiJkLmNo0"          # a 22-char IFC GlobalId, shared by both hosts
+    index = {gid: local(ts=NOW, seq="0001")} # the ArchiCAD/IFC host's element
+    a = _Adapter()
+
+    r = ReconcileEngine(a).reconcile(
+        [delta(gid=gid, ts=NOW + timedelta(minutes=5), seq="0009")], index)
+
+    assert r.remote_only == 0, "matched an existing local element — not treated as new/foreign"
+    assert r.applied == 1                    # the Revit change reconciled onto the local element
+    assert a.applied[0].global_id == gid
+
+
+def test_revit_uniqueid_key_is_foreign_the_pre_R1_2_absent_case():
+    """A Revit 45-char UniqueId matches no local GlobalId — the engine sees it as
+    remote-only, which is exactly the delta StingBridge's pull wrapper drops as
+    `absent`. This is the failure R1.2 removes by emitting the real GlobalId."""
+    gid = "1hJKl2mNODEfGHiJkLmNo0"
+    index = {gid: local(seq="0001")}
+    a = _Adapter()
+    revit_uid = "9a8b7c6d-1234-5678-9abc-def012345678-0004d2"  # Revit UniqueId, NOT a GlobalId
+
+    r = ReconcileEngine(a).reconcile([delta(gid=revit_uid, seq="0009")], index)
+
+    assert r.remote_only == 1                 # unmatched — the "absent" case pre-R1.2
+    assert index[gid]["tokens"]["seq"] == "0001", "the real local element was left untouched"
+
+
 # ── rule 3: equal payloads ───────────────────────────────────────────────────
 
 def test_identical_payloads_are_a_noop_even_when_remote_is_newer():

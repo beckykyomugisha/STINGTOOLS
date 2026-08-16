@@ -163,8 +163,11 @@ export default function TeamPage() {
 
       {data && (
         <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Quota label="Authors" axis={data.usage.authors} />
-          <Quota label="Coordinators" axis={data.usage.coordinators} />
+          {/* Authors / Coordinators tiles removed with the .NET per-user quota
+              axes (#619) — seat entitlement is the StingTools licence, counted
+              in D1 (#621). The server no longer returns usage.authors or
+              usage.coordinators, and Quota reads axis.max directly, so leaving
+              these would throw on render rather than degrade. */}
           <Quota label="Projects" axis={data.usage.projects} />
           <Quota
             label="Storage (MB)"

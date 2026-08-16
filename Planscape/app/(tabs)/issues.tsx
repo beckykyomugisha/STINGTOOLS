@@ -32,6 +32,7 @@ import { crashReporter } from '@/services/crashReporter';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useAuthStore } from '@/stores/authStore';
 import { debounce } from '@/utils/debounce';
+import { describeIssueCreateFailure } from '@/utils/issueCreateMessage';
 
 /**
  * Phase 94 — MOB-01/MOB-06. Open the Planscape xeokit viewer for a project in
@@ -542,19 +543,12 @@ export default function IssuesScreen() {
     } catch (err) {
       // NEW-INFO-14 — surface creation errors inside the modal so the user
       // can see them without closing the form and losing their input.
-      const msg = err instanceof Error ? err.message : 'Failed to create issue';
-      let friendly: string;
-      if (msg.includes('HTTP 403') || msg.toLowerCase().includes('geofence')
-          || msg.toLowerCase().includes('outside the project')) {
-        friendly = 'Outside project geofence — move on site or ask your BIM manager to widen the boundary.';
-      } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('latitude')) {
-        friendly = 'Invalid GPS reading — try again in a moment.';
-      } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('assignee')) {
-        friendly = 'Chosen assignee is not a member of this project.';
-      } else {
-        friendly = msg;
-      }
-      setModalError(friendly);
+      //
+      // #625 — the cause comes from the server's reason, not from the status
+      // code. This used to report EVERY 403 as a geofence violation, which
+      // told a user refused for lacking a capability to walk somewhere else.
+      const failure = describeIssueCreateFailure(err);
+      setModalError(failure.message);
       Vibration.vibrate(80);
     } finally {
       setCreating(false);
