@@ -18,12 +18,14 @@ on:
     paths:
       - 'StingTools/**'
       - 'StingTools.addin'
+      - 'StingTools.Templates.Tests/**'
       - '.github/workflows/plugin-build.yml'
   pull_request:
     branches: [main]
     paths:
       - 'StingTools/**'
       - 'StingTools.addin'
+      - 'StingTools.Templates.Tests/**'
       - '.github/workflows/plugin-build.yml'
 
 permissions:
@@ -55,6 +57,16 @@ jobs:
           -c Release --no-restore
           -p:UseRevitNuget=true
           --nologo -v minimal
+
+      # The document template pack is pure data and MiniWord is Revit-free, so this
+      # suite runs on the same runner with no Revit install. It exists because every
+      # shipped template once rendered its tables EMPTY — loop bodies used bare
+      # {{number}} where MiniWord requires {{documents.number}} — and nothing caught
+      # it: no code path rendered a template outside Revit. Keep this gate green.
+      - name: Test — document template pack
+        run: >
+          dotnet test StingTools.Templates.Tests
+          -c Release --nologo -v minimal
 
       - name: Stage deploy bundle
         shell: pwsh

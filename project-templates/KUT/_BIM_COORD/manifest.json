@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "ownerCode": "KUT",
+  "ownerName": "Kampala Uganda Temple — LDS Church Special Projects",
+  "description": "Manifest for the single deployable KUT project overlay pack. Copy this whole _BIM_COORD/ folder into the temple project folder (next to the central .rvt). Every file below merges over a corporate baseline shipped in StingTools/Data/ — project entries win by the stated merge key, so deploying this pack activates and localises, never forks. To start a pack for a different owner, copy this folder, edit each file, and update this manifest — nothing here is referenced by name from code.",
+  "files": [
+    {
+      "file": "project_config.json",
+      "overlays": "TagConfig lookup tables (LOC_CODES / ZONE_CODES / sequence grouping)",
+      "corporateBaseline": "built-in TagConfig.LoadDefaults()",
+      "mergeKey": "whole-file replace of the keys present",
+      "readBy": "StingTools.Core.TagConfig.LoadFromFile",
+      "purpose": "Six-building campus LOC codes (BLD1..BLD6 + EXT) and per-building sequence grouping. The tag scheme's volume map depends on these codes existing."
+    },
+    {
+      "file": "tag_schemes.json",
+      "overlays": "StingTools/Data/STING_TAG_SCHEMES.json",
+      "corporateBaseline": "StingTools/Data/STING_TAG_SCHEMES.json",
+      "mergeKey": "scheme id",
+      "readBy": "StingTools.Core.TagSchemeEngine",
+      "purpose": "Enables the kut-temple-example scheme (corporate ships it disabled) and maps LOC building codes to two-digit BEP volume codes."
+    },
+    {
+      "file": "lod_matrix.json",
+      "overlays": "StingTools/Data/STING_LOD_MATRIX.json",
+      "corporateBaseline": "StingTools/Data/STING_LOD_MATRIX.json",
+      "mergeKey": "milestone id, then categoryRules category (replace by category)",
+      "readBy": "StingTools.Core.Validation.LodVerificationEngine",
+      "purpose": "Restates the confirmed six-milestone ladder (deliverable-a 200 / -b 300 / -c 350 / conformed-set 350 / construction 400 / deliverable-d 500) as the client-facing record."
+    },
+    {
+      "file": "owner_standards.json",
+      "overlays": "StingTools/Data/STING_OWNER_STANDARDS_PACK.json",
+      "corporateBaseline": "StingTools/Data/STING_OWNER_STANDARDS_PACK.json",
+      "mergeKey": "rule id",
+      "readBy": "OwnerStandards_Audit",
+      "purpose": "Enables the KUT sheet-number pattern, narrows the discipline taxonomy to the temple design team, and enables the ffe-fohlio-ref link check at severity WARN."
+    },
+    {
+      "file": "fohlio_map.json",
+      "overlays": "no corporate baseline — project-only",
+      "corporateBaseline": null,
+      "mergeKey": "n/a",
+      "readBy": "StingTools.ExLink.FohlioMap.Load (Fohlio_Export / Fohlio_Import / Fohlio_Audit)",
+      "purpose": "FF&E ↔ Fohlio column mapping. Link key FOHLIO_REF_TXT."
+    },
+    {
+      "file": "sting_classification.json",
+      "overlays": "the project's active classification standard",
+      "corporateBaseline": "Uniclass (STING default)",
+      "mergeKey": "whole-file",
+      "readBy": "StingTools ClassificationStandard / Classification_SetStandard",
+      "purpose": "Sets CSI MasterFormat as the leading standard, because the Owner mandates RIB SpecLink."
+    },
+    {
+      "file": "climate_data.json",
+      "overlays": "StingTools/Data/STING_CLIMATE_DATA.json",
+      "corporateBaseline": "StingTools/Data/STING_CLIMATE_DATA.json",
+      "mergeKey": "site id",
+      "readBy": "StingTools.Core.Climate.ClimateRegistry",
+      "purpose": "Optional. The corporate baseline already carries a Kampala entry; deploy this only to replace it with engineer-confirmed ASHRAE 2021 Entebbe (HUEN / 636800) design values."
+    }
+  ],
+  "notInThisPack": [
+    {
+      "item": "PLM_PRJ_PLUMBING_CODE_TXT = IPC-US",
+      "where": "Revit Project Information",
+      "why": "A Revit parameter value; no repo file can set it. Blank silently falls back to BS EN 12056. See project-templates/KUT/README.md step 3."
+    },
+    {
+      "item": "PRJ_ORG_PROJECT_CODE_TXT = KUT + PRJ_ORG_ORIGINATOR_CODE_TXT",
+      "where": "Revit Project Information",
+      "why": "Drives the sheet-number pattern and the tag scheme's projectInfo segments."
+    },
+    {
+      "item": "fohlio_connection.json",
+      "where": "<project>/_BIM_COORD/, gitignored",
+      "why": "Holds an API key. A credential stub lives at docs/examples/KUT/fohlio_connection.json.example; the CSV Fohlio path needs no connection file at all."
+    }
+  ]
+}

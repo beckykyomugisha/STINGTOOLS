@@ -114,7 +114,7 @@
 | Topic | Standard |
 |---|---|
 | Information management | ISO 19650-1/-2/-3/-5 |
-| Classification | Uniclass 2015 (Ss systems · Pr products · EF elements); CSI MasterFormat as a secondary cross-reference where the Owner's specification requires it |
+| Classification | **CSI MasterFormat — primary.** The Owner mandates RIB SpecLink for all specifications (A2, every discipline), so CSI is the classification the deliverables are read against; `_BIM_COORD/sting_classification.json` is set to `CSI` and `CSI_Assign` / `SpecLink_Reconcile` operate on it. Uniclass 2015 is retained only as an internal cross-reference where our own tagging needs it. **Demolition (Division 02) is classified manually** — see §10.3 |
 | Naming | ISO 19650 field-based (see §4.2) |
 | Quantities/cost | `[FILL: NRM2 / other]` |
 | Handover | COBie 2.4 |
@@ -258,6 +258,29 @@ Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
 | Coordinate/level integrity | Revit/STINGTOOLS | Weekly |
 | Deliverables vs MIDP | MIDP review | Monthly |
 | Model health / KPI | STINGTOOLS KPI dashboard | Monthly |
+| LOD maturity vs milestone | STINGTOOLS `LOD_Verify` | At every deliverable gate |
+| Model CSI vs SpecLink book | STINGTOOLS `SpecLink_Reconcile` | Before each spec issue |
+| Demolition classified (Div 02) | **manual — see §10.3** | Before Deliverable B and before each `SpecLink_Reconcile` |
+
+### 10.3 Manual classification: demolition (CSI Division 02)
+
+A1 Deliverable B requires an **Existing Conditions & Removals Plan**. **STINGTOOLS cannot
+classify demolition automatically** and no rule in the CSI map will produce Division 02.
+
+`CsiMasterFormat.Resolve` matches on category / family / type / system only; Revit expresses
+demolition through the **`Phase Demolished`** property, which the resolver never receives.
+Naming-based rules were drafted and deliberately withdrawn — they would have read as coverage
+while matching nothing.
+
+**Owner of this task:** `[FILL: name / role]`. **Method:** either add Division 02 rows to
+`_BIM_COORD/csi_map.csv` keyed on a `DEMO_` type-name convention agreed at kick-off (TypeRegex
+column), or write `CSI_SECTION_TXT` / `CSI_TITLE_TXT` directly on the demolition scope.
+**Timing:** before `SpecLink_Reconcile`, otherwise the Owner's Division 02 spec sections report
+as over-specification and the reconciliation reads clean when it is not.
+
+> Note when reading `LOD_Verify` output: the run **discloses the categories it did not scan** in
+> the TaskDialog, the CSV header and the JSON gate report. Read that block — a pass percentage
+> means nothing without knowing what was in scope.
 
 ---
 

@@ -1,4 +1,4 @@
 {
-  "standard": "Uniclass",
-  "_note": "KUT (Kampala Uganda Temple) authoritative classification standard — Uniclass 2015. Read by StingTools ClassificationStandard (Phase G); leads the BOQ / COBie / handover / IFC grouping cascade (Uniclass Pr -> Ss -> Ef, then CSI, OmniClass, Native). Set via the Classification_SetStandard command, or edit this file. Values: Uniclass | CSI | OmniClass | Native."
+  "standard": "CSI",
+  "_note": "KUT (Kampala Uganda Temple) authoritative classification standard — CSI MasterFormat. The Owner mandates RIB SpecLink for all specifications, and SpecLink is organised by CSI MasterFormat; Uniclass appears nowhere in the A1/A2 scope documents. Classifying to Uniclass here would leave SpecLink_Reconcile with nothing to reconcile against, so CSI leads the BOQ / COBie / handover / IFC grouping cascade (CSI -> Uniclass Pr/Ss/Ef -> OmniClass -> Native). Read by StingTools ClassificationStandard (Phase G); populate the CSI parameters with the CSI_Assign command and reconcile with SpecLink_Reconcile. Set via the Classification_SetStandard command, or edit this file. Values: Uniclass | CSI | OmniClass | Native."
 }

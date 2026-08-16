@@ -11,7 +11,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 - **~1,440 C# source files · ~656k lines** in the plugin (`StingTools/`) + 14 XAML, across 38+ command directories — *rounded; see the [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) for exact, dated, reproducible metrics*
 - **1,580+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 4 `IDockablePaneProvider`s + 4+ `IUpdater`s
 - **100+ runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes template engine v1.1 pack (16 templates + 5 workflow definitions), HVAC/climate/RTS/acoustic data, CSI/MasterFormat maps, CTF coefficients, IDU catalogues, Cx task library, and more
-- **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (9 tabs) + ribbon retained for legacy compat
 - **Top-level workspace** ships 30+ directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingBridge/` · `GUIDES/` · `StingTools.ArchiCAD/` · `Planscape.Desktop/` · `Planscape.Edge/` · `StingTools.Clash.Tests/` · `StingTools.Tags.Tests/` · `StingTools.Routing.Tests/` · `StingTools.Boq.Tests/` · `StingTools.Connectivity.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `docs/` · `docs-site/` · `marketing-site/` · `marketing-site-cron/` · `tools/` · `shared/` · `stingtools-bonsai/` · `stingtools-core/` · `ifc_drop/` · `project-templates/` · `planscape-site/`
 
 ### Phase history
@@ -190,8 +190,13 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   without a Revit UI thread. **Extracting a pure "compute → result record" layer from a thin
   "present" layer is the single highest-leverage refactor available.**
 - **Command sprawl.** ~1,580 command classes is a lot of surface to keep discoverable; dead/silent
-  commands are already tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
-  and `SILENT_BUTTONS_TODO.md`.
+  commands are tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
+  (commands with no button) and [`SILENT_BUTTONS_TODO.md`](SILENT_BUTTONS_TODO.md) — **repo root, not
+  `docs/`** (buttons with no command). As of 2026-08-06 there are **no** silent buttons: all 1,323
+  `Cmd_Click` button tags dispatch, and Tier 4 of `tools/check_workflow_wiring.ps1` keeps it that way.
+  Beware any count derived from the `StingCommandHandler` switch alone — dispatch is three layers
+  (`CommandRegistry` modules → `Cmd_Click` suite runners → handler `case` labels), and one-layer
+  audits have twice produced large false-positive figures.
 
 ### 6. Stubs & "for-now" scaffolding
 
@@ -2101,21 +2106,26 @@ The Cost Management module extends the BOQ system into a full construction cost 
 | `GUIDES/KUT_BIM_MANAGER_PLAYBOOK.md` | BIM Manager self-guide playbook for the KUT project — step-by-step checklist for weekly / monthly / milestone BIM management tasks |
 | `GUIDES/KUT_MIDP_TEMPLATE.csv` | Master Information Delivery Plan CSV template pre-seeded with KUT deliverable codes |
 
-#### KUT KPI Dashboard
+#### Owner KPI Dashboard (was KUT KPI Dashboard)
 
-`Commands/Kpi/KutKpiDashboardCommand.cs` — tag `KUT_KpiDashboard`. Read-only command generating a monthly BIM status report for the KUT project:
+`Commands/Kpi/OwnerKpiDashboardCommand.cs` — tag `Owner_KpiDashboard`, with `KUT_KpiDashboard` retained as a dispatch alias in both `StingCommandHandler` and `WorkflowEngine.ResolveCommand`. Read-only command generating a monthly BIM status report:
 - Gathers: tag/naming compliance %, per-discipline breakdown
-- Persists `KutKpiSnapshot` records to `<project>/_BIM_COORD/kpi/kut_kpi_log.jsonl`
-- Exports HTML + CSV for monthly status report attachment
+- Derives the reporting code from `PRJ_ORG_PROJECT_CODE_TXT` on Project Information, falling back to `STING` — nothing in the 471 lines was ever temple-specific, only the surface was
+- Persists `OwnerKpiSnapshot` records to `<project>/_BIM_COORD/kpi/<CODE>_kpi_log.jsonl`; an existing `kut_kpi_log.jsonl` is read and appended to rather than orphaned
+- Exports HTML + CSV (`STING_<CODE>_KPI_*`) for monthly status report attachment
 - Snapshot fields: `CompliancePct`, `StrictPct`, `RevisionPct`
 
 ### Phase 192B1 — LOD Verification Engine
 
-`Core/LODValidationCommand.cs` + validation rules in `Core/Validation/`. Per-element LOD (Level of Detail / Level of Development) audit:
-- Reads `STING_LOD_VERIFICATION_RULES.json`
-- Commands: `LOD_Verify`, `LOD_SetTarget`, `LOD_Report`, `LOD_Colorize`
-- Writes `LOD_TARGET_TXT` + `LOD_ACTUAL_TXT` + `LOD_PASS_BOOL` per element
-- Integrates with `ComplianceScan` as an additional compliance dimension
+`Core/Validation/LodVerificationEngine.cs` + `Commands/Validation/LodVerifyCommand.cs`. Per-element LOD (Level of Development) audit:
+- Reads `Data/STING_LOD_MATRIX.json` (corporate baseline) layered with a project overlay at `<project>/_BIM_COORD/lod_matrix.json`, merged by milestone `id` / rule `category`
+- Milestones are **deliverable-keyed**, not RIBA-keyed, and the matrix defines the full standard ladder **100 / 200 / 300 / 350 / 400 / 500** for every category
+- Commands: `LOD_Verify` (ReadOnly — summary TaskDialog + CSV + JSON gate report under `_BIM_COORD/lod_reports/`), `LOD_Stamp` (Manual), and `LODValidation` ("LOD Check" — same engine, `StingResultPanel` output, plus the `STING_LOD_*_VISIBLE` family-switch audit)
+- **Read-only by default.** Only `LOD_Stamp` writes, and it writes exactly one parameter: `ASS_LOD_VERIFIED_TXT` (the milestone id) on passing elements. There is no `LOD_TARGET_TXT` / `LOD_ACTUAL_TXT` / `LOD_PASS_BOOL`
+- Checks are a **parameter + naming + geometry-presence maturity proxy, not a geometric survey** — STING cannot verify dimensional accuracy
+- Not wired into `ComplianceScan`; LOD is reported separately
+- **An empty scope is not a pass.** An element whose category resolves to no check (no rule and no `*` fallback) is *skipped*, not counted, so it leaves the denominator. `OverallPct` returns `100.0` when `Total == 0`, which is why `LodTally.NoElementsInScope` exists and why every caller branches on it first. Skips are counted per category and surfaced in the TaskDialog, the CSV header and the JSON gate report (`skippedNoRule` / `skippedByCategory`); a run with nothing in scope reports "NO ELEMENTS IN SCOPE" and the gate report's `overallPct` is `null`
+- The Revit-free half — the matrix model, `*`-fallback resolution (`LodRuleResolver`) and the pass/fail/skip tally (`LodTally`) — lives in `Core/Validation/LodMatrixModel.cs` and is `<Compile Include>`d by `StingTools.Tags.Tests`. `LodVerificationEngine.Resolve` delegates to `LodRuleResolver`, so the plugin and the tests exercise one copy of the resolution code
 
 ### Phase 192C1 — Fohlio Room Finishes Integration
 
