@@ -141,6 +141,30 @@ public class ModelsController : ControllerBase
         }
         var existing = await _db.ProjectModels
             .FirstOrDefaultAsync(m => m.TenantId == project.TenantId && m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
+
+        // C4 — honour Force.
+        //
+        // The flag has been on UploadModelRequest, documented, and sent by the
+        // plugin's "Publish as a new revision (forced)" mode since it shipped —
+        // and read by nothing. The dedup branch below ran regardless, so a
+        // coordinator who deliberately chose to cut a new revision got a
+        // metadata refresh on the OLD row and no new revision at all. The
+        // operation reported success, which is why it went unnoticed.
+        //
+        // It could not simply insert a second row: the unique filtered index on
+        // (TenantId, ProjectId, ContentHash) WHERE DeletedAt IS NULL rejects
+        // identical bytes. Retiring the previous row frees the index AND makes
+        // the supersede explicit, so the history stays queryable.
+        if (existing != null && req.Force)
+        {
+            existing.DeletedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Force re-publish: retiring model {OldModelId} so a new revision of the same bytes can be created.",
+                existing.Id);
+            existing = null;   // fall through to the normal insert path
+        }
+
         if (existing != null)
         {
             // Geometry hash is identical, so the GLB itself is normally
@@ -290,6 +314,22 @@ public class ModelsController : ControllerBase
         }
         _logger.LogInformation("Model uploaded — {ModelId} {Format} {Size} bytes for project {ProjectId}",
             row.Id, row.Format, row.FileSizeBytes, projectId);
+
+        // C4 — close the supersede link now that the replacement has an id.
+        if (req.Force)
+        {
+            var retired = await _db.ProjectModels
+                .Where(m => m.TenantId == project.TenantId && m.ProjectId == projectId
+                         && m.ContentHash == hash && m.Id != row.Id
+                         && m.DeletedAt != null && m.SupersededByModelId == null)
+                .OrderByDescending(m => m.DeletedAt)
+                .FirstOrDefaultAsync(ct);
+            if (retired != null)
+            {
+                retired.SupersededByModelId = row.Id;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
 
         // ── B2 — georeferencing → coordinate transform ──────────────────────
         // Revit exports geometry about the project internal origin, so without
@@ -511,7 +551,29 @@ public class ModelsController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt == null, ct);
         if (row == null) return NotFound();
         row.DeletedAt = DateTime.UtcNow;
+
+        // C4 — cascade. Soft-deleting the model alone left its scene chunks and
+        // federated elements live, so the geometry kept rendering and kept
+        // answering element queries: the model was "deleted" everywhere except
+        // where a user would notice. Retire them together; ModelPurgeJob removes
+        // the bytes and the rows after the 30-day grace the entity documents.
+        var chunks = await _db.SceneNodes
+            .Where(n => n.SourceModelId == modelId && n.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var chunk in chunks) chunk.DeletedAt = row.DeletedAt;
+
+        var federated = await _db.FederatedElements
+            .Where(e => e.ProjectId == projectId && !e.IsDeleted
+                     && e.GlbStoragePath != null && e.GlbStoragePath == row.StoragePath)
+            .ToListAsync(ct);
+        foreach (var el in federated) { el.IsDeleted = true; el.UpdatedAt = row.DeletedAt.Value; }
+
         await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) and {Elements} federated element(s) retired with it.",
+            modelId, chunks.Count, federated.Count);
+
         return NoContent();
     }
 
@@ -741,7 +803,12 @@ public class ModelsController : ControllerBase
                 revision = m.Revision,
             }).ToListAsync(ct);
 
-        var chunks = await _db.SceneNodes.AsNoTracking()
+        // C4 — exclude chunks whose MODEL is deleted, not just chunks that are
+        // themselves flagged. Before the cascade above nothing ever set
+        // SceneNode.DeletedAt, so this filter matched everything and a deleted
+        // model kept streaming into the viewer.
+        var liveModelIds = models.Select(m => m.id).ToHashSet();
+        var chunks = (await _db.SceneNodes.AsNoTracking()
             .Where(n => n.ProjectId == projectId && n.DeletedAt == null)
             .Select(n => new {
                 id = n.Id,
@@ -755,7 +822,9 @@ public class ModelsController : ControllerBase
                 vertexCount = n.VertexCount,
                 aabb = new { min = new[] { n.MinX, n.MinY, n.MinZ }, max = new[] { n.MaxX, n.MaxY, n.MaxZ } },
                 compression = n.Compression,
-            }).ToListAsync(ct);
+            }).ToListAsync(ct))
+            .Where(c => liveModelIds.Contains(c.sourceModelId))
+            .ToList();
 
         // Compute overall federation bounds
         double? minX = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[0]) : null;
