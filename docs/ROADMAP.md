@@ -1544,3 +1544,11 @@ are written up in [`COORDINATION_AUDIT_FINDINGS.md`](COORDINATION_AUDIT_FINDINGS
   against hand-written inputs.
 - **`docs/PERFECT_PLACEMENT_PROMPT.md` does not exist** despite being cited as
   the Track B reference. Either write it or stop citing it.
+- **`align-audit.mjs` has 6 failing checks on `main`.** Verified pre-existing by
+  running the harness at `origin/main` in a scratch worktree: same 6 failures,
+  and `coordination-viewer.js` is untouched by the federation-hardening tracks.
+  They cover navigation literals (`/app/#models?project=`, `/app/#overview`), the
+  non-glTF format guard, and the `element` / `camera` query params — i.e. the
+  viewer SPA drifted away from what PLANSCAPE_ALIGNMENT_AUDIT.md pinned. Nothing
+  fails CI on it today, which is why it drifted. Either re-fix the six or retire
+  the assertions; leaving a harness that always fails trains people to ignore it.
