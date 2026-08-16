@@ -3,7 +3,7 @@
   "description": "STING Visibility Center — corporate baseline presets. Project-scoped presets layer on top from <project>/_BIM_COORD/visibility_presets.json and win by name. Categories may be named by BuiltInCategory ('OST_DuctCurves'); the plugin resolves the id and display name at load, so this file stays readable and Revit-version safe. Token VALUES here are the STING defaults (DISC: A E FLS FP G LV M P S · LOC: BLD1-3 EXT · ZONE: Z01-Z04 · LVL: GF LG B1 L01.. MZ RF XX) — edit them to match your project's codes. A preset may use Hide OR ShowOnly, never both: the two have opposite meanings and a mixed set is rejected with a message.",
 
   "_excludedCategories_note": "BuiltInCategory names left out of the dropdown's category list. These are view-management categories, not model content — 'hide Cameras' is never what anyone means, and on a real model they bury the categories that matter. Grids and Levels are deliberately NOT here: hiding those is a real, common request. A project overrides this by declaring its own 'excludedCategories' in <project>/_BIM_COORD/visibility_presets.json; an explicit empty list there means 'exclude nothing'. Nothing is silently dropped — excluded categories are counted and logged once per scan.",
-  "excludedCategories": [ "OST_Cameras", "OST_Views", "OST_SectionBox", "OST_ScopeBoxes" ],
+  "excludedCategories": [ "OST_Cameras", "OST_Views", "OST_Viewers", "OST_SectionBox", "OST_ScopeBoxes" ],
 
   "presets": [
 

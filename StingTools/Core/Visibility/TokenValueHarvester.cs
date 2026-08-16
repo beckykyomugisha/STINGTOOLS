@@ -228,6 +228,15 @@ namespace StingTools.Core.Visibility
         {
             try
             {
+                // A category a DWG/DXF/DGN import brings in is created BY THE DOCUMENT, so its
+                // ElementId is positive. Every BuiltInCategory id is negative (the enum values
+                // are). That single test is what actually separates imports, and it is why the
+                // previous parent-walk to OST_ImportObjectStyles found nothing: a per-file
+                // import category reports Parent == null, so the walk never reached the root
+                // and every "ACAD-*.dxf" row fell through to Model while IMPORTS read (0).
+                long id = cat.Id.Value;
+                if (id > 0) return CategoryGroupKind.Imports;
+
                 var root = parent ?? cat;
                 for (int guard = 0; guard < 8 && root != null; guard++)
                 {
