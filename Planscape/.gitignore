@@ -7,5 +7,6 @@ web-build/
 ios/Pods/
 android/.gradle/
 
-# #624 — transpiler output for scripts/verify-cde-transition-messages.cjs
+# #624 / #625 — transpiler output for the verify-* harnesses
+# (verify-cde-transition-messages, verify-issue-create-messages)
 .verify-out/
