@@ -168,8 +168,14 @@ public class SceneNodesController : ControllerBase
             FileSizeBytes = file.Length,
             VertexCount = req.VertexCount,
             Compression = req.Compression,
+            // P5 — the converter reports the chunk's LOCAL box. Store it in
+            // both places: Min/Max is the world box (identical until a transform
+            // exists) and Base* preserves the local one so the world box can be
+            // recomputed idempotently every time the model moves.
             MinX = box.minX, MinY = box.minY, MinZ = box.minZ,
             MaxX = box.maxX, MaxY = box.maxY, MaxZ = box.maxZ,
+            BaseMinX = box.minX, BaseMinY = box.minY, BaseMinZ = box.minZ,
+            BaseMaxX = box.maxX, BaseMaxY = box.maxY, BaseMaxZ = box.maxZ,
         };
         _db.SceneNodes.Add(node);
         await _db.SaveChangesAsync(ct);

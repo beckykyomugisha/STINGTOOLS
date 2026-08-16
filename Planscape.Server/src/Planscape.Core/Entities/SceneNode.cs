@@ -39,13 +39,42 @@ public class SceneNode : ITenantScoped
     /// <summary>Approximate vertex count — drives the auto-LOD heuristic.</summary>
     public int VertexCount { get; set; }
 
-    /// <summary>AABB in millimetres — six doubles. Lets the viewer cull off-camera chunks.</summary>
+    /// <summary>
+    /// AABB in millimetres — six doubles, in WORLD space (i.e. with the model's
+    /// <c>ProjectModelTransform</c> already applied). Lets the viewer cull
+    /// off-camera chunks.
+    /// </summary>
     public double MinX { get; set; }
     public double MinY { get; set; }
     public double MinZ { get; set; }
     public double MaxX { get; set; }
     public double MaxY { get; set; }
     public double MaxZ { get; set; }
+
+    /// <summary>
+    /// P5 — the chunk's AABB in its own LOCAL frame, before any transform.
+    ///
+    /// <para>Without this the world AABB could not be recomputed idempotently.
+    /// The refresh used to read the stored (already-transformed) box and
+    /// transform it AGAIN, so two transform writes compounded and the chunk's
+    /// bounds drifted further from the geometry each time — which meant the
+    /// obvious fix of "recompute after every transform write" would have made
+    /// the bug worse, not better. Keeping the local box means the world box is
+    /// always a pure function of (local, transform) and can be recomputed any
+    /// number of times.</para>
+    ///
+    /// <para>Nullable because rows written before this existed have none. The
+    /// refresher captures the current values as the local box the first time it
+    /// sees such a row — correct for a chunk that was never transformed, and
+    /// the best available otherwise; re-publishing the model restores truth,
+    /// since ingest writes both boxes.</para>
+    /// </summary>
+    public double? BaseMinX { get; set; }
+    public double? BaseMinY { get; set; }
+    public double? BaseMinZ { get; set; }
+    public double? BaseMaxX { get; set; }
+    public double? BaseMaxY { get; set; }
+    public double? BaseMaxZ { get; set; }
 
     /// <summary>Compression: "none" | "draco" | "meshopt".</summary>
     public string Compression { get; set; } = "none";

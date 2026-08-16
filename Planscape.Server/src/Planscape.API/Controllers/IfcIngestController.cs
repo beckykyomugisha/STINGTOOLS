@@ -644,7 +644,7 @@ public class IfcIngestController : ControllerBase
                 // scale never reached the transform.
                 MapConversionScale: report.MapConversionScale);
 
-            var confidence = await _georefWriter.WriteAsync(
+            var write = await _georefWriter.WriteAsync(
                 projectId, projectModelId, tenantId, georef, report.Verdict, ct);
 
             // Gap 14: Write an audit log entry for the coordinate correction.
@@ -660,8 +660,12 @@ public class IfcIngestController : ControllerBase
                         autoComputed = true,
                         // B1 — a model that MOVES on its own must say so in the
                         // audit trail, and say what it was trusting when it did.
-                        confidence = TransformConfidencePolicy.ToStorageString(confidence),
-                        appliedAutomatically = TransformConfidencePolicy.ShouldAutoApply(confidence),
+                        confidence = TransformConfidencePolicy.ToStorageString(write.Confidence),
+                        appliedAutomatically = write.Written
+                                               && TransformConfidencePolicy.ShouldAutoApply(write.Confidence),
+                        translationXMm = write.TranslationXMm,
+                        translationYMm = write.TranslationYMm,
+                        frameSource = write.FrameSource,
                     }));
             }
             catch { /* audit failure is non-fatal */ }
