@@ -149,7 +149,7 @@ git commit -m "feat(boq): carry the compound constituent kind as a first-class f
 
 Unknown export keys silently land in `MISC`.
 
-- [ ] **Step 1: Add the key**
+- [x] **Step 1: Add the key**
 
 In the `ExportTypeToFolder` dictionary, immediately after the `["BOQ"] = "SCHEDULES",` entry, add:
 
@@ -157,7 +157,7 @@ In the `ExportTypeToFolder` dictionary, immediately after the `["BOQ"] = "SCHEDU
             ["MaterialSchedule"] = "SCHEDULES",
 ```
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 ```bash
 dotnet build StingTools/StingTools.csproj -c Debug --nologo
@@ -165,7 +165,7 @@ dotnet build StingTools/StingTools.csproj -c Debug --nologo
 
 Expected: `0 Error(s)`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add StingTools/Core/ProjectFolderEngine.cs

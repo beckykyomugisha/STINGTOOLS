@@ -146,6 +146,10 @@ namespace StingTools.Core
             ["IFC"] = "WIP|Models", ["NWC"] = "WIP|Models", ["RVT"] = "WIP|Models", ["DWG"] = "WIP|Models",
             ["SCHEDULE"] = "WIP|Schedules", ["EXCEL"] = "WIP|Schedules", ["CSV"] = "WIP|Schedules",
             ["BOQ"] = "WIP|BOQ",
+            // MAT-SCHED: CdeFirst skips the ExportTypeToFolder fallback (GetExportPath
+            // gates it on !cdeFirst), so the route has to be named here or the export
+            // lands in MISC.
+            ["MaterialSchedule"] = "WIP|Schedules",
             ["COBIE"] = "WIP|COBie", ["COBie"] = "WIP|COBie", ["COBieStream"] = "WIP|COBie",
             ["BEP"] = "BEP",
             ["TRANSMITTAL"] = "TRANSMITTALS", ["Transmittal"] = "TRANSMITTALS",
