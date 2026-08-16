@@ -2940,13 +2940,13 @@ git commit -m "feat(material-schedule): export command with prices toggle and re
 **Files:**
 - Modify: `StingTools/UI/StingDockPanel.xaml`
 
-- [ ] **Step 1: Find where the BOQ export button lives**
+- [x] **Step 1: Find where the BOQ export button lives**
 
 ```bash
 grep -n "BOQExport\|BOQ_Export\|Tag=\"BOQ" StingTools/UI/StingDockPanel.xaml | head
 ```
 
-- [ ] **Step 2: Add the button next to it**
+- [x] **Step 2: Add the button next to it**
 
 Copy the *exact* markup of the neighbouring BOQ button — same `Style`, `Margin`, `Width` — changing only:
 
@@ -2957,7 +2957,7 @@ Copy the *exact* markup of the neighbouring BOQ button — same `Style`, `Margin
 
 Do not invent a new style; match the sibling exactly.
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 ```bash
 dotnet build StingTools/StingTools.csproj -c Debug --nologo
@@ -2965,7 +2965,7 @@ dotnet build StingTools/StingTools.csproj -c Debug --nologo
 
 Expected: `0 Error(s)`. XAML errors surface here, not at runtime.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add StingTools/UI/StingDockPanel.xaml
