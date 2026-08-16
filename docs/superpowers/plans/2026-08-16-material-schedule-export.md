@@ -2272,7 +2272,7 @@ git commit -m "feat(material-schedule): reconciler pinning the PATMAC defect cla
 
 Not unit-testable (needs a `Document`); keep it thin — gather, delegate, return. All arithmetic already lives in the engine.
 
-- [ ] **Step 1: Read the two APIs this leans on**
+- [x] **Step 1: Read the two APIs this leans on**
 
 ```bash
 sed -n '2586,2600p' StingTools/BOQ/BOQCostManager.cs      # LoadManualStore
@@ -2281,7 +2281,7 @@ grep -n "public static BOQDocument BuildBOQDocument" StingTools/BOQ/BOQCostManag
 
 Note the exact `BuildBOQDocument` signature — Step 3 must match it.
 
-- [ ] **Step 2: Write the builder**
+- [x] **Step 2: Write the builder**
 
 Create `StingTools/BOQ/MaterialSchedule/MaterialScheduleBuilder.cs`:
 
@@ -2511,7 +2511,7 @@ namespace StingTools.BOQ.MaterialSchedule
 }
 ```
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 ```bash
 dotnet build StingTools/StingTools.csproj -c Debug --nologo
@@ -2519,7 +2519,7 @@ dotnet build StingTools/StingTools.csproj -c Debug --nologo
 
 Expected: `0 Error(s)`. If `BuildBOQDocument` takes more than a `Document`, fix the call to match the real signature read in Step 1.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add StingTools/BOQ/MaterialSchedule/MaterialScheduleBuilder.cs
