@@ -894,6 +894,26 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// Update the SELECT-tab "Show / Hide" button with how much the active view is
+        /// hiding — "👁 Show / Hide (1,204 hidden) ▾". Pushed by
+        /// <see cref="VisibilityCenter.VisibilityBadge"/> after any read of the view's state,
+        /// so a filtered view announces itself without the user opening anything.
+        /// <para>Must run on the WPF dispatcher; tolerates a null button while the SELECT tab
+        /// is still in its deferred-loading placeholder.</para>
+        /// </summary>
+        public void UpdateVisibilityBadge(string label, string tooltip)
+        {
+            try
+            {
+                var btn = FindName("btnVisDropdown") as Button;
+                if (btn == null) return;
+                if (!string.IsNullOrEmpty(label)) btn.Content = label;
+                if (!string.IsNullOrEmpty(tooltip)) btn.ToolTip = tooltip;
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateVisibilityBadge: {ex.Message}"); }
+        }
+
+        /// <summary>
         /// Push the three Scale-tab info labels from
         /// <c>StingToolsApp.OnViewActivated</c>. Must be called on the WPF
         /// dispatcher thread; tolerates null controls when the tab is still

@@ -66,6 +66,35 @@ namespace StingTools.Core.Visibility
 
         // ── Presets ─────────────────────────────────────────────────────
 
+        /// <summary>
+        /// BuiltInCategory names the category list leaves out, resolved through the same
+        /// corporate-baseline + project-override pair the presets use. Cached per document
+        /// path because <c>TokenValueHarvester</c> asks for it on every scan.
+        /// </summary>
+        public static List<string> ExcludedCategories(Document doc)
+        {
+            string key = ProjectPresetPath(doc) ?? "(no project)";
+            lock (_lock)
+            {
+                if (_excluded != null && string.Equals(_excludedKey, key, StringComparison.Ordinal))
+                    return _excluded;
+            }
+
+            var list = VisibilityPresetStore.LoadExcludedCategories(BaselinePresetPath(),
+                                                                    ProjectPresetPath(doc));
+            lock (_lock) { _excluded = list; _excludedKey = key; }
+            return list;
+        }
+
+        private static List<string> _excluded;
+        private static string _excludedKey;
+
+        /// <summary>Drop the cached exclusion list — call after a preset file is written.</summary>
+        public static void InvalidateExclusions()
+        {
+            lock (_lock) { _excluded = null; _excludedKey = null; }
+        }
+
         /// <summary>Corporate baseline with the project override layered on top.</summary>
         public static List<VisibilitySet> LoadPresets(Document doc, IList<string> warnings = null) =>
             VisibilityPresetStore.Load(BaselinePresetPath(), ProjectPresetPath(doc), warnings);
@@ -91,7 +120,10 @@ namespace StingTools.Core.Visibility
 
             var existing = LoadPresets(doc, warnings);
             VisibilityPresetStore.Upsert(existing, set);
-            return VisibilityPresetStore.Save(path, existing, warnings);
+            bool ok = VisibilityPresetStore.Save(path, existing, warnings);
+            // The project file we just rewrote is also where excludedCategories lives.
+            if (ok) InvalidateExclusions();
+            return ok;
         }
     }
 }

@@ -118,7 +118,11 @@ namespace StingTools.Core.Visibility
             var lib = new VisibilityPresetLibrary
             {
                 Version = 1,
-                Description = "Project-scoped STING Visibility Center presets."
+                Description = "Project-scoped STING Visibility Center presets.",
+                // Carry over whatever this file already said about excludedCategories.
+                // Saving a preset must not quietly delete a project's category exclusions —
+                // they live in the same file and are edited by hand, not by this code path.
+                ExcludedCategories = LoadFile(projectPath).ExcludedCategories
             };
             foreach (var s in sets ?? new List<VisibilitySet>())
             {
@@ -141,6 +145,38 @@ namespace StingTools.Core.Visibility
                 StingLog.Error($"VisibilityPresetStore.Save({projectPath})", ex);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// The BuiltInCategory names to leave out of the category list. Resolution order, first
+        /// non-null wins: project override → corporate baseline →
+        /// <see cref="VisibilityCategoryTreeBuilder.DefaultExclusions"/>.
+        /// <para>An explicit empty list in either file is honoured as "exclude nothing" — that
+        /// is the difference between a project that overrides the key and one that omits it.</para>
+        /// </summary>
+        public static List<string> LoadExcludedCategories(
+            string baselinePath, string projectPath, IList<string> warnings = null)
+        {
+            var project = LoadFile(projectPath, warnings).ExcludedCategories;
+            if (project != null) return Clean(project);
+
+            var baseline = LoadFile(baselinePath, warnings).ExcludedCategories;
+            if (baseline != null) return Clean(baseline);
+
+            return new List<string>(VisibilityCategoryTreeBuilder.DefaultExclusions);
+        }
+
+        private static List<string> Clean(IEnumerable<string> names)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var list = new List<string>();
+            foreach (var n in names ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(n)) continue;
+                string t = n.Trim();
+                if (seen.Add(t)) list.Add(t);
+            }
+            return list;
         }
 
         /// <summary>Add or replace <paramref name="set"/> in <paramref name="existing"/> by name.</summary>

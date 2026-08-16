@@ -33,10 +33,10 @@
                 <RadioButton x:Name="rbTemporary" DockPanel.Dock="Left" GroupName="VisMode"
                              Content="Temporary" IsChecked="True" FontSize="11" Margin="0,0,8,0"
                              Checked="Mode_Changed"
-                             ToolTip="Temporary hide does not print and does not survive view close."/>
+                             ToolTip="Temporary hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints.&#10;&#10;Temporary hide also does not survive closing the view. Use 'Reset all' to clear it."/>
                 <RadioButton x:Name="rbSaved" DockPanel.Dock="Left" GroupName="VisMode"
                              Content="Saved to view" FontSize="11" Checked="Mode_Changed"
-                             ToolTip="Creates 'STING VIS - ' view filters. Persists in the view, prints, and can be pushed to a view template."/>
+                             ToolTip="Temporary hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints.&#10;&#10;Creates 'STING VIS - ' view filters. Persists in the view and can be pushed to a view template."/>
                 <ComboBox x:Name="cboTarget" DockPanel.Dock="Right" Width="118" FontSize="10"
                           SelectedIndex="0" SelectionChanged="Target_Changed">
                     <ComboBoxItem Content="Active view"/>
@@ -68,15 +68,41 @@
                                     </DockPanel>
                                 </Expander.Header>
 
-                                <ItemsControl ItemsSource="{Binding VisibleRows}" Margin="14,2,0,4">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <CheckBox Content="{Binding Display}"
-                                                      IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                      Click="Row_Click" FontSize="11" Margin="0,1"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <StackPanel Margin="14,2,0,4">
+                                    <!-- An empty group must say WHY it is empty: "no rows" alone
+                                         reads identically to a harvest that failed. -->
+                                    <TextBlock Text="{Binding EmptyMessage}"
+                                               Visibility="{Binding EmptyVisibility}"
+                                               FontSize="10" FontStyle="Italic" Opacity="0.6"
+                                               TextWrapping="Wrap" Margin="2,1,0,2"/>
+                                    <ItemsControl ItemsSource="{Binding VisibleRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <!-- IsThreeState stays FALSE: the indeterminate
+                                                     middle is COMPUTED from the subcategories,
+                                                     never something the user cycles into. WPF
+                                                     still renders a null IsChecked as the
+                                                     middle when we set it in code. -->
+                                                <CheckBox Content="{Binding Display}"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                          IsThreeState="False"
+                                                          ToolTip="{Binding Tooltip}"
+                                                          Margin="{Binding IndentMargin, Mode=OneTime}"
+                                                          Click="Row_Click" FontSize="11">
+                                                    <CheckBox.Style>
+                                                        <Style TargetType="CheckBox">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasChildren}" Value="True">
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </CheckBox.Style>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </Expander>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

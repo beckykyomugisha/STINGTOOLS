@@ -2,6 +2,76 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 233 — Visibility Center, enhancement pass)
+
+Fixes the gaps found by using the Phase 232 dropdown on a real model. Built to spec in
+[`VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`](VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md).
+Build 0 errors / 0 warnings; `StingTools.Visibility.Tests` **102 passing** (was 64).
+
+**1 — The dropdown now reads what the view is already hiding.** This was a correctness bug,
+not polish: `VisRowVm` defaulted to ticked and `Load` built every row fresh, so the panel
+asserted "nothing hidden" over a filtered view and the next Apply was computed from that
+false baseline.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityState.cs` | ✅ | `AppliedFilterState` / `VisibilityRowState` / `VisibilityReadback` + `VisibilityStateReconciler` — the decision layer, and the footer + badge text |
+| `Core/Visibility/VisibilityStateReader.cs` | — | The three Revit reads: category hidden flags, the view's filters, the temporary-mode per-element test |
+| `Core/Visibility/VisibilityHarvestModel.cs` | ✅ | `TokenValueTally` / `CategoryTally` / `TokenHarvest`, moved out of the Revit-bound harvester so the tree and reconciler are testable; adds `TokenHarvest.Rebuild` |
+
+**The trap, and what was done about it.** Revit exposes **no API to enumerate temporarily
+hidden elements** — `IsTemporaryHideIsolateActive()` reports that the mode is on, not what it
+hid. A raw document-vs-view collector diff is the documented starting point, but on a plan
+view that difference is dominated by elements the view would never have drawn (other levels,
+other views' view-specific content), so it over-reports badly. Every candidate is therefore
+confirmed individually with `View.IsElementVisibleInTemporaryViewMode`, and anything left
+unexplained is reported as `OutOfScopeCount` rather than counted as hidden. **No side-record
+of "what we hid" is kept** — that desynchronises the moment the user reaches for Revit's own
+HH/HI, and a reader that disagrees with the model is worse than none.
+
+The expensive document-scoped pass runs **only** when the cheap sweep proves something is
+hidden. `TokenValueHarvester`'s one-slot cache became a per-scope dictionary — the reader
+needs the view- and document-scoped harvests back to back, and a single slot made each
+evict the other.
+
+Footer now reads e.g. `1 category + ZONE Z02 hidden · 1 of 3 visible · saved to view`, and
+holds that line until the user actually changes a tick (rows now open unticked, so "Will
+hide N" on open would have been false about elements already out of sight).
+
+**2 — The category list is usable on a real model.** `Core/Visibility/VisibilityCategoryTree.cs`
+(Revit-free) excludes view-management categories, nests subcategories under `Category.Parent`
+with tri-state parents, and splits **Model / Annotation / Imports** mirroring Revit's own V/G
+tabs. The exclusion list ships as `"excludedCategories"` in the existing
+`Data/STING_VISIBILITY_PRESETS.json`, project-overridable through the path that already
+exists — **not** a new data file and **not** hardcoded. Grids and Levels are deliberately kept.
+Nothing is silently dropped: exclusions are counted, logged once per scan, and an
+unclassifiable category lands in Model rather than vanishing.
+
+`null` and `[]` mean different things for that key and the POCO default must stay `null` —
+absent = "use the baseline", explicit `[]` = "exclude nothing". `VisibilityPresetStore.Save`
+now carries the key over, because presets and exclusions share one file and the first
+"Save preset…" would otherwise have wiped a project's exclusions.
+
+**3 — Empty groups say why.** A muted row (`no ZONE values in this view — run tagging first`)
+plus a count in every group header (`ZONE (4)`, `LEVEL (0)`), so what is populated is visible
+without expanding all seven.
+
+**4 — Hidden-count badge + the undo asymmetry.** `UI/Visibility/VisibilityBadge.cs` puts the
+count on the SELECT-tab button (`👁 Show / Hide (1,204 hidden) ▾`) and the Hub button tooltip.
+It is a by-product of a read that already happened — opening the dropdown, or Apply / Isolate /
+Reset — never a background poll. Both mode radios carry the asymmetry verbatim: *"Temporary
+hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints."*
+
+**Also** — `VisibilityDropdownHost.cs` (466) and `VisibilityCommands.cs` (466) were split at
+their natural seams into `VisibilityPresetPrompts.cs` and `VisibilityCommandHelper.cs`; every
+file in the feature is now ≤ 398 lines. `Autodesk.Windows` is untouched, per §5.
+
+**Not verified in Revit.** Every Revit-bound path in this pass — the state reader, the
+category metadata reads, the badge push, the Hub-button capture — is unexercised by any test
+and unexercised by a human. See the ROADMAP entry.
+
+---
+
 #### Completed (Phase 232 — Visibility Center)
 
 One dropdown on the SELECT tab that shows/hides elements by **category** and by **ISO 19650
