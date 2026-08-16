@@ -151,8 +151,17 @@ namespace StingTools.Commands.Visibility
 
             if (set.Mode == VisibilityMode.Temporary)
             {
-                // No transaction — temporary view modes are not transactional.
+                // WRONG BELIEF, CORRECTED: this used to run with no transaction, on the claim
+                // that "temporary view modes are not transactional". They are.
+                // HideElementsTemporary / IsolateElementsTemporary modify the View element, so
+                // Revit throws "Attempt to modify the model outside of transaction" without one.
+                // The temporary state is not saved with the document, which is what makes it
+                // *temporary* — that is a different thing from not needing a transaction.
+                // One transaction spans every target view so a multi-view apply is atomic.
                 result = new VisibilityResult { Ok = true };
+                using (var t = new Transaction(doc, "STING Visibility — temporary"))
+                {
+                t.Start();
                 foreach (var v in targets)
                 {
                     var r = VisibilityEngine.Apply(doc, v, plan);
@@ -161,6 +170,8 @@ namespace StingTools.Commands.Visibility
                     foreach (var b in r.Blockers) if (!result.Blockers.Contains(b)) result.Blockers.Add(b);
                 }
                 result.Ok = result.ViewsAffected > 0;
+                if (result.Ok) t.Commit(); else t.RollBack();
+                }
             }
             else if (targets.Count > 1)
             {

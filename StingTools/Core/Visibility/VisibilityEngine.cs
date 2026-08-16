@@ -332,35 +332,41 @@ namespace StingTools.Core.Visibility
             var result = new VisibilityResult { Ok = true };
             if (doc == null || view == null) { result.Ok = false; result.Error = "No active view."; return result; }
 
-            // Phase 1 — temporary hide/isolate, outside any transaction.
+            // Both halves inside ONE transaction. This previously split them, on the claim that
+            // disabling a temporary view mode throws inside a transaction. That claim came from
+            // the same wrong belief that made Apply fail with "Attempt to modify the model
+            // outside of transaction" — clearing a view's temporary mode is a model change on
+            // the View element, exactly like setting it. One transaction also makes Reset
+            // atomic, which matters because its whole promise is that ONE press clears both
+            // mechanisms; half a reset is the support ticket it exists to prevent.
             try
             {
-                if (view.IsTemporaryHideIsolateActive())
-                {
-                    view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
-                    result.ElementsAffected++;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"VisibilityEngine.Reset temporary: {ex.Message}");
-                result.Blockers.Add($"Could not clear the temporary hide: {ex.Message}");
-            }
-
-            // Phase 2 — saved filters, inside one.
-            try
-            {
-                using (var t = new Transaction(doc, "STING Visibility — reset filters"))
+                using (var t = new Transaction(doc, "STING Visibility — reset"))
                 {
                     t.Start();
+
+                    try
+                    {
+                        if (view.IsTemporaryHideIsolateActive())
+                        {
+                            view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+                            result.ElementsAffected++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"VisibilityEngine.Reset temporary: {ex.Message}");
+                        result.Blockers.Add($"Could not clear the temporary hide: {ex.Message}");
+                    }
+
                     result.FiltersReused = RemoveStingFilters(view, result);
                     t.Commit();
                 }
             }
             catch (Exception ex)
             {
-                StingLog.Error("VisibilityEngine.Reset filters", ex);
-                result.Blockers.Add($"Could not remove saved filters: {ex.Message}");
+                StingLog.Error("VisibilityEngine.Reset", ex);
+                result.Blockers.Add($"Could not reset this view: {ex.Message}");
             }
 
             result.ViewsAffected = 1;
