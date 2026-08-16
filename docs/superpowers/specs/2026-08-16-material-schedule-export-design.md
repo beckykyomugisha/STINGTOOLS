@@ -78,7 +78,7 @@ Sources: [Vantazo — MTO explained](https://www.vantazo.com/blog/material-take-
 | Document type | One engine; **prices are a user toggle**, include or exclude |
 | Quantity source | **Reuse the BOQ pipeline** — `BOQCostManager.BuildBOQDocument` + `CompoundTakeoff` constituents |
 | Sectioning | **Construction stages, auto-lettered**; summary projected from the body |
-| Non-model rows | **Reuse `BOQManualStore`** — tools as Manual rows, services as ProvisionalSum rows, labour from the `LabourUGX` rate split |
+| Non-model rows | **Reuse `BOQManualStore`** — tools as Manual rows, services as ProvisionalSum rows. **Labour is a QS lump per stage** (revised — see C4) |
 | Outputs | **Branded XLSX** + **Revit schedule views** (no DOCX, no CSV) |
 | Module shape | **Revit-free engine + thin Revit adapter + renderers** |
 
@@ -91,6 +91,40 @@ must print `Trips (Sino Truck)`. A conversion table is therefore unavoidable:
 supplier unit, conversion factor, rounding rule, default wastage), corporate
 baseline with project override. It contains no measurement logic and is not a
 recipe engine. Without it the chosen source cannot produce the sample's units.
+
+### 4.2 Stated assumption — commodity rate table
+
+Discovered in review (C3 below): the BOQ carries **no commodity rates**. A
+second data file is therefore required:
+
+`Data/STING_COMMODITY_RATES.csv` — commodity key → supplier unit → UGX rate,
+corporate baseline with project override at `_BIM_COORD/commodity_rates.csv`.
+Seeded from the PATMAC sample's rates (cement 28,000/bag, sand
+1,400,000/trip, T16 bar 65,000/each, hollow block 2,500/nr, …). Resolved
+through a new `CommodityRateResolver` in the engine, not through
+`IRateProvider` — the existing provider chain is element-scoped
+(`RateRequest.Element`) and cannot price a derived commodity.
+
+## 4.3 Preconditions discovered in review (2026-08-16)
+
+Eight assertions in the first draft were checked against the code. Six were
+wrong. All corrections are folded into the sections below; they are listed here
+so the implementation plan can sequence around them.
+
+| # | Finding | Evidence | Consequence |
+|---|---|---|---|
+| C1 | Compound take-off is **off by default** (`COST_COMPOUND_TAKEOFF`) | [`CompoundTakeoffBuilder.cs:30`](../../../StingTools/BOQ/Takeoff/CompoundTakeoffBuilder.cs) | With it off there are no constituent lines; the schedule would build empty. The builder must detect and force compound mode for its own take-off. |
+| C2 | Constituent kind survives only as a `Note` string prefix `[Compound: mortar_cement]` | [`CompoundTakeoffBuilder.cs:275`](../../../StingTools/BOQ/Takeoff/CompoundTakeoffBuilder.cs) | Kind-routing is not free. Add a first-class `ConstituentKind` field to `BOQLineItem` (additive, defaults null, no snapshot break) rather than parsing notes. |
+| C3 | **No commodity rates exist.** Both rate CSVs are keyed by Revit category; `ResolveConstituentRate` returns `(0,"None",20)` for every constituent | [`CompoundTakeoffBuilder.cs:294`](../../../StingTools/BOQ/Takeoff/CompoundTakeoffBuilder.cs), `cost_rates_5d.csv` (44 rows) | New `STING_COMMODITY_RATES.csv` + resolver (§4.2). Invalidates the earlier "rates come free from the BOQ" rationale. |
+| C4 | `LabourUGX` split is nulled on manual override and on modal-rate aggregation, and is null when the source gives none | [`BOQCostManager.cs:2736`](../../../StingTools/BOQ/BOQCostManager.cs), [`:3512`](../../../StingTools/BOQ/BOQCostManager.cs) | Deriving labour from the split silently under-reports. **Labour becomes a QS lump per stage**, with the split-sum as a suggested default only when every contributing row carries one. |
+| C5 | `ViewSchedule.CreateKeySchedule` is used nowhere in the codebase; key-schedule columns are project parameters of the key type | repo-wide grep | The view builder must create parameters, not just rows. Requires a spike before it is planned as a deliverable, with a named fallback. |
+| C6 | No `MaterialSchedule` key in `ExportTypeToFolder`; unknown keys fall to `MISC` | [`ProjectFolderEngine.cs:85`](../../../StingTools/Core/ProjectFolderEngine.cs) | Add `["MaterialSchedule"] = "SCHEDULES"`, matching the existing `["BOQ"]`. |
+| C7 | Command modules are enumerated explicitly, not auto-discovered | `CommandRegistry.EnumerateModules()` | New module must be added to that method. |
+| C8 | `BannerRow` / `WriteHeader` / `SourceLabel` are **private instance** methods | [`BOQExportCommand.cs:535`](../../../StingTools/BOQ/BOQExportCommand.cs) | Extract to a shared `BoqXlsxStyle` static before a second renderer can use them. |
+
+Two claims held: `BOQCostManager.LoadManualStore` is `internal static` and
+reachable, and the `StingTools.Boq.Tests` `<Compile Include>` pattern works as
+described.
 
 ## 5. Architecture
 
@@ -128,6 +162,7 @@ file I/O, no `TaskDialog`. Gathering happens above the box, rendering below.
 | `Core/MaterialSchedule/StageMapper.cs` | constituent kind + level → stage; sequential lettering | ~250 |
 | `Core/MaterialSchedule/CommodityAggregator.cs` | merge constituents by commodity key; apply wastage | ~300 |
 | `Core/MaterialSchedule/SupplierUnitConverter.cs` | SI → supplier unit; rounding rules; table loader | ~250 |
+| `Core/MaterialSchedule/CommodityRateResolver.cs` | commodity key → UGX rate; baseline + project override (C3) | ~200 |
 | `Core/MaterialSchedule/Reconciler.cs` | the four invariants | ~200 |
 | `BOQ/MaterialSchedule/MaterialScheduleBuilder.cs` | Revit-side gather + engine call | ~300 |
 | `BOQ/MaterialSchedule/MaterialScheduleXlsxWriter.cs` | ClosedXML renderer | ~350 |
@@ -135,6 +170,17 @@ file I/O, no `TaskDialog`. Gathering happens above the box, rendering below.
 | `Commands/MaterialSchedule/MaterialScheduleCommands.cs` | two `IExternalCommand`s | ~200 |
 | `Data/STING_MATERIAL_STAGES.json` | stage list, preambles, kind→stage map | — |
 | `Data/STING_SUPPLIER_UNITS.json` | commodity → supplier unit conversion | — |
+| `Data/STING_COMMODITY_RATES.csv` | commodity → UGX rate (C3) | — |
+
+Edits to existing files, all additive:
+
+| File | Change | Why |
+|---|---|---|
+| `BOQ/BOQModels.cs` | add `string ConstituentKind` to `BOQLineItem` + `Clone()` | C2 |
+| `BOQ/Takeoff/CompoundTakeoffBuilder.cs` | set `ConstituentKind = c.Kind` alongside the existing `Note` | C2 |
+| `Core/ProjectFolderEngine.cs` | add `["MaterialSchedule"] = "SCHEDULES"` | C6 |
+| `UI/CommandRegistry.cs` | yield the new module from `EnumerateModules()` | C7 |
+| `BOQ/BoqXlsxStyle.cs` *(new)* | extract `BannerRow`/`WriteHeader`/`SourceLabel` from `BOQExportCommand`, which then calls the static | C8 |
 
 Every file stays under ~400 lines. No file in this feature is added to
 `StingCommandHandler`; commands register through a `CommandRegistry` module,
@@ -170,8 +216,11 @@ public sealed class StageSection {
 
 public sealed class LabourLine {
     public string Description;      // "Labour"
-    public double AmountUGX;        // Σ LabourUGX rate split, or QS override
-    public bool IsManualOverride;   // true when no rate split existed
+    public double AmountUGX;        // QS-entered lump (C4)
+    public double? SuggestedUGX;    // Σ LabourUGX split — populated ONLY when
+                                    // every contributing row carries a split;
+                                    // null otherwise, never silently partial
+    public string SuggestionBasis;  // e.g. "42 of 42 rows carry an L/P/M split"
 }
 
 public sealed class ProvisionalSumLine {
@@ -222,9 +271,21 @@ order) → `roof` → `doors-windows` → `finishes` → `electrical` → `mecha
 **The routing key is the constituent kind, not the element.** A wall on Level 1
 sends its `blockwork` and `mortar*` constituents to the `GF–L1` storey stage, and
 its `plaster*` constituents to `finishes`. This is what the sample does, and why
-its Finishes section carries its own 600 bags of cement. `CompoundLine.Kind`
-([`CompoundTakeoff.cs:24`](../../../StingTools/BOQ/Takeoff/CompoundTakeoff.cs))
-already provides this discrimination.
+its Finishes section carries its own 600 bags of cement.
+
+**Correction (C2).** The first draft claimed this discrimination came free from
+`CompoundLine.Kind`. It does not — `CompoundLine` is engine-internal and never
+reaches `BOQDocument`; the kind survives only as a `Note` prefix. The plan
+therefore adds a first-class `BOQLineItem.ConstituentKind` field, set where the
+`Note` prefix is already written
+([`CompoundTakeoffBuilder.cs:275`](../../../StingTools/BOQ/Takeoff/CompoundTakeoffBuilder.cs)).
+It is additive and defaults null, so existing JSON snapshots deserialise
+unchanged and rows from the non-compound path simply carry no kind.
+
+**Compound mode (C1).** `MaterialScheduleBuilder` must not silently produce an
+empty document when `COST_COMPOUND_TAKEOFF` is off. It reads the flag, and when
+off, reports the condition to the user and offers to run the take-off in
+compound mode for this export only, leaving the project config untouched.
 
 Section letters are assigned sequentially at build time. The summary is
 projected from the same collection the body renders:
@@ -273,6 +334,16 @@ Revit schedules schedule *elements*; they cannot hold derived commodity rows.
 acting as a data table populated from the computed document and regenerated
 idempotently on re-run.
 
+**Unproven API (C5).** `ViewSchedule.CreateKeySchedule` is used nowhere in this
+codebase, and key-schedule columns are *project parameters bound to the key
+category* — so the builder must create parameters before it can write a single
+row. This phase therefore opens with a **timeboxed spike** proving, in a scratch
+model: create key schedule → bind text/number parameters → create key instances
+→ populate → place on a sheet. If the spike fails, the named fallback is a
+Generic Annotation family with the commodity fields as type parameters,
+scheduled normally — more setup, same output, no new API risk. **No downstream
+task depends on the spike's outcome**, so a failure costs this phase only.
+
 **This is a snapshot, not a live schedule.** It places on a sheet and issues
 with the drawing set, but does not update when the model changes until the
 command is re-run. The schedule name carries the generation timestamp so a stale
@@ -300,7 +371,8 @@ no Revit stub layer.
 |---|---|
 | `CommodityAggregatorTests` | merge by key, wastage application, order-qty rounding |
 | `SupplierUnitConverterTests` | m³→trips, ceiling behaviour, unknown-unit passthrough |
-| `StageMapperTests` | lettering never duplicates, kind routing, summary ≡ body |
+| `CommodityRateResolverTests` | baseline lookup, project override wins, **unpriced commodity yields rate 0 + a visible warning, never a borrowed rate** (C3) |
+| `StageMapperTests` | lettering never duplicates, kind routing, summary ≡ body, **null `ConstituentKind` routes to a named default rather than vanishing** (C2) |
 | `ReconcilerTests` | **D1–D4 as named fixtures using the PATMAC numbers** |
 
 The sample PDF's defects become the regression suite.
