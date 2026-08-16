@@ -4106,6 +4106,13 @@ namespace StingTools.UI
             return btn;
         }
 
+        /// <summary>
+        /// "a" or "an" for a following word. The category is interpolated at runtime, so a fixed
+        /// "a" produced "a activity record" for ACTIVITY / ISSUE — seen in Revit.
+        /// </summary>
+        private static string Article(string word)
+            => !string.IsNullOrEmpty(word) && "aeiou".IndexOf(char.ToLowerInvariant(word[0])) >= 0 ? "an" : "a";
+
         /// <summary>Null for a blank tooltip, so WPF shows no popup instead of an empty one.</summary>
         private static string NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
@@ -4324,8 +4331,11 @@ namespace StingTools.UI
                     foreach (string f in Directory.GetFiles(bin))
                     {
                         string name = Path.GetFileName(f);
-                        // Bookkeeping sidecar, not a recycled deliverable.
-                        if (string.Equals(name, "recycle_index.json", StringComparison.OrdinalIgnoreCase)) continue;
+                        // Bookkeeping sidecar, not a recycled deliverable. StartsWith, not
+                        // equality: WriteAllTextAtomic leaves "recycle_index.json.bak" beside it
+                        // (and a ".tmp" mid-write), and an exact-match filter offered those as
+                        // restorable files — observed in Revit, the picker listed the .bak.
+                        if (name.StartsWith("recycle_index.json", StringComparison.OrdinalIgnoreCase)) continue;
                         // Now that several bins are scanned, the same recycled name can appear
                         // twice. Disambiguate rather than letting the first bin hide the rest.
                         string key = name;
@@ -4476,8 +4486,9 @@ namespace StingTools.UI
             if (item.Category != "ISSUE")
             {
                 StingLog.Info($"DocMgr {verb}: row '{item.Title}' is category {item.Category}, not ISSUE.");
+                string kind = string.IsNullOrEmpty(item.Category) ? "register" : item.Category.ToLowerInvariant();
                 MessageBox.Show($"'{item.Title}' is not an issue.\n\n" +
-                    $"It is a {(string.IsNullOrEmpty(item.Category) ? "register" : item.Category.ToLowerInvariant())} row, " +
+                    $"It is {Article(kind)} {kind} row, " +
                     $"and {verb} only applies to issues (RFI, NCR, SI and the like).\n\n" +
                     "Filter the list to ISSUE rows, or raise one from the ISSUES tab.",
                     $"STING {verb}", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -4500,7 +4511,8 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(item.FilePath))
             {
                 StingLog.Info($"DocMgr {verb}: row '{item.Title}' (category {item.Category}) has no file path.");
-                MessageBox.Show($"'{item.Title}' is not a file.\n\nIt is a {(string.IsNullOrEmpty(item.Category) ? "register" : item.Category.ToLowerInvariant())} " +
+                string kind = string.IsNullOrEmpty(item.Category) ? "register" : item.Category.ToLowerInvariant();
+                MessageBox.Show($"'{item.Title}' is not a file.\n\nIt is {Article(kind)} {kind} " +
                     $"record with no file attached, so it cannot be {verb.ToLowerInvariant()}d.\n\n" +
                     "File actions work on rows that have a file on disk — the Size and Date columns are filled in for those.",
                     $"STING {verb}", MessageBoxButton.OK, MessageBoxImage.Information);
