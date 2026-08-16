@@ -42,21 +42,91 @@ namespace StingTools.Core.MaterialSchedule
     public static class ManualRowPlacer
     {
         /// <summary>
-        /// The stage section a provisional-sum category belongs to, or null when
-        /// there is no match and the caller should mint a new section.
+        /// The stage a provisional-sum category belongs to, resolved through the
+        /// SAME Categories table the model rows use, or "" when it routes nowhere.
+        ///
+        /// Matching by section TITLE does not work: the shipped library routes
+        /// category "Electrical Equipment" to the stage titled "ELEMENT 06:
+        /// ELECTRICAL INSTALLATION", which does not contain that string. A title
+        /// match minted a duplicate section and left the real routing unused.
+        /// </summary>
+        public static string ResolveStageIdForCategory(IReadOnlyList<StageDefinition> stageDefs, string category)
+        {
+            if (stageDefs == null || string.IsNullOrWhiteSpace(category)) return "";
+            string needle = category.Trim();
+
+            var hit = stageDefs
+                .OrderBy(d => d.Order)
+                .FirstOrDefault(d => d.Categories != null
+                    && d.Categories.Any(c => string.Equals(c, needle, StringComparison.OrdinalIgnoreCase)));
+            return hit?.StageId ?? "";
+        }
+
+        /// <summary>
+        /// The existing section a provisional-sum category belongs to, or null
+        /// when the caller should mint one. Resolves by stage id first, then falls
+        /// back to a section-title match for categories the library does not list.
         ///
         /// A blank category matches NOTHING. Never let an empty needle match the
-        /// first haystack — that is the defect this function exists to prevent.
+        /// first haystack — "ANYTHING".IndexOf("") returns 0, which is how an
+        /// uncategorised provisional sum used to file itself under whatever
+        /// section happened to come first.
         /// </summary>
-        public static StageSection FindSectionForCategory(IEnumerable<StageSection> stages, string category)
+        public static StageSection ResolveSection(IEnumerable<StageSection> stages,
+                                                  IReadOnlyList<StageDefinition> stageDefs,
+                                                  string category)
         {
-            if (stages == null) return null;
-            if (string.IsNullOrWhiteSpace(category)) return null;
+            if (stages == null || string.IsNullOrWhiteSpace(category)) return null;
 
+            string stageId = ResolveStageIdForCategory(stageDefs, category);
+            if (!string.IsNullOrEmpty(stageId))
+            {
+                var byId = stages.FirstOrDefault(s =>
+                    string.Equals(s?.StageId, stageId, StringComparison.OrdinalIgnoreCase));
+                if (byId != null) return byId;
+                return null;   // known stage, not yet materialised — caller mints + inserts
+            }
+
+            return FindSectionByTitle(stages, category);
+        }
+
+        /// <summary>Title substring match, for categories the stage library does not list.</summary>
+        public static StageSection FindSectionByTitle(IEnumerable<StageSection> stages, string category)
+        {
+            if (stages == null || string.IsNullOrWhiteSpace(category)) return null;
             string needle = category.Trim();
             return stages.FirstOrDefault(s =>
                 !string.IsNullOrEmpty(s?.Title)
                 && s.Title.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        /// <summary>
+        /// Insert a section at the position its stage definition implies, so a
+        /// stage that carried no modelled commodities but does carry a provisional
+        /// sum still reads in library order. A section with no definition is
+        /// appended — unknown work belongs at the end, not spliced into the middle.
+        /// </summary>
+        public static void InsertByDefinitionOrder(IList<StageSection> stages,
+                                                   IReadOnlyList<StageDefinition> stageDefs,
+                                                   StageSection section)
+        {
+            if (stages == null || section == null) return;
+
+            int OrderOf(string stageId)
+            {
+                var d = stageDefs?.FirstOrDefault(x =>
+                    string.Equals(x.StageId, stageId, StringComparison.OrdinalIgnoreCase));
+                return d?.Order ?? int.MaxValue;
+            }
+
+            int mine = OrderOf(section.StageId);
+            if (mine == int.MaxValue) { stages.Add(section); return; }
+
+            for (int i = 0; i < stages.Count; i++)
+            {
+                if (OrderOf(stages[i].StageId) > mine) { stages.Insert(i, section); return; }
+            }
+            stages.Add(section);
         }
 
         /// <summary>

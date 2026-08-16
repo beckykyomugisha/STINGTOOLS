@@ -29,15 +29,15 @@ namespace StingTools.Boq.Tests
         [Fact]
         public void An_Empty_Category_Matches_Nothing_Rather_Than_The_First_Section()
         {
-            Assert.Null(ManualRowPlacer.FindSectionForCategory(Stages(), ""));
-            Assert.Null(ManualRowPlacer.FindSectionForCategory(Stages(), null));
-            Assert.Null(ManualRowPlacer.FindSectionForCategory(Stages(), "   "));
+            Assert.Null(ManualRowPlacer.FindSectionByTitle(Stages(), ""));
+            Assert.Null(ManualRowPlacer.FindSectionByTitle(Stages(), null));
+            Assert.Null(ManualRowPlacer.FindSectionByTitle(Stages(), "   "));
         }
 
         [Fact]
         public void A_Real_Category_Still_Matches_Its_Section()
         {
-            var hit = ManualRowPlacer.FindSectionForCategory(Stages(), "Electrical");
+            var hit = ManualRowPlacer.FindSectionByTitle(Stages(), "Electrical");
             Assert.NotNull(hit);
             Assert.Equal("electrical", hit.StageId);
         }
@@ -45,14 +45,14 @@ namespace StingTools.Boq.Tests
         [Fact]
         public void An_Unmatched_Category_Returns_Null_So_The_Caller_Mints_A_Section()
         {
-            Assert.Null(ManualRowPlacer.FindSectionForCategory(Stages(), "Landscaping"));
+            Assert.Null(ManualRowPlacer.FindSectionByTitle(Stages(), "Landscaping"));
         }
 
         [Fact]
         public void Matching_Is_Case_Insensitive()
         {
             Assert.Equal("mechanical",
-                ManualRowPlacer.FindSectionForCategory(Stages(), "MECHANICAL")?.StageId);
+                ManualRowPlacer.FindSectionByTitle(Stages(), "MECHANICAL")?.StageId);
         }
 
         // ── labour suggestion ───────────────────────────────────────────────

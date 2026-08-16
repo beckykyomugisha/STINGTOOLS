@@ -72,7 +72,7 @@ namespace StingTools.BOQ.MaterialSchedule
             msDoc.ProjectName = doc.ProjectInformation?.Name ?? "";
             msDoc.ProjectCode = doc.ProjectInformation?.Number ?? "";
 
-            AppendManualRows(doc, msDoc, boq, result);
+            AppendManualRows(doc, msDoc, boq, lib.Stages, result);
             Reconciler.Check(msDoc);
 
             result.Document = msDoc;
@@ -99,27 +99,37 @@ namespace StingTools.BOQ.MaterialSchedule
         /// contributing row carries one.
         /// </summary>
         private static void AppendManualRows(Document doc, MaterialScheduleDocument msDoc,
-            BOQDocument boq, MaterialScheduleBuildResult result)
+            BOQDocument boq, List<StageDefinition> stageDefs, MaterialScheduleBuildResult result)
         {
             try
             {
                 var ps = boq.AllItems.Where(i => i.Source == BOQRowSource.ProvisionalSum).ToList();
                 foreach (var group in ps.GroupBy(i => i.Category ?? ""))
                 {
-                    // A blank category matches NOTHING — see ManualRowPlacer. The
-                    // old inline IndexOf matched the first section on an empty
-                    // needle, filing uncategorised provisional sums under whatever
-                    // stage happened to come first.
-                    var section = ManualRowPlacer.FindSectionForCategory(msDoc.Stages, group.Key);
+                    // Route through the SAME Categories table the model rows use.
+                    // Matching the category against section TITLES minted a
+                    // duplicate section — "Electrical Equipment" does not appear
+                    // in "ELEMENT 06: ELECTRICAL INSTALLATION" — while the correct
+                    // routing sat unused in the stage library. A blank category
+                    // still matches nothing.
+                    var section = ManualRowPlacer.ResolveSection(msDoc.Stages, stageDefs, group.Key);
                     if (section == null)
                     {
+                        string knownStageId = ManualRowPlacer.ResolveStageIdForCategory(stageDefs, group.Key);
+                        var def = stageDefs.FirstOrDefault(d =>
+                            string.Equals(d.StageId, knownStageId, StringComparison.OrdinalIgnoreCase));
                         bool named = !string.IsNullOrWhiteSpace(group.Key);
+
                         section = new StageSection
                         {
-                            StageId = named ? "ps-" + group.Key : "ps-uncategorised",
-                            Title = named ? group.Key.ToUpperInvariant() : "PROVISIONAL SUMS (UNCATEGORISED)"
+                            StageId = def?.StageId ?? (named ? "ps-" + group.Key : "ps-uncategorised"),
+                            Title = def?.Title ?? (named ? group.Key.ToUpperInvariant()
+                                                         : "PROVISIONAL SUMS (UNCATEGORISED)"),
+                            Preamble = def?.Preamble ?? ""
                         };
-                        msDoc.Stages.Add(section);
+                        // A known stage that carried no modelled commodities still
+                        // reads in library order; an unknown one goes to the end.
+                        ManualRowPlacer.InsertByDefinitionOrder(msDoc.Stages, stageDefs, section);
                     }
                     foreach (var row in group)
                         section.ProvisionalSums.Add(new ProvisionalSumLine
