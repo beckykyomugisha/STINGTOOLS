@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Planscape.API.Authorization;
 using Planscape.API.Controllers;
+using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -489,6 +490,220 @@ public class FederationAuthorizationTests
         }
     }
 
+    // ── IfcController — cross-host IFC identity ingest ───────────────────────
+    //
+    // Same class of hole as the five above, on a DIFFERENT pair of controllers:
+    // IfcController and GlobalIdRegistryController write the cross-host element
+    // IDENTITY (the IFC-GlobalId ↔ host-element-id table that clash, issues and
+    // BCF all resolve through). They carried [Authorize] and filtered by tenant
+    // only, so a member of any one project could rewrite another project's
+    // identity mappings in the same tenant. The gate here is the same
+    // RequireProjectMemberAsync (write, 403) + [ProjectAccess] (read, 404).
+
+    /// <summary>Records whether the ingest ran, so a denial is proven to fire
+    /// BEFORE the write — not a 403 issued after the identity table was touched.</summary>
+    private sealed class SpyIfcIngest : IIfcIngestService
+    {
+        public bool Ran { get; private set; }
+
+        public Task<IfcIngestResponse> IngestAsync(
+            Guid tenantId, Guid projectId, IfcIngestRequest request, CancellationToken ct = default)
+        {
+            Ran = true;
+            return Task.FromResult(new IfcIngestResponse { NewElements = 1 });
+        }
+
+        public Task<int> UpsertMappingsAsync(
+            Guid tenantId, Guid projectId, string host, string? hostDocumentGuid,
+            IEnumerable<ElementMappingDto> mappings, CancellationToken ct = default)
+            => throw new NotSupportedException("not used by these tests");
+    }
+
+    /// <summary>Records the IoT bind, so the second write endpoint's denial is
+    /// likewise proven to fire before the resolver is called.</summary>
+    private sealed class SpyIdentityResolver : IIdentityResolverService
+    {
+        public bool BindCalled { get; private set; }
+
+        public Task<string?> ResolveCanonicalGuidAsync(Guid p, string h, string e, CancellationToken ct = default)
+            => throw new NotSupportedException("not used by these tests");
+        public Task<IReadOnlyList<HostElementRef>> ResolveHostElementsAsync(Guid p, string g, string? h = null, CancellationToken ct = default)
+            => throw new NotSupportedException("not used by these tests");
+        public Task<IReadOnlyList<HostElementRef>> GetCrossHostFanoutAsync(Guid p, string g, CancellationToken ct = default)
+            => throw new NotSupportedException("not used by these tests");
+
+        public Task<IdentityBindResult> BindIotDeviceAsync(
+            Guid p, string g, string d, string? label = null, string? hostDoc = null, CancellationToken ct = default)
+        {
+            BindCalled = true;
+            return Task.FromResult(new IdentityBindResult(true, Guid.NewGuid()));
+        }
+    }
+
+    private static IfcController NewIfcController(
+        World w, Guid actor, IIfcIngestService ingest, IIdentityResolverService identity)
+        => new(NewContext(w.Conn, w.Tenant), identity, ingest)
+        { ControllerContext = ContextFor(actor, w.Tenant) };
+
+    private static IfcIngestRequest SomeIfcPayload() => new()
+    {
+        Host = "revit",
+        Elements = new List<IfcElementDto>
+        {
+            new()
+            {
+                IfcGlobalId = "3xY_aBcDeFgHiJkLmNoPqR", HostElementId = "12345",
+                Discipline = "M", FullTag = "M-BLD1-Z01-L01-HVAC-SUP-AHU-0001",
+            },
+        },
+    };
+
+    [Fact]
+    public async Task Neighbour_cannot_ingest_into_another_projects_ifc_identity()
+    {
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var ingest = new SpyIfcIngest();
+
+            var result = await NewIfcController(w, w.Neighbour, ingest, new SpyIdentityResolver())
+                .IngestData(w.VictimProject, SomeIfcPayload());
+
+            AssertForbidden(result.Result);
+            Assert.False(ingest.Ran, "the ingest ran before the caller was authorized");
+        }
+    }
+
+    [Fact]
+    public async Task Neighbour_cannot_bind_an_iot_device_in_another_project()
+    {
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var identity = new SpyIdentityResolver();
+
+            var result = await NewIfcController(w, w.Neighbour, new SpyIfcIngest(), identity)
+                .BindIotDevice(w.VictimProject,
+                    new IfcController.IotBindingRequest { IfcGlobalId = "3xY_aBcDeFgHiJkLmNoPqR", DeviceId = "sensor-1" },
+                    default);
+
+            AssertForbidden(result.Result);
+            Assert.False(identity.BindCalled, "the IoT binding was written before the caller was authorized");
+        }
+    }
+
+    [Fact]
+    public async Task Insider_can_still_ingest_ifc_identity()
+    {
+        // The mirror case: the gate must not deny a real member.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var ingest = new SpyIfcIngest();
+
+            var result = await NewIfcController(w, w.Insider, ingest, new SpyIdentityResolver())
+                .IngestData(w.VictimProject, SomeIfcPayload());
+
+            Assert.IsType<OkObjectResult>(result.Result);
+            Assert.True(ingest.Ran);
+        }
+    }
+
+    // ── GlobalIdRegistryController — cross-tool identity mappings ─────────────
+
+    private static GlobalIdRegistryController NewRegistryController(World w, Guid actor)
+        => new(NewContext(w.Conn, w.Tenant), new FixedTenant(w.Tenant))
+        { ControllerContext = ContextFor(actor, w.Tenant) };
+
+    private static GlobalIdRegistryController.RegistryCreateDto SomeRegistryRow() =>
+        new(IfcGlobalId: "3xY_aBcDeFgHiJkLmNoPqR", ArchiCadGuid: "AC-1", RevitUniqueId: "RV-1",
+            TeklaGuid: null, Discipline: "A", IfcType: "IfcWall", ElementName: "Wall 1",
+            NormalizedLevelName: "L01", Notes: null);
+
+    [Fact]
+    public async Task Neighbour_cannot_create_a_registry_row_in_another_project()
+    {
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var result = await NewRegistryController(w, w.Neighbour)
+                .Create(w.VictimProject, SomeRegistryRow(), default);
+
+            AssertForbidden(result.Result);
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            Assert.False(await check.GlobalIdRegistry.AnyAsync());
+        }
+    }
+
+    [Fact]
+    public async Task Neighbour_cannot_update_or_delete_another_projects_registry_row()
+    {
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var rowId = Guid.NewGuid();
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                seed.GlobalIdRegistry.Add(new ElementGlobalIdRegistry
+                {
+                    Id = rowId, TenantId = w.Tenant, ProjectId = w.VictimProject,
+                    IfcGlobalId = "3xY_aBcDeFgHiJkLmNoPqR", RevitUniqueId = "RV-ORIG",
+                    MappingStatus = "ManuallyMapped",
+                });
+                await seed.SaveChangesAsync();
+            }
+
+            var update = await NewRegistryController(w, w.Neighbour)
+                .Update(w.VictimProject, rowId,
+                    new GlobalIdRegistryController.RegistryUpdateDto(
+                        ArchiCadGuid: "HIJACK", RevitUniqueId: null, TeklaGuid: null,
+                        MappingStatus: null, NormalizedLevelName: null, Notes: null),
+                    default);
+            AssertForbidden(update.Result);
+
+            var delete = await NewRegistryController(w, w.Neighbour)
+                .Delete(w.VictimProject, rowId, default);
+            var denied = Assert.IsType<ObjectResult>(delete);
+            Assert.Equal(403, denied.StatusCode);
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            var kept = await check.GlobalIdRegistry.SingleAsync();
+            Assert.Equal("RV-ORIG", kept.RevitUniqueId);
+            Assert.Null(kept.ArchiCadGuid);
+        }
+    }
+
+    [Fact]
+    public async Task Neighbour_cannot_auto_match_another_projects_registry()
+    {
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var result = await NewRegistryController(w, w.Neighbour)
+                .AutoMatch(w.VictimProject, default);
+
+            AssertForbidden(result);
+        }
+    }
+
+    [Fact]
+    public async Task Insider_can_still_create_a_registry_row()
+    {
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var result = await NewRegistryController(w, w.Insider)
+                .Create(w.VictimProject, SomeRegistryRow(), default);
+
+            var created = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(201, created.StatusCode);
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            Assert.Equal("RV-1", (await check.GlobalIdRegistry.SingleAsync()).RevitUniqueId);
+        }
+    }
+
     // ── [ProjectAccess] — the read gate, driven directly ─────────────────────
 
     /// <summary>
@@ -527,6 +742,8 @@ public class FederationAuthorizationTests
     [InlineData(typeof(AlignmentController))]
     [InlineData(typeof(SceneNodesController))]
     [InlineData(typeof(ModelDiffController))]
+    [InlineData(typeof(IfcController))]
+    [InlineData(typeof(GlobalIdRegistryController))]
     public void ControllersCarryTheReadGate(Type controller)
     {
         Assert.True(
