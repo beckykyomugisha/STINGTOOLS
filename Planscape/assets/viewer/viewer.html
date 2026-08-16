@@ -1088,16 +1088,33 @@ THREE.ColorManagement.enabled = false;
   // BLK-2 — apply a stored ProjectModelTransform to a loaded model root.
   // Translation is stored in mm (server contract); GLB geometry is metres,
   // so convert ÷1000. Rotation is degrees about the project vertical (world Z).
-  // Composed as T·R·S. Guarded so absent / unconfirmed / identity transforms
+  // Composed as T·R·S. Guarded so absent / unapplied / identity transforms
   // leave the model untouched.
+  //
+  // B1 — a transform is LIVE when a coordinator confirmed it (isConfirmed) OR
+  // when the platform graded its georeferencing HIGH and applied it on its own
+  // (appliedAutomatically). Previously the only gate was `isConfirmed !== false`,
+  // and BOTH automatic writers store isConfirmed=false — so a correct,
+  // survey-derived alignment was computed, stored, and then never rendered until
+  // somebody confirmed it by hand. That single line is why same-site models from
+  // different tools did not line up on their own.
+  //
+  // Precedence needs no tie-break here: the automatic writers refuse to overwrite
+  // a row with isConfirmed=true, so a confirmed row already holds the
+  // coordinator's numbers. Manual wins by construction, at write time.
+  //
+  // The `!== false` default is kept for isConfirmed so an older/partial payload
+  // that omits the field still renders as it did before.
   function applyModelTransform(root, t) {
     if (!root || !t) return;
     const tx = (+t.translationX || 0), ty = (+t.translationY || 0), tz = (+t.translationZ || 0);
     const rot = (+t.rotationDeg || 0);
     const scale = (t.scaleFactor != null ? +t.scaleFactor : 1) || 1;
     const confirmed = (t.isConfirmed !== false);   // default-confirmed if unspecified
+    const autoApplied = (t.appliedAutomatically === true);
+    const live = confirmed || autoApplied;
     const isIdentity = tx === 0 && ty === 0 && tz === 0 && rot === 0 && scale === 1;
-    if (!confirmed || isIdentity) return;
+    if (!live || isIdentity) return;
     try {
       root.scale.set(scale, scale, scale);
       root.rotation.z = rot * Math.PI / 180;
