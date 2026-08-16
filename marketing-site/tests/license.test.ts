@@ -474,3 +474,45 @@ test("the list reports the same seat numbers the cap is checked against", async 
   assert.equal(body.inUse, await seats(h));
   assert.equal(body.inUse, 1);
 });
+
+test("the list returns only the caller's tenant, never another tenant's machines", async (t) => {
+  const h = await harness();
+
+  await issue(h, "ADD3-E01C-3412-14C8-175E");
+
+  const now = new Date().toISOString();
+  const other = "tenant-test-0002";
+  await h.db.batch([
+    h.db
+      .prepare(
+        `INSERT INTO tenants
+           (id, name, slug, country, currency, plan_product, plan_tier,
+            subscription_status, trial_started_at, trial_ends_at, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+      )
+      .bind(other, "Other Firm", "other-firm", "UG", "USD", PLAN_PRODUCT,
+            PLAN_TIER, "active", now,
+            new Date(Date.now() + 30 * 86400_000).toISOString(), now),
+    h.db
+      .prepare(
+        `INSERT INTO licenses
+           (id, tenant_id, user_id, machine_code, licensee, issued_at,
+            expires_at, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?)`
+      )
+      .bind("lic-other-0001", other, "user-other-0001",
+            "BEEF-BEEF-BEEF-BEEF-BEEF", "Other Firm", now,
+            new Date(Date.now() + 365 * 86400_000).toISOString(), now, now),
+  ]);
+
+  const body = (await (await list(h)).json()) as ListBody;
+
+  assert.equal(body.licences.length, 1, "only this tenant's machines");
+  assert.equal(body.licences[0].machineCode, "ADD3-E01C-3412-14C8-175E");
+  assert.equal(
+    body.licences.some((l) => l.machineCode === "BEEF-BEEF-BEEF-BEEF-BEEF"),
+    false,
+    "another tenant's machine must never appear"
+  );
+  assert.equal(body.inUse, 1, "another tenant's licence must not count here");
+});
