@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ApiError } from '@/api/client';
 import { theme } from '@/utils/theme';
 import {
   getProjectSettings,
@@ -82,7 +83,10 @@ export default function ProjectSettingsScreen() {
       setSettings((s) => s ? { ...s, admin: { ...s.admin, [key]: previous } } : s);
       const msg = err instanceof Error ? err.message : 'Update failed';
       // 403 is expected for non-admin members — be specific so they understand.
-      if (msg.includes('HTTP 403')) {
+      // Read the status off the error. `msg` is the response BODY (ApiError
+      // only falls back to "HTTP <status>" for an empty body), so testing the
+      // message recognised empty-body refusals only — see #646.
+      if (err instanceof ApiError && err.status === 403) {
         Alert.alert(
           'Permission denied',
           'Only BIM Managers (role K) and Coordinators (role C) can change admin settings on this project.',

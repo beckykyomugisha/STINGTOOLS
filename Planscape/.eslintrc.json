@@ -32,6 +32,43 @@
     "no-empty": "warn",
     "no-inner-declarations": "off",
     "react-hooks/exhaustive-deps": "warn",
-    "react-hooks/rules-of-hooks": "error"
-  }
+    "react-hooks/rules-of-hooks": "error",
+
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.property.name=/^(includes|indexOf|lastIndexOf|search|startsWith|endsWith|match|matchAll)$/] > Literal[value=/HTTP[ _-]?[0-9]/]",
+        "message": "Do not recover an HTTP status from an error message. ApiError carries it as `err.status` (src/api/client.ts). Its `message` is the response BODY and only falls back to the literal `HTTP <status>` when that body is EMPTY — so a message test silently matches empty-body responses and nothing else. That is #646, and it had already produced #624, #625 and three more latent sites. Read `err.status`."
+      },
+      {
+        "selector": "MemberExpression[property.name=/^(test|exec)$/] > Literal[regex.pattern=/HTTP[ _-]?[0-9\\\\[]/]",
+        "message": "Do not recover an HTTP status by matching a regex against an error message. ApiError carries it as `err.status` (src/api/client.ts); `message` is the response BODY and only falls back to `HTTP <status>` when that body is EMPTY, so this regex can only ever match empty-body responses. See #646. Read `err.status`."
+      },
+      {
+        "selector": "CallExpression[callee.property.name=/^(match|matchAll|search|replace|replaceAll|split)$/] > Literal[regex.pattern=/HTTP[ _-]?[0-9\\\\[]/]",
+        "message": "Do not recover an HTTP status by matching a regex against an error message. ApiError carries it as `err.status` (src/api/client.ts); `message` is the response BODY and only falls back to `HTTP <status>` when that body is EMPTY, so this regex can only ever match empty-body responses. See #646. Read `err.status`."
+      }
+    ]
+  },
+  "overrides": [
+    // TEMPORARY — remove once #628 and #629 have merged.
+    //
+    // These two files carry the last remaining status-from-message tests.
+    // Both are already being removed in open PRs (#628 documents.tsx,
+    // #629 issues.tsx), so fixing them here too would duplicate that work.
+    // Downgraded to "warn" rather than "off" so they stay visible.
+    //
+    // When both have merged, DELETE this block — the rule is then error-level
+    // everywhere with no exemptions, which is the point of adding it.
+    {
+      "files": ["app/(tabs)/documents.tsx", "app/(tabs)/issues.tsx"],
+      "rules": { "no-restricted-syntax": "warn" }
+    },
+    // The lint-rule fixture deliberately contains every banned form so that
+    // tests/lintRule.test.mjs can prove the rule fires on each one.
+    {
+      "files": ["tests/**"],
+      "rules": { "no-restricted-syntax": "off" }
+    }
+  ]
 }

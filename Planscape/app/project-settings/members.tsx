@@ -19,6 +19,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { ApiError } from '@/api/client';
 import { theme } from '@/utils/theme';
 import {
   listProjectMembersFull,
@@ -171,7 +172,10 @@ function MemberCard({
       await onSaved();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('HTTP 403')) {
+      // Read the status off the error. `msg` is the response BODY (ApiError
+      // only falls back to "HTTP <status>" for an empty body), so testing the
+      // message recognised empty-body refusals only — see #646.
+      if (err instanceof ApiError && err.status === 403) {
         Alert.alert('Permission denied', 'You do not have permission to edit project members.');
       } else {
         Alert.alert('Save failed', msg);
