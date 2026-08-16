@@ -4,15 +4,29 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Authorization;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 
+/// <remarks>
+/// <c>[ProjectAccess]</c> gates reads (404). The two POSTs both mutate or run
+/// expensive work against the project's alignment state, so each also takes the
+/// member gate (403) — the auto-align POST in particular writes a
+/// ProjectModelTransform.
+///
+/// The auto-align action overrides the class route with an absolute
+/// <c>~/api/projects/{projectId:guid}/...</c> template; that template still
+/// carries <c>{projectId}</c>, so the attribute resolves it from route data as
+/// normal.
+/// </remarks>
 [ApiController]
 [Route("api/projects/{projectId:guid}/alignment")]
 [Authorize]
+[ProjectAccess]
 public class AlignmentController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -57,6 +71,8 @@ public class AlignmentController : ControllerBase
         [FromServices] IFederatedCoherenceJob coherenceJob,
         CancellationToken ct)
     {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var report = await coherenceJob.RunAsync(projectId, _tenant.TenantId, ct);
         return Ok(report);
     }
@@ -72,6 +88,8 @@ public class AlignmentController : ControllerBase
         [FromServices] IHubContext<NotificationHub> notificationHub,
         CancellationToken ct)
     {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         // #12 — pass both hubs so a successful auto-align broadcasts ModelUpdated:
         // FederatedModelHub for any /hubs/model client + NotificationHub
         // (project-{id}) which is where the dashboard + Revit plugin actually

@@ -724,3 +724,113 @@ after the geometry GLB push, calls `PushIfcDataAsync(CurrentProjectId, …, host
 So Revit is now a first-class `/ifc/data` producer. Plugin builds against the
 Revit 2025 API (0 errors). Code and docs now AGREE: H-1 = implemented + wired;
 residual = real-Revit runtime validation (checklist).
+
+---
+
+# PART IV — FEDERATION HARDENING (Security → Placement → Reliability)
+
+A follow-up review of multi-tool federation (Revit + ArchiCAD + Tekla-via-IFC →
+Planscape web viewer) split the remaining work into three independent tracks:
+
+| Track | Theme | Status |
+|---|---|---|
+| **A** | Security — cross-project (within-tenant) access control | **CLOSED** (below) |
+| **B** | Placement — automatic, correct model alignment | open — see [`PERFECT_PLACEMENT_PROMPT.md`](PERFECT_PLACEMENT_PROMPT.md) |
+| **C** | Reliability — silent geometry loss, deletes, versioning | open |
+
+Deliberately NOT re-opened: the identity round-trip (PRs #654–660 — IFC GlobalId
+canonical, deduped, UNIQUE-enforced), the coordinator's manually-confirmed
+transform always winning, the per-file StingBridge IFC-drop `doc_guid`, and the
+global `ITenantScoped` filter.
+
+## 18. Track A — cross-project access control (CLOSED)
+
+### The defect
+
+Cross-TENANT isolation was already sound: `PlanscapeDbContext` applies a global
+`ITenantScoped` query filter that falls back to `Guid.Empty` (matching no rows),
+so it fails closed. **Tenant is not the unit of authorization for federation
+data, though.** Five controllers carried only `[Authorize]` and filtered by
+tenant, so a user invited to ANY ONE project in a tenant could read and modify
+EVERY OTHER project in that tenant:
+
+| Surface | Exposure before |
+|---|---|
+| `ModelTransformController` | `PUT/DELETE .../transform` — overwrite or delete another project's coordinate transform |
+| `CoordinateSystemController` | `POST/PUT/DELETE .../coordinate-system` — redefine the CRS every model aligns against |
+| `AlignmentController` | `POST .../auto-align` (writes a transform), `POST .../coherence` |
+| `SceneNodesController` | `GET /projects/{id}/scene` + `GET /scene-nodes/{nodeId}/file` — download another project's geometry |
+| `ModelDiffController` | `GET .../diff` — another project's element-level change history |
+
+`ModelsController` and `IfcIngestController` already applied the documented gate
+(`ProjectAccessExtensions` / `[ProjectAccess]`); these five were simply missed.
+
+### The fix
+
+Mirrors `IfcIngestController` exactly — two layers, because they answer different
+questions and return different codes:
+
+- **`[ProjectAccess]`** (read gate → **404**) at the controller level. Admits
+  tenant Admin/Owner/SecurityOfficer, the project author, or an active member.
+  404 rather than 403 so a denial does not confirm the project exists.
+- **`RequireProjectMemberAsync`** (write gate → **403**) as the first statement of
+  every mutating action.
+
+Two endpoints needed bespoke handling:
+
+- `SceneNodesController.GetChunkFile` is routed by `{nodeId}`, not `{projectId}`,
+  so the attribute cannot resolve a project from route data. The owning project
+  is resolved off the node and checked explicitly against
+  `ProjectVisibility.CanSeeProjectAsync`, returning 404 to match.
+- `SceneNodesController.Ingest` is `[AllowAnonymous]` (converter shared bearer)
+  and likewise has no `{projectId}`; the attribute falls through by design and
+  the bearer check stands.
+
+**`FederatedModelHub.JoinProject` (A2)** had no check at all — the SignalR group
+name was the only key, so any authenticated user could subscribe to any project's
+`ModelUpdated` stream, across tenants. It now validates membership through the
+same `ProjectMembershipGuard`.
+
+> **Why the hub reads its tenant from the JWT rather than the ambient filter.**
+> `ITenantContext.TenantId` resolves off `IHttpContextAccessor`, which is not
+> reliably populated inside a SignalR hub method (the documented accessor is
+> `Context.GetHttpContext()`). An unresolved tenant makes `CurrentTenantId`
+> `Guid.Empty`, which the global filter treats as "matches no rows" — fail-closed,
+> but it would have denied every legitimate member too. The hub therefore reads
+> the tenant off the connection's principal, bypasses the ambient filter for that
+> one query, and re-applies tenant scope by hand. `NotificationHub.JoinProject`
+> carries the same latent fragility; it was left alone as out of scope.
+
+**`AutoAlignService.ComputeAsync` (A3)** persisted with a bare "overwrite if
+exists", ignoring `IsConfirmed`. The IFC-ingest path has always respected the flag
+("Only auto-update if not manually confirmed by a coordinator"); auto-align did
+not, so any run silently destroyed a coordinator's hand-set alignment. It now
+refuses — and, because this path is an explicit user action rather than an upload
+side effect, returns the transform it WOULD have applied so the coordinator can
+compare and decide deliberately.
+
+### Verification
+
+`tests/Planscape.Tests/` — 26 new tests across `FederationAuthorizationTests`,
+`FederatedModelHubAuthorizationTests`, `AutoAlignConfirmedTransformTests`.
+
+Every attacker in them is a real, active, authenticated member of the **same
+tenant** as the victim project, just a member of a different project. This is the
+distinguishing detail: a cross-tenant test passes against the unfixed code and
+proves nothing, which is exactly why the pre-existing tenant-isolation suite
+never caught this.
+
+The suite was run against the **unfixed** code with the source changes stashed:
+**13 failed, 8 passed** — every denial and gate test failed, while the happy-path
+tests passed, confirming the tests detect the defect rather than restate the fix
+and that the fixture is not simply denying everything. With the fix: 26/26 pass,
+and the full suite is **659 passed / 0 failed / 11 skipped**.
+
+Covered: the in-action 403 gate (controllers constructed directly against real
+SQLite with real `ProjectMember` rows), the `[ProjectAccess]` 404 gate (filter
+driven directly with a hand-built `ActionExecutingContext`), and a reflection
+test pinning the attribute onto all five controllers so removing it fails a test.
+NOT covered: end-to-end MVC wiring — no host is booted, because a
+`WebApplicationFactory` cannot run against SQLite (Program.cs issues a
+Postgres-only `information_schema` query with no try/catch) and a second factory
+is unreliable in this assembly (ROADMAP DEP-7).

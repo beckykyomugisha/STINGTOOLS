@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Authorization;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -19,8 +21,26 @@ namespace Planscape.API.Controllers;
 ///          chunk after it splits + uploads. Auth via shared bearer
 ///          token; converter is internal-only.
 /// </summary>
+/// <remarks>
+/// Authorization is per-endpoint because the three routes carry different
+/// identifiers:
+/// <list type="bullet">
+/// <item><c>projects/{projectId}/scene</c> — <c>[ProjectAccess]</c> resolves
+/// <c>{projectId}</c> from route data and 404s a caller who cannot see the
+/// project.</item>
+/// <item><c>scene-nodes/{nodeId}/file</c> — no <c>{projectId}</c> in the route,
+/// so the attribute falls through by design. The project is resolved from the
+/// node itself and checked explicitly in
+/// <see cref="GetChunkFile"/>; without that, any authenticated user in the
+/// tenant could download any other project's geometry given a node id.</item>
+/// <item><c>scene-nodes/ingest</c> — <c>[AllowAnonymous]</c>, authenticated by
+/// the converter's shared bearer. It has no <c>{projectId}</c> route value
+/// either, so the attribute is a no-op there and the bearer check stands.</item>
+/// </list>
+/// </remarks>
 [ApiController]
 [Route("api")]
+[ProjectAccess]
 public class SceneNodesController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -86,6 +106,14 @@ public class SceneNodesController : ControllerBase
     {
         var node = await _db.SceneNodes.AsNoTracking().FirstOrDefaultAsync(n => n.Id == nodeId && n.DeletedAt == null, ct);
         if (node == null) return NotFound();
+
+        // The route addresses the chunk, not the project, so [ProjectAccess]
+        // cannot gate this one — resolve the owning project off the node and
+        // apply the same decision by hand. 404 (not 403) to match the
+        // attribute: telling a non-member the node exists leaks the project.
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, node.ProjectId, User, ct))
+            return NotFound();
+
         var stream = await _storage.GetAsync(node.StoragePath, ct);
         if (stream == null) return NotFound();
         Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable";

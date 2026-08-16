@@ -3,6 +3,8 @@ namespace Planscape.API.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Authorization;
+using Planscape.API.Services;
 using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
@@ -13,9 +15,19 @@ using Planscape.Infrastructure.Services;
 /// Gap E — REST API for managing per-model coordinate transforms.
 /// Route: api/projects/{projectId}/models/{modelId}/transform
 /// </summary>
+/// <remarks>
+/// Authorization mirrors <see cref="ModelsController"/> / <see cref="IfcIngestController"/>:
+/// <c>[ProjectAccess]</c> is the read gate (404 for a project the caller cannot
+/// see) and <see cref="ControllerProjectMembershipExtensions.RequireProjectMemberAsync"/>
+/// is the write gate (403 for a caller who can see the project but is not a
+/// member). Tenant scope alone is NOT sufficient — without these, a member of
+/// any project in the tenant could read and overwrite every other project's
+/// model transforms.
+/// </remarks>
 [ApiController]
 [Route("api/projects/{projectId:guid}/models/{modelId:guid}/transform")]
 [Authorize]
+[ProjectAccess]
 public class ModelTransformController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -91,6 +103,8 @@ public class ModelTransformController : ControllerBase
         [FromBody] TransformUpsertDto dto,
         CancellationToken ct)
     {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         // Validate ownership
         var projectExists = await _db.ProjectModels.AsNoTracking()
             .AnyAsync(m => m.Id        == modelId
@@ -199,6 +213,8 @@ public class ModelTransformController : ControllerBase
     [HttpDelete]
     public async Task<IActionResult> Delete(Guid projectId, Guid modelId, CancellationToken ct)
     {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var xf = await _db.Set<ProjectModelTransform>()
             .FirstOrDefaultAsync(
                 t => t.ProjectModelId == modelId
