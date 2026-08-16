@@ -517,7 +517,7 @@ git commit -m "feat(material-schedule): pure data model with derived money"
 
 The BOQ emits m³ of sand; the schedule must print `Trips (Sino Truck)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `StingTools.Boq.Tests/SupplierUnitConverterTests.cs`:
 
@@ -617,7 +617,7 @@ namespace StingTools.Boq.Tests
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~SupplierUnitConverterTests"
@@ -625,7 +625,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: build failure — `The name 'SupplierUnitConverter' does not exist`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `StingTools/Core/MaterialSchedule/SupplierUnitConverter.cs`:
 
@@ -721,7 +721,7 @@ namespace StingTools.Core.MaterialSchedule
 }
 ```
 
-- [ ] **Step 4: Add the file to the test project**
+- [x] **Step 4: Add the file to the test project**
 
 In `StingTools.Boq.Tests/StingTools.Boq.Tests.csproj`, after the `MaterialScheduleModel.cs` entry:
 
@@ -729,7 +729,7 @@ In `StingTools.Boq.Tests/StingTools.Boq.Tests.csproj`, after the `MaterialSchedu
     <Compile Include="..\StingTools\Core\MaterialSchedule\SupplierUnitConverter.cs" Link="MaterialSchedule\SupplierUnitConverter.cs" />
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~SupplierUnitConverterTests"
@@ -737,7 +737,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 5`.
 
-- [ ] **Step 6: Create the shipped rule table**
+- [x] **Step 6: Create the shipped rule table**
 
 Create `StingTools/Data/STING_SUPPLIER_UNITS.json`. Conversion factors are Ugandan-practice defaults; a project overrides them at `_BIM_COORD/supplier_units.json`.
 
@@ -830,7 +830,7 @@ Create `StingTools/Data/STING_SUPPLIER_UNITS.json`. Conversion factors are Ugand
 }
 ```
 
-- [ ] **Step 7: Add a test that the shipped file parses into the rule table**
+- [x] **Step 7: Add a test that the shipped file parses into the rule table**
 
 Append to `StingTools.Boq.Tests/SupplierUnitConverterTests.cs`, inside the class:
 
@@ -858,7 +858,7 @@ Append to `StingTools.Boq.Tests/SupplierUnitConverterTests.cs`, inside the class
 
 This is the guard against the failure mode recorded in memory: *valid JSON plus a green build can still be runtime-dead if Newtonsoft field names or types do not match.*
 
-- [ ] **Step 8: Ship the JSON to the test output and to the plugin's `data/` folder**
+- [x] **Step 8: Ship the JSON to the test output and to the plugin's `data/` folder**
 
 In `StingTools.Boq.Tests/StingTools.Boq.Tests.csproj`, inside a `<None>` `<ItemGroup>`:
 
@@ -882,7 +882,7 @@ Also add `Newtonsoft.Json` to the test project if it is not already referenced:
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 ```
 
-- [ ] **Step 9: Run the tests**
+- [x] **Step 9: Run the tests**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~SupplierUnitConverterTests"
@@ -890,7 +890,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 6`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add StingTools/Core/MaterialSchedule/SupplierUnitConverter.cs StingTools/Data/STING_SUPPLIER_UNITS.json StingTools.Boq.Tests/SupplierUnitConverterTests.cs StingTools.Boq.Tests/StingTools.Boq.Tests.csproj StingTools/StingTools.csproj

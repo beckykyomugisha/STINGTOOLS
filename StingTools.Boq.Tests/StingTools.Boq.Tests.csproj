@@ -11,6 +11,10 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.6.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+    <!-- MAT-SCHED — the shipped-data tests deserialise the real JSON with the same
+         serialiser the plugin uses, so a Newtonsoft field-name/type mismatch fails
+         here rather than going runtime-dead in Revit. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,6 +40,7 @@
     <Compile Include="..\StingTools\BOQ\Takeoff\CompoundTakeoff.cs" Link="Takeoff\CompoundTakeoff.cs" />
     <!-- MAT-SCHED — Document-free material-schedule engine. -->
     <Compile Include="..\StingTools\Core\MaterialSchedule\MaterialScheduleModel.cs" Link="MaterialSchedule\MaterialScheduleModel.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\SupplierUnitConverter.cs" Link="MaterialSchedule\SupplierUnitConverter.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +51,10 @@
     </None>
     <!-- RC-2 — validate the shipped take-off rules (curtain ordering + excludes). -->
     <None Include="..\StingTools\Data\STING_TAKEOFF_RULES.json" Link="Data\STING_TAKEOFF_RULES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- MAT-SCHED — the shipped commodity rule table, parsed by the real POCO. -->
+    <None Include="..\StingTools\Data\STING_SUPPLIER_UNITS.json" Link="Data\STING_SUPPLIER_UNITS.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
