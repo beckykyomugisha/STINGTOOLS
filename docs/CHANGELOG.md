@@ -61,8 +61,21 @@ contradict a refusal. A test asserts `body.inUse === await seats(h)` to keep it 
 four status branches, and the #677 expiry guard measured: an expired licence fires **0** downloads
 and offers no download button, a valid one fires exactly 1.
 
+**6 — The first real licence, and why the button looked dead.** Issuing was driven for real in
+production on 2026-08-16: `POST /api/license/issue` → **200**, and `licenses` gained its first row
+ever (`4681-584E-784F-0868-4E48`, tenant `exo`, expiring `2036-08-03` = `trial_ends_at` +
+`TRIAL_GRACE_DAYS`). Several earlier attempts had appeared to do nothing, and a live
+`wrangler pages deployment tail` proved *no HTTP request was being made at all*. The cause was in
+the page, not the endpoint: `CODE_RE` rejected clipboard-damaged input — a trailing space, a
+non-breaking space, an en dash for the hyphen — and the failure branch returns **before** the
+fetch, so the only feedback was a line of small red text, indistinguishable from an inert button.
+`normaliseCode` (#698) now repairs transport damage, rewrites the field to what it validated, and
+echoes the value back on failure; it deliberately does not strip unknown characters, so an `O`
+typed for a `0` still fails loudly. Verified by a 17-case table test that extracts the function
+live from the page, plus both paths driven in a browser.
+
 Also merged PR #626 (retires the per-user quota axes, closes #619) and closed #644 as a duplicate
-of #652. Filed #673, #674, #677. Spec and plan:
+of #652. Filed #673, #674, #677, #691, #693, #694. Spec and plan:
 [`superpowers/specs/2026-08-16-licences-page-design.md`](superpowers/specs/2026-08-16-licences-page-design.md),
 [`superpowers/plans/2026-08-16-licences-self-serve.md`](superpowers/plans/2026-08-16-licences-self-serve.md).
 
