@@ -36,23 +36,34 @@ public class FederatedModelController : ControllerBase
     private readonly IHubContext<FederatedModelHub>        _hub;
     private readonly IHubContext<NotificationHub>          _notificationHub;
     private readonly Planscape.Core.Interfaces.IFileStorageService _storage;
+    private readonly ILogger<FederatedModelController> _logger;
 
     public FederatedModelController(
         PlanscapeDbContext db,
         IHubContext<FederatedModelHub> hub,
         IHubContext<NotificationHub> notificationHub,
-        Planscape.Core.Interfaces.IFileStorageService storage)
+        Planscape.Core.Interfaces.IFileStorageService storage,
+        ILogger<FederatedModelController> logger)
     {
         _db      = db;
         _hub     = hub;
         _notificationHub = notificationHub;
         _storage = storage;
+        _logger  = logger;
     }
 
     // ── POST delta ───────────────────────────────────────────────────────────
 
+    private const long MaxDeltaBytes = 256L * 1024 * 1024;
+
     [HttpPost("delta")]
-    [RequestSizeLimit(256 * 1024 * 1024)] // 256 MB cap per delta
+    [RequestSizeLimit(MaxDeltaBytes)] // 256 MB cap per delta
+    // C5 - RequestSizeLimit caps the raw HTTP body; the MULTIPART PARSER has its
+    // own, separate ceiling (Program.cs sets a global 200 MB
+    // FormOptions.MultipartBodyLengthLimit). Without this attribute the endpoint
+    // advertised 256 MB and rejected anything over 200 MB with a bare parser 400
+    // - before the action ran, so nothing here could explain why.
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxDeltaBytes, ValueLengthLimit = int.MaxValue)]
     public async Task<ActionResult> PostDelta(
         Guid projectId,
         IFormFile? glb,
@@ -62,6 +73,30 @@ public class FederatedModelController : ControllerBase
         var project  = await _db.Projects.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+
+        // ── C6: idempotency ──────────────────────────────────────────────────
+        // A delta is a REPLAYABLE write: the plugin now re-queues and re-sends
+        // after a failure (C1), and a client that times out mid-upload cannot
+        // tell whether the server applied it. Replaying without a guard
+        // re-applies tombstones and re-writes rows, and - worse - a replay whose
+        // GLB has been superseded would resurrect stale geometry.
+        //
+        // Reuses the platform's existing X-Idempotency-Key mechanism rather than
+        // inventing a second one. Absent key = no protection, which is the
+        // previous behaviour, so older plugins keep working.
+        var idemKey = Planscape.API.Services.IdempotencyGuard.KeyFrom(Request);
+        const string IdemScope = "federated-model-delta";
+        if (idemKey != null)
+        {
+            var seen = await Planscape.API.Services.IdempotencyGuard
+                .SeenResultAsync(_db, tenantId, IdemScope, idemKey);
+            if (seen != null)
+            {
+                // A no-op, not an error: the caller's intent was already carried
+                // out, and telling them it failed would make them retry again.
+                return Ok(new { updated = 0, deleted = 0, replayed = true });
+            }
+        }
 
         // ── Parse deleted IDs ────────────────────────────────────────────────
         var deletedList = new List<long>();
@@ -73,8 +108,34 @@ public class FederatedModelController : ControllerBase
                 var ids = await JsonSerializer.DeserializeAsync<List<int>>(stream);
                 if (ids != null) deletedList.AddRange(ids.Select(i => (long)i));
             }
-            catch { /* ignore malformed JSON — caller already logged */ }
+            catch (Exception ex)
+            {
+                // C6 - was `catch { }`. A malformed deletedIds payload meant the
+                // deletions were silently dropped while the GLB half still
+                // applied, so the caller saw a 200 and the elements it asked to
+                // remove stayed visible forever. Log and continue (the geometry
+                // half is still worth applying), but say so.
+                _logger.LogWarning(ex,
+                    "Delta for project {ProjectId}: deletedIds payload could not be parsed — " +
+                    "no tombstones applied from this delta.", projectId);
+            }
         }
+
+        // ── C6: one transaction for the whole delta ──────────────────────────
+        // Deletes used to commit immediately via ExecuteUpdateAsync, and the GLB
+        // store + SaveChangesAsync came afterwards. A failure in between left the
+        // deletions applied and the additions lost — the worst possible partial
+        // state, because the model on the server is then MISSING geometry that
+        // the source still has, and no retry re-sends the deletions (they are
+        // already marked, so the next delta's Where clause excludes them).
+        //
+        // InMemory raises TransactionIgnoredWarning, which EF escalates to an
+        // exception, so the transaction is only opened on a relational provider.
+        // The unit tests therefore exercise the same code path minus the
+        // atomicity guarantee, which is stated rather than assumed.
+        await using var tx = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync()
+            : null;
 
         // ── Mark deleted rows ────────────────────────────────────────────────
         if (deletedList.Count > 0)
@@ -106,6 +167,19 @@ public class FederatedModelController : ControllerBase
 
             // Parse per-element metadata from the GLB node extras
             var nodes = ParseGlbNodeExtras(glbBytes);
+            if (GlbParseFailure != null)
+            {
+                _logger.LogWarning(
+                    "Delta for project {ProjectId}: GLB node extras could not be parsed ({Reason}) — " +
+                    "{Bytes} bytes stored at {Path} but NO elements were indexed.",
+                    projectId, GlbParseFailure, glbBytes.Length, storagePath);
+            }
+            else if (nodes.Count == 0)
+            {
+                _logger.LogWarning(
+                    "Delta for project {ProjectId}: GLB parsed but carried no node extras — " +
+                    "the exporter may not be writing uniqueId/elementId.", projectId);
+            }
             var docGuid = User.FindFirst("source_doc_guid")?.Value ?? "revit-plugin";
 
             foreach (var node in nodes)
@@ -142,6 +216,16 @@ public class FederatedModelController : ControllerBase
 
             await _db.SaveChangesAsync();
         }
+
+        // C6 - record the key INSIDE the transaction so a replay cannot be
+        // marked handled by a delta that then rolled back.
+        if (idemKey != null)
+        {
+            await Planscape.API.Services.IdempotencyGuard
+                .RecordAsync(_db, tenantId, IdemScope, idemKey, projectId);
+        }
+
+        if (tx != null) await tx.CommitAsync();
 
         // ── Notify connected viewers ─────────────────────────────────────────
         await FederatedModelHub.NotifyUpdate(
@@ -193,8 +277,17 @@ public class FederatedModelController : ControllerBase
     // Minimal GLB node-extras parser — reads the JSON chunk of a GLB 2.0 file
     // and extracts node.extras objects that carry the per-element metadata
     // written by GlbSerializer (uniqueId, ifcGuid, elementId, category).
+    /// <summary>
+    /// Set by <see cref="ParseGlbNodeExtras"/> when the GLB could not be read.
+    /// [ThreadStatic] because the parser is static and a scoped controller may
+    /// be serving concurrent requests on different threads; a shared field would
+    /// attribute one request's failure to another.
+    /// </summary>
+    [ThreadStatic] private static string? GlbParseFailure;
+
     private static List<GlbNodeExtras> ParseGlbNodeExtras(byte[] glbBytes)
     {
+        GlbParseFailure = null;
         var result = new List<GlbNodeExtras>();
         try
         {
@@ -220,7 +313,16 @@ public class FederatedModelController : ControllerBase
                 });
             }
         }
-        catch { /* malformed GLB — skip extras parsing */ }
+        catch (Exception ex)
+        {
+            // C6 - was a bare `catch { }`. A malformed or truncated GLB produced
+            // ZERO nodes, which the caller could not distinguish from "a delta
+            // that legitimately changed nothing": the endpoint answered 200
+            // updated=0 and the geometry never arrived. The bytes are still
+            // stored, so the failure is recoverable — but only if someone knows
+            // it happened.
+            GlbParseFailure = ex.Message;
+        }
         return result;
     }
 

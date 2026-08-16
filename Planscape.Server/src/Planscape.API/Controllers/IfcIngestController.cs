@@ -95,6 +95,15 @@ public class IfcIngestController : ControllerBase
     [HttpPost("ingest")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaxIfcSize)]
+    // C5 - RequestSizeLimit caps the raw HTTP body; the MULTIPART PARSER has its
+    // own, separate ceiling. Program.cs sets a global 200 MB
+    // FormOptions.MultipartBodyLengthLimit, so this endpoint advertised a 2 GB
+    // cap and then failed anything over 200 MB with a bare HTTP 400 from the
+    // parser - before the action ran, so the "file_too_large" branch below never
+    // fired and the caller got no usable reason. Either the cap or the parser
+    // limit had to move; the cap is the documented contract, so the parser limit
+    // follows it here.
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxIfcSize, ValueLengthLimit = int.MaxValue)]
     public async Task<ActionResult> Ingest(
         Guid projectId,
         IFormFile file,
