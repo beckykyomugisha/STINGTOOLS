@@ -2535,7 +2535,7 @@ git commit -m "feat(material-schedule): Revit-side builder with compound-mode de
 **Files:**
 - Create: `StingTools/BOQ/MaterialSchedule/MaterialScheduleXlsxWriter.cs`
 
-- [ ] **Step 1: Write the renderer**
+- [x] **Step 1: Write the renderer**
 
 Create `StingTools/BOQ/MaterialSchedule/MaterialScheduleXlsxWriter.cs`:
 
@@ -2744,7 +2744,7 @@ namespace StingTools.BOQ.MaterialSchedule
 }
 ```
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 ```bash
 dotnet build StingTools/StingTools.csproj -c Debug --nologo
@@ -2752,7 +2752,7 @@ dotnet build StingTools/StingTools.csproj -c Debug --nologo
 
 Expected: `0 Error(s)`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add StingTools/BOQ/MaterialSchedule/MaterialScheduleXlsxWriter.cs
