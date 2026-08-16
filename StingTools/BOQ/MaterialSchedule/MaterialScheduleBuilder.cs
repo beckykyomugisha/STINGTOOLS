@@ -106,11 +106,19 @@ namespace StingTools.BOQ.MaterialSchedule
                 var ps = boq.AllItems.Where(i => i.Source == BOQRowSource.ProvisionalSum).ToList();
                 foreach (var group in ps.GroupBy(i => i.Category ?? ""))
                 {
-                    var section = msDoc.Stages.FirstOrDefault(s =>
-                        s.Title.IndexOf(group.Key, StringComparison.OrdinalIgnoreCase) >= 0);
+                    // A blank category matches NOTHING — see ManualRowPlacer. The
+                    // old inline IndexOf matched the first section on an empty
+                    // needle, filing uncategorised provisional sums under whatever
+                    // stage happened to come first.
+                    var section = ManualRowPlacer.FindSectionForCategory(msDoc.Stages, group.Key);
                     if (section == null)
                     {
-                        section = new StageSection { StageId = "ps-" + group.Key, Title = group.Key.ToUpperInvariant() };
+                        bool named = !string.IsNullOrWhiteSpace(group.Key);
+                        section = new StageSection
+                        {
+                            StageId = named ? "ps-" + group.Key : "ps-uncategorised",
+                            Title = named ? group.Key.ToUpperInvariant() : "PROVISIONAL SUMS (UNCATEGORISED)"
+                        };
                         msDoc.Stages.Add(section);
                     }
                     foreach (var row in group)
@@ -123,24 +131,23 @@ namespace StingTools.BOQ.MaterialSchedule
                         });
                 }
 
+                // Flatten every model row's labour once, keyed by the SAME trace ref
+                // the constituents carried into the aggregator, so each section's
+                // suggestion counts only the rows that actually fed it. The previous
+                // version summed the whole document per section, so every stage
+                // advertised the project's total labour as its own.
+                var contributions = boq.AllItems
+                    .Where(i => i.Source == BOQRowSource.Model)
+                    .Select(i => new LabourContribution
+                    {
+                        TraceRef = string.IsNullOrEmpty(i.BOQLineRef) ? i.Id : i.BOQLineRef,
+                        LabourTotalUGX = i.LabourTotalUGX,
+                        HasSplit = i.LabourUGX.HasValue
+                    })
+                    .ToList();
+
                 foreach (var section in msDoc.Stages)
-                {
-                    var contributing = boq.AllItems
-                        .Where(i => i.Source == BOQRowSource.Model)
-                        .ToList();
-                    bool allHaveSplit = contributing.Count > 0 && contributing.All(i => i.LabourUGX.HasValue);
-                    var line = new LabourLine { Description = "Labour", AmountUGX = 0 };
-                    if (allHaveSplit)
-                    {
-                        line.SuggestedUGX = contributing.Sum(i => i.LabourTotalUGX);
-                        line.SuggestionBasis = $"{contributing.Count} of {contributing.Count} rows carry an L/P/M split";
-                    }
-                    else
-                    {
-                        line.SuggestionBasis = "no suggestion — not every contributing row carries an L/P/M split";
-                    }
-                    section.Labour.Add(line);
-                }
+                    section.Labour.Add(ManualRowPlacer.BuildLabourLine(section, contributions));
 
                 StageMapper.AssignLetters(msDoc.Stages);
             }
