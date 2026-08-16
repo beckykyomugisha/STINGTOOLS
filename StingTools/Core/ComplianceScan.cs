@@ -796,6 +796,12 @@ namespace StingTools.Core
                 // DI-001 FIX: Null out separator so it's re-read from ParamRegistry on next scan
                 _separatorArray = null;
             }
+
+            // The Visibility Center caches the same token data on the same 30s window.
+            // Chaining here means every existing invalidation point covers it too, rather
+            // than needing the ~100 call sites of this method edited one by one.
+            try { Visibility.TokenValueHarvester.InvalidateCache(); }
+            catch (Exception ex) { StingLog.Warn($"TokenValueHarvester.InvalidateCache: {ex.Message}"); }
         }
 
         // FUT-16: Incremental update tracking

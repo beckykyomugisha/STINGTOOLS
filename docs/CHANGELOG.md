@@ -2,6 +2,150 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 233 — Visibility Center, enhancement pass)
+
+Fixes the gaps found by using the Phase 232 dropdown on a real model. Built to spec in
+[`VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`](VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md).
+Build 0 errors / 0 warnings; `StingTools.Visibility.Tests` **102 passing** (was 64).
+
+**1 — The dropdown now reads what the view is already hiding.** This was a correctness bug,
+not polish: `VisRowVm` defaulted to ticked and `Load` built every row fresh, so the panel
+asserted "nothing hidden" over a filtered view and the next Apply was computed from that
+false baseline.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityState.cs` | ✅ | `AppliedFilterState` / `VisibilityRowState` / `VisibilityReadback` + `VisibilityStateReconciler` — the decision layer, and the footer + badge text |
+| `Core/Visibility/VisibilityStateReader.cs` | — | The three Revit reads: category hidden flags, the view's filters, the temporary-mode per-element test |
+| `Core/Visibility/VisibilityHarvestModel.cs` | ✅ | `TokenValueTally` / `CategoryTally` / `TokenHarvest`, moved out of the Revit-bound harvester so the tree and reconciler are testable; adds `TokenHarvest.Rebuild` |
+
+**The trap, and what was done about it.** Revit exposes **no API to enumerate temporarily
+hidden elements** — `IsTemporaryHideIsolateActive()` reports that the mode is on, not what it
+hid. A raw document-vs-view collector diff is the documented starting point, but on a plan
+view that difference is dominated by elements the view would never have drawn (other levels,
+other views' view-specific content), so it over-reports badly. Every candidate is therefore
+confirmed individually with `View.IsElementVisibleInTemporaryViewMode`, and anything left
+unexplained is reported as `OutOfScopeCount` rather than counted as hidden. **No side-record
+of "what we hid" is kept** — that desynchronises the moment the user reaches for Revit's own
+HH/HI, and a reader that disagrees with the model is worse than none.
+
+The expensive document-scoped pass runs **only** when the cheap sweep proves something is
+hidden. `TokenValueHarvester`'s one-slot cache became a per-scope dictionary — the reader
+needs the view- and document-scoped harvests back to back, and a single slot made each
+evict the other.
+
+Footer now reads e.g. `1 category + ZONE Z02 hidden · 1 of 3 visible · saved to view`, and
+holds that line until the user actually changes a tick (rows now open unticked, so "Will
+hide N" on open would have been false about elements already out of sight).
+
+**2 — The category list is usable on a real model.** `Core/Visibility/VisibilityCategoryTree.cs`
+(Revit-free) excludes view-management categories, nests subcategories under `Category.Parent`
+with tri-state parents, and splits **Model / Annotation / Imports** mirroring Revit's own V/G
+tabs. The exclusion list ships as `"excludedCategories"` in the existing
+`Data/STING_VISIBILITY_PRESETS.json`, project-overridable through the path that already
+exists — **not** a new data file and **not** hardcoded. Grids and Levels are deliberately kept.
+Nothing is silently dropped: exclusions are counted, logged once per scan, and an
+unclassifiable category lands in Model rather than vanishing.
+
+`null` and `[]` mean different things for that key and the POCO default must stay `null` —
+absent = "use the baseline", explicit `[]` = "exclude nothing". `VisibilityPresetStore.Save`
+now carries the key over, because presets and exclusions share one file and the first
+"Save preset…" would otherwise have wiped a project's exclusions.
+
+**3 — Empty groups say why.** A muted row (`no ZONE values in this view — run tagging first`)
+plus a count in every group header (`ZONE (4)`, `LEVEL (0)`), so what is populated is visible
+without expanding all seven.
+
+**4 — Hidden-count badge + the undo asymmetry.** `UI/Visibility/VisibilityBadge.cs` puts the
+count on the SELECT-tab button (`👁 Show / Hide (1,204 hidden) ▾`) and the Hub button tooltip.
+It is a by-product of a read that already happened — opening the dropdown, or Apply / Isolate /
+Reset — never a background poll. Both mode radios carry the asymmetry verbatim: *"Temporary
+hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints."*
+
+**Also** — `VisibilityDropdownHost.cs` (466) and `VisibilityCommands.cs` (466) were split at
+their natural seams into `VisibilityPresetPrompts.cs` and `VisibilityCommandHelper.cs`; every
+file in the feature is now ≤ 398 lines. `Autodesk.Windows` is untouched, per §5.
+
+**Not verified in Revit.** Every Revit-bound path in this pass — the state reader, the
+category metadata reads, the badge push, the Hub-button capture — is unexercised by any test
+and unexercised by a human. See the ROADMAP entry.
+
+---
+
+#### Completed (Phase 232 — Visibility Center)
+
+One dropdown on the SELECT tab that shows/hides elements by **category** and by **ISO 19650
+tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode
+(`View.HideElementsTemporary` — instant, session-only, does not print) or **Saved** mode
+(`ParameterFilterElement` + `view.SetFilterVisibility` — persists, prints, pushable to a view
+template). Built to spec in [`VISIBILITY_CENTER_RUNNER.md`](VISIBILITY_CENTER_RUNNER.md).
+
+**Files** — 7 new under `StingTools/`, plus a test project.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` / `VisibilityPresetLibrary` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityPlan.cs` | ✅ | `VisibilityPlan` / `PlannedFilter` / `VisibilityResult` / `VisibilityElementSnapshot` |
+| `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming + parsing |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | JSON load/save/merge (takes resolved paths, so it is testable) |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets + snapshots; 30 s cache |
+| `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
+| `Core/Visibility/VisibilityFilterBuilder.cs` | — | `ParameterFilterElement` creation + binding blocker detection |
+| `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; the only place touching `StingPaths` |
+| `Commands/Visibility/VisibilityCommands.cs` | — | The 8 commands |
+| `UI/Visibility/VisibilityDropdown.xaml(.cs)` + `VisibilityRowVm.cs` + `VisibilityDropdownHost.cs` | — | The popup |
+| `Data/STING_VISIBILITY_PRESETS.json` | — | 4 baseline presets |
+
+**Commands** — `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` ·
+`Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset`. Registered in
+`StingCommandHandler` immediately below the existing `ViewIsolate` / `ViewHide` / `ViewReveal` /
+`ViewReset` cases, which are **unchanged and still work** — they hide the current *selection*,
+this hides by *rule*.
+
+**Plan/Apply split.** `Plan()` writes nothing and returns matched ids, required filters,
+per-group counts and a `List<string> Blockers`; `Apply()` performs the write. The dropdown's
+live footer ("Will hide 1,204 of 8,331 elements · 3 filters") calls
+`VisibilityRuleMatcher.PlanCore` — the Revit-free half — so it recomputes on every tick without
+touching the Revit API. This is the pattern CLAUDE.md P1 #4 asks someone to prove on one
+feature; it is also what let the matching semantics carry 55 unit tests.
+
+**Matching contract.** Values within a rule OR; rules grouped by (kind, token key) OR within a
+group and AND across groups. Two category rules therefore mean "Ducts OR Pipes" — AND-ing them
+would match nothing, since an element has one category. Mixing `Hide` and `ShowOnly` in one set
+is rejected with a message, never silently resolved.
+
+**Reuse.** Token filters go through the existing `AecFilterFactory.FindOrCreate` rather than a
+second factory — it already resolves shared parameters via `ParamRegistry.AllParamGuids`,
+OR-combines with `LogicalOrFilter`, and reports an unbound parameter as a *warning*, which maps
+straight onto the blocker requirement. Two cases it cannot cover are handled directly in
+`VisibilityFilterBuilder`: a **category-only** filter (needs the rule-less
+`ParameterFilterElement.Create` overload) and the **inverted** show-only filter.
+
+**Blockers reported, not thrown** — unbound shared parameter (names the categories:
+"ZONE is not bound to Ducts, Pipes; 3 categories skipped"), view-template-locked V/G (offers
+`Vis_ApplyToTemplate`), `AreGraphicsOverridesAllowed() == false`, legend/schedule/sheet views,
+non-filterable categories, zero matches, and an **unresolved category rule** — a preset naming
+a category this model does not have keeps its `OST_` string and raises
+"Preset names a category this model doesn't have: 'OST_DuctCurve'" rather than matching nothing
+in silence. That check lives in `PlanCore`, so it is unit-tested rather than Revit-only.
+
+**Reset clears both mechanisms.** `Vis_ResetAll` disables the temporary view mode *and* removes
+every `STING VIS - ` filter from the view. The two halves have opposite transaction
+requirements — disabling a temporary mode throws inside a transaction, removing a filter needs
+one — so `VisibilityEngine.Reset` sequences them itself rather than leaving that trap to callers.
+
+**Known limits** (logged in [`ROADMAP.md`](ROADMAP.md)): show-only **by category** in Saved mode
+is reported as a blocker rather than implemented, because a view filter can only act on the
+categories it is bound to; Temporary mode handles it. The isolate filter is one combined
+`STING VIS - NOT (isolate)` element, so it does not round-trip through `TryParseFilterName`
+(it is still found and deleted by prefix).
+
+**Verification** — `dotnet build StingTools/StingTools.csproj -c Debug` → **0 errors, 0
+warnings**. `StingTools.Visibility.Tests` (new, xUnit/net8.0) → **61 passing**, picked up
+automatically by the `StingTools.*.Tests/*.csproj` glob in
+`.github/workflows/stingtools-unit-tests.yml`. `tools/check_path_discipline.ps1` → clean.
+**Not yet exercised inside Revit** — see the runner's §4 for the in-Revit checklist that
+remains open.
 #### Completed (Document Manager — delete/restore repair, honest outcomes, one store layer)
 
 Full accuracy/consistency review of the Document Management Center

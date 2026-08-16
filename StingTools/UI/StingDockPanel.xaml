@@ -284,6 +284,21 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
+                        <!-- VISIBILITY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="👁 VISIBILITY"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
+                            <WrapPanel>
+                                <Button x:Name="btnVisDropdown" Style="{StaticResource GreenBtn}" Content="👁 Show / Hide ▾" Tag="Vis_OpenDropdown" Click="Cmd_Click"
+                                        ToolTip="Show/hide by category or ISO tag token (zone, location, level, discipline…)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Reset" Tag="Vis_ResetAll" Click="Cmd_Click"
+                                        ToolTip="Clears BOTH the temporary hide/isolate and every STING VIS filter on this view"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Presets ▾" Tag="Vis_LoadPreset" Click="Cmd_Click"
+                                        ToolTip="Load a saved visibility preset"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Purge filters" Tag="Vis_PurgeFilters" Click="Cmd_Click"
+                                        ToolTip="Delete every 'STING VIS - ' view filter from the project"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- AI SMART SELECT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚡ AI SMART SELECT"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF9800">

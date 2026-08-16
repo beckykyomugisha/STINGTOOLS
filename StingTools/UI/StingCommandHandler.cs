@@ -769,6 +769,21 @@ namespace StingTools.UI
                     case "ViewReveal": ViewRevealHidden(app); break;
                     case "ViewReset": ViewResetIsolate(app); break;
 
+                    // ── Visibility Center (category + ISO tag token show/hide) ──
+                    // Supersedes the four selection-based cases above for rule-driven work;
+                    // those keep working unchanged for "hide what I have selected".
+                    case "Vis_OpenDropdown": RunCommand<Commands.Visibility.OpenVisibilityDropdownCommand>(app); break;
+                    // Ribbon Hub / QAT launch — floating under the cursor, never anchored to
+                    // the dock panel even when the panel is open.
+                    case "Vis_OpenFloating": RunCommand<Commands.Visibility.OpenVisibilityDropdownFloatingCommand>(app); break;
+                    case "Vis_Apply": RunCommand<Commands.Visibility.ApplyVisibilityCommand>(app); break;
+                    case "Vis_Isolate": RunCommand<Commands.Visibility.IsolateVisibilityCommand>(app); break;
+                    case "Vis_ResetAll": RunCommand<Commands.Visibility.ResetVisibilityCommand>(app); break;
+                    case "Vis_PurgeFilters": RunCommand<Commands.Visibility.PurgeVisibilityFiltersCommand>(app); break;
+                    case "Vis_ApplyToTemplate": RunCommand<Commands.Visibility.ApplyVisibilityToTemplateCommand>(app); break;
+                    case "Vis_SavePreset": RunCommand<Commands.Visibility.SaveVisibilityPresetCommand>(app); break;
+                    case "Vis_LoadPreset": RunCommand<Commands.Visibility.LoadVisibilityPresetCommand>(app); break;
+
                     // ── Selection ops (inline) ──
                     case "SelectAll": SelectAllVisible(app); break;
                     case "SelectClear": ClearSelection(app); break;
