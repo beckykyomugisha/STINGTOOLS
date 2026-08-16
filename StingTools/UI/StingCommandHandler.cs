@@ -768,6 +768,9 @@ namespace StingTools.UI
                     // Supersedes the four selection-based cases above for rule-driven work;
                     // those keep working unchanged for "hide what I have selected".
                     case "Vis_OpenDropdown": RunCommand<Commands.Visibility.OpenVisibilityDropdownCommand>(app); break;
+                    // Ribbon Hub / QAT launch — floating under the cursor, never anchored to
+                    // the dock panel even when the panel is open.
+                    case "Vis_OpenFloating": RunCommand<Commands.Visibility.OpenVisibilityDropdownFloatingCommand>(app); break;
                     case "Vis_Apply": RunCommand<Commands.Visibility.ApplyVisibilityCommand>(app); break;
                     case "Vis_Isolate": RunCommand<Commands.Visibility.IsolateVisibilityCommand>(app); break;
                     case "Vis_ResetAll": RunCommand<Commands.Visibility.ResetVisibilityCommand>(app); break;

@@ -193,12 +193,39 @@ namespace StingTools.Commands.Visibility
             try
             {
                 StingTools.UI.VisibilityCenter.VisibilityDropdownHost.ShowWindow(
-                    VisibilityCommandHelper.ResolveApp(cmd));
+                    VisibilityCommandHelper.ResolveApp(cmd), preferFloating: false);
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 StingLog.Error("OpenVisibilityDropdownCommand", ex);
+                msg = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Same dropdown, launched from the ribbon Hub or the Quick Access Toolbar. Separate from
+    /// <see cref="OpenVisibilityDropdownCommand"/> only so the launch SOURCE picks the
+    /// presentation: a click at the top of the screen opens a floating panel under the cursor,
+    /// while the SELECT-tab button keeps its anchored popup. Same content either way.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class OpenVisibilityDropdownFloatingCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            try
+            {
+                StingTools.UI.VisibilityCenter.VisibilityDropdownHost.ShowWindow(
+                    VisibilityCommandHelper.ResolveApp(cmd), preferFloating: true);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OpenVisibilityDropdownFloatingCommand", ex);
                 msg = ex.Message;
                 return Result.Failed;
             }

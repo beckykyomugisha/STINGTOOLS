@@ -3229,7 +3229,7 @@ namespace StingTools.Core
     public class HubVisibilityCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => HubDispatcher.Run(data, "Vis_OpenDropdown", ref message);
+            => HubDispatcher.Run(data, "Vis_OpenFloating", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

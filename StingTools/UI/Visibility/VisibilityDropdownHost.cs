@@ -27,7 +27,14 @@ namespace StingTools.UI.VisibilityCenter
         private static VisibilityDropdown _content;
 
         /// <summary>Harvest on the current (API) thread, then show the popup on the UI thread.</summary>
-        public static void ShowWindow(UIApplication app)
+        /// <param name="preferFloating">
+        /// True when the launch came from the ribbon Hub or the Quick Access Toolbar. Those
+        /// launches must NOT anchor to the dock panel even when it happens to be open: the
+        /// user clicked something at the top of the screen, so a popup that appears docked to
+        /// the right-hand panel reads as the wrong window opening. Anchor to the panel only
+        /// when the click came FROM the panel.
+        /// </param>
+        public static void ShowWindow(UIApplication app, bool preferFloating = false)
         {
             // Callers must resolve this via VisibilityCommandHelper.ResolveApp — on a panel or
             // Hub dispatch ExternalCommandData is null by design, so cmd.Application alone
@@ -63,7 +70,7 @@ namespace StingTools.UI.VisibilityCenter
             // without it defeats the point of pinning this to the Quick Access Toolbar —
             // the QAT is for reaching a tool WITHOUT first opening a panel. When there is
             // no panel to anchor to, show the same content in a small modeless window.
-            var panel = StingDockPanel.LastInstance;
+            var panel = preferFloating ? null : StingDockPanel.LastInstance;
             try
             {
                 if (panel != null)
@@ -99,7 +106,10 @@ namespace StingTools.UI.VisibilityCenter
                     SizeToContent = SizeToContent.WidthAndHeight,
                     ResizeMode = ResizeMode.NoResize,
                     ShowInTaskbar = false,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                    // Manual, not CenterOwner: this stands in for a dropdown hanging off the
+                    // button the user just clicked, so it belongs under the cursor at the top
+                    // of the screen — centring it on Revit reads as an unrelated dialog.
+                    WindowStartupLocation = WindowStartupLocation.Manual
                 };
                 // Own it to Revit's main window via the SUPPORTED handle
                 // (UIApplication.MainWindowHandle), not Autodesk.Windows —
@@ -118,7 +128,50 @@ namespace StingTools.UI.VisibilityCenter
             if (_popup != null && _popup.Child == _content) _popup.Child = null;
             _window.Content = _content;
             _window.Show();
+            PositionUnderCursor(_window);
             _window.Activate();
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct POINT { public int X; public int Y; }
+
+        /// <summary>
+        /// Drop the window just below-left of the cursor, then pull it back on-screen if that
+        /// would push it off. Positioned AFTER Show() because SizeToContent means the real
+        /// width/height are unknown until the first layout pass, and clamping needs them.
+        /// </summary>
+        private static void PositionUnderCursor(Window win)
+        {
+            try
+            {
+                POINT p;
+                if (!GetCursorPos(out p)) return;
+
+                // GetCursorPos is in physical pixels; WPF Left/Top are device-independent.
+                var src = System.Windows.Interop.HwndSource.FromVisual(win) as System.Windows.Interop.HwndSource;
+                double sx = 1.0, sy = 1.0;
+                if (src?.CompositionTarget != null)
+                {
+                    var m = src.CompositionTarget.TransformFromDevice;
+                    sx = m.M11; sy = m.M22;
+                }
+
+                double left = (p.X * sx) - 40;   // slight left bias so the cursor sits over the window
+                double top  = (p.Y * sy) + 14;   // clear of the ribbon button itself
+
+                double maxL = SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth  - win.ActualWidth  - 8;
+                double maxT = SystemParameters.VirtualScreenTop  + SystemParameters.VirtualScreenHeight - win.ActualHeight - 8;
+
+                win.Left = Math.Max(SystemParameters.VirtualScreenLeft + 8, Math.Min(left, maxL));
+                win.Top  = Math.Max(SystemParameters.VirtualScreenTop  + 8, Math.Min(top,  maxT));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Info($"PositionUnderCursor: {ex.Message}");
+            }
         }
 
         private static void ShowPopup(StingDockPanel panel, TokenHarvest harvest)
