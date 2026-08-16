@@ -41,6 +41,7 @@
     <!-- MAT-SCHED — Document-free material-schedule engine. -->
     <Compile Include="..\StingTools\Core\MaterialSchedule\MaterialScheduleModel.cs" Link="MaterialSchedule\MaterialScheduleModel.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\SupplierUnitConverter.cs" Link="MaterialSchedule\SupplierUnitConverter.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityRateResolver.cs" Link="MaterialSchedule\CommodityRateResolver.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,6 +56,11 @@
     </None>
     <!-- MAT-SCHED — the shipped commodity rule table, parsed by the real POCO. -->
     <None Include="..\StingTools\Data\STING_SUPPLIER_UNITS.json" Link="Data\STING_SUPPLIER_UNITS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- MAT-SCHED — the shipped commodity price list; the seam test proves every
+         measurable commodity is also priceable. -->
+    <None Include="..\StingTools\Data\STING_COMMODITY_RATES.csv" Link="Data\STING_COMMODITY_RATES.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

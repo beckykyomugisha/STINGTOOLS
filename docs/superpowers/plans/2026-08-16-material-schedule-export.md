@@ -909,7 +909,7 @@ git commit -m "feat(material-schedule): supplier-unit conversion with visible wa
 
 No commodity rates exist anywhere in the codebase: both rate CSVs key on Revit *category*, so `ResolveConstituentRate` returns `(0, "None", 20)` for every constituent. An unpriced commodity must stay visibly unpriced — never borrow a neighbour's rate.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `StingTools.Boq.Tests/CommodityRateResolverTests.cs`:
 
@@ -978,7 +978,7 @@ namespace StingTools.Boq.Tests
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~CommodityRateResolverTests"
@@ -986,7 +986,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: build failure — `The name 'CommodityRateResolver' does not exist`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `StingTools/Core/MaterialSchedule/CommodityRateResolver.cs`:
 
@@ -1101,13 +1101,13 @@ namespace StingTools.Core.MaterialSchedule
 }
 ```
 
-- [ ] **Step 4: Add to the test project**
+- [x] **Step 4: Add to the test project**
 
 ```xml
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityRateResolver.cs" Link="MaterialSchedule\CommodityRateResolver.cs" />
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~CommodityRateResolverTests"
@@ -1115,7 +1115,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 4`.
 
-- [ ] **Step 6: Create the shipped price list**
+- [x] **Step 6: Create the shipped price list**
 
 Create `StingTools/Data/STING_COMMODITY_RATES.csv`. Rates are the PATMAC sample's own figures — Kampala, mid-2026, indicative only.
 
@@ -1134,7 +1134,7 @@ formwork-timber,m²,7000,Sawn timber formwork per square metre contact area
 concrete-ready,m³,450000,In-situ concrete supplied and placed
 ```
 
-- [ ] **Step 7: Add a shipped-file parse test**
+- [x] **Step 7: Add a shipped-file parse test**
 
 Append to `CommodityRateResolverTests.cs`, inside the class:
 
@@ -1175,7 +1175,7 @@ Append to `CommodityRateResolverTests.cs`, inside the class:
         }
 ```
 
-- [ ] **Step 8: Ship the CSV to test output and plugin data**
+- [x] **Step 8: Ship the CSV to test output and plugin data**
 
 ```xml
     <None Include="..\StingTools\Data\STING_COMMODITY_RATES.csv" Link="Data\STING_COMMODITY_RATES.csv">
@@ -1185,7 +1185,7 @@ Append to `CommodityRateResolverTests.cs`, inside the class:
 
 Add to `StingTools.csproj` data list if it enumerates files individually (see Task 5 Step 8).
 
-- [ ] **Step 9: Run the tests**
+- [x] **Step 9: Run the tests**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~CommodityRateResolverTests"
@@ -1193,7 +1193,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 6`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add StingTools/Core/MaterialSchedule/CommodityRateResolver.cs StingTools/Data/STING_COMMODITY_RATES.csv StingTools.Boq.Tests/CommodityRateResolverTests.cs StingTools.Boq.Tests/StingTools.Boq.Tests.csproj StingTools/StingTools.csproj
