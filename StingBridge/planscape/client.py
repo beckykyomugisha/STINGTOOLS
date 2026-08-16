@@ -395,12 +395,28 @@ class PlanscapeClient:
             log.debug("get_element_timestamps failed (non-fatal): %s", e)
             return {}
 
-    def upload_model(self, project_id: str, glb_path) -> dict:
-        """Upload a GLB file to Planscape /api/projects/{id}/models."""
+    def upload_model(self, project_id: str, glb_path, georef=None) -> dict:
+        """Upload a GLB file to Planscape /api/projects/{id}/models.
+
+        ``georef`` is an optional
+        :class:`stingtools_core.hosts.adapter.GeorefDescriptor`. When supplied
+        with a survey origin, the server turns it into a coordinate transform
+        and — if the coordinates are anchored to a named CRS — applies it
+        automatically, so the model lands in the federation without anyone
+        typing a transform.
+
+        It is passed as METADATA rather than baked into the geometry, matching
+        the Revit path: a site at easting 432,000 m would put every vertex
+        ~432 km from the origin, where 32-bit float mesh coordinates lose
+        millimetre precision.
+        """
         import mimetypes
         from pathlib import Path
         path = Path(glb_path)
         mime = mimetypes.guess_type(str(path))[0] or "model/gltf-binary"
+
+        fields = self._georef_fields(georef)
+
         # The file handle is opened per attempt: a retry after re-auth must
         # re-read from the start, and a consumed handle would upload 0 bytes.
         def _post():
@@ -408,6 +424,9 @@ class PlanscapeClient:
                 return self._session.post(
                     f"{self.base_url}/api/projects/{project_id}/models",
                     files={"file": (path.name, f, mime)},
+                    # Multipart form fields ride alongside the file. Names match
+                    # the server's UploadModelRequest properties exactly.
+                    data=fields or None,
                     # The session sets Content-Type: application/json globally,
                     # which would override the multipart boundary header that
                     # `files=` generates and corrupt the upload. None deletes
@@ -426,6 +445,51 @@ class PlanscapeClient:
             raise PlanscapeAuthError("Token expired or invalid (re-auth failed)")
         resp.raise_for_status()
         return resp.json()
+
+    @staticmethod
+    def _georef_fields(georef) -> dict:
+        """Flatten a GeorefDescriptor into the server's multipart field names.
+
+        Returns an empty dict when there is nothing usable, which is the
+        important case: a model with no survey origin must upload WITHOUT a
+        georef block so the server leaves it at the project origin rather than
+        placing it on a guess. An un-placed model at the origin is visibly
+        un-placed; a mis-placed one looks correct.
+        """
+        if georef is None:
+            return {}
+
+        easting = getattr(georef, "easting", None)
+        northing = getattr(georef, "northing", None)
+        if easting is None or northing is None:
+            return {}
+
+        fields = {
+            "GeorefEastingM": repr(float(easting)),
+            "GeorefNorthingM": repr(float(northing)),
+            # The server treats a Revit-style project-internal export as the
+            # default; IFC geometry is likewise authored about the file's own
+            # origin, with IfcMapConversion describing where that origin sits.
+            "GeorefExportMode": "ProjectInternal",
+        }
+
+        elevation = getattr(georef, "elevation", None)
+        if elevation is not None:
+            fields["GeorefElevationM"] = repr(float(elevation))
+
+        true_north = getattr(georef, "true_north_deg", None)
+        if true_north is not None:
+            fields["GeorefTrueNorthDeg"] = repr(float(true_north))
+
+        crs = getattr(georef, "crs_epsg", None)
+        if crs:
+            fields["GeorefCrsEpsg"] = str(crs)
+
+        unit = getattr(georef, "length_unit", None)
+        if unit:
+            fields["GeorefLengthUnit"] = str(unit)
+
+        return fields
 
     def get_compliance(self) -> dict:
         """GET latest compliance snapshot for the project."""
