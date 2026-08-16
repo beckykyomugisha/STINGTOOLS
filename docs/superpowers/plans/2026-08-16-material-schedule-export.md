@@ -1628,7 +1628,7 @@ git commit -m "feat(material-schedule): stage routing by constituent kind, assig
 
 Ties the previous three together: constituent rows in, stage sections of priced commodities out.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `StingTools.Boq.Tests/CommodityAggregatorTests.cs`:
 
@@ -1774,7 +1774,7 @@ namespace StingTools.Boq.Tests
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~CommodityAggregatorTests"
@@ -1782,7 +1782,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: build failure — `The name 'CommodityAggregator' does not exist`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `StingTools/Core/MaterialSchedule/CommodityAggregator.cs`:
 
@@ -1925,13 +1925,13 @@ namespace StingTools.Core.MaterialSchedule
 }
 ```
 
-- [ ] **Step 4: Add to the test project**
+- [x] **Step 4: Add to the test project**
 
 ```xml
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityAggregator.cs" Link="MaterialSchedule\CommodityAggregator.cs" />
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~CommodityAggregatorTests"
@@ -1939,7 +1939,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 6`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add StingTools/Core/MaterialSchedule/CommodityAggregator.cs StingTools.Boq.Tests/CommodityAggregatorTests.cs StingTools.Boq.Tests/StingTools.Boq.Tests.csproj

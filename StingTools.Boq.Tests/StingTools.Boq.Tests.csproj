@@ -43,6 +43,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\SupplierUnitConverter.cs" Link="MaterialSchedule\SupplierUnitConverter.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityRateResolver.cs" Link="MaterialSchedule\CommodityRateResolver.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\StageMapper.cs" Link="MaterialSchedule\StageMapper.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityAggregator.cs" Link="MaterialSchedule\CommodityAggregator.cs" />
   </ItemGroup>
 
   <ItemGroup>
