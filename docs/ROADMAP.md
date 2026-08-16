@@ -1514,3 +1514,33 @@ core via a service or stay C#).
 
 **Spec:** the R1/R2 implementation plan (work items per codebase, owner decisions D1–D6, phasing, and
 end-to-end acceptance tests) is written up in [`ROUND_TRIP_R1_R2_SPEC.md`](ROUND_TRIP_R1_R2_SPEC.md).
+
+## Federation hardening — open after the A/B/C tracks (2026-08-16)
+
+Follow-ups identified while closing the federation-hardening tracks. Closed items
+are written up in [`COORDINATION_AUDIT_FINDINGS.md`](COORDINATION_AUDIT_FINDINGS.md) PART IV.
+
+- **`IfcController` has no project-membership gate.** It carries `[Authorize]`
+  and checks `Project.TenantId`, but not `[ProjectAccess]` / 
+  `RequireProjectMemberAsync` — the same defect class Track A fixed on
+  `ModelTransform` / `CoordinateSystem` / `Alignment` / `SceneNodes` /
+  `ModelDiff`. Deliberately not fixed in the C3 PR: it was outside the stated
+  scope, and adding the gate changes the plugin's push path for any service
+  account that is not a project member, which needs verification rather than
+  assumption. Same question applies to `TagSyncController` and
+  `FederatedModelController`'s sibling endpoints — audit the whole ingest
+  surface in one pass rather than piecemeal.
+- **`NotificationHub.JoinProject` resolves its tenant off the ambient
+  `ITenantContext`**, which reads `IHttpContextAccessor` — not reliably
+  populated inside a SignalR hub method. It works today; `FederatedModelHub`
+  (Track A2) was given an explicit JWT-derived tenant instead. Align the two.
+- **`ViewStylePack.Checksum` is declared and never computed or verified**
+  (pre-existing; see CLAUDE.md). Wire it or drop it.
+- **`ModelPurgeJob` is unproven against object storage.** The unit tests use a
+  recording stub; a run against real MinIO/S3 (including the deferral path when
+  a delete fails) has not happened.
+- **`RevitGeoref.Read` is unverified against a live Revit document.** It needs a
+  Revit session; the numbers it produces are asserted only from the server side
+  against hand-written inputs.
+- **`docs/PERFECT_PLACEMENT_PROMPT.md` does not exist** despite being cited as
+  the Track B reference. Either write it or stop citing it.
