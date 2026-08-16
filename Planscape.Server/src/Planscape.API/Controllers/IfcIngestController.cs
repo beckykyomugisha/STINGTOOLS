@@ -8,6 +8,7 @@ using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -66,6 +67,7 @@ public class IfcIngestController : ControllerBase
     private readonly Planscape.Core.Interfaces.IIfcAlignmentValidator _alignmentValidator;
     private readonly IHubContext<FederatedModelHub> _modelHub;
     private readonly IHubContext<NotificationHub> _notificationHub;
+    private readonly Planscape.Infrastructure.Services.IModelGeorefWriter _georefWriter;
     private readonly ILogger<IfcIngestController> _logger;
 
     public IfcIngestController(
@@ -76,6 +78,7 @@ public class IfcIngestController : ControllerBase
         Planscape.Core.Interfaces.IIfcAlignmentValidator alignmentValidator,
         IHubContext<FederatedModelHub> modelHub,
         IHubContext<NotificationHub> notificationHub,
+        Planscape.Infrastructure.Services.IModelGeorefWriter georefWriter,
         ILogger<IfcIngestController> logger)
     {
         _db = db;
@@ -85,6 +88,7 @@ public class IfcIngestController : ControllerBase
         _alignmentValidator = alignmentValidator;
         _modelHub = modelHub;
         _notificationHub = notificationHub;
+        _georefWriter = georefWriter;
         _logger = logger;
     }
 
@@ -609,103 +613,35 @@ public class IfcIngestController : ControllerBase
 
     /// <summary>
     /// Gap 4: Create or update a ProjectModelTransform row from IfcMapConversion data.
-    /// The translation is the negative of the survey origin so applying it brings
-    /// georeferenced model coordinates back to the project origin.
-    /// Called automatically during ingest when IfcMapConversion is present.
     ///
-    /// <para>B1 — takes the whole <see cref="IfcAlignmentReport"/> rather than the
-    /// six numbers it needs, because grading the transform's confidence uses the
-    /// evidence AROUND the numbers (projected CRS, verdict) as much as the
-    /// numbers themselves, and splitting them across a long parameter list is how
-    /// the two auto-writers drift apart.</para>
+    /// <para><b>B2 — this now delegates to <see cref="IModelGeorefWriter"/>.</b> The
+    /// translation convention, the metres→mm conversion, the confidence grading
+    /// and the "never overwrite a confirmed transform" rule used to live here as
+    /// one of two copies; the Revit GLB upload path needed the same logic, and a
+    /// third copy is how a building ends up in a different place depending on
+    /// which pipeline last touched it. The behaviour is unchanged — the shared
+    /// writer was built around this method's convention deliberately — but there
+    /// is now exactly one place to change it.</para>
     /// </summary>
     private async Task UpsertProjectModelTransformAsync(
         Guid projectId, Guid projectModelId, Guid tenantId,
         IfcAlignmentReport report, double unitScaleToMm,
         CancellationToken ct)
     {
-        double eastingM   = report.SurveyEasting ?? 0;
-        double northingM  = report.SurveyNorthing ?? 0;
-        double elevationM = report.SurveyElevation ?? 0;
-        double rotationDeg = report.MapConversionRotationDeg ?? 0;
-
         try
         {
-            var existing = await _db.ProjectModelTransforms
-                .FirstOrDefaultAsync(t =>
-                    t.ProjectId == projectId &&
-                    t.ProjectModelId == projectModelId &&
-                    t.TenantId == tenantId, ct);
+            var georef = new ModelGeoref(
+                EastingM      : report.SurveyEasting  ?? 0,
+                NorthingM     : report.SurveyNorthing ?? 0,
+                ElevationM    : report.SurveyElevation ?? 0,
+                TrueNorthDeg  : report.MapConversionRotationDeg ?? 0,
+                CrsCode       : report.CrsName,
+                HasDeclaredCrs: report.HasProjectedCrs,
+                LengthUnit    : report.LengthUnit,
+                SourceLabel   : "ifc-map-conversion");
 
-            // Convert survey origin from metres to mm (project length unit default).
-            double txMm = -eastingM  * 1000.0;   // negate: shift model to project origin
-            double tyMm = -northingM * 1000.0;
-            double tzMm = -elevationM * 1000.0;
-            // Scale correction: if model is in mm (unitScaleToMm=1) but CRS is in m,
-            // apply the inverse as a uniform scale on the transform.
-            double scaleFactor = (unitScaleToMm > 0 && Math.Abs(unitScaleToMm - 1000.0) < 1.0)
-                ? 1.0   // metres — no scale correction needed
-                : 1.0;  // mm — coordinates are already in mm, no scale correction
-
-            // B1 — grade the georeferencing so a trustworthy transform renders
-            // without a coordinator confirming it first. The project's own CRS is
-            // the second acceptable anchor when the file declares no
-            // IfcProjectedCRS of its own.
-            var projectCrs = await _db.ProjectCoordinateSystems.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.ProjectId == projectId && x.TenantId == tenantId, ct);
-
-            var confidence = TransformConfidencePolicy.Evaluate(
-                hasMapConversion : report.HasMapConversion,
-                hasProjectedCrs  : report.HasProjectedCrs,
-                crsMatchesProject: TransformConfidencePolicy.CrsEquivalent(
-                                       report.CrsName, projectCrs?.CrsEpsgCode ?? projectCrs?.CrsName),
-                surveyEasting    : report.SurveyEasting,
-                surveyNorthing   : report.SurveyNorthing,
-                verdict          : report.Verdict);
-
-            bool autoApply = TransformConfidencePolicy.ShouldAutoApply(confidence);
-            string confidenceText = TransformConfidencePolicy.ToStorageString(confidence);
-
-            if (existing != null)
-            {
-                // Only auto-update if not manually confirmed by a coordinator.
-                if (!existing.IsConfirmed)
-                {
-                    existing.TranslationX         = txMm;
-                    existing.TranslationY         = tyMm;
-                    existing.TranslationZ         = tzMm;
-                    existing.RotationDeg          = rotationDeg;
-                    existing.ScaleFactor          = scaleFactor;
-                    existing.IsAutoComputed       = true;
-                    existing.AppliedAutomatically = autoApply;
-                    existing.Confidence           = confidenceText;
-                    existing.Source               = "ifc-map-conversion";
-                    existing.UpdatedAt            = DateTime.UtcNow;
-                    existing.Notes                = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u} (confidence {confidenceText})";
-                }
-            }
-            else
-            {
-                _db.ProjectModelTransforms.Add(new Planscape.Core.Entities.ProjectModelTransform
-                {
-                    TenantId             = tenantId,
-                    ProjectId            = projectId,
-                    ProjectModelId       = projectModelId,
-                    TranslationX         = txMm,
-                    TranslationY         = tyMm,
-                    TranslationZ         = tzMm,
-                    RotationDeg          = rotationDeg,
-                    ScaleFactor          = scaleFactor,
-                    IsAutoComputed       = true,
-                    IsConfirmed          = false,
-                    AppliedAutomatically = autoApply,
-                    Confidence           = confidenceText,
-                    Source               = "ifc-map-conversion",
-                    AppliedAt            = DateTime.UtcNow,
-                    Notes                = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u} (confidence {confidenceText})",
-                });
-            }
-            await _db.SaveChangesAsync(ct);
+            var confidence = await _georefWriter.WriteAsync(
+                projectId, projectModelId, tenantId, georef, report.Verdict, ct);
 
             // Gap 14: Write an audit log entry for the coordinate correction.
             try
@@ -713,21 +649,18 @@ public class IfcIngestController : ControllerBase
                 await _audit.LogAsync("TRANSFORM_UPSERT", "ProjectModelTransform", projectModelId.ToString(),
                     System.Text.Json.JsonSerializer.Serialize(new {
                         projectId,
-                        translationXMm = txMm, translationYMm = tyMm, translationZMm = tzMm,
-                        rotationDeg, scaleFactor,
+                        surveyEastingM  = report.SurveyEasting,
+                        surveyNorthingM = report.SurveyNorthing,
+                        rotationDeg     = report.MapConversionRotationDeg ?? 0,
                         source = "IfcMapConversion",
                         autoComputed = true,
                         // B1 — a model that MOVES on its own must say so in the
                         // audit trail, and say what it was trusting when it did.
-                        confidence = confidenceText,
-                        appliedAutomatically = autoApply,
+                        confidence = TransformConfidencePolicy.ToStorageString(confidence),
+                        appliedAutomatically = TransformConfidencePolicy.ShouldAutoApply(confidence),
                     }));
             }
             catch { /* audit failure is non-fatal */ }
-
-            _logger.LogInformation(
-                "Gap 4: upserted ProjectModelTransform for model {ModelId}: T=({Tx:F1},{Ty:F1},{Tz:F1})mm rot={Rot:F2}°",
-                projectModelId, txMm, tyMm, tzMm, rotationDeg);
         }
         catch (Exception ex)
         {
