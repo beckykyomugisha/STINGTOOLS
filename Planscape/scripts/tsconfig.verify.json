@@ -1,0 +1,18 @@
+{
+  "//": "#624 — minimal transpile of the RN-free message module so scripts/verify-cde-transition-messages.mjs can exercise the REAL code rather than a hand-copied transcription of it. Output is gitignored.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "rootDir": "../src",
+    "outDir": "../.verify-out",
+    "baseUrl": "..",
+    "paths": { "@/*": ["src/*"] },
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "files": [
+    "../src/utils/cdeTransitionMessage.ts",
+    "../src/api/apiError.ts"
+  ]
+}
