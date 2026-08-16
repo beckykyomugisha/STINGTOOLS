@@ -2,6 +2,17 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Licensing — after the Phase 234 self-serve pass (2026-08-16)
+
+| ID | Item | Detail |
+|---|---|---|
+| LIC-1 | **`issue.ts` has never been exercised by a signed-in user in production** | It is covered locally — `tests/license.test.ts` mints a real HS256 JWT and calls the handler against a real D1, and passes. Production's `LICENSE_PRIVATE_KEY` is separately proven able to sign (a locally-signed licence verified against the deployed `present.ts`). The unverified sliver is only "a real user's JWT is accepted by the deployed endpoint", which is generic `requireAuth`. **The `/licences` page is the test** — first real use exercises it, with an error message the user can actually read. Four attempts at a scripted production run produced no D1 row and no recoverable error output. |
+| LIC-2 | **The `/licences` page has never run against production** | There is no UI harness for the static pages. It was verified in a browser against fixtures (all four status branches; the #677 expiry guard measured at 0 downloads for an expired licence). The logged-out path — refresh 401 → `/login` — was verified for real. The authenticated view was not. |
+| LIC-3 | **Revoke does not exist** | `licenses.revoked_at` is read by `issue.ts` and `present.ts` and **written nowhere in the codebase**. A dead machine's seat can only be freed by hand in D1, which is what `issue.ts`'s own "contact us to move a licence" message quietly depends on. Deliberately out of Phase 234's scope: it is a destructive billing action needing role gating and a confirm step. Additive when wanted — the page already renders a `revoked` status pill for rows that carry the date. |
+| LIC-4 | **A lapsed trial still passes entitlement and mints a dead licence** | Tracked as #677. `expireTrialIfNeeded` exists and is correct but is called **only** on `/api/auth/me`; every other path reads `getTenantById`, a raw `SELECT` with no expiry applied. So `issue.ts` and both download endpoints see a stale `"trial"`. The page guards against handing over the expired licence, but the row is still written and the downloads are still ungated. Fix belongs at the read, not in the UI. |
+| LIC-5 | **Merging licensing changes ships nothing** | Tracked as #651. `marketing-site` has no git-connected Pages build, so `/licences` and every Function change reach production only when a human runs `npm run deploy`. Compounded by the deploy-time binding behaviour corrected in #674: a secret that `wrangler pages secret list` shows is stored, not bound. |
+| LIC-6 | **Preview and production share one D1** | Tracked as #652 (#644 closed as its duplicate). A preview deployment can issue, revoke and stamp rows in the production `licenses` table — now the billing artefact, since #626 made D1 the sole owner of seat entitlement. |
+
 ## Visibility Center — after the Phase 233 enhancement pass (2026-08-16)
 
 | ID | Item | Detail |

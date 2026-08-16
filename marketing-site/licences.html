@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Licences — Planscape</title>
+<meta name="theme-color" content="#E8912D">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.build/licences">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+.lc-wrap { max-width: 780px; margin: 40px auto; padding: 0 16px; }
+.lc-head h1 { margin: 0 0 4px; font-size: 26px; }
+.lc-head .sub { color: var(--muted); margin: 0 0 20px; }
+.state { display: none; }
+.state.shown { display: block; }
+.spinner { font-size: 28px; text-align: center; padding: 40px 0; }
+.card { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 20px 22px; margin-bottom: 16px; }
+.card h2 { margin: 0 0 2px; font-size: 19px; }
+.card .sub { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+input[type=text] { font-family: Consolas, ui-monospace, monospace; font-size: 15px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; min-width: 280px; text-transform: uppercase; }
+.btn-primary { background: var(--accent); color: #fff; border: 0; padding: 11px 18px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; }
+.btn-primary:hover { background: #d57f1f; }
+.btn-primary[disabled] { opacity: .55; cursor: default; }
+.btn-secondary { background: none; color: var(--ink); border: 1px solid var(--line); padding: 9px 16px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; }
+.err { color: #8b2018; font-size: 14px; margin: 10px 0 0; }
+.ok { border: 1px solid rgba(40,167,69,.35); background: rgba(40,167,69,.07); border-radius: 10px; padding: 14px 16px; margin-top: 14px; font-size: 14px; }
+.stop { border: 1px solid rgba(204,51,34,.3); background: rgba(204,51,34,.07); color: #8b2018; border-radius: 10px; padding: 14px 16px; margin-top: 14px; font-size: 14px; }
+.path { font-family: Consolas, ui-monospace, monospace; background: #faf8f5; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 13px; }
+table.lic { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.lic th, table.lic td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+table.lic th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+table.lic td.mono { font-family: Consolas, ui-monospace, monospace; font-size: 13px; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.pill.active { background: rgba(40,167,69,.12); color: #1e7e34; }
+.pill.expired { background: rgba(90,100,120,.12); color: #56607a; }
+.pill.revoked { background: rgba(204,51,34,.1); color: #8b2018; }
+.note { font-size: 13px; color: var(--muted); margin: 12px 0 0; }
+</style>
+</head>
+<body>
+
+<div class="lc-wrap">
+  <div class="state shown" id="loading"><div class="spinner">◐</div></div>
+
+  <div class="state" id="ready">
+    <div class="lc-head">
+      <h1>Licences</h1>
+      <p class="sub" id="seat-line">—</p>
+    </div>
+
+    <div class="card">
+      <h2>Licence a machine</h2>
+      <p class="sub">Open STING Tools in Revit. The activation window shows a machine
+        code — paste it here.</p>
+      <div class="row">
+        <input type="text" id="code" spellcheck="false" autocomplete="off"
+               placeholder="ADD3-E01C-3412-14C8-175E" maxlength="24">
+        <button type="button" class="btn-primary" id="issue-btn">Get licence</button>
+      </div>
+      <div class="err" id="issue-err" style="display:none"></div>
+      <div id="issue-ok" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <h2>Licensed machines</h2>
+      <table class="lic" id="lic-table">
+        <thead><tr>
+          <th>Machine</th><th>Expires</th><th>Last seen</th><th>Plugin</th>
+          <th>Revit</th><th>Status</th>
+        </tr></thead>
+        <tbody id="lic-body"></tbody>
+      </table>
+      <p class="note" id="lic-empty" style="display:none">No machines licensed yet.</p>
+      <p class="note">A licence file is produced once, when it is issued — we do not
+        keep a copy. Lost it? Enter the same machine code again; that reuses the
+        machine's existing seat rather than spending another.</p>
+    </div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  // Session convention (see downloads.html): mint an access token from the
+  // HttpOnly ps_refresh cookie and keep it in memory only. Never persisted.
+  var accessToken = null;
+  var CODE_RE = /^[0-9A-F]{4}(-[0-9A-F]{4}){4}$/;
+
+  function toLogin(){ window.location.href = '/login'; }
+
+  function fmtDate(iso){
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
+  }
+
+  function statusOf(l){
+    if (l.revokedAt) return 'revoked';
+    return new Date(l.expiresAt).getTime() <= Date.now() ? 'expired' : 'active';
+  }
+
+  function renderList(data){
+    var cap = data.cap;
+    $('seat-line').textContent = cap === null
+      ? data.inUse + (data.inUse === 1 ? ' machine licensed' : ' machines licensed')
+      : data.inUse + ' of ' + cap + ' machines licensed';
+
+    var rows = data.licences || [];
+    $('lic-empty').style.display = rows.length ? 'none' : 'block';
+    $('lic-body').innerHTML = rows.map(function(l){
+      var st = statusOf(l);
+      // "never" is a fact; an empty cell reads as a missing value.
+      var seen = l.lastSeenAt ? fmtDate(l.lastSeenAt) : 'never';
+      return '<tr>' +
+        '<td class="mono">' + esc(l.machineCode) + '</td>' +
+        '<td>' + fmtDate(l.expiresAt) + '</td>' +
+        '<td>' + seen + '</td>' +
+        '<td>' + esc(l.lastSeenPluginVersion || '—') + '</td>' +
+        '<td>' + esc(l.lastSeenRevitVersion || '—') + '</td>' +
+        '<td><span class="pill ' + st + '">' + st + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function loadList(){
+    return fetch('/api/license', { headers: { 'Authorization': 'Bearer ' + accessToken } })
+      .then(function(res){
+        if (res.status === 401) { toLogin(); throw new Error('401'); }
+        if (!res.ok) throw new Error('list');
+        return res.json();
+      })
+      .then(renderList);
+  }
+
+  function saveFile(text){
+    var blob = new Blob([text], { type: 'application/octet-stream' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'StingTools.lic';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function onIssued(data){
+    var expired = new Date(data.expiresAt).getTime() <= Date.now();
+    var ok = $('issue-ok');
+    ok.style.display = 'block';
+
+    if (expired) {
+      // Do NOT hand over a dead licence, and do not overwrite a working one.
+      // A lapsed trial still passes entitlement and mints an expired licence
+      // (issue #677). This is a guard, not the fix.
+      ok.className = 'stop';
+      ok.innerHTML = '<strong>That licence is already expired.</strong> It expired on ' +
+        fmtDate(data.expiresAt) + ', because this account\'s trial has ended. ' +
+        'We have not downloaded it — installing it would replace a working licence ' +
+        'with a dead one. <a href="/account">Choose a plan</a>, then try again.';
+      return;
+    }
+
+    ok.className = 'ok';
+    ok.innerHTML = '<strong>Licence issued for ' + esc(data.machineCode) + '</strong> — ' +
+      'valid until ' + fmtDate(data.expiresAt) + '. Your download should have started.' +
+      '<div style="margin-top:10px"><button type="button" class="btn-secondary" id="again-btn">Download again</button> ' +
+      '<button type="button" class="btn-secondary" id="copy-btn">Copy licence text</button></div>' +
+      '<p class="note">Save it as <span class="path">C:\\ProgramData\\Planscape\\StingTools\\StingTools.lic</span>, ' +
+      'then restart Revit.</p>';
+
+    saveFile(data.license);
+    $('again-btn').addEventListener('click', function(){ saveFile(data.license); });
+    $('copy-btn').addEventListener('click', function(){
+      navigator.clipboard.writeText(data.license).then(function(){
+        $('copy-btn').textContent = 'Copied';
+      }, function(){ $('copy-btn').textContent = 'Copy failed'; });
+    });
+  }
+
+  function issue(){
+    var code = $('code').value.trim().toUpperCase();
+    var err = $('issue-err');
+    err.style.display = 'none';
+    $('issue-ok').style.display = 'none';
+
+    if (!CODE_RE.test(code)) {
+      err.style.display = 'block';
+      err.textContent = 'That machine code doesn\'t look right. It appears in the ' +
+        'plugin as five groups of four, like ADD3-E01C-3412-14C8-175E.';
+      return;
+    }
+
+    var btn = $('issue-btn');
+    btn.disabled = true; btn.textContent = 'Issuing…';
+
+    fetch('/api/license/issue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken },
+      body: JSON.stringify({ machineCode: code })
+    }).then(function(res){
+      if (res.status === 401) { toLogin(); throw new Error('401'); }
+      return res.json().then(function(body){ return { ok: res.ok, body: body }; });
+    }).then(function(r){
+      if (!r) return;
+      if (!r.ok) {
+        // The server's message is written for the customer (seat cap, locked
+        // account). Show it rather than inventing our own.
+        err.style.display = 'block';
+        err.textContent = (r.body && r.body.error) || 'Could not issue a licence.';
+        return;
+      }
+      onIssued(r.body);
+      return loadList();
+    }).catch(function(e){
+      if (String(e.message) === '401') return;
+      err.style.display = 'block';
+      err.textContent = 'Could not reach the licensing service. Please try again.';
+    }).then(function(){
+      btn.disabled = false; btn.textContent = 'Get licence';
+    });
+  }
+
+  $('issue-btn').addEventListener('click', issue);
+  $('code').addEventListener('keydown', function(e){ if (e.key === 'Enter') issue(); });
+
+  fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' })
+    .then(function(res){
+      if (!res.ok) throw new Error('refresh');
+      return res.json();
+    })
+    .then(function(j){
+      accessToken = j && j.token;
+      if (!accessToken) throw new Error('no token');
+      return loadList();
+    })
+    .then(function(){
+      $('loading').classList.remove('shown');
+      $('ready').classList.add('shown');
+    })
+    .catch(function(){ toLogin(); });
+})();
+</script>
+</body>
+</html>
