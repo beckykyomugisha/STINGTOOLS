@@ -2,6 +2,72 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 234 — self-serve licences, and the licensing chain proven end to end)
+
+`POST /api/license/issue` had been implemented, deployed and working for weeks. **Nothing called
+it**, and the production `licenses` table had never held a customer row. This phase verified the
+chain, then gave the endpoint a client.
+
+**1 — `LICENSE_PRIVATE_KEY` was never set, and setting it was not enough.** `present.ts` returned
+`500 "Licensing is not configured."` The secret was absent from `wrangler pages secret list` for
+both environments. Setting it changed nothing: **Pages Functions capture their bindings at
+deployment time**, so a new secret does not reach a running deployment. A redeploy of a
+byte-identical tree (`git diff a227528 HEAD -- marketing-site` was empty) flipped the endpoint to
+`400`. The `wrangler.toml` note claiming "No redeploy required — Pages secrets are runtime
+bindings" was measured false and corrected (#674, PR #675).
+
+**2 — The production key was proven able to sign, without a login.** A licence signed locally with
+`StingTools.LicenseIssuer/private.pem` was presented to the deployed endpoint and returned
+`404 "We have no record of that licence"` — `verifyLicense` re-signed the payload with the live
+`LICENSE_PRIVATE_KEY` and got a byte-identical signature. That proves the uploaded key parses,
+verifies, and matches `LicensePublicKey.cs`, which the `openssl rsa -pubout` comparison had already
+predicted (both public moduli hash to `07fbb290…`).
+
+**3 — `last_seen_at` moves.** Measured against the row, not the response: `null` →
+`2026-08-16T17:54:29.907Z`, plugin and Revit versions stamped, `updated_at` correctly **untouched**
+(being observed is not a change to the licence), and `audit_log` got `license.first_seen` rather
+than the routine `license.presented`. `matchesRecord: true` confirms the second-granularity
+reconciliation between the payload's unix seconds and the row's millisecond ISO string.
+
+**4 — The plugin handed users the wrong machine code.** `ActivationDialog` showed
+`LicenseGate.MachineCode` — that is `MachineFingerprint.Current`, MachineGuid **plus three WMI
+factors** that fail transiently and flip the code (the documented `5AAF` ↔ `ADD3` lockouts). Every
+licence issued from a pasted dialog code was fragile by construction. Now shows
+`MachineFingerprint.Stable`. `LicenseGate.VerifyEither` already accepted either, so no migration.
+
+**5 — The page.** New `/licences`: paste a machine code, get a `.lic`, see every licensed machine
+with expiry and last-seen. Backed by a new `GET /api/license` that reports `cap`/`inUse` from
+`resolveCap` + `countLicensedSeats` — **the same pair `issue.ts` gates on**, so the page cannot
+contradict a refusal. A test asserts `body.inUse === await seats(h)` to keep it that way.
+
+| File | Purpose |
+|---|---|
+| `marketing-site/functions/api/license/index.ts` | `GET /api/license` — tenant's licences + `cap`/`inUse` |
+| `marketing-site/licences.html` | The `/licences` page |
+| `StingTools/UI/ActivationDialog.cs` | Stable machine code + link to the page |
+
+**Contracts worth knowing**
+- **The signed licence text is never persisted.** `issue.ts` writes the row only, so a `.lic` exists
+  exactly once — in the response that mints it. There is no "download again" to build. Recovery is
+  re-issue, which reuses the seat via `ON CONFLICT(tenant_id, machine_code) DO UPDATE`.
+- **`cap: null` means unlimited** — `Infinity` is not JSON, matching `present.ts`'s
+  `licencesIncluded`.
+- **Revoked and expired rows are returned** so a user can see why a seat is or is not consumed;
+  `countLicensedSeats` excludes them from `inUse` and the endpoint does not re-implement that rule.
+- **No `_redirects` rule for `/licences`** — Pages auto-canonicalises `.html`, and a rule loops.
+
+**Verification.** `npm test` 11/11 (miniflare, real D1, real HS256 JWTs); `npm run typecheck` clean;
+`dotnet build -c Release` 0/0; CI 9/9. The page was rendered in a browser against fixtures — all
+four status branches, and the #677 expiry guard measured: an expired licence fires **0** downloads
+and offers no download button, a valid one fires exactly 1.
+
+Also merged PR #626 (retires the per-user quota axes, closes #619) and closed #644 as a duplicate
+of #652. Filed #673, #674, #677. Spec and plan:
+[`superpowers/specs/2026-08-16-licences-page-design.md`](superpowers/specs/2026-08-16-licences-page-design.md),
+[`superpowers/plans/2026-08-16-licences-self-serve.md`](superpowers/plans/2026-08-16-licences-self-serve.md).
+
+---
+
 #### Completed (Phase 233 — Visibility Center, enhancement pass)
 
 Fixes the gaps found by using the Phase 232 dropdown on a real model. Built to spec in
