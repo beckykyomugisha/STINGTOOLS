@@ -96,6 +96,31 @@ table.lic td.mono { font-family: Consolas, ui-monospace, monospace; font-size: 1
   var accessToken = null;
   var CODE_RE = /^[0-9A-F]{4}(-[0-9A-F]{4}){4}$/;
 
+  // Pasting is the INTENDED route here — the plugin's activation dialog has a
+  // "Copy machine code" button, so the value arrives via the clipboard, and a
+  // clipboard round-trip through a WPF TextBox, a chat window or an email adds
+  // damage the user cannot see: a trailing space, a non-breaking space, a
+  // zero-width character, or an en/em dash substituted for the hyphen.
+  //
+  // Rejecting those looks identical to "the button does nothing", because the
+  // fetch never fires and the only feedback is a line of small red text. Repair
+  // what is unambiguously repairable instead.
+  //
+  // Deliberately NOT stripping unknown characters: an O typed for a 0 should
+  // fail loudly, not be silently deleted into a shorter code that fails for a
+  // confusing reason. Only transport damage is undone.
+  function normaliseCode(raw) {
+    var s = String(raw == null ? '' : raw)
+      // dash lookalikes -> ASCII hyphen (en, em, figure, minus, fullwidth, ...)
+      .replace(/[‐-―−﹘﹣－]/g, '-')
+      // every kind of space, plus zero-width and BOM
+      .replace(/[\s ​‌‍﻿]/g, '')
+      .toUpperCase();
+    // 20 bare hex characters is unambiguous — group it rather than refuse it.
+    if (/^[0-9A-F]{20}$/.test(s)) s = s.match(/.{4}/g).join('-');
+    return s;
+  }
+
   function toLogin(){ window.location.href = '/login'; }
 
   function fmtDate(iso){
@@ -186,15 +211,24 @@ table.lic td.mono { font-family: Consolas, ui-monospace, monospace; font-size: 1
   }
 
   function issue(){
-    var code = $('code').value.trim().toUpperCase();
+    var code = normaliseCode($('code').value);
     var err = $('issue-err');
     err.style.display = 'none';
     $('issue-ok').style.display = 'none';
 
+    // Show the repaired value, so what is validated is what the user can see.
+    $('code').value = code;
+
     if (!CODE_RE.test(code)) {
       err.style.display = 'block';
-      err.textContent = 'That machine code doesn\'t look right. It appears in the ' +
-        'plugin as five groups of four, like ADD3-E01C-3412-14C8-175E.';
+      // Echo what we actually got. "Doesn't look right" alone leaves the user
+      // staring at a field that looks correct to them.
+      err.textContent = code
+        ? 'That machine code doesn\'t look right — we read it as "' + code +
+          '". It should be five groups of four, like ADD3-E01C-3412-14C8-175E. ' +
+          'Copy it from the plugin\'s activation window.'
+        : 'Enter the machine code from the plugin\'s activation window, ' +
+          'like ADD3-E01C-3412-14C8-175E.';
       return;
     }
 
@@ -230,6 +264,12 @@ table.lic td.mono { font-family: Consolas, ui-monospace, monospace; font-size: 1
 
   $('issue-btn').addEventListener('click', issue);
   $('code').addEventListener('keydown', function(e){ if (e.key === 'Enter') issue(); });
+  // Repair on paste as well, so the field shows the clean value at the moment
+  // it arrives instead of only when the button is pressed. setTimeout lets the
+  // pasted text land in the field first.
+  $('code').addEventListener('paste', function(){
+    setTimeout(function(){ $('code').value = normaliseCode($('code').value); }, 0);
+  });
 
   fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' })
     .then(function(res){
