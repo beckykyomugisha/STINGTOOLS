@@ -34,6 +34,8 @@
     <Compile Include="..\StingTools\BOQ\BoqUnits.cs" Link="BoqUnits.cs" />
     <!-- MAT-3 — Document-free compound take-off engine. -->
     <Compile Include="..\StingTools\BOQ\Takeoff\CompoundTakeoff.cs" Link="Takeoff\CompoundTakeoff.cs" />
+    <!-- MAT-SCHED — Document-free material-schedule engine. -->
+    <Compile Include="..\StingTools\Core\MaterialSchedule\MaterialScheduleModel.cs" Link="MaterialSchedule\MaterialScheduleModel.cs" />
   </ItemGroup>
 
   <ItemGroup>

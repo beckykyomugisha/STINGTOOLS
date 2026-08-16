@@ -284,7 +284,7 @@ git commit -m "refactor(boq): extract shared XLSX style helpers for reuse"
 - Modify: `StingTools.Boq.Tests/StingTools.Boq.Tests.csproj`
 - Test: `StingTools.Boq.Tests/MaterialScheduleModelTests.cs`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `StingTools.Boq.Tests/MaterialScheduleModelTests.cs`:
 
@@ -346,7 +346,7 @@ namespace StingTools.Boq.Tests
 }
 ```
 
-- [ ] **Step 2: Wire the engine into the test project**
+- [x] **Step 2: Wire the engine into the test project**
 
 In `StingTools.Boq.Tests/StingTools.Boq.Tests.csproj`, inside the first `<ItemGroup>` that holds the `<Compile Include>` entries, append:
 
@@ -355,7 +355,7 @@ In `StingTools.Boq.Tests/StingTools.Boq.Tests.csproj`, inside the first `<ItemGr
     <Compile Include="..\StingTools\Core\MaterialSchedule\MaterialScheduleModel.cs" Link="MaterialSchedule\MaterialScheduleModel.cs" />
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~MaterialScheduleModelTests"
@@ -363,7 +363,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: build failure — `The type or namespace name 'MaterialSchedule' does not exist in the namespace 'StingTools.Core'`.
 
-- [ ] **Step 4: Write the model**
+- [x] **Step 4: Write the model**
 
 Create `StingTools/Core/MaterialSchedule/MaterialScheduleModel.cs`:
 
@@ -490,7 +490,7 @@ namespace StingTools.Core.MaterialSchedule
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~MaterialScheduleModelTests"
@@ -498,7 +498,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 3`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add StingTools/Core/MaterialSchedule/MaterialScheduleModel.cs StingTools.Boq.Tests/MaterialScheduleModelTests.cs StingTools.Boq.Tests/StingTools.Boq.Tests.csproj
