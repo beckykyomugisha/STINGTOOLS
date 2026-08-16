@@ -75,6 +75,19 @@ namespace StingTools.Commands.Visibility
             VisibilityCommandHelper.Run(cmd, null);   // respect the set's own action
     }
 
+    /// <summary>
+    /// Live apply — fired by the dropdown ~450 ms after the last tick when "Live" is on.
+    /// Identical to Apply except it reports nothing: a dialog per tick would make live
+    /// applying unusable. The footer and the hidden-count badge carry the feedback.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ApplyVisibilityLiveCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els) =>
+            VisibilityCommandHelper.Run(cmd, null, quiet: true);
+    }
+
     /// <summary>Show only what the current set matches.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]

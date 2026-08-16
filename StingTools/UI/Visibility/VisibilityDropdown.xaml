@@ -37,6 +37,10 @@
                 <RadioButton x:Name="rbSaved" DockPanel.Dock="Left" GroupName="VisMode"
                              Content="Saved to view" FontSize="11" Checked="Mode_Changed"
                              ToolTip="Temporary hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints.&#10;&#10;Creates 'STING VIS - ' view filters. Persists in the view and can be pushed to a view template."/>
+                <CheckBox x:Name="chkLive" DockPanel.Dock="Left" Content="Live" IsChecked="True"
+                          FontSize="11" Margin="12,0,8,0" VerticalAlignment="Center"
+                          Checked="Live_Changed" Unchecked="Live_Changed"
+                          ToolTip="Apply each tick straight to the view, about half a second after you stop clicking.&#10;&#10;Off: nothing changes until you press Apply.&#10;Unavailable in 'Saved to view' mode, which mints view filters — one per tick would litter the project."/>
                 <ComboBox x:Name="cboTarget" DockPanel.Dock="Right" Width="118" FontSize="10"
                           SelectedIndex="0" SelectionChanged="Target_Changed">
                     <ComboBoxItem Content="Active view"/>

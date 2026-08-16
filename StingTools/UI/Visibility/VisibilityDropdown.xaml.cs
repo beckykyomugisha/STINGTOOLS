@@ -98,7 +98,49 @@ namespace StingTools.UI.VisibilityCenter
 
         // ── Tick handling ───────────────────────────────────────────────
 
-        private void Row_Click(object sender, RoutedEventArgs e) => UpdateFooter();
+        private void Row_Click(object sender, RoutedEventArgs e) { UpdateFooter(); QueueLiveApply(); }
+
+        // ── Live apply ──────────────────────────────────────────────────
+        //
+        // Ticking a box changes the view directly; the Apply button becomes a confirmation
+        // rather than the only way to make anything happen. Debounced because each apply is a
+        // transaction and a Revit regeneration — All / None / Invert flip dozens of rows in one
+        // gesture, and firing per row would queue dozens of transactions and lock the UI.
+        // One apply lands ~450 ms after the last click instead.
+        private System.Windows.Threading.DispatcherTimer _liveTimer;
+
+        /// <summary>Off for Saved-to-view mode: that path creates ParameterFilterElements, and
+        /// minting filter elements on every tick would litter the project.</summary>
+        private bool LiveEnabled => chkLive?.IsChecked == true && CurrentMode == VisibilityMode.Temporary;
+
+        private void QueueLiveApply()
+        {
+            if (_initialising || !LiveEnabled) return;
+
+            if (_liveTimer == null)
+            {
+                _liveTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = System.TimeSpan.FromMilliseconds(450)
+                };
+                _liveTimer.Tick += (s, e) =>
+                {
+                    _liveTimer.Stop();
+                    if (!LiveEnabled) return;
+                    Snapshot(VisibilityAction.Hide);
+                    ActionRequested?.Invoke("Vis_ApplyLive");
+                };
+            }
+            _liveTimer.Stop();
+            _liveTimer.Start();
+        }
+
+        private void Live_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_initialising) return;
+            if (LiveEnabled) QueueLiveApply();
+            else _liveTimer?.Stop();
+        }
 
         private void All_Click(object sender, RoutedEventArgs e) => SetGroup(sender, g => g.SetAll(true));
         private void None_Click(object sender, RoutedEventArgs e) => SetGroup(sender, g => g.SetAll(false));
@@ -180,8 +222,26 @@ namespace StingTools.UI.VisibilityCenter
         }
 
         /// <summary>Push the current tick state into the session for the API-thread commands.</summary>
+        /// <remarks>
+        /// Ticked categories travel alongside the rules so the apply is DECLARATIVE for
+        /// categories — it states what should be visible as well as what should be hidden.
+        /// Sending only "hide these" is why re-ticking a row never brought it back.
+        /// </remarks>
         public void Snapshot(VisibilityAction action) =>
-            VisibilitySession.Snapshot(CurrentMode, CurrentTarget, BuildRules(action));
+            VisibilitySession.Snapshot(CurrentMode, CurrentTarget, BuildRules(action), VisibleCategoryIds());
+
+        /// <summary>Category ids the user has left ticked — everything they want visible.</summary>
+        private List<int> VisibleCategoryIds()
+        {
+            var ids = new List<int>();
+            foreach (var g in _groups)
+            {
+                if (g.TokenKey != null) continue;           // categories only
+                foreach (var row in g.Checked())
+                    if (row.CategoryId != 0) ids.Add(row.CategoryId);
+            }
+            return ids;
+        }
 
         // ── Live footer ─────────────────────────────────────────────────
 
