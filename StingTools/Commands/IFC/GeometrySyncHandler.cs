@@ -64,57 +64,137 @@ namespace StingTools.Commands.IFC
                 var doc = app?.ActiveUIDocument?.Document;
                 if (doc == null || doc.IsFamilyDocument) return;
 
+                // C1 - CHECK BEFORE DRAINING.
+                //
+                // Draining is destructive: the ids leave the queue and the only
+                // other copy is the local list below. PostGeometryDeltaAsync
+                // returns false immediately when CurrentProjectId is unset, so
+                // draining first meant every edit made before the document was
+                // linked to a project was silently and permanently discarded -
+                // no error, no retry, and the model on the server just quietly
+                // stopped matching the model in Revit.
+                var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                if (client == null || !client.IsConnected)
+                {
+                    StingLog.Info("GeometrySyncHandler: not connected - leaving changes queued for the next save.");
+                    return;
+                }
+                if (client.CurrentProjectId == Guid.Empty)
+                {
+                    StingLog.Info(
+                        "GeometrySyncHandler: this document is not linked to a Planscape project - " +
+                        "leaving changes queued. Publish the model or link the project to start syncing.");
+                    return;
+                }
+
                 var dirtyIds = LiveClashUpdater.DrainGeometrySyncIds(doc);
                 if (dirtyIds.Count == 0) return;
 
-                // Separate additions/modifications from deletions
-                var changedIds = new List<int>();
-                var deletedIds = new List<int>();
-                foreach (int id in dirtyIds)
-                {
-                    if (id < 0) deletedIds.Add(-id);
-                    else        changedIds.Add(id);
-                }
+                // Separate additions/modifications from deletions. The sign IS
+                // the semantics (see GeometrySyncPlan), so it lives in one
+                // tested place rather than being re-derived here.
+                var (changedIds, deletedIds) = GeometrySyncPlan.Partition(dirtyIds);
 
                 // Extract mesh geometry on the Revit API thread (required)
                 var buffers = new List<ClashMeshBuffer>(changedIds.Count);
+                var extractedIds = new List<int>(changedIds.Count);
                 string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
                 foreach (int eid in changedIds)
                 {
                     var buf = TryExtractElement(doc, eid, docGuid);
-                    if (buf != null) buffers.Add(buf);
+                    if (buf != null) { buffers.Add(buf); extractedIds.Add(eid); }
                 }
+                // Only what was actually sendable is worth retrying — an element
+                // that cannot be tessellated would fail again on every save.
+                var attemptedIds = GeometrySyncPlan.BuildRetrySet(extractedIds, deletedIds);
 
                 StingLog.Info($"GeometrySyncHandler: {buffers.Count} changed, {deletedIds.Count} deleted");
 
                 if (buffers.Count == 0 && deletedIds.Count == 0) return;
 
-                // Fire-and-forget: serialise + HTTP off the Revit API thread
+                // Serialise + HTTP off the Revit API thread. Still detached from
+                // the API thread (it must be), but no longer fire-and-FORGET:
+                // the result decides whether the drained ids are dropped or put
+                // back.
                 var capturedBuffers  = buffers;
                 var capturedDeleted  = deletedIds;
+                var capturedAttempts = attemptedIds;
+                var capturedDocGuid  = docGuid;
                 _ = Task.Run(async () =>
                 {
+                    bool delivered = false;
+                    string reason = "unknown";
                     try
                     {
                         byte[] glb = capturedBuffers.Count > 0
                             ? GlbSerializer.Serialize(capturedBuffers)
                             : Array.Empty<byte>();
 
-                        var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
-                        if (client == null || !client.IsConnected) return;
-
-                        await client.PostGeometryDeltaAsync(glb, capturedDeleted);
-                        StingLog.Info($"GeometrySyncHandler: delta uploaded ({glb.Length / 1024} kB, {capturedDeleted.Count} tombstones)");
+                        var c = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                        if (c == null || !c.IsConnected)
+                        {
+                            reason = "connection dropped before the upload started";
+                        }
+                        else
+                        {
+                            // C1 - the return value was previously discarded, so
+                            // a non-2xx, an expired token or an unset project id
+                            // all looked identical to success.
+                            delivered = await c.PostGeometryDeltaAsync(glb, capturedDeleted);
+                            if (delivered)
+                                StingLog.Info($"GeometrySyncHandler: delta uploaded ({glb.Length / 1024} kB, {capturedDeleted.Count} tombstones)");
+                            else
+                                reason = c.LastError ?? "server rejected the delta";
+                        }
                     }
                     catch (Exception ex)
                     {
-                        StingLog.Warn($"GeometrySyncHandler background upload: {ex.Message}");
+                        reason = ex.Message;
                     }
+
+                    if (!delivered) RequeueForRetry(capturedDocGuid, capturedAttempts, reason);
                 });
             }
             catch (Exception ex)
             {
                 StingLog.Error("GeometrySyncHandler.Execute", ex);
+            }
+        }
+
+        /// <summary>
+        /// C1 - put drained ids back so the next save retries them.
+        ///
+        /// <para>Without this a failed upload was terminal: the ids had already
+        /// left the queue, the task's result was discarded, and the elements
+        /// were never considered again. The Revit model and the server model
+        /// diverged permanently, and nothing anywhere said so - the next edit to
+        /// a DIFFERENT element would sync fine, which makes the gap look like it
+        /// never happened.</para>
+        ///
+        /// <para>Re-queued rather than retried in a loop on purpose: the trigger
+        /// is a document save, so the natural retry is the next one. A tight
+        /// retry loop here would hammer an unreachable server from a background
+        /// thread with no backoff and no way for the user to stop it.</para>
+        /// </summary>
+        private static void RequeueForRetry(string docGuid, List<int> elementIds, string reason)
+        {
+            try
+            {
+                if (elementIds == null || elementIds.Count == 0) return;
+                foreach (int id in elementIds)
+                    LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, id));
+
+                StingLog.Warn(
+                    $"GeometrySyncHandler: delta upload failed ({reason}) - " +
+                    $"{elementIds.Count} element(s) re-queued and will retry on the next save.");
+            }
+            catch (Exception ex)
+            {
+                // If even the re-queue fails the changes really are lost, so say
+                // so loudly rather than letting it read as a delivered delta.
+                StingLog.Error(
+                    $"GeometrySyncHandler: delta upload failed AND {elementIds?.Count ?? 0} element(s) " +
+                    "could not be re-queued - these changes will not reach the server.", ex);
             }
         }
 

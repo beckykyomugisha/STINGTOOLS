@@ -32,6 +32,7 @@
          LiveClash*, ClashSession, ClashScheduler, ClashKernel, ClashRun/BcfExport
          commands) since they are Revit-bound. -->
     <Compile Include="..\StingTools\Clash\ClashMeshBuffer.cs"      Link="Clash\ClashMeshBuffer.cs" />
+    <Compile Include="..\StingTools\Clash\GeometrySyncPlan.cs"    Link="Clash\GeometrySyncPlan.cs" />
     <Compile Include="..\StingTools\Clash\MollerSat.cs"            Link="Clash\MollerSat.cs" />
     <Compile Include="..\StingTools\Clash\ObbTree.cs"              Link="Clash\ObbTree.cs" />
     <Compile Include="..\StingTools\Clash\AabbSweep.cs"            Link="Clash\AabbSweep.cs" />

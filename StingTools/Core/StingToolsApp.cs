@@ -202,6 +202,11 @@ namespace StingTools.Core
                 // use clash detection opt out via LIVE_CLASH_TRIGGERS_ENABLED=false
                 // in project_config.json.
                 LiveClashUpdater.Register(application);
+                // C2 - geometry sync has its own updater over ALL model
+                // categories. Registered separately (and unconditionally) so
+                // turning off clash triggers cannot silently stop the federated
+                // model from receiving changes.
+                GeometrySyncUpdater.Register(application);
 
                 // Register the SLD sync updater (IUpdater) — starts disabled. The
                 // SLD panel's "live sync" toggle writes sld_sync_enabled; without
