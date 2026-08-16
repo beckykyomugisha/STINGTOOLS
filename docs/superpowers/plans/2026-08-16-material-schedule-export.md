@@ -1957,7 +1957,7 @@ git commit -m "feat(material-schedule): aggregate constituents into stage sectio
 
 D3 is already structurally impossible (`AmountUGX` is derived). The reconciler covers what cannot be made structural.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `StingTools.Boq.Tests/MaterialScheduleReconcilerTests.cs`:
 
@@ -2080,7 +2080,7 @@ namespace StingTools.Boq.Tests
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~MaterialScheduleReconcilerTests"
@@ -2088,7 +2088,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: build failure — `The name 'Reconciler' does not exist`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `StingTools/Core/MaterialSchedule/Reconciler.cs`:
 
@@ -2231,13 +2231,13 @@ namespace StingTools.Core.MaterialSchedule
 }
 ```
 
-- [ ] **Step 4: Add to the test project**
+- [x] **Step 4: Add to the test project**
 
 ```xml
     <Compile Include="..\StingTools\Core\MaterialSchedule\Reconciler.cs" Link="MaterialSchedule\Reconciler.cs" />
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "FullyQualifiedName~MaterialScheduleReconcilerTests"
@@ -2245,7 +2245,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo --filter "
 
 Expected: `Passed! - Failed: 0, Passed: 7`.
 
-- [ ] **Step 6: Run the whole suite**
+- [x] **Step 6: Run the whole suite**
 
 ```bash
 dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo -v q
@@ -2254,7 +2254,7 @@ dotnet test StingTools.Boq.Tests/StingTools.Boq.Tests.csproj --nologo -v q
 Expected: `Passed! - Failed: 0, Passed: 232` — the 196 baseline plus 36 new
 (Task 4: 3, Task 5: 6, Task 6: 6, Task 7: 8, Task 8: 6, Task 9: 7).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add StingTools/Core/MaterialSchedule/Reconciler.cs StingTools.Boq.Tests/MaterialScheduleReconcilerTests.cs StingTools.Boq.Tests/StingTools.Boq.Tests.csproj
