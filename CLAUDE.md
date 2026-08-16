@@ -596,19 +596,23 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 
 ---
 
-## Visibility Center (Phase 232)
+## Visibility Center (Phases 232 + 233)
 
-**Status**: `StingTools/Core/Visibility/` (8 files) + `Commands/Visibility/VisibilityCommands.cs` + `UI/Visibility/` (4 files) + `Data/STING_VISIBILITY_PRESETS.json`. Spec: [`docs/VISIBILITY_CENTER_RUNNER.md`](docs/VISIBILITY_CENTER_RUNNER.md).
+**Status**: `StingTools/Core/Visibility/` (11 files) + `Commands/Visibility/` (2 files) + `UI/Visibility/` (7 files) + `Data/STING_VISIBILITY_PRESETS.json`. Specs: [`docs/VISIBILITY_CENTER_RUNNER.md`](docs/VISIBILITY_CENTER_RUNNER.md) and [`docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`](docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md).
 
 A dropdown on the **SELECT** tab that shows/hides elements by **category** and by **ISO 19650 tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode (`View.HideElementsTemporary` — session-only, does not print) or **Saved** mode (`ParameterFilterElement` + `SetFilterVisibility` — persists, prints, pushable to a view template). Default is Temporary.
 
 | File | Revit-free | Purpose |
 |---|:--:|---|
-| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` / `VisibilityPresetLibrary` + `VisibilityTokens` |
 | `Core/Visibility/VisibilityPlan.cs` | ✅ | Plan / result / element-snapshot records |
 | `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming |
-| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | Preset JSON load/save/merge (path-agnostic) |
-| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets; 30 s cache |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | Preset JSON load/save/merge + `excludedCategories` (path-agnostic) |
+| `Core/Visibility/VisibilityHarvestModel.cs` | ✅ | `TokenValueTally` / `CategoryTally` / `TokenHarvest` + `TokenHarvest.Rebuild` |
+| `Core/Visibility/VisibilityCategoryTree.cs` | ✅ | Exclusion + `Category.Parent` nesting + Model/Annotation/Imports split |
+| `Core/Visibility/VisibilityState.cs` | ✅ | Read-back records + `VisibilityStateReconciler` + footer / badge text |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets + category metadata; 30 s per-scope cache |
+| `Core/Visibility/VisibilityStateReader.cs` | — | Reads what the view is ALREADY hiding (see below) |
 | `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
 | `Core/Visibility/VisibilityFilterBuilder.cs` | — | Filter creation + binding-blocker detection |
 | `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; only `StingPaths` caller |
@@ -616,6 +620,23 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 **Commands**: `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` · `Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset` — dispatched from `StingCommandHandler` beside the untouched `ViewIsolate` / `ViewHide` / `ViewReveal` / `ViewReset` cases (those hide the *selection*; these hide by *rule*).
 
 **Contracts worth knowing**
+- **The dropdown reads the view's state; it never remembers it.** Rows open in whatever
+  `VisibilityStateReader` found — hidden categories (`GetCategoryHidden`), hiding `STING VIS -`
+  filters (`GetFilters` + `GetFilterVisibility`), and the temporary mode. **Revit has no API to
+  enumerate temporarily hidden elements**: `IsTemporaryHideIsolateActive()` says the mode is on,
+  not what it hid. The candidate set comes from a document-vs-view collector diff and is then
+  confirmed per element with `View.IsElementVisibleInTemporaryViewMode`; anything still
+  unexplained is counted as `OutOfScopeCount`, never as hidden. **Do not add a side-record of
+  "what we hid"** — it desynchronises the instant the user reaches for Revit's own HH/HI.
+- **The document-scoped pass runs only when the cheap sweep proves something is hidden.** A
+  hidden element is absent from a view-scoped collector, so recovering its row needs the wider
+  scan — but nothing hidden means no scan at all.
+- **`Apply` is additive — it hides, it never un-hides.** A re-ticked row is not restored; the
+  supported route is `Vis_ResetAll` then re-apply. Logged as ROADMAP VIS-2.
+- **`excludedCategories` in `STING_VISIBILITY_PRESETS.json`: `null` ≠ `[]`.** Absent means "use
+  the baseline"; an explicit empty list means "exclude nothing". The POCO default must stay
+  `null` or the key becomes impossible to override. `Save` carries it over — presets and
+  exclusions share one file.
 - **`Plan()` writes nothing; `Apply()` writes.** The dropdown footer ("will hide 1,204 of 8,331") calls the Revit-free `VisibilityRuleMatcher.PlanCore`, so it recomputes per tick without the Revit API. This is the compute/present split CLAUDE.md P1 #4 asks for, proven on one feature.
 - **Matching**: values within a rule OR; rules grouped by (kind, token) OR within a group, AND across groups. Mixed `Hide` + `ShowOnly` is rejected with a message, never silently resolved.
 - **`"STING VIS - "` prefix is the cleanup contract** — `Vis_PurgeFilters` and `Vis_ResetAll` find and delete by it, and touch nothing else.
@@ -628,7 +649,8 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 1. Show-only **by category** in Saved mode is reported as a blocker, not implemented — a view filter can only act on the categories it binds to. Temporary mode does it.
 2. The isolate filter is one combined `STING VIS - NOT (isolate)` element; it does not round-trip through `TryParseFilterName` (still purged by prefix).
 3. The UI namespace is `StingTools.UI.VisibilityCenter`, **not** `.Visibility` — the latter shadows `System.Windows.Visibility` inside existing `StingTools.UI` files (`RevitVgEditor`, `BOQCostManagerPanel`).
-4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, 61 passing). The Revit-bound half is not yet exercised in Revit.
+4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, **102 passing**). The Revit-bound half — `VisibilityStateReader` above all — is **not exercised in Revit**; every bug found on this feature so far has lived there. See ROADMAP VIS-1 for the manual check to run before merge.
+5. Under temporary **isolate**, `IsElementVisibleInTemporaryViewMode` answers false for everything outside the isolated set, including elements the view never drew, so the hidden count is an upper bound. Hide mode is exact (ROADMAP VIS-6).
 
 ---
 

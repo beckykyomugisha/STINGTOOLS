@@ -3,6 +3,10 @@
 // The footer is computed with VisibilityRuleMatcher.PlanCore against the already-harvested
 // snapshots. That call is Revit-free, so recomputing on every tick is safe on the WPF
 // thread and costs nothing — which is the whole point of splitting Plan from Apply.
+//
+// Rows open in the state VisibilityStateReader read off the view. They used to default to
+// ticked, which made the panel assert "nothing is hidden" over a view that plainly was, and
+// meant the next Apply was computed from a wrong baseline.
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -17,7 +21,17 @@ namespace StingTools.UI.VisibilityCenter
     {
         private readonly ObservableCollection<VisGroupVm> _groups = new ObservableCollection<VisGroupVm>();
         private TokenHarvest _harvest = new TokenHarvest();
+        private VisibilityReadback _readback;
         private bool _initialising;
+
+        /// <summary>
+        /// Signature of the rule set the dropdown OPENED with. Rows now open unticked when the
+        /// view is already hiding them, so on open BuildRules is non-empty — and without this
+        /// the footer would read "Will hide 1,204 elements" about elements that are already
+        /// hidden. While the ticks still match what was read, the footer reports the view's
+        /// state; the moment the user changes one, it switches to the plan.
+        /// </summary>
+        private string _openingRuleKey = string.Empty;
 
         /// <summary>Raised when the user asks for an action; the host closes the popup and dispatches.</summary>
         public event System.Action<string> ActionRequested;
@@ -29,38 +43,41 @@ namespace StingTools.UI.VisibilityCenter
         }
 
         /// <summary>
-        /// Fill from a harvest taken on the Revit API thread. Categories are populated
+        /// Fill from a state read taken on the Revit API thread. Categories are populated
         /// immediately; token groups stay collapsed and fill on first expand.
         /// </summary>
-        public void Load(TokenHarvest harvest)
+        /// <param name="readback">
+        /// What the view is ALREADY hiding. Null is accepted — it means "state unknown", and
+        /// every row falls back to ticked. Passing null routinely would reinstate the bug this
+        /// parameter exists to fix, so callers should read the state.
+        /// </param>
+        public void Load(TokenHarvest harvest, VisibilityReadback readback = null)
         {
             _initialising = true;
             try
             {
                 _harvest = harvest ?? new TokenHarvest();
+                _readback = readback;
                 _groups.Clear();
 
-                var cats = new VisGroupVm { TokenKey = null, Header = "CATEGORIES", IsExpanded = true, IsLoaded = true };
-                foreach (var c in _harvest.Categories)
-                    cats.Rows.Add(new VisRowVm { Key = c.Name, CategoryId = c.CategoryId, Count = c.Count });
-                cats.ApplySearch(null);
-                _groups.Add(cats);
-
-                foreach (var token in VisibilityTokens.All)
-                {
-                    _groups.Add(new VisGroupVm
-                    {
-                        TokenKey = token,
-                        Header = VisibilityTokens.Label(token),
-                        IsExpanded = false,
-                        IsLoaded = false
-                    });
-                }
+                foreach (var g in VisibilityGroupBuilder.BuildCategoryGroups(_harvest, _readback))
+                    _groups.Add(g);
+                foreach (var g in VisibilityGroupBuilder.BuildTokenGroups(_harvest, _readback))
+                    _groups.Add(g);
             }
             finally { _initialising = false; }
 
+            _openingRuleKey = RuleKey(BuildRules(VisibilityAction.Hide));
             UpdateFooter();
         }
+
+        /// <summary>Order-independent signature of a rule set, for "has the user changed anything".</summary>
+        private static string RuleKey(IEnumerable<VisibilityRule> rules) =>
+            string.Join("|", rules
+                .Select(r => r.Kind == VisibilityRuleKind.Category
+                    ? "C:" + r.CategoryId
+                    : "T:" + r.TokenKey + "=" + string.Join(",", (r.Values ?? new List<string>()).OrderBy(v => v)))
+                .OrderBy(s => s, System.StringComparer.Ordinal));
 
         // ── Group population + search ───────────────────────────────────
 
@@ -69,10 +86,7 @@ namespace StingTools.UI.VisibilityCenter
             var group = (sender as FrameworkElement)?.DataContext as VisGroupVm;
             if (group == null || group.IsLoaded) return;
 
-            foreach (var v in _harvest.ValuesFor(group.TokenKey))
-                group.Rows.Add(new VisRowVm { Key = v.Value, Count = v.Count });
-
-            group.IsLoaded = true;
+            VisibilityGroupBuilder.PopulateTokenRows(group, _harvest, _readback);
             group.ApplySearch(txtSearch.Text);
         }
 
@@ -98,9 +112,7 @@ namespace StingTools.UI.VisibilityCenter
             // All/None/Invert on a group the user never expanded still needs its rows.
             if (!group.IsLoaded && group.TokenKey != null)
             {
-                foreach (var v in _harvest.ValuesFor(group.TokenKey))
-                    group.Rows.Add(new VisRowVm { Key = v.Value, Count = v.Count });
-                group.IsLoaded = true;
+                VisibilityGroupBuilder.PopulateTokenRows(group, _harvest, _readback);
                 group.ApplySearch(txtSearch.Text);
             }
 
@@ -133,12 +145,14 @@ namespace StingTools.UI.VisibilityCenter
 
             foreach (var g in _groups)
             {
-                if (!g.IsLoaded || g.Rows.Count == 0) continue;
+                if (!g.IsLoaded) continue;
+                int total = g.AllRows().Count();
+                if (total == 0) continue;
 
                 var picked = action == VisibilityAction.Hide ? g.Unchecked() : g.Checked();
                 if (picked.Count == 0) continue;
                 // Everything ticked = no constraint from this group.
-                if (action == VisibilityAction.ShowOnly && picked.Count == g.Rows.Count) continue;
+                if (action == VisibilityAction.ShowOnly && picked.Count == total) continue;
 
                 if (g.TokenKey == null)
                 {
@@ -176,10 +190,16 @@ namespace StingTools.UI.VisibilityCenter
             if (txtFooter == null) return;
 
             var rules = BuildRules(VisibilityAction.Hide);
-            if (rules.Count == 0)
+
+            // Nothing NEW is selected — report what the view is already doing rather than the
+            // old flat "Nothing hidden", which was false on a filtered view, and rather than
+            // "Will hide N", which would be false about elements already out of sight.
+            if (rules.Count == 0 || RuleKey(rules) == _openingRuleKey)
             {
-                txtFooter.Text = $"Nothing hidden — {_harvest.TotalElements:N0} elements visible. " +
-                                 "Untick something to hide it.";
+                string current = _readback?.Footer();
+                txtFooter.Text = current
+                    ?? $"Nothing hidden — {_harvest.TotalElements:N0} elements visible. " +
+                       "Untick something to hide it.";
                 return;
             }
 

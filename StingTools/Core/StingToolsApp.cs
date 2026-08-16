@@ -2751,6 +2751,35 @@ namespace StingTools.Core
                     catch (Exception innerEx) { StingLog.Warn($"BuildHubPanel AddItem '{b.Name}': {innerEx.Message}"); }
                 }
             }
+
+            CaptureVisibilityHubButton(panel);
+        }
+
+        /// <summary>
+        /// Hand the Visibility Center's Hub button to <c>VisibilityBadge</c> so its tooltip can
+        /// carry the hidden-element count. Found by name after the panel is built because
+        /// AddStackedItems/AddItem do not hand back a per-button reference in a shape that
+        /// survives the fallback path.
+        /// </summary>
+        private static void CaptureVisibilityHubButton(RibbonPanel panel)
+        {
+            try
+            {
+                foreach (var item in panel.GetItems())
+                {
+                    var pb = item as PushButton;
+                    if (pb != null && pb.Name == "Hub_Vis_OpenDropdown")
+                    {
+                        UI.VisibilityCenter.VisibilityBadge.RegisterHubButton(pb);
+                        return;
+                    }
+                }
+                StingLog.Info("BuildHubPanel: visibility Hub button not found for badge registration.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CaptureVisibilityHubButton: {ex.Message}");
+            }
         }
     }
 

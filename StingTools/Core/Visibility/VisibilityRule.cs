@@ -115,6 +115,19 @@ namespace StingTools.Core.Visibility
         [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
         public string Description { get; set; }
 
+        /// <summary>
+        /// BuiltInCategory names the category list leaves out — view-management categories
+        /// (Cameras, Views, Section Boxes, Scope Boxes) that are not model content.
+        /// <para><b>null and empty mean different things and the default must stay null.</b>
+        /// null = "this file says nothing", so the corporate baseline (or, failing that,
+        /// <see cref="VisibilityCategoryTreeBuilder.DefaultExclusions"/>) applies. An explicit
+        /// <c>[]</c> = "this project excludes nothing", and must be honoured. Initialising this
+        /// to an empty list would collapse the two and make the key impossible to override —
+        /// exactly the Newtonsoft silent-default failure the preset parser guards against.</para>
+        /// </summary>
+        [JsonProperty("excludedCategories", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> ExcludedCategories { get; set; }
+
         [JsonProperty("presets")]
         public List<VisibilitySet> Presets { get; set; } = new List<VisibilitySet>();
     }

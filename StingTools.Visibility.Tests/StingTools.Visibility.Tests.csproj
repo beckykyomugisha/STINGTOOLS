@@ -22,13 +22,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The four Revit-free files. None references Autodesk.Revit.*, so they compile
-         cleanly against net8.0. VisibilityEngine / TokenValueHarvester / VisibilityFilterBuilder
-         are deliberately NOT linked — they are Revit-bound by design. -->
-    <Compile Include="..\StingTools\Core\Visibility\VisibilityRule.cs"        Link="Visibility\VisibilityRule.cs" />
-    <Compile Include="..\StingTools\Core\Visibility\VisibilityPlan.cs"        Link="Visibility\VisibilityPlan.cs" />
-    <Compile Include="..\StingTools\Core\Visibility\VisibilityRuleMatcher.cs" Link="Visibility\VisibilityRuleMatcher.cs" />
-    <Compile Include="..\StingTools\Core\Visibility\VisibilityPresetStore.cs" Link="Visibility\VisibilityPresetStore.cs" />
+    <!-- The Revit-free files. None references Autodesk.Revit.*, so they compile cleanly
+         against net8.0. VisibilityEngine / TokenValueHarvester / VisibilityStateReader /
+         VisibilityFilterBuilder are deliberately NOT linked — they are Revit-bound by design.
+         VisibilityStateReader in particular is the half no unit test can reach, which is why
+         the reconciliation it feeds was split into VisibilityState.cs. -->
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityRule.cs"          Link="Visibility\VisibilityRule.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityPlan.cs"          Link="Visibility\VisibilityPlan.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityRuleMatcher.cs"   Link="Visibility\VisibilityRuleMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityPresetStore.cs"   Link="Visibility\VisibilityPresetStore.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityHarvestModel.cs"  Link="Visibility\VisibilityHarvestModel.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityCategoryTree.cs"  Link="Visibility\VisibilityCategoryTree.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityState.cs"         Link="Visibility\VisibilityState.cs" />
     <!-- TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
   </ItemGroup>
 
