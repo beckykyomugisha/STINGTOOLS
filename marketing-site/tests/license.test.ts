@@ -516,3 +516,36 @@ test("the list returns only the caller's tenant, never another tenant's machines
   );
   assert.equal(body.inUse, 1, "another tenant's licence must not count here");
 });
+
+test("a revoked licence is listed as revoked and stops consuming a seat", async (t) => {
+  const h = await harness();
+
+  await issue(h, "ADD3-E01C-3412-14C8-175E");
+  assert.equal(await seats(h), 1);
+
+  await h.db
+    .prepare(`UPDATE licenses SET revoked_at = ? WHERE tenant_id = ?`)
+    .bind(new Date().toISOString(), TENANT_ID)
+    .run();
+
+  const body = (await (await list(h)).json()) as ListBody;
+
+  // Visible, so a user can see WHY the seat came back.
+  assert.equal(body.licences.length, 1);
+  assert.notEqual(body.licences[0].revokedAt, null);
+
+  // But not counted — and counted by the same helper, not by this endpoint.
+  assert.equal(body.inUse, 0);
+  assert.equal(body.inUse, await seats(h));
+});
+
+test("the list refuses a caller with no token", async (t) => {
+  const h = await harness();
+  await issue(h, "ADD3-E01C-3412-14C8-175E");
+
+  const res = await callGet(listLicenses, h); // no Authorization header
+  assert.equal(res.status, 401);
+
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /Authorization header/i);
+});
