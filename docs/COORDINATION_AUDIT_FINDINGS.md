@@ -724,3 +724,93 @@ after the geometry GLB push, calls `PushIfcDataAsync(CurrentProjectId, …, host
 So Revit is now a first-class `/ifc/data` producer. Plugin builds against the
 Revit 2025 API (0 errors). Code and docs now AGREE: H-1 = implemented + wired;
 residual = real-Revit runtime validation (checklist).
+
+---
+
+# PART IV — Federation coordinate + hidden-issues re-review (2026-08-16)
+
+**Method:** 6 parallel read-only audits over `main` (post identity-loop merges), verified against source
+on a machine that builds both the .NET server and the Revit plugin. Cross-references the round-trip
+identity review in `docs/ROADMAP.md` and the fix brief `PERFECT_PLACEMENT_PROMPT.md`.
+
+## 12. What changed since 2026-06-03
+
+**Failure line #1 (identity does not round-trip) — NOW RESOLVED.** The 2026-06-03 exec-summary #1
+(Revit sends `UniqueId` in the `ifcGuid` slot, ArchiCAD unverified GUID, resolve returns nothing) is
+closed by the merged round-trip identity work: the IFC GlobalId is now the canonical key end-to-end,
+persisted + deduped + UNIQUE-enforced on the server, Revit preserves the ArchiCAD-origin GlobalId
+instead of re-minting, and the Python hosts reconcile on it. See the ROADMAP round-trip table R1–R8
+(all addressed) — PRs #654 (compliance + review + spec), #655 (persist+emit key + dedup tool), #657
+(Revit preserves GlobalId), #658 (reconcile validation), #659 (GlobalId-first upsert + unique index),
+#660 (stable live doc id). **This part does not re-open identity.**
+
+**Failure line #2 (coordinate transform not applied) — STILL OPEN, now precisely diagnosed.** BLK-2's
+"viewer half" landed (the viewer DOES apply per-model T·R·S — `viewer.html` `applyModelTransform`), but
+the chain still does not produce *correct, automatic* placement. Refined in §13.
+
+**Failure line #3 (live/stubs) — mixed.** Revit is now an `/ifc/data` producer (PART III H-1), but the
+Revit *geometry-delta* path has a newly-surfaced silent-loss reliability defect (§14). ArchiCAD C++
+add-on still a stub; Tekla still has no native producer (Tekla-authored IFC upload is the only route).
+
+## 13. Coordinate placement — the broken chain (producer → wire → server → viewer)
+
+The alignment machinery is sound (`ModelTransformMath` T·R·S; `IfcAlignmentValidator` parses
+`IfcMapConversion`/`IfcProjectedCRS`/true-north; `AutoAlignService`; a viewer that applies per-model
+transforms). It is not wired end-to-end:
+
+| ID | Gap | Sev | Evidence |
+|---|---|---|---|
+| **B1** | **Confirmation gate blocks auto-alignment** — viewer no-ops unless `isConfirmed!==false` (`viewer.html` ~1098); both auto paths store `IsConfirmed=false` (`IfcIngestController` ~670, `AutoAlignService` ~210). A correctly computed transform is never shown until a human manually confirms. **Highest-leverage fix.** | CRIT | as cited |
+| **B2** | **Primary Revit-GLB path computes no transform.** `ModelsController.Upload` (~80-301) writes a `ProjectModel` and nothing else. Revit geometry is exported about the internal origin, project-north, no survey offset, no true-north (`ClashExportContext.cs:53` `Transform.Identity`). The coord sidecar `RevitGltfExporter.ExportCoordinateSidecar` (~497) computes lat/long+north but E/N are null, `exportMode` hardcoded `ProjectInternal`, and it is **never uploaded** (`PublishModelCommand.cs:224`). | CRIT | as cited |
+| **B3** | **Unit reconciliation is dead code** — `IfcIngestController` ~636-640 `scaleFactor` returns `1.0` on both branches; viewer never reads `ProjectModel.Units`. Feet-vs-metric unreconciled. Two Revit GLB writers disagree: `GlbSerializer.cs:19` metres vs `RevitGltfExporter.cs:51` mm (1000×). | HIGH | as cited |
+| **B4** | **Two inconsistent server translation conventions** — IFC ingest = each-model→origin (`tx=-easting*1000`); `AutoAlignService` = relative-to-reference (`tx=(refE-tgtE)*1000`). Both touching one project → two frames. | MED | as cited |
+| **B5** | **StingBridge/core send no georef** — `GeorefDescriptor` (`hosts/adapter.py`) defined but **zero consumers**; `hosts/ifc_file.py:123` reads only `IfcMapConversion` (no CRS/true-north; `length_unit` defaults `"mm"` while E/N are metres); `/models` upload carries no georef; `IfcConvert` output is model-local. | HIGH | as cited |
+| **B6** | **Stale AABBs** — SceneNode world AABBs recomputed only in `ModelTransformController.Upsert`, not after `AutoAlignService`/ingest-auto-transform → server culling/clash bounds disagree with render. | MED | as cited |
+
+**Fix path (ordered) is written up autonomously in `PERFECT_PLACEMENT_PROMPT.md`** (P1 auto-apply
+high-confidence transforms while preserving manual override → P2 Revit alignment source → P3 unit
+reconciliation → P4 StingBridge/core georef → P5 unify conventions + AABB freshness → P6 Tekla-via-IFC).
+
+## 14. Hidden issues surfaced by the federation-mechanics pass
+
+### Security — cross-project (within-tenant) broken access control  ⚠️ (spun off as a task)
+Cross-*tenant* is sound (global `ITenantScoped` filter, fail-closed). But several federation controllers
+carry only `[Authorize]` and filter by tenant, **missing the project-membership check** that
+`ModelsController`/`IfcIngestController` apply (`ControllerProjectMembershipExtensions` documents it as
+mandatory):
+- `ModelTransformController` (~18) — `PUT …/transform` (~87) lets a non-member rewrite another project's placement.
+- `CoordinateSystemController` (~19) — POST/PUT/DELETE `/coordinate-system` (~48-134) exposes+mutates survey origins/CRS.
+- `AlignmentController` (~13) — `/auto-align` (~66).
+- `SceneNodesController` GET `/scene-nodes/{id}/file` (~83) + `/projects/{id}/scene` (~40) — download another project's chunk bytes (tenant- but not project-scoped).
+- `ModelDiffController.Diff` (~16) — tenant-only.
+- `FederatedModelHub.JoinProject` (~18) — **no** membership check (sibling `NotificationHub` ~52-65 has one) → subscribe to another project's live `ModelUpdated` stream.
+- Plus: `AutoAlignService.ComputeAsync` (~199-213) does **not** guard `IsConfirmed` → auto-align silently overwrites a coordinator's confirmed transform (the ingest path guards it; auto-align doesn't).
+
+### Reliability / lifecycle
+- **Revit geometry deltas silently, permanently lost on any failure.** `GeometrySyncHandler` drains the
+  change queue then fires the upload as discard-result `Task.Run`; a transient 500 / offline / expired
+  token drops those element IDs with **no requeue** (`GeometrySyncHandler.cs:106-112`;
+  `PostGeometryDeltaAsync` returns false silently `PlanscapeServerClient.cs:1488,1516`). Server model
+  drifts until a manual `IFC_PushModel`. Nothing surfaces.
+- **Auto-delta only covers 9 categories** (MEP + walls/floors/ceilings/framing/columns —
+  `LiveClashUpdater.cs:101-118`); doors/windows/equipment/fixtures/furniture/generic never auto-push.
+  `LIVE_CLASH_TRIGGERS_ENABLED=false` disables ALL geometry sync while tags keep flowing.
+- **Deletes don't propagate** — ArchiCAD/IFC send no tombstones (`ifc_reconcile.py:287`); Revit only the 9
+  categories. Server ghosts (rows + GLB bytes) accumulate.
+- **No versioning/supersede; orphans accumulate** — model soft-delete (`ModelsController.cs:432`) doesn't
+  cascade to SceneNodes/FederatedElements/bytes; the "30-day purge job" the entity promises
+  (`ProjectModel.cs:74`) **doesn't exist**; deleted models **keep rendering** (scene query ignores
+  `DeletedAt`); the `Force` "new revision" flag is dead. Every `{timestamp}-delta.glb` kept forever.
+- **Upload caps exceed the 200 MB multipart parser** on IFC-ingest (claims 2 GB) and delta (256 MB) →
+  silent HTTP 400 before the handler (`Program.cs:884`; `IfcIngestController.cs:50`; `FederatedModelController.cs:55`).
+- **Delta apply is non-atomic + non-idempotent** (`FederatedModelController.cs:82-143`).
+- **Cross-tool clash doesn't exist** — clash runs only on local Revit geometry; separately-pushed Revit vs
+  ArchiCAD models are never clashed. `FederationLinkedWalker`/`AsBuiltReconciler` are orphaned with
+  misleading docstrings.
+
+## 15. Status snapshot (2026-08-16)
+- Identity round-trip: **RESOLVED** (merged PRs #654–660).
+- Coordinate placement (B1–B6): **OPEN** — fix brief in `PERFECT_PLACEMENT_PROMPT.md`.
+- Security cross-project authz: **OPEN** — highest urgency; spun off as a task.
+- Reliability (geometry silent-loss, deletes, versioning, upload caps): **OPEN**.
+- Tekla native connector: **out of scope** (Tekla-authored IFC upload is the supported route).

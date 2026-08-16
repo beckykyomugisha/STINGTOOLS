@@ -1453,3 +1453,52 @@ core via a service or stay C#).
 
 **Spec:** the R1/R2 implementation plan (work items per codebase, owner decisions D1–D6, phasing, and
 end-to-end acceptance tests) is written up in [`ROUND_TRIP_R1_R2_SPEC.md`](ROUND_TRIP_R1_R2_SPEC.md).
+
+**Status (2026-08-16): the round-trip *identity* axis is CLOSED** — R1.1–R1.4 + 2b (identity), R3
+(compliance), and SB-1b all shipped and merged (PRs #654/#655/#657/#658/#659/#660). What remains open is
+a *different* axis — spatial placement (georeferencing/units/true-north) and federation reliability —
+captured next.
+
+## Federation coordinates, placement & hidden issues (deep review 2026-08-16)
+
+Six-audit review of **spatial** federation (Revit + ArchiCAD + Tekla → Planscape viewer) — distinct from
+the identity work above. Full findings + evidence in [`COORDINATION_AUDIT_FINDINGS.md`](COORDINATION_AUDIT_FINDINGS.md)
+PART IV; the ordered fix brief for a terminal agent is
+[`PERFECT_PLACEMENT_PROMPT.md`](PERFECT_PLACEMENT_PROMPT.md).
+
+**Verdict:** the alignment machinery exists and is sound (`ModelTransformMath`, `IfcAlignmentValidator`,
+`AutoAlignService`, a viewer that applies per-model T·R·S) but is **not wired end-to-end**. Today models
+overlay correctly only if every tool pre-exported in identical shared coordinates + units.
+
+### Coordinate placement gaps (fix brief: `PERFECT_PLACEMENT_PROMPT.md`, P1–P6)
+
+| ID | Gap | Sev | Status |
+|---|---|---|---|
+| **B1** | Confirmation gate blocks auto-alignment — viewer no-ops unless `isConfirmed`; both auto paths store `IsConfirmed=false`, so a correctly computed transform never shows until manually confirmed. **Highest-leverage.** | CRIT | OPEN (P1) |
+| **B2** | Primary Revit-GLB path (`ModelsController.Upload`) computes no transform; geometry exported about internal origin / project-north; the coord sidecar Revit computes is never uploaded. | CRIT | OPEN (P2) |
+| **B3** | Unit reconciliation dead code (`IfcIngestController` `scaleFactor` returns 1.0 both branches); feet-vs-metric unreconciled; two Revit GLB writers disagree (m vs mm). | HIGH | OPEN (P3) |
+| **B4** | Two inconsistent server translation conventions (each-to-origin vs relative-to-reference). | MED | OPEN (P5) |
+| **B5** | StingBridge/core send no georef — `GeorefDescriptor` defined but zero consumers, under-populated, mixes mm/m. | HIGH | OPEN (P4) |
+| **B6** | SceneNode world AABBs recomputed only on manual PUT, not after auto-transform → stale culling/clash bounds. | MED | OPEN (P5) |
+| **Tekla** | No native producer; Tekla-authored IFC upload is the only route (verify + document). | — | out of scope (P6) |
+
+### Hidden issues (separate tracks — NOT in the placement brief)
+
+**Security — cross-project (within-tenant) broken access control (HIGHEST URGENCY; spun off as a task).**
+`ModelTransformController`, `CoordinateSystemController`, `AlignmentController`, `SceneNodesController` GET
+endpoints, `ModelDiffController`, and `FederatedModelHub.JoinProject` carry only `[Authorize]` and filter
+by tenant — **missing the project-membership check** `ModelsController`/`IfcIngestController` apply. A
+member of one project can read/modify another project's transform/CRS/geometry within the same tenant.
+Also: `AutoAlignService` doesn't guard `IsConfirmed`, so auto-align overwrites a coordinator's confirmed
+transform. (Cross-*tenant* is sound.)
+
+**Reliability / lifecycle.**
+- Revit geometry deltas silently, permanently lost on any failure (drain-then-fire-and-forget, no requeue) — `GeometrySyncHandler.cs:106`.
+- Auto-delta covers only 9 categories; `LIVE_CLASH_TRIGGERS_ENABLED=false` disables all geometry sync — `LiveClashUpdater.cs:101`.
+- Deletes don't propagate (no ArchiCAD/IFC tombstones); server ghosts accumulate.
+- No versioning/supersede; soft-delete doesn't cascade; the promised 30-day purge job doesn't exist; deleted models keep rendering; `Force` flag dead.
+- Advertised upload caps (2 GB ingest / 256 MB delta) exceed the 200 MB multipart parser → silent 400s.
+- Delta apply non-atomic + non-idempotent; cross-tool clash absent; `FederationLinkedWalker`/`AsBuiltReconciler` orphaned.
+
+**Recommended sequencing:** (1) security authz fix (small, live bug — task chip filed); (2) placement
+brief P1–P6; (3) reliability track (geometry silent-loss + deletes + versioning).
