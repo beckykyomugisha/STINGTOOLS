@@ -43,9 +43,7 @@
       "roundUpToWhole": true,
       "defaultWastagePct": 5.0,
       "matchKinds": [
-        "blockwork",
-        "units",
-        "infill_block"
+        "block_units"
       ],
       "matchCategories": [],
       "matchTypePatterns": [],
@@ -60,7 +58,7 @@
       "roundUpToWhole": true,
       "defaultWastagePct": 5.0,
       "matchKinds": [
-        "brickwork"
+        "brick_units"
       ],
       "matchCategories": [],
       "matchTypePatterns": [],

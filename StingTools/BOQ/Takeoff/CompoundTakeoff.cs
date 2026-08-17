@@ -39,9 +39,12 @@ namespace StingTools.BOQ.Takeoff
         public double FaceAreaM2;        // one elevation (net) area of the wall
         public bool IsBrick;             // brickwork vs blockwork
         public double UnitsPerM2;        // BRICKS_PER_M2 / BLOCKS_PER_M2
+        /// <summary>RETIRED. Wastage belongs to the supplier-unit rule; leaving it
+        /// here as well double-counted it. Kept so existing callers still compile.</summary>
         public double UnitWastePct;      // cutting waste on the units
         public int PlasterFaces;         // 0 / 1 / 2 plastered faces
         public double PlasterThicknessM; // plaster coat thickness
+        /// <summary>RETIRED — see UnitWastePct.</summary>
         public double PlasterWastePct;
         public double MortarRatioM3PerM2;     // mortar volume per m² of wall
         public double MortarCementBagsPerM3;  // from MORTAR mix (MAT-2)
@@ -129,11 +132,21 @@ namespace StingTools.BOQ.Takeoff
             // 1. The walling itself, measured m² (the QS prices £/m² by type).
             lines.Add(new CompoundLine(masonryKind, $"{masonryWord} wall", "m2", area, SecMasonry));
 
-            // 2. Units (bricks/blocks) nr, incl. cutting waste.
+            // 2. Units (bricks/blocks) nr — NET of waste.
+            //
+            // Wastage lives in ONE place: the supplier-unit rule. It used to be
+            // applied here as well, so blocks and bricks carried cutting waste
+            // twice (engine ~5% then the rule's 5%, ≈10% effective) and nobody
+            // could see which allowance was which.
+            //
+            // Brick and block are DISTINCT kinds. A single "units" kind sent a
+            // brick wall's brick count into the block commodity, so bricks were
+            // ordered as blocks.
             if (m.UnitsPerM2 > 0)
             {
-                double units = area * m.UnitsPerM2 * (1.0 + Math.Max(0, m.UnitWastePct) / 100.0);
-                lines.Add(new CompoundLine("units", m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry));
+                double units = area * m.UnitsPerM2;
+                lines.Add(new CompoundLine(m.IsBrick ? "brick_units" : "block_units",
+                    m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry));
             }
 
             // 3. Mortar m³ and its cement (bags) + sand (m³) from the MAT-2 mix.
@@ -155,8 +168,10 @@ namespace StingTools.BOQ.Takeoff
                 double plasterArea = area * m.PlasterFaces;
                 lines.Add(new CompoundLine("plaster", $"Plaster ({m.PlasterFaces} face{(m.PlasterFaces > 1 ? "s" : "")})",
                     "m2", plasterArea, SecPlaster));
-                double plasterVol = plasterArea * Math.Max(0, m.PlasterThicknessM)
-                                    * (1.0 + Math.Max(0, m.PlasterWastePct) / 100.0);
+                // NET of waste — the supplier-unit rule owns the allowance. This
+                // used to multiply by PlasterWastePct (20%), so the cement and
+                // sand derived from it were wasted twice.
+                double plasterVol = plasterArea * Math.Max(0, m.PlasterThicknessM);
                 if (plasterVol > 0 && m.PlasterCementBagsPerM3 > 0)
                     lines.Add(new CompoundLine("plaster_cement", "Plaster — cement", "bag",
                         plasterVol * m.PlasterCementBagsPerM3, SecPlaster));

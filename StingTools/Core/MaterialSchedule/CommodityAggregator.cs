@@ -124,6 +124,22 @@ namespace StingTools.Core.MaterialSchedule
                     acc[k] = a;
                 }
 
+                // A rule whose sourceUnit does not match the row's measured unit
+                // must NOT convert. Without this guard a m2 quantity flowed into
+                // a piece-count commodity unchallenged: "Bricks · No. · 364.31"
+                // in a real export was 364 SQUARE METRES of brickwork relabelled
+                // as a brick count.
+                if (rule != null && !UnitsAlign(row.Unit, rule.SourceUnit))
+                {
+                    a.ConversionBlocked = true;
+                    if (string.IsNullOrEmpty(a.ConversionNote))
+                        a.ConversionNote = $"measured in '{row.Unit}' but commodity "
+                                         + $"'{rule.CommodityKey}' is bought per '{rule.SourceUnit}' "
+                                         + "— converting would compare unlike units";
+                    rule = null;   // keep the measured figure, do not convert
+                    a.Rule = null;
+                }
+
                 // A category hit whose type did not match is NOT converted. Record
                 // why, so the reconciler can name it and the QS can either fix the
                 // rule or price the measured row by hand.
@@ -187,6 +203,20 @@ namespace StingTools.Core.MaterialSchedule
 
             StageMapper.AssignLetters(doc.Stages);
             return doc;
+        }
+
+        /// <summary>
+        /// True when a measured unit and a rule's source unit denote the same
+        /// dimension. An empty sourceUnit means the rule declares no expectation
+        /// and is trusted, so existing rules keep working.
+        /// </summary>
+        private static bool UnitsAlign(string measured, string ruleSource)
+        {
+            if (string.IsNullOrWhiteSpace(ruleSource)) return true;
+            if (string.IsNullOrWhiteSpace(measured)) return true;   // nothing to contradict
+            return string.Equals(StingTools.BOQ.BoqUnits.Normalise(measured),
+                                 StingTools.BOQ.BoqUnits.Normalise(ruleSource),
+                                 StringComparison.OrdinalIgnoreCase);
         }
 
         private sealed class Accum

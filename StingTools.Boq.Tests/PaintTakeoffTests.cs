@@ -87,9 +87,11 @@ namespace StingTools.Boq.Tests
             var lines = CompoundTakeoff.MasonryWall(Wall(faces: 2));
 
             Assert.Equal(40.0, lines.Single(l => l.Kind == "plaster").Quantity, 4);
-            // 40 m² × 0.013 m × 1.20 waste = 0.624 m³ → × 9 bags = 5.616
-            Assert.Equal(5.616, lines.Single(l => l.Kind == "plaster_cement").Quantity, 3);
-            Assert.Equal(0.78, lines.Single(l => l.Kind == "plaster_sand").Quantity, 3);
+            // 40 m² × 0.013 m = 0.52 m³ NET of waste → × 9 bags = 4.68.
+            // The 1.20 that used to sit here was engine-side waste, applied again
+            // by the supplier-unit rule; the rule is now the only place it lives.
+            Assert.Equal(4.68, lines.Single(l => l.Kind == "plaster_cement").Quantity, 3);
+            Assert.Equal(0.65, lines.Single(l => l.Kind == "plaster_sand").Quantity, 3);
         }
 
         [Fact]
