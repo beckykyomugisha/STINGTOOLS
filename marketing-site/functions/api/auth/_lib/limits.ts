@@ -17,6 +17,32 @@ export type PlanTier = "solo" | "studio" | "practice" | "firm" | "large" | "ente
 export const TRIAL_SEAT_CAP = 10;
 export const GRACE_DAYS = 14;
 
+// The status a tenant EFFECTIVELY has right now, as opposed to the string sitting
+// in the column.
+//
+// Trial expiry used to be applied only by expireTrialIfNeeded(), whose sole
+// caller is /api/auth/me. Every other path read subscription_status directly and
+// saw a stale "trial" — so a tenant whose trial ended months earlier still passed
+// entitlement on downloads and licence issuing, and issue.ts derived licence
+// expiry from the same stale row and minted an already-expired licence (#677).
+//
+// Pure and non-mutating on purpose. The write belongs where a write is expected
+// (/me); a read path silently UPDATE-ing tenants would be a surprise, and
+// read-only callers should not need a transaction to ask a question.
+// expireTrialIfNeeded() delegates here so the write rule and the read rule
+// cannot drift.
+export function effectiveStatus(
+  tenant: { subscription_status: string; trial_ends_at: string | null },
+  nowMs: number
+): string {
+  if (tenant.subscription_status !== "trial") return tenant.subscription_status;
+  if (!tenant.trial_ends_at) return tenant.subscription_status;
+  const ends = Date.parse(tenant.trial_ends_at);
+  // An unparseable date is a data problem, not a licence to lock someone out.
+  if (Number.isNaN(ends)) return tenant.subscription_status;
+  return ends > nowMs ? "trial" : "read_only";
+}
+
 // Resolve the seat cap for a tenant's plan. Unknown / unset plan → trial default.
 export function resolveCap(
   planProduct: string | null,

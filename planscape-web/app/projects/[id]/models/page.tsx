@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { ErrorNote, ForbiddenNote } from '@/components/ui';
+import { describeFailure } from '@/lib/api';
 import { listModels, uploadModel } from '@/lib/data';
 import type { ProjectModel } from '@/lib/types';
 
@@ -17,6 +19,7 @@ export default function ModelsPage() {
 
   const [models, setModels] = useState<ProjectModel[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -38,6 +41,7 @@ export default function ModelsPage() {
     if (!file) return;
     setBusy(true);
     setError(null);
+    setForbidden(false);
     setNotice(null);
     try {
       const r = await uploadModel(projectId, file, {
@@ -57,7 +61,15 @@ export default function ModelsPage() {
       if (fileRef.current) fileRef.current.value = '';
       refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      // POST models is [Authorize(Roles = "Admin,Owner,Coordinator")] and
+      // Forbid() sends an EMPTY body, so this used to render the literal
+      // "Request failed (HTTP 403)". Name the roles instead.
+      const d = describeFailure(err, {
+        forbidden: 'Only an Admin, Owner or Coordinator can upload a model to this project.',
+        fallback: 'Upload failed',
+      });
+      setError(d.message);
+      setForbidden(d.tone === 'forbidden');
     } finally {
       setBusy(false);
     }
@@ -116,7 +128,11 @@ export default function ModelsPage() {
         </p>
       </form>
 
-      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {error && (
+        <div className="mb-3">
+          {forbidden ? <ForbiddenNote>{error}</ForbiddenNote> : <ErrorNote>{error}</ErrorNote>}
+        </div>
+      )}
       {notice && <p className="mb-3 rounded bg-success-subtle px-3 py-2 text-sm text-success">{notice}</p>}
 
       {/* List */}

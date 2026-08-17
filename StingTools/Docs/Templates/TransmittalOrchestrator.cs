@@ -37,6 +37,13 @@ namespace Planscape.Docs.Templates
         public string WorkflowInstanceId { get; set; }
         public bool Ok { get; set; } = true;
         public string Error { get; set; }
+
+        /// <summary>
+        /// Problems the render gate found in the produced document (unresolved tokens, leftover
+        /// loop scaffolding), or null when it is clean. Non-null does NOT mean the transmittal
+        /// failed — the record and workflow are real — it means the DOCUMENT is not fit to issue.
+        /// </summary>
+        public string RenderWarning { get; set; }
     }
 
     public static class TransmittalOrchestrator
@@ -112,7 +119,8 @@ namespace Planscape.Docs.Templates
                     Record = record,
                     DocxPath = renderedPath,
                     TemplateId = entry.Id,
-                    WorkflowInstanceId = wfInstanceId
+                    WorkflowInstanceId = wfInstanceId,
+                    RenderWarning = engine.LastRenderHealth?.Summary()
                 };
             }
             catch (Exception ex)
@@ -122,10 +130,19 @@ namespace Planscape.Docs.Templates
             }
         }
 
+        /// <summary>
+        /// Next transmittal id, from the highest existing suffix rather than the row count.
+        /// <para>
+        /// Count + 1 collides: delete TX-0003 and the count drops while the surviving ids do
+        /// not, so the next mint re-uses a live id. Rows here are keyed "id", and the Document
+        /// Manager's own minter writes "transmittal_id" — both are read so the two entry points
+        /// cannot hand out the same number.
+        /// </para>
+        /// </summary>
         private static string NextTransmittalId(Document doc)
         {
             string path = TransmittalsPath(doc);
-            int count = 0;
+            int max = 0;
             if (File.Exists(path))
             {
                 try
@@ -135,11 +152,17 @@ namespace Planscape.Docs.Templates
                         path, "planscape.transmittals",
                         StingTools.Core.PluginSchemaVersion.CurrentTransmittals);
                     var arr = JArray.Parse(File.ReadAllText(path));
-                    count = arr.Count;
+                    foreach (var row in arr)
+                    {
+                        string raw = row?["id"]?.ToString() ?? row?["transmittal_id"]?.ToString();
+                        if (string.IsNullOrEmpty(raw)) continue;
+                        var m = System.Text.RegularExpressions.Regex.Match(raw, @"(\d+)\s*$");
+                        if (m.Success && int.TryParse(m.Groups[1].Value, out int n) && n > max) max = n;
+                    }
                 }
-                catch { count = 0; }
+                catch (Exception ex) { StingLog.Warn($"NextTransmittalId: {ex.Message}"); }
             }
-            return $"TX-{(count + 1):D4}";
+            return $"TX-{(max + 1):D4}";
         }
 
         private static string TransmittalsPath(Document doc)

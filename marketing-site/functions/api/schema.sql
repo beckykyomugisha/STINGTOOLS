@@ -412,3 +412,59 @@ CREATE INDEX IF NOT EXISTS idx_licenses_tenant ON licenses(tenant_id);
 --   wrangler d1 execute planscape-waitlist --remote \
 --     --command="ALTER TABLE licenses ADD COLUMN last_seen_revit_version TEXT;"
 -- ---------------------------------------------------------------------------
+
+-- Contact form (functions/api/contact.ts). Public, unauthenticated.
+--
+-- No UNIQUE on email, unlike waitlist: the same person may legitimately write
+-- more than once, and collapsing those would silently drop an enquiry.
+--
+-- notified_at records whether Resend ACCEPTED the notification, not merely that
+-- we tried. A send that fails is logged and nowhere else — this column makes
+-- "submitted but never reached a human" a query rather than an archaeology
+-- exercise:  SELECT * FROM contacts WHERE notified_at IS NULL;
+CREATE TABLE IF NOT EXISTS contacts (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          TEXT    NOT NULL,
+  email         TEXT    NOT NULL,
+  firm          TEXT,
+  topic         TEXT    NOT NULL,
+  message       TEXT    NOT NULL,
+  ip            TEXT,
+  user_agent    TEXT,
+  referrer      TEXT,
+  submitted_at  TEXT    NOT NULL,             -- ISO 8601 UTC
+  notified_at   TEXT,                         -- set when Resend accepted the email
+  status        TEXT    NOT NULL DEFAULT 'new' -- new | replied | closed | spam
+);
+CREATE INDEX IF NOT EXISTS idx_contacts_submitted ON contacts(submitted_at DESC);
+-- Supports the per-IP flood check in contact.ts.
+CREATE INDEX IF NOT EXISTS idx_contacts_ip_time ON contacts(ip, submitted_at);
+
+-- Email delivery ledger (functions/api/auth/_lib/email.ts). One row per ATTEMPT,
+-- written by send() itself so every sender is covered without opting in.
+--
+-- Why this exists: EMAIL_FROM was set to a base64 random string, so Resend
+-- rejected every send with a 422 — signup verification, password reset, welcome
+-- and invitations included — and nothing recorded it. Each sender awaits send()
+-- and discards the result by design (an email must not fail a signup), so the
+-- only trace was a Function log. A total email outage was therefore invisible
+-- until the contact form became the first sender to record its result (#711).
+--
+-- Find failures:
+--   SELECT * FROM email_log WHERE ok = 0 ORDER BY created_at DESC;
+-- Did a specific person get their email?
+--   SELECT * FROM email_log WHERE to_address = ? ORDER BY created_at DESC;
+--
+-- `error` holds Resend's message plus a CLASSIFICATION of the sender, never the
+-- sender value — that is how a secret-shaped EMAIL_FROM reached the logs.
+CREATE TABLE IF NOT EXISTS email_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  to_address  TEXT    NOT NULL,
+  subject     TEXT    NOT NULL,
+  ok          INTEGER NOT NULL,          -- 1 = Resend accepted it, 0 = it did not
+  error       TEXT,                      -- NULL when ok = 1
+  created_at  TEXT    NOT NULL           -- ISO 8601 UTC
+);
+CREATE INDEX IF NOT EXISTS idx_email_log_created ON email_log(created_at DESC);
+-- Supports "show me everything that failed" without scanning the successes.
+CREATE INDEX IF NOT EXISTS idx_email_log_failures ON email_log(ok, created_at DESC);

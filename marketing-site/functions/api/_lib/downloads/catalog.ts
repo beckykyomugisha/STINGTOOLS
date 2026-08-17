@@ -15,6 +15,8 @@
 // R2, computes sha256 + size from the bytes, and prints the entry to paste
 // here, so the catalogue cannot drift from what is actually in the bucket.
 
+import { effectiveStatus } from "../../auth/_lib/limits";
+
 export type ToolStatus = "available" | "beta" | "in-development";
 
 // One downloadable file within a version. A cross-platform tool ships several
@@ -183,9 +185,22 @@ export interface EntitlementResult {
 // subscription is live, not by which plan they are on. A tool that is not yet
 // released is "unavailable" to everyone regardless of subscription — being a
 // paying customer does not conjure software that does not exist.
+// Takes the TENANT, not a status string.
+//
+// It used to take `subscriptionStatus: string`, and that signature is what made
+// #677 possible: the string discards trial_ends_at, the only field that can tell
+// a live trial from one that ended in June. Three callers passed
+// `tenant.subscription_status` straight from the row, so a lapsed trial was
+// indistinguishable from a current one and kept full access — downloads and
+// licence issuing included.
+//
+// Passing the tenant means a caller cannot accidentally omit the expiry check,
+// and a fourth caller added later inherits it. `nowMs` is injected so the
+// decision is deterministic and testable.
 export function entitlementFor(
   tool: Tool,
-  subscriptionStatus: string | null | undefined
+  tenant: { subscription_status: string; trial_ends_at: string | null } | null | undefined,
+  nowMs: number = Date.now()
 ): EntitlementResult {
   if (tool.status === "in-development") {
     return {
@@ -193,6 +208,8 @@ export function entitlementFor(
       reason: "Still in development — not available to download yet.",
     };
   }
+
+  const subscriptionStatus = tenant ? effectiveStatus(tenant, nowMs) : undefined;
 
   switch (subscriptionStatus) {
     case "trial":

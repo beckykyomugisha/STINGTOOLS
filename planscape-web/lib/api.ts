@@ -29,12 +29,75 @@ export class ApiError extends Error {
    * whose useful sentence is `reason`, not `error`.
    */
   body?: unknown;
-  constructor(status: number, message: string, body?: unknown) {
+  /**
+   * The sentence the SERVER actually sent, when it sent one. Undefined when the
+   * response had no usable body and `message` is our own generic placeholder.
+   *
+   * WHY THE DISTINCTION MATTERS (#558). ASP.NET `Forbid()` returns an EMPTY
+   * body, so on a 403 `message` is the literal string
+   * `"Request failed (HTTP 403)"` — which four call sites were showing to users
+   * verbatim. A forbidden state has to know whether it has a real reason to
+   * show or should fall back to naming the capability itself. Recording it as a
+   * separate field is the alternative to matching `"Request failed (HTTP "` out
+   * of the message, which is the string-sniffing #624 was filed for.
+   */
+  serverMessage?: string;
+  constructor(status: number, message: string, body?: unknown, serverMessage?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.body = body;
+    this.serverMessage = serverMessage;
   }
+}
+
+/**
+ * Is this thrown value the server REFUSING a legitimate request, as opposed to
+ * the request failing? (#558)
+ *
+ * Every 403 site in this app used to retype `e instanceof ApiError && e.status
+ * === 403`, and each one decided independently whether to treat it as an error.
+ * One predicate, so the answer is the same everywhere.
+ *
+ * Note what this is NOT: a substring test on the message. `ApiError.message` is
+ * the response BODY, so `message.includes('HTTP 403')` is an empty-body test and
+ * never a status test — the defect #624 was filed for. The status is a number
+ * and is read as one.
+ *
+ * Anything that is not an ApiError — a TypeError from a dropped fetch, an abort
+ * — is deliberately NOT forbidden. A transport failure says nothing about
+ * permissions, and rendering it as one would tell a user with every right that
+ * they lack a role.
+ */
+// Returns a plain boolean, deliberately not an `e is ApiError` type predicate:
+// narrowing an already-ApiError value with that predicate makes the ELSE branch
+// `never`, which broke inviteMessage()'s final `return e.message`.
+export function isForbidden(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 403;
+}
+
+/**
+ * Turn a caught value into the sentence to show and the treatment to show it
+ * in — so every call site stops deciding independently whether a refusal is an
+ * error (#558).
+ *
+ * @param forbidden What to say when the server refused and sent no reason of
+ *   its own. Name the capability or the role — "Only a project manager can…" —
+ *   never the status. Four sites were showing users the literal string
+ *   "Request failed (HTTP 403)" because ASP.NET `Forbid()` sends an empty body.
+ *   When the server DOES send a sentence (the CDE transition gates do), that
+ *   sentence wins: the server owns the rule, and a client copy would drift.
+ * @param fallback What to say when the request genuinely failed and there is no
+ *   server message either.
+ */
+export function describeFailure(
+  e: unknown,
+  { forbidden, fallback }: { forbidden: string; fallback: string },
+): { message: string; tone: 'error' | 'forbidden' } {
+  if (e instanceof ApiError && e.status === 403) {
+    return { message: e.serverMessage?.trim() || forbidden, tone: 'forbidden' };
+  }
+  return { message: e instanceof Error ? e.message : fallback, tone: 'error' };
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -54,16 +117,19 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!res.ok) {
-    let message = `Request failed (HTTP ${res.status})`;
+    const generic = `Request failed (HTTP ${res.status})`;
+    let message = generic;
+    let serverMessage: string | undefined;
     let parsed: unknown;
     try {
       const body = await res.json();
       parsed = body;
-      message = body.message || body.error || message;
+      serverMessage = body.message || body.error || undefined;
+      message = serverMessage || generic;
     } catch {
       /* non-JSON error body — keep the generic message */
     }
-    throw new ApiError(res.status, message, parsed);
+    throw new ApiError(res.status, message, parsed, serverMessage);
   }
 
   if (res.status === 204) return undefined as T;

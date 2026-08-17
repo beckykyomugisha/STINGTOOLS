@@ -84,6 +84,797 @@ full project 31 passed / 1 skipped. Web: `tsc --noEmit` clean, 100 tests passing
 6 errors — when `'unknown'` is removed from `CapabilityState`, then pass again when
 restored. None of the three has been exercised on screen.
 
+#### Completed (Phase 236 — Material Schedule verified in Revit; roofs, paint, and three defects withdrawn)
+
+Phase 235 shipped a material schedule that had **never run inside Revit**. This phase ran it, fixed
+what the run exposed, and closed the integrity gate.
+
+**1 — Run in Revit (2026-08-17), and only half of it held up.** A first run reported section letters
+A/B/C with no duplicates, the Summary letters and order matching the body, and a clean Validation
+sheet — the three defect classes the PATMAC reference sample failed on. **A later run contradicted
+the clean-Validation half**: 60 commodity rows, 61 unpriced-commodity issues, grand total UGX 0.
+
+The lettering and summary-projection logic is therefore established to behave in Revit as its unit
+tests claim. **That the export produces a usable material schedule is not**, and MATSCHED-1 stays
+open rather than being closed on the more flattering of two runs. The second run's cause is
+understood and tracked as MATSCHED-7 (`COST_COMPOUND_TAKEOFF` defaults off and is set in no shipped
+file, so cement, sand, blocks and bricks are never emitted at all) and MATSCHED-8 (every unmatched
+model row, furniture and casework included, is emitted as an unpriced commodity).
+
+**2 — The button was invisible.** It shipped inside a collapsed `<Expander>` on the BIM tab, one of
+six stacked collapsed groups, so a brand-new feature was effectively undiscoverable. Surfaced in
+the **BOQ & Cost Manager → Materials tab** (where the by-material rollup already lives) and in a
+new Actions-tab group, and the dock-panel expander now opens by default (#707).
+
+**3 — Roof and Finishes exported in m².** Supplier-unit rules matched only on `CompoundTakeoff`'s
+constituent kind, and those rows carry none — the engine emits 13 kinds, all masonry, RC and
+plaster. Rules now also match on Revit **category**, narrowed by an optional type-name pattern,
+because a concrete flat roof and a corrugated-sheet roof are both `Roofs` and buy completely
+differently. A category hit whose type fails is left in measured units and reported by new
+reconciler rule **R5** rather than converted on a guess (#709).
+
+**4 — Three of those rules were unsound, and were withdrawn.** `paint-wall`, `floor-tile` and
+`paint-ceiling` matched a whole ELEMENT and converted it to a finish: a composite wall row whose
+type read "plastered" priced the entire wall area as paint buckets, and `paint-ceiling` carried no
+type patterns at all, so a suspended grid became paint. Two further rules (`aggregate` since Phase
+235, `tile-adhesive`) matched neither a kind nor a category and could never fire. All five removed.
+Root cause was structural: **the two shipped data files were each valid and each tested, but nothing
+compared them**, so rules matching `Walls` and `Floors` silently inherited those categories' stage
+and filed finishes under the frame. A commodity now declares its own `stageId`, and
+`ShippedDataIntegrityTests` fails the build on an unreachable rule, a category rule with no stage,
+a stage that does not exist, an unpriced commodity or an orphaned rate (#710).
+
+**5 — Painting measured properly.** The painted area needed no new measurement: it IS the plastered
+face area (`area × PlasterFaces`), which `CompoundTakeoff` already derived to size plaster volume
+and simply never emitted. It now emits as its own constituent kind, split `paint_interior` /
+`paint_exterior` from `WallType.Function` (silk vs weather-guard are different products at different
+prices; unreadable defaults to interior, the cheaper case). An unplastered wall emits no paint at
+all — the branch is guarded by `PlasterFaces > 0` — so fair-faced blockwork cannot put buckets in a
+bill nobody ordered (#712).
+
+**Also fixed: `build.bat` and `deploy.bat` had never worked on this machine.** Both called plain
+`bash`, which on Windows resolves to `C:\Windows\System32\bash.exe` — the WSL launcher — and died
+with `execvpe(/bin/bash) failed` **after** `dotnet build` succeeded. So they printed "DEPLOY FAILED"
+over a clean 0-error compile, staged nothing, installed nothing, and left the plugin at whatever the
+previous deploy had put there: a silent-stale-plugin generator of the same class as the retired GOLD
+folder. Git ships bash at `<git>\bin\bash.exe` but only puts `<git>\cmd` on PATH, so it must be
+resolved explicitly (#703).
+
+**Still open:** tiling (ROADMAP MATSCHED-3) — a floor's tiled area is not its slab area, and the
+RC-slab path knows only concrete, rebar and formwork, so there is no finish-layer concept to say
+which floors are tiled. That needs a take-off, not a unit table. Nails/kg and hoop iron likewise.
+
+Tests 196 → **281**. Build 0/0 throughout.
+
+#### Completed (Phase 235 — Material Schedule export: stage-sectioned commodities in supplier units)
+
+StingTools could not produce the document a site or procurement team actually buys from. The BOQ
+measures **finished work** in **measured units** (m² of wall, m³ of concrete); a material schedule
+answers *what do I buy, in what unit, how much* — bags of cement, trips of sand, No. of blocks.
+Nothing converted between them. `BOQExportCommand` shipped a sheet **named** "Material Schedule"
+([`BOQExportCommand.cs:362`](../StingTools/BOQ/BOQExportCommand.cs)) that filtered BOQ rows whose
+unit happened to be m²/m³/kg and printed them unchanged — which is why the capability looked
+present when it was not. That sheet is untouched here; renaming it is separate cleanup.
+
+Built against a supplied reference document, `PATMAC MALL, Material Schedule.pdf` (4 pages, 11
+sections, UGX 347,914,455). **Its four arithmetic defects became the acceptance fixtures:** section
+letters `C`/`D`/`E` each used twice; a summary whose order did not match the body; a row reading
+`DPM 1 Roll × 300,000 = 150,000`; and sand priced at both 1,500,000 and 1,400,000 per trip.
+
+**1 — Three of the four defect classes are structural, not detected.** `AmountUGX`,
+`StageSection.SubTotalUGX` and `WorksSubtotalUGX` are **derived properties**, so an amount that
+disagrees with quantity × rate cannot be represented. Section letters are assigned at build time by
+`StageMapper.AssignLetters` and never authored, and `MaterialScheduleDocument.Summary` **projects
+from the same `Stages` list the body renders** — so body and summary cannot diverge. Only
+one-commodity-two-rates needs a reconciler.
+
+**2 — Six of eight load-bearing assumptions in the plan were false.** Every one was caught by
+checking the code rather than trusting the plan, and every one changed the implementation.
+Compound take-off is **off by default** (`COST_COMPOUND_TAKEOFF`), so without it there are no
+constituent rows at all and the schedule would have built empty — the builder now detects and
+reports that. The constituent kind survived only as a `"[Compound: …]"` prefix inside `Note`, so
+kind-routing was not free; it is now a first-class `BOQLineItem.ConstituentKind`, additive and
+null-defaulting so existing JSON snapshots deserialise unchanged. **No commodity rates existed
+anywhere** — both shipped rate CSVs key on Revit *category*, so `ResolveConstituentRate` returned
+`(0, "None", 20)` for every constituent; a price list and resolver are new. The BOQ's `LabourUGX`
+split is nulled on manual override and on modal-rate aggregation, so deriving labour from it would
+silently under-report — labour is a QS lump with an advisory suggestion. `ViewSchedule.CreateKeySchedule`
+is used **nowhere** in this codebase, so schedule views are deferred behind a timeboxed spike with a
+named fallback. And the export-routing fix needed two entries, not one (see 4).
+
+**3 — Three defects were found reviewing the implementation, all introduced by the plan.** An
+empty provisional-sum category matched the **first** section, because `"ANYTHING".IndexOf("")`
+returns 0 — an uncategorised UGX 30m sum could file itself under Tools & Equipment. The labour
+suggestion summed **every** model row once per section, so all eight stages advertised the whole
+project's labour as their own (no total was wrong, `AmountUGX` stayed 0, but a QS would reasonably
+read it as per-stage). And provisional sums matched their category against section **titles** while
+the stage library routes by **category** — `"Electrical Equipment"` does not appear in
+`"ELEMENT 06: ELECTRICAL INSTALLATION"`, so a services sum minted a duplicate section at the end of
+the document while the correct routing sat unused in the JSON. All three now live in the Revit-free
+`ManualRowPlacer` with tests; they had shipped because they were in `MaterialScheduleBuilder`, which
+needs a `Document` and therefore had no tests.
+
+**4 — One pre-existing bug surfaced: `ProjectSetup.Load` never backfilled export routes.** It only
+null-guarded `ExportRoutes`, so a key added to the shipped defaults reached **only projects set up
+after the change**. Under CdeFirst that is not cosmetic — `ProjectFolderEngine.GetExportFolder`
+returns `MISC` for any unrouted key *before* `ExportTypeToFolder` is consulted, silently. This has
+applied to every export type ever added. Fixed as a v1 → v2 schema migration beside the existing
+v0 → v1. A customised route is never overwritten and a deliberately-blanked one stays blank;
+`SchemaVersion`'s default stays **1 on purpose**, because bumping it to 2 would make a file written
+without the field look already-migrated and skip the backfill.
+
+**Shape.** `Core/MaterialSchedule/` (7 files, Revit-free): model, `SupplierUnitConverter`,
+`CommodityRateResolver`, `StageMapper`, `CommodityAggregator`, `Reconciler`, `ManualRowPlacer`.
+`BOQ/MaterialSchedule/` (builder + XLSX writer) and `Commands/MaterialSchedule/`. Three data files
+— `STING_SUPPLIER_UNITS.json`, `STING_MATERIAL_STAGES.json`, `STING_COMMODITY_RATES.csv` — each
+corporate baseline plus project override, and each with a test that deserialises the **shipped**
+file so a Newtonsoft field-name or type mismatch fails at build rather than going runtime-dead.
+`BoqXlsxStyle` extracts the banner/header helpers from `BOQExportCommand` **verbatim** (the real
+banner merges columns 1–16 at font size 12; the real header does not wrap) so both workbooks stay
+one visual family. Prices are a **renderer flag** — the engine computes identically either way.
+
+**Verified:** `dotnet build` 0 errors / 0 warnings; `StingTools.Boq.Tests` **254 passing**, up from
+a 196 baseline; `tools/check_path_discipline.ps1` clean. PR #700.
+
+**Not verified — this has never run inside Revit.** Tasks 14–16 of the plan are open: end-to-end
+verification, the `CreateKeySchedule` spike, and the view builder that is deliberately blocked until
+the spike records an outcome. See ROADMAP MATSCHED-1..5.
+
+#### Completed (Phase 234 — self-serve licences, and the licensing chain proven end to end)
+
+`POST /api/license/issue` had been implemented, deployed and working for weeks. **Nothing called
+it**, and the production `licenses` table had never held a customer row. This phase verified the
+chain, then gave the endpoint a client.
+
+**1 — `LICENSE_PRIVATE_KEY` was never set, and setting it was not enough.** `present.ts` returned
+`500 "Licensing is not configured."` The secret was absent from `wrangler pages secret list` for
+both environments. Setting it changed nothing: **Pages Functions capture their bindings at
+deployment time**, so a new secret does not reach a running deployment. A redeploy of a
+byte-identical tree (`git diff a227528 HEAD -- marketing-site` was empty) flipped the endpoint to
+`400`. The `wrangler.toml` note claiming "No redeploy required — Pages secrets are runtime
+bindings" was measured false and corrected (#674, PR #675).
+
+**2 — The production key was proven able to sign, without a login.** A licence signed locally with
+`StingTools.LicenseIssuer/private.pem` was presented to the deployed endpoint and returned
+`404 "We have no record of that licence"` — `verifyLicense` re-signed the payload with the live
+`LICENSE_PRIVATE_KEY` and got a byte-identical signature. That proves the uploaded key parses,
+verifies, and matches `LicensePublicKey.cs`, which the `openssl rsa -pubout` comparison had already
+predicted (both public moduli hash to `07fbb290…`).
+
+**3 — `last_seen_at` moves.** Measured against the row, not the response: `null` →
+`2026-08-16T17:54:29.907Z`, plugin and Revit versions stamped, `updated_at` correctly **untouched**
+(being observed is not a change to the licence), and `audit_log` got `license.first_seen` rather
+than the routine `license.presented`. `matchesRecord: true` confirms the second-granularity
+reconciliation between the payload's unix seconds and the row's millisecond ISO string.
+
+**4 — The plugin handed users the wrong machine code.** `ActivationDialog` showed
+`LicenseGate.MachineCode` — that is `MachineFingerprint.Current`, MachineGuid **plus three WMI
+factors** that fail transiently and flip the code (the documented `5AAF` ↔ `ADD3` lockouts). Every
+licence issued from a pasted dialog code was fragile by construction. Now shows
+`MachineFingerprint.Stable`. `LicenseGate.VerifyEither` already accepted either, so no migration.
+
+**5 — The page.** New `/licences`: paste a machine code, get a `.lic`, see every licensed machine
+with expiry and last-seen. Backed by a new `GET /api/license` that reports `cap`/`inUse` from
+`resolveCap` + `countLicensedSeats` — **the same pair `issue.ts` gates on**, so the page cannot
+contradict a refusal. A test asserts `body.inUse === await seats(h)` to keep it that way.
+
+| File | Purpose |
+|---|---|
+| `marketing-site/functions/api/license/index.ts` | `GET /api/license` — tenant's licences + `cap`/`inUse` |
+| `marketing-site/licences.html` | The `/licences` page |
+| `StingTools/UI/ActivationDialog.cs` | Stable machine code + link to the page |
+
+**Contracts worth knowing**
+- **The signed licence text is never persisted.** `issue.ts` writes the row only, so a `.lic` exists
+  exactly once — in the response that mints it. There is no "download again" to build. Recovery is
+  re-issue, which reuses the seat via `ON CONFLICT(tenant_id, machine_code) DO UPDATE`.
+- **`cap: null` means unlimited** — `Infinity` is not JSON, matching `present.ts`'s
+  `licencesIncluded`.
+- **Revoked and expired rows are returned** so a user can see why a seat is or is not consumed;
+  `countLicensedSeats` excludes them from `inUse` and the endpoint does not re-implement that rule.
+- **No `_redirects` rule for `/licences`** — Pages auto-canonicalises `.html`, and a rule loops.
+
+**Verification.** `npm test` 11/11 (miniflare, real D1, real HS256 JWTs); `npm run typecheck` clean;
+`dotnet build -c Release` 0/0; CI 9/9. The page was rendered in a browser against fixtures — all
+four status branches, and the #677 expiry guard measured: an expired licence fires **0** downloads
+and offers no download button, a valid one fires exactly 1.
+
+**6 — The first real licence, and why the button looked dead.** Issuing was driven for real in
+production on 2026-08-16: `POST /api/license/issue` → **200**, and `licenses` gained its first row
+ever (`4681-584E-784F-0868-4E48`, tenant `exo`, expiring `2036-08-03` = `trial_ends_at` +
+`TRIAL_GRACE_DAYS`). Several earlier attempts had appeared to do nothing, and a live
+`wrangler pages deployment tail` proved *no HTTP request was being made at all*. The cause was in
+the page, not the endpoint: `CODE_RE` rejected clipboard-damaged input — a trailing space, a
+non-breaking space, an en dash for the hyphen — and the failure branch returns **before** the
+fetch, so the only feedback was a line of small red text, indistinguishable from an inert button.
+`normaliseCode` (#698) now repairs transport damage, rewrites the field to what it validated, and
+echoes the value back on failure; it deliberately does not strip unknown characters, so an `O`
+typed for a `0` still fails loudly. Verified by a 17-case table test that extracts the function
+live from the page, plus both paths driven in a browser.
+
+**8 — The last hop, proven with real components (2026-08-17).** The issued `.lic` was installed at
+`C:\ProgramData\Planscape\StingTools\` (previous one backed up) and Revit 2025 launched.
+`LicensePresenter` posted on startup:
+
+```
+2026-08-17 08:06:01 [INFO] License presented: licensee=exo expires=08/03/2036 inUse=1/10
+```
+
+| Field | Before | After |
+|---|---|---|
+| `last_seen_at` | `null` | **2026-08-17T05:06:01.266Z** |
+| `last_seen_plugin_version` | `null` | **2.2.0.0** (real assembly version) |
+| `last_seen_revit_version` | `null` | **2025** |
+| `updated_at` | 2026-08-16T21:31:55 | **unchanged** |
+
+Audit trail reads `license.issued` → `license.first_seen`. So the chain runs end to end on real
+components — browser → `issue.ts` → `.lic` on disk → Revit plugin → `present.ts` → D1 — with curl
+standing in for nothing. Two design decisions verified rather than assumed: `updated_at` is not
+touched by observation, and a first sighting audits as `license.first_seen`, not the routine
+`license.presented`. ROADMAP LIC-7 closed.
+
+**Two operational traps this cost time on, both now written down:**
+
+- **`StingLog`'s file is date-stamped** — `StingTools_yyyyMMdd.log`, not `StingTools.log`. Searching
+  the undated name returns nothing, which reads as "the plugin never logged" rather than "you
+  looked in the wrong place". CLAUDE.md corrected.
+- **The `.addin` `<Assembly>` path moved twice more during this phase** (`wt-viscenter`, then
+  `relaxed-goodall-bd632a`), the second time four minutes before Revit was launched. It was
+  re-grepped and the target DLL re-checked for the presenter *before* starting Revit — had it been
+  a build without `LicensePresenter`, the result would have been a confident false negative. Verify
+  a DLL's contents by decoding UTF-16 at **both** byte alignments; a single-alignment scan already
+  produced one wrong answer this phase.
+
+Also merged PR #626 (retires the per-user quota axes, closes #619) and closed #644 as a duplicate
+of #652. Filed #673, #674, #677, #691, #693, #694, #705. Spec and plan:
+[`superpowers/specs/2026-08-16-licences-page-design.md`](superpowers/specs/2026-08-16-licences-page-design.md),
+[`superpowers/plans/2026-08-16-licences-self-serve.md`](superpowers/plans/2026-08-16-licences-self-serve.md).
+
+---
+
+#### Completed (Phase 233 — Visibility Center, enhancement pass)
+
+Fixes the gaps found by using the Phase 232 dropdown on a real model. Built to spec in
+[`VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`](VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md).
+Build 0 errors / 0 warnings; `StingTools.Visibility.Tests` **102 passing** (was 64).
+
+**1 — The dropdown now reads what the view is already hiding.** This was a correctness bug,
+not polish: `VisRowVm` defaulted to ticked and `Load` built every row fresh, so the panel
+asserted "nothing hidden" over a filtered view and the next Apply was computed from that
+false baseline.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityState.cs` | ✅ | `AppliedFilterState` / `VisibilityRowState` / `VisibilityReadback` + `VisibilityStateReconciler` — the decision layer, and the footer + badge text |
+| `Core/Visibility/VisibilityStateReader.cs` | — | The three Revit reads: category hidden flags, the view's filters, the temporary-mode per-element test |
+| `Core/Visibility/VisibilityHarvestModel.cs` | ✅ | `TokenValueTally` / `CategoryTally` / `TokenHarvest`, moved out of the Revit-bound harvester so the tree and reconciler are testable; adds `TokenHarvest.Rebuild` |
+
+**The trap, and what was done about it.** Revit exposes **no API to enumerate temporarily
+hidden elements** — `IsTemporaryHideIsolateActive()` reports that the mode is on, not what it
+hid. A raw document-vs-view collector diff is the documented starting point, but on a plan
+view that difference is dominated by elements the view would never have drawn (other levels,
+other views' view-specific content), so it over-reports badly. Every candidate is therefore
+confirmed individually with `View.IsElementVisibleInTemporaryViewMode`, and anything left
+unexplained is reported as `OutOfScopeCount` rather than counted as hidden. **No side-record
+of "what we hid" is kept** — that desynchronises the moment the user reaches for Revit's own
+HH/HI, and a reader that disagrees with the model is worse than none.
+
+The expensive document-scoped pass runs **only** when the cheap sweep proves something is
+hidden. `TokenValueHarvester`'s one-slot cache became a per-scope dictionary — the reader
+needs the view- and document-scoped harvests back to back, and a single slot made each
+evict the other.
+
+Footer now reads e.g. `1 category + ZONE Z02 hidden · 1 of 3 visible · saved to view`, and
+holds that line until the user actually changes a tick (rows now open unticked, so "Will
+hide N" on open would have been false about elements already out of sight).
+
+**2 — The category list is usable on a real model.** `Core/Visibility/VisibilityCategoryTree.cs`
+(Revit-free) excludes view-management categories, nests subcategories under `Category.Parent`
+with tri-state parents, and splits **Model / Annotation / Imports** mirroring Revit's own V/G
+tabs. The exclusion list ships as `"excludedCategories"` in the existing
+`Data/STING_VISIBILITY_PRESETS.json`, project-overridable through the path that already
+exists — **not** a new data file and **not** hardcoded. Grids and Levels are deliberately kept.
+Nothing is silently dropped: exclusions are counted, logged once per scan, and an
+unclassifiable category lands in Model rather than vanishing.
+
+`null` and `[]` mean different things for that key and the POCO default must stay `null` —
+absent = "use the baseline", explicit `[]` = "exclude nothing". `VisibilityPresetStore.Save`
+now carries the key over, because presets and exclusions share one file and the first
+"Save preset…" would otherwise have wiped a project's exclusions.
+
+**3 — Empty groups say why.** A muted row (`no ZONE values in this view — run tagging first`)
+plus a count in every group header (`ZONE (4)`, `LEVEL (0)`), so what is populated is visible
+without expanding all seven.
+
+**4 — Hidden-count badge + the undo asymmetry.** `UI/Visibility/VisibilityBadge.cs` puts the
+count on the SELECT-tab button (`👁 Show / Hide (1,204 hidden) ▾`) and the Hub button tooltip.
+It is a by-product of a read that already happened — opening the dropdown, or Apply / Isolate /
+Reset — never a background poll. Both mode radios carry the asymmetry verbatim: *"Temporary
+hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints."*
+
+**Also** — `VisibilityDropdownHost.cs` (466) and `VisibilityCommands.cs` (466) were split at
+their natural seams into `VisibilityPresetPrompts.cs` and `VisibilityCommandHelper.cs`; every
+file in the feature is now ≤ 398 lines. `Autodesk.Windows` is untouched, per §5.
+
+**Not verified in Revit.** Every Revit-bound path in this pass — the state reader, the
+category metadata reads, the badge push, the Hub-button capture — is unexercised by any test
+and unexercised by a human. See the ROADMAP entry.
+
+---
+
+#### Completed (Phase 232 — Visibility Center)
+
+One dropdown on the SELECT tab that shows/hides elements by **category** and by **ISO 19650
+tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode
+(`View.HideElementsTemporary` — instant, session-only, does not print) or **Saved** mode
+(`ParameterFilterElement` + `view.SetFilterVisibility` — persists, prints, pushable to a view
+template). Built to spec in [`VISIBILITY_CENTER_RUNNER.md`](VISIBILITY_CENTER_RUNNER.md).
+
+**Files** — 7 new under `StingTools/`, plus a test project.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` / `VisibilityPresetLibrary` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityPlan.cs` | ✅ | `VisibilityPlan` / `PlannedFilter` / `VisibilityResult` / `VisibilityElementSnapshot` |
+| `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming + parsing |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | JSON load/save/merge (takes resolved paths, so it is testable) |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets + snapshots; 30 s cache |
+| `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
+| `Core/Visibility/VisibilityFilterBuilder.cs` | — | `ParameterFilterElement` creation + binding blocker detection |
+| `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; the only place touching `StingPaths` |
+| `Commands/Visibility/VisibilityCommands.cs` | — | The 8 commands |
+| `UI/Visibility/VisibilityDropdown.xaml(.cs)` + `VisibilityRowVm.cs` + `VisibilityDropdownHost.cs` | — | The popup |
+| `Data/STING_VISIBILITY_PRESETS.json` | — | 4 baseline presets |
+
+**Commands** — `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` ·
+`Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset`. Registered in
+`StingCommandHandler` immediately below the existing `ViewIsolate` / `ViewHide` / `ViewReveal` /
+`ViewReset` cases, which are **unchanged and still work** — they hide the current *selection*,
+this hides by *rule*.
+
+**Plan/Apply split.** `Plan()` writes nothing and returns matched ids, required filters,
+per-group counts and a `List<string> Blockers`; `Apply()` performs the write. The dropdown's
+live footer ("Will hide 1,204 of 8,331 elements · 3 filters") calls
+`VisibilityRuleMatcher.PlanCore` — the Revit-free half — so it recomputes on every tick without
+touching the Revit API. This is the pattern CLAUDE.md P1 #4 asks someone to prove on one
+feature; it is also what let the matching semantics carry 55 unit tests.
+
+**Matching contract.** Values within a rule OR; rules grouped by (kind, token key) OR within a
+group and AND across groups. Two category rules therefore mean "Ducts OR Pipes" — AND-ing them
+would match nothing, since an element has one category. Mixing `Hide` and `ShowOnly` in one set
+is rejected with a message, never silently resolved.
+
+**Reuse.** Token filters go through the existing `AecFilterFactory.FindOrCreate` rather than a
+second factory — it already resolves shared parameters via `ParamRegistry.AllParamGuids`,
+OR-combines with `LogicalOrFilter`, and reports an unbound parameter as a *warning*, which maps
+straight onto the blocker requirement. Two cases it cannot cover are handled directly in
+`VisibilityFilterBuilder`: a **category-only** filter (needs the rule-less
+`ParameterFilterElement.Create` overload) and the **inverted** show-only filter.
+
+**Blockers reported, not thrown** — unbound shared parameter (names the categories:
+"ZONE is not bound to Ducts, Pipes; 3 categories skipped"), view-template-locked V/G (offers
+`Vis_ApplyToTemplate`), `AreGraphicsOverridesAllowed() == false`, legend/schedule/sheet views,
+non-filterable categories, zero matches, and an **unresolved category rule** — a preset naming
+a category this model does not have keeps its `OST_` string and raises
+"Preset names a category this model doesn't have: 'OST_DuctCurve'" rather than matching nothing
+in silence. That check lives in `PlanCore`, so it is unit-tested rather than Revit-only.
+
+**Reset clears both mechanisms.** `Vis_ResetAll` disables the temporary view mode *and* removes
+every `STING VIS - ` filter from the view. The two halves have opposite transaction
+requirements — disabling a temporary mode throws inside a transaction, removing a filter needs
+one — so `VisibilityEngine.Reset` sequences them itself rather than leaving that trap to callers.
+
+**Known limits** (logged in [`ROADMAP.md`](ROADMAP.md)): show-only **by category** in Saved mode
+is reported as a blocker rather than implemented, because a view filter can only act on the
+categories it is bound to; Temporary mode handles it. The isolate filter is one combined
+`STING VIS - NOT (isolate)` element, so it does not round-trip through `TryParseFilterName`
+(it is still found and deleted by prefix).
+
+**Verification** — `dotnet build StingTools/StingTools.csproj -c Debug` → **0 errors, 0
+warnings**. `StingTools.Visibility.Tests` (new, xUnit/net8.0) → **61 passing**, picked up
+automatically by the `StingTools.*.Tests/*.csproj` glob in
+`.github/workflows/stingtools-unit-tests.yml`. `tools/check_path_discipline.ps1` → clean.
+**Not yet exercised inside Revit** — see the runner's §4 for the in-Revit checklist that
+remains open.
+#### Completed (Document Manager — delete/restore repair, honest outcomes, one store layer)
+
+Full accuracy/consistency review of the Document Management Center
+([`UI/DocumentManagementDialog.cs`](../StingTools/UI/DocumentManagementDialog.cs)), triggered by a
+delete that reported success while the file stayed on disk — which also meant Restore had never
+been exercised.
+
+**The delete bug was two stacked defects.** `DeleteSelected` logged a DELETE, dropped the row and
+updated the counts *without reading* `DeleteFile`'s return value; `DeleteFile` returns false
+whenever the file is absent, which is routine because only 3 of the 14 loaders build rows from
+files on disk — the rest read JSON stores whose `file_path` is frequently stale. Separately,
+`DeleteFile` chose its recycle bin by walking **up from the file** for an existing `_data` folder,
+while `RestoreFromRecycle` read `<root>/_data/recycle`. Folders are created lazily, so on a fresh
+project `_data` often did not exist at delete time and the file went to a sibling `_RECYCLE` that
+Restore structurally could not see. `DeleteFile` now takes the `Document` and resolves through the
+same `GetRecyclePath` Restore reads; new `ProjectFolderEngine.EnumerateRecycleBins` sweeps the tree
+for orphan bins, so files stranded by the old code are recoverable.
+
+**Silent failure removed as a class.** `UpdateDocRegisterField`/`UpdateIssueField` returned void and
+dropped out quietly when the store was missing or the id did not match, while the caller set the
+property and refreshed — the grid showed a save that reverted on next open. Both now return `bool`
+behind `ApplyRegisterEdit`/`ApplyIssueEdit`, which mutate the row only after a confirmed write. Same
+treatment for `BulkCloseIssues`, `BulkUpdateTransmittalStatus`, `BulkDeleteStickyNotes`,
+`EditStickyNote`, `MoveSelected`, `RenameSelected`, Auto-correct, Copy-to and Open Folder. Bulk
+operations now separate "no file on disk" from genuine failures and name the failures.
+
+**`status_history` had two incompatible shapes in one store.** The canonical writers
+(`IssueSchema.ApplyStatus`, `BIMManagerCommands`' transmittal creator) store a JArray of
+`{from,to,by,at,note}`; the Document Manager did
+`row["status_history"] = row["status_history"]?.ToString() + "|<text>"`, which serialises the array
+to JSON text and replaces it with a string. The next canonical write then hits
+`is not JArray` and **discards the entire prior history** — audit-trail loss on an ISO 19650
+register. New `CoordStores.AppendHistory` is the one accessor; it converts a legacy string into
+entries rather than dropping it. `CoordStores.FormatHistory` renders either shape for display.
+
+**One store layer.** All 23 hand-rolled `Path.Combine(GetBimManagerDir(doc), "*.json")` sites now
+resolve through `CoordStores` or `IssueStore`. They landed on the right file but bypassed
+`CoordStores.Resolve`'s legacy merge, so whether a project's pre-consolidation rows appeared
+depended on which subsystem happened to touch the store first that session. `GetBimManagerDir` is
+deleted — handing out the *directory* was what enabled the hand-rolling. New typed accessors:
+`StickyNotes`, `Notifications`, `ModelHealth`, `Bep`, `Team` (object store, merge-free via
+`ResolvePathOnly`). New `IssueStore.SetField` for non-status edits, so priority/assignee/revision
+changes get the repository's locking, atomic write and history shape. `BulkCloseIssues` runs as one
+`IssueStore` batch — single atomic save plus audit and server push.
+
+**Other defects found and fixed**
+
+- Every transmittal was minted **TX-0001**: the max-suffix scan read `t["id"]`, but the rows are
+  keyed `transmittal_id`, so `maxNum` was always 0 — the exact collision the max-suffix pattern was
+  introduced to prevent. Meetings, actions and notifications still used `Count + 1`; all now use a
+  shared `NextSeq` helper.
+- `BulkUpdateCDE` raised **N+1 transmittals** per promotion — `MoveFile` auto-raises one per file
+  and the caller raised another for the batch — and the batch record carried pre-move paths that no
+  longer existed. `MoveFile` gained `autoTransmittal` and `out newPath`.
+- `MoveFile` raised its watcher event with `Path.Combine(targetDir, fileName)` rather than the real
+  destination, so a de-duplicated name pointed watchers at a nonexistent path.
+- `MakeMenuItem` had no exception guard while `MakeActBtn` did — 23 context-menu items doing raw
+  file I/O could throw to the WPF dispatcher inside a modal dialog.
+- Rename silently no-opped when the target name was taken.
+- 24 inline buttons had `ToolTip = ""` (WPF renders an empty popup); the "Update Trans" tooltip key
+  said "Update Trans Status" and never matched. Tooltips written for all 24; blank now yields none.
+- Two agenda builders called `ComplianceScan.Scan` directly — a full collector sweep freezing the
+  dialog 2–5s — against the established `GetCached() ?? Scan()` convention.
+- `EditStickyNote` wrote atomically twice (`WriteAllTextAtomic` to a `.tmp`, then `File.Replace`).
+- Hard-delete fallback in `DeleteFile` swallowed the reason it could not recycle; it now logs why
+  and reports the outcome so "moved to recycle bin" is never claimed for a destroyed file.
+
+**Follow-up (from live testing): the guards were the bug.** Testing surfaced two complaints —
+"Delete is lifeless, but Bulk Delete brings a message" and "Quick Transmittal says select a doc yet
+the doc IS selected". Both were the same defect, and neither was what the first pass assumed.
+
+Single-row actions failed into `SetStatus` — a 10px grey label in the footer — while their bulk
+counterparts popped a MessageBox for the identical condition. Delete had **three** silent exits: no
+selection, a selected row carrying no file path (issue/compliance/register rows), and an exception,
+since `MakeActBtn`'s catch also only wrote to the footer, making a crash and a no-op
+indistinguishable. The first pass had made only the file-missing-from-disk case visible and left the
+two a user actually hits.
+
+Quick Transmittal filtered on `Category == "DOCUMENT" && !string.IsNullOrEmpty(FilePath)`, but a
+register entry added through Add Doc legitimately carries an empty `file_path` — so the selected
+document was dropped and the message blamed the selection. The FilePath requirement was **wrong**,
+not just badly reported: it feeds one optional token (`TokenContext.cs`: `{ "file", d.FilePath ?? "" }`)
+and nothing downstream needs a file on disk. Issuing a transmittal for a register entry is what a
+transmittal is for. Requirement removed.
+
+Three guard helpers now cover every entry point — `RequireRows` (multi-select: distinguishes
+*nothing selected* from *nothing qualifies*, and names the categories picked plus how many lacked a
+file), `RequireFileRow` (single row needing a file) and `RequireRow` (single row, register edits).
+Applied across Open/Rename/Delete/Move/Copy/Auto-correct/Set CDE, Quick Transmittal, Bulk
+Move/Delete, Close Issues, Update CDE, Delete Notes, Update Trans, Set Document Status and Set
+Suitability. Handler exceptions are now visible and logged with a stack trace via `StingLog.Error`.
+
+Also hardened while there: the dialog was a fixed 1280x850 with no clamp, taller than the logical
+desktop on a 1366x768 laptop or 1080p at 150% DPI — and `CenterScreen` pushes the overflow off both
+edges, taking the action-bar tab strip with it. Now clamped to `SystemParameters.WorkArea`, with the
+tab strip capped at 190px and each tab's buttons scrolling inside so a 20-button tab cannot crowd
+out the document list.
+
+**Documentation reconciled.** The Center has **9 tabs**, not 8 —
+[`docs/guides/DOCUMENT_MANAGER_GUIDE.md`](guides/DOCUMENT_MANAGER_GUIDE.md) documented 7 of them
+under wrong names with buttons that are not on those tabs. Part 4 regenerated from source: all 9
+tabs, all ~146 buttons in their real groups, plus keyboard shortcuts and the right-click menu.
+Counts corrected in `CLAUDE.md` and `Data/CODE_LEGEND.json`.
+
+**Follow-up after in-Revit testing — the guards were the real "dead button" cause.** Two reports
+("Delete is lifeless, but Bulk Delete brings a message"; "Quick Transmittal says select a doc yet
+the doc IS selected") both traced to guard clauses, not to the operations.
+
+- **Feedback asymmetry.** Single-row actions failed into `SetStatus` — a 10px grey footer label —
+  while their bulk counterparts showed a MessageBox for the identical condition. Three paths made
+  Delete silent: nothing selected, a selected row with no file path (issue / compliance /
+  register-only), and an exception, because `MakeActBtn`'s catch also only called `SetStatus`, so a
+  crash and a no-op looked the same. Handler exceptions now show a dialog and log via
+  `StingLog.Error` with the stack trace.
+- **Quick Transmittal required a file that it does not need.** The guard demanded
+  `Category == "DOCUMENT"` **and** a non-empty `FilePath`, but a register entry added through Add
+  Doc legitimately carries an empty `file_path`, so the obvious document was filtered out and the
+  message blamed the selection. `FilePath` feeds exactly one optional token
+  (`TokenContext.cs`: `{ "file", d.FilePath ?? "" }`) and nothing downstream requires it —
+  transmitting a register entry is what transmittals are for. Requirement removed.
+- **Four right-click issue actions used a bare `return;`** — Link to Revision, Change Priority,
+  Assign To, Close Issue did nothing at all, with no message, on a non-issue row.
+- **Double-click fell off the end of the method** for every category except sticky notes, files and
+  compliance — a register, issue, revision or transmittal row responded to a double-click with
+  silence. Now shows the row's detail.
+- Three guard helpers replace the ad-hoc tests: `RequireFileRow` (7 sites), `RequireIssueRow` (4),
+  `RequireRows` (7). `RequireRows` distinguishes *nothing selected* from *nothing qualifies*, and in
+  the second case names the categories picked, how many lacked a file, and what the action needs.
+- Window size now clamps to `SystemParameters.WorkArea` instead of a fixed 1280x850 (taller than the
+  logical desktop at 150% DPI, and `CenterScreen` then pushes the action bar off-screen); the action
+  bar is capped at 190px with each tab's buttons scrolling inside.
+
+Build 0 errors / 0 warnings (Debug + Release). Path-discipline gate clean, Tier 1 and Tier 2 both
+zero. All 82 dispatch tags resolve against the handler switch and command modules.
+
+#### Completed (Retiring `session-8tl9ga` — the last two aliases it was still the only copy of)
+
+`origin/claude/session-8tl9ga` was deleted as ROADMAP `SMK-1` directed. Re-reading
+it immediately before deletion — rather than trusting the row that said it had
+been fully reconciled — found two dual-accept cases in `WorkflowEngine` that had
+**not** landed:
+
+- `AccPullClashes` / `AccSyncIssueStatus` alongside the `ACC_`-prefixed forms.
+  The dock-panel buttons and shipped presets use `ACC_`, but the BIM Coordination
+  Center's ACC card dispatches the unprefixed spelling and `StingCommandHandler`
+  already accepts either. `ResolveCommand` did not — so a project-local preset
+  copied off that card resolved to nothing and was skipped in silence.
+- `Lite_ComCheck` alongside `ComCheck_Export`, for the same reason: the Electrical
+  panel's button carries the tag a user would copy.
+
+Neither is caught by the wiring gate, because Tier 2 only sees presets committed
+to `StingTools/Data/` — a user's project-local preset is ungated by construction,
+which is exactly why the engine should accept the spelling the UI shows them.
+
+Also added the Niagara, KPI and ACC tags to `_allKnownCommandTags`, the corpus
+behind `GetClosestCommandTags`, so an unknown-tag error can suggest them.
+
+The lesson is the same one this whole workstream is about: a reconciliation is
+not done because a summary says it is. `ResolveCommand` case labels 656 → 659;
+build 0/0; both gates re-run green.
+
+#### Completed (Smoke-test .docx — the last hand-carried copy gets a gate)
+
+The reconciliation below made the checklist a generated projection of
+`smoke_test.json` and gated the markdown by regeneration. The `.docx` was left
+out: rendering it needs `python-docx` and `tools/check_smoke_test.py` is
+deliberately stdlib-only so it runs on a bare CI runner, so the gate ran
+`build_smoke_test.py --no-docx` and diffed the markdown alone.
+
+That left the `.docx` as the one unproved copy — and it is the copy the tester
+physically carries into the Revit session. An edit to `smoke_test.json` that
+regenerated only the markdown would have put a stale checklist in their hands:
+the same drift this pipeline was built to stop, one level down.
+
+Closed with two digests stamped into `docProps/core.xml` at generation and read
+back with `zipfile` — stdlib, no new CI dependency. Writing the document needs
+`python-docx`; proving it is current does not.
+
+- **`inputs-sha256`** — SHA-256 over the owner's `smoke_test.json` **plus
+  `build_smoke_test.py` and `smoke_test_lib.py`**. The generator is in the digest
+  because a change to `render_docx()` alters the document without touching the
+  JSON, and the markdown byte-diff would not notice; source-only hashing would
+  leave that hole open. The cost is one regeneration whenever the generator
+  changes, which is correct — the generator determines the output.
+- **`parts-sha256`** — SHA-256 over every OPC part except `docProps/core.xml`
+  (which carries the stamps and so cannot hash itself). This is what catches a
+  hand-edit in Word: same source, same generator, so the provenance digest still
+  matches while the body says something else. Injected during
+  `_normalise_docx_zip`, after every part exists.
+
+Bytes are LF-normalised before hashing so a Windows checkout with
+`core.autocrlf=true` and a Linux runner agree. Regeneration stays byte-identical
+(verified: rebuild produces no diff), so a rebuild without a content change still
+shows nothing — a diff that always fires is a diff people learn to ignore.
+
+**Verified by breaking it, five ways**, each producing a distinct actionable
+message and each reverting cleanly: source edited with only the markdown
+regenerated; generator changed without regeneration; `.docx` deleted; `.docx`
+body hand-edited; `.docx` corrupted. The fourth is the one that mattered — it
+**passed** against the inputs digest alone, which is why `parts-sha256` exists.
+
+Neither stamp is a tamper-proof seal; anyone determined can regenerate both. That
+is not the threat. The threat is someone fixing a typo in Word the night before
+the session and shipping a document that no longer round-trips to the source.
+
+Files: `tools/smoke_test_lib.py` (`docx_inputs_digest`, `docx_parts_digest`,
+`read_docx_stamp`, `read_docx_parts_stamp`, `docx_path_for`),
+`tools/build_smoke_test.py` (stamp on write), `tools/check_smoke_test.py`
+(assertion 10, `check_docx_current`), `.github/workflows/smoke-test-gate.yml`
+and `docs/examples/_smoke_test_schema.md` (both previously stated the `.docx` was
+unchecked).
+
+#### Completed (KUT smoke-test reconciliation — the checklist becomes a generated, gated projection)
+
+The Phase 192 KUT alignment pack shipped with a 27-step manual Revit smoke-test
+checklist, because none of it had ever been run inside Revit. That checklist then
+existed in three states at once: markdown on `main`, a Word document generated by
+hand on `origin/claude/session-8tl9ga`, and a 779-line Python pre-flight on the
+same branch — which by then was ~100 commits behind `main` and predated three
+merged KUT PRs (#623 LOD ladder, #635 rung-500 consistency, #638 gate presets).
+The copies had already drifted apart.
+
+Every defect was the same defect: **the same fact written down in more than one
+place.** So the fix is not "correct the four stale steps" — it is to make the
+checklist a projection of one machine-readable source and gate that source in CI
+against the code it describes. A step that names a dead button now fails a build
+instead of wasting a Revit session.
+
+| Artefact | Role |
+|---|---|
+| [`docs/examples/_smoke_test_schema.md`](examples/_smoke_test_schema.md) | The contract — what a step may declare |
+| `docs/examples/KUT/smoke_test.json` | **The source.** 33 steps, machine-readable |
+| `tools/smoke_test_lib.py` | The parsing the generator and the checker share |
+| `tools/build_smoke_test.py` | source → `REVIT_SMOKE_TEST.md` + `.docx` |
+| `tools/check_smoke_test.py` | source → validated against the codebase |
+| `.github/workflows/smoke-test-gate.yml` | Runs the checker on the paths that matter |
+
+Owner-agnostic by construction — the tooling globs `docs/examples/*/smoke_test.json`,
+so a second engagement is a new folder, not a fork.
+
+**`reach` is the honest field.** `button` / `workflow` / `manual`, and it is
+checked rather than asserted. The checker resolves every `commandTag` through the
+**same four dispatch layers** the wiring gate uses (`CommandRegistry` modules,
+`Cmd_Click` runners, the six handler `case` sets, `WorkflowEngine`). A one-layer
+check over-reports by ~96%; this repo has been burned by that twice.
+
+**Proven in both directions.** A gate only ever seen passing is not a gate:
+pointing one step at a nonexistent `commandTag`, one at a wrong panel section, and
+leaving the markdown stale produced three distinct failures with actionable
+messages and exit 1; reverting returned exit 0. The `.docx` was opened in Word —
+9 pages, 36 tables, steps 1–33 in order, 33 tick-box rows, no placeholder leakage.
+
+##### The four stale steps, corrected in the source
+
+| Was | Now |
+|---|---|
+| Step 27: press **Build Seeds**, expect `STING_SEED_BaptismalFont` to build | There was no such button (`Seeds_Build` lived only inside five presets) and no such file — the font is a symbol *inside* `Data/Seeds/STING_SEED_PlumbingFixture.json`. A `Seeds_Build` button was added next to the other `Symbols_*` buttons, so the step is `reach: "button"` and names the right artefact |
+| Step 25: run `WORKFLOW_GateAudit.json` | Repointed at `WORKFLOW_KUT_GateAudit.json`; the old preset is deleted (below). The three `WORKFLOW_KUT_Deliverable{A,B,C}` gate presets from #638, which no step exercised at all, are now steps 30–32 |
+| LOD verified only at `deliverable-b` | Added runs at `construction` (asserting LOD 400) and `deliverable-d` (asserting LOD 500) — the rungs #623/#635 moved, and the highest-risk data in the pack |
+| Step 3: "the three `LTG_HOIST_*` params appear" | Names the categories: **Lighting Fixtures only**, per `PARAMETER_REGISTRY.json` (`"binding": "LightingFixtures"`) and `RESOLVED_BINDINGS.csv`. The dead branch's `CATEGORY_BINDINGS.csv` change adding Generic Models was therefore **not** ported — it copied the pattern of the sibling `LTG_FIX_*` params, which are genuinely universal |
+
+##### One KUT overlay pack
+
+Two divergent packs existed, each missing files the other had, and smoke-test
+step 2 copied only from `docs/examples/KUT/`. So `owner_standards.json`,
+`lod_matrix.json` and `fohlio_map.json` never reached `<project>/_BIM_COORD/`,
+and the steps that claimed to prove the KUT Owner profile were exercising the
+corporate baseline. In the other direction the "official" deployment pack lacked
+`project_config.json`, which holds the `BLD1..BLD6` LOC codes the tag scheme's
+volume map depends on.
+
+`project-templates/KUT/_BIM_COORD/` is now the single deployable pack, with a
+`manifest.json` recording per file what it overlays, the corporate baseline it
+merges over, the merge key, the code that reads it, and the three things that are
+**not** in the pack because they are Revit Project Information values or
+credentials. The duplicate `tag_schemes.json` was deleted after confirming both
+copies parse to the same object ignoring prose (`json.load` + compare, not
+eyeball). `docs/examples/KUT/` is now source + generated outputs + the Fohlio
+credential stub, pointing at the one deployment sequence rather than restating it.
+
+##### One Gate Audit preset
+
+`WORKFLOW_GateAudit.json` and `WORKFLOW_KUT_GateAudit.json` both shipped. The
+newer one's description argues that `ValidateTags`, `CompletenessDashboard` and
+`DiscComplianceReport` are **writers** — they build legends inside transactions —
+and so do not belong in a read-only pre-gate check. The old one still contained
+two of them, and was the one the checklist named.
+
+Re-verified rather than trusted: all eight steps of `WORKFLOW_KUT_GateAudit`
+resolve to classes carrying `[Transaction(TransactionMode.ReadOnly)]`, and
+`ValidateTagsCommand` + `CompletenessDashboardCommand` are both `Manual`. The old
+preset is deleted; nothing resolved "Gate Audit" by name, so no alias was needed.
+
+**The claim is now enforced, and generalised.** A preset declares
+`"readOnly": true` and CI proves every step is `ReadOnly`. That immediately found
+two more: `WORKFLOW_PlumbingAudit` called itself a "Read-only audit pipeline"
+while step 1 stamps `PLM_DRN_DU` / `PLM_SUP_LU` / `PLM_SUP_WSFU` via
+`writeBack: true`, and `WORKFLOW_KUT_MonthlyReport` said "all steps are
+read-only" while two build a legend in a transaction. Both descriptions now state
+what is true.
+
+The claim is a **field, not prose**, and that was learned the hard way. The first
+version grepped descriptions for "read-only" and was wrong in both directions
+within minutes: it failed `PlumbingAudit` *after* the description was honestly
+corrected to "NOT read-only, despite the name", and it failed `MonthlyReport` for
+the phrase "chains the read-only metrics". Sentence-level negation handling did
+not rescue it either. A claim CI enforces has to be declarative, or the
+enforcement makes the prose worse. Prose is still surfaced as a **non-fatal
+advisory** so an undeclared claim is noticed by a human.
+
+##### Two integration gaps closed, and a gate widened that found three more
+
+`ACC_PullClashes` / `ACC_SyncIssueStatus` existed, resolved in `WorkflowEngine`,
+and are step 3 of `WORKFLOW_KUT_CoordinationCycle` — but could not be run on
+their own from any panel, which is a real gap for a fortnightly triage rhythm.
+Both now have buttons in the BIM tab's clash section, and `StingCommandHandler`
+accepts the `ACC_`-prefixed spelling as well as the `AccPullClashes` spelling the
+BIM Coordination Center card already used.
+
+**Tier 4 of `tools/check_workflow_wiring.ps1` scanned `StingDockPanel.xaml`
+alone**, so the Electrical / HVAC / Plumbing / LPS / Sustainability panel buttons
+were ungated on the XAML side — and two smoke-test steps live exactly there. It
+now scans all six panel XAMLs and code-behinds: **1,323 → 1,653** buttons. A
+panel whose files are missing fails the gate rather than being skipped, so a
+rename must be noticed.
+
+The widened scan reported three dead buttons. All three were wired; nothing was
+added to `tools/button_wiring_baseline.txt`, which stays empty:
+
+| Tag | Panel | What it really was |
+|---|---|---|
+| `Circuit_AssignAuto` | Electrical | Command existed and resolved in `WorkflowEngine`; reachable only from `WORKFLOW_ElectricalQA`. Handler case added |
+| `Validation_BS7671` | Electrical | Same |
+| `DocPackage` | HVAC | Not a dispatch name at all — the command is `DocumentationPackage`. The same wrong key was in `DocAutomationDialog`'s "Doc Package" card, which turns its operation key into a command tag via `SetCommand`, so **that card was silently dead too** |
+
+##### `Owner_KpiDashboard` — generic logic stops wearing one client's name
+
+`KutKpiDashboardCommand` was 471 lines with nothing temple-specific in any of
+them, behind a client-specific surface: the command tag, the output filenames
+(`STING_KUT_KPI_*`), the snapshot log (`kut_kpi_log.jsonl`) and the dialog title.
+A second owner engagement would have forked the file. The code now comes from
+`PRJ_ORG_PROJECT_CODE_TXT` (falling back to `STING`), `KUT_KpiDashboard` survives
+as a dispatch alias in both dispatch sites, and an existing `kut_kpi_log.jsonl`
+is read and appended to rather than orphaned.
+
+The KUT `lod_matrix.json` overlay pinned two categories, and `LodVerificationEngine`
+**replaces a category rule wholesale**, so each copy silently discarded every
+future corporate improvement. Diffed rather than assumed: `Lighting Fixtures` was
+byte-identical to corporate (pure loss, no gain), and `Plumbing Fixtures` had
+dropped `+MNT_TYPE_TXT` from rung 400 — which corporate has carried since Phase
+192 B1 (`8144226dc`), **predating the overlay** (`003ab3b2c`). That is drift, not
+a decision: the overlay's own description says the rules are "restated" from
+corporate. Both removed. **Behaviour change, stated in the README and in the
+file:** Plumbing Fixtures at LOD 400 require `MNT_TYPE_TXT` again.
+
+##### An empty LOD scope is no longer a green gate
+
+`LodVerificationEngine.Verify` did `if (check == null) continue;` **before**
+`result.Total++`, so a category with no rule and no `*` fallback left the
+denominator entirely. Corporate ships a `*` rule so it cannot bite today — but an
+overlay supplying `categoryRules` against a baseline that lost `*` would report
+**100% pass over zero elements**, because `OverallPct` returns `100.0` when
+`Total == 0`. Same failure class as the eleven presets that executed zero steps
+and reported success (#630).
+
+Skipped elements are now counted per category and surfaced in the TaskDialog, the
+CSV header and the JSON gate report; a run with `Total == 0` reports as
+*"NO ELEMENTS IN SCOPE — nothing verified. This is not a pass."* and the gate
+report's `overallPct` is `null` with a `noElementsInScope` flag to branch on.
+Skips stay **outside** the denominator — folding them in would turn a coverage gap
+into a fail, a different lie.
+
+Covered by tests following the existing pattern rather than a new project: the
+Revit-free half of the engine (matrix model, `*`-fallback resolution, the tally)
+moved to `Core/Validation/LodMatrixModel.cs` and is `<Compile Include>`d by
+`StingTools.Tags.Tests`, the way that project already links `ProgramAuditEngine`.
+`LodVerificationResult` derives from the Revit-free `LodTally` and
+`LodVerificationEngine.Resolve` delegates to `LodRuleResolver`, so the plugin and
+the tests exercise one copy of the resolution code, not two.
+
+##### Verification
+
+| Check | Result |
+|---|---|
+| `dotnet build StingTools/StingTools.csproj -c Debug` | 0 errors, 0 warnings |
+| `pwsh tools/check_workflow_wiring.ps1` | OK — 47 presets, 376 steps, **6 panels / 1,653 buttons**, Tier 4 = 0 |
+| `pwsh tools/check_path_discipline.ps1` | OK — unchanged |
+| `python tools/check_smoke_test.py` | OK — 33 steps, 168 assertions |
+| `python tools/build_smoke_test.py` + `git diff --exit-code` | Regeneration is a no-op |
+| `dotnet test StingTools.Tags.Tests` | 256 passed, 0 failed (was 241 cases) |
+
+**What none of this proves.** The gate proves the checklist's *wiring* — the tag
+resolves, the button is there with that label, the fixture exists, the parameter
+binds. It cannot open Revit, so it proves nothing about geometry, about whether a
+tag is right, or whether an LOD verdict is fair. **A green CI run is not a tested
+pack.** The value of the Revit session is that it tests judgement against a real
+model; this only stops that session being wasted on a checklist that was wrong
+before it started.
+
 #### Completed (Viewer zoom — the far plane, then both zoom-out bounds)
 
 Reported symptom: in the coordination viewer (`wwwroot/viewer.html`), the model

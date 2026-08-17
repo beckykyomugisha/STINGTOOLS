@@ -240,6 +240,11 @@ per-discipline rollups, overall %.
 - Workflow preset `Data/WORKFLOW_GateAudit.json`: ValidateTags →
   TokenConfidenceAudit → LOD_Verify → CompletenessDashboard →
   TagScheme_Audit — the standing gate-audit chain.
+  > **Superseded.** This file was deleted; `WORKFLOW_KUT_GateAudit.json` is
+  > the gate-audit chain. `ValidateTags` and `CompletenessDashboard` are
+  > `[Transaction(TransactionMode.Manual)]` writers (they build legends), so
+  > they do not belong in a read-only pre-gate check. This prompt is kept as
+  > a historical record of what was asked at Phase 192.
 
 ### B2. Owner Standards Pack (rule-pack loader)
 

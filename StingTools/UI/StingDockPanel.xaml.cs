@@ -121,6 +121,13 @@ namespace StingTools.UI
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
             catch { /* non-fatal */ }
+
+            // Publish this instance for LastInstance. The field was declared and read in
+            // ~20 places but NEVER assigned, so LastInstance was permanently null and every
+            // `LastInstance?.X()` call silently no-opped — including the sync-status chip
+            // that INT-07 added it for. The null-conditional made the failure invisible.
+            // Assigned last so a partially-constructed panel is never published.
+            _instance = this;
         }
 
         /// <summary>
@@ -884,6 +891,26 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("ArrowSize",  (sldArrowSize?.Value ?? 4).ToString("F0"));
             }
             catch (Exception ex) { StingLog.Warn($"Read leader/elbow params failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Update the SELECT-tab "Show / Hide" button with how much the active view is
+        /// hiding — "👁 Show / Hide (1,204 hidden) ▾". Pushed by
+        /// <see cref="VisibilityCenter.VisibilityBadge"/> after any read of the view's state,
+        /// so a filtered view announces itself without the user opening anything.
+        /// <para>Must run on the WPF dispatcher; tolerates a null button while the SELECT tab
+        /// is still in its deferred-loading placeholder.</para>
+        /// </summary>
+        public void UpdateVisibilityBadge(string label, string tooltip)
+        {
+            try
+            {
+                var btn = FindName("btnVisDropdown") as Button;
+                if (btn == null) return;
+                if (!string.IsNullOrEmpty(label)) btn.Content = label;
+                if (!string.IsNullOrEmpty(tooltip)) btn.ToolTip = tooltip;
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateVisibilityBadge: {ex.Message}"); }
         }
 
         /// <summary>

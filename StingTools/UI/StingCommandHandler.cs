@@ -491,6 +491,11 @@ namespace StingTools.UI
 
                     // ── Phase 175: MEP/FP/SLD Symbol Library ──
                     case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
+                    // Model SEED families (Data/Seeds/*.json) — distinct from the
+                    // annotation symbol library above. Resolvable in WorkflowEngine
+                    // since Phase 185; this case gives it a panel button too, so a
+                    // checklist step can name it without lying about how to run it.
+                    case "Seeds_Build":            RunCommand<Commands.Symbols.BuildSeedFamiliesCommand>(app); break;
                     case "Symbols_CreateSLD":      RunCommand<Commands.Symbols.CreateSLDSymbolsCommand>(app); break;
                     case "Symbols_CreateSLD_IEEE":  RunCommand<Commands.Symbols.CreateSLDSymbolsIEEECommand>(app); break;
                     case "Symbols_CreateSLD_BS":    RunCommand<Commands.Symbols.CreateSLDSymbolsBSCommand>(app); break;
@@ -763,6 +768,23 @@ namespace StingTools.UI
                     case "ViewHide": ViewHideSelected(app); break;
                     case "ViewReveal": ViewRevealHidden(app); break;
                     case "ViewReset": ViewResetIsolate(app); break;
+
+                    // ── Visibility Center (category + ISO tag token show/hide) ──
+                    // Supersedes the four selection-based cases above for rule-driven work;
+                    // those keep working unchanged for "hide what I have selected".
+                    case "Vis_OpenDropdown": RunCommand<Commands.Visibility.OpenVisibilityDropdownCommand>(app); break;
+                    // Ribbon Hub / QAT launch — floating under the cursor, never anchored to
+                    // the dock panel even when the panel is open.
+                    case "Vis_OpenFloating": RunCommand<Commands.Visibility.OpenVisibilityDropdownFloatingCommand>(app); break;
+                    case "Vis_Apply": RunCommand<Commands.Visibility.ApplyVisibilityCommand>(app); break;
+                    // Live tick apply — same path, no report dialog.
+                    case "Vis_ApplyLive": RunCommand<Commands.Visibility.ApplyVisibilityLiveCommand>(app); break;
+                    case "Vis_Isolate": RunCommand<Commands.Visibility.IsolateVisibilityCommand>(app); break;
+                    case "Vis_ResetAll": RunCommand<Commands.Visibility.ResetVisibilityCommand>(app); break;
+                    case "Vis_PurgeFilters": RunCommand<Commands.Visibility.PurgeVisibilityFiltersCommand>(app); break;
+                    case "Vis_ApplyToTemplate": RunCommand<Commands.Visibility.ApplyVisibilityToTemplateCommand>(app); break;
+                    case "Vis_SavePreset": RunCommand<Commands.Visibility.SaveVisibilityPresetCommand>(app); break;
+                    case "Vis_LoadPreset": RunCommand<Commands.Visibility.LoadVisibilityPresetCommand>(app); break;
 
                     // ── Selection ops (inline) ──
                     case "SelectAll": SelectAllVisible(app); break;
@@ -2811,8 +2833,16 @@ namespace StingTools.UI
                     // ACC (Autodesk Construction Cloud) live coordination — wired
                     // to the existing plugin-side ACC client (V6.AccIssueSync /
                     // AccModelCoordSync), not the server OAuth scaffold.
-                    case "AccPullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
-                    case "AccSyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
+                    // Two spellings resolve deliberately. The BIM Coordination Center
+                    // ACC card dispatches "AccPullClashes"/"AccSyncIssueStatus"; the
+                    // shipped KUT presets and the BIM-tab clash buttons use the
+                    // ACC_-prefixed form that WorkflowEngine.ResolveCommand already
+                    // accepts. Accepting either stops a hand-written project workflow
+                    // failing on the spelling a user reasonably copied off a button.
+                    case "AccPullClashes":
+                    case "ACC_PullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
+                    case "AccSyncIssueStatus":
+                    case "ACC_SyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {
@@ -3268,7 +3298,8 @@ namespace StingTools.UI
                         }
                         break;
                     }
-                    case "ScheduleWizard":
+                    case "Scheduler":        // current name
+                    case "ScheduleWizard":   // legacy tag — kept so saved workflows and MCP calls keep working
                     {
                         // Load CSV definitions and existing schedule names for the wizard
                         var doc = app.ActiveUIDocument?.Document;
@@ -3770,7 +3801,12 @@ namespace StingTools.UI
                     case "Fohlio_ImportFinishes": RunCommand<ExLink.FohlioImportFinishesCommand>(app); break;
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
-                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.KutKpiDashboardCommand>(app); break;
+                    // Owner_KpiDashboard is the name; KUT_KpiDashboard is kept as an
+                    // alias so the existing button, WORKFLOW_KUT_MonthlyReport and any
+                    // muscle memory keep working. The command derives its code from
+                    // PRJ_ORG_PROJECT_CODE_TXT either way.
+                    case "Owner_KpiDashboard":
+                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.OwnerKpiDashboardCommand>(app); break;
 
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
                     case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;
@@ -4476,13 +4512,42 @@ namespace StingTools.UI
             _clonedSourceViewName = null;
         }
 
+        /// <summary>
+        /// Run a temporary hide/isolate change inside a transaction.
+        /// <para><b>These need one.</b> `HideElementsTemporary`, `IsolateElementsTemporary` and
+        /// `DisableTemporaryViewMode` all modify the View element, so Revit throws "Attempt to
+        /// modify the model outside of transaction" without an open transaction. The state not
+        /// being SAVED with the document is what makes it temporary — that is a different thing
+        /// from not needing a transaction. These three helpers had no transaction, so Hide,
+        /// Isolate and Reset on the SELECT tab's VIEW row silently failed.</para>
+        /// </summary>
+        private static void InTempViewTransaction(UIApplication app, string name, Action<View> act)
+        {
+            var uidoc = app?.ActiveUIDocument;
+            if (uidoc?.ActiveView == null) return;
+            try
+            {
+                using (var t = new Transaction(uidoc.Document, name))
+                {
+                    t.Start();
+                    act(uidoc.ActiveView);
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"{name}", ex);
+                TaskDialog.Show("STING Tools", $"{name} failed: {ex.Message}");
+            }
+        }
+
         private static void ViewIsolateSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Isolate", "Select elements first."); return; }
-            uidoc.ActiveView.IsolateElementsTemporary(ids);
+            InTempViewTransaction(app, "STING Isolate", v => v.IsolateElementsTemporary(ids));
         }
 
         private static void ViewHideSelected(UIApplication app)
@@ -4491,7 +4556,7 @@ namespace StingTools.UI
             if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Hide", "Select elements first."); return; }
-            uidoc.ActiveView.HideElementsTemporary(ids);
+            InTempViewTransaction(app, "STING Hide", v => v.HideElementsTemporary(ids));
         }
 
         // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
@@ -4516,9 +4581,8 @@ namespace StingTools.UI
 
         private static void ViewResetIsolate(UIApplication app)
         {
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc?.ActiveView == null) return;
-            uidoc.ActiveView.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+            InTempViewTransaction(app, "STING Reset hide/isolate",
+                v => v.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate));
         }
 
         private static void SelectAllVisible(UIApplication app)

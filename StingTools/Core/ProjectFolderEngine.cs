@@ -106,6 +106,7 @@ namespace StingTools.Core
             ["DocRegister"]    = "REGISTERS",
             ["AssetRegister"]  = "REGISTERS",
             ["BOQ"]            = "SCHEDULES",
+            ["MaterialSchedule"] = "SCHEDULES",
             ["Schedule"]       = "SCHEDULES",
             ["Excel"]          = "SCHEDULES",
             ["Compliance"]     = "COMPLIANCE",
@@ -1940,12 +1941,33 @@ namespace StingTools.Core
 
         /// <summary>
         /// Resolve the ONE recycle bin for the project that owns <paramref name="filePath"/>:
-        /// &lt;root&gt;/_data/recycle/. Walks up from the file looking for the project root
-        /// (the ancestor containing a "_data" folder). Falls back to a sibling "_RECYCLE"
-        /// only for files outside any StingTools project root.
+        /// &lt;root&gt;/_data/recycle/.
+        /// <para>
+        /// When the caller knows the <paramref name="doc"/> this asks <see cref="GetRecyclePath"/>
+        /// — the SAME resolver the Document Manager's Restore reads — so delete and restore can
+        /// never disagree. That matters because the folder tree is created lazily
+        /// (AUTO_CREATE_CDE_FOLDERS defaults false): the path-only walk below finds nothing when
+        /// "_data" does not exist yet, so a delete would land in a sibling "_RECYCLE" that Restore
+        /// never scans, and the file became unrecoverable through the UI while the dialog
+        /// reported success. Pass the document wherever one is available.
+        /// </para>
+        /// <para>
+        /// Path-only fallback: walk up looking for an existing "_data", then a sibling
+        /// "_RECYCLE" for files genuinely outside any StingTools project root.
+        /// <see cref="EnumerateRecycleBins"/> re-discovers those orphan bins on the restore side.
+        /// </para>
         /// </summary>
-        private static string ResolveRecycleDir(string filePath)
+        private static string ResolveRecycleDir(string filePath, Document doc = null)
         {
+            if (doc != null)
+            {
+                try
+                {
+                    string canonical = GetRecyclePath(doc);
+                    if (!string.IsNullOrEmpty(canonical)) return canonical;
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveRecycleDir(doc): {ex.Message}"); }
+            }
             try
             {
                 var dir = new DirectoryInfo(Path.GetDirectoryName(filePath) ?? "");
@@ -1957,6 +1979,47 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"ResolveRecycleDir: {ex.Message}"); }
             return Path.Combine(Path.GetDirectoryName(filePath) ?? "", "_RECYCLE");
+        }
+
+        /// <summary>
+        /// Every recycle bin a restore should offer, canonical first: &lt;root&gt;/_data/recycle,
+        /// the legacy &lt;root&gt;/_RECYCLE sibling, and any orphan "_RECYCLE" folders left inside
+        /// the project tree by a delete that ran before the bin was resolvable. Existing
+        /// directories only — this creates nothing but the canonical bin.
+        /// </summary>
+        public static List<string> EnumerateRecycleBins(Document doc)
+        {
+            var bins = new List<string>();
+            void Add(string p)
+            {
+                if (string.IsNullOrEmpty(p)) return;
+                if (bins.Any(b => string.Equals(b, p, StringComparison.OrdinalIgnoreCase))) return;
+                bins.Add(p);
+            }
+
+            try { Add(GetRecyclePath(doc)); }
+            catch (Exception ex) { StingLog.Warn($"EnumerateRecycleBins canonical: {ex.Message}"); }
+
+            string root = null;
+            try { root = GetRootPath(doc); }
+            catch (Exception ex) { StingLog.Warn($"EnumerateRecycleBins root: {ex.Message}"); }
+            if (string.IsNullOrEmpty(root) || !Directory.Exists(root)) return bins;
+
+            // path-discipline: legacy-fallback -- pre-_data recycle bin at the project root.
+            string legacy = Path.Combine(root, "_RECYCLE");
+            if (Directory.Exists(legacy)) Add(legacy);
+
+            // Orphan bins: a delete that could not resolve the root wrote "_RECYCLE" next to
+            // the file it removed. Those are still inside the project tree, so sweep for them
+            // rather than stranding the files.
+            try
+            {
+                foreach (string d in Directory.GetDirectories(root, "_RECYCLE", SearchOption.AllDirectories))
+                    Add(d);
+            }
+            catch (Exception ex) { StingLog.Warn($"EnumerateRecycleBins sweep: {ex.Message}"); }
+
+            return bins;
         }
 
         /// <summary>
@@ -1978,15 +2041,37 @@ namespace StingTools.Core
         }
 
         /// <summary>Soft-delete: move file to the project recycle bin (OP-005). Hard-delete if recycle fails.</summary>
-        public static bool DeleteFile(string filePath)
+        public static bool DeleteFile(string filePath, Document doc = null)
+            => DeleteFile(filePath, doc, out _);
+
+        /// <summary>
+        /// Soft-delete <paramref name="filePath"/> into the project recycle bin, hard-deleting
+        /// only when the bin cannot be written.
+        /// <para>
+        /// <paramref name="recycledTo"/> receives the bin path on a recoverable delete and
+        /// <c>null</c> when the file had to be destroyed instead — callers MUST NOT report
+        /// "moved to recycle bin" without checking it, because a hard delete is unrecoverable
+        /// and the two outcomes previously looked identical from the outside.
+        /// </para>
+        /// <para>
+        /// Pass <paramref name="doc"/> whenever one is available so the bin resolves through
+        /// <see cref="GetRecyclePath"/> — the same resolver the restore side reads.
+        /// </para>
+        /// </summary>
+        public static bool DeleteFile(string filePath, Document doc, out string recycledTo)
         {
+            recycledTo = null;
             try
             {
-                if (!File.Exists(filePath)) return false;
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                {
+                    StingLog.Warn($"ProjectFolderEngine.DeleteFile: nothing at '{filePath}' — nothing deleted.");
+                    return false;
+                }
                 string name = Path.GetFileName(filePath);
 
                 // Soft-delete into the single project recycle bin
-                string recycleDir = ResolveRecycleDir(filePath);
+                string recycleDir = ResolveRecycleDir(filePath, doc);
                 try
                 {
                     if (!Directory.Exists(recycleDir)) Directory.CreateDirectory(recycleDir);
@@ -2000,18 +2085,22 @@ namespace StingTools.Core
                     string recycledName = Path.GetFileName(recyclePath);
                     File.Move(filePath, recyclePath);
                     RecordRecycleOrigin(recycleDir, recycledName, filePath);
+                    recycledTo = recycleDir;
                     StingLog.Info($"ProjectFolderEngine: Recycled {name} → {recycleDir}");
-                    LogActivity(null, "RECYCLE", name, filePath);
+                    LogActivity(doc, "RECYCLE", name, filePath);
                     InvalidateFolderStatsCache();
                     RaiseFileChanged("RECYCLE", name, filePath);
                     return true;
                 }
-                catch
+                catch (Exception recycleEx)
                 {
-                    // Fall back to hard delete
+                    // Fall back to hard delete. Log WHY the bin was unusable — this branch
+                    // destroys the file, so a silent swallow here loses both the data and the
+                    // only evidence of what went wrong.
+                    StingLog.Warn($"ProjectFolderEngine: recycle to '{recycleDir}' failed ({recycleEx.Message}) — hard-deleting {name}.");
                     File.Delete(filePath);
                     StingLog.Info($"ProjectFolderEngine: Hard-deleted {name}");
-                    LogActivity(null, "DELETE", name, filePath);
+                    LogActivity(doc, "DELETE", name, filePath);
                     InvalidateFolderStatsCache();
                     RaiseFileChanged("DELETE", name, filePath);
                     return true;
@@ -2068,19 +2157,34 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"LookupRecycleOrigin: {ex.Message}"); return null; }
         }
 
-        /// <summary>Rename a file and log the activity.</summary>
-        public static bool RenameFile(string filePath, string newName)
+        /// <summary>
+        /// Rename a file and log the activity. Returns false when the source is missing or the
+        /// target name is already taken — callers must report that rather than no-op silently.
+        /// <para>
+        /// Pass <paramref name="doc"/> where available: <see cref="LogActivity"/> resolves its
+        /// log path from the document, so a null doc means the rename is never recorded.
+        /// </para>
+        /// </summary>
+        public static bool RenameFile(string filePath, string newName, Document doc = null)
         {
             try
             {
-                if (!File.Exists(filePath)) return false;
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                {
+                    StingLog.Warn($"ProjectFolderEngine.RenameFile: nothing at '{filePath}'.");
+                    return false;
+                }
                 string dir = Path.GetDirectoryName(filePath);
                 string oldName = Path.GetFileName(filePath);
                 string newPath = Path.Combine(dir, newName);
-                if (File.Exists(newPath)) return false;
+                if (File.Exists(newPath))
+                {
+                    StingLog.Warn($"ProjectFolderEngine.RenameFile: '{newName}' already exists in {dir}.");
+                    return false;
+                }
                 File.Move(filePath, newPath);
                 StingLog.Info($"ProjectFolderEngine: Renamed {oldName} → {newName}");
-                LogActivity(null, "RENAME", newName, $"{oldName} -> {newName}");
+                LogActivity(doc, "RENAME", newName, $"{oldName} -> {newName}");
                 InvalidateFolderStatsCache();
                 RaiseFileChanged("RENAME", newName, Path.Combine(dir, newName));
                 return true;
@@ -2091,23 +2195,53 @@ namespace StingTools.Core
 
         /// <summary>Move a file to a different folder. Auto-logs transmittal when target is CDE folder.</summary>
         public static bool MoveFile(Document doc, string filePath, string targetFolderId)
+            => MoveFile(doc, filePath, targetFolderId, out _);
+
+        /// <summary>
+        /// Move a file to a different folder, reporting the path it actually landed on.
+        /// <para>
+        /// <paramref name="newPath"/> matters because a name collision is resolved with
+        /// <see cref="GetUniqueFileName"/>, so the destination is not always
+        /// &lt;targetDir&gt;/&lt;originalName&gt;. Callers that record the move must use this value.
+        /// </para>
+        /// <para>
+        /// Set <paramref name="autoTransmittal"/> false when the CALLER is moving a batch and will
+        /// raise one transmittal covering all of it. Otherwise a bulk CDE promotion produces one
+        /// auto-transmittal per file PLUS the caller's batch one — N+1 records for a single action.
+        /// </para>
+        /// </summary>
+        public static bool MoveFile(Document doc, string filePath, string targetFolderId,
+                                    out string newPath, bool autoTransmittal = true)
         {
+            newPath = null;
             try
             {
-                if (!File.Exists(filePath)) return false;
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                {
+                    StingLog.Warn($"ProjectFolderEngine.MoveFile: nothing at '{filePath}'.");
+                    return false;
+                }
                 string targetDir = GetFolderPath(doc, targetFolderId);
+                if (string.IsNullOrEmpty(targetDir))
+                {
+                    StingLog.Warn($"ProjectFolderEngine.MoveFile: could not resolve folder '{targetFolderId}'.");
+                    return false;
+                }
                 string fileName = Path.GetFileName(filePath);
-                string newPath = Path.Combine(targetDir, fileName);
-                if (File.Exists(newPath)) newPath = GetUniqueFileName(newPath);
-                File.Move(filePath, newPath);
+                string dest = Path.Combine(targetDir, fileName);
+                if (File.Exists(dest)) dest = GetUniqueFileName(dest);
+                File.Move(filePath, dest);
+                newPath = dest;
                 StingLog.Info($"ProjectFolderEngine: Moved {fileName} → {targetFolderId}");
                 LogActivity(doc, "MOVE", fileName, $"→ {targetFolderId}");
                 InvalidateFolderStatsCache();
-                RaiseFileChanged("MOVE", fileName, Path.Combine(targetDir, fileName));
+                // Report the path the file is actually AT — a de-duplicated name would otherwise
+                // send watchers to a path that does not exist.
+                RaiseFileChanged("MOVE", Path.GetFileName(dest), dest);
 
                 // AUTO-001: Auto-log transmittal when moving to CDE folders
-                if (targetFolderId == "SHARED" || targetFolderId == "PUBLISHED")
-                    AutoLogTransmittal(doc, new List<string> { newPath }, targetFolderId);
+                if (autoTransmittal && (targetFolderId == "SHARED" || targetFolderId == "PUBLISHED"))
+                    AutoLogTransmittal(doc, new List<string> { dest }, targetFolderId);
 
                 return true;
             }

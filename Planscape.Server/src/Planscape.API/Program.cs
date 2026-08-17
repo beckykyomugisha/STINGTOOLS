@@ -738,6 +738,8 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityResolverService,
 // TagSyncController + ArchiCADController (mapping upsert).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IIfcIngestService,
     Planscape.Infrastructure.Services.IfcIngestService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IIdentityReconciliationService,
+    Planscape.Infrastructure.Services.IdentityReconciliationService>();
 // K2 — Platform event spine (durable cross-surface channel → STING plugin).
 builder.Services.AddScoped<Planscape.Core.Interfaces.IPlatformEventService,
     Planscape.Infrastructure.Services.PlatformEventService>();
@@ -1616,6 +1618,52 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
         // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
         await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
 
+        // #631 — report the per-folder ACL population at boot.
+        //
+        // ProjectMemberAcl.ResolveAsync narrows what a member sees inside a
+        // project using three allow-list columns on ProjectMembers. Between
+        // cb503b024 (2026-05-16) and the fix for #631 those columns were
+        // hard-coded to null, so the ACL restricted nothing. Turning it back on
+        // is inert for a member whose allow-lists are empty (null = "all") and
+        // NARROWS access for a member whose are not.
+        //
+        // Nobody could answer "how many rows are populated in production?"
+        // without database access, so the server answers it itself, once per
+        // boot, before it matters.
+        //
+        // Deliberately logged at Warning in BOTH cases. render.yaml sets
+        // Serilog__MinimumLevel__Default=Warning in production, so an
+        // Information line would be invisible there — and "no line appeared"
+        // would then be indistinguishable between "zero rows" and "the check
+        // never ran". One line per deploy is a fair price for an unambiguous
+        // answer.
+        try
+        {
+            var aclScoped = await db.ProjectMembers
+                .IgnoreQueryFilters()
+                .CountAsync(m => m.IsActive && (
+                       (m.AllowedCdeStates     != null && m.AllowedCdeStates     != "")
+                    || (m.AllowedDisciplines   != null && m.AllowedDisciplines   != "")
+                    || (m.AllowedSuitabilities != null && m.AllowedSuitabilities != "")));
+
+            if (aclScoped > 0)
+                app.Logger.LogWarning(
+                    "[ACL] {Count} active ProjectMember row(s) carry a per-folder allow-list. " +
+                    "ProjectMemberAcl WILL narrow document visibility for them. To restore full " +
+                    "access for a member, set their AllowedCdeStates/AllowedDisciplines/" +
+                    "AllowedSuitabilities back to NULL (null = all). See #631.",
+                    aclScoped);
+            else
+                app.Logger.LogWarning(
+                    "[ACL] No active ProjectMember row carries a per-folder allow-list. " +
+                    "ProjectMemberAcl is active but narrows nothing for anyone. See #631.");
+        }
+        catch (Exception ex)
+        {
+            // Never let a diagnostic stop the boot — but never swallow it either.
+            app.Logger.LogWarning(ex, "[ACL] Could not read the per-folder ACL population.");
+        }
+
         // Postgres RLS policies (#545). OFF unless Database:RlsEnabled is set —
         // the same key that gates RlsConnectionInterceptor above, so the
         // session variable and the policies that read it turn on together
@@ -2021,6 +2069,37 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // they did before.
         "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"DeletedAtUtc\" timestamp with time zone NULL",
         "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_DeletedAtUtc\" ON \"TaggedElements\" (\"ProjectId\", \"DeletedAtUtc\")",
+        // R1 — TaggedElements.IfcGlobalId (the canonical cross-host key). Same
+        // idempotent-patch rationale as DeletedAtUtc above: fresh DBs get it from
+        // the EF model via CreateTables; pre-existing DBs get it here. Nullable so
+        // existing rows read as "unknown GlobalId" until the next push populates
+        // it. NON-unique index for now (Increment 1) — the unique constraint +
+        // dedup lands in Increment 2.
+        "ALTER TABLE \"TaggedElements\" ADD COLUMN IF NOT EXISTS \"IfcGlobalId\" text NULL",
+        "CREATE INDEX IF NOT EXISTS \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" (\"ProjectId\", \"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL",
+        // Safe backfill: non-Revit rows (RevitElementId = 0) already carry the
+        // IFC GlobalId in UniqueId, so copy it across. Revit rows are backfilled
+        // from ExternalElementMapping during the Increment-2 merge; until then
+        // they populate IfcGlobalId on their next push (MapDtoToEntity).
+        "UPDATE \"TaggedElements\" SET \"IfcGlobalId\" = \"UniqueId\" WHERE \"RevitElementId\" = 0 AND (\"IfcGlobalId\" IS NULL OR \"IfcGlobalId\" = '') AND \"UniqueId\" <> ''",
+        // R1 (2b) — enforce ONE row per (project, GlobalId) by making the Increment-1
+        // index UNIQUE. Postgres cannot alter an index's uniqueness in place, so it
+        // is dropped + recreated — but ONLY when (a) it is not already unique and
+        // (b) the data holds no (ProjectId, IfcGlobalId) duplicates. That guard
+        // means: a fresh DB (already unique from the model) is skipped; a clean DB
+        // is converted once; a DB that still has duplicates keeps its non-unique
+        // index (lookups keep working) until an operator runs
+        // POST /api/admin/identity/reconcile/apply and restarts. Atomic (single DO
+        // block) so a failed convert can never leave the table with no index.
+        "DO $$ BEGIN " +
+        "IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' " +
+            "AND indexname='IX_TaggedElements_ProjectId_IfcGlobalId' AND indexdef ILIKE '%UNIQUE%') " +
+        "AND NOT EXISTS (SELECT 1 FROM (SELECT \"ProjectId\",\"IfcGlobalId\" FROM \"TaggedElements\" " +
+            "WHERE \"IfcGlobalId\" IS NOT NULL GROUP BY \"ProjectId\",\"IfcGlobalId\" HAVING COUNT(*)>1) d) THEN " +
+        "DROP INDEX IF EXISTS \"IX_TaggedElements_ProjectId_IfcGlobalId\"; " +
+        "CREATE UNIQUE INDEX \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" " +
+            "(\"ProjectId\",\"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL; " +
+        "END IF; END $$;",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)

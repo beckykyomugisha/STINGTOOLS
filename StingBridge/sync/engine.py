@@ -31,6 +31,17 @@ from .property_writer import PropertyWriter
 
 log = logging.getLogger(__name__)
 
+# SB-1b — the live ArchiCAD sync's HostDocumentGuid. A live session is ONE
+# document per Planscape project, so a stable constant (scoped per-project by the
+# ProjectId already in the mapping key) is the right identity — not null. Null
+# left the (ProjectId, IfcGlobalId, Host, HostDocumentGuid) UNIQUE index unable to
+# enforce for live rows (Postgres treats NULLs as distinct), so a concurrent
+# double-sync could slip two mapping rows past it; a constant closes that. It is
+# deliberately DISTINCT from the IFC-drop path's per-file id: a live model and an
+# exported IFC file are genuinely different documents, and ArchiCAD exposes no
+# project GUID to unify them (only a Tapir add-on path, itself move-fragile).
+LIVE_DOCUMENT_GUID = "archicad-live"
+
 
 def _ifc_global_id_from_acguid(ac_guid: str) -> str:
     """Convert an ArchiCAD element GUID to the IFC GlobalId ArchiCAD assigns
@@ -314,11 +325,18 @@ class SyncEngine:
             )
 
         # ── Post to Planscape in batches ──────────────────────────────────────
+        # SB-1b — send a stable per-project document id (see LIVE_DOCUMENT_GUID)
+        # instead of null, so the cross-host mapping's unique index can enforce for
+        # live rows. (Investigated unifying this with the IFC-drop path's id: not
+        # achievable or desirable — different documents, and ArchiCAD has no project
+        # GUID. The live path's null was already deduped by the server upsert's
+        # null-matching; this hardens the concurrent case.)
         if all_sync_elements:
             for i in range(0, len(all_sync_elements), self._batch_size):
                 batch = all_sync_elements[i : i + self._batch_size]
                 try:
-                    self._ps.ingest_ifc_data(batch, host="archicad")
+                    self._ps.ingest_ifc_data(
+                        batch, host="archicad", host_document_guid=LIVE_DOCUMENT_GUID)
                     result.planscape_synced += len(batch)
                 except (PlanscapeError, Exception) as e:
                     msg = f"Planscape sync failed for batch {i//self._batch_size}: {e}"
