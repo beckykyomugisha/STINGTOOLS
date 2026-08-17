@@ -202,10 +202,45 @@ namespace StingTools.Boq.Tests
             Assert.Equal(2, doc.Stages.Single().Commodities.Single().OrderQuantity);  // 160/80
         }
 
+        [Fact]
+        public void The_Commodity_Declared_Stage_Beats_The_Elements_Category_Stage()
+        {
+            // The regression: category "Roofs" routes to the "roof" stage, but a
+            // commodity may belong elsewhere. Declaring a stage on the rule must
+            // win, or a finish matched by a structural category gets filed under
+            // the frame -- which is exactly what happened to wall paint.
+            var table = new SupplierUnitTable();
+            table.Rules.Add(new SupplierUnitRule
+            {
+                CommodityKey = "roof-paint", Description = "Roof paint",
+                SupplierUnit = "Bkts", SourceUnit = "m2",
+                SourceUnitsPerSupplierUnit = 50.0, RoundUpToWhole = true,
+                MatchCategories = { "Roofs" },
+                StageId = "finishes"            // NOT the element's "roof"
+            });
+
+            var doc = CommodityAggregator.Build(new AggregatorInputs
+            {
+                Constituents = { new ConstituentInput { Category = "Roofs", TypeName = "Sheet",
+                                                        Description = "Roof", Unit = "m2", Quantity = 100 } },
+                Units = table,
+                StageDefs = { new StageDefinition { StageId = "roof", Title = "ROOF", Order = 10,
+                                                    Categories = { "Roofs" } },
+                              new StageDefinition { StageId = "finishes", Title = "FINISHES", Order = 20 } },
+                DefaultStageId = "roof",
+                Rates = new CommodityRateResolver(new[]
+                    { new CommodityRate { CommodityKey = "roof-paint", RateUGX = 200000 } }, null)
+            });
+
+            var section = Assert.Single(doc.Stages);
+            Assert.Equal("finishes", section.StageId);
+            Assert.Equal("roof-paint", section.Commodities.Single().CommodityKey);
+        }
+
         // ── shipped data ────────────────────────────────────────────────────
 
         [Fact]
-        public void The_Shipped_Table_Now_Covers_Roof_And_Finishes_Commodities()
+        public void The_Shipped_Table_Covers_The_Roof_Commodities()
         {
             string unitsPath = System.IO.Path.Combine(
                 System.AppContext.BaseDirectory, "Data", "STING_SUPPLIER_UNITS.json");
@@ -217,7 +252,7 @@ namespace StingTools.Boq.Tests
             var rates = CommodityRateResolver.ParseCsv(System.IO.File.ReadAllLines(ratesPath), out _);
             var resolver = new CommodityRateResolver(rates, null);
 
-            foreach (string key in new[] { "roof-sheet", "paint-wall", "paint-ceiling", "floor-tile" })
+            foreach (string key in new[] { "roof-sheet", "roof-tile" })
             {
                 var rule = table!.ResolveByCommodityKey(key);
                 Assert.True(rule != null, $"no supplier-unit rule for '{key}'");

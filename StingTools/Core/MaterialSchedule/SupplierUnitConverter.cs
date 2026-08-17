@@ -43,6 +43,17 @@ namespace StingTools.Core.MaterialSchedule
         /// category match would print a confident sheet count for a slab.
         /// </summary>
         public List<string> MatchTypePatterns = new List<string>();
+
+        /// <summary>
+        /// The construction stage this commodity belongs to, overriding whatever
+        /// stage the ELEMENT's category routes to. Required on any category rule.
+        ///
+        /// Without it a commodity silently inherits the element's stage, which is
+        /// how wall paint and floor tiles ended up filed under SUPERSTRUCTURE:
+        /// categories "Walls" and "Floors" route to the frame, but paint and tiles
+        /// are finishes. The commodity knows its own section; the element does not.
+        /// </summary>
+        public string StageId = "";
     }
 
     /// <summary>How (or whether) a row resolved to a supplier-unit rule.</summary>

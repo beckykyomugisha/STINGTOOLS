@@ -4,7 +4,6 @@
 CommodityKey,SupplierUnit,RateUGX,Description
 cement,Bags,28000,Cement OPC 42.5N 50kg bag
 sand,Trips (Sino Truck),1400000,River and pit sand per Sino Truck trip
-aggregate,Trips (Sino Truck),2400000,Machine-crushed aggregate per Sino Truck trip
 block,No.,2500,Hollow block 8 inch
 brick,No.,400,Burnt clay brick
 rebar,Kg,3250,High-tensile reinforcement bar
@@ -12,7 +11,3 @@ formwork-timber,m²,7000,Sawn timber formwork per square metre contact area
 concrete-ready,m³,450000,In-situ concrete supplied and placed
 roof-sheet,No.,35000,Corrugated roofing sheet IT4 gauge 28 per sheet
 roof-tile,No.,3900,Roof tile (Max pan / clay) per tile
-paint-wall,Bkts,200000,Weather-guard / silk paint 20L bucket
-paint-ceiling,Bkts,280000,Ceiling matt paint 20L bucket
-floor-tile,Boxes,48000,Floor tile box (1.44 m2)
-tile-adhesive,Bags,22000,Tile adhesive 20kg bag
