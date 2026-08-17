@@ -49,6 +49,7 @@ namespace StingTools.BOQ.MaterialSchedule
             var lib = LoadStages(doc);
             inputs.StageDefs = lib.Stages;
             inputs.DefaultStageId = lib.DefaultStageId;
+            inputs.ExcludedCategories = lib.ExcludedCategories;
             inputs.Rates = LoadRates(doc);
 
             foreach (var item in boq.AllItems.Where(i => i.Source == BOQRowSource.Model))
@@ -82,6 +83,12 @@ namespace StingTools.BOQ.MaterialSchedule
                     "Compound take-off is disabled (COST_COMPOUND_TAKEOFF). Walls and slabs were "
                   + "priced as single composite rates, so no cement / sand / block commodities were "
                   + "produced. Enable it in project config and re-run for a full material schedule.");
+            if (msDoc.ExcludedRowCount > 0)
+                result.Warnings.Add(
+                    $"{msDoc.ExcludedRowCount} row(s) excluded as not-a-material "
+                  + $"({string.Join(", ", msDoc.ExcludedByCategory.OrderByDescending(kv => kv.Value).Take(5).Select(kv => $"{kv.Key} x{kv.Value}"))}"
+                  + (msDoc.ExcludedByCategory.Count > 5 ? ", …" : "") + "). "
+                  + "Edit excludedCategories in the stage library to change this.");
             if (result.RowsWithoutKind > 0)
                 result.Warnings.Add(
                     $"{result.RowsWithoutKind} of {result.ConstituentRowsSeen} model rows carried no "

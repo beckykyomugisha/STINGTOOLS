@@ -33,6 +33,18 @@ namespace StingTools.Core.MaterialSchedule
         public string SchemaVersion = "1.0";
         public string DefaultStageId = "";
         public List<StageDefinition> Stages = new List<StageDefinition>();
+
+        /// <summary>
+        /// Revit categories that are NOT materials and must never appear in a
+        /// material schedule — furniture, entourage, planting, topography.
+        /// Excluded rows are counted and reported, never silently dropped.
+        ///
+        /// This list is deliberately conservative. Doors, windows, fixtures and
+        /// fittings ARE bought and belong in the schedule (the reference sample
+        /// gives them their own section); they simply have no supplier-unit rule
+        /// yet, which is a missing rate, not a reason to hide them.
+        /// </summary>
+        public List<string> ExcludedCategories = new List<string>();
     }
 
     public static class StageMapper

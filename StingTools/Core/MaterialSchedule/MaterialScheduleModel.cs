@@ -114,6 +114,11 @@ namespace StingTools.Core.MaterialSchedule
         public MaterialScheduleOptions Options = new MaterialScheduleOptions();
         public MaterialScheduleReconciliation Reconciliation = new MaterialScheduleReconciliation();
 
+        /// <summary>MAT-SCHED-8 — model rows dropped as not-a-material, by category.
+        /// Reported so an exclusion is a stated decision, never a silent loss.</summary>
+        public Dictionary<string, int> ExcludedByCategory = new Dictionary<string, int>();
+        public int ExcludedRowCount => ExcludedByCategory.Values.Sum();
+
         public double WorksSubtotalUGX => Stages.Sum(s => s.SubTotalUGX);
         public double ContingencyUGX => Math.Round(WorksSubtotalUGX * Options.ContingencyPct / 100.0, 0);
         public double GrandTotalUGX => WorksSubtotalUGX + ContingencyUGX;

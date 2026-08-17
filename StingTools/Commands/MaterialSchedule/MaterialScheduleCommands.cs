@@ -45,7 +45,43 @@ namespace StingTools.Commands.MaterialSchedule
                     ContingencyPct = 5.0
                 };
 
-                var built = MaterialScheduleBuilder.Build(doc, options);
+                // MAT-SCHED-7 — compound take-off is what produces cement, sand,
+                // blocks and bricks. It defaults OFF and is set in no shipped
+                // file, so without this the export silently returns a schedule
+                // with no materials in it. Offer it BEFORE the build, not as a
+                // warning afterwards.
+                bool forceCompound = false;
+                if (!StingTools.BOQ.Takeoff.CompoundTakeoffBuilder.Enabled())
+                {
+                    var cd = new TaskDialog("Material Schedule")
+                    {
+                        MainInstruction = "Compound take-off is off — this export would contain no materials",
+                        MainContent =
+                            "Cement, sand, blocks, bricks and paint come from breaking walls and slabs into "
+                          + "their constituents. That is currently disabled (COST_COMPOUND_TAKEOFF), so the "
+                          + "schedule would list composite elements instead of things you can buy.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel
+                    };
+                    cd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Enable it for this export", "Recommended. Uses compound take-off for this run only; "
+                        + "your project configuration is not changed.");
+                    cd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Export without it", "You will get composite elements, not commodities.");
+                    var cr = cd.Show();
+                    if (cr == TaskDialogResult.Cancel) return Result.Cancelled;
+                    forceCompound = cr == TaskDialogResult.CommandLink1;
+                }
+
+                MaterialScheduleBuildResult built;
+                if (forceCompound)
+                {
+                    using (StingTools.BOQ.Takeoff.CompoundTakeoffBuilder.ForceEnabled())
+                        built = MaterialScheduleBuilder.Build(doc, options);
+                }
+                else
+                {
+                    built = MaterialScheduleBuilder.Build(doc, options);
+                }
                 var msDoc = built.Document;
 
                 if (msDoc.Stages.Count == 0)
