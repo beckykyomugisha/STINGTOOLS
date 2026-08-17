@@ -14,6 +14,7 @@
 import { registerHooks } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(here, '..');
@@ -24,6 +25,7 @@ const REDIRECTS = new Map([
   ['expo-secure-store', stub('expo-secure-store.mjs')],
   ['expo-file-system/legacy', stub('expo-file-system-legacy.mjs')],
   ['@/api/endpoints', stub('endpoints.mjs')],
+  ['react-native', stub('react-native.mjs')],
 ]);
 
 registerHooks({
@@ -45,6 +47,18 @@ registerHooks({
         try {
           return { url: pathToFileURL(full).href, shortCircuit: true };
         } catch { /* try next extension */ }
+      }
+    }
+
+    // TypeScript source uses extensionless relative imports ('../api/client').
+    // Node ESM requires the extension, so try the TS ones before giving up.
+    if (specifier.startsWith('.') && !/\.[cm]?[jt]sx?$/.test(specifier)) {
+      const from = context.parentURL ? path.dirname(fileURLToPath(context.parentURL)) : projectRoot;
+      const base = path.resolve(from, specifier);
+      for (const ext of ['.ts', '.tsx', '/index.ts', '/index.tsx']) {
+        if (fs.existsSync(base + ext)) {
+          return { url: pathToFileURL(base + ext).href, shortCircuit: true };
+        }
       }
     }
 
