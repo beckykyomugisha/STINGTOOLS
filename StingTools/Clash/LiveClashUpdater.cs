@@ -28,20 +28,20 @@ namespace StingTools.Core.Clash
         // updater no longer writes to it. Clash covers nine categories, geometry
         // sync covers all of them, and conflating the two is what made doors and
         // equipment invisible to the server.
-        public static readonly ConcurrentQueue<(string DocGuid, int ElementId)> GeometrySyncQueue =
-            new ConcurrentQueue<(string, int)>();
+        public static readonly ConcurrentQueue<(string DocGuid, long ElementId)> GeometrySyncQueue =
+            new ConcurrentQueue<(string, long)>();
 
         /// <summary>
         /// Drain all geometry-sync entries that belong to <paramref name="doc"/>.
         /// Items for other documents are re-enqueued so they aren't lost.
         /// Returns element IDs (positive = changed, negative = deleted sentinel).
         /// </summary>
-        public static List<int> DrainGeometrySyncIds(Document doc)
+        public static List<long> DrainGeometrySyncIds(Document doc)
         {
-            if (doc == null) return new System.Collections.Generic.List<int>();
+            if (doc == null) return new System.Collections.Generic.List<long>();
             string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
-            var result   = new System.Collections.Generic.List<int>();
-            var requeue  = new System.Collections.Generic.List<(string, int)>();
+            var result   = new System.Collections.Generic.List<long>();
+            var requeue  = new System.Collections.Generic.List<(string, long)>();
             while (GeometrySyncQueue.TryDequeue(out var item))
             {
                 if (string.Equals(item.DocGuid, docGuid, StringComparison.Ordinal))

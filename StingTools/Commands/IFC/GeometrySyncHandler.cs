@@ -97,9 +97,9 @@ namespace StingTools.Commands.IFC
 
                 // Extract mesh geometry on the Revit API thread (required)
                 var buffers = new List<ClashMeshBuffer>(changedIds.Count);
-                var extractedIds = new List<int>(changedIds.Count);
+                var extractedIds = new List<long>(changedIds.Count);
                 string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
-                foreach (int eid in changedIds)
+                foreach (long eid in changedIds)
                 {
                     var buf = TryExtractElement(doc, eid, docGuid);
                     if (buf != null) { buffers.Add(buf); extractedIds.Add(eid); }
@@ -176,12 +176,12 @@ namespace StingTools.Commands.IFC
         /// retry loop here would hammer an unreachable server from a background
         /// thread with no backoff and no way for the user to stop it.</para>
         /// </summary>
-        private static void RequeueForRetry(string docGuid, List<int> elementIds, string reason)
+        private static void RequeueForRetry(string docGuid, List<long> elementIds, string reason)
         {
             try
             {
                 if (elementIds == null || elementIds.Count == 0) return;
-                foreach (int id in elementIds)
+                foreach (long id in elementIds)
                     LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, id));
 
                 StingLog.Warn(
@@ -200,11 +200,11 @@ namespace StingTools.Commands.IFC
 
         // ── Per-element tessellation ─────────────────────────────────────────
 
-        private static ClashMeshBuffer TryExtractElement(Document doc, int elementId, string docGuid)
+        private static ClashMeshBuffer TryExtractElement(Document doc, long elementId, string docGuid)
         {
             try
             {
-                var el = doc.GetElement(new ElementId((long)elementId));
+                var el = doc.GetElement(new ElementId(elementId));
                 if (el == null || el.Category == null) return null;
 
                 var opts = new Options

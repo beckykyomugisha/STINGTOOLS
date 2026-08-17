@@ -59,13 +59,18 @@ namespace StingTools.Core.Clash
                 var doc = data.GetDocument();
                 string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
 
+                // id.Value is a 64-bit ElementId (Revit 2024+). Enqueue the full
+                // long: the old (int) cast wrapped a large id negative, and the
+                // handler reads a negative id as a delete tombstone — so a large
+                // modified/added element was mis-split as a deletion and the
+                // server soft-deleted live geometry the user had just edited.
                 foreach (var id in data.GetModifiedElementIds())
-                    LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, (int)id.Value));
+                    LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, id.Value));
                 foreach (var id in data.GetAddedElementIds())
-                    LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, (int)id.Value));
+                    LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, id.Value));
                 // Negative id is the tombstone sentinel the handler splits on.
                 foreach (var id in data.GetDeletedElementIds())
-                    LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, -(int)id.Value));
+                    LiveClashUpdater.GeometrySyncQueue.Enqueue((docGuid, -id.Value));
             }
             catch (Exception ex)
             {
