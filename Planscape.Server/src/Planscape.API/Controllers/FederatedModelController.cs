@@ -16,7 +16,7 @@ namespace Planscape.API.Controllers;
 /// POST /api/projects/{projectId}/federated-model/delta
 ///   Accepts a multipart/form-data body with:
 ///     • "glb"        — binary/glb — GLB file containing changed/added element meshes
-///     • "deletedIds" — application/json — JSON array of deleted Revit element IDs (int)
+///     • "deletedIds" — application/json — JSON array of deleted Revit element IDs (64-bit)
 ///
 /// Each mesh in the GLB must carry node.extras.uniqueId and node.extras.elementId
 /// (written by GlbSerializer in the Revit plugin). The endpoint upserts a
@@ -105,8 +105,12 @@ public class FederatedModelController : ControllerBase
             try
             {
                 using var stream = deletedIds.OpenReadStream();
-                var ids = await JsonSerializer.DeserializeAsync<List<int>>(stream);
-                if (ids != null) deletedList.AddRange(ids.Select(i => (long)i));
+                // 64-bit: Revit 2024+ element ids can exceed int.MaxValue, and the
+                // plugin now sends them as full longs. Deserializing into List<int>
+                // would overflow-throw on such an id (caught below → tombstones
+                // silently dropped), and FederatedElement.ElementId is already long.
+                var ids = await JsonSerializer.DeserializeAsync<List<long>>(stream);
+                if (ids != null) deletedList.AddRange(ids);
             }
             catch (Exception ex)
             {

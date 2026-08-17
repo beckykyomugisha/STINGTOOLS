@@ -261,6 +261,45 @@ public class FederatedDeltaReliabilityTests
         }
     }
 
+    [Fact]
+    public async Task A_deleted_id_beyond_int_range_round_trips_through_the_wire()
+    {
+        // 64-bit regression on the server half. Revit 2024+ element ids can
+        // exceed int.MaxValue and the plugin now sends them as full longs. The
+        // endpoint used to deserialize deletedIds into List<int>, which
+        // overflow-throws on such an id — caught, logged, and the tombstone
+        // silently dropped. FederatedElement.ElementId is already long, so with
+        // List<long> the id round-trips: added from the GLB node (GetInt64) and
+        // deleted by the same value.
+        long bigId = (long)int.MaxValue + 42;   // 2,147,483,689 — negative as int32
+
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(w, db, new StubStorage())
+                    .PostDelta(w.Project, Glb("uid-big", bigId), null);
+
+            using (var seeded = NewContext(w.Conn, w.Tenant))
+                Assert.True(
+                    await seeded.FederatedElements.AnyAsync(e => e.ElementId == bigId && !e.IsDeleted),
+                    "the 64-bit elementId was not stored from the GLB node");
+
+            using (var db2 = NewContext(w.Conn, w.Tenant))
+            {
+                var result = await NewController(w, db2, new StubStorage())
+                    .PostDelta(w.Project, Glb("uid-keep", 7), DeletedIds($"[{bigId}]"));
+                Assert.IsType<OkObjectResult>(result);
+            }
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            var isDeleted = await check.FederatedElements
+                .Where(e => e.ElementId == bigId).Select(e => e.IsDeleted).SingleAsync();
+            Assert.True(isDeleted,
+                "a 64-bit deletedId was not tombstoned — the server truncated or dropped it");
+        }
+    }
+
     // ── C6: idempotency ─────────────────────────────────────────────────────
 
     [Fact]
