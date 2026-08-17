@@ -7,11 +7,17 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
 Phase 235 shipped a material schedule that had **never run inside Revit**. This phase ran it, fixed
 what the run exposed, and closed the integrity gate.
 
-**1 — Verified in Revit (2026-08-17).** On a real model — 16 categories, UGX 1.55bn modelled — with
-`COST_COMPOUND_TAKEOFF=1`: section letters run A/B/C with no duplicates, the Summary letters and
-order match the body exactly, and the **Validation sheet is clean**. That is the three defect
-classes the PATMAC reference sample failed on, confirmed absent in a real export rather than only
-in unit tests. ROADMAP MATSCHED-1 closed.
+**1 — Run in Revit (2026-08-17), and only half of it held up.** A first run reported section letters
+A/B/C with no duplicates, the Summary letters and order matching the body, and a clean Validation
+sheet — the three defect classes the PATMAC reference sample failed on. **A later run contradicted
+the clean-Validation half**: 60 commodity rows, 61 unpriced-commodity issues, grand total UGX 0.
+
+The lettering and summary-projection logic is therefore established to behave in Revit as its unit
+tests claim. **That the export produces a usable material schedule is not**, and MATSCHED-1 stays
+open rather than being closed on the more flattering of two runs. The second run's cause is
+understood and tracked as MATSCHED-7 (`COST_COMPOUND_TAKEOFF` defaults off and is set in no shipped
+file, so cement, sand, blocks and bricks are never emitted at all) and MATSCHED-8 (every unmatched
+model row, furniture and casework included, is emitted as an unpriced commodity).
 
 **2 — The button was invisible.** It shipped inside a collapsed `<Expander>` on the BIM tab, one of
 six stacked collapsed groups, so a brand-new feature was effectively undiscoverable. Surfaced in
