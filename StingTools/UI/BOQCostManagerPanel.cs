@@ -1325,6 +1325,18 @@ namespace StingTools.UI
                      "Per-line gross → net derivation: gross geometry, openings/voids deducted (NRM2/CESMM4 rules), wastage step, net measured quantity. Read-only.", false),
                 }));
 
+            sp.Children.Add(BuildActionGroup("Procurement (Material Schedule)",
+                "The buy-list, not the bill. Converts measured work into commodities in supplier " +
+                "units — bags of cement, trips of sand, No. of blocks — sectioned by construction stage.",
+                new[]
+                {
+                    ("★ Material Schedule", "MaterialSchedule_Export",
+                     "Export a stage-sectioned material schedule as XLSX. Commodities are aggregated across " +
+                     "the project, converted to supplier units with a visible wastage step, and priced from the " +
+                     "commodity rate list. Choose priced (Qty × Rate × Amount, contingency, grand total) or " +
+                     "quantities-only (a buy-list for the site team). Needs COST_COMPOUND_TAKEOFF enabled.", true),
+                }));
+
             sp.Children.Add(BuildActionGroup("IFC & ICMS3 Export",
                 "External tool round-trip and cost-plus-carbon ledger.",
                 new[]
@@ -4998,12 +5010,86 @@ namespace StingTools.UI
                 .Distinct();
         }
 
+        /// <summary>
+        /// MAT-SCHED — the Materials-tab action bar. One primary export plus a
+        /// one-line explanation of how a material schedule differs from the bill,
+        /// because "Materials" and "Material Schedule" are easy to conflate: this
+        /// tab shows measured work grouped by category, the schedule shows buyable
+        /// commodities in supplier units grouped by construction stage.
+        /// </summary>
+        private FrameworkElement BuildMaterialScheduleBar()
+        {
+            var bar = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0xF4, 0xF6, 0xF8)),
+                BorderBrush = BorderColor,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 12),
+                CornerRadius = new CornerRadius(3)
+            };
+
+            var row = new DockPanel { LastChildFill = true };
+
+            var btn = new Button
+            {
+                Content = "⬇ Export Material Schedule",
+                Tag = "MaterialSchedule_Export",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                MinHeight = 30,
+                Padding = new Thickness(12, 5, 12, 5),
+                Margin = new Thickness(12, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "Export a stage-sectioned material schedule as XLSX — commodities in supplier units "
+                        + "(Bags / Trips / No.) with a visible wastage step, priced or quantities-only. "
+                        + "Needs COST_COMPOUND_TAKEOFF enabled."
+            };
+            try
+            {
+                var style = TryFindResource("GreenBtn") as Style;
+                if (style != null) { btn.Style = style; btn.FontSize = 11; btn.MinHeight = 30; btn.FontWeight = FontWeights.Bold; }
+                else
+                {
+                    btn.Background = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                    btn.Foreground = Brushes.White;
+                    btn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x38, 0x8E, 0x3C));
+                    btn.BorderThickness = new Thickness(1);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildMaterialScheduleBar style: {ex.Message}"); }
+
+            btn.Click += (s, e) => DispatchAction("MaterialSchedule_Export");
+            DockPanel.SetDock(btn, Dock.Right);
+            row.Children.Add(Guarded(btn));
+
+            row.Children.Add(new TextBlock
+            {
+                Text = "This tab is what you MODELLED, by category. A material schedule is what you BUY — "
+                     + "cement in bags, sand in trips, blocks in No. — grouped by construction stage.",
+                FontSize = 11,
+                Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            bar.Child = row;
+            return bar;
+        }
+
         private FrameworkElement BuildMaterialsContent()
         {
             if (_boq == null)
                 return new TextBlock { Text = "No data", Margin = new Thickness(14), Foreground = Brushes.Gray };
 
             var sp = new StackPanel { Margin = new Thickness(12) };
+
+            // MAT-SCHED — the export belongs where the user is already looking at
+            // materials. This tab answers "what did I model"; the schedule answers
+            // "what do I buy", so the two sit together rather than the export
+            // hiding behind a collapsed expander on the dock panel's BIM tab.
+            sp.Children.Add(BuildMaterialScheduleBar());
+
             var grouped = _boq.AllItems
                 .Where(i => i.Source == BOQRowSource.Model && i.Quantity > 0)
                 .GroupBy(i => i.Category ?? "(uncategorised)")
