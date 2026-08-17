@@ -9,7 +9,8 @@
     "dev": "wrangler pages dev . --d1 WAITLIST_DB=planscape-waitlist",
     "schema:local": "wrangler d1 execute planscape-waitlist --local --file=./functions/api/schema.sql",
     "schema:remote": "wrangler d1 execute planscape-waitlist --remote --file=./functions/api/schema.sql",
-    "deploy": "wrangler pages deploy . --project-name=planscape-marketing --branch=main --commit-dirty=true"
+    "deploy": "wrangler pages deploy . --project-name=planscape-marketing --branch=main --commit-dirty=true",
+    "predeploy": "node ../tools/stamp-marketing-build.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250510.0",

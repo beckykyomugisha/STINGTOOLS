@@ -1,0 +1,100 @@
+name: Marketing site — Deploy
+
+# Closes the gap in #651: marketing-site has no git-connected Pages build, so
+# MERGING DEPLOYED NOTHING. Production could sit arbitrarily far behind main with
+# no signal anywhere, and Pages' static fallback makes an undeployed Function
+# return 405 (or 200-HTML) — indistinguishable from a route that never existed.
+# That cost hours twice in one session: a merged endpoint was simply absent, and
+# the absence read as a code fault.
+#
+# This makes a merge to main reach production by itself. Two deliberate choices:
+#
+#   * The deploy is GATED on typecheck + the full test suite. Auto-deploying a red
+#     tree would trade one silent failure for a louder one.
+#   * The deploy VERIFIES ITSELF by fetching build-info.json back from
+#     planscape.build and asserting the commit matches. A wrangler exit code of 0
+#     means "upload accepted", not "that commit is what the domain serves".
+#
+# REQUIRED SECRETS — until both are set this job fails loudly, which is the
+# intended behaviour rather than a regression:
+#   CLOUDFLARE_API_TOKEN   scoped to Cloudflare Pages:Edit on this account
+#   CLOUDFLARE_ACCOUNT_ID  fc846350c65d033ef774e4b17f9c7039
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'marketing-site/**'
+      - '.github/workflows/marketing-site-deploy.yml'
+  # Manual runs, for redeploying without a code change — e.g. after setting a
+  # Pages secret, which does NOT reach the running Functions until the next
+  # deployment (#674).
+  workflow_dispatch:
+
+# One deploy at a time; a newer merge should win rather than race.
+concurrency:
+  group: marketing-site-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Test & Deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: marketing-site
+      url: https://planscape.build
+    defaults:
+      run:
+        working-directory: marketing-site
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: marketing-site/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Gate. Never publish a tree whose tests fail.
+      - name: Test
+        run: npm test
+
+      # `npm run deploy` would also work, but wrangler-action handles auth and
+      # pins its own wrangler. predeploy is invoked explicitly because
+      # wrangler-action does not run npm lifecycle scripts.
+      - name: Stamp build-info.json
+        run: npm run predeploy
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: marketing-site
+          command: pages deploy . --project-name=planscape-marketing --branch=main --commit-dirty=true
+
+      # THE POINT OF THIS STEP. A green deploy step proves the upload was
+      # accepted, not that the domain serves it. Ask the live site what commit it
+      # is running and compare. Retries because a fresh deployment takes a few
+      # seconds to become the one the custom domain routes to.
+      - name: Verify the domain serves this commit
+        run: |
+          expected="${GITHUB_SHA}"
+          for i in $(seq 1 12); do
+            live=$(curl -fsS "https://planscape.build/build-info.json?cb=${GITHUB_RUN_ID}-$i" \
+                     | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write(JSON.parse(d).sha||"")}catch{process.stdout.write("")}})' || true)
+            if [ "$live" = "$expected" ]; then
+              echo "✅ planscape.build is serving ${expected}"
+              exit 0
+            fi
+            echo "  attempt $i: live=${live:-<none>} expected=$expected"
+            sleep 10
+          done
+          echo "::error::Deploy reported success but https://planscape.build/build-info.json does not report ${expected}. Production may still be serving an older commit — this is exactly the #651 failure mode, so it fails rather than passing quietly."
+          exit 1
