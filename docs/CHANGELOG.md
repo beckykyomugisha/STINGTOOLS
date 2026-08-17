@@ -45,11 +45,11 @@ all — the branch is guarded by `PlasterFaces > 0` — so fair-faced blockwork 
 bill nobody ordered (#712).
 
 **Also fixed: `build.bat` and `deploy.bat` had never worked on this machine.** Both called plain
-`bash`, which on Windows resolves to `C:\Windows\System32ash.exe` — the WSL launcher — and died
+`bash`, which on Windows resolves to `C:\Windows\System32\bash.exe` — the WSL launcher — and died
 with `execvpe(/bin/bash) failed` **after** `dotnet build` succeeded. So they printed "DEPLOY FAILED"
 over a clean 0-error compile, staged nothing, installed nothing, and left the plugin at whatever the
 previous deploy had put there: a silent-stale-plugin generator of the same class as the retired GOLD
-folder. Git ships bash at `<git>inash.exe` but only puts `<git>\cmd` on PATH, so it must be
+folder. Git ships bash at `<git>\bin\bash.exe` but only puts `<git>\cmd` on PATH, so it must be
 resolved explicitly (#703).
 
 **Still open:** tiling (ROADMAP MATSCHED-3) — a floor's tiled area is not its slab area, and the
