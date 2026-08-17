@@ -70,7 +70,17 @@ public sealed record GeorefWriteResult(
     double TranslationZMm,
     double RotationDeg,
     double ScaleFactor,
-    string FrameSource)
+    string FrameSource,
+    // Why the write was refused, for the one caller that has to tell a human.
+    //
+    // Written=false has two causes — no survey origin, and a coordinator-
+    // confirmed transform — and only the second is something to report back.
+    // Saying which one it was here is what lets a caller act on the precedence
+    // rule without re-reading the row and re-implementing the test; two copies
+    // of that rule is exactly the drift this writer was centralised to remove.
+    bool RefusedAsConfirmed = false,
+    string? ConfirmedBy = null,
+    DateTime? ConfirmedAt = null)
 {
     public static GeorefWriteResult Nothing(TransformConfidence confidence = TransformConfidence.None)
         => new(confidence, false, 0, 0, 0, 0, 1.0, "none");
@@ -227,10 +237,14 @@ public sealed class ModelGeorefWriter : IModelGeorefWriter
             // A coordinator has asserted this alignment against evidence the
             // survey data does not carry. An automatic writer never overrules it.
             _logger.LogInformation(
-                "Georef for model {ModelId}: skipped — an existing transform is manually confirmed.",
-                projectModelId);
+                "Georef for model {ModelId}: skipped — an existing transform is manually confirmed "
+                + "(confirmed by {AppliedBy} at {AppliedAt}).",
+                projectModelId, existing.AppliedBy ?? "unknown", existing.AppliedAt);
             return new GeorefWriteResult(confidence, Written: false,
-                txMm, tyMm, tzMm, rotationDeg, scaleFactor, frame.Source);
+                txMm, tyMm, tzMm, rotationDeg, scaleFactor, frame.Source,
+                RefusedAsConfirmed: true,
+                ConfirmedBy: existing.AppliedBy,
+                ConfirmedAt: existing.AppliedAt);
         }
 
         if (existing == null)
