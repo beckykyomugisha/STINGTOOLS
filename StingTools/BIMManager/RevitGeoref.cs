@@ -106,8 +106,11 @@ namespace StingTools.BIMManager
                 var data = new RevitGeorefData
                 {
                     // ProjectPosition is in Revit internal units (feet) and gives
-                    // the SURVEY coordinates of the project internal origin —
-                    // precisely the number the server needs to negate.
+                    // the SURVEY coordinates of the project internal origin. The
+                    // server places the model with t = +origin − frameOrigin — it
+                    // does NOT negate (see ModelGeorefWriter remarks). Negating was
+                    // the mirrored-translation bug this stack removed, so don't
+                    // reintroduce a sign flip here or on the server to "match".
                     EastingM     = pos.EastWest   * FeetToMetres,
                     NorthingM    = pos.NorthSouth * FeetToMetres,
                     ElevationM   = pos.Elevation  * FeetToMetres,
