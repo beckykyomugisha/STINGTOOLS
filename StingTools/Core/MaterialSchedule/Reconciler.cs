@@ -30,6 +30,7 @@ namespace StingTools.Core.MaterialSchedule
             CheckLetters(doc, rec);
             CheckPriced(doc, rec);
             CheckQuantities(doc, rec);
+            CheckConversions(doc, rec);
 
             doc.Reconciliation = rec;
             return rec;
@@ -103,6 +104,27 @@ namespace StingTools.Core.MaterialSchedule
                         CommodityKey = c.CommodityKey,
                         Message = $"'{c.Description}' ({c.OrderQuantity:N0} {c.SupplierUnit}) in "
                                 + $"{stage.Title} has no rate. It will total zero in a priced schedule."
+                    });
+        }
+
+        /// <summary>
+        /// R5 — a row whose category maps to a commodity but whose type did not
+        /// match its patterns. It stays in measured units on purpose; this names
+        /// it so the QS either extends the rule or prices the measured row by
+        /// hand, rather than wondering why one roof reads m2 and another reads No.
+        /// </summary>
+        private static void CheckConversions(MaterialScheduleDocument doc, MaterialScheduleReconciliation rec)
+        {
+            foreach (var stage in doc.Stages)
+                foreach (var c in stage.Commodities.Where(x => x.ConversionBlocked))
+                    rec.Issues.Add(new ReconciliationIssue
+                    {
+                        Code = "R5",
+                        StageId = stage.StageId,
+                        CommodityKey = c.CommodityKey,
+                        Message = $"'{c.Description}' stayed in measured units ({c.SupplierUnit}) — "
+                                + c.ConversionNote
+                                + ". Extend the rule's type patterns to convert it, or price it as measured."
                     });
         }
 

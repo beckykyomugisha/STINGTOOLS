@@ -60,6 +60,7 @@ namespace StingTools.BOQ.MaterialSchedule
                 {
                     ConstituentKind = item.ConstituentKind ?? "",
                     Category = item.Category ?? "",
+                    TypeName = item.TypeName ?? "",
                     Description = item.ItemName ?? "",
                     Unit = BoqUnits.Normalise(item.Unit),
                     Quantity = item.Quantity,

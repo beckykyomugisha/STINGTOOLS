@@ -26,11 +26,90 @@ namespace StingTools.Core.MaterialSchedule
         public double DefaultWastagePct = 0.0;
         /// <summary>CompoundTakeoff constituent kinds that map to this commodity.</summary>
         public List<string> MatchKinds = new List<string>();
+
+        /// <summary>
+        /// Revit categories that map to this commodity, for rows that carry no
+        /// constituent kind. Roofing sheets, paint and tiles need no decomposition —
+        /// they convert straight off the measured area — so category is the only
+        /// handle they have.
+        /// </summary>
+        public List<string> MatchCategories = new List<string>();
+
+        /// <summary>
+        /// Optional type-name substrings narrowing a category match. EMPTY means
+        /// the whole category converts. Non-empty means at least one must appear
+        /// in the element's type name — a concrete flat roof and a corrugated-sheet
+        /// roof are both category "Roofs" and buy completely differently, so a bare
+        /// category match would print a confident sheet count for a slab.
+        /// </summary>
+        public List<string> MatchTypePatterns = new List<string>();
+    }
+
+    /// <summary>How (or whether) a row resolved to a supplier-unit rule.</summary>
+    public enum SupplierUnitMatch
+    {
+        None,                   // nothing matched — row keeps its measured unit, silently
+        ByKind,                 // matched a CompoundTakeoff constituent kind
+        ByCategory,             // matched a category (and its type pattern, if any)
+        CategoryTypeMismatch    // category matched but the type did not — DO NOT convert
+    }
+
+    public struct SupplierUnitResolution
+    {
+        public SupplierUnitRule Rule;          // null unless Match is ByKind / ByCategory
+        public SupplierUnitMatch Match;
+        public string CandidateCommodityKey;   // the rule it nearly matched, for the flag message
     }
 
     public sealed class SupplierUnitTable
     {
         public List<SupplierUnitRule> Rules = new List<SupplierUnitRule>();
+
+        /// <summary>
+        /// Resolve a row to a rule. Constituent kind wins; category is the fallback.
+        ///
+        /// A category hit whose type pattern fails returns CategoryTypeMismatch with
+        /// NO rule — the row must stay in measured units and be flagged, never
+        /// converted on a guess and never dropped.
+        /// </summary>
+        public SupplierUnitResolution Resolve(string constituentKind, string category, string typeName)
+        {
+            var byKind = ResolveByKind(constituentKind);
+            if (byKind != null)
+                return new SupplierUnitResolution { Rule = byKind, Match = SupplierUnitMatch.ByKind };
+
+            if (string.IsNullOrWhiteSpace(category))
+                return new SupplierUnitResolution { Match = SupplierUnitMatch.None };
+
+            string cat = category.Trim();
+            var candidates = Rules.Where(r => r.MatchCategories != null
+                && r.MatchCategories.Any(c => string.Equals(c, cat, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            if (candidates.Count == 0)
+                return new SupplierUnitResolution { Match = SupplierUnitMatch.None };
+
+            foreach (var r in candidates)
+            {
+                // No patterns ⇒ the whole category converts.
+                if (r.MatchTypePatterns == null || r.MatchTypePatterns.Count == 0)
+                    return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
+
+                // A blank type name can never satisfy a pattern. Guarding this
+                // explicitly because "".IndexOf(p) is -1 but p.IndexOf("") is 0 —
+                // get the operands the wrong way round and every row matches.
+                string tn = (typeName ?? "").Trim();
+                if (tn.Length > 0 && r.MatchTypePatterns.Any(p =>
+                        !string.IsNullOrWhiteSpace(p)
+                        && tn.IndexOf(p.Trim(), StringComparison.OrdinalIgnoreCase) >= 0))
+                    return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
+            }
+
+            return new SupplierUnitResolution
+            {
+                Match = SupplierUnitMatch.CategoryTypeMismatch,
+                CandidateCommodityKey = candidates[0].CommodityKey
+            };
+        }
 
         /// <summary>First rule listing this constituent kind, or null.</summary>
         public SupplierUnitRule ResolveByKind(string constituentKind)
