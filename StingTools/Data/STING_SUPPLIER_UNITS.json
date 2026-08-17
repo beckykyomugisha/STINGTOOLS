@@ -15,7 +15,8 @@
         "plaster_cement"
       ],
       "matchCategories": [],
-      "matchTypePatterns": []
+      "matchTypePatterns": [],
+      "stageId": ""
     },
     {
       "commodityKey": "sand",
@@ -30,19 +31,8 @@
         "plaster_sand"
       ],
       "matchCategories": [],
-      "matchTypePatterns": []
-    },
-    {
-      "commodityKey": "aggregate",
-      "description": "Aggregates (machine crushed)",
-      "supplierUnit": "Trips (Sino Truck)",
-      "sourceUnit": "m3",
-      "sourceUnitsPerSupplierUnit": 12.0,
-      "roundUpToWhole": true,
-      "defaultWastagePct": 5.0,
-      "matchKinds": [],
-      "matchCategories": [],
-      "matchTypePatterns": []
+      "matchTypePatterns": [],
+      "stageId": ""
     },
     {
       "commodityKey": "block",
@@ -58,7 +48,8 @@
         "infill_block"
       ],
       "matchCategories": [],
-      "matchTypePatterns": []
+      "matchTypePatterns": [],
+      "stageId": ""
     },
     {
       "commodityKey": "brick",
@@ -72,7 +63,8 @@
         "brickwork"
       ],
       "matchCategories": [],
-      "matchTypePatterns": []
+      "matchTypePatterns": [],
+      "stageId": ""
     },
     {
       "commodityKey": "rebar",
@@ -87,7 +79,8 @@
         "mesh"
       ],
       "matchCategories": [],
-      "matchTypePatterns": []
+      "matchTypePatterns": [],
+      "stageId": ""
     },
     {
       "commodityKey": "formwork-timber",
@@ -101,7 +94,8 @@
         "formwork"
       ],
       "matchCategories": [],
-      "matchTypePatterns": []
+      "matchTypePatterns": [],
+      "stageId": ""
     },
     {
       "commodityKey": "concrete-ready",
@@ -116,7 +110,8 @@
         "precast_rib"
       ],
       "matchCategories": [],
-      "matchTypePatterns": []
+      "matchTypePatterns": [],
+      "stageId": ""
     },
     {
       "commodityKey": "roof-sheet",
@@ -140,7 +135,8 @@
         "gauge",
         "g28",
         "g30"
-      ]
+      ],
+      "stageId": "roof"
     },
     {
       "commodityKey": "roof-tile",
@@ -158,73 +154,8 @@
         "tile",
         "clay",
         "concrete tile"
-      ]
-    },
-    {
-      "commodityKey": "paint-wall",
-      "description": "Silk / weather-guard paint",
-      "supplierUnit": "Bkts",
-      "sourceUnit": "m2",
-      "sourceUnitsPerSupplierUnit": 70.0,
-      "roundUpToWhole": true,
-      "defaultWastagePct": 10.0,
-      "matchKinds": [],
-      "matchCategories": [
-        "Walls"
       ],
-      "matchTypePatterns": [
-        "paint",
-        "render",
-        "plaster",
-        "skim",
-        "finish"
-      ]
-    },
-    {
-      "commodityKey": "paint-ceiling",
-      "description": "Ceiling matt paint",
-      "supplierUnit": "Bkts",
-      "sourceUnit": "m2",
-      "sourceUnitsPerSupplierUnit": 80.0,
-      "roundUpToWhole": true,
-      "defaultWastagePct": 10.0,
-      "matchKinds": [],
-      "matchCategories": [
-        "Ceilings"
-      ],
-      "matchTypePatterns": []
-    },
-    {
-      "commodityKey": "floor-tile",
-      "description": "Floor tiles",
-      "supplierUnit": "Boxes",
-      "sourceUnit": "m2",
-      "sourceUnitsPerSupplierUnit": 1.44,
-      "roundUpToWhole": true,
-      "defaultWastagePct": 10.0,
-      "matchKinds": [],
-      "matchCategories": [
-        "Floors"
-      ],
-      "matchTypePatterns": [
-        "tile",
-        "ceramic",
-        "porcelain",
-        "granito",
-        "terrazzo"
-      ]
-    },
-    {
-      "commodityKey": "tile-adhesive",
-      "description": "Tile adhesive",
-      "supplierUnit": "Bags",
-      "sourceUnit": "m2",
-      "sourceUnitsPerSupplierUnit": 4.0,
-      "roundUpToWhole": true,
-      "defaultWastagePct": 5.0,
-      "matchKinds": [],
-      "matchCategories": [],
-      "matchTypePatterns": []
+      "stageId": "roof"
     }
   ]
 }

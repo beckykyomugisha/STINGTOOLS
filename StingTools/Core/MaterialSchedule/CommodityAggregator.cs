@@ -49,15 +49,20 @@ namespace StingTools.Core.MaterialSchedule
             {
                 if (row == null) continue;
 
-                string stageId = StageMapper.ResolveStageId(
-                    row.ConstituentKind, row.Category, row.LevelCode,
-                    input.StageDefs, input.DefaultStageId);
-
                 // Constituent kind first, then category (+ optional type pattern).
                 var res = input.Units != null
                     ? input.Units.Resolve(row.ConstituentKind, row.Category, row.TypeName)
                     : new SupplierUnitResolution { Match = SupplierUnitMatch.None };
                 var rule = res.Rule;
+
+                // The COMMODITY's stage wins over the ELEMENT's. A rule matched by
+                // category would otherwise inherit that category's stage — filing
+                // wall paint under the frame, because "Walls" routes there.
+                string stageId = !string.IsNullOrWhiteSpace(rule?.StageId)
+                    ? rule.StageId
+                    : StageMapper.ResolveStageId(
+                        row.ConstituentKind, row.Category, row.LevelCode,
+                        input.StageDefs, input.DefaultStageId);
 
                 // No rule → the row still appears, keyed by its own description and
                 // carrying its measured unit. Silently dropping it would lose real
