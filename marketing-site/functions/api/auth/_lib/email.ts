@@ -10,16 +10,21 @@ function appOrigin(env: Env): string {
   return env.APP_ORIGIN || "https://planscape.build";
 }
 
+// Returns whether Resend accepted the message. Every existing caller ignores
+// it — an auth email failing must not fail the request. The contact form uses
+// it to record notified_at, so a silent Resend failure is visible in the data
+// rather than only in a log nobody reads.
 async function send(
   env: Env,
   to: string,
   subject: string,
-  html: string
-): Promise<void> {
+  html: string,
+  replyTo?: string
+): Promise<boolean> {
   if (!env.RESEND_API_KEY) {
     // Non-fatal: the surrounding flow (signup/login) must still succeed.
     console.error(`Email skipped (RESEND_API_KEY unset): "${subject}" → ${to}`);
-    return;
+    return false;
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -33,6 +38,7 @@ async function send(
         to: [to],
         subject,
         html,
+        ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
     if (!res.ok) {
@@ -44,10 +50,13 @@ async function send(
       console.error(
         `Resend send failed (${res.status}) for "${subject}" from "${env.EMAIL_FROM || DEFAULT_FROM}": ${detail.slice(0, 300)}`
       );
+      return false;
     }
+    return true;
   } catch (e) {
     // Never let an email failure break the request.
     console.error("Resend request threw", e);
+    return false;
   }
 }
 
@@ -130,4 +139,39 @@ export async function sendWelcomeEmail(
      <p style="margin:0;font-size:13px;color:#8a8f99;line-height:1.5;">Questions? Just reply to this email.</p>`
   );
   await send(env, to, "Welcome to Planscape", html);
+}
+
+// Notification for a public contact-form submission. Distinct from the senders
+// above in three ways, all deliberate:
+//
+//   * It goes to US, not to the submitter, so it is not wrapped in shell() —
+//     that template ends with "if you didn't expect this email, ignore it",
+//     which is wrong for a message you asked to receive.
+//   * reply_to is the submitter, so hitting Reply in a mail client answers the
+//     person rather than noreply@.
+//   * The body is escaped. Everything in it is attacker-controlled text from an
+//     unauthenticated public form.
+export async function sendContactNotification(
+  env: Env,
+  to: string,
+  from: { name: string; email: string; firm: string; topic: string; message: string }
+): Promise<boolean> {
+  const e = (s: string) =>
+    s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+
+  const html = `<!doctype html><html><body style="margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a2e;">
+  <div style="max-width:560px;margin:0 auto;padding:24px;">
+    <h1 style="margin:0 0 4px;font-size:18px;">Contact form — ${e(from.topic)}</h1>
+    <p style="margin:0 0 20px;font-size:13px;color:#8a8f99;">Reply to this email to answer ${e(from.name)} directly.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr><td style="padding:6px 0;color:#8a8f99;width:80px;">Name</td><td style="padding:6px 0;">${e(from.name)}</td></tr>
+      <tr><td style="padding:6px 0;color:#8a8f99;">Email</td><td style="padding:6px 0;">${e(from.email)}</td></tr>
+      <tr><td style="padding:6px 0;color:#8a8f99;">Firm</td><td style="padding:6px 0;">${e(from.firm) || "—"}</td></tr>
+      <tr><td style="padding:6px 0;color:#8a8f99;">Topic</td><td style="padding:6px 0;">${e(from.topic)}</td></tr>
+    </table>
+    <div style="margin-top:18px;padding:16px;background:#f4f5f7;border-radius:8px;white-space:pre-wrap;font-size:14px;line-height:1.5;">${e(from.message)}</div>
+  </div>
+</body></html>`;
+
+  return send(env, to, `[Contact] ${from.topic} — ${from.name}`, html, from.email);
 }

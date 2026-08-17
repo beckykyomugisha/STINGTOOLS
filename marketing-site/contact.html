@@ -169,7 +169,10 @@ function handleContact(e){
   new FormData(form).forEach(function(v,k){ data[k]=v; });
   btn.disabled = true;
   btn.textContent = 'Sending…';
-  fetch('https://api.planscape.build/marketing/contact', {
+  // Same-origin Pages Function. Was https://api.planscape.build/marketing/contact,
+  // which is NXDOMAIN (#705) — every submission failed and the visitor was told
+  // to email us instead.
+  fetch('/api/contact', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
