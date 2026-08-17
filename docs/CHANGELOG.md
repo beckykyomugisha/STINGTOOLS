@@ -2,6 +2,62 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 236 — Material Schedule verified in Revit; roofs, paint, and three defects withdrawn)
+
+Phase 235 shipped a material schedule that had **never run inside Revit**. This phase ran it, fixed
+what the run exposed, and closed the integrity gate.
+
+**1 — Verified in Revit (2026-08-17).** On a real model — 16 categories, UGX 1.55bn modelled — with
+`COST_COMPOUND_TAKEOFF=1`: section letters run A/B/C with no duplicates, the Summary letters and
+order match the body exactly, and the **Validation sheet is clean**. That is the three defect
+classes the PATMAC reference sample failed on, confirmed absent in a real export rather than only
+in unit tests. ROADMAP MATSCHED-1 closed.
+
+**2 — The button was invisible.** It shipped inside a collapsed `<Expander>` on the BIM tab, one of
+six stacked collapsed groups, so a brand-new feature was effectively undiscoverable. Surfaced in
+the **BOQ & Cost Manager → Materials tab** (where the by-material rollup already lives) and in a
+new Actions-tab group, and the dock-panel expander now opens by default (#707).
+
+**3 — Roof and Finishes exported in m².** Supplier-unit rules matched only on `CompoundTakeoff`'s
+constituent kind, and those rows carry none — the engine emits 13 kinds, all masonry, RC and
+plaster. Rules now also match on Revit **category**, narrowed by an optional type-name pattern,
+because a concrete flat roof and a corrugated-sheet roof are both `Roofs` and buy completely
+differently. A category hit whose type fails is left in measured units and reported by new
+reconciler rule **R5** rather than converted on a guess (#709).
+
+**4 — Three of those rules were unsound, and were withdrawn.** `paint-wall`, `floor-tile` and
+`paint-ceiling` matched a whole ELEMENT and converted it to a finish: a composite wall row whose
+type read "plastered" priced the entire wall area as paint buckets, and `paint-ceiling` carried no
+type patterns at all, so a suspended grid became paint. Two further rules (`aggregate` since Phase
+235, `tile-adhesive`) matched neither a kind nor a category and could never fire. All five removed.
+Root cause was structural: **the two shipped data files were each valid and each tested, but nothing
+compared them**, so rules matching `Walls` and `Floors` silently inherited those categories' stage
+and filed finishes under the frame. A commodity now declares its own `stageId`, and
+`ShippedDataIntegrityTests` fails the build on an unreachable rule, a category rule with no stage,
+a stage that does not exist, an unpriced commodity or an orphaned rate (#710).
+
+**5 — Painting measured properly.** The painted area needed no new measurement: it IS the plastered
+face area (`area × PlasterFaces`), which `CompoundTakeoff` already derived to size plaster volume
+and simply never emitted. It now emits as its own constituent kind, split `paint_interior` /
+`paint_exterior` from `WallType.Function` (silk vs weather-guard are different products at different
+prices; unreadable defaults to interior, the cheaper case). An unplastered wall emits no paint at
+all — the branch is guarded by `PlasterFaces > 0` — so fair-faced blockwork cannot put buckets in a
+bill nobody ordered (#712).
+
+**Also fixed: `build.bat` and `deploy.bat` had never worked on this machine.** Both called plain
+`bash`, which on Windows resolves to `C:\Windows\System32ash.exe` — the WSL launcher — and died
+with `execvpe(/bin/bash) failed` **after** `dotnet build` succeeded. So they printed "DEPLOY FAILED"
+over a clean 0-error compile, staged nothing, installed nothing, and left the plugin at whatever the
+previous deploy had put there: a silent-stale-plugin generator of the same class as the retired GOLD
+folder. Git ships bash at `<git>inash.exe` but only puts `<git>\cmd` on PATH, so it must be
+resolved explicitly (#703).
+
+**Still open:** tiling (ROADMAP MATSCHED-3) — a floor's tiled area is not its slab area, and the
+RC-slab path knows only concrete, rebar and formwork, so there is no finish-layer concept to say
+which floors are tiled. That needs a take-off, not a unit table. Nails/kg and hoop iron likewise.
+
+Tests 196 → **281**. Build 0/0 throughout.
+
 #### Completed (Phase 235 — Material Schedule export: stage-sectioned commodities in supplier units)
 
 StingTools could not produce the document a site or procurement team actually buys from. The BOQ
