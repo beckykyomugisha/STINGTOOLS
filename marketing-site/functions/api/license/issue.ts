@@ -19,7 +19,7 @@ import { requireAuth } from "../auth/_lib/auth";
 import { bad, forbidden, serverError, unauthorized } from "../auth/_lib/errors";
 import { getTenantById, audit } from "../auth/_lib/db";
 import { uuid } from "../auth/_lib/tokens";
-import { resolveCap } from "../auth/_lib/limits";
+import { resolveMachineCap } from "../auth/_lib/limits";
 import { DOWNLOAD_CATALOG, entitlementFor } from "../_lib/downloads/catalog";
 import { signLicense } from "./_lib/crypto";
 import { countLicensedSeats } from "./_lib/seats";
@@ -85,7 +85,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
     .first<{ id: string }>();
 
   if (!existing) {
-    const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
+    const cap = resolveMachineCap(tenant.plan_product, tenant.plan_tier);
     if (cap !== Infinity) {
       // Same helper present.ts reports from — see _lib/seats.ts for why this is
       // one function and not one query per caller.
