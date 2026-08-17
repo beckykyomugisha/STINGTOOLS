@@ -131,7 +131,8 @@ namespace StingTools.BOQ.Takeoff
                 MortarSandRatio = mortarSand,
                 PlasterCementBagsPerM3 = plasterCement,
                 PlasterSandRatio = plasterSand,
-                IsRcWall = isRc
+                IsRcWall = isRc,
+                IsExteriorWall = IsExteriorWall(doc, el)
             };
             var constituents = CompoundTakeoff.MasonryWall(input);
             if (constituents.Count == 0) return null;
@@ -306,6 +307,8 @@ namespace StingTools.BOQ.Takeoff
                 case "mortar_cement": return "Cement";
                 case "mortar_sand": return "Sand";
                 case "plaster": return "Plaster";
+                case "paint_interior": return "Painting";
+                case "paint_exterior": return "Painting";
                 case "plaster_cement": return "Cement";
                 case "plaster_sand": return "Sand";
                 case "concrete": return "In-situ Concrete";
@@ -319,6 +322,27 @@ namespace StingTools.BOQ.Takeoff
         }
 
         // ── Small Revit helpers ─────────────────────────────────────────────
+
+        /// <summary>
+        /// True when the wall type is marked Exterior. Exterior walls take
+        /// weather-guard, interior walls silk — different products at different
+        /// prices. Unknown/unreadable defaults to INTERIOR, the cheaper and more
+        /// common case, rather than inflating a bill with exterior-grade paint.
+        /// </summary>
+        private static bool IsExteriorWall(Document doc, Element el)
+        {
+            try
+            {
+                var wt = doc?.GetElement(el?.GetTypeId()) as WallType;
+                return wt != null && wt.Function == WallFunction.Exterior;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("WallFunction", $"IsExteriorWall {el?.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
         private static double ReadAreaM2(Element el)
         {
             var p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);

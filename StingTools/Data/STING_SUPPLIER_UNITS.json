@@ -156,6 +156,36 @@
         "concrete tile"
       ],
       "stageId": "roof"
+    },
+    {
+      "commodityKey": "paint-interior",
+      "description": "Interior paint (silk, incl. undercoat)",
+      "supplierUnit": "Bkts",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 60.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "paint_interior"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "paint-exterior",
+      "description": "Exterior paint (weather-guard, incl. undercoat)",
+      "supplierUnit": "Bkts",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 50.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "paint_exterior"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
     }
   ]
 }

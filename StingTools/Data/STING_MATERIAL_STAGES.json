@@ -18,7 +18,10 @@
       "preamble": "The works in this element include all works up to and including the ground floor slab.",
       "order": 20,
       "constituentKinds": [],
-      "categories": ["Structural Foundations", "Structural Foundation"],
+      "categories": [
+        "Structural Foundations",
+        "Structural Foundation"
+      ],
       "levelCodes": []
     },
     {
@@ -26,9 +29,26 @@
       "title": "ELEMENT 02: SUPERSTRUCTURE",
       "preamble": "Frame, walling and suspended slabs above the ground floor slab.",
       "order": 30,
-      "constituentKinds": ["blockwork", "brickwork", "units", "mortar", "mortar_cement", "mortar_sand",
-                           "concrete", "precast_rib", "infill_block", "mesh", "rebar", "formwork"],
-      "categories": ["Walls", "Floors", "Structural Columns", "Structural Framing"],
+      "constituentKinds": [
+        "blockwork",
+        "brickwork",
+        "units",
+        "mortar",
+        "mortar_cement",
+        "mortar_sand",
+        "concrete",
+        "precast_rib",
+        "infill_block",
+        "mesh",
+        "rebar",
+        "formwork"
+      ],
+      "categories": [
+        "Walls",
+        "Floors",
+        "Structural Columns",
+        "Structural Framing"
+      ],
       "levelCodes": []
     },
     {
@@ -37,7 +57,9 @@
       "preamble": "Roof structure and covering.",
       "order": 40,
       "constituentKinds": [],
-      "categories": ["Roofs"],
+      "categories": [
+        "Roofs"
+      ],
       "levelCodes": []
     },
     {
@@ -46,7 +68,10 @@
       "preamble": "Door and window units including ironmongery.",
       "order": 50,
       "constituentKinds": [],
-      "categories": ["Doors", "Windows"],
+      "categories": [
+        "Doors",
+        "Windows"
+      ],
       "levelCodes": []
     },
     {
@@ -54,8 +79,16 @@
       "title": "ELEMENT 05: FINISHES",
       "preamble": "Plaster, screeds, tiling, painting and decoration.",
       "order": 60,
-      "constituentKinds": ["plaster", "plaster_cement", "plaster_sand"],
-      "categories": ["Ceilings"],
+      "constituentKinds": [
+        "plaster",
+        "plaster_cement",
+        "plaster_sand",
+        "paint_interior",
+        "paint_exterior"
+      ],
+      "categories": [
+        "Ceilings"
+      ],
       "levelCodes": []
     },
     {
@@ -64,7 +97,11 @@
       "preamble": "Provisional sum pending specialist design.",
       "order": 70,
       "constituentKinds": [],
-      "categories": ["Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures"],
+      "categories": [
+        "Electrical Equipment",
+        "Electrical Fixtures",
+        "Lighting Fixtures"
+      ],
       "levelCodes": []
     },
     {
@@ -73,7 +110,12 @@
       "preamble": "Provisional sum pending specialist design.",
       "order": 80,
       "constituentKinds": [],
-      "categories": ["Mechanical Equipment", "Plumbing Fixtures", "Duct Systems", "Pipe Systems"],
+      "categories": [
+        "Mechanical Equipment",
+        "Plumbing Fixtures",
+        "Duct Systems",
+        "Pipe Systems"
+      ],
       "levelCodes": []
     },
     {
@@ -82,7 +124,11 @@
       "preamble": "Boundary wall, paving and external services.",
       "order": 90,
       "constituentKinds": [],
-      "categories": ["Site", "Hardscape", "Parking"],
+      "categories": [
+        "Site",
+        "Hardscape",
+        "Parking"
+      ],
       "levelCodes": []
     }
   ]
