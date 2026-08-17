@@ -1672,7 +1672,7 @@ STINGTOOLS/
 - Contains `ToggleDockPanelCommand`
 
 ### `StingLog` (static) — `Core/StingLog.cs` (127 lines)
-- Thread-safe file logger (`StingTools.log` alongside the DLL)
+- Thread-safe file logger, alongside the DLL. **The filename is date-stamped — `StingTools_yyyyMMdd.log`, not `StingTools.log`.** Searching for the undated name finds nothing and reads as "the plugin never logged", which is a different and much more alarming conclusion; it cost a wrong call on 2026-08-17. The DLL's location is whatever the installed `.addin` points at, and that moves — see [[project-stingtools-deploy-target]] / grep `<Assembly>` first.
 - Uses buffered `StreamWriter` with `FileShare.Read` for performance
 - Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`, `Shutdown()`
 - `Shutdown()` flushes and closes the log file
