@@ -11,6 +11,7 @@ import type {
   PublicTenant,
 } from "./types";
 import { currencyForCountry } from "../../_lib/billing/catalog";
+import { effectiveStatus } from "./limits";
 
 const TRIAL_DAYS = 14;
 const REFRESH_TTL_DAYS = 30;
@@ -799,14 +800,17 @@ function safeJson(s: string): unknown {
 
 // Lazy trial expiry: if the tenant is still 'trial' but the trial window has
 // closed, flip it to 'read_only' and return the updated row. Called on /me.
+//
+// The DECISION is delegated to effectiveStatus() so this write path and every
+// read path apply one rule. They were separate before, and the read paths simply
+// had no rule at all — which is #677: a lapsed trial kept passing entitlement
+// everywhere except /me. Note the old local check also treated an unparseable
+// trial_ends_at as expired (NaN > now is false); effectiveStatus does not.
 export async function expireTrialIfNeeded(
   db: D1Database,
   tenant: TenantRow
 ): Promise<TenantRow> {
-  if (
-    tenant.subscription_status !== "trial" ||
-    new Date(tenant.trial_ends_at).getTime() > Date.now()
-  ) {
+  if (effectiveStatus(tenant, Date.now()) !== "read_only") {
     return tenant;
   }
   const nowIso = new Date().toISOString();
