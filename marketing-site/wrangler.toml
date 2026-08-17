@@ -19,6 +19,18 @@ compatibility_date = "2026-05-01"
 [vars]
 SITE_URL = "https://planscape.build"
 
+# SETTING A SECRET IS NOT ENOUGH — YOU MUST REDEPLOY. Pages Functions capture
+# their bindings at DEPLOYMENT time. An existing deployment keeps the bindings it
+# was created with, so a newly-added secret does not reach the running Functions
+# until the next `npm run deploy`. `wrangler pages secret list` showing the name
+# proves it is STORED, not that it is BOUND.
+#
+# Measured 2026-08-16 (#674): LICENSE_PRIVATE_KEY was set and appeared in
+# `secret list`, yet POST /api/license/present kept returning 500 "Licensing is
+# not configured". A redeploy of a byte-identical tree — no code change at all —
+# flipped it to 400. Diagnostic: an endpoint 500ing on a guard for a secret that
+# `secret list` shows means "not deployed since it was set".
+#
 # Auth core (B1) secrets — DO NOT put real values here. Set them as encrypted
 # environment variables / secrets in the Cloudflare dashboard:
 #   Pages → planscape-marketing → Settings → Environment variables (Production).
@@ -29,6 +41,26 @@ SITE_URL = "https://planscape.build"
 #   EMAIL_FROM      Plain var (optional). Override the From: address.
 #                   Default: "Planscape <noreply@planscape.build>"
 # The auth Functions reuse the WAITLIST_DB D1 binding below — no new binding needed.
+
+# Licensing (functions/api/license/*).
+#   LICENSE_PRIVATE_KEY  Secret. PKCS#8 PEM of the RSA key whose PUBLIC half is
+#                        compiled into the plugin at
+#                        StingTools/Core/Licensing/LicensePublicKey.cs.
+#                        issue.ts signs with it; present.ts re-signs to verify
+#                        (see _lib/crypto.ts for why there is no public-key
+#                        binding). Set from the issuer's key:
+#                          wrangler pages secret put LICENSE_PRIVATE_KEY \
+#                            --project-name planscape-marketing \
+#                            < StingTools.LicenseIssuer/private.pem
+#                        THEN REDEPLOY. Production only — preview shares this
+#                        project's D1 (#652), so a preview binding would let a
+#                        preview branch mint real licences.
+#                        Uploading a MISMATCHED key is the dangerous failure:
+#                        issuing and presentation both succeed, and only the
+#                        plugin rejects the licence, offline, at the customer.
+#                        Verify the pair before setting:
+#                          openssl rsa -in private.pem -pubout
+#                        must equal the PEM in LicensePublicKey.cs.
 
 # Cloud handoff (functions/api/cloud/handoff.ts) — where "sign in" hands a
 # logged-in planscape.build user off to the coordinator app.
@@ -46,8 +78,8 @@ SITE_URL = "https://planscape.build"
 #                       echo "<new origin>" | \
 #                         wrangler pages secret put CLOUD_APP_ORIGIN \
 #                         --project-name planscape-marketing
-#                     No redeploy required either way — Pages secrets are
-#                     runtime bindings.
+#                     A REDEPLOY IS REQUIRED — see the note above the secrets
+#                     list. This line previously claimed the opposite.
 
 # D1 binding for the waitlist Function (functions/api/waitlist.ts)
 # Created via: wrangler d1 create planscape-waitlist
