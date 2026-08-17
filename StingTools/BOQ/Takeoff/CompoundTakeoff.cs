@@ -63,6 +63,38 @@ namespace StingTools.BOQ.Takeoff
         public double FormworkM2;     // soffit + sides / both wall faces
     }
 
+    /// <summary>
+    /// MAT-SCHED — RC column inputs (all m). A column shutters on ALL FOUR faces
+    /// and has no soffit, so its formwork is perimeter × height.
+    /// </summary>
+    public struct RcColumnInput
+    {
+        public double WidthM;             // rectangular b
+        public double DepthM;             // rectangular d
+        public double DiameterM;          // > 0 → round column; overrides W×D
+        public double HeightM;
+        public double ConcreteM3Override; // > 0 → Revit's own solid volume wins
+        public double RebarBandKgPerM3;
+    }
+
+    /// <summary>
+    /// MAT-SCHED — RC foundation inputs (all m). A pad or strip bears on the
+    /// ground, so there is no soffit shutter; only the SIDES are formed, and only
+    /// when it is not cast against a neat excavation.
+    /// </summary>
+    public struct RcFoundationInput
+    {
+        public double LengthM;
+        public double WidthM;
+        public double DepthM;
+        public double ConcreteM3Override;
+        public double RebarBandKgPerM3;
+        /// <summary>Blinding is unreinforced by definition.</summary>
+        public bool IsBlinding;
+        /// <summary>False when cast against the excavation face.</summary>
+        public bool FormworkToSides;
+    }
+
     /// <summary>MAT-4.3 — RC beam inputs (all m).</summary>
     public struct RcBeamInput
     {
@@ -239,6 +271,55 @@ namespace StingTools.BOQ.Takeoff
         }
 
         /// <summary>Constituent lines for an RC slab / beam / column / wall.</summary>
+        /// <summary>
+        /// Column constituents. Formwork is the perimeter × height — all four
+        /// faces, no soffit. A round column uses its circumference: treating
+        /// Ø152 as a 152 square would over-order shuttering by about 27%.
+        /// </summary>
+        public static List<CompoundLine> RcColumn(RcColumnInput c)
+        {
+            double h = Math.Max(0, c.HeightM);
+            bool round = c.DiameterM > 0;
+
+            double derivedM3 = round
+                ? Math.PI * c.DiameterM * c.DiameterM / 4.0 * h
+                : Math.Max(0, c.WidthM) * Math.Max(0, c.DepthM) * h;
+            double conc = c.ConcreteM3Override > 0 ? c.ConcreteM3Override : derivedM3;
+
+            double perimeter = round
+                ? Math.PI * c.DiameterM
+                : 2.0 * (Math.Max(0, c.WidthM) + Math.Max(0, c.DepthM));
+            double formwork = perimeter * h;
+
+            return RcElement(new RcElementInput
+            {
+                ElementKind = "column",
+                ConcreteM3Net = conc,
+                RebarBandKgPerM3 = c.RebarBandKgPerM3,
+                FormworkM2 = formwork
+            });
+        }
+
+        /// <summary>
+        /// Foundation constituents. Only the SIDES are shuttered — a pad bears on
+        /// the ground, so there is no soffit — and not even those when it is cast
+        /// against the excavation. Blinding carries no reinforcement.
+        /// </summary>
+        public static List<CompoundLine> RcFoundation(RcFoundationInput f)
+        {
+            double l = Math.Max(0, f.LengthM), w = Math.Max(0, f.WidthM), d = Math.Max(0, f.DepthM);
+            double conc = f.ConcreteM3Override > 0 ? f.ConcreteM3Override : l * w * d;
+            double formwork = f.FormworkToSides ? 2.0 * (l + w) * d : 0;
+
+            return RcElement(new RcElementInput
+            {
+                ElementKind = f.IsBlinding ? "blinding" : "foundation",
+                ConcreteM3Net = conc,
+                RebarBandKgPerM3 = f.IsBlinding ? 0 : f.RebarBandKgPerM3,
+                FormworkM2 = formwork
+            });
+        }
+
         public static List<CompoundLine> RcElement(RcElementInput r)
         {
             var lines = new List<CompoundLine>();

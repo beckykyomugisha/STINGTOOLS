@@ -97,7 +97,10 @@ namespace StingTools.BOQ.Takeoff
                 if (cat.IndexOf("Structural Framing", StringComparison.OrdinalIgnoreCase) >= 0
                     || cat.IndexOf("Beam", StringComparison.OrdinalIgnoreCase) >= 0)
                     return BuildRcBeam(doc, el, csvRates);
-                // Columns/foundations retain the composite line for now.
+                if (cat.IndexOf("Column", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return BuildRcColumn(doc, el, csvRates);
+                if (cat.IndexOf("Foundation", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return BuildRcFoundation(doc, el, csvRates);
                 return null;
             }
             catch (Exception ex)
@@ -363,6 +366,121 @@ namespace StingTools.BOQ.Takeoff
                 case "formwork": return "Formwork";
                 default: return kind;
             }
+        }
+
+        // ── RC column ───────────────────────────────────────────────────────
+        //  MAT-SCHED — columns used to keep the composite line, so their
+        //  concrete, rebar and formwork never reached the material schedule and
+        //  the bill was under-measured.
+        private static List<BOQLineItem> BuildRcColumn(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates)
+        {
+            string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
+            // A steel or timber column is not RC — leave it as the composite line
+            // rather than inventing concrete for it.
+            if (material.Contains("steel") || material.Contains("timber") || material.Contains("wood"))
+                return null;
+
+            double volM3 = ReadSolidVolumeM3(doc, el);
+            var (bx, by, hz) = ReadBoundingBoxM(el);
+            if (volM3 <= 0 && (bx <= 0 || by <= 0 || hz <= 0)) return null;
+
+            double band = PropOr("REBAR_ELEMENT COLUMN", "STEEL_KG_PER_M3", 160);
+            bool round = LooksRound(doc, el);
+
+            var constituents = CompoundTakeoff.RcColumn(new RcColumnInput
+            {
+                WidthM = bx, DepthM = by, HeightM = hz,
+                DiameterM = round ? Math.Min(bx, by) : 0,
+                ConcreteM3Override = volM3,
+                RebarBandKgPerM3 = band
+            });
+            return constituents.Count == 0 ? null : Materialise(doc, el, constituents, csvRates, "S", new Resolution());
+        }
+
+        // ── RC foundation ───────────────────────────────────────────────────
+        private static List<BOQLineItem> BuildRcFoundation(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates)
+        {
+            double volM3 = ReadSolidVolumeM3(doc, el);
+            var (bx, by, hz) = ReadBoundingBoxM(el);
+            if (volM3 <= 0 && (bx <= 0 || by <= 0 || hz <= 0)) return null;
+
+            string typeName = (el.Name ?? "").ToLowerInvariant();
+            bool blinding = typeName.Contains("blinding") || typeName.Contains("lean");
+            double band = PropOr("REBAR_ELEMENT FOUNDATION", "STEEL_KG_PER_M3", 100);
+
+            var constituents = CompoundTakeoff.RcFoundation(new RcFoundationInput
+            {
+                LengthM = bx, WidthM = by, DepthM = hz,
+                ConcreteM3Override = volM3,
+                RebarBandKgPerM3 = band,
+                IsBlinding = blinding,
+                // Formed by default. Omitting it silently under-measures, which is
+                // the failure this whole change exists to fix; a project casting
+                // against the excavation can zero the formwork rate instead.
+                FormworkToSides = true
+            });
+            return constituents.Count == 0 ? null : Materialise(doc, el, constituents, csvRates, "S", new Resolution());
+        }
+
+        /// <summary>Solid volume in m³, summed over the element's geometry.</summary>
+        private static double ReadSolidVolumeM3(Document doc, Element el)
+        {
+            try
+            {
+                var opt = new Options { ComputeReferences = false, DetailLevel = ViewDetailLevel.Fine };
+                var ge = el?.get_Geometry(opt);
+                if (ge == null) return 0;
+                double ft3 = SumSolidsFt3(ge);
+                return ft3 * 0.0283168;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("RcVolume", $"ReadSolidVolumeM3 {el?.Id}: {ex.Message}");
+                return 0;
+            }
+        }
+
+        private static double SumSolidsFt3(GeometryElement ge)
+        {
+            double total = 0;
+            foreach (GeometryObject go in ge)
+            {
+                if (go is Solid s && s.Volume > 0) total += s.Volume;
+                else if (go is GeometryInstance gi)
+                {
+                    var inner = gi.GetInstanceGeometry();
+                    if (inner != null) total += SumSolidsFt3(inner);
+                }
+            }
+            return total;
+        }
+
+        /// <summary>Bounding-box extents in metres (x, y, z). Used for formwork
+        /// only — the solid volume, when available, is what prices the concrete.</summary>
+        private static (double x, double y, double z) ReadBoundingBoxM(Element el)
+        {
+            try
+            {
+                var bb = el?.get_BoundingBox(null);
+                if (bb == null) return (0, 0, 0);
+                return ((bb.Max.X - bb.Min.X) * 0.3048,
+                        (bb.Max.Y - bb.Min.Y) * 0.3048,
+                        (bb.Max.Z - bb.Min.Z) * 0.3048);
+            }
+            catch { return (0, 0, 0); }
+        }
+
+        /// <summary>Round columns shutter to their circumference, not a box.</summary>
+        private static bool LooksRound(Document doc, Element el)
+        {
+            try
+            {
+                string n = ((el?.Name ?? "") + " " + (doc?.GetElement(el.GetTypeId())?.Name ?? "")).ToLowerInvariant();
+                return n.Contains("round") || n.Contains("circular") || n.Contains("diameter") || n.Contains("dia.");
+            }
+            catch { return false; }
         }
 
         // ── Small Revit helpers ─────────────────────────────────────────────
