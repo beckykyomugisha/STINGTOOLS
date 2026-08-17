@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
-import { LoadingBlock } from '@/components/ui';
+import { ErrorNote, ForbiddenNote, LoadingBlock } from '@/components/ui';
+import { describeFailure } from '@/lib/api';
+import { CAPABILITY_COPY, useProjectCapabilities } from '@/lib/capabilities';
 import { listSitePhotos, photoFileUrl, approvePhoto, rejectPhoto } from '@/lib/data';
 import type { SitePhoto } from '@/lib/types';
 
@@ -19,6 +21,13 @@ export default function PhotosPage() {
   const [reason, setReason] = useState<(typeof REASONS)[number]>('ALL');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+
+  // Approve / reject are gated on canApproveSitePhotos. This starts 'unknown',
+  // which leaves both buttons live — correct, because the server is still the
+  // gate and an unanswered question must not render as a "no".
+  const caps = useProjectCapabilities(projectId);
+  const cannotApprove = caps.approveSitePhotos === 'denied';
 
   const load = useCallback(() => {
     setPhotos(null);
@@ -33,13 +42,19 @@ export default function PhotosPage() {
     const caption = prompt('Caption (required, min 3 chars):', p.caption ?? '');
     if (caption == null) return;
     setError(null);
+    setForbidden(false);
     setNotice(null);
     try {
       await approvePhoto(projectId, p.id, caption);
       setNotice('Photo approved.');
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Approve failed');
+      const d = describeFailure(e, {
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Approve failed',
+      });
+      setError(d.message);
+      setForbidden(d.tone === 'forbidden');
     }
   }
 
@@ -47,13 +62,19 @@ export default function PhotosPage() {
     const reasonText = prompt('Rejection reason:');
     if (!reasonText) return;
     setError(null);
+    setForbidden(false);
     setNotice(null);
     try {
       await rejectPhoto(projectId, p.id, reasonText);
       setNotice('Photo rejected.');
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Reject failed');
+      const d = describeFailure(e, {
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Reject failed',
+      });
+      setError(d.message);
+      setForbidden(d.tone === 'forbidden');
     }
   }
 
@@ -80,7 +101,14 @@ export default function PhotosPage() {
         ))}
       </div>
 
-      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {error && (
+        <div className="mb-3">{forbidden ? <ForbiddenNote>{error}</ForbiddenNote> : <ErrorNote>{error}</ErrorNote>}</div>
+      )}
+      {cannotApprove && (
+        <div className="mb-3">
+          <ForbiddenNote>{CAPABILITY_COPY.approveSitePhotos}</ForbiddenNote>
+        </div>
+      )}
       {notice && <p className="mb-3 rounded bg-success-subtle px-3 py-2 text-sm text-success">{notice}</p>}
       {!photos && !error && <LoadingBlock />}
       {photos && photos.length === 0 && (
@@ -112,13 +140,17 @@ export default function PhotosPage() {
                   <div className="mt-2 flex gap-1">
                     <button
                       onClick={() => onApprove(p)}
-                      className="flex-1 rounded bg-success px-2 py-1 text-[11px] font-medium text-fg-on-accent hover:opacity-90"
+                      disabled={cannotApprove}
+                      title={cannotApprove ? CAPABILITY_COPY.approveSitePhotos : undefined}
+                      className="flex-1 rounded bg-success px-2 py-1 text-[11px] font-medium text-fg-on-accent hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Approve
                     </button>
                     <button
                       onClick={() => onReject(p)}
-                      className="flex-1 rounded border border-border-strong px-2 py-1 text-[11px] text-danger hover:bg-danger-subtle"
+                      disabled={cannotApprove}
+                      title={cannotApprove ? CAPABILITY_COPY.approveSitePhotos : undefined}
+                      className="flex-1 rounded border border-border-strong px-2 py-1 text-[11px] text-danger hover:bg-danger-subtle disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Reject
                     </button>

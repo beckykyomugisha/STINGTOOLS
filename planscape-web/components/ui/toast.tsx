@@ -11,7 +11,15 @@ import { cn } from '@/lib/cn';
  * disappears on its own.
  */
 
-export type ToastTone = 'success' | 'error' | 'info';
+/**
+ * `forbidden` is the fourth answer, added in #558: the server REFUSED a
+ * legitimate request. It is deliberately not `error` — an error says something
+ * went wrong and sends the user to IT; a refusal means they need to ask
+ * whoever holds the role. Like `error` it does NOT auto-dismiss, because a
+ * permission answer that vanishes after four seconds leaves the user believing
+ * the action worked.
+ */
+export type ToastTone = 'success' | 'error' | 'info' | 'forbidden';
 
 interface ToastItem {
   id: number;
@@ -38,7 +46,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setItems((xs) => [...xs, { id, tone, message }]);
       // Errors persist until dismissed — a failed save that vanishes after four
       // seconds is how a user ends up believing a value saved when it didn't.
-      if (tone !== 'error') setTimeout(() => dismiss(id), 4000);
+      if (tone !== 'error' && tone !== 'forbidden') setTimeout(() => dismiss(id), 4000);
     },
     [dismiss],
   );
@@ -60,9 +68,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               'pointer-events-auto flex items-start gap-2 rounded-md border px-3 py-2 text-sm shadow-lg animate-fade-in',
               t.tone === 'success' && 'border-success/40 bg-success-subtle text-success',
               t.tone === 'error' && 'border-danger/40 bg-danger-subtle text-danger',
+              t.tone === 'forbidden' && 'border-warning/40 bg-warning-subtle text-warning',
               t.tone === 'info' && 'border-border bg-surface text-fg',
             )}
           >
+            {t.tone === 'forbidden' && <span aria-hidden="true">🔒</span>}
             <span className="flex-1">{t.message}</span>
             <button
               type="button"
