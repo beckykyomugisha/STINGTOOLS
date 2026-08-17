@@ -204,6 +204,23 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ── Deploy to Render.com ──────────────────────────────────────────────────────
+  #
+  # DO NOT DELETE THIS JOB TO STOP DUPLICATE DEPLOYS. It is the *filtered* one.
+  #
+  # Two triggers exist for the same service (#717): this job, which honours the
+  # `paths:` filter above and so only fires for Planscape.Server changes, and the
+  # Render dashboard's own Auto-Deploy, which fires on EVERY push to main —
+  # including docs- and marketing-site-only commits. That second trigger is what
+  # rebuilds the API when a Revit plugin file changes, and where the
+  # "deploy failed" emails come from.
+  #
+  # Removing this job would leave the UNFILTERED trigger as the only one: still
+  # rebuilding on everything, and now with no gated path at all. The correct
+  # order is to turn Auto-Deploy OFF in the Render dashboard first, after which
+  # this becomes the single, path-filtered trigger.
+  #
+  # Note render.yaml's `autoDeploy: true` is NOT that setting — the blueprint does
+  # not govern the live services (see the header of render.yaml).
   deploy:
     name: Deploy to Render.com
     runs-on: ubuntu-latest

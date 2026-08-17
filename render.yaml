@@ -1,5 +1,38 @@
 # render.yaml — Render.com Blueprint (Infrastructure-as-Code) for Planscape.
 #
+# ⚠ THIS FILE DOES NOT GOVERN THE LIVE SERVICES. Verified 2026-08-17 (#717).
+#
+# The services actually running were created outside this blueprint and carry
+# different names, so EDITING THIS FILE CHANGES NOTHING IN PRODUCTION:
+#
+#   declared here          reality
+#   planscape-api    web   -> planscape-api.onrender.com  404 (no such service)
+#                             the live API is planscape-api-free.onrender.com (200)
+#   planscape-web    web   -> planscape-web.onrender.com   404 (no such service)
+#                             yet app.planscape.build serves 200, so it exists
+#                             under some other name
+#   planscape-worker       -> private service, no public hostname: untestable
+#   planscape-converter    -> private service, no public hostname: untestable
+#
+# Re-check any time, no credentials needed:
+#   curl -s -o /dev/null -w "%{http_code}\n" https://planscape-api.onrender.com/
+#   curl -s -o /dev/null -w "%{http_code}\n" https://planscape-api-free.onrender.com/
+#
+# CONSEQUENCES, both of which have already cost time:
+#
+#   * autoDeploy: true below is NOT why the live estate rebuilds on every push.
+#     That is the dashboard's own Auto-Deploy setting on the real services.
+#     Setting autoDeploy: false here fixes nothing (#717).
+#   * The custom domain api.planscape.build was never attached, and it is
+#     NXDOMAIN today (#705). The CNAME target in DEPLOY_RUNBOOK.md names
+#     planscape-api, which does not exist.
+#
+# Treat this file as the INTENDED shape, useful if the blueprint is ever applied
+# for real. Until then, production settings live in the Render dashboard, and
+# changes have to be made there. Same failure family as #651 (merging deploys
+# nothing) and #674 (a stored secret is not a bound secret): what the repo says
+# is not what is serving.
+#
 # MUST live at the REPOSITORY ROOT — Render only auto-detects a blueprint here,
 # and the Docker build context (and the Dockerfile's COPY paths) are relative to
 # the repo root. The API Dockerfile copies both Planscape/assets/viewer/** and
