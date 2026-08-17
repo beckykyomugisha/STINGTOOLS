@@ -30,6 +30,8 @@ namespace StingTools.Core.MaterialSchedule
         public SupplierUnitTable Units = new SupplierUnitTable();
         public List<StageDefinition> StageDefs = new List<StageDefinition>();
         public string DefaultStageId = "";
+        /// <summary>Categories that are not materials — see StageLibrary.ExcludedCategories.</summary>
+        public List<string> ExcludedCategories = new List<string>();
         public CommodityRateResolver Rates;
         public MaterialScheduleOptions Options = new MaterialScheduleOptions();
     }
@@ -45,9 +47,23 @@ namespace StingTools.Core.MaterialSchedule
             // (stageId, commodityKey) → accumulator in SOURCE units.
             var acc = new Dictionary<(string stage, string key), Accum>();
 
+            var excluded = new HashSet<string>(
+                input.ExcludedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+
             foreach (var row in input.Constituents ?? new List<ConstituentInput>())
             {
                 if (row == null) continue;
+
+                // MAT-SCHED-8 — not a material. Counted, not silently dropped:
+                // a real export turned beds and TV shelves into purchasable
+                // commodities, 60 rows of noise and a UGX 0 grand total.
+                if (!string.IsNullOrWhiteSpace(row.Category) && excluded.Contains(row.Category.Trim()))
+                {
+                    string c = row.Category.Trim();
+                    doc.ExcludedByCategory.TryGetValue(c, out int n);
+                    doc.ExcludedByCategory[c] = n + 1;
+                    continue;
+                }
 
                 // Constituent kind first, then category (+ optional type pattern).
                 var res = input.Units != null

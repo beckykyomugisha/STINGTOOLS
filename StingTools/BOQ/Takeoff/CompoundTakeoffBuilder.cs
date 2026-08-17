@@ -27,8 +27,46 @@ namespace StingTools.BOQ.Takeoff
     {
         /// <summary>Config toggle. Default OFF so legacy composite-rate bills are
         /// untouched until a project opts in.</summary>
+        /// <summary>
+        /// MAT-SCHED-7 — per-run override, so the material-schedule export can turn
+        /// compound take-off on for ITS OWN build without editing project config.
+        ///
+        /// The flag defaults off and is set in no shipped file, so the material
+        /// schedule could not produce cement, sand, blocks or bricks at all until a
+        /// user discovered an undocumented key. Null = defer to config, which is
+        /// every other caller's behaviour, unchanged.
+        /// </summary>
+        internal static bool? SessionOverride;
+
+        /// <summary>Set the override and restore it on Dispose. Use with `using`
+        /// so an exception mid-build cannot leave it stuck on.</summary>
+        internal static IDisposable ForceEnabled() => new OverrideScope(true);
+
+        private sealed class OverrideScope : IDisposable
+        {
+            private readonly bool? _prev;
+
+            public OverrideScope(bool value)
+            {
+                _prev = SessionOverride;
+                SessionOverride = value;
+                // BOQCostManager caches the host take-off. Without dropping it the
+                // override changes nothing — the previous non-compound rows are
+                // handed straight back. Invalidate on the way OUT too, so the next
+                // ordinary BOQ build is not served compound rows it did not ask for.
+                BOQCostManager.InvalidateHostCache();
+            }
+
+            public void Dispose()
+            {
+                SessionOverride = _prev;
+                BOQCostManager.InvalidateHostCache();
+            }
+        }
+
         internal static bool Enabled()
         {
+            if (SessionOverride.HasValue) return SessionOverride.Value;
             string v = TagConfig.GetConfigValue("COST_COMPOUND_TAKEOFF");
             if (string.IsNullOrWhiteSpace(v)) return false;
             v = v.Trim().ToLowerInvariant();
