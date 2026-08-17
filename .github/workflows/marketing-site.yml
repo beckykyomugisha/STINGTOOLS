@@ -1,0 +1,68 @@
+name: Marketing site — Typecheck & Test
+
+# The 34 marketing-site tests ran nowhere but a developer's machine. No workflow
+# referenced them, so the licence issue/present path, the contact endpoint, the
+# email ledger, trial-expiry entitlement and the seat caps were all unguarded on
+# merge — the same "counted but never executed" failure CLAUDE.md §3 records for
+# the Clash and Routing projects.
+#
+# Paths include marketing-site-tests/ because the tests live OUTSIDE
+# marketing-site/ on purpose: that directory is the Pages build output, so
+# anything inside it is published to production (#691).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'marketing-site/**'
+      - 'marketing-site-tests/**'
+      - '.github/workflows/marketing-site.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'marketing-site/**'
+      - 'marketing-site-tests/**'
+      # Match the push trigger: a change to this workflow must be exercised on
+      # the PR that makes it, not first observed after it lands on main.
+      - '.github/workflows/marketing-site.yml'
+
+jobs:
+  test:
+    name: Typecheck & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: marketing-site
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 22: run.mjs bundles to target node22, and the tests use a modern
+      # node:test reporter.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: marketing-site/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Runs every marketing-site-tests/*.test.ts against a REAL D1 via
+      # miniflare, one process per file. Exits non-zero if any file fails.
+      - name: Test
+        run: npm test
+
+      # The whole point of #691: test sources must not be inside the directory
+      # wrangler publishes. This fails the build if anything puts them back,
+      # rather than waiting for someone to notice them served in production.
+      - name: Assert no tests inside the published directory
+        run: |
+          if find . -name '*.test.ts' -not -path './node_modules/*' | grep -q .; then
+            echo "::error::*.test.ts found inside marketing-site/, which IS the Pages build output — it would be published (#691)."
+            find . -name '*.test.ts' -not -path './node_modules/*'
+            exit 1
+          fi
+          echo "OK: no test sources inside the published directory."

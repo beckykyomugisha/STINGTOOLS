@@ -5,7 +5,7 @@
   "description": "Planscape marketing site + Cloudflare Pages Functions (waitlist + auth core).",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node tests/run.mjs",
+    "test": "node ../marketing-site-tests/run.mjs",
     "dev": "wrangler pages dev . --d1 WAITLIST_DB=planscape-waitlist",
     "schema:local": "wrangler d1 execute planscape-waitlist --local --file=./functions/api/schema.sql",
     "schema:remote": "wrangler d1 execute planscape-waitlist --remote --file=./functions/api/schema.sql",

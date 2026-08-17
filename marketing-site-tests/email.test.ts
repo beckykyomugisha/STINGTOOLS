@@ -17,8 +17,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Miniflare } from "miniflare";
 
-import { sendContactNotification } from "../functions/api/auth/_lib/email";
-import type { Env } from "../functions/api/auth/_lib/types";
+import { sendContactNotification } from "../marketing-site/functions/api/auth/_lib/email";
+import type { Env } from "../marketing-site/functions/api/auth/_lib/types";
 
 function statements(sql: string): string[] {
   return sql
