@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0",
+  "note": "Corporate baseline. Project override: <project>/_data/coord/material_stages.json (merged by stageId).",
+  "defaultStageId": "superstructure",
+  "stages": [
+    {
+      "stageId": "tools",
+      "title": "TOOLS AND EQUIPMENT",
+      "preamble": "Site establishment tools and small plant. Manual rows only — no modelled source.",
+      "order": 10,
+      "constituentKinds": [],
+      "categories": [],
+      "levelCodes": []
+    },
+    {
+      "stageId": "substructure",
+      "title": "ELEMENT 01: SUB-STRUCTURE",
+      "preamble": "The works in this element include all works up to and including the ground floor slab.",
+      "order": 20,
+      "constituentKinds": [],
+      "categories": ["Structural Foundations", "Structural Foundation"],
+      "levelCodes": []
+    },
+    {
+      "stageId": "superstructure",
+      "title": "ELEMENT 02: SUPERSTRUCTURE",
+      "preamble": "Frame, walling and suspended slabs above the ground floor slab.",
+      "order": 30,
+      "constituentKinds": ["blockwork", "brickwork", "units", "mortar", "mortar_cement", "mortar_sand",
+                           "concrete", "precast_rib", "infill_block", "mesh", "rebar", "formwork"],
+      "categories": ["Walls", "Floors", "Structural Columns", "Structural Framing"],
+      "levelCodes": []
+    },
+    {
+      "stageId": "roof",
+      "title": "ELEMENT 03: ROOF",
+      "preamble": "Roof structure and covering.",
+      "order": 40,
+      "constituentKinds": [],
+      "categories": ["Roofs"],
+      "levelCodes": []
+    },
+    {
+      "stageId": "doors-windows",
+      "title": "ELEMENT 04: DOORS AND WINDOWS",
+      "preamble": "Door and window units including ironmongery.",
+      "order": 50,
+      "constituentKinds": [],
+      "categories": ["Doors", "Windows"],
+      "levelCodes": []
+    },
+    {
+      "stageId": "finishes",
+      "title": "ELEMENT 05: FINISHES",
+      "preamble": "Plaster, screeds, tiling, painting and decoration.",
+      "order": 60,
+      "constituentKinds": ["plaster", "plaster_cement", "plaster_sand"],
+      "categories": ["Ceilings"],
+      "levelCodes": []
+    },
+    {
+      "stageId": "electrical",
+      "title": "ELEMENT 06: ELECTRICAL INSTALLATION",
+      "preamble": "Provisional sum pending specialist design.",
+      "order": 70,
+      "constituentKinds": [],
+      "categories": ["Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures"],
+      "levelCodes": []
+    },
+    {
+      "stageId": "mechanical",
+      "title": "ELEMENT 07: MECHANICAL INSTALLATION",
+      "preamble": "Provisional sum pending specialist design.",
+      "order": 80,
+      "constituentKinds": [],
+      "categories": ["Mechanical Equipment", "Plumbing Fixtures", "Duct Systems", "Pipe Systems"],
+      "levelCodes": []
+    },
+    {
+      "stageId": "external",
+      "title": "ELEMENT 08: EXTERNAL WORKS",
+      "preamble": "Boundary wall, paving and external services.",
+      "order": 90,
+      "constituentKinds": [],
+      "categories": ["Site", "Hardscape", "Parking"],
+      "levelCodes": []
+    }
+  ]
+}

@@ -264,6 +264,7 @@ namespace StingTools.BOQ.Takeoff
                     TypeName = el.Name ?? "",
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
+                    ConstituentKind = c.Kind,
                     GrossQuantity = Math.Round(c.Quantity, 3),
                     RateUGX = rate,
                     RateSource = source,

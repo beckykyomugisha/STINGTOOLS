@@ -1,0 +1,12 @@
+# STING_COMMODITY_RATES.csv v1.0 — corporate baseline commodity price list.
+# Project override: <project>/_data/coord/commodity_rates.csv (same columns, wins by CommodityKey).
+# Rates are indicative Kampala market prices; a live project MUST re-price before tender.
+CommodityKey,SupplierUnit,RateUGX,Description
+cement,Bags,28000,Cement OPC 42.5N 50kg bag
+sand,Trips (Sino Truck),1400000,River and pit sand per Sino Truck trip
+aggregate,Trips (Sino Truck),2400000,Machine-crushed aggregate per Sino Truck trip
+block,No.,2500,Hollow block 8 inch
+brick,No.,400,Burnt clay brick
+rebar,Kg,3250,High-tensile reinforcement bar
+formwork-timber,m²,7000,Sawn timber formwork per square metre contact area
+concrete-ready,m³,450000,In-situ concrete supplied and placed
