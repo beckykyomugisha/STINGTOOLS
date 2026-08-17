@@ -92,15 +92,19 @@ namespace StingTools.Core.MaterialSchedule
             if (string.IsNullOrWhiteSpace(category))
                 return new SupplierUnitResolution { Match = SupplierUnitMatch.None };
 
+            // PERF: single pass, no LINQ closure and no candidates List per row.
             string cat = category.Trim();
-            var candidates = Rules.Where(r => r.MatchCategories != null
-                && r.MatchCategories.Any(c => string.Equals(c, cat, StringComparison.OrdinalIgnoreCase)))
-                .ToList();
-            if (candidates.Count == 0)
-                return new SupplierUnitResolution { Match = SupplierUnitMatch.None };
+            SupplierUnitRule firstCategoryHit = null;
 
-            foreach (var r in candidates)
+            foreach (var r in Rules)
             {
+                if (r?.MatchCategories == null) continue;
+                bool catMatch = false;
+                foreach (string c in r.MatchCategories)
+                    if (string.Equals(c, cat, StringComparison.OrdinalIgnoreCase)) { catMatch = true; break; }
+                if (!catMatch) continue;
+                if (firstCategoryHit == null) firstCategoryHit = r;
+
                 // No patterns ⇒ the whole category converts.
                 if (r.MatchTypePatterns == null || r.MatchTypePatterns.Count == 0)
                     return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
@@ -115,10 +119,13 @@ namespace StingTools.Core.MaterialSchedule
                     return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
             }
 
+            if (firstCategoryHit == null)
+                return new SupplierUnitResolution { Match = SupplierUnitMatch.None };
+
             return new SupplierUnitResolution
             {
                 Match = SupplierUnitMatch.CategoryTypeMismatch,
-                CandidateCommodityKey = candidates[0].CommodityKey
+                CandidateCommodityKey = firstCategoryHit.CommodityKey
             };
         }
 

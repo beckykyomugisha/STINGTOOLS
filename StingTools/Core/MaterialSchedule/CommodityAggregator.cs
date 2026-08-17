@@ -47,6 +47,10 @@ namespace StingTools.Core.MaterialSchedule
             // (stageId, commodityKey) → accumulator in SOURCE units.
             var acc = new Dictionary<(string stage, string key), Accum>();
 
+            // PERF: built ONCE. This used to sort the definition list and allocate
+            // a List per row.
+            var stageIndex = StageIndex.Build(input.StageDefs, input.DefaultStageId);
+
             var excluded = new HashSet<string>(
                 input.ExcludedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
 
@@ -76,9 +80,7 @@ namespace StingTools.Core.MaterialSchedule
                 // wall paint under the frame, because "Walls" routes there.
                 string stageId = !string.IsNullOrWhiteSpace(rule?.StageId)
                     ? rule.StageId
-                    : StageMapper.ResolveStageId(
-                        row.ConstituentKind, row.Category, row.LevelCode,
-                        input.StageDefs, input.DefaultStageId);
+                    : stageIndex.Resolve(row.ConstituentKind, row.Category, row.LevelCode);
 
                 // No rule → the row still appears, keyed by its own description and
                 // carrying its measured unit. Silently dropping it would lose real
