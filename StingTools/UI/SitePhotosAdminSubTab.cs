@@ -9,9 +9,13 @@
 //    * Re-redact         — re-run the blur worker on a single photo
 //    * Audit log probe   — last 50 audit events for site photos on this project
 //
-//  All operations route through PlanscapeServerClient. Server enforces
-//  the actual permission gate (PM / Admin / Owner only); the desktop
-//  surface just hides the UI from non-curators on a best-effort basis.
+//  All operations route through PlanscapeServerClient. The SERVER remains
+//  the gate. What the desktop surface adds (#558) is affordance: it asks
+//  the server what this user can do (GET members/capabilities) and
+//  disables only what the server has explicitly said no to, naming the
+//  capability. A capability we could not determine — unreachable server,
+//  timeout, unparseable body — leaves the control enabled and lets the
+//  attempt report. Unknown is not denied.
 // ══════════════════════════════════════════════════════════════════════
 
 #nullable enable
@@ -45,6 +49,7 @@ namespace StingTools.UI
             root.Children.Add(sel);
 
             var bulkBar = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+            var bulkButtons = new List<Button>();
             foreach (var (label, code) in SitePhotosTab.Reasons.Select(r => (r.Label, r.Code)))
             {
                 var b = new Button {
@@ -62,11 +67,17 @@ namespace StingTools.UI
                     if (state.SelectedIds.Count == 0) return;
                     var n = await PlanscapeServerClient.Instance.BulkReclassifyPhotosAsync(
                         state.ProjectId, state.SelectedIds.ToList(), code);
-                    Autodesk.Revit.UI.TaskDialog.Show("Reclassify",
-                        n > 0 ? $"Reclassified {n} photo(s) to {code}." :
-                        (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                    if (n > 0)
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("Reclassify",
+                            $"Reclassified {n} photo(s) to {code}.");
+                        return;
+                    }
+                    PlanscapeForbidden.ShowFailureOrForbidden(
+                        "Reclassify", PlanscapeCapability.ApproveSitePhotos);
                 };
                 bulkBar.Children.Add(b);
+                bulkButtons.Add(b);
             }
             root.Children.Add(bulkBar);
 
@@ -90,9 +101,13 @@ namespace StingTools.UI
                 if (lvl == null && zn == null) return;
                 var n = await PlanscapeServerClient.Instance.BulkReanchorPhotosAsync(
                     state.ProjectId, state.SelectedIds.ToList(), levelCode: lvl, zoneCode: zn);
-                Autodesk.Revit.UI.TaskDialog.Show("Re-anchor",
-                    n > 0 ? $"Re-anchored {n} photo(s)." :
-                    (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                if (n > 0)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("Re-anchor", $"Re-anchored {n} photo(s).");
+                    return;
+                }
+                PlanscapeForbidden.ShowFailureOrForbidden(
+                    "Re-anchor", PlanscapeCapability.ApproveSitePhotos);
             };
             reanchorBar.Children.Add(reanchorBtn);
             root.Children.Add(reanchorBar);
@@ -137,9 +152,10 @@ namespace StingTools.UI
                 var groups = await PlanscapeServerClient.Instance.ListDistributionGroupsAsync(state.ProjectId);
                 if (groups == null)
                 {
-                    dgPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                    dgPanel.Children.Add(PlanscapeForbidden.BuildFailureOrForbidden(
                         "Could not load distribution groups.",
-                        PlanscapeServerClient.Instance.LastError));
+                        "Distribution groups are not available to you on this project.",
+                        PlanscapeCapability.CurateProject));
                     return;
                 }
                 if (groups.Count == 0)
@@ -186,8 +202,10 @@ namespace StingTools.UI
                         // pane: an operator would conclude nobody is on distribution and
                         // re-add recipients who are already there.
                         memberLine.Text = mem == null
-                            ? "Could not load members — "
-                              + (PlanscapeServerClient.Instance.LastError ?? "(no detail)")
+                            ? (PlanscapeServerClient.Instance.LastStatus == 403
+                                ? "🔒 " + PlanscapeForbidden.Describe(PlanscapeCapability.CurateProject)
+                                : "Could not load members — "
+                                  + (PlanscapeServerClient.Instance.LastError ?? "(no detail)"))
                             : mem.Count == 0
                                 ? "No members yet."
                                 : string.Join(", ", mem.Select(m =>
@@ -249,8 +267,8 @@ namespace StingTools.UI
 
                         if (!ok)
                         {
-                            Autodesk.Revit.UI.TaskDialog.Show("Add member",
-                                PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                            PlanscapeForbidden.ShowFailureOrForbidden(
+                                "Add member", PlanscapeCapability.CurateProject);
                             return;
                         }
                         await LoadMembersAsync();
@@ -273,8 +291,8 @@ namespace StingTools.UI
                     state.ProjectId, name.Trim(), kind: "Internal");
                 if (grp == null)
                 {
-                    Autodesk.Revit.UI.TaskDialog.Show("New group",
-                        PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                    PlanscapeForbidden.ShowFailureOrForbidden(
+                        "New group", PlanscapeCapability.CurateProject);
                     return;
                 }
                 // Non-null with LastError set is partial success: the group exists but
@@ -290,10 +308,41 @@ namespace StingTools.UI
 
             _ = LoadGroupsAsync();
 
+            // ── Affordance from capabilities (#547 / #558) ──────────
+            // Two different capabilities on one pane, and they are NOT the
+            // same set of people: bulk reclassify / re-anchor rewrite the
+            // audience machine and need ApproveSitePhotos, while distribution
+            // groups are curation. Gating both on one flag would tell a
+            // coordinator they cannot do something they can.
+            bool bannerShown = false;
+            void ApplyCaps()
+            {
+                foreach (var b in bulkButtons)
+                    PlanscapeForbidden.ApplyIfDenied(b, state.Caps.ApproveSitePhotos,
+                        PlanscapeCapability.ApproveSitePhotos);
+                PlanscapeForbidden.ApplyIfDenied(reanchorBtn, state.Caps.ApproveSitePhotos,
+                    PlanscapeCapability.ApproveSitePhotos);
+                PlanscapeForbidden.ApplyIfDenied(dgNew, state.Caps.CurateProject,
+                    PlanscapeCapability.CurateProject);
+
+                if (bannerShown) return;
+                var banner = PlanscapeForbidden.BuildBannerIfDenied(
+                    state.Caps.ApproveSitePhotos, PlanscapeCapability.ApproveSitePhotos)
+                    ?? PlanscapeForbidden.BuildBannerIfDenied(
+                        state.Caps.CurateProject, PlanscapeCapability.CurateProject);
+                if (banner == null) return;
+                bannerShown = true;
+                root.Children.Insert(0, banner);
+            }
+            state.CapabilitiesResolved += ApplyCaps;
+            ApplyCaps();
+
             // ── Section: Help ───────────────────────────────────────
             root.Children.Add(SectionHeader("Notes"));
             root.Children.Add(new TextBlock {
-                Text = "• Bulk operations require PM, Admin, or Owner role on the server.\n" +
+                // Sourced from the shared helper rather than retyped — this line
+                // and the forbidden panels must never drift apart.
+                Text = "• " + PlanscapeForbidden.Describe(PlanscapeCapability.ApproveSitePhotos) + "\n" +
                        "• Force-state and audit-log endpoints are reachable via the web admin only.\n" +
                        "• The watermark / retention / digest hour are edited under the project's\n" +
                        "  Photo Policy (PUT /api/projects/{id}/photo-policy) — a future BCC slice\n" +
