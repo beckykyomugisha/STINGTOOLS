@@ -28,6 +28,15 @@ namespace StingTools.Core.MaterialSchedule
         public string RateSource = "";       // "baseline" / "project" / "unpriced"
         public List<string> TraceRefs = new List<string>();
 
+        /// <summary>
+        /// True when a supplier-unit rule matched this row's CATEGORY but not its
+        /// type, so the quantity stayed in measured units rather than being
+        /// converted on a guess. Surfaced by reconciler rule R5 — a wrong trade
+        /// quantity is worse than an honest measured one.
+        /// </summary>
+        public bool ConversionBlocked;
+        public string ConversionNote = "";
+
         /// <summary>Derived — see the file header. Rounded to whole UGX.</summary>
         public double AmountUGX => Math.Round(OrderQuantity * RateUGX, 0);
 

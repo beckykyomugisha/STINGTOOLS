@@ -16,6 +16,7 @@ namespace StingTools.Core.MaterialSchedule
     {
         public string ConstituentKind = "";
         public string Category = "";
+        public string TypeName = "";    // narrows a category match (MAT-SCHED trade units)
         public string Description = "";
         public string Unit = "";        // source unit as measured
         public double Quantity;
@@ -52,7 +53,12 @@ namespace StingTools.Core.MaterialSchedule
                     row.ConstituentKind, row.Category, row.LevelCode,
                     input.StageDefs, input.DefaultStageId);
 
-                var rule = input.Units?.ResolveByKind(row.ConstituentKind);
+                // Constituent kind first, then category (+ optional type pattern).
+                var res = input.Units != null
+                    ? input.Units.Resolve(row.ConstituentKind, row.Category, row.TypeName)
+                    : new SupplierUnitResolution { Match = SupplierUnitMatch.None };
+                var rule = res.Rule;
+
                 // No rule → the row still appears, keyed by its own description and
                 // carrying its measured unit. Silently dropping it would lose real
                 // measured work from the document.
@@ -70,6 +76,18 @@ namespace StingTools.Core.MaterialSchedule
                         FallbackUnit = row.Unit ?? ""
                     };
                     acc[k] = a;
+                }
+
+                // A category hit whose type did not match is NOT converted. Record
+                // why, so the reconciler can name it and the QS can either fix the
+                // rule or price the measured row by hand.
+                if (res.Match == SupplierUnitMatch.CategoryTypeMismatch)
+                {
+                    a.ConversionBlocked = true;
+                    if (string.IsNullOrEmpty(a.ConversionNote))
+                        a.ConversionNote = $"category '{row.Category}' maps to commodity "
+                                         + $"'{res.CandidateCommodityKey}', but type '{row.TypeName}' "
+                                         + "matches none of its type patterns";
                 }
                 a.SourceQuantity += row.Quantity;
                 if (!string.IsNullOrWhiteSpace(row.TraceRef)) a.TraceRefs.Add(row.TraceRef);
@@ -112,7 +130,9 @@ namespace StingTools.Core.MaterialSchedule
                         OrderQuantity = conv.OrderQuantity,
                         RateUGX = rate.RateUGX,
                         RateSource = rate.Source,
-                        TraceRefs = a.TraceRefs
+                        TraceRefs = a.TraceRefs,
+                        ConversionBlocked = a.ConversionBlocked,
+                        ConversionNote = a.ConversionNote
                     });
                 }
 
@@ -130,6 +150,8 @@ namespace StingTools.Core.MaterialSchedule
             public string Spec = "";
             public string FallbackUnit = "";
             public double SourceQuantity;
+            public bool ConversionBlocked;
+            public string ConversionNote = "";
             public List<string> TraceRefs = new List<string>();
         }
     }
