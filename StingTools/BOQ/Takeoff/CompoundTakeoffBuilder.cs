@@ -27,8 +27,52 @@ namespace StingTools.BOQ.Takeoff
     {
         /// <summary>Config toggle. Default OFF so legacy composite-rate bills are
         /// untouched until a project opts in.</summary>
+        /// <summary>
+        /// MAT-SCHED-7 — per-run override, so the material-schedule export can turn
+        /// compound take-off on for ITS OWN build without editing project config.
+        ///
+        /// The flag defaults off and is set in no shipped file, so the material
+        /// schedule could not produce cement, sand, blocks or bricks at all until a
+        /// user discovered an undocumented key. Null = defer to config, which is
+        /// every other caller's behaviour, unchanged.
+        /// </summary>
+        [ThreadStatic] internal static bool? SessionOverride;
+
+        /// <summary>Set the override and restore it on Dispose. Use with `using`
+        /// so an exception mid-build cannot leave it stuck on.</summary>
+        /// <summary>Force compound mode for one document's build. Scoped to the
+        /// calling thread and to THAT document's cache — a material-schedule
+        /// export in one project must not force a full BOQ re-takeoff in every
+        /// other open project.</summary>
+        internal static IDisposable ForceEnabled(Document doc) => new OverrideScope(true, doc);
+
+        private sealed class OverrideScope : IDisposable
+        {
+            private readonly bool? _prev;
+            private readonly Document _doc;
+
+            public OverrideScope(bool value, Document doc)
+            {
+                _prev = SessionOverride;
+                _doc = doc;
+                SessionOverride = value;
+                // BOQCostManager caches the host take-off. Without dropping it the
+                // override changes nothing — the previous non-compound rows are
+                // handed straight back. Invalidate on the way OUT too, so the next
+                // ordinary BOQ build is not served compound rows it did not ask for.
+                if (_doc != null) BOQCostManager.ForceHostFull(_doc);
+            }
+
+            public void Dispose()
+            {
+                SessionOverride = _prev;
+                if (_doc != null) BOQCostManager.ForceHostFull(_doc);
+            }
+        }
+
         internal static bool Enabled()
         {
+            if (SessionOverride.HasValue) return SessionOverride.Value;
             string v = TagConfig.GetConfigValue("COST_COMPOUND_TAKEOFF");
             if (string.IsNullOrWhiteSpace(v)) return false;
             v = v.Trim().ToLowerInvariant();
@@ -131,7 +175,8 @@ namespace StingTools.BOQ.Takeoff
                 MortarSandRatio = mortarSand,
                 PlasterCementBagsPerM3 = plasterCement,
                 PlasterSandRatio = plasterSand,
-                IsRcWall = isRc
+                IsRcWall = isRc,
+                IsExteriorWall = IsExteriorWall(doc, el)
             };
             var constituents = CompoundTakeoff.MasonryWall(input);
             if (constituents.Count == 0) return null;
@@ -264,6 +309,7 @@ namespace StingTools.BOQ.Takeoff
                     TypeName = el.Name ?? "",
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
+                    ConstituentKind = c.Kind,
                     GrossQuantity = Math.Round(c.Quantity, 3),
                     RateUGX = rate,
                     RateSource = source,
@@ -305,6 +351,8 @@ namespace StingTools.BOQ.Takeoff
                 case "mortar_cement": return "Cement";
                 case "mortar_sand": return "Sand";
                 case "plaster": return "Plaster";
+                case "paint_interior": return "Painting";
+                case "paint_exterior": return "Painting";
                 case "plaster_cement": return "Cement";
                 case "plaster_sand": return "Sand";
                 case "concrete": return "In-situ Concrete";
@@ -318,6 +366,27 @@ namespace StingTools.BOQ.Takeoff
         }
 
         // ── Small Revit helpers ─────────────────────────────────────────────
+
+        /// <summary>
+        /// True when the wall type is marked Exterior. Exterior walls take
+        /// weather-guard, interior walls silk — different products at different
+        /// prices. Unknown/unreadable defaults to INTERIOR, the cheaper and more
+        /// common case, rather than inflating a bill with exterior-grade paint.
+        /// </summary>
+        private static bool IsExteriorWall(Document doc, Element el)
+        {
+            try
+            {
+                var wt = doc?.GetElement(el?.GetTypeId()) as WallType;
+                return wt != null && wt.Function == WallFunction.Exterior;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("WallFunction", $"IsExteriorWall {el?.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
         private static double ReadAreaM2(Element el)
         {
             var p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);

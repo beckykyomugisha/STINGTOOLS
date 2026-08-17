@@ -183,7 +183,20 @@ namespace StingTools.Commands.Validation
         {
             var sb = new StringBuilder();
             sb.AppendLine($"Milestone: {r.MilestoneName}  (LOD {r.Lod})");
-            sb.AppendLine($"PASS {r.Passed} / {r.Total}  ({r.OverallPct:F1}%)   FAIL {r.Failed}");
+            // A run over zero elements is NOT 100%. OverallPct returns 100.0 when
+            // Total == 0, so state the empty case explicitly instead of printing a
+            // percentage that reads as a green gate.
+            if (r.NoElementsInScope)
+                sb.AppendLine("NO ELEMENTS IN SCOPE — nothing was verified. This is not a pass.");
+            else
+                sb.AppendLine($"PASS {r.Passed} / {r.Total}  ({r.OverallPct:F1}%)   FAIL {r.Failed}");
+            if (r.SkippedNoRule > 0)
+            {
+                sb.AppendLine($"SKIPPED {r.SkippedNoRule} element(s): their category has no rule and the matrix has no \"*\" fallback.");
+                foreach (var kv in r.SkippedByCategory.OrderByDescending(k => k.Value).Take(10))
+                    sb.AppendLine($"   {kv.Value,6}  {kv.Key}");
+                sb.AppendLine("   Skipped elements are outside the denominator — add a category rule or a \"*\" rule to cover them.");
+            }
             sb.AppendLine();
             foreach (var line in scope.DisclosureLines()) sb.AppendLine(line);
             sb.AppendLine();
@@ -228,8 +241,16 @@ namespace StingTools.Commands.Validation
                 var rows = new List<string>
                 {
                     $"# STING LOD audit — {r.MilestoneName} (LOD {r.Lod})",
-                    $"# PASS {r.Passed}/{r.Total} ({r.OverallPct:F1}%)",
+                    r.NoElementsInScope
+                        ? "# NO ELEMENTS IN SCOPE — nothing was verified. This is not a pass."
+                        : $"# PASS {r.Passed}/{r.Total} ({r.OverallPct:F1}%)",
                 };
+                if (r.SkippedNoRule > 0)
+                {
+                    rows.Add($"# SKIPPED {r.SkippedNoRule} element(s) whose category has no rule and no \"*\" fallback:");
+                    foreach (var kv in r.SkippedByCategory.OrderByDescending(k => k.Value))
+                        rows.Add($"#   {kv.Value} {kv.Key}");
+                }
                 foreach (var line in scope.DisclosureLines()) rows.Add("# " + line);
                 rows.Add("# Parameter/naming/geometry-presence maturity proxy — not a geometric survey.");
                 rows.Add("ElementId,Category,Discipline,Pass,Reasons");
@@ -263,7 +284,16 @@ namespace StingTools.Commands.Validation
                     total = r.Total,
                     passed = r.Passed,
                     failed = r.Failed,
-                    overallPct = Math.Round(r.OverallPct, 2),
+                    // A consumer branching on overallPct alone would read an empty run
+                    // as 100%. noElementsInScope is the flag to branch on; overallPct is
+                    // null when there is nothing to average.
+                    noElementsInScope = r.NoElementsInScope,
+                    overallPct = r.NoElementsInScope ? (double?)null : Math.Round(r.OverallPct, 2),
+                    // Elements dropped because their category resolved to no check and the
+                    // matrix has no "*" fallback. These are outside `total`.
+                    skippedNoRule = r.SkippedNoRule,
+                    skippedByCategory = r.SkippedByCategory
+                        .OrderByDescending(k => k.Value).ToDictionary(k => k.Key, v => v.Value),
                     note = "Parameter/naming/geometry-presence maturity proxy, not a geometric survey.",
                     // Scope disclosure — what the gate looked at, and what it did NOT.
                     // A gate report that omits this reads as full coverage when it is not.
@@ -329,7 +359,10 @@ namespace StingTools.Commands.Validation
 
             new TaskDialog("LOD Verify")
             {
-                MainInstruction = $"{r.MilestoneName}: {r.OverallPct:F1}% mature ({r.Passed}/{r.Total})",
+                // The headline must not say "100.0% mature (0/0)".
+                MainInstruction = r.NoElementsInScope
+                    ? $"{r.MilestoneName}: NO ELEMENTS IN SCOPE — nothing verified"
+                    : $"{r.MilestoneName}: {r.OverallPct:F1}% mature ({r.Passed}/{r.Total})",
                 MainContent = report.ToString()
             }.Show();
             StingLog.Info($"LOD_Verify: {r.MilestoneId} {r.Passed}/{r.Total} pass ({scopeReport.Label}), " +

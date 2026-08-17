@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- Pure-logic test project. Does NOT reference the Revit API or WPF; it links the
+         Revit-free half of the Visibility Center via <Compile Include>, the same pattern
+         StingTools.Clash.Tests and StingTools.Routing.Tests use. That split is the reason
+         the planning path is testable at all: VisibilityEngine.Plan does the Revit
+         harvesting, VisibilityRuleMatcher.PlanCore makes the decisions. -->
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Same version as the main plugin to avoid transitive mismatch. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Revit-free files. None references Autodesk.Revit.*, so they compile cleanly
+         against net8.0. VisibilityEngine / TokenValueHarvester / VisibilityStateReader /
+         VisibilityFilterBuilder are deliberately NOT linked — they are Revit-bound by design.
+         VisibilityStateReader in particular is the half no unit test can reach, which is why
+         the reconciliation it feeds was split into VisibilityState.cs. -->
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityRule.cs"          Link="Visibility\VisibilityRule.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityPlan.cs"          Link="Visibility\VisibilityPlan.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityRuleMatcher.cs"   Link="Visibility\VisibilityRuleMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityPresetStore.cs"   Link="Visibility\VisibilityPresetStore.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityHarvestModel.cs"  Link="Visibility\VisibilityHarvestModel.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityCategoryTree.cs"  Link="Visibility\VisibilityCategoryTree.cs" />
+    <Compile Include="..\StingTools\Core\Visibility\VisibilityState.cs"         Link="Visibility\VisibilityState.cs" />
+    <!-- TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The ACTUAL shipped baseline, not a copy. PresetLibraryTests round-trips this file,
+         so a Newtonsoft silent-default typo in it fails here rather than on a user's Friday. -->
+    <Content Include="..\StingTools\Data\STING_VISIBILITY_PRESETS.json"
+             Link="Data\STING_VISIBILITY_PRESETS.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

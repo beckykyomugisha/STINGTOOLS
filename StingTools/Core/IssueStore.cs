@@ -150,6 +150,60 @@ namespace StingTools.Core
             return true;
         }
 
+        /// <summary>
+        /// Set a NON-status field (priority, assigned_to, revision…) on one issue, stamping
+        /// modified_by/date and a history entry. Use <see cref="SetStatus"/> for status — it
+        /// normalises the value, audits the transition and pushes it server-side; this does not.
+        /// <para>
+        /// Exists so callers stop reaching into the store file directly. The hand-rolled version
+        /// in the Document Manager appended to <c>status_history</c> as a STRING, which replaced
+        /// the canonical JArray and caused the next status change to discard the whole history.
+        /// </para>
+        /// Returns false when the store is unreadable, the issue is absent, or the value is
+        /// already set.
+        /// </summary>
+        public static bool SetField(Document doc, string issueId, string field, string value,
+                                    string note = null)
+        {
+            if (string.IsNullOrWhiteSpace(field)) return false;
+            if (string.Equals(field, "status", StringComparison.OrdinalIgnoreCase))
+                return SetStatus(doc, issueId, value, note);
+
+            string path = PathFor(doc);
+            if (string.IsNullOrEmpty(path)) return false;
+
+            lock (LockFor(path))
+            {
+                if (!CoordStores.TryRead(path, out JArray rows))
+                {
+                    StingLog.Warn($"IssueStore.SetField refused — {path} exists but is unreadable.");
+                    return false;
+                }
+                var row = IssueSchema.FindById(rows, issueId);
+                if (row == null)
+                {
+                    StingLog.Warn($"IssueStore.SetField: no issue '{issueId}' in {path}.");
+                    return false;
+                }
+
+                string old = row[field]?.ToString() ?? "";
+                if (string.Equals(old, value ?? "", StringComparison.Ordinal)) return false;
+
+                string user = Environment.UserName;
+                try { user = doc?.Application?.Username ?? user; }
+                catch (Exception ex) { StingLog.Warn($"IssueStore.SetField user: {ex.Message}"); }
+
+                row[field] = value ?? "";
+                row["modified_by"] = user;
+                row["modified_date"] = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                CoordStores.AppendHistory(row, old, value ?? "", user,
+                                          note ?? $"{field} changed");
+
+                CoordStores.WriteArray(path, rows);
+                return true;
+            }
+        }
+
         // ── Batch ─────────────────────────────────────────────────────────
 
         /// <summary>Open a batch: one load, many creates/updates, one atomic save.</summary>

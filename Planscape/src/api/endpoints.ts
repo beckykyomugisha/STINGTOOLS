@@ -1001,8 +1001,18 @@ export function deleteDocumentMarkup(projectId: string, documentId: string, mark
 }
 
 // Document approval (NEW-INT-15)
+//
+// #624 — the route is `approval-request`, not `approvals`. There has never
+// been an `/approvals` action on DocumentsController, so every call from this
+// function 404d before it reached any authorization check, which meant the
+// approval branch of documents.tsx could not be exercised at all. Measured
+// against a running API on 2026-08-06:
+//   POST .../documents/{id}/approvals        -> 404, empty body
+//   POST .../documents/{id}/approval-request -> 403 {"error":"You are not a member of this project"}
+// Sibling `decideDocumentApproval` below already carries the same class of
+// correction (`/approval/{id}`, singular); this one was missed.
 export function requestDocumentApproval(projectId: string, documentId: string, targetState: string): Promise<unknown> {
-  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/approvals`, {
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/approval-request`, {
     method: 'POST', body: JSON.stringify({ targetState }),
   });
 }

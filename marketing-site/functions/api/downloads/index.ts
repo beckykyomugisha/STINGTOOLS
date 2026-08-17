@@ -11,6 +11,7 @@ import { handlePreflight } from "../auth/_lib/cors";
 import { requireAuth } from "../auth/_lib/auth";
 import { unauthorized } from "../auth/_lib/errors";
 import { getTenantById } from "../auth/_lib/db";
+import { effectiveStatus } from "../auth/_lib/limits";
 import {
   DOWNLOAD_CATALOG,
   entitlementFor,
@@ -25,10 +26,13 @@ export const onRequestGet = withHandler(async ({ request, env }) => {
   const tenant = await getTenantById(env.WAITLIST_DB, auth.tenantId);
   if (!tenant) throw unauthorized("Account no longer exists.");
 
-  const status = tenant.subscription_status;
+  // The EFFECTIVE status, not the column. Returned to the page, which switches
+  // its banner on it — a lapsed trial reporting "trial" would show "You are on
+  // the free trial" above downloads that are locked (#677).
+  const status = effectiveStatus(tenant, Date.now());
 
   const tools = DOWNLOAD_CATALOG.map((tool) => {
-    const { entitlement, reason } = entitlementFor(tool, status);
+    const { entitlement, reason } = entitlementFor(tool, tenant);
     return {
       id: tool.id,
       name: tool.name,

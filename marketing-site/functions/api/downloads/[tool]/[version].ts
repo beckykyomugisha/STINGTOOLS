@@ -73,7 +73,7 @@ export const onRequestGet: PagesFunction<DownloadsEnv> = async ({
   const tool = DOWNLOAD_CATALOG.find((t) => t.id === toolId);
   if (!tool) return deny(404, "Unknown download.");
 
-  const { entitlement, reason } = entitlementFor(tool, tenant.subscription_status);
+  const { entitlement, reason } = entitlementFor(tool, tenant);
   if (entitlement !== "allowed") return deny(403, reason);
 
   const version = tool.versions.find((v) => v.version === versionId);

@@ -140,12 +140,28 @@ namespace StingTools.Core
         /// CDE state's content-type subfolder — default state WIP) or a plain folder id
         /// (routed to a top-level cross-cutting folder). "_DATA" routes to _data.
         /// </summary>
+        /// <summary>The shipped export routes for a folder mode. Used by setup and
+        /// by the v1 → v2 backfill in <see cref="Load"/>.</summary>
+        public static Dictionary<string, string> DefaultRoutesFor(ProjectFolderMode mode)
+        {
+            switch (mode)
+            {
+                case ProjectFolderMode.CdeFirst: return DefaultCdeFirstRoutes();
+                case ProjectFolderMode.Mini:     return DefaultMiniRoutes();
+                default:                         return DefaultBimRoutes();
+            }
+        }
+
         public static Dictionary<string, string> DefaultCdeFirstRoutes() => new(StringComparer.OrdinalIgnoreCase)
         {
             ["PDF"] = "WIP|Drawings",
             ["IFC"] = "WIP|Models", ["NWC"] = "WIP|Models", ["RVT"] = "WIP|Models", ["DWG"] = "WIP|Models",
             ["SCHEDULE"] = "WIP|Schedules", ["EXCEL"] = "WIP|Schedules", ["CSV"] = "WIP|Schedules",
             ["BOQ"] = "WIP|BOQ",
+            // MAT-SCHED: CdeFirst skips the ExportTypeToFolder fallback (GetExportPath
+            // gates it on !cdeFirst), so the route has to be named here or the export
+            // lands in MISC.
+            ["MaterialSchedule"] = "WIP|Schedules",
             ["COBIE"] = "WIP|COBie", ["COBie"] = "WIP|COBie", ["COBieStream"] = "WIP|COBie",
             ["BEP"] = "BEP",
             ["TRANSMITTAL"] = "TRANSMITTALS", ["Transmittal"] = "TRANSMITTALS",
@@ -336,6 +352,19 @@ namespace StingTools.Core
                     setup.SchemaVersion = 1;
                     migrated = true;
                     StingLog.Info($"ProjectSetup.Load: migrated schema v0 → v1 for {dataPath}");
+                }
+                if (setup.SchemaVersion < 2)
+                {
+                    // v1 → v2: backfill export-route keys shipped since this project
+                    // was set up. Without this, a newly-added export type reaches only
+                    // projects created AFTER the change — and in CdeFirst mode
+                    // GetExportFolder sends any unrouted key to MISC, silently.
+                    // Customised and deliberately-blanked routes are left alone.
+                    int added = ExportRouteMerge.MergeMissing(setup.ExportRoutes, DefaultRoutesFor(setup.Mode));
+                    setup.SchemaVersion = 2;
+                    migrated = true;
+                    StingLog.Info($"ProjectSetup.Load: migrated schema v1 → v2 for {dataPath} "
+                                + $"({added} export route(s) backfilled for mode {setup.Mode})");
                 }
                 if (migrated) setup.Save(dataPath);
                 return setup;

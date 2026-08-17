@@ -72,16 +72,56 @@ namespace Planscape.Docs.Templates
             }
         }
 
+        // ── Template pack versioning ──────────────────────────────────────
+        //
+        // Extraction was "write it if the file is absent", so a project that had ever been
+        // opened kept its templates forever. That was fine while the pack only gained NEW
+        // files — but the pack shipped with a defect in every existing file (loop bodies used
+        // bare {{number}} where MiniWord requires {{documents.number}}, so every generated
+        // table came out empty), and no amount of re-opening would deliver the fix.
+        //
+        // Bump PackVersion whenever the embedded templates change. On open, a project stamped
+        // with an older version is re-extracted — but ONLY for files the user has not edited.
+        // A pristine file is one whose SHA-256 still matches what we wrote; anything else is
+        // the user's work and is never overwritten. Those are logged, and the render gate
+        // (TemplateDoctor) still catches the broken output at issue time, so a customised
+        // template cannot fail silently either.
+
+        private const int PackVersion = 2;   // v2: loop-body tokens rewritten to dotted form
+        private const string StampFile = ".sting_template_pack.json";
+
         public static void ExtractTemplates(Document doc)
         {
             string templatesDir = StingPaths.MetaFile(doc, "_BIM_COORD", "templates");
             Directory.CreateDirectory(templatesDir);
 
+            string stampPath = Path.Combine(templatesDir, StampFile);
+            var stamp = ReadStamp(stampPath);
+            bool packIsNewer = stamp.Version < PackVersion;
+
             var asm = typeof(EmbeddedTemplates).Assembly;
+            var customised = new List<string>();
+            int refreshed = 0;
+
             foreach (var entry in Catalogue)
             {
                 string target = Path.Combine(templatesDir, entry.File);
-                if (File.Exists(target)) continue;
+                bool exists = File.Exists(target);
+
+                if (exists && !packIsNewer) continue;
+
+                if (exists)
+                {
+                    // Replace only what we ourselves last wrote.
+                    string current = Sha256(target);
+                    if (!stamp.Hashes.TryGetValue(entry.File, out string known) ||
+                        !string.Equals(current, known, StringComparison.OrdinalIgnoreCase))
+                    {
+                        customised.Add(entry.File);
+                        continue;
+                    }
+                }
+
                 string resourceName = FindResource(asm, TemplateResourcePrefix, entry.File);
                 if (resourceName == null)
                 {
@@ -89,7 +129,58 @@ namespace Planscape.Docs.Templates
                     continue;
                 }
                 StreamToDisk(asm, resourceName, target);
+                if (exists) refreshed++;
+                stamp.Hashes[entry.File] = Sha256(target);
             }
+
+            if (customised.Count > 0)
+                StingLog.Warn($"EmbeddedTemplates: template pack v{PackVersion} not applied to " +
+                              $"{customised.Count} locally-edited template(s): {string.Join(", ", customised)}. " +
+                              "They keep your edits — re-apply them to the new pack if documents render with " +
+                              "empty tables or leftover {{…}} markers.");
+            if (refreshed > 0)
+                StingLog.Info($"EmbeddedTemplates: refreshed {refreshed} template(s) to pack v{PackVersion}.");
+
+            stamp.Version = PackVersion;
+            WriteStamp(stampPath, stamp);
+        }
+
+        private class PackStamp
+        {
+            public int Version { get; set; }
+            public Dictionary<string, string> Hashes { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static PackStamp ReadStamp(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                    return JsonConvert.DeserializeObject<PackStamp>(File.ReadAllText(path)) ?? new PackStamp();
+            }
+            catch (Exception ex) { StingLog.Warn($"EmbeddedTemplates stamp read: {ex.Message}"); }
+            return new PackStamp();
+        }
+
+        private static void WriteStamp(string path, PackStamp stamp)
+        {
+            try
+            {
+                OutputLocationHelper.WriteAllTextAtomic(path,
+                    JsonConvert.SerializeObject(stamp, Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"EmbeddedTemplates stamp write: {ex.Message}"); }
+        }
+
+        private static string Sha256(string path)
+        {
+            try
+            {
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var fs = File.OpenRead(path))
+                    return BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "");
+            }
+            catch (Exception ex) { StingLog.Warn($"EmbeddedTemplates hash({Path.GetFileName(path)}): {ex.Message}"); return null; }
         }
 
         public static void ExtractDefaultWorkflows(Document doc)

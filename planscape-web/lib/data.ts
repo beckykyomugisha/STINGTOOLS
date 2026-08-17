@@ -241,14 +241,18 @@ export async function uploadModel(
     throw new ApiError(401, 'Session expired — please sign in again.');
   }
   if (!res.ok) {
-    let message = `Upload failed (HTTP ${res.status})`;
+    // `serverMessage` stays undefined when the body carried nothing, so a
+    // forbidden state can tell "the server explained why" from "the server said
+    // nothing and this is our placeholder". See ApiError in lib/api.ts.
+    const generic = `Upload failed (HTTP ${res.status})`;
+    let serverMessage: string | undefined;
     try {
       const b = await res.json();
-      message = b.message || b.error || message;
+      serverMessage = b.message || b.error || undefined;
     } catch {
       /* non-JSON */
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, serverMessage || generic, undefined, serverMessage);
   }
   if (res.status === 204) return {};
   return (await res.json()) as UploadModelResult;
@@ -535,14 +539,18 @@ export async function uploadDocument(
     throw new ApiError(401, 'Session expired — please sign in again.');
   }
   if (!res.ok) {
-    let message = `Upload failed (HTTP ${res.status})`;
+    // `serverMessage` stays undefined when the body carried nothing, so a
+    // forbidden state can tell "the server explained why" from "the server said
+    // nothing and this is our placeholder". See ApiError in lib/api.ts.
+    const generic = `Upload failed (HTTP ${res.status})`;
+    let serverMessage: string | undefined;
     try {
       const b = await res.json();
-      message = b.message || b.error || message;
+      serverMessage = b.message || b.error || undefined;
     } catch {
       /* non-JSON */
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, serverMessage || generic, undefined, serverMessage);
   }
   return (await res.json()) as ProjectDocument;
 }

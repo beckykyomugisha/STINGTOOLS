@@ -88,10 +88,10 @@ public class OnboardingController : ControllerBase
         var added = new List<object>();
         foreach (var m in req.Members)
         {
-            // Quota check per member — fail mid-list cleanly with a 402.
+            // Seat entitlement is the StingTools licence, counted in D1 (#621) —
+            // this endpoint no longer refuses with 402. `role` still drives the
+            // UserRole / Iso19650Role written below and the response rows.
             var role = string.Equals(m.Role, "Author", StringComparison.OrdinalIgnoreCase) ? "Author" : "Coordinator";
-            var q = await _quota.CheckCanAddUserAsync(role, ct);
-            if (!q.Allowed) return StatusCode(StatusCodes.Status402PaymentRequired, new { error = "quota_exceeded", added, denied = m, quota = q });
 
             var existing = await _db.Users.FirstOrDefaultAsync(u => u.Email == m.Email.ToLowerInvariant(), ct);
             if (existing != null) { added.Add(new { existing.Id, existing.Email, role, status = "exists" }); continue; }

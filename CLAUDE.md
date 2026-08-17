@@ -11,7 +11,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 - **~1,440 C# source files · ~656k lines** in the plugin (`StingTools/`) + 14 XAML, across 38+ command directories — *rounded; see the [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) for exact, dated, reproducible metrics*
 - **1,580+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 4 `IDockablePaneProvider`s + 4+ `IUpdater`s
 - **100+ runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes template engine v1.1 pack (16 templates + 5 workflow definitions), HVAC/climate/RTS/acoustic data, CSI/MasterFormat maps, CTF coefficients, IDU catalogues, Cx task library, and more
-- **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (9 tabs) + ribbon retained for legacy compat
 - **Top-level workspace** ships 30+ directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingBridge/` · `GUIDES/` · `StingTools.ArchiCAD/` · `Planscape.Desktop/` · `Planscape.Edge/` · `StingTools.Clash.Tests/` · `StingTools.Tags.Tests/` · `StingTools.Routing.Tests/` · `StingTools.Boq.Tests/` · `StingTools.Connectivity.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `docs/` · `docs-site/` · `marketing-site/` · `marketing-site-cron/` · `tools/` · `shared/` · `stingtools-bonsai/` · `stingtools-core/` · `ifc_drop/` · `project-templates/` · `planscape-site/`
 
 ### Phase history
@@ -593,6 +593,64 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 | `HistoryBridge.cs` | Persists placement history to `_BIM_COORD/placement_history.json` |
 | `PlacementCentreCommands.cs` (32) | `Placement_OpenCenter` — opens the modeless window |
 | `PlacementExcelCommands.cs` | `Placement_ExportRules`, `Placement_ImportRules` — Excel round-trip for placement rules |
+
+---
+
+## Visibility Center (Phases 232 + 233)
+
+**Status**: `StingTools/Core/Visibility/` (11 files) + `Commands/Visibility/` (2 files) + `UI/Visibility/` (7 files) + `Data/STING_VISIBILITY_PRESETS.json`. Specs: [`docs/VISIBILITY_CENTER_RUNNER.md`](docs/VISIBILITY_CENTER_RUNNER.md) and [`docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`](docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md).
+
+A dropdown on the **SELECT** tab that shows/hides elements by **category** and by **ISO 19650 tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode (`View.HideElementsTemporary` — session-only, does not print) or **Saved** mode (`ParameterFilterElement` + `SetFilterVisibility` — persists, prints, pushable to a view template). Default is Temporary.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` / `VisibilityPresetLibrary` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityPlan.cs` | ✅ | Plan / result / element-snapshot records |
+| `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | Preset JSON load/save/merge + `excludedCategories` (path-agnostic) |
+| `Core/Visibility/VisibilityHarvestModel.cs` | ✅ | `TokenValueTally` / `CategoryTally` / `TokenHarvest` + `TokenHarvest.Rebuild` |
+| `Core/Visibility/VisibilityCategoryTree.cs` | ✅ | Exclusion + `Category.Parent` nesting + Model/Annotation/Imports split |
+| `Core/Visibility/VisibilityState.cs` | ✅ | Read-back records + `VisibilityStateReconciler` + footer / badge text |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets + category metadata; 30 s per-scope cache |
+| `Core/Visibility/VisibilityStateReader.cs` | — | Reads what the view is ALREADY hiding (see below) |
+| `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
+| `Core/Visibility/VisibilityFilterBuilder.cs` | — | Filter creation + binding-blocker detection |
+| `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; only `StingPaths` caller |
+
+**Commands**: `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` · `Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset` — dispatched from `StingCommandHandler` beside the untouched `ViewIsolate` / `ViewHide` / `ViewReveal` / `ViewReset` cases (those hide the *selection*; these hide by *rule*).
+
+**Contracts worth knowing**
+- **The dropdown reads the view's state; it never remembers it.** Rows open in whatever
+  `VisibilityStateReader` found — hidden categories (`GetCategoryHidden`), hiding `STING VIS -`
+  filters (`GetFilters` + `GetFilterVisibility`), and the temporary mode. **Revit has no API to
+  enumerate temporarily hidden elements**: `IsTemporaryHideIsolateActive()` says the mode is on,
+  not what it hid. The candidate set comes from a document-vs-view collector diff and is then
+  confirmed per element with `View.IsElementVisibleInTemporaryViewMode`; anything still
+  unexplained is counted as `OutOfScopeCount`, never as hidden. **Do not add a side-record of
+  "what we hid"** — it desynchronises the instant the user reaches for Revit's own HH/HI.
+- **The document-scoped pass runs only when the cheap sweep proves something is hidden.** A
+  hidden element is absent from a view-scoped collector, so recovering its row needs the wider
+  scan — but nothing hidden means no scan at all.
+- **`Apply` is additive — it hides, it never un-hides.** A re-ticked row is not restored; the
+  supported route is `Vis_ResetAll` then re-apply. Logged as ROADMAP VIS-2.
+- **`excludedCategories` in `STING_VISIBILITY_PRESETS.json`: `null` ≠ `[]`.** Absent means "use
+  the baseline"; an explicit empty list means "exclude nothing". The POCO default must stay
+  `null` or the key becomes impossible to override. `Save` carries it over — presets and
+  exclusions share one file.
+- **`Plan()` writes nothing; `Apply()` writes.** The dropdown footer ("will hide 1,204 of 8,331") calls the Revit-free `VisibilityRuleMatcher.PlanCore`, so it recomputes per tick without the Revit API. This is the compute/present split CLAUDE.md P1 #4 asks for, proven on one feature.
+- **Matching**: values within a rule OR; rules grouped by (kind, token) OR within a group, AND across groups. Mixed `Hide` + `ShowOnly` is rejected with a message, never silently resolved.
+- **`"STING VIS - "` prefix is the cleanup contract** — `Vis_PurgeFilters` and `Vis_ResetAll` find and delete by it, and touch nothing else.
+- **Reset clears both mechanisms** (temporary mode *and* the filters). The two halves have opposite transaction requirements, so `VisibilityEngine.Reset` sequences them itself — call it with no open transaction.
+- Token parameters resolve through `ParamRegistry.DISC/.LOC/.ZONE/…`, never literals.
+- **An unresolvable category rule raises a blocker, not silence.** A preset naming a category the model lacks keeps its `OST_` string with `CategoryId == 0`; `PlanCore` detects that and names it, instead of the rule quietly matching nothing.
+- Presets: corporate `Data/STING_VISIBILITY_PRESETS.json` (4 baseline) + project override at `<project>/_BIM_COORD/visibility_presets.json`, project winning by name.
+
+**Caveats**
+1. Show-only **by category** in Saved mode is reported as a blocker, not implemented — a view filter can only act on the categories it binds to. Temporary mode does it.
+2. The isolate filter is one combined `STING VIS - NOT (isolate)` element; it does not round-trip through `TryParseFilterName` (still purged by prefix).
+3. The UI namespace is `StingTools.UI.VisibilityCenter`, **not** `.Visibility` — the latter shadows `System.Windows.Visibility` inside existing `StingTools.UI` files (`RevitVgEditor`, `BOQCostManagerPanel`).
+4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, **102 passing**). The Revit-bound half — `VisibilityStateReader` above all — is **not exercised in Revit**; every bug found on this feature so far has lived there. See ROADMAP VIS-1 for the manual check to run before merge.
+5. Under temporary **isolate**, `IsElementVisibleInTemporaryViewMode` answers false for everything outside the isolated set, including elements the view never drew, so the hidden count is an upper bound. Hide mode is exact (ROADMAP VIS-6).
 
 ---
 
@@ -1614,7 +1672,7 @@ STINGTOOLS/
 - Contains `ToggleDockPanelCommand`
 
 ### `StingLog` (static) — `Core/StingLog.cs` (127 lines)
-- Thread-safe file logger (`StingTools.log` alongside the DLL)
+- Thread-safe file logger, alongside the DLL. **The filename is date-stamped — `StingTools_yyyyMMdd.log`, not `StingTools.log`.** Searching for the undated name finds nothing and reads as "the plugin never logged", which is a different and much more alarming conclusion; it cost a wrong call on 2026-08-17. The DLL's location is whatever the installed `.addin` points at, and that moves — see [[project-stingtools-deploy-target]] / grep `<Assembly>` first.
 - Uses buffered `StreamWriter` with `FileShare.Read` for performance
 - Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`, `Shutdown()`
 - `Shutdown()` flushes and closes the log file
@@ -2106,12 +2164,13 @@ The Cost Management module extends the BOQ system into a full construction cost 
 | `GUIDES/KUT_BIM_MANAGER_PLAYBOOK.md` | BIM Manager self-guide playbook for the KUT project — step-by-step checklist for weekly / monthly / milestone BIM management tasks |
 | `GUIDES/KUT_MIDP_TEMPLATE.csv` | Master Information Delivery Plan CSV template pre-seeded with KUT deliverable codes |
 
-#### KUT KPI Dashboard
+#### Owner KPI Dashboard (was KUT KPI Dashboard)
 
-`Commands/Kpi/KutKpiDashboardCommand.cs` — tag `KUT_KpiDashboard`. Read-only command generating a monthly BIM status report for the KUT project:
+`Commands/Kpi/OwnerKpiDashboardCommand.cs` — tag `Owner_KpiDashboard`, with `KUT_KpiDashboard` retained as a dispatch alias in both `StingCommandHandler` and `WorkflowEngine.ResolveCommand`. Read-only command generating a monthly BIM status report:
 - Gathers: tag/naming compliance %, per-discipline breakdown
-- Persists `KutKpiSnapshot` records to `<project>/_BIM_COORD/kpi/kut_kpi_log.jsonl`
-- Exports HTML + CSV for monthly status report attachment
+- Derives the reporting code from `PRJ_ORG_PROJECT_CODE_TXT` on Project Information, falling back to `STING` — nothing in the 471 lines was ever temple-specific, only the surface was
+- Persists `OwnerKpiSnapshot` records to `<project>/_BIM_COORD/kpi/<CODE>_kpi_log.jsonl`; an existing `kut_kpi_log.jsonl` is read and appended to rather than orphaned
+- Exports HTML + CSV (`STING_<CODE>_KPI_*`) for monthly status report attachment
 - Snapshot fields: `CompliancePct`, `StrictPct`, `RevisionPct`
 
 ### Phase 192B1 — LOD Verification Engine
@@ -2123,6 +2182,8 @@ The Cost Management module extends the BOQ system into a full construction cost 
 - **Read-only by default.** Only `LOD_Stamp` writes, and it writes exactly one parameter: `ASS_LOD_VERIFIED_TXT` (the milestone id) on passing elements. There is no `LOD_TARGET_TXT` / `LOD_ACTUAL_TXT` / `LOD_PASS_BOOL`
 - Checks are a **parameter + naming + geometry-presence maturity proxy, not a geometric survey** — STING cannot verify dimensional accuracy
 - Not wired into `ComplianceScan`; LOD is reported separately
+- **An empty scope is not a pass.** An element whose category resolves to no check (no rule and no `*` fallback) is *skipped*, not counted, so it leaves the denominator. `OverallPct` returns `100.0` when `Total == 0`, which is why `LodTally.NoElementsInScope` exists and why every caller branches on it first. Skips are counted per category and surfaced in the TaskDialog, the CSV header and the JSON gate report (`skippedNoRule` / `skippedByCategory`); a run with nothing in scope reports "NO ELEMENTS IN SCOPE" and the gate report's `overallPct` is `null`
+- The Revit-free half — the matrix model, `*`-fallback resolution (`LodRuleResolver`) and the pass/fail/skip tally (`LodTally`) — lives in `Core/Validation/LodMatrixModel.cs` and is `<Compile Include>`d by `StingTools.Tags.Tests`. `LodVerificationEngine.Resolve` delegates to `LodRuleResolver`, so the plugin and the tests exercise one copy of the resolution code
 
 ### Phase 192C1 — Fohlio Room Finishes Integration
 
@@ -2521,6 +2582,38 @@ loser's folder went stale unannounced. That is the root cause of a long-running
 the manifest had been on `CompiledPlugin` for some time and GOLD had sat unbuilt
 for 16 days. **Older runners that name GOLD as the deploy target are wrong** —
 use the manifest.
+
+### What the repo says is not what is serving — check the live thing
+
+> **Before concluding a change is broken, or that a fix worked, verify against the
+> thing actually running.** Five separate instances of this cost hours on
+> 2026-08-16/17 alone. In every one, a correct change had no effect, and the
+> absence of an error read as "the code is wrong".
+
+The pattern: a repo artefact *describes* a deployment, and something else *is* the
+deployment. The artefact is not lying so much as inert, and nothing warns you.
+
+| Surface | The trap | The check |
+|---|---|---|
+| **Revit plugin** | The `.addin` `<Assembly>` path moves between checkouts — it changed **five times** in two days, twice to another agent's worktree. Building the right code into the wrong folder succeeds silently. | `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin \| sort -u` |
+| **marketing-site** | No git-connected Pages build (#651). **Merging deploys nothing** — a human must run `npm run deploy`. Pages' static fallback then makes an undeployed Function return 405/200-HTML, indistinguishable from a route that never existed. | Probe a known-good Function, the new one, and a nonsense path; compare all three |
+| **Pages secrets** | Bindings are captured at **deployment** time (#674). `wrangler pages secret list` showing a name proves it is **stored**, not **bound**. Setting a secret and re-probing yields the *old* behaviour. | Set it, **redeploy**, then probe |
+| **Render** | `render.yaml` declares `planscape-api`; production is `planscape-api-free` (#717). The blueprint governs **nothing** — editing `autoDeploy` there changes no behaviour. Dashboard Auto-Deploy is the real trigger, and it is unfiltered, so a Revit-plugin commit rebuilds the .NET API. | `curl -o /dev/null -w "%{http_code}" https://planscape-api.onrender.com/` → 404 |
+| **D1 schema** | A new table in `schema.sql` does **not** exist in production until applied. Deploying first gives a runtime `no such table`. Never re-run the whole file — it holds bare `ALTER TABLE`s that fail on re-run. | Apply only the new DDL, **before** deploying |
+
+**Two corollaries worth internalising.**
+
+*An absent side effect never tells you why.* A silent no-op looks identical to a
+wrong fix, a bad credential, and a command that never ran. When something
+reportedly done has no observable effect, stop re-running it and get the error —
+a log, a tail, a screenshot. Prefer making the next attempt self-recording over
+asking for the same output twice.
+
+*Verify the instrument before trusting its silence.* A `wrangler pages deployment
+tail` binds to one deployment id, so **any deploy invalidates it** — watching a
+superseded deployment reports zero requests forever. Prove the tail is alive
+(generate a request, watch the line count move) before reading "no traffic" as
+evidence of anything.
 
 ### Branching
 
