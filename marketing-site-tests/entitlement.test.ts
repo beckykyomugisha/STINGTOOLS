@@ -15,8 +15,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DOWNLOAD_CATALOG, entitlementFor } from "../functions/api/_lib/downloads/catalog";
-import { effectiveStatus } from "../functions/api/auth/_lib/limits";
+import { DOWNLOAD_CATALOG, entitlementFor } from "../marketing-site/functions/api/_lib/downloads/catalog";
+import { effectiveStatus } from "../marketing-site/functions/api/auth/_lib/limits";
 
 const NOW = Date.parse("2026-08-17T00:00:00.000Z");
 const day = 86_400_000;

@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Miniflare } from "miniflare";
 
-import { onRequestPost as contact } from "../functions/api/contact";
+import { onRequestPost as contact } from "../marketing-site/functions/api/contact";
 
 function statements(sql: string): string[] {
   return sql

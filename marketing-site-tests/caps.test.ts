@@ -25,7 +25,7 @@ import {
   TRIAL_MACHINE_CAP,
   resolveMemberCap,
   resolveMachineCap,
-} from "../functions/api/auth/_lib/limits";
+} from "../marketing-site/functions/api/auth/_lib/limits";
 
 test("the two axes are resolved by separate functions", () => {
   // Same inputs, independently answered. Equal today by intent, not by sharing.
