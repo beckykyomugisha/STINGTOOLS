@@ -81,6 +81,16 @@ SITE_URL = "https://planscape.build"
 #                     A REDEPLOY IS REQUIRED — see the note above the secrets
 #                     list. This line previously claimed the opposite.
 
+# Contact form (functions/api/contact.ts) — reuses the WAITLIST_DB binding below.
+#   CONTACT_TO  Plain var, optional. Where contact-form notifications go.
+#               Defaults to hello@planscape.build, the address contact.html
+#               already offers as its fallback. Sending reuses RESEND_API_KEY.
+#               If that is unset the submission is STILL STORED and
+#               `contacts.notified_at` stays NULL — the queryable record of
+#               "someone wrote in and no email went out":
+#                 SELECT * FROM contacts WHERE notified_at IS NULL;
+#               Setting it requires a redeploy (see #674), like every var here.
+
 # D1 binding for the waitlist Function (functions/api/waitlist.ts)
 # Created via: wrangler d1 create planscape-waitlist
 [[d1_databases]]

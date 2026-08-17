@@ -412,3 +412,30 @@ CREATE INDEX IF NOT EXISTS idx_licenses_tenant ON licenses(tenant_id);
 --   wrangler d1 execute planscape-waitlist --remote \
 --     --command="ALTER TABLE licenses ADD COLUMN last_seen_revit_version TEXT;"
 -- ---------------------------------------------------------------------------
+
+-- Contact form (functions/api/contact.ts). Public, unauthenticated.
+--
+-- No UNIQUE on email, unlike waitlist: the same person may legitimately write
+-- more than once, and collapsing those would silently drop an enquiry.
+--
+-- notified_at records whether Resend ACCEPTED the notification, not merely that
+-- we tried. A send that fails is logged and nowhere else — this column makes
+-- "submitted but never reached a human" a query rather than an archaeology
+-- exercise:  SELECT * FROM contacts WHERE notified_at IS NULL;
+CREATE TABLE IF NOT EXISTS contacts (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          TEXT    NOT NULL,
+  email         TEXT    NOT NULL,
+  firm          TEXT,
+  topic         TEXT    NOT NULL,
+  message       TEXT    NOT NULL,
+  ip            TEXT,
+  user_agent    TEXT,
+  referrer      TEXT,
+  submitted_at  TEXT    NOT NULL,             -- ISO 8601 UTC
+  notified_at   TEXT,                         -- set when Resend accepted the email
+  status        TEXT    NOT NULL DEFAULT 'new' -- new | replied | closed | spam
+);
+CREATE INDEX IF NOT EXISTS idx_contacts_submitted ON contacts(submitted_at DESC);
+-- Supports the per-IP flood check in contact.ts.
+CREATE INDEX IF NOT EXISTS idx_contacts_ip_time ON contacts(ip, submitted_at);
