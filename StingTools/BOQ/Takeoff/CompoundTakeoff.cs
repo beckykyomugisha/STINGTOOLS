@@ -49,6 +49,10 @@ namespace StingTools.BOQ.Takeoff
         public double PlasterCementBagsPerM3; // from PLASTER mix (MAT-2)
         public double PlasterSandRatio;
         public bool IsRcWall;            // adds formwork (both faces) when true
+        /// <summary>Exterior walls paint as weather-guard, interior as silk —
+        /// different products at different prices, so they are separate
+        /// commodities. Read from WallType.Function by the Revit-side builder.</summary>
+        public bool IsExteriorWall;
     }
 
     public struct RcElementInput
@@ -127,6 +131,18 @@ namespace StingTools.BOQ.Takeoff
                 if (plasterVol > 0 && m.PlasterSandRatio > 0)
                     lines.Add(new CompoundLine("plaster_sand", "Plaster — sand", "m3",
                         plasterVol * m.PlasterSandRatio, SecPlaster));
+
+                // Painted area IS the plastered face area — no new measurement,
+                // just the quantity already derived above given its own kind so
+                // paint routes and converts like any other constituent. Wastage
+                // stays with the supplier-unit rule (the spreading rate absorbs
+                // over-application), exactly as it does for plaster.
+                // An unplastered wall is not painted: this whole branch is
+                // guarded by PlasterFaces > 0.
+                lines.Add(new CompoundLine(
+                    m.IsExteriorWall ? "paint_exterior" : "paint_interior",
+                    m.IsExteriorWall ? "Paint — exterior (weather-guard)" : "Paint — interior",
+                    "m2", plasterArea, SecPlaster));
             }
 
             // 5. Formwork for an RC wall (both faces).
