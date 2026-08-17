@@ -215,16 +215,36 @@ npx wrangler pages secret put CLOUD_APP_ORIGIN --project-name=planscape-marketin
 For each public service: Render → service → **Settings → Custom Domains → Add**,
 then create the matching record at the `planscape.build` registrar.
 
-| Host | Service | Record | Target |
+> **The service names below are NOT the ones in `render.yaml`.** Verified
+> 2026-08-17 (#705, #717): the blueprint declares `planscape-api`, but
+> `planscape-api.onrender.com` returns **404** — no such service. The live API is
+> **`planscape-api-free`**. Following the old table would CNAME a domain at a
+> service that does not exist, and the failure would look like a DNS or TLS
+> problem rather than a wrong target.
+>
+> Always take the CNAME target from **what Render shows you** on the Custom
+> Domains screen, not from this table or the blueprint.
+
+| Host | Service | Record | Status (2026-08-17) |
 |---|---|---|---|
-| `api.planscape.build` | planscape-api | CNAME | `<planscape-api>.onrender.com` (shown by Render) |
-| `app.planscape.build` | planscape-web | CNAME | `<planscape-web>.onrender.com` |
-| `planscape.build` (apex, if used for marketing) | (marketing/site) | A/ALIAS | per registrar |
+| `api.planscape.build` | **planscape-api-free** | CNAME | ❌ **NXDOMAIN — not attached.** This is the outstanding action (#705) |
+| `app.planscape.build` | planscape-web-free *(name per `marketing-site/wrangler.toml`; not independently verified)* | CNAME | ✅ **already attached and serving** — 200 in ~1.2s. Nothing to do |
+| `planscape.build` (apex) | Cloudflare Pages `planscape-marketing` | — | ✅ live. Not Render at all — see `marketing-site/` |
 
 `api.planscape.build` and `app.planscape.build` are already in the API CORS
 allow-list, and `NEXT_PUBLIC_API_BASE` is baked to `https://api.planscape.build`,
-so no code change is needed once DNS resolves. (TLS is issued automatically by
-Render once the CNAME verifies.)
+so no code change is needed once DNS resolves — the CNAME really is the whole fix
+for the remaining references. (TLS is issued automatically by Render once the
+CNAME verifies.)
+
+> **Know what you are attaching it to.** `planscape-api-free` is a **free
+> instance: it spins down when idle.** Measured 2026-08-17 — a cold
+> `/health/live` took **53.6 seconds**; the same call warm is sub-second. Pointing
+> a production API domain at it means the first request after a quiet period
+> appears to hang, for mobile clients, the plugin's update check, and anything
+> server-side. `app.planscape.build` answers in ~1.2s by comparison. Consider
+> moving the API to a paid always-on instance *before* advertising the domain,
+> rather than debugging "the API is slow" afterwards.
 
 ---
 
