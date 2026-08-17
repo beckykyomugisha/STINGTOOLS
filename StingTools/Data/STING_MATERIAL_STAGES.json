@@ -35,6 +35,15 @@
     "Analytical Panels",
     "Analytical Nodes"
   ],
+  "excludedDescriptionPatterns": [
+    "opening",
+    "muntin",
+    "trim-window",
+    "wardrobe",
+    "generic ramp",
+    "_amp_",
+    "muntin pattern"
+  ],
   "stages": [
     {
       "stageId": "tools",

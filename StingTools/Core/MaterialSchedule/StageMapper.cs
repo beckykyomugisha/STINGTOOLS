@@ -45,6 +45,17 @@ namespace StingTools.Core.MaterialSchedule
         /// yet, which is a missing rate, not a reason to hide them.
         /// </summary>
         public List<string> ExcludedCategories = new List<string>();
+
+        /// <summary>
+        /// Description / type-name substrings that are never materials, for rows
+        /// whose CATEGORY is legitimate. The first real export sold an OPENING
+        /// 1,187 times: `M_GM_OpeningWall_Instance — Opening` is a void, but its
+        /// category is Generic Models, which elsewhere holds real building
+        /// elements — so excluding the category would hide genuine work.
+        ///
+        /// A blank pattern is inert, never a wildcard.
+        /// </summary>
+        public List<string> ExcludedDescriptionPatterns = new List<string>();
     }
 
     /// <summary>

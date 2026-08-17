@@ -155,13 +155,20 @@ namespace StingTools.Core.MaterialSchedule
 
     public static class SupplierUnitConverter
     {
+        /// <summary>
+        /// 2 dp, away from zero — so a divisible order never rounds DOWN below
+        /// what was measured and quietly under-orders.
+        /// </summary>
+        private static double RoundDivisible(double v)
+            => Math.Round(v, 2, MidpointRounding.AwayFromZero);
+
         public static SupplierUnitResult Convert(SupplierUnitRule rule, double sourceQuantity)
         {
             if (rule == null)
                 return new SupplierUnitResult
                 {
                     SupplierUnit = "", NetQuantity = sourceQuantity,
-                    WastagePct = 0, OrderQuantity = sourceQuantity
+                    WastagePct = 0, OrderQuantity = RoundDivisible(sourceQuantity)
                 };
 
             // Bad or missing conversion data must degrade to 1:1, never to
@@ -172,7 +179,12 @@ namespace StingTools.Core.MaterialSchedule
             double net = sourceQuantity / factor;
             double waste = Math.Max(0, rule.DefaultWastagePct);
             double order = net * (1.0 + waste / 100.0);
-            if (rule.RoundUpToWhole) order = Math.Ceiling(order - 1e-9);
+            // Countable units round UP — you cannot buy 2.08 truck trips.
+            // Divisible units round to 2 dp: order quantity is what someone
+            // purchases and what the amount is computed from, so raw binary
+            // floats would otherwise print as "164.48145 m³" and drag fractions
+            // of a shilling into the money column.
+            order = rule.RoundUpToWhole ? Math.Ceiling(order - 1e-9) : RoundDivisible(order);
 
             return new SupplierUnitResult
             {

@@ -32,6 +32,8 @@ namespace StingTools.Core.MaterialSchedule
         public string DefaultStageId = "";
         /// <summary>Categories that are not materials — see StageLibrary.ExcludedCategories.</summary>
         public List<string> ExcludedCategories = new List<string>();
+        /// <summary>Description/type substrings that are never materials.</summary>
+        public List<string> ExcludedDescriptionPatterns = new List<string>();
         public CommodityRateResolver Rates;
         public MaterialScheduleOptions Options = new MaterialScheduleOptions();
     }
@@ -51,6 +53,9 @@ namespace StingTools.Core.MaterialSchedule
             // a List per row.
             var stageIndex = StageIndex.Build(input.StageDefs, input.DefaultStageId);
 
+            var patterns = (input.ExcludedDescriptionPatterns ?? new List<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+
             var excluded = new HashSet<string>(
                 input.ExcludedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
 
@@ -67,6 +72,24 @@ namespace StingTools.Core.MaterialSchedule
                     doc.ExcludedByCategory.TryGetValue(c, out int n);
                     doc.ExcludedByCategory[c] = n + 1;
                     continue;
+                }
+
+                // Not a material despite a legitimate category — an opening, a
+                // muntin pattern, a trim. Blank patterns are skipped: "".IndexOf
+                // returns 0 and would exclude the entire model.
+                if (patterns.Count > 0)
+                {
+                    string hay = (row.Description ?? "") + " " + (row.TypeName ?? "");
+                    bool hit = false;
+                    foreach (string pat in patterns)
+                        if (hay.IndexOf(pat, StringComparison.OrdinalIgnoreCase) >= 0) { hit = true; break; }
+                    if (hit)
+                    {
+                        string c2 = string.IsNullOrWhiteSpace(row.Category) ? "(uncategorised)" : row.Category.Trim();
+                        doc.ExcludedByCategory.TryGetValue(c2, out int n2);
+                        doc.ExcludedByCategory[c2] = n2 + 1;
+                        continue;
+                    }
                 }
 
                 // Constituent kind first, then category (+ optional type pattern).
