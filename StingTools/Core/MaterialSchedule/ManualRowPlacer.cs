@@ -136,6 +136,46 @@ namespace StingTools.Core.MaterialSchedule
         /// split. AmountUGX stays 0 — the figure a QS types is the only one that
         /// reaches a total.
         /// </summary>
+        /// <summary>
+        /// PERF: index the contributions ONCE, then call the overload below per
+        /// section. The IEnumerable overload rescans every model row for every
+        /// section — O(sections x rows) — which is invisible at 60 rows and
+        /// wasteful at 50k.
+        /// </summary>
+        public static Dictionary<string, LabourContribution> IndexContributions(
+            IEnumerable<LabourContribution> contributions)
+        {
+            var map = new Dictionary<string, LabourContribution>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in contributions ?? Enumerable.Empty<LabourContribution>())
+                if (c != null && !string.IsNullOrWhiteSpace(c.TraceRef)) map[c.TraceRef] = c;
+            return map;
+        }
+
+        /// <summary>Per-section labour line against a prebuilt contribution index.</summary>
+        public static LabourLine BuildLabourLine(StageSection section,
+                                                 IReadOnlyDictionary<string, LabourContribution> index)
+        {
+            var line = new LabourLine { Description = "Labour", AmountUGX = 0 };
+
+            var refs = new HashSet<string>(
+                (section?.Commodities ?? new List<MaterialCommodity>())
+                    .SelectMany(c => c?.TraceRefs ?? new List<string>())
+                    .Where(r => !string.IsNullOrWhiteSpace(r)),
+                StringComparer.OrdinalIgnoreCase);
+
+            if (refs.Count == 0 || index == null)
+            {
+                line.SuggestionBasis = "no suggestion — this section traces to no priced model row";
+                return line;
+            }
+
+            var mine = new List<LabourContribution>();
+            foreach (string r in refs)
+                if (index.TryGetValue(r, out var c) && c != null) mine.Add(c);
+
+            return Finish(line, mine);
+        }
+
         public static LabourLine BuildLabourLine(StageSection section,
                                                  IEnumerable<LabourContribution> allContributions)
         {
@@ -157,6 +197,14 @@ namespace StingTools.Core.MaterialSchedule
                 .Where(c => c != null && !string.IsNullOrWhiteSpace(c.TraceRef) && refs.Contains(c.TraceRef))
                 .ToList();
 
+            return Finish(line, mine);
+        }
+
+        /// <summary>Shared tail: the suggestion is offered only when EVERY
+        /// contributing row carries a split, so a partial sum can never read as a
+        /// complete one.</summary>
+        private static LabourLine Finish(LabourLine line, List<LabourContribution> mine)
+        {
             int withSplit = mine.Count(c => c.HasSplit);
             if (mine.Count > 0 && withSplit == mine.Count)
             {

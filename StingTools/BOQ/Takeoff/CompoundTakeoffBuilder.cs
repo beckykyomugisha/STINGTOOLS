@@ -36,31 +36,37 @@ namespace StingTools.BOQ.Takeoff
         /// user discovered an undocumented key. Null = defer to config, which is
         /// every other caller's behaviour, unchanged.
         /// </summary>
-        internal static bool? SessionOverride;
+        [ThreadStatic] internal static bool? SessionOverride;
 
         /// <summary>Set the override and restore it on Dispose. Use with `using`
         /// so an exception mid-build cannot leave it stuck on.</summary>
-        internal static IDisposable ForceEnabled() => new OverrideScope(true);
+        /// <summary>Force compound mode for one document's build. Scoped to the
+        /// calling thread and to THAT document's cache — a material-schedule
+        /// export in one project must not force a full BOQ re-takeoff in every
+        /// other open project.</summary>
+        internal static IDisposable ForceEnabled(Document doc) => new OverrideScope(true, doc);
 
         private sealed class OverrideScope : IDisposable
         {
             private readonly bool? _prev;
+            private readonly Document _doc;
 
-            public OverrideScope(bool value)
+            public OverrideScope(bool value, Document doc)
             {
                 _prev = SessionOverride;
+                _doc = doc;
                 SessionOverride = value;
                 // BOQCostManager caches the host take-off. Without dropping it the
                 // override changes nothing — the previous non-compound rows are
                 // handed straight back. Invalidate on the way OUT too, so the next
                 // ordinary BOQ build is not served compound rows it did not ask for.
-                BOQCostManager.InvalidateHostCache();
+                if (_doc != null) BOQCostManager.ForceHostFull(_doc);
             }
 
             public void Dispose()
             {
                 SessionOverride = _prev;
-                BOQCostManager.InvalidateHostCache();
+                if (_doc != null) BOQCostManager.ForceHostFull(_doc);
             }
         }
 

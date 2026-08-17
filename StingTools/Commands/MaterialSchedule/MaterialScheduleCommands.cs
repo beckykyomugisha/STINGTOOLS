@@ -75,7 +75,7 @@ namespace StingTools.Commands.MaterialSchedule
                 MaterialScheduleBuildResult built;
                 if (forceCompound)
                 {
-                    using (StingTools.BOQ.Takeoff.CompoundTakeoffBuilder.ForceEnabled())
+                    using (StingTools.BOQ.Takeoff.CompoundTakeoffBuilder.ForceEnabled(doc))
                         built = MaterialScheduleBuilder.Build(doc, options);
                 }
                 else

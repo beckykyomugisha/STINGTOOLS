@@ -164,8 +164,11 @@ namespace StingTools.BOQ.MaterialSchedule
                     })
                     .ToList();
 
+                // PERF: index once, then O(1) lookups per section instead of a
+                // full rescan of every model row for each of them.
+                var contributionIndex = ManualRowPlacer.IndexContributions(contributions);
                 foreach (var section in msDoc.Stages)
-                    section.Labour.Add(ManualRowPlacer.BuildLabourLine(section, contributions));
+                    section.Labour.Add(ManualRowPlacer.BuildLabourLine(section, contributionIndex));
 
                 StageMapper.AssignLetters(msDoc.Stages);
             }
