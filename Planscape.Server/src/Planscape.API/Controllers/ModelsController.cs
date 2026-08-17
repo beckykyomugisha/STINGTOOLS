@@ -552,27 +552,33 @@ public class ModelsController : ControllerBase
         if (row == null) return NotFound();
         row.DeletedAt = DateTime.UtcNow;
 
-        // C4 — cascade. Soft-deleting the model alone left its scene chunks and
-        // federated elements live, so the geometry kept rendering and kept
-        // answering element queries: the model was "deleted" everywhere except
-        // where a user would notice. Retire them together; ModelPurgeJob removes
-        // the bytes and the rows after the 30-day grace the entity documents.
+        // C4 — cascade. Soft-deleting the model alone left its scene chunks live,
+        // so the geometry kept rendering after the model was "deleted". Retire the
+        // chunks with it; ModelPurgeJob removes the bytes and the rows after the
+        // 30-day grace the entity documents.
+        //
+        // FederatedElement rows are deliberately NOT retired here. They are keyed
+        // to their source by SourceDocGuid + a per-delta GlbStoragePath (written by
+        // FederatedModelController's delta path), whereas a ProjectModel is keyed by
+        // its uploaded-GLB StoragePath — there is no shared key between the two, so
+        // a model delete cannot identify "its" federated elements. The earlier
+        // attempt matched GlbStoragePath == ProjectModel.StoragePath, two keys from
+        // different pipelines that never coincide: it retired nothing while the log
+        // reported a count. Real federated-element retirement needs a proper linkage
+        // (a ProjectModelId or source-doc GUID on FederatedElement) — left as a
+        // follow-up rather than a join that silently matches nothing, or worse
+        // false-matches if the two key spaces ever collide.
         var chunks = await _db.SceneNodes
             .Where(n => n.SourceModelId == modelId && n.DeletedAt == null)
             .ToListAsync(ct);
         foreach (var chunk in chunks) chunk.DeletedAt = row.DeletedAt;
 
-        var federated = await _db.FederatedElements
-            .Where(e => e.ProjectId == projectId && !e.IsDeleted
-                     && e.GlbStoragePath != null && e.GlbStoragePath == row.StoragePath)
-            .ToListAsync(ct);
-        foreach (var el in federated) { el.IsDeleted = true; el.UpdatedAt = row.DeletedAt.Value; }
-
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) and {Elements} federated element(s) retired with it.",
-            modelId, chunks.Count, federated.Count);
+            "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) retired with it. " +
+            "Federated elements are not linked to a ProjectModel and are left untouched (see Delete remarks).",
+            modelId, chunks.Count);
 
         return NoContent();
     }
@@ -808,8 +814,9 @@ public class ModelsController : ControllerBase
         // SceneNode.DeletedAt, so this filter matched everything and a deleted
         // model kept streaming into the viewer.
         var liveModelIds = models.Select(m => m.id).ToHashSet();
-        var chunks = (await _db.SceneNodes.AsNoTracking()
-            .Where(n => n.ProjectId == projectId && n.DeletedAt == null)
+        var chunks = await _db.SceneNodes.AsNoTracking()
+            .Where(n => n.ProjectId == projectId && n.DeletedAt == null
+                     && liveModelIds.Contains(n.SourceModelId))   // C4 — filter in SQL, matching SceneNodesController
             .Select(n => new {
                 id = n.Id,
                 sourceModelId = n.SourceModelId,
@@ -822,9 +829,7 @@ public class ModelsController : ControllerBase
                 vertexCount = n.VertexCount,
                 aabb = new { min = new[] { n.MinX, n.MinY, n.MinZ }, max = new[] { n.MaxX, n.MaxY, n.MaxZ } },
                 compression = n.Compression,
-            }).ToListAsync(ct))
-            .Where(c => liveModelIds.Contains(c.sourceModelId))
-            .ToList();
+            }).ToListAsync(ct);
 
         // Compute overall federation bounds
         double? minX = chunks.Count > 0 ? chunks.Min(c => c.aabb.min[0]) : null;
