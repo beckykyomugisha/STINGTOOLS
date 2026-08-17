@@ -10,10 +10,57 @@ function appOrigin(env: Env): string {
   return env.APP_ORIGIN || "https://planscape.build";
 }
 
+// NEVER log the sender VALUE. This line used to interpolate env.EMAIL_FROM, and
+// that variable had been set to a 44-character base64 string — so every failed
+// send wrote a secret-shaped value into Cloudflare's Function logs (#711).
+//
+// Classifying it is also strictly more useful: it names the fault ("not an
+// email address") instead of asking a human to eyeball 44 characters and notice
+// they are not an address.
+function describeFrom(env: Env): string {
+  const raw = (env.EMAIL_FROM || "").trim();
+  if (!raw) return "default";
+  const looksLikeAddress =
+    /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(raw) ||
+    /^[^<>]*<[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>$/.test(raw);
+  return looksLikeAddress
+    ? "EMAIL_FROM"
+    : "EMAIL_FROM (NOT an email address — Resend will reject every send)";
+}
+
+// One row per attempt, so "did that email actually go out?" is a query rather
+// than an appeal to logs nobody reads.
+//
+// This lives in send() and not at the six call sites on purpose: every sender
+// gets it with no change of its own, and a sender added later cannot forget to
+// opt in. That absence is exactly what let a total email outage go unnoticed —
+// the contact form was the first sender to record its result, and it found the
+// outage on its first submission.
+//
+// Never throws: a ledger failure must not break an email, and an email failure
+// must not break a signup.
+async function record(
+  env: Env,
+  to: string,
+  subject: string,
+  ok: boolean,
+  error: string | null
+): Promise<void> {
+  try {
+    await env.WAITLIST_DB.prepare(
+      `INSERT INTO email_log (to_address, subject, ok, error, created_at)
+       VALUES (?,?,?,?,?)`
+    )
+      .bind(to, subject.slice(0, 200), ok ? 1 : 0, error ? error.slice(0, 300) : null, new Date().toISOString())
+      .run();
+  } catch (e) {
+    console.error("email_log write failed", e);
+  }
+}
+
 // Returns whether Resend accepted the message. Every existing caller ignores
 // it — an auth email failing must not fail the request. The contact form uses
-// it to record notified_at, so a silent Resend failure is visible in the data
-// rather than only in a log nobody reads.
+// it to record notified_at; every sender is now recorded in email_log too.
 async function send(
   env: Env,
   to: string,
@@ -24,6 +71,7 @@ async function send(
   if (!env.RESEND_API_KEY) {
     // Non-fatal: the surrounding flow (signup/login) must still succeed.
     console.error(`Email skipped (RESEND_API_KEY unset): "${subject}" → ${to}`);
+    await record(env, to, subject, false, "RESEND_API_KEY unset");
     return false;
   }
   try {
@@ -42,20 +90,21 @@ async function send(
       }),
     });
     if (!res.ok) {
-      // Log Resend's own message, not just the status. The status alone is not
-      // actionable: 401 means a bad API key, 422 usually means the From: domain
-      // is unverified — and since a failed send never surfaces to the user
-      // (see the catch below), this log is the ONLY evidence anything is wrong.
-      const detail = await res.text().catch(() => "");
-      console.error(
-        `Resend send failed (${res.status}) for "${subject}" from "${env.EMAIL_FROM || DEFAULT_FROM}": ${detail.slice(0, 300)}`
-      );
+      // Resend's own message, plus a classification of the sender — the status
+      // alone is not actionable (401 = bad API key, 422 = malformed or
+      // unverified sender).
+      const detail = (await res.text().catch(() => "")).slice(0, 300);
+      const summary = `Resend send failed (${res.status}) for "${subject}" [from=${describeFrom(env)}]: ${detail}`;
+      console.error(summary);
+      await record(env, to, subject, false, summary);
       return false;
     }
+    await record(env, to, subject, true, null);
     return true;
   } catch (e) {
     // Never let an email failure break the request.
     console.error("Resend request threw", e);
+    await record(env, to, subject, false, `threw: ${String(e).slice(0, 200)}`);
     return false;
   }
 }
