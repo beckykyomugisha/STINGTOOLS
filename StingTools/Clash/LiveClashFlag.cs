@@ -15,16 +15,16 @@ namespace StingTools.Core.Clash
         //     view templates beyond the binary FLAG.
         public const string CountParamName = "CLASH_COUNT_INT";
 
-        public static void Apply(Document doc, IEnumerable<int> flaggedElementIds, IEnumerable<int> clearedElementIds)
+        public static void Apply(Document doc, IEnumerable<long> flaggedElementIds, IEnumerable<long> clearedElementIds)
         {
             // F2: Default to count=1 for newly-flagged, count=0 for cleared.
             // ApplyWithCounts is the richer entry point.
-            var flagged = flaggedElementIds == null ? null : new List<int>(flaggedElementIds);
-            var cleared = clearedElementIds == null ? null : new List<int>(clearedElementIds);
-            Dictionary<int, int> counts = null;
+            var flagged = flaggedElementIds == null ? null : new List<long>(flaggedElementIds);
+            var cleared = clearedElementIds == null ? null : new List<long>(clearedElementIds);
+            Dictionary<long, int> counts = null;
             if (flagged != null)
             {
-                counts = new Dictionary<int, int>(flagged.Count);
+                counts = new Dictionary<long, int>(flagged.Count);
                 foreach (var id in flagged) counts[id] = 1;
             }
             ApplyWithCounts(doc, flagged, cleared, counts);
@@ -36,9 +36,9 @@ namespace StingTools.Core.Clash
         /// Cleared elements get count=0.
         /// </summary>
         public static void ApplyWithCounts(Document doc,
-            IEnumerable<int> flaggedElementIds,
-            IEnumerable<int> clearedElementIds,
-            IDictionary<int, int> counts)
+            IEnumerable<long> flaggedElementIds,
+            IEnumerable<long> clearedElementIds,
+            IDictionary<long, int> counts)
         {
             if (doc == null) return;
             try
@@ -89,10 +89,9 @@ namespace StingTools.Core.Clash
             }
         }
 
-        private static void SetParam(Document doc, int elementId, bool value)
+        private static void SetParam(Document doc, long elementId, bool value)
         {
-            // ElementId(int) ctor is obsolete in Revit 2024+; use Int64 overload.
-            var el = doc.GetElement(new ElementId((long)elementId));
+            var el = doc.GetElement(new ElementId(elementId));
             if (el == null) return;
             var p = el.LookupParameter(ParamName);
             if (p == null || p.IsReadOnly) return;
@@ -103,11 +102,11 @@ namespace StingTools.Core.Clash
         }
 
         /// <summary>F2: Set CLASH_COUNT_INT on an element. Best-effort.</summary>
-        private static void SetCountParam(Document doc, int elementId, int count)
+        private static void SetCountParam(Document doc, long elementId, int count)
         {
             try
             {
-                var el = doc.GetElement(new ElementId((long)elementId));
+                var el = doc.GetElement(new ElementId(elementId));
                 if (el == null) return;
                 var p = el.LookupParameter(CountParamName);
                 if (p == null || p.IsReadOnly) return;
