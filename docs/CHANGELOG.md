@@ -148,8 +148,41 @@ echoes the value back on failure; it deliberately does not strip unknown charact
 typed for a `0` still fails loudly. Verified by a 17-case table test that extracts the function
 live from the page, plus both paths driven in a browser.
 
+**8 — The last hop, proven with real components (2026-08-17).** The issued `.lic` was installed at
+`C:\ProgramData\Planscape\StingTools\` (previous one backed up) and Revit 2025 launched.
+`LicensePresenter` posted on startup:
+
+```
+2026-08-17 08:06:01 [INFO] License presented: licensee=exo expires=08/03/2036 inUse=1/10
+```
+
+| Field | Before | After |
+|---|---|---|
+| `last_seen_at` | `null` | **2026-08-17T05:06:01.266Z** |
+| `last_seen_plugin_version` | `null` | **2.2.0.0** (real assembly version) |
+| `last_seen_revit_version` | `null` | **2025** |
+| `updated_at` | 2026-08-16T21:31:55 | **unchanged** |
+
+Audit trail reads `license.issued` → `license.first_seen`. So the chain runs end to end on real
+components — browser → `issue.ts` → `.lic` on disk → Revit plugin → `present.ts` → D1 — with curl
+standing in for nothing. Two design decisions verified rather than assumed: `updated_at` is not
+touched by observation, and a first sighting audits as `license.first_seen`, not the routine
+`license.presented`. ROADMAP LIC-7 closed.
+
+**Two operational traps this cost time on, both now written down:**
+
+- **`StingLog`'s file is date-stamped** — `StingTools_yyyyMMdd.log`, not `StingTools.log`. Searching
+  the undated name returns nothing, which reads as "the plugin never logged" rather than "you
+  looked in the wrong place". CLAUDE.md corrected.
+- **The `.addin` `<Assembly>` path moved twice more during this phase** (`wt-viscenter`, then
+  `relaxed-goodall-bd632a`), the second time four minutes before Revit was launched. It was
+  re-grepped and the target DLL re-checked for the presenter *before* starting Revit — had it been
+  a build without `LicensePresenter`, the result would have been a confident false negative. Verify
+  a DLL's contents by decoding UTF-16 at **both** byte alignments; a single-alignment scan already
+  produced one wrong answer this phase.
+
 Also merged PR #626 (retires the per-user quota axes, closes #619) and closed #644 as a duplicate
-of #652. Filed #673, #674, #677, #691, #693, #694. Spec and plan:
+of #652. Filed #673, #674, #677, #691, #693, #694, #705. Spec and plan:
 [`superpowers/specs/2026-08-16-licences-page-design.md`](superpowers/specs/2026-08-16-licences-page-design.md),
 [`superpowers/plans/2026-08-16-licences-self-serve.md`](superpowers/plans/2026-08-16-licences-self-serve.md).
 
