@@ -1,20 +1,51 @@
 // Soft-block-at-cap: the single source of truth for plan seat caps and the
 // 14-day grace logic. Encoded once here, called by the invite gate and by login.
 
-// Seat caps per product × tier. Matches marketing-site/pricing.html. A "seat"
-// is an active (non-deleted) member PLUS a pending invitation — a pending invite
-// reserves a seat so you can't out-invite the cap and only discover it on accept.
-export const PLAN_CAPS = {
+// TWO AXES, TWO TABLES. There used to be one `PLAN_CAPS` and one `resolveCap()`,
+// and that single number independently bounded two unrelated quantities (#693):
+//
+//   * team ACCOUNTS   — login.ts, tenants/me.ts, tenants/me/invitations.ts
+//   * licensed MACHINES — license/issue.ts, license/index.ts, license/present.ts
+//
+// So a `sting-tools/studio` tenant got 5 accounts AND, separately, 5 machines from
+// a figure written to mean one thing. Nothing decided that; it fell out of
+// countLicensedSeats() reusing the member helper. The two are genuinely different:
+// present.ts notes that most licensed machines have no Planscape login at all, and
+// one engineer with a desktop and a laptop is 1 account but 2 machines.
+//
+// THE NUMBERS BELOW ARE UNCHANGED — machines currently mirror members exactly, so
+// this split is behaviour-preserving. Diverging them is a PRICING decision and a
+// one-line edit to PLAN_MACHINE_CAPS; it is deliberately not made here.
+
+// Team-account caps per product × tier. Matches marketing-site/pricing.html.
+// One unit is an active (non-deleted) member PLUS a pending invitation — a pending
+// invite reserves a place so you can't out-invite the cap and only discover it on
+// accept.
+export const PLAN_MEMBER_CAPS = {
   "sting-tools": { solo: 1, studio: 5, practice: 15, firm: 40, enterprise: Infinity },
   "planscape": { solo: 3, studio: 10, practice: 25, firm: 50, large: 100, enterprise: Infinity },
 } as const;
 
-export type PlanProduct = keyof typeof PLAN_CAPS;
+// Licensed-machine caps per product × tier. One unit is a non-revoked, unexpired
+// row in `licenses` — see license/_lib/seats.ts. Counted per WORKSTATION, not per
+// person, and a machine needs no Planscape account at all.
+//
+// Identical to PLAN_MEMBER_CAPS today. Kept as its own table so that changing what
+// a plan includes in machines does not silently change how many colleagues a firm
+// may invite, and vice versa.
+export const PLAN_MACHINE_CAPS = {
+  "sting-tools": { solo: 1, studio: 5, practice: 15, firm: 40, enterprise: Infinity },
+  "planscape": { solo: 3, studio: 10, practice: 25, firm: 50, large: 100, enterprise: Infinity },
+} as const;
+
+export type PlanProduct = keyof typeof PLAN_MEMBER_CAPS;
 export type PlanTier = "solo" | "studio" | "practice" | "firm" | "large" | "enterprise";
 
 // Before a plan is chosen (trial), apply a generous default so teams can build
 // out during the trial. B3 sets plan_product/plan_tier and the real cap kicks in.
-export const TRIAL_SEAT_CAP = 10;
+// Separate constants for the same reason the tables are separate.
+export const TRIAL_MEMBER_CAP = 10;
+export const TRIAL_MACHINE_CAP = 10;
 export const GRACE_DAYS = 14;
 
 // The status a tenant EFFECTIVELY has right now, as opposed to the string sitting
@@ -43,16 +74,49 @@ export function effectiveStatus(
   return ends > nowMs ? "trial" : "read_only";
 }
 
-// Resolve the seat cap for a tenant's plan. Unknown / unset plan → trial default.
-export function resolveCap(
+function resolve(
+  table: Record<string, Record<string, number>>,
+  fallback: number,
   planProduct: string | null,
   planTier: string | null
 ): number {
-  if (!planProduct || !planTier) return TRIAL_SEAT_CAP;
-  const product = (PLAN_CAPS as Record<string, Record<string, number>>)[planProduct];
-  if (!product) return TRIAL_SEAT_CAP;
+  if (!planProduct || !planTier) return fallback;
+  const product = table[planProduct];
+  if (!product) return fallback;
   const cap = product[planTier];
-  return typeof cap === "number" ? cap : TRIAL_SEAT_CAP;
+  return typeof cap === "number" ? cap : fallback;
+}
+
+// How many team ACCOUNTS this plan includes (members + pending invitations).
+// Unknown / unset plan → trial default.
+export function resolveMemberCap(
+  planProduct: string | null,
+  planTier: string | null
+): number {
+  return resolve(
+    PLAN_MEMBER_CAPS as unknown as Record<string, Record<string, number>>,
+    TRIAL_MEMBER_CAP,
+    planProduct,
+    planTier
+  );
+}
+
+// How many licensed MACHINES this plan includes.
+//
+// There is deliberately no `resolveCap()` any more. An ambiguous name is what let
+// six call sites share one number for two different things (#693); a seventh
+// caller added later now has to say which axis it means, and picking wrong is
+// visible in the diff rather than invisible in the behaviour.
+export function resolveMachineCap(
+  planProduct: string | null,
+  planTier: string | null
+): number {
+  return resolve(
+    PLAN_MACHINE_CAPS as unknown as Record<string, Record<string, number>>,
+    TRIAL_MACHINE_CAP,
+    planProduct,
+    planTier
+  );
 }
 
 export interface CapResult {
