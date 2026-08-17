@@ -20,7 +20,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ApiError } from '@/api/client';
 import { theme } from '@/utils/theme';
 import {
   getProjectSettings,
@@ -28,6 +27,7 @@ import {
   getMyProjectAccess,
 } from '@/api/endpoints';
 import type { ProjectSettings } from '@/types/api';
+import { CAPABILITY_COPY, alertFailure } from '@/utils/forbidden';
 import { useProjectStore } from '@/stores/projectStore';
 
 // Only BIM Managers (K) and tenant-level Admins / Owners can change project
@@ -59,7 +59,10 @@ export default function ProjectSettingsScreen() {
         const role = access.projectRole ?? '';
         setCanEdit(access.bypassesAcl || ADMIN_EDIT_ROLES.has(role));
       } else {
-        // Fallback: allow UI interaction; server enforces 403.
+        // Unknown, not denied: allow UI interaction and let the server
+        // answer. This screen already had the three-state behaviour #558
+        // asks for — site-photos/review.tsx did the opposite and is
+        // corrected in this change to match.
         setCanEdit(true);
       }
     } catch (err: unknown) {
@@ -81,19 +84,17 @@ export default function ProjectSettingsScreen() {
       await updateProjectSettings(projectId, { [key]: value });
     } catch (err: unknown) {
       setSettings((s) => s ? { ...s, admin: { ...s.admin, [key]: previous } } : s);
-      const msg = err instanceof Error ? err.message : 'Update failed';
-      // 403 is expected for non-admin members — be specific so they understand.
-      // Read the status off the error. `msg` is the response BODY (ApiError
-      // only falls back to "HTTP <status>" for an empty body), so testing the
-      // message recognised empty-body refusals only — see #646.
-      if (err instanceof ApiError && err.status === 403) {
-        Alert.alert(
-          'Permission denied',
-          'Only BIM Managers (role K) and Coordinators (role C) can change admin settings on this project.',
-        );
-      } else {
-        Alert.alert('Update failed', msg);
-      }
+      // Two defects here, both #558:
+      //  1. `msg.includes('HTTP 403')` was an EMPTY-BODY test, not a status
+      //     test — ApiError.message is the response body (client.ts:159), so
+      //     a 403 that carries a reason fell through to "Update failed".
+      //  2. The copy named ISO role LETTERS — "role K", "role C" — in
+      //     user-facing text. A letter is not something a user can act on.
+      alertFailure(err, {
+        title: 'Update failed',
+        forbidden: CAPABILITY_COPY.projectAdmin,
+        fallback: 'Update failed',
+      });
     } finally {
       setSaving(false);
     }
@@ -141,7 +142,7 @@ export default function ProjectSettingsScreen() {
         {canEdit === false && (
           <View style={styles.readOnlyNote}>
             <Text style={styles.readOnlyNoteText}>
-              🔒 Your project role does not have permission to change these settings. Contact a BIM Manager or project Admin.
+              🔒 {CAPABILITY_COPY.projectAdmin}
             </Text>
           </View>
         )}
@@ -179,7 +180,7 @@ export default function ProjectSettingsScreen() {
       <Text style={styles.footer}>
         {canEdit === false
           ? 'Admin settings are read-only for your current project role.'
-          : 'Permission to edit admin settings is gated by your project role (K or C).'}
+          : 'Permission to edit admin settings is gated by your project role — the server decides, and will say so if it refuses.'}
       </Text>
     </ScrollView>
   );

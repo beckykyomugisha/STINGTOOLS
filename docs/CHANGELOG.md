@@ -2,6 +2,88 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 232 — "forbidden says why" across BCC, web and mobile)
+
+Closes the parity gap recorded in **#558**: four states — loading / empty / error /
+**forbidden** — visually distinct on every surface, with forbidden naming the capability
+rather than the HTTP status. Landed as three PRs, one per surface, so each surface's
+behaviour changes are reviewable on their own terms.
+
+**The rule, three states not two** (#634 corrected the #547 docstring that said otherwise):
+
+| | | |
+|---|---|---|
+| `allowed` | explicit `true` | offer the control |
+| `denied` | explicit `false`, **or 404** | disable it, name the capability |
+| `unknown` | transport failure / timeout / 5xx / unparseable body | **leave it enabled**, let the attempt report |
+
+404 is authoritative-false — it says the caller cannot see the project at all. A dropped
+connection says nothing about permissions. Rendering unknown as denied is the house
+anti-pattern in a new costume: an absent answer displayed as a definite one, the same
+mistake as an empty list standing in for a failed load.
+
+**Three defects found while building it, each bigger than the wording fix that surfaced it:**
+
+1. **BCC — `ListSitePhotosAsync` returned an empty list on every failure.** HTTP error,
+   exception, missing envelope: all answered `new List<SitePhotoDto>()`. The review queue
+   rendered "✓ No photos awaiting review." over an unreachable server and the grid rendered
+   "No photos to show." with a `0 photos` counter. Same fabrication #550 removed elsewhere,
+   still live in the two busiest panes — and the reason neither could show a forbidden state:
+   nothing ever reached them saying anything had gone wrong. Now returns `null` on failure,
+   `[]` only when the project genuinely has none.
+
+2. **Web — four sites showed users the literal string `Request failed (HTTP 403)`.**
+   ASP.NET `Forbid()` sends an empty body; `api()` falls back to that placeholder. Model
+   upload, member invite, member remove and CDE transition each rendered it verbatim in a red
+   error toast. `ApiError.serverMessage` now records whether the server actually said
+   anything, so a forbidden state can prefer the server's own sentence and fall back to
+   naming the capability — without matching `"Request failed (HTTP "` out of a message.
+
+3. **Mobile — two screens failed CLOSED on unknown, and one of the gates was reading the
+   wrong field.** `site-photos/review.tsx` set `authorised = false` on ANY error, so one
+   dropped request showed a legitimate reviewer "Reviewer access only" — on a phone, a lift
+   or a tunnel reported as a permissions problem. Its gate tested
+   `APPROVER_ROLES = {PM, Admin, Owner}` against `projectRole`, but **"PM" is not a
+   ProjectRole** — it lives in `Iso19650Role` — so a project Manager or Coordinator whom the
+   server permits failed mobile's own gate. Same wrong-field bug as the eleven dead
+   `ProjectRole == "PM"` checks #547 replaced. `issue-detail.tsx` treated a null role as
+   "not a coordinator" and refused transitions locally without asking the server.
+
+**What each surface got:**
+
+| Surface | |
+|---|---|
+| **BCC** (#642) | `PlanscapeServerClient.Capabilities.cs` (tri-state, never throws) · `PlanscapeForbidden.cs` — one treatment, amber + lock, not the crimson error state · `LastStatus` on the client, set in the three HTTP helpers **and** the streaming export path, carrying the status as a **number** so nobody substring-matches it out of a message · capability-driven affordance across all five site-photo sub-tabs |
+| **planscape-web** (#643) | `ForbiddenNote` / `ForbiddenPanel` / a `forbidden` toast tone · `isForbidden()` + `describeFailure()` · `ApiError.serverMessage` · `lib/capabilities.ts` + `useProjectCapabilities()` · seven sites migrated, wording preserved verbatim on the three that already had it |
+| **Planscape mobile** (#645) | `src/api/capabilities.ts` (tri-state) · `src/utils/forbidden.ts` — `isForbidden` reads `.status`, **not** `message.includes('HTTP 403')` · five sites migrated, two of them behaviour corrections |
+
+**`msg.includes('HTTP 403')` was never a status test.** Mobile's `ApiError` is built as
+``new ApiError(res.status, body || `HTTP ${res.status}`)``, so the message is the response
+**body** and the `HTTP 403` string appears only when the body was **empty**. Five screens
+tested for it. A 403 carrying a reason — the useful kind — fell through to the generic
+failure branch every time. That is the #624 defect, latent in five more places than #624
+covered.
+
+**Deliberately not done, and why:**
+
+- **No `useProjectCapabilities` call where it has no consumer.** Web has no album /
+  checklist / distribution-group UI, so the hook has exactly one call site rather than being
+  scaffolding — an unused role-derivation API is what this work removes, not adds.
+- **Export is not gated in the BCC.** `POST photo-export` carries `[Authorize]` and no
+  capability check on the server; disabling it would invent a restriction that does not exist.
+- **The NDA flow is untouched.** `nda_required` is content gating with its own
+  accept-and-retry journey; folding it into a generic forbidden state would make it worse.
+- **`documents.tsx` and `issues.tsx` were left alone** — they are the subject of open PRs
+  #628 and #629 and will migrate onto the shared helper after those land.
+
+**Verification.** BCC: `dotnet build` 0/0, 15 new tests driving the real client against a
+real socket (killed server, 404, 500/502/401, HTML body, missing field, string `"true"`),
+full project 31 passed / 1 skipped. Web: `tsc --noEmit` clean, 100 tests passing (20 new),
+`next build` compiled. Mobile: `tsc --noEmit` clean, lint 0 errors / 122 warnings
+(unchanged from baseline), and a type-level test that was **demonstrated to fail** —
+6 errors — when `'unknown'` is removed from `CapabilityState`, then pass again when
+restored. None of the three has been exercised on screen.
+
 #### Completed (Phase 236 — Material Schedule verified in Revit; roofs, paint, and three defects withdrawn)
 
 Phase 235 shipped a material schedule that had **never run inside Revit**. This phase ran it, fixed

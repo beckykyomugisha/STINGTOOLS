@@ -5,8 +5,20 @@
 // sheet drives bulk approve/reject with a shared caption. Approval blocks
 // when caption.trim().length < 3 (mirrors server guard).
 //
-// Role gate: only PM / Admin / Owner see this screen. We compute the role
-// from `getMyProjectAccess` (or fall back to the auth store's tenant role).
+// Access gate (#558): the SERVER resolves whether this user can approve
+// site photos (GET members/capabilities, #547). This screen renders that
+// answer; it no longer re-derives it from a role name.
+//
+// It used to test `APPROVER_ROLES.has(access.projectRole)` against
+// {PM, Admin, Owner}. "PM" is not a ProjectRole at all — it lives in
+// Iso19650Role — so a project **Manager** or **Coordinator**, whom the server
+// permits, failed this screen's own gate. Same wrong-field bug as the eleven
+// dead `ProjectRole == "PM"` checks that #547 replaced.
+//
+// It also failed CLOSED on ANY error: one dropped request and a legitimate
+// reviewer was shown "Reviewer access only". On a phone that is a lift or a
+// tunnel, not a permissions problem, and the screen said otherwise. Unknown
+// now lets them in and the server answers each approve/reject.
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
@@ -30,12 +42,11 @@ import {
   approveSitePhoto,
   rejectSitePhoto,
   bulkApproveSitePhotos,
-  getMyProjectAccess,
   getSitePhotoFile,
 } from '@/api/endpoints';
+import { getProjectCapabilities, type CapabilityState } from '@/api/capabilities';
+import { CAPABILITY_COPY, alertFailure } from '@/utils/forbidden';
 import type { SitePhoto, SitePhotoReason } from '@/types/api';
-
-const APPROVER_ROLES = new Set(['PM', 'Admin', 'Owner']);
 
 interface ResolvedThumb { url: string; headers: Record<string, string>; }
 type ResolvedThumbRecord = Record<string, ResolvedThumb>;
@@ -44,7 +55,8 @@ export default function ReviewSitePhotosScreen() {
   const router = useRouter();
   const projectId = useProjectStore((s) => s.active?.id);
 
-  const [authorised, setAuthorised] = useState<boolean | null>(null);
+  // 'unknown' until the server answers — and 'unknown' means SHOW the screen.
+  const [approve, setApprove] = useState<CapabilityState | null>(null);
   const [photos, setPhotos] = useState<SitePhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,15 +71,10 @@ export default function ReviewSitePhotosScreen() {
 
   const loadAuth = useCallback(async () => {
     if (!projectId) return;
-    try {
-      const access = await getMyProjectAccess(projectId);
-      const role = access.projectRole ?? '';
-      setAuthorised(APPROVER_ROLES.has(role) || access.bypassesAcl);
-    } catch {
-      // If the access endpoint fails, fall back to a "no" — the server
-      // will still 403 anyway and the UI is just a guard.
-      setAuthorised(false);
-    }
+    // getProjectCapabilities never throws: every failure mode returns
+    // 'unknown', and only an explicit 'denied' closes this screen.
+    const caps = await getProjectCapabilities(projectId);
+    setApprove(caps.approveSitePhotos);
   }, [projectId]);
 
   const load = useCallback(async () => {
@@ -92,7 +99,11 @@ export default function ReviewSitePhotosScreen() {
   }, [projectId]);
 
   useEffect(() => { loadAuth(); }, [loadAuth]);
-  useEffect(() => { if (authorised) load(); }, [authorised, load]);
+  // Load on anything but an explicit denial. Waiting for 'allowed' would
+  // re-create the fail-closed behaviour one layer down.
+  useEffect(() => {
+    if (approve === 'allowed' || approve === 'unknown') load();
+  }, [approve, load]);
 
   // Group by reason for the section list.
   const grouped = useMemo(() => {
@@ -111,20 +122,21 @@ export default function ReviewSitePhotosScreen() {
       </View>
     );
   }
-  if (authorised === null) {
+  if (approve === null) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={theme.colors.accent} />
       </View>
     );
   }
-  if (!authorised) {
+  // ONLY an explicit denial closes the screen. 'unknown' falls through and
+  // the queue loads — the server still refuses each approve/reject if it
+  // must, and it will say why.
+  if (approve === 'denied') {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>Reviewer access only</Text>
-        <Text style={styles.emptyText}>
-          Photo approval is restricted to project managers, tenant admins, and owners.
-        </Text>
+        <Text style={styles.emptyTitle}>🔒 Reviewer access only</Text>
+        <Text style={styles.emptyText}>{CAPABILITY_COPY.approveSitePhotos}</Text>
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()}>
           <Text style={styles.secondaryBtnText}>Back</Text>
         </TouchableOpacity>
@@ -174,7 +186,14 @@ export default function ReviewSitePhotosScreen() {
       clearSelection();
       await load();
     } catch (err) {
-      Alert.alert('Approve failed', err instanceof Error ? err.message : String(err));
+      // A refusal gets the permission title and the capability named;
+      // anything else keeps the failure title. Reads .status, not the
+      // message — see utils/forbidden.ts.
+      alertFailure(err, {
+        title: 'Approve failed',
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Approve failed',
+      });
     } finally {
       setActing(false);
     }
@@ -191,7 +210,14 @@ export default function ReviewSitePhotosScreen() {
       clearSelection();
       await load();
     } catch (err) {
-      Alert.alert('Approve failed', err instanceof Error ? err.message : String(err));
+      // A refusal gets the permission title and the capability named;
+      // anything else keeps the failure title. Reads .status, not the
+      // message — see utils/forbidden.ts.
+      alertFailure(err, {
+        title: 'Approve failed',
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Approve failed',
+      });
     } finally {
       setActing(false);
     }
@@ -211,7 +237,14 @@ export default function ReviewSitePhotosScreen() {
       setRejectReason('');
       await load();
     } catch (err) {
-      Alert.alert('Reject failed', err instanceof Error ? err.message : String(err));
+      // A refusal gets the permission title and the capability named;
+      // anything else keeps the failure title. Reads .status, not the
+      // message — see utils/forbidden.ts.
+      alertFailure(err, {
+        title: 'Reject failed',
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Reject failed',
+      });
     } finally {
       setActing(false);
     }
@@ -235,7 +268,14 @@ export default function ReviewSitePhotosScreen() {
       clearSelection();
       await load();
     } catch (err) {
-      Alert.alert('Reject failed', err instanceof Error ? err.message : String(err));
+      // A refusal gets the permission title and the capability named;
+      // anything else keeps the failure title. Reads .status, not the
+      // message — see utils/forbidden.ts.
+      alertFailure(err, {
+        title: 'Reject failed',
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Reject failed',
+      });
     } finally {
       setActing(false);
     }
