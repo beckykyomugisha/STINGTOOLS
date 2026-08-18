@@ -204,10 +204,32 @@ export function createIssue(
   // idempotencyKey (offline-replay dedupe) travels as a header, not a body
   // field — the server dedupes on X-Idempotency-Key per (tenant, endpoint).
   const { idempotencyKey, ...body } = issue;
+
+  // #632 — GEOFENCE COORDINATES MUST ALSO TRAVEL AS HEADERS.
+  //
+  // The server never reads coordinates from the body. MobileContextMiddleware
+  // lifts X-Latitude / X-Longitude into HttpContext.Items, and
+  // IssuesController reads Items["Latitude"] for the boundary check. Sending
+  // them only in the body meant the server saw NO coordinates at all, so on a
+  // geofenced project every create was refused with
+  //   400 "Geofence enforcement is active. Location coordinates are required."
+  // — including for a user standing in the middle of the site. The real
+  // "outside the boundary" 403 was unreachable from mobile.
+  //
+  // They stay in the body as well: that is where the issue's own stored
+  // latitude/longitude come from. This is additive — nothing that worked
+  // before changes.
+  const headers: Record<string, string> = {};
+  if (idempotencyKey) headers['X-Idempotency-Key'] = idempotencyKey;
+  if (Number.isFinite(issue.latitude as number) && Number.isFinite(issue.longitude as number)) {
+    headers['X-Latitude'] = String(issue.latitude);
+    headers['X-Longitude'] = String(issue.longitude);
+  }
+
   return apiFetch(`/api/projects/${projectId}/issues`, {
     method: 'POST',
     body: JSON.stringify(body),
-    headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : undefined,
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
   });
 }
 
