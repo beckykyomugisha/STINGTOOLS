@@ -1069,3 +1069,59 @@ change are stored with millimetre meshes and `Units = "mm"`. They now render at
 the correct size because the viewer honours that unit — but a model whose row
 predates the `Units` column entirely would read as metres. Re-publishing puts any
 model on the canonical footing.
+
+## 22. Track B / P4 — StingBridge / core producer georef (CLOSED)
+
+### The defect
+
+`GeorefDescriptor` existed with **zero consumers**. Nothing built a complete one
+and nothing sent one anywhere, so an ArchiCAD or Tekla IFC pushed through the
+bridge arrived at the server with no survey position, landed at the project
+origin, and had to be placed by hand — the manual step this track exists to
+remove.
+
+`IfcFileHostAdapter.georef_descriptor` read only `IfcMapConversion`'s eastings /
+northings / height / scale. Three fields were unset or wrong:
+
+| Field | Before | Why it mattered |
+|---|---|---|
+| `crs_epsg` | never read | The server's confidence policy grades an unanchored survey origin LOW, stores the transform as a *suggestion*, and leaves the model at the origin until someone confirms it. Reading `IfcProjectedCRS.Name` is what makes a model auto-place. |
+| `true_north_deg` | never read | A model's rotation was silently dropped. A building at the right easting and northing but rotated 20° off is arguably worse than one at the origin, because it *looks* placed. |
+| `length_unit` | defaulted `"mm"` | Eastings/northings are metres by IFC definition, so any consumer that trusted the field was off by 1000. |
+
+### The fix
+
+- **True north** from `XAxisAbscissa` / `XAxisOrdinate` via
+  `atan2(XAxisOrdinate, XAxisAbscissa)` — **the same formula the server uses** in
+  `IfcAlignmentValidator.MapConversionRotationDeg`. It has to be: the same file
+  described by this adapter and ingested by the server must not disagree about
+  which way the building faces.
+- **CRS** from `IfcProjectedCRS.Name`, which also raises the LoGeoRef tier
+  (50 with a named CRS, 30 without — coordinates whose system is unstated are a
+  weaker claim).
+- **Length unit** read from the model via
+  `ifcopenshell.util.unit.calculate_unit_scale`, falling back to metres.
+- The descriptor's default `length_unit` changed `"mm"` → `"m"`, so an
+  un-populated descriptor now means *change nothing* rather than *rescale by
+  1000*. (One existing test pinned the old default and was updated with the
+  reason.)
+- `PlanscapeClient.upload_model` accepts a descriptor and flattens it onto the
+  multipart upload as the same `Georef*` fields the Revit path uses.
+
+### Verification
+
+- **14 tests** on the extraction (`stingtools-core/python/tests/test_georef_descriptor.py`),
+  driven through a stand-in model so no `ifcopenshell` install is needed — the
+  defects were all in extraction and arithmetic, which is what these pin.
+- **8 tests** on the wire contract (`StingBridge/tests/test_upload_georef.py`).
+  These matter because a field-name typo is **not an error at either end**:
+  ASP.NET model binding leaves the property null, the server writes no
+  transform, and the model quietly stays at the origin. Nothing fails; the
+  building is just in the wrong place. Also pinned: a model with no survey
+  origin sends **no** georef block at all, and a zero true north is sent rather
+  than dropped by a falsy check ("no rotation" ≠ "rotation unknown").
+- Full Python suites green: **118 core**, **179 StingBridge**.
+
+**NOT verified:** extraction against a real `.ifc`. `ifcopenshell` is not a core
+dependency — that is the point of core — so the unit-scale branch and `by_type`
+against a real file remain an environment-gated check.

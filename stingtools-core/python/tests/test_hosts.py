@@ -96,7 +96,16 @@ def test_ifc_file_adapter_implements_contract():
 
 def test_georef_descriptor_defaults():
     g = GeorefDescriptor()
-    assert g.logeoref_tier == 0 and g.scale == 1.0 and g.length_unit == "mm"
+    assert g.logeoref_tier == 0 and g.scale == 1.0
+    # P4 — the default length unit is METRES, not millimetres.
+    #
+    # This assertion used to read "mm" and was pinning a bug: easting/northing
+    # on this descriptor are metres by IFC definition, so a descriptor built
+    # without an explicit unit described its own coordinates as 1000x too
+    # large. Metres is also the glTF canonical and the server's fail-safe for
+    # an unknown unit, so an un-populated descriptor now means "change
+    # nothing" instead of "rescale by 1000".
+    assert g.length_unit == "m"
 
 
 def test_change_delta_carries_review_payload():
