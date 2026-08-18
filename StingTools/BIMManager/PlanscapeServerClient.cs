@@ -1504,7 +1504,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// deletedElementIds are tombstoned on the server.
     /// Uses <see cref="CurrentProjectId"/> — silently no-ops if not set.
     /// </summary>
-    public async Task<bool> PostGeometryDeltaAsync(byte[] glbBytes, IList<int> deletedElementIds)
+    public async Task<bool> PostGeometryDeltaAsync(byte[] glbBytes, IList<long> deletedElementIds)
     {
         if (CurrentProjectId == Guid.Empty) return false;
         if (!await EnsureAuthenticatedAsync()) return false;
