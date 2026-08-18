@@ -1223,3 +1223,65 @@ since ingest now writes both boxes.
 **Behaviour change, stated plainly:** every automatically-placed model moves.
 That is the point — they were mirrored. Coordinator-confirmed transforms are
 untouched, and a re-publish or an auto-align run re-derives the rest.
+
+## 24. Track B / P6 + payoff — Tekla-via-IFC, verified on PostgreSQL (CLOSED)
+
+### Tekla needs no connector, and has none
+
+Tekla has no native producer and is not getting one. Its route into the
+federation is a **Tekla-authored IFC uploaded through the generic ingest**, which
+already recognises it: `XbimIfcIngester` sets
+`source = hasAcPsets ? "archicad" : hasTeklaPsets ? "tekla" : "ifc"`, and `tekla`
+is a first-class host constant (`MappingHosts.Tekla`) used by the GlobalId
+registry and the cross-host DTOs.
+
+Placement is host-agnostic by construction after P1–P5: everything downstream of
+`IfcMapConversion` + `IfcProjectedCRS` runs through `ModelGeorefWriter`, which
+does not know or care which tool wrote the file. A Tekla IFC with a map
+conversion therefore places on exactly the same path as an ArchiCAD one — that
+is the property the payoff test pins, by federating a model labelled ARCH with
+one labelled STRUCT and asserting they overlay.
+
+**A native Tekla plugin remains out of scope.**
+
+### The payoff test
+
+`PostgresFederationPlacementTests` — four `[SkippableFact]`s on real PostgreSQL,
+each in a rolled-back transaction:
+
+1. **Two models of one site are placed automatically and overlay.** Two models,
+   different survey origins, shared CRS, no manual transform. Asserts: both grade
+   HIGH and are marked auto-applied; neither is marked *confirmed* (that word is
+   reserved for a human); their true relative offset survives (60 m east, 45 m
+   north); a column both models contain maps to **one** world coordinate; and the
+   scene-chunk world AABBs land where the transforms put them — including that
+   the two chunks do **not** overlap in X, because a test that only asserted "the
+   boxes moved" would pass with both models stacked on top of each other.
+2. **Relative placement does not depend on whether a project frame is declared.**
+   The frame shifts the whole federation; if it changed relative placement,
+   declaring a benchmark mid-project would silently move buildings apart.
+3. **A model without georeferencing stays at the origin** — no transform row at
+   all, rather than a guessed one.
+4. **A coordinator's confirmed transform survives an automatic pass**, and the
+   caller is still told what the survey data implies.
+
+### Fixture trap worth recording
+
+The first run of these tests failed with "expected 2 transforms, found 0". The
+context had been built from the options-only constructor, so
+`CurrentTenantId` was `Guid.Empty` and the global filter matched nothing — rows
+were written that the very next read could not see. Worse, the writer's own "is
+there an existing transform?" lookup was equally blind, so the
+**not-overwritten** assertion would have passed for entirely the wrong reason.
+The tenant id is now minted before the context and supplied to it. This is the
+same trap `MaterialSyncAuthorizationTests` documents; it is easy to fall into
+because the failure mode is silence, not an error.
+
+### Verification
+
+With `PLANSCAPE_TEST_PG` pointed at a throwaway PostgreSQL 16:
+
+**749 passed / 0 failed / 0 skipped.** Nothing gated out — every previously
+environment-skipped Postgres test ran too.
+
+Without it, the same suite is 734 passed / 0 failed / 11 skipped.
