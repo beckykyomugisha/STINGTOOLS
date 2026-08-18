@@ -90,7 +90,16 @@ public class ModelGeorefWriterTests
     }
 
     private static ModelGeorefWriter NewWriter(World w)
-        => new(NewContext(w.Conn, w.Tenant), NullLogger<ModelGeorefWriter>.Instance);
+    {
+        // The refresher shares the writer's context so both see one change
+        // tracker — the writer saves the transform, the refresher then reads it
+        // back to recompute chunk bounds.
+        var db = NewContext(w.Conn, w.Tenant);
+        return new ModelGeorefWriter(
+            db,
+            new SceneNodeAabbRefresher(db, NullLogger<SceneNodeAabbRefresher>.Instance),
+            NullLogger<ModelGeorefWriter>.Instance);
+    }
 
     /// <summary>A Revit publish from a site at BNG easting 432,000 m.</summary>
     private static ModelGeoref RevitGeoref(string? crs = "EPSG:27700") => new(
@@ -106,24 +115,29 @@ public class ModelGeorefWriterTests
     // ── the placement itself ────────────────────────────────────────────────
 
     [Fact]
-    public async Task A_survey_origin_becomes_a_negated_millimetre_translation()
+    public async Task A_survey_origin_becomes_a_millimetre_translation_into_the_project_frame()
     {
         var w = NewWorld();
         using (w.Conn)
         {
-            var confidence = await NewWriter(w).WriteAsync(
+            var write = await NewWriter(w).WriteAsync(
                 w.Project, w.Model, w.Tenant, RevitGeoref(), verdict: "PASS");
 
-            Assert.Equal(TransformConfidence.High, confidence);
+            Assert.Equal(TransformConfidence.High, write.Confidence);
 
             using var check = NewContext(w.Conn, w.Tenant);
             var xf = await check.ProjectModelTransforms.SingleAsync();
 
-            // metres → mm, negated: applying it brings the georeferenced model
-            // back to the project origin.
-            Assert.Equal(-432_000_000.0, xf.TranslationX, 3);
-            Assert.Equal(-315_000_000.0, xf.TranslationY, 3);
-            Assert.Equal(-12_500.0, xf.TranslationZ, 3);
+            // P5 — metres → mm, NOT negated. The model's geometry is authored
+            // about its own internal origin and this transform says where that
+            // origin sits, so a physical point shared with another model lands
+            // on the same world coordinate. The earlier negation put models
+            // mirrored about the origin; see FederationFrameTests.
+            // No ProjectCoordinateSystem here, so the frame origin is zero and
+            // the model sits at its raw CRS position.
+            Assert.Equal(432_000_000.0, xf.TranslationX, 3);
+            Assert.Equal(315_000_000.0, xf.TranslationY, 3);
+            Assert.Equal(12_500.0, xf.TranslationZ, 3);
             Assert.Equal(3.25, xf.RotationDeg, 6);
             Assert.Equal(1.0, xf.ScaleFactor, 6);
             Assert.Equal("revit-georef", xf.Source);
@@ -157,9 +171,9 @@ public class ModelGeorefWriterTests
         using (w.Conn)
         {
             var georef = RevitGeoref(crs: "27700") with { HasDeclaredCrs = false };
-            var confidence = await NewWriter(w).WriteAsync(w.Project, w.Model, w.Tenant, georef, "PASS");
+            var write = await NewWriter(w).WriteAsync(w.Project, w.Model, w.Tenant, georef, "PASS");
 
-            Assert.Equal(TransformConfidence.High, confidence);
+            Assert.Equal(TransformConfidence.High, write.Confidence);
         }
     }
 
@@ -172,14 +186,14 @@ public class ModelGeorefWriterTests
         var w = NewWorld();
         using (w.Conn)
         {
-            var confidence = await NewWriter(w).WriteAsync(
+            var write = await NewWriter(w).WriteAsync(
                 w.Project, w.Model, w.Tenant, RevitGeoref(crs: null), "PASS");
 
-            Assert.Equal(TransformConfidence.Low, confidence);
+            Assert.Equal(TransformConfidence.Low, write.Confidence);
 
             using var check = NewContext(w.Conn, w.Tenant);
             var xf = await check.ProjectModelTransforms.SingleAsync();
-            Assert.Equal(-432_000_000.0, xf.TranslationX, 3);   // computed
+            Assert.Equal(432_000_000.0, xf.TranslationX, 3);    // computed
             Assert.False(xf.AppliedAutomatically);              // but not live
             Assert.Equal("LOW", xf.Confidence);
         }
@@ -197,9 +211,9 @@ public class ModelGeorefWriterTests
         using (w.Conn)
         {
             var georef = RevitGeoref() with { EastingM = null, NorthingM = null };
-            var confidence = await NewWriter(w).WriteAsync(w.Project, w.Model, w.Tenant, georef, "PASS");
+            var write = await NewWriter(w).WriteAsync(w.Project, w.Model, w.Tenant, georef, "PASS");
 
-            Assert.Equal(TransformConfidence.None, confidence);
+            Assert.Equal(TransformConfidence.None, write.Confidence);
 
             using var check = NewContext(w.Conn, w.Tenant);
             Assert.False(await check.ProjectModelTransforms.AnyAsync());
@@ -249,7 +263,7 @@ public class ModelGeorefWriterTests
 
             using var check = NewContext(w.Conn, w.Tenant);
             var xf = await check.ProjectModelTransforms.SingleAsync();   // exactly one
-            Assert.Equal(-500_000_000.0, xf.TranslationX, 3);
+            Assert.Equal(500_000_000.0, xf.TranslationX, 3);
             Assert.NotNull(xf.UpdatedAt);
         }
     }
@@ -260,10 +274,10 @@ public class ModelGeorefWriterTests
         var w = NewWorld();
         using (w.Conn)
         {
-            var confidence = await NewWriter(w).WriteAsync(
+            var write = await NewWriter(w).WriteAsync(
                 w.Project, w.Model, w.Tenant, RevitGeoref(), verdict: "FAIL");
 
-            Assert.Equal(TransformConfidence.Low, confidence);
+            Assert.Equal(TransformConfidence.Low, write.Confidence);
 
             using var check = NewContext(w.Conn, w.Tenant);
             Assert.False((await check.ProjectModelTransforms.SingleAsync()).AppliedAutomatically);

@@ -146,7 +146,17 @@ public class AutoAlignConfirmedTransformTests
     }
 
     private static AutoAlignService NewService(World w)
-        => new(NewContext(w.Conn, w.Tenant), NullLogger<AutoAlignService>.Instance);
+    {
+        // P5 — auto-align no longer does its own transform arithmetic; it
+        // delegates to the shared writer so it cannot drift from the ingest
+        // path. One context across all three so they share a change tracker.
+        var db = NewContext(w.Conn, w.Tenant);
+        var writer = new ModelGeorefWriter(
+            db,
+            new SceneNodeAabbRefresher(db, NullLogger<SceneNodeAabbRefresher>.Instance),
+            NullLogger<ModelGeorefWriter>.Instance);
+        return new AutoAlignService(db, writer, NullLogger<AutoAlignService>.Instance);
+    }
 
     [Fact]
     public async Task A_confirmed_transform_is_not_overwritten()
@@ -183,9 +193,19 @@ public class AutoAlignConfirmedTransformTests
         {
             var result = await NewService(w).ComputeAsync(w.Project, w.Tenant, w.Target);
 
-            // reference(1000, 2000) - target(1500, 2500), in metres → mm.
-            Assert.Equal(-500_000.0, result.TranslationX, 3);
-            Assert.Equal(-500_000.0, result.TranslationY, 3);
+            // P5 — the target's own survey origin, in the project frame.
+            //
+            // This used to assert reference(1000) - target(1500) = -500 m. Two
+            // things changed. The sign was wrong (see FederationFrameTests), and
+            // the frame is no longer "whichever sibling was validated most
+            // recently" — that origin moved every time another model was
+            // uploaded, so transforms computed on different days disagreed.
+            // With no ProjectCoordinateSystem in this fixture the frame is zero,
+            // so the target sits at its raw CRS position of 1500 m. Relative
+            // placement is unaffected: the same frame is subtracted from every
+            // model.
+            Assert.Equal(1_500_000.0, result.TranslationX, 3);
+            Assert.Equal(2_500_000.0, result.TranslationY, 3);
         }
     }
 
@@ -203,8 +223,8 @@ public class AutoAlignConfirmedTransformTests
 
             using var check = NewContext(w.Conn, w.Tenant);
             var xf = await check.Set<ProjectModelTransform>().SingleAsync();
-            Assert.Equal(-500_000.0, xf.TranslationX, 3);
-            Assert.Equal(-500_000.0, xf.TranslationY, 3);
+            Assert.Equal(1_500_000.0, xf.TranslationX, 3);
+            Assert.Equal(2_500_000.0, xf.TranslationY, 3);
             Assert.True(xf.IsAutoComputed);
             Assert.False(xf.IsConfirmed);
             Assert.Equal("auto-align-service", xf.AppliedBy);
@@ -254,7 +274,7 @@ public class AutoAlignConfirmedTransformTests
             var xf = await check.Set<ProjectModelTransform>().SingleAsync();
 
             // Computed and stored — a coordinator can still confirm it.
-            Assert.Equal(-500_000.0, xf.TranslationX, 3);
+            Assert.Equal(1_500_000.0, xf.TranslationX, 3);
             // But not live.
             Assert.False(xf.AppliedAutomatically);
             Assert.Equal("LOW", xf.Confidence);

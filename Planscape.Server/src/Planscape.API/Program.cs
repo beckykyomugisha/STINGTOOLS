@@ -770,6 +770,10 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
 // and Revit paths cannot drift apart on translation convention or confidence.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IModelGeorefWriter,
     Planscape.Infrastructure.Services.ModelGeorefWriter>();
+// P5 — scene-chunk AABBs are world-space, so every transform write invalidates
+// them. One idempotent refresher, called from every write path.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ISceneNodeAabbRefresher,
+    Planscape.Infrastructure.Services.SceneNodeAabbRefresher>();
 // Gap G — Full project-wide federated coordinate coherence scan.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IFederatedCoherenceJob,
     Planscape.Infrastructure.Services.FederatedCoherenceJob>();
@@ -2114,6 +2118,18 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "UPDATE \"ProjectModels\" SET \"Units\" = 'm' " +
             "WHERE \"UploadedBy\" = 'IFC→GLB converter' AND \"Format\" = 0 AND \"Units\" IS DISTINCT FROM 'm'",
         "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"AppliedAutomatically\" boolean NOT NULL DEFAULT false",
+        // P5 — the chunk's LOCAL (pre-transform) AABB. Nullable: rows written
+        // before this have none, and the refresher captures the current values
+        // as the local box the first time it sees such a row. Keeping the local
+        // box is what makes the world-box recompute idempotent — the previous
+        // in-place version transformed an already-transformed box, so repeated
+        // writes compounded.
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinX\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinY\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinZ\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMaxX\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMaxY\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMaxZ\" double precision NULL",
         "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Confidence\" text NULL",
         "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Source\" text NULL",
         "DO $$ BEGIN " +

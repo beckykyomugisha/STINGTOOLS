@@ -1125,3 +1125,101 @@ northings / height / scale. Three fields were unset or wrong:
 **NOT verified:** extraction against a real `.ifc`. `ifcopenshell` is not a core
 dependency — that is the point of core — so the unit-scale branch and `by_type`
 against a real file remain an environment-gated check.
+
+## 23. Track B / P5 — one translation convention, and fresh chunk bounds (CLOSED)
+
+### The defect: the translation was mirrored
+
+Both automatic writers computed the **negation** of the correct translation. The
+IFC ingest path used `t = -modelOrigin`; `AutoAlignService` used
+`t = referenceOrigin - modelOrigin`.
+
+A model's geometry is authored about its own internal origin, and its
+georeferencing states where that origin sits in the survey CRS. So a physical
+point `S` sits at local coordinate `S - A` in model A. The transform maps local
+to world as `world = t + local`:
+
+```
+t = +A  →  world = A + (S - A) = S        ✓ both models agree on S
+t = -A  →  world = -A + (S - A) = S - 2A  ✗ and B lands at S - 2B
+```
+
+Two models therefore came out **mirrored about the origin** — an east-west pair
+swaps sides. The correct transform is `t = modelSurveyOrigin - projectFrameOrigin`.
+
+**Why the existing "overlay proof" did not catch it.** `ModelTransformMathTests`
+inverts a transform and re-applies *the same* transform, which proves
+`Apply(Inverse(w)) == w` for any transform whatsoever. It proves the math is
+self-consistent — never that the transform was *derived* correctly from survey
+data. `FederationFrameTests` derives it, and asserts the sign explicitly, because
+a magnitude-only check passes against the bug.
+
+### One frame, resolved once
+
+`ModelGeorefWriter` now resolves the project frame in one place, strongest
+evidence first: the declared `ProjectCoordinateSystem` benchmark → the
+coordinator's nominated reference model → zero (raw CRS). The **same** frame is
+subtracted from every model, so relative placement is identical whichever is
+chosen; a site-local frame only buys precision (a site at easting 432 km rendered
+about a zero origin puts geometry where 32-bit float stops resolving
+millimetres).
+
+`AutoAlignService` no longer does its own transform arithmetic — it delegates to
+the same writer, so the two cannot drift. Its old frame ("the most recently
+validated sibling model") is dropped and is now **reporting only**: that origin
+moved every time another model was uploaded, so a transform computed on Monday
+was expressed against a different origin from one computed on Tuesday and the two
+silently disagreed.
+
+The writer returns what it computed **even when it refuses to write** (a
+coordinator-confirmed transform). A refusal that cannot say what the survey data
+implies is useless at exactly the moment the answer matters — and having the
+caller recompute it is how the two implementations drifted apart to begin with.
+
+### The defect: chunk bounds went stale, and could not simply be refreshed
+
+The world-space AABB recompute lived inline in `ModelTransformController.Upsert`
+and had two problems that compounded:
+
+1. **It ran only there.** Both automatic writers moved models without touching
+   the bounds, so the federation manifest described where chunks *used to be*.
+   The viewer culls against those bounds — the symptom is geometry that vanishes
+   when the camera looks straight at it, or streams in nowhere near the frustum.
+2. **It transformed an already-transformed box.** So the obvious fix — call it
+   after every transform write — would have made things *worse*, compounding the
+   transform on each call.
+
+Fixing (2) had to come first. `SceneNode` gains a nullable **local** AABB
+(`BaseMinX`…), so the world box is a pure function of (local, transform) and can
+be recomputed any number of times with the same answer. `SceneNodeAabbRefresher`
+is now called from the manual PUT, the manual DELETE (resetting to identity moves
+the model too) and the shared writer — which covers both automatic paths at once.
+
+Rows written before this have no local box; the refresher captures the current
+values the first time it sees one — correct for a chunk that was never
+transformed, and the best available otherwise. Re-publishing restores truth,
+since ingest now writes both boxes.
+
+### Verification
+
+- **7 frame tests** — true relative offset preserved; the offset is not mirrored
+  (asserted by sign, not magnitude); a point shared by two models maps to one
+  world coordinate; a declared benchmark and a nominated reference model each
+  become the frame; rotation is frame-relative.
+- **7 refresher tests** — refreshing twice equals refreshing once (the
+  regression); the local box is never mutated; removing the transform returns the
+  box to its local position; a pre-existing row has its local box captured; a
+  rotated box encloses all eight transformed corners (a two-corner shortcut
+  produces an inverted, too-small box that culls visible geometry); scale applies
+  before translation.
+- Existing sign expectations in `ModelGeorefWriterTests` and
+  `AutoAlignConfirmedTransformTests` were updated **with the reason recorded in
+  each test**, since they pinned the mirrored behaviour.
+- Schema patch verified on real Postgres 16: idempotent, and a pre-existing row
+  keeps its box with the local box left NULL for first-refresh capture.
+- Full suite **734 passed / 0 failed / 11 skipped**; both web harnesses green;
+  server build 0 errors.
+
+**Behaviour change, stated plainly:** every automatically-placed model moves.
+That is the point — they were mirrored. Coordinator-confirmed transforms are
+untouched, and a re-publish or an auto-align run re-derives the rest.

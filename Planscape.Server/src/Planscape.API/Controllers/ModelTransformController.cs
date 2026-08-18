@@ -33,17 +33,20 @@ public class ModelTransformController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly ITenantContext _tenant;
     private readonly IIfcDeltaService _delta;
+    private readonly ISceneNodeAabbRefresher _aabb;
     private readonly ILogger<ModelTransformController> _logger;
 
     public ModelTransformController(
         PlanscapeDbContext db,
         ITenantContext tenant,
         IIfcDeltaService delta,
+        ISceneNodeAabbRefresher aabb,
         ILogger<ModelTransformController> logger)
     {
         _db     = db;
         _tenant = tenant;
         _delta  = delta;
+        _aabb   = aabb;
         _logger = logger;
     }
 
@@ -195,40 +198,24 @@ public class ModelTransformController : ControllerBase
 
         await _db.SaveChangesAsync(ct);
 
-        // Re-compute SceneNode AABBs for this model
+        // P5 — recompute the chunks' world-space AABBs through the shared,
+        // idempotent refresher. The inline version that used to live here read
+        // the STORED (already-transformed) box and transformed it again, so two
+        // PUTs compounded; and it ran ONLY here, so both automatic writers left
+        // the manifest describing where chunks used to be.
         try
         {
-            var nodes = await _db.SceneNodes
-                .Where(n => n.SourceModelId == modelId && n.DeletedAt == null)
-                .ToListAsync(ct);
-
-            foreach (var node in nodes)
-            {
-                var (mnX, mnY, mnZ, mxX, mxY, mxZ) = ApplyTransform(
-                    xf,
-                    node.MinX, node.MinY, node.MinZ,
-                    node.MaxX, node.MaxY, node.MaxZ);
-
-                node.MinX = mnX;
-                node.MinY = mnY;
-                node.MinZ = mnZ;
-                node.MaxX = mxX;
-                node.MaxY = mxY;
-                node.MaxZ = mxZ;
-            }
-
-            if (nodes.Count > 0)
-                await _db.SaveChangesAsync(ct);
-
+            var updated = await _aabb.RefreshAsync(projectId, modelId, _tenant.TenantId, ct);
             _logger.LogInformation(
-                "ModelTransform upserted for model {ModelId}: updated {Count} SceneNode AABBs.",
-                modelId, nodes.Count);
+                "ModelTransform upserted for model {ModelId}: refreshed {Count} SceneNode AABBs.",
+                modelId, updated);
         }
         catch (Exception ex)
         {
-            // Non-fatal — transform is persisted; AABB update can be retried
+            // Non-fatal — the transform is persisted and correct; stale bounds
+            // are a culling artefact, not data loss, and the next write retries.
             _logger.LogWarning(ex,
-                "Failed to update SceneNode AABBs after transform upsert for model {ModelId}.",
+                "Failed to refresh SceneNode AABBs after transform upsert for model {ModelId}.",
                 modelId);
         }
 
@@ -273,6 +260,22 @@ public class ModelTransformController : ControllerBase
         _db.Set<ProjectModelTransform>().Remove(xf);
         await _db.SaveChangesAsync(ct);
 
+        // P5 — resetting to identity moves the model too, so the world-space
+        // chunk bounds are just as stale as after a write. With the transform
+        // row gone the refresher falls back to the identity and the world box
+        // returns to the local one — which only works because the local box is
+        // preserved separately; the old in-place version had destroyed it.
+        try
+        {
+            await _aabb.RefreshAsync(projectId, modelId, _tenant.TenantId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to refresh SceneNode AABBs after transform delete for model {ModelId}.",
+                modelId);
+        }
+
         _logger.LogInformation(
             "ModelTransform deleted for model {ModelId} in project {ProjectId}.",
             modelId, projectId);
@@ -280,40 +283,6 @@ public class ModelTransformController : ControllerBase
         return NoContent();
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Transform all 8 corners of the AABB using scale → Z-rotation → translation
-    /// and return the new axis-aligned bounding box.
-    /// </summary>
-    private static (double minX, double minY, double minZ, double maxX, double maxY, double maxZ) ApplyTransform(
-        ProjectModelTransform t,
-        double minX, double minY, double minZ,
-        double maxX, double maxY, double maxZ)
-    {
-        // All 8 corners of the input AABB, transformed via the ONE canonical
-        // ModelTransformMath (Z-up, mm, T·R·S) so the controller, the viewer,
-        // and the overlay test all share identical transform semantics.
-        double[] xs = [minX, maxX, minX, maxX, minX, maxX, minX, maxX];
-        double[] ys = [minY, minY, maxY, maxY, minY, minY, maxY, maxY];
-        double[] zs = [minZ, minZ, minZ, minZ, maxZ, maxZ, maxZ, maxZ];
-
-        var newXs = new double[8];
-        var newYs = new double[8];
-        var newZs = new double[8];
-
-        for (int i = 0; i < 8; i++)
-        {
-            var w = ModelTransformMath.ApplyMm(
-                t.TranslationX, t.TranslationY, t.TranslationZ,
-                t.RotationDeg, t.ScaleFactor,
-                xs[i], ys[i], zs[i]);
-            newXs[i] = w.X; newYs[i] = w.Y; newZs[i] = w.Z;
-        }
-
-        return (newXs.Min(), newYs.Min(), newZs.Min(),
-                newXs.Max(), newYs.Max(), newZs.Max());
-    }
 }
 
 /// <summary>Body DTO for PUT /transform.</summary>

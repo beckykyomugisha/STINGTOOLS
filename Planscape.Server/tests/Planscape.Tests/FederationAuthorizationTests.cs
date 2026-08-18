@@ -198,9 +198,11 @@ public class FederationAuthorizationTests
 
     private static ModelTransformController NewTransformController(World w, Guid actor)
     {
+        var db = NewContext(w.Conn, w.Tenant);
         var c = new ModelTransformController(
-            NewContext(w.Conn, w.Tenant), new FixedTenant(w.Tenant),
-            delta: null!, logger: NullLogger<ModelTransformController>.Instance)
+            db, new FixedTenant(w.Tenant), delta: null!,
+            aabb: new SceneNodeAabbRefresher(db, NullLogger<SceneNodeAabbRefresher>.Instance),
+            logger: NullLogger<ModelTransformController>.Instance)
         { ControllerContext = ContextFor(actor, w.Tenant) };
         return c;
     }
