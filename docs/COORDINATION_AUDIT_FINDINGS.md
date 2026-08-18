@@ -1285,3 +1285,156 @@ With `PLANSCAPE_TEST_PG` pointed at a throwaway PostgreSQL 16:
 environment-skipped Postgres test ran too.
 
 Without it, the same suite is 734 passed / 0 failed / 11 skipped.
+
+---
+
+# PART V — TRACK C: RELIABILITY (CLOSED)
+
+Track C's theme: the ArchiCAD/Python side was already robust; the Revit
+geometry-delta path and the server's model lifecycle were not. Every defect here
+**fails silently**, and most of them present to a coordinator as "the server's
+model just isn't the same as mine" — which is the hardest possible symptom to
+attribute.
+
+| Item | Defect | Status |
+|---|---|---|
+| C1 | A failed Revit delta was permanently lost | CLOSED |
+| C2 | Only 9 categories ever synced; the clash flag disabled all of it | CLOSED |
+| C3 | Deletions never propagated from hosts pushing full exports | CLOSED |
+| C4 | Deleted models kept rendering; no cascade; the promised purge job did not exist; `Force` unread | CLOSED |
+| C5 | Advertised upload caps exceeded the multipart parser's | CLOSED |
+| C6 | Delta apply non-atomic and non-idempotent | CLOSED |
+| C7 | Converter failure invisible; orphaned code with misleading docstrings | CLOSED |
+
+## 25. C1 + C2 — the Revit delta pipeline
+
+**C1.** `GeometrySyncHandler` drained the change queue and fired the upload as a
+discard-result `Task.Run`. Draining is destructive, and
+`PostGeometryDeltaAsync` returns false on an unset project id, a non-2xx, or an
+idle-expired token — all of which looked identical to success. The elements were
+never considered again and the two models diverged permanently, with the next
+edit to a *different* element syncing fine, which makes the gap look like it
+never happened.
+
+Fixed by checking the project link **before** draining, reading the result, and
+re-queueing on failure. Only what was actually sendable is retried: an element
+that cannot be tessellated would fail again every save, turning one lost delta
+into an infinite retry. Deletions are always retried — a lost tombstone leaves
+the element visible in the federated model forever.
+
+**C2.** `LiveClashUpdater` was the sole producer for the geometry queue, over the
+nine categories *clash* cares about. Doors, windows, equipment, fixtures,
+furniture, generic models, stairs, railings, roofs and curtain panels never
+reached the server automatically. And because the clash trigger is opt-out,
+`LIVE_CLASH_TRIGGERS_ENABLED=false` silently disabled **all** geometry sync while
+tag sync kept flowing — the model looked connected and was not.
+
+Geometry sync now has its own updater over every model element instance,
+expressed as filters rather than a category list, *because a list is exactly how
+the clash trigger ended up missing doors*.
+
+**Testing limit, stated:** the handler needs a `UIApplication` and a live
+`Document`, so it is unreachable from the pure-logic test projects. The two
+decisions that govern whether a change reaches the server — the queue's sign
+encoding and the retry rule — were extracted into `GeometrySyncPlan` and pinned
+by 8 tests. The handler's ordering, the re-queue call, and the new updater's
+trigger scope need Revit.
+
+## 26. C5 + C6 — the delta endpoint
+
+**C5.** `RequestSizeLimit` caps the HTTP body; the multipart parser has its own
+200 MB global ceiling. `IfcIngestController.Ingest` advertised 2 GB and
+`PostDelta` advertised 256 MB, neither with `[RequestFormLimits]`, so anything
+between 200 MB and the advertised cap died with a bare parser 400 raised *before
+the action ran* — the ingest controller's own `file_too_large` branch never
+fired.
+
+**C6.** Deletes committed immediately via `ExecuteUpdateAsync`; the GLB store and
+`SaveChangesAsync` followed, untransacted. A failure between them left deletions
+applied and additions lost — the worst available partial state, because **no
+retry can recover it**: the deletions are already marked, so the next delta's
+`!e.IsDeleted` filter excludes them. Now one transaction (relational providers
+only; InMemory escalates `TransactionIgnoredWarning` to an exception).
+
+A delta is replayable — the plugin re-sends after a failure (C1) and a timed-out
+client cannot know whether the server applied it. It now honours the platform's
+existing `X-Idempotency-Key`, recorded **inside** the transaction so a replay
+cannot be marked handled by a delta that rolled back.
+
+Two bare `catch { }` became logged failures: a malformed `deletedIds` dropped
+every tombstone while the GLB half applied, and a malformed GLB produced zero
+nodes — both answering 200 and looking like "a delta that changed nothing".
+
+## 27. C4 — model lifecycle
+
+Three ways the product said one thing and did another:
+
+- **Soft-delete did not cascade.** The read paths filtered on
+  `SceneNode.DeletedAt`, a column nothing ever set, so a deleted model kept
+  streaming into the viewer and answering element queries.
+- **The promised purge job did not exist.** `ProjectModel.DeletedAt`'s own doc
+  comment says "purged by a Hangfire job after 30 days". There was none; every
+  soft-deleted model's bytes stayed in object storage forever. *A documented
+  retention promise that nothing implements is worse than no promise — it is the
+  reason nobody goes looking.*
+- **`Force` was never read.** The plugin's "publish as a new revision" mode did a
+  metadata refresh on the old row and reported success. It could not simply
+  insert (the unique filtered index rejects identical bytes), so `Force` now
+  retires the previous row and links it forward via `SupersededByModelId`.
+
+`ModelPurgeJob` deletes bytes **before** the row: a failed byte deletion retains
+the row for the next run, because a row-less blob is unfindable and therefore
+unrecoverable cost.
+
+## 28. C3 — deletions from full-export hosts
+
+An ingest is an upsert, so an element that disappears is simply not mentioned —
+indistinguishable from "unchanged, partial push". A wall deleted in ArchiCAD
+stayed on the server forever. **Absence cannot mean deletion.**
+
+`RemovedGlobalIds` carries removals explicitly; matching elements are
+**soft**-deleted (they carry tag history, issues and clash references). Removals
+are scoped to the reporting host document — two hosts contribute to one project,
+so a full-export diff from the ArchiCAD file lists every Revit GlobalId as
+absent, and without the scope this feature would convert a missing-delete bug
+into a **data-loss** one.
+
+Client-side, `SyncedIdStore` records what each document last pushed and diffs it.
+`should_send_removals` refuses a removal set covering more than half the known
+elements: a crashed export yielding 3 elements instead of 30,000 looks exactly
+like a mass deletion, and one of those readings is catastrophic while the other
+costs one sync cycle.
+
+## 29. C7 — converter status and orphaned code
+
+`IfcToGlbConversionJob` is best-effort by design, but nothing recorded a failure
+anywhere the product could see, while the upload endpoint had already promised
+"a renderable GLB derivative … will appear shortly". For a failed conversion that
+sentence never stops being false. `ConversionStatus` / `ConversionError` now
+track Pending → Converting → Done/Failed across all five of the job's early
+returns; the test that matters asserts no terminal path leaves a model reading
+"Converting", because that is the state a coordinator waits on forever.
+
+`FederationLinkedWalker` and `AsBuiltReconciler` have **zero callers**, and
+`FederationLinkedWalker`'s header claimed it was "used by Clash triage (S6.1),
+As-built reconciliation (S6.5), and any BCC dashboard metric". None of those
+consume it, and cross-tool clash does not exist. **Kept, not deleted** — the code
+is sound and rewriting it later costs more than carrying it — but the headers now
+say NOT WIRED. An orphan is a cost; an orphan advertising itself as shipped is a
+trap, because an audit of whether federated clash works finds a docstring
+asserting it does and stops looking.
+
+## Track C verification
+
+- Server: **774 passed / 0 failed / 0 skipped** against real PostgreSQL 16.
+- Python: **313 passed** (core + StingBridge).
+- Revit plugin: **0 errors, 0 warnings** against the Revit 2025 API.
+- `StingTools.Clash.Tests`: 71 passed, 1 failed — pre-existing on `origin/main`
+  (CLAUDE.md #596), verified untouched.
+- The C6 atomicity test and the P1 viewer gate were each confirmed against the
+  UNFIXED code and fail there, so they detect the defect rather than restate the
+  fix.
+
+Follow-ups are in [`ROADMAP.md`](ROADMAP.md), including `IfcController`'s missing
+project-membership gate — the same defect class Track A fixed, deliberately left
+out of scope because changing the plugin's push path needs verification.

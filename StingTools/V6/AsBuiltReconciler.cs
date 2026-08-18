@@ -14,6 +14,16 @@
 // All model writes batched under TransactionHelper.RunInScope so the
 // user can Ctrl+Z the whole reconciliation in one step.
 
+// STATUS: NOT WIRED. Nothing calls this class (verified by a
+// repo-wide search: zero references outside this file), and the
+// cross-tool clash pipeline its header describes does not exist.
+//
+// Recorded here rather than quietly deleted: the reconciliation logic
+// is real work and rewriting it later costs more than carrying it. But
+// a header that reads as though the feature ships is how an audit
+// concludes cross-tool reconciliation works when nothing runs it.
+// Wire it or delete it; do not re-describe it as used.
+
 using System;
 using System.Collections.Generic;
 using System.IO;

@@ -2129,6 +2129,9 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // box is what makes the world-box recompute idempotent — the previous
         // in-place version transformed an already-transformed box, so repeated
         // writes compounded.
+        // C7 - conversion status for IFC uploads awaiting a GLB derivative.
+        "ALTER TABLE \"ProjectModels\" ADD COLUMN IF NOT EXISTS \"ConversionStatus\" text NULL",
+        "ALTER TABLE \"ProjectModels\" ADD COLUMN IF NOT EXISTS \"ConversionError\" text NULL",
         // C4 - supersede link for forced re-publishes.
         "ALTER TABLE \"ProjectModels\" ADD COLUMN IF NOT EXISTS \"SupersededByModelId\" uuid NULL",
         "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinX\" double precision NULL",

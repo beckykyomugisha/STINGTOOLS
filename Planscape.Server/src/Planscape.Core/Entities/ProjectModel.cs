@@ -82,6 +82,29 @@ public class ProjectModel : ITenantScoped
     public DateTime? DeletedAt { get; set; }
 
     /// <summary>
+    /// C7 — where an IFC upload is in the conversion pipeline:
+    /// <c>Pending</c> | <c>Converting</c> | <c>Done</c> | <c>Failed</c>, or null
+    /// for a model that needed no conversion.
+    ///
+    /// <para><b>Why it exists.</b> <c>IfcToGlbConversionJob</c> is deliberately
+    /// best-effort — a sidecar error is logged and never thrown, so a failed
+    /// convert leaves the IFC stored and re-uploadable. But nothing recorded the
+    /// failure anywhere the product could see it, and the upload endpoint had
+    /// already answered <c>202 Accepted</c> with "a renderable GLB derivative is
+    /// being generated and will appear shortly". For a conversion that failed,
+    /// that sentence never stops being false: the coordinator waits, refreshes,
+    /// and eventually concludes the platform is broken — which is a fair reading
+    /// of a promise that is never withdrawn.</para>
+    ///
+    /// <para>Stored as text rather than an enum so a value written by a newer
+    /// worker cannot fail to deserialise on an older API instance mid-deploy.</para>
+    /// </summary>
+    public string? ConversionStatus { get; set; }
+
+    /// <summary>C7 — why the conversion failed, when it did. Null otherwise.</summary>
+    public string? ConversionError { get; set; }
+
+    /// <summary>
     /// C4 — the model that replaced this one, when it was retired by a forced
     /// re-publish rather than deleted outright.
     ///
