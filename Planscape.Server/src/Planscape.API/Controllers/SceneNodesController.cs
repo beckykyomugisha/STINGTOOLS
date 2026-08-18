@@ -66,8 +66,19 @@ public class SceneNodesController : ControllerBase
             .Select(d => d.ToUpperInvariant())
             .ToHashSet();
 
+        // C4 — a chunk is only live if its MODEL is live. Filtering on
+        // SceneNode.DeletedAt alone was not enough: nothing set that column
+        // before the delete cascade landed, so a deleted model's geometry kept
+        // being served to the viewer. Deleting a model and still seeing it is
+        // the kind of bug that makes people stop trusting the tool.
+        var liveModelIds = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
+            .Select(m => m.Id)
+            .ToListAsync(ct);
+
         var rows = await _db.SceneNodes.AsNoTracking()
             .Where(n => n.ProjectId == projectId && n.DeletedAt == null
+                     && liveModelIds.Contains(n.SourceModelId)
                      && (disciplineFilter.Count == 0 || disciplineFilter.Contains(n.Discipline)))
             .ToListAsync(ct);
 

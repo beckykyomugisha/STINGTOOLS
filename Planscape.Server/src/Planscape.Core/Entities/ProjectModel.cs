@@ -71,8 +71,32 @@ public class ProjectModel : ITenantScoped
     public Guid? UploadedByUserId { get; set; }
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>Soft-delete — kept for audit; file is purged by a Hangfire job after 30 days.</summary>
+    /// <summary>
+    /// Soft-delete — kept for audit; bytes and row are purged by
+    /// <c>ModelPurgeJob</c> after 30 days.
+    ///
+    /// <para>C4 — that job now exists. This comment promised it for a long time
+    /// while nothing implemented it, so every soft-deleted model's GLB, element
+    /// map and thumbnail stayed in object storage forever.</para>
+    /// </summary>
     public DateTime? DeletedAt { get; set; }
+
+    /// <summary>
+    /// C4 — the model that replaced this one, when it was retired by a forced
+    /// re-publish rather than deleted outright.
+    ///
+    /// <para>The upload endpoint deduplicates on content hash behind a unique
+    /// filtered index on (TenantId, ProjectId, ContentHash) WHERE DeletedAt IS
+    /// NULL. "Publish as a new revision" therefore could not simply insert a
+    /// second row with the same bytes — it would violate that index — which is
+    /// why the <c>Force</c> flag sat unread and the plugin's
+    /// ForceNewRevision mode silently did a metadata refresh instead.</para>
+    ///
+    /// <para>Retiring the old row (soft-delete) frees the index and makes the
+    /// relationship explicit: the history stays queryable, and "why did this
+    /// model disappear?" has an answer that points at its replacement.</para>
+    /// </summary>
+    public Guid? SupersededByModelId { get; set; }
 
     /// <summary>
     /// Set when a /file fetch finds the row but the bytes are gone from

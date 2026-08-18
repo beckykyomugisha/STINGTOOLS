@@ -141,6 +141,30 @@ public class ModelsController : ControllerBase
         }
         var existing = await _db.ProjectModels
             .FirstOrDefaultAsync(m => m.TenantId == project.TenantId && m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
+
+        // C4 — honour Force.
+        //
+        // The flag has been on UploadModelRequest, documented, and sent by the
+        // plugin's "Publish as a new revision (forced)" mode since it shipped —
+        // and read by nothing. The dedup branch below ran regardless, so a
+        // coordinator who deliberately chose to cut a new revision got a
+        // metadata refresh on the OLD row and no new revision at all. The
+        // operation reported success, which is why it went unnoticed.
+        //
+        // It could not simply insert a second row: the unique filtered index on
+        // (TenantId, ProjectId, ContentHash) WHERE DeletedAt IS NULL rejects
+        // identical bytes. Retiring the previous row frees the index AND makes
+        // the supersede explicit, so the history stays queryable.
+        if (existing != null && req.Force)
+        {
+            existing.DeletedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Force re-publish: retiring model {OldModelId} so a new revision of the same bytes can be created.",
+                existing.Id);
+            existing = null;   // fall through to the normal insert path
+        }
+
         if (existing != null)
         {
             // Geometry hash is identical, so the GLB itself is normally
@@ -290,6 +314,22 @@ public class ModelsController : ControllerBase
         }
         _logger.LogInformation("Model uploaded — {ModelId} {Format} {Size} bytes for project {ProjectId}",
             row.Id, row.Format, row.FileSizeBytes, projectId);
+
+        // C4 — close the supersede link now that the replacement has an id.
+        if (req.Force)
+        {
+            var retired = await _db.ProjectModels
+                .Where(m => m.TenantId == project.TenantId && m.ProjectId == projectId
+                         && m.ContentHash == hash && m.Id != row.Id
+                         && m.DeletedAt != null && m.SupersededByModelId == null)
+                .OrderByDescending(m => m.DeletedAt)
+                .FirstOrDefaultAsync(ct);
+            if (retired != null)
+            {
+                retired.SupersededByModelId = row.Id;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
 
         // ── B2 — georeferencing → coordinate transform ──────────────────────
         // Revit exports geometry about the project internal origin, so without
@@ -511,7 +551,35 @@ public class ModelsController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt == null, ct);
         if (row == null) return NotFound();
         row.DeletedAt = DateTime.UtcNow;
+
+        // C4 — cascade. Soft-deleting the model alone left its scene chunks live,
+        // so the geometry kept rendering after the model was "deleted". Retire the
+        // chunks with it; ModelPurgeJob removes the bytes and the rows after the
+        // 30-day grace the entity documents.
+        //
+        // FederatedElement rows are deliberately NOT retired here. They are keyed
+        // to their source by SourceDocGuid + a per-delta GlbStoragePath (written by
+        // FederatedModelController's delta path), whereas a ProjectModel is keyed by
+        // its uploaded-GLB StoragePath — there is no shared key between the two, so
+        // a model delete cannot identify "its" federated elements. The earlier
+        // attempt matched GlbStoragePath == ProjectModel.StoragePath, two keys from
+        // different pipelines that never coincide: it retired nothing while the log
+        // reported a count. Real federated-element retirement needs a proper linkage
+        // (a ProjectModelId or source-doc GUID on FederatedElement) — left as a
+        // follow-up rather than a join that silently matches nothing, or worse
+        // false-matches if the two key spaces ever collide.
+        var chunks = await _db.SceneNodes
+            .Where(n => n.SourceModelId == modelId && n.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var chunk in chunks) chunk.DeletedAt = row.DeletedAt;
+
         await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) retired with it. " +
+            "Federated elements are not linked to a ProjectModel and are left untouched (see Delete remarks).",
+            modelId, chunks.Count);
+
         return NoContent();
     }
 
@@ -741,8 +809,14 @@ public class ModelsController : ControllerBase
                 revision = m.Revision,
             }).ToListAsync(ct);
 
+        // C4 — exclude chunks whose MODEL is deleted, not just chunks that are
+        // themselves flagged. Before the cascade above nothing ever set
+        // SceneNode.DeletedAt, so this filter matched everything and a deleted
+        // model kept streaming into the viewer.
+        var liveModelIds = models.Select(m => m.id).ToHashSet();
         var chunks = await _db.SceneNodes.AsNoTracking()
-            .Where(n => n.ProjectId == projectId && n.DeletedAt == null)
+            .Where(n => n.ProjectId == projectId && n.DeletedAt == null
+                     && liveModelIds.Contains(n.SourceModelId))   // C4 — filter in SQL, matching SceneNodesController
             .Select(n => new {
                 id = n.Id,
                 sourceModelId = n.SourceModelId,

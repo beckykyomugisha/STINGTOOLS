@@ -1801,6 +1801,11 @@ recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
     "database-backup", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     "15 2 * * *");
 // FLEX-13 — nightly 03:15 UTC purge of custom fields past the 30-day grace period.
+// C4 - purge soft-deleted models after the 30-day grace the entity documents.
+// Nightly, on the heavy queue: it deletes object-storage bytes, so it must not
+// compete with the API's default-queue workers.
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ModelPurgeJob>(
+    "model-purge", j => j.ExecuteAsync(CancellationToken.None), "30 3 * * *");
 recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
     "custom-fields-purge", "default", j => j.ExecuteAsync(CancellationToken.None),
     "15 3 * * *");
@@ -2124,6 +2129,8 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // box is what makes the world-box recompute idempotent — the previous
         // in-place version transformed an already-transformed box, so repeated
         // writes compounded.
+        // C4 - supersede link for forced re-publishes.
+        "ALTER TABLE \"ProjectModels\" ADD COLUMN IF NOT EXISTS \"SupersededByModelId\" uuid NULL",
         "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinX\" double precision NULL",
         "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinY\" double precision NULL",
         "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinZ\" double precision NULL",
