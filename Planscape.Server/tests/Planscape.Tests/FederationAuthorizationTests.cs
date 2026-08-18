@@ -544,7 +544,7 @@ public class FederationAuthorizationTests
 
     private static IfcController NewIfcController(
         World w, Guid actor, IIfcIngestService ingest, IIdentityResolverService identity)
-        => new(NewContext(w.Conn, w.Tenant), identity, ingest)
+        => new(NewContext(w.Conn, w.Tenant), identity, ingest, NullLogger<IfcController>.Instance)
         { ControllerContext = ContextFor(actor, w.Tenant) };
 
     private static IfcIngestRequest SomeIfcPayload() => new()

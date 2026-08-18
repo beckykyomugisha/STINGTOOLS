@@ -16,3 +16,7 @@ __all__ = [
     "ReconcileEngine", "ReconcileResult", "Resolution",
     "parse_utc", "tokens_equal", "TOKEN_KEYS",
 ]
+
+# C3 - deletion detection: remembers what a document last pushed so a full
+# export can be diffed into an explicit removal list.
+from .synced_ids import SyncedIdStore, diff_removals, should_send_removals  # noqa: E402,F401

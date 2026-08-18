@@ -224,6 +224,7 @@ class PlanscapeClient:
         host_document_guid: str | None = None,
         plugin_version: str = "stingbridge",
         user_name: str = "",
+        removed_global_ids: list[str] | None = None,
     ) -> dict:
         """POST /api/projects/{id}/ifc/data — the cross-host ingest path.
 
@@ -235,6 +236,15 @@ class PlanscapeClient:
         HostDocumentGuid) plus the ``TaggedElement`` projection, so ArchiCAD
         elements are visible to cross-host resolution and carry no fabricated
         Revit id.
+
+        ``removed_global_ids`` (C3) are elements this host document previously
+        pushed and no longer contains. They travel as an explicit list because
+        an ingest is an upsert: an element that vanishes from the source is
+        simply not mentioned, and "not mentioned" is indistinguishable from
+        "unchanged, partial push". Without this, a wall deleted in ArchiCAD
+        stayed on the server forever — visible in the viewer, answering clash
+        and compliance queries, counted in every metric. Absence cannot mean
+        deletion.
         """
         if not self._token:
             raise PlanscapeAuthError("Not logged in — call login() first")
@@ -249,6 +259,8 @@ class PlanscapeClient:
             "userName": user_name,
             "elements": [to_wire(e) for e in elements],
         }
+        if removed_global_ids:
+            payload["removedGlobalIds"] = list(removed_global_ids)
         resp = self._send(
             "post",
             f"{self.base_url}/api/projects/{self.project_id}/ifc/data",
