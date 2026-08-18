@@ -13,3 +13,19 @@ roof-sheet,No.,35000,Corrugated roofing sheet IT4 gauge 28 per sheet
 roof-tile,No.,3900,Roof tile (Max pan / clay) per tile
 paint-interior,Bkts,280000,Silk / vinyl matt interior paint 20L bucket
 paint-exterior,Bkts,200000,Weather-guard exterior paint 20L bucket
+# --- site tools (MATSCHED-9). Rates are the PATMAC reference schedule's own
+#     figures, Kampala mid-2026. Indicative: re-price before tender.
+wheelbarrow,No.,150000,Wheel barrow
+spade,No.,15000,Spade
+head-pan,No.,7000,Head pan
+jerrycan,No.,7000,Jerrycan 20L
+hoe,No.,10000,Hoe
+pick-axe,No.,20000,Pick axe
+hacksaw-frame,No.,20000,Hack saw frame
+hacksaw-blade,Bdle,40000,Hack saw blades (bundle)
+bow-saw-frame,No.,20000,Bow saw frame
+bow-saw-blade,No.,11000,Bow saw blade
+panga,No.,10000,Panga
+sledge-hammer,No.,100000,Sledge hammer
+string-rope,Rolls,10000,Strings and ropes
+water-tank,No.,75000,Water tank 200 litre

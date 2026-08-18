@@ -31,6 +31,10 @@ namespace StingTools.BOQ.MaterialSchedule
 
     internal static class MaterialScheduleBuilder
     {
+        /// <summary>Programme length for the tools model. 0 = not stated; the
+        /// command asks the user rather than the builder guessing.</summary>
+        public static int DurationDaysOverride;
+
         public static MaterialScheduleBuildResult Build(Document doc, MaterialScheduleOptions options)
         {
             var result = new MaterialScheduleBuildResult();
@@ -76,6 +80,7 @@ namespace StingTools.BOQ.MaterialSchedule
             msDoc.ProjectCode = doc.ProjectInformation?.Number ?? "";
 
             AppendManualRows(doc, msDoc, boq, lib.Stages, result);
+            AppendSiteTools(doc, msDoc, lib, inputs.Rates, result);
             Reconciler.Check(msDoc);
 
             result.Document = msDoc;
@@ -99,6 +104,96 @@ namespace StingTools.BOQ.MaterialSchedule
                         + $"{msDoc.Stages.Sum(s => s.Commodities.Count)} commodity row(s), "
                         + $"{msDoc.Reconciliation.Issues.Count} reconciliation issue(s).");
             return result;
+        }
+
+        /// <summary>
+        /// MATSCHED-9 — site tools, derived from the gang sizes the measured work
+        /// implies. Needs a programme duration: without one there is no
+        /// denominator, so nothing is produced and the reason is reported.
+        /// </summary>
+        private static void AppendSiteTools(Document doc, MaterialScheduleDocument msDoc,
+            StageLibrary lib, CommodityRateResolver rates, MaterialScheduleBuildResult result)
+        {
+            try
+            {
+                int days = DurationDaysOverride > 0
+                    ? DurationDaysOverride
+                    : SiteToolsGatherer.ReadDurationDays(doc);
+                if (days <= 0)
+                {
+                    result.Warnings.Add(
+                        "Site tools omitted: no programme duration. Set "
+                      + $"{SiteToolsGatherer.DurationParam} on Project Information, or enter it when "
+                      + "prompted. Gang sizes divide by the programme, so without it every tool "
+                      + "quantity would be invented.");
+                    return;
+                }
+
+                var toolLib = LoadTools(doc);
+                if (toolLib?.Rules == null || toolLib.Rules.Count == 0) return;
+
+                int storeys = SiteToolsGatherer.CountStoreys(doc);
+                var input = SiteToolsGatherer.FromDocument(msDoc, days, storeys);
+                var gangs = SiteToolsCalculator.DeriveGangs(input, toolLib.TradeRates);
+                var tools = SiteToolsCalculator.Quantify(gangs, toolLib.Rules, storeys);
+                if (tools.Count == 0) return;
+
+                var def = lib.Stages.FirstOrDefault(d =>
+                    string.Equals(d.StageId, "tools", StringComparison.OrdinalIgnoreCase));
+                var section = new StageSection
+                {
+                    StageId = "tools",
+                    Title = def?.Title ?? "TOOLS AND EQUIPMENT",
+                    Preamble = def?.Preamble ?? "Site establishment tools and small plant."
+                };
+
+                foreach (var t in tools)
+                {
+                    var rate = rates?.Resolve(t.ToolKey)
+                               ?? new CommodityRate { RateUGX = 0, Source = "unpriced" };
+                    section.Commodities.Add(new MaterialCommodity
+                    {
+                        CommodityKey = t.ToolKey,
+                        Description = t.Description,
+                        SupplierUnit = t.SupplierUnit,
+                        NetQuantity = t.Quantity,
+                        OrderQuantity = t.Quantity,
+                        RateUGX = rate.RateUGX,
+                        RateSource = rate.Source
+                    });
+                }
+
+                ManualRowPlacer.InsertByDefinitionOrder(msDoc.Stages, lib.Stages, section);
+                StageMapper.AssignLetters(msDoc.Stages);
+
+                result.Warnings.Add(
+                    $"Site tools estimated from a {days}-day programme and {storeys} storey(s): "
+                  + $"{gangs.Masons} mason(s), {gangs.Helpers} helper(s), {gangs.BarBenders} bar-bender(s), "
+                  + $"{gangs.Carpenters} carpenter(s). These are PRACTICE HEURISTICS, not a standard "
+                  + "— NRM2 prices tools in preliminaries. Review before issue.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MaterialScheduleBuilder.AppendSiteTools: {ex.Message}");
+                result.Warnings.Add($"Site tools could not be estimated: {ex.Message}");
+            }
+        }
+
+        private static SiteToolsLibrary LoadTools(Document doc)
+        {
+            var libr = ReadJson<SiteToolsLibrary>(StingToolsApp.FindDataFile("STING_SITE_TOOLS.json"))
+                       ?? new SiteToolsLibrary();
+            var over = ReadJson<SiteToolsLibrary>(StingPaths.MetaFile(doc, "_BIM_COORD", "site_tools.json"));
+            if (over != null)
+            {
+                if (over.TradeRates != null) libr.TradeRates = over.TradeRates;
+                foreach (var r in over.Rules ?? new List<ToolRule>())
+                {
+                    libr.Rules.RemoveAll(x => string.Equals(x.ToolKey, r.ToolKey, StringComparison.OrdinalIgnoreCase));
+                    libr.Rules.Add(r);
+                }
+            }
+            return libr;
         }
 
         /// <summary>
