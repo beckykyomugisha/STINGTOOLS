@@ -7,6 +7,8 @@ using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
+using Planscape.API.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -38,6 +40,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/ifc")]
 [Authorize]
+[ProjectAccess]   // cross-project read gate (404 for a project the caller cannot see)
 [EnableRateLimiting("mobile")]
 public class IfcController : ControllerBase
 {
@@ -63,6 +66,9 @@ public class IfcController : ControllerBase
         Guid projectId,
         [FromBody] IfcIngestRequest request)
     {
+        // Cross-project write gate: only a member of THIS project (or a tenant
+        // Admin/Owner) may ingest into it — mirrors IfcIngestController/tagsync.
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
         if (request is null) return BadRequest("missing body");
         if (request.Elements is null || request.Elements.Count == 0)
             return BadRequest("Elements is empty");
@@ -164,6 +170,9 @@ public class IfcController : ControllerBase
         [FromBody] IotBindingRequest request,
         CancellationToken ct = default)
     {
+        // Cross-project write gate: binding an IoT device mutates this project's
+        // cross-host identity table — members (or Admin/Owner) only.
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         if (request is null) return BadRequest("missing body");
         if (string.IsNullOrWhiteSpace(request.IfcGlobalId)) return BadRequest("ifcGlobalId is required");
         if (string.IsNullOrWhiteSpace(request.DeviceId)) return BadRequest("deviceId is required");

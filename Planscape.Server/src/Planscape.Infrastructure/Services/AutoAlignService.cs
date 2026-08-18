@@ -185,6 +185,39 @@ public sealed class AutoAlignService : IAutoAlignService
                   && t.TenantId       == tenantId,
                 ct);
 
+        // ── 6a. Never overwrite a manually-confirmed transform ────────────────
+        // A coordinator who has confirmed an alignment has made a judgement the
+        // survey data does not capture (a mis-stated IfcMapConversion, a model
+        // deliberately parked off-site, a base point agreed on site). The IFC
+        // ingest path has always respected that (IfcIngestController: "Only
+        // auto-update if not manually confirmed by a coordinator") — this path
+        // did not, so any auto-align run silently destroyed the confirmed
+        // alignment and the coordinator's only signal was the model jumping.
+        //
+        // Unlike the ingest path, which skips quietly because it is a side
+        // effect of an upload, this one is an explicit user action: report the
+        // refusal AND the transform that would have been applied, so the
+        // coordinator can compare it against the one they confirmed and decide
+        // deliberately (delete the transform, or PUT a new one).
+        if (existing is { IsConfirmed: true })
+        {
+            _logger.LogInformation(
+                "AutoAlign skipped for model {ModelId}: an existing transform is manually confirmed (confirmed by {AppliedBy} at {AppliedAt}).",
+                targetModelId, existing.AppliedBy ?? "unknown", existing.AppliedAt);
+
+            return new AutoAlignResult(
+                Success         : false,
+                TranslationX    : tx,
+                TranslationY    : ty,
+                TranslationZ    : tz,
+                RotationDeg     : rotDeg,
+                ScaleFactor     : scaleFactor,
+                ReferenceModelId: referenceModelId,
+                Message         : "This model's transform was manually confirmed by a coordinator and will not be "
+                                + "overwritten automatically. The transform auto-align computed is returned for "
+                                + "comparison; delete the existing transform or PUT a new one to change it.");
+        }
+
         if (existing == null)
         {
             existing = new ProjectModelTransform
