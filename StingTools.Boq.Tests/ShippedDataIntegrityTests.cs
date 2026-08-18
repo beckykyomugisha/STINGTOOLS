@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
@@ -101,9 +102,20 @@ namespace StingTools.Boq.Tests
             var rates = CommodityRateResolver.ParseCsv(
                 File.ReadAllLines(DataFile("STING_COMMODITY_RATES.csv")), out _);
 
+            // A rate is legitimate if SOMETHING can produce it. Site tools are
+            // priced but never unit-converted, so they are reachable through the
+            // tools library rather than the supplier-unit table. The invariant is
+            // "no unreachable rate", not "every rate is a converted commodity".
+            var tools = JsonConvert.DeserializeObject<SiteToolsLibrary>(
+                File.ReadAllText(DataFile("STING_SITE_TOOLS.json")));
+            var toolKeys = new HashSet<string>(tools.Rules.Select(r => r.ToolKey),
+                                               StringComparer.OrdinalIgnoreCase);
+
             foreach (var rate in rates)
-                Assert.True(table.ResolveByCommodityKey(rate.CommodityKey) != null,
-                    $"rate '{rate.CommodityKey}' has no supplier-unit rule — nothing can ever produce it");
+                Assert.True(table.ResolveByCommodityKey(rate.CommodityKey) != null
+                            || toolKeys.Contains(rate.CommodityKey),
+                    $"rate '{rate.CommodityKey}' is reachable by neither a supplier-unit "
+                    + "rule nor a tool rule — nothing can ever produce it");
         }
     }
 }

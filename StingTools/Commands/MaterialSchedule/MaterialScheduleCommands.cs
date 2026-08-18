@@ -72,6 +72,33 @@ namespace StingTools.Commands.MaterialSchedule
                     forceCompound = cr == TaskDialogResult.CommandLink1;
                 }
 
+                // MATSCHED-9 — the tools model divides by the programme, so a
+                // missing duration means no tools at all. Ask once rather than
+                // silently dropping a section the reference schedule opens with.
+                MaterialScheduleBuilder.DurationDaysOverride = 0;
+                if (SiteToolsGatherer.ReadDurationDays(doc) <= 0)
+                {
+                    var dd = new TaskDialog("Material Schedule — site tools")
+                    {
+                        MainInstruction = "How long is the programme?",
+                        MainContent =
+                            "Site tools are sized from the gangs the measured work implies, and gang "
+                          + "size divides by the programme length. Project Information carries no "
+                          + $"{SiteToolsGatherer.DurationParam}, so pick the nearest below or skip.  "
+                          + "These figures are contractor practice, not a measurement standard — "
+                          + "NRM2 prices tools in preliminaries.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel
+                    };
+                    dd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "6 months (180 days)");
+                    dd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "12 months (360 days)");
+                    dd.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Skip site tools",
+                        "The schedule is produced without a tools section.");
+                    var dr = dd.Show();
+                    if (dr == TaskDialogResult.Cancel) return Result.Cancelled;
+                    if (dr == TaskDialogResult.CommandLink1) MaterialScheduleBuilder.DurationDaysOverride = 180;
+                    else if (dr == TaskDialogResult.CommandLink2) MaterialScheduleBuilder.DurationDaysOverride = 360;
+                }
+
                 MaterialScheduleBuildResult built;
                 if (forceCompound)
                 {

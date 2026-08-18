@@ -46,6 +46,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityAggregator.cs" Link="MaterialSchedule\CommodityAggregator.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\Reconciler.cs" Link="MaterialSchedule\Reconciler.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ManualRowPlacer.cs" Link="MaterialSchedule\ManualRowPlacer.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\SiteToolsCalculator.cs" Link="MaterialSchedule\SiteToolsCalculator.cs" />
     <Compile Include="..\StingTools\Core\ExportRouteMerge.cs" Link="ExportRouteMerge.cs" />
   </ItemGroup>
 
@@ -70,6 +71,9 @@
     </None>
     <!-- MAT-SCHED — the shipped stage library; unique orders and single-routing
          kinds are what keep body and summary in step. -->
+    <None Include="..\StingTools\Data\STING_SITE_TOOLS.json" Link="Data\STING_SITE_TOOLS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\StingTools\Data\STING_MATERIAL_STAGES.json" Link="Data\STING_MATERIAL_STAGES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
