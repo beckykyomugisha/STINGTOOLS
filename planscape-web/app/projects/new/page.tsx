@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { createProject } from '@/lib/data';
+import { describeFailure } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,13 +15,13 @@ export default function NewProjectPage() {
   const [code, setCode] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ReturnType<typeof describeFailure> | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
-    setError(null);
+    setFailure(null);
     try {
       const p = await createProject({
         name: name.trim(),
@@ -29,7 +30,16 @@ export default function NewProjectPage() {
       });
       router.push(`/projects/${p.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project');
+      // #670 — a 402 is a PLAN limit, not a failure and not a refusal. Rendering
+      // `error` showed the owner the literal token `quota_exceeded`, which reads
+      // as an expired account. describeFailure surfaces the server's own
+      // sentence plus the way out.
+      setFailure(
+        describeFailure(err, {
+          forbidden: 'Only an Owner or Admin can create projects in this firm.',
+          fallback: 'Failed to create project',
+        }),
+      );
       setBusy(false);
     }
   }
@@ -43,7 +53,31 @@ export default function NewProjectPage() {
         <h1 className="text-xl font-semibold">New project</h1>
       </div>
 
-      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {failure && (
+        <p
+          className={
+            'mb-3 rounded px-3 py-2 text-sm ' +
+            (failure.tone === 'quota'
+              ? 'bg-warning-subtle text-warning'
+              : failure.tone === 'forbidden'
+                ? 'bg-warning-subtle text-warning'
+                : 'bg-danger-subtle text-danger')
+          }
+        >
+          {failure.tone === 'quota' && <span aria-hidden="true">📈 </span>}
+          {failure.tone === 'forbidden' && <span aria-hidden="true">🔒 </span>}
+          {failure.message}
+          {failure.actionHref && (
+            <>
+              {' '}
+              <a href={failure.actionHref} className="underline">
+                Upgrade your plan
+              </a>
+              .
+            </>
+          )}
+        </p>
+      )}
 
       <form onSubmit={submit} className="max-w-lg space-y-3 rounded-lg border border-border bg-surface p-4">
         <label className="block">

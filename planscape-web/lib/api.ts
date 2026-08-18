@@ -93,11 +93,50 @@ export function isForbidden(e: unknown): boolean {
 export function describeFailure(
   e: unknown,
   { forbidden, fallback }: { forbidden: string; fallback: string },
-): { message: string; tone: 'error' | 'forbidden' } {
+): { message: string; tone: 'error' | 'forbidden' | 'quota'; actionHref?: string } {
   if (e instanceof ApiError && e.status === 403) {
     return { message: e.serverMessage?.trim() || forbidden, tone: 'forbidden' };
   }
+  const quota = readQuota(e);
+  if (quota) return { message: quota.reason, tone: 'quota', actionHref: quota.upgradeUrl };
   return { message: e instanceof Error ? e.message : fallback, tone: 'error' };
+}
+
+/**
+ * A quota refusal is NOT a forbidden state, and giving it its own tone is the
+ * point rather than a detail. "You lack this capability" is resolved by asking
+ * someone; "your plan is full" is resolved by upgrading — different actions, so
+ * they must not look the same. That is the same rule #558 applied to separate
+ * *forbidden* from *error*.
+ *
+ * The server already sends everything needed:
+ * `{ error: 'quota_exceeded', axis, current, max, reason, upgrade_url }`. The
+ * useful sentence is `reason` ("Projects cap reached (5 of 5)"), and
+ * `upgrade_url` is the way out. #670 was filed because the new-project page
+ * rendered `error` — the machine code — and dropped both, so the owner met the
+ * bare string `quota_exceeded` in production and read it as an expired account.
+ *
+ * Keyed off the STATUS plus the discriminator, never off the message text: on a
+ * 402 with an empty body `message` is our own placeholder, which is exactly the
+ * string-sniffing trap #624 and #646 were filed for.
+ */
+function readQuota(e: unknown): { reason: string; upgradeUrl?: string } | null {
+  if (!(e instanceof ApiError) || e.status !== 402) return null;
+  const b = e.body;
+  if (!b || typeof b !== 'object') return null;
+  const r = b as Record<string, unknown>;
+  if (r.error !== 'quota_exceeded') return null;
+
+  // Fall back to the axis when the server sent no sentence, so the worst case is
+  // still "Authors limit reached" and never the literal token `quota_exceeded`.
+  const reason =
+    typeof r.reason === 'string' && r.reason.trim()
+      ? r.reason.trim()
+      : typeof r.axis === 'string' && r.axis.trim()
+        ? `${r.axis} limit reached for your plan.`
+        : 'Your plan limit has been reached.';
+  const upgradeUrl = typeof r.upgrade_url === 'string' && r.upgrade_url.trim() ? r.upgrade_url : undefined;
+  return { reason, upgradeUrl };
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
