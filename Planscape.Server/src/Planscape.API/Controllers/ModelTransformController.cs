@@ -72,6 +72,9 @@ public class ModelTransformController : ControllerBase
                 scaleFactor      = 1.0,
                 isAutoComputed   = false,
                 isConfirmed      = false,
+                appliedAutomatically = false,
+                confidence       = (string?)null,
+                source           = (string?)null,
                 appliedBy        = (string?)null,
                 appliedAt        = (DateTime?)null,
                 notes            = (string?)null,
@@ -89,6 +92,9 @@ public class ModelTransformController : ControllerBase
             scaleFactor      = xf.ScaleFactor,
             isAutoComputed   = xf.IsAutoComputed,
             isConfirmed      = xf.IsConfirmed,
+            appliedAutomatically = xf.AppliedAutomatically,
+            confidence       = xf.Confidence,
+            source           = xf.Source,
             appliedBy        = xf.AppliedBy,
             appliedAt        = xf.AppliedAt,
             notes            = xf.Notes,
@@ -153,6 +159,16 @@ public class ModelTransformController : ControllerBase
         xf.AppliedBy      = User.Identity?.Name;
         xf.AppliedAt      = DateTime.UtcNow;
 
+        // B1 — a hand-entered transform is never an "auto-applied" one, whatever
+        // the row held before. Clearing the flag here is what makes the
+        // precedence rule total: after a manual PUT the row is purely the
+        // coordinator's, and the automatic writers will not touch it again while
+        // IsConfirmed stands. A manual transform saved with IsConfirmed=false
+        // stays a draft and does not render — unchanged from previous behaviour.
+        xf.AppliedAutomatically = false;
+        xf.Confidence           = null;
+        xf.Source               = "manual";
+
         await _db.SaveChangesAsync(ct);
 
         // Re-compute SceneNode AABBs for this model
@@ -203,6 +219,9 @@ public class ModelTransformController : ControllerBase
             scaleFactor      = xf.ScaleFactor,
             isAutoComputed   = xf.IsAutoComputed,
             isConfirmed      = xf.IsConfirmed,
+            appliedAutomatically = xf.AppliedAutomatically,
+            confidence       = xf.Confidence,
+            source           = xf.Source,
             appliedBy        = xf.AppliedBy,
             appliedAt        = xf.AppliedAt,
             notes            = xf.Notes,

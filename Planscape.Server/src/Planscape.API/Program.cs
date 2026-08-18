@@ -2091,6 +2091,16 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // index (lookups keep working) until an operator runs
         // POST /api/admin/identity/reconcile/apply and restarts. Atomic (single DO
         // block) so a failed convert can never leave the table with no index.
+        // B1 — auto-applied transforms. ProjectModelTransform gains three
+        // columns so a survey-derived alignment can render WITHOUT a coordinator
+        // confirming it, while a confirmed one still outranks it. Same
+        // idempotent-patch rationale as the columns above (ADR 0001): fresh DBs
+        // get them from the EF model via CreateTables, pre-existing DBs get them
+        // here. NOT NULL DEFAULT false on the flag so existing rows keep today's
+        // behaviour exactly — nothing starts rendering because of a deploy.
+        "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"AppliedAutomatically\" boolean NOT NULL DEFAULT false",
+        "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Confidence\" text NULL",
+        "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Source\" text NULL",
         "DO $$ BEGIN " +
         "IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' " +
             "AND indexname='IX_TaggedElements_ProjectId_IfcGlobalId' AND indexdef ILIKE '%UNIQUE%') " +

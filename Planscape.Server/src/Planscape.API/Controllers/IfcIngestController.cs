@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Authorization;
 using Planscape.API.Services;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -191,10 +192,7 @@ public class IfcIngestController : ControllerBase
                 if (ar.HasMapConversion && (ar.SurveyEasting.HasValue || ar.SurveyNorthing.HasValue))
                 {
                     await UpsertProjectModelTransformAsync(
-                        projectId, effectiveModelId, tenantId,
-                        ar.SurveyEasting ?? 0, ar.SurveyNorthing ?? 0, ar.SurveyElevation ?? 0,
-                        ar.MapConversionRotationDeg ?? 0, result.UnitScaleToMm,
-                        ct);
+                        projectId, effectiveModelId, tenantId, ar, result.UnitScaleToMm, ct);
                 }
             }
             catch (Exception aex)
@@ -614,13 +612,23 @@ public class IfcIngestController : ControllerBase
     /// The translation is the negative of the survey origin so applying it brings
     /// georeferenced model coordinates back to the project origin.
     /// Called automatically during ingest when IfcMapConversion is present.
+    ///
+    /// <para>B1 — takes the whole <see cref="IfcAlignmentReport"/> rather than the
+    /// six numbers it needs, because grading the transform's confidence uses the
+    /// evidence AROUND the numbers (projected CRS, verdict) as much as the
+    /// numbers themselves, and splitting them across a long parameter list is how
+    /// the two auto-writers drift apart.</para>
     /// </summary>
     private async Task UpsertProjectModelTransformAsync(
         Guid projectId, Guid projectModelId, Guid tenantId,
-        double eastingM, double northingM, double elevationM,
-        double rotationDeg, double unitScaleToMm,
+        IfcAlignmentReport report, double unitScaleToMm,
         CancellationToken ct)
     {
+        double eastingM   = report.SurveyEasting ?? 0;
+        double northingM  = report.SurveyNorthing ?? 0;
+        double elevationM = report.SurveyElevation ?? 0;
+        double rotationDeg = report.MapConversionRotationDeg ?? 0;
+
         try
         {
             var existing = await _db.ProjectModelTransforms
@@ -639,37 +647,62 @@ public class IfcIngestController : ControllerBase
                 ? 1.0   // metres — no scale correction needed
                 : 1.0;  // mm — coordinates are already in mm, no scale correction
 
+            // B1 — grade the georeferencing so a trustworthy transform renders
+            // without a coordinator confirming it first. The project's own CRS is
+            // the second acceptable anchor when the file declares no
+            // IfcProjectedCRS of its own.
+            var projectCrs = await _db.ProjectCoordinateSystems.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ProjectId == projectId && x.TenantId == tenantId, ct);
+
+            var confidence = TransformConfidencePolicy.Evaluate(
+                hasMapConversion : report.HasMapConversion,
+                hasProjectedCrs  : report.HasProjectedCrs,
+                crsMatchesProject: TransformConfidencePolicy.CrsEquivalent(
+                                       report.CrsName, projectCrs?.CrsEpsgCode ?? projectCrs?.CrsName),
+                surveyEasting    : report.SurveyEasting,
+                surveyNorthing   : report.SurveyNorthing,
+                verdict          : report.Verdict);
+
+            bool autoApply = TransformConfidencePolicy.ShouldAutoApply(confidence);
+            string confidenceText = TransformConfidencePolicy.ToStorageString(confidence);
+
             if (existing != null)
             {
                 // Only auto-update if not manually confirmed by a coordinator.
                 if (!existing.IsConfirmed)
                 {
-                    existing.TranslationX   = txMm;
-                    existing.TranslationY   = tyMm;
-                    existing.TranslationZ   = tzMm;
-                    existing.RotationDeg    = rotationDeg;
-                    existing.ScaleFactor    = scaleFactor;
-                    existing.IsAutoComputed = true;
-                    existing.UpdatedAt      = DateTime.UtcNow;
-                    existing.Notes          = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u}";
+                    existing.TranslationX         = txMm;
+                    existing.TranslationY         = tyMm;
+                    existing.TranslationZ         = tzMm;
+                    existing.RotationDeg          = rotationDeg;
+                    existing.ScaleFactor          = scaleFactor;
+                    existing.IsAutoComputed       = true;
+                    existing.AppliedAutomatically = autoApply;
+                    existing.Confidence           = confidenceText;
+                    existing.Source               = "ifc-map-conversion";
+                    existing.UpdatedAt            = DateTime.UtcNow;
+                    existing.Notes                = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u} (confidence {confidenceText})";
                 }
             }
             else
             {
                 _db.ProjectModelTransforms.Add(new Planscape.Core.Entities.ProjectModelTransform
                 {
-                    TenantId       = tenantId,
-                    ProjectId      = projectId,
-                    ProjectModelId = projectModelId,
-                    TranslationX   = txMm,
-                    TranslationY   = tyMm,
-                    TranslationZ   = tzMm,
-                    RotationDeg    = rotationDeg,
-                    ScaleFactor    = scaleFactor,
-                    IsAutoComputed = true,
-                    IsConfirmed    = false,
-                    AppliedAt      = DateTime.UtcNow,
-                    Notes          = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u}",
+                    TenantId             = tenantId,
+                    ProjectId            = projectId,
+                    ProjectModelId       = projectModelId,
+                    TranslationX         = txMm,
+                    TranslationY         = tyMm,
+                    TranslationZ         = tzMm,
+                    RotationDeg          = rotationDeg,
+                    ScaleFactor          = scaleFactor,
+                    IsAutoComputed       = true,
+                    IsConfirmed          = false,
+                    AppliedAutomatically = autoApply,
+                    Confidence           = confidenceText,
+                    Source               = "ifc-map-conversion",
+                    AppliedAt            = DateTime.UtcNow,
+                    Notes                = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u} (confidence {confidenceText})",
                 });
             }
             await _db.SaveChangesAsync(ct);
@@ -684,6 +717,10 @@ public class IfcIngestController : ControllerBase
                         rotationDeg, scaleFactor,
                         source = "IfcMapConversion",
                         autoComputed = true,
+                        // B1 — a model that MOVES on its own must say so in the
+                        // audit trail, and say what it was trusting when it did.
+                        confidence = confidenceText,
+                        appliedAutomatically = autoApply,
                     }));
             }
             catch { /* audit failure is non-fatal */ }
