@@ -765,6 +765,11 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.ICbmPlanner,
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();
+// B2 — the ONE writer that turns a host's georeferencing (IFC IfcMapConversion,
+// Revit ProjectPosition) into a stored ProjectModelTransform. Shared so the IFC
+// and Revit paths cannot drift apart on translation convention or confidence.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IModelGeorefWriter,
+    Planscape.Infrastructure.Services.ModelGeorefWriter>();
 // Gap G — Full project-wide federated coordinate coherence scan.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IFederatedCoherenceJob,
     Planscape.Infrastructure.Services.FederatedCoherenceJob>();

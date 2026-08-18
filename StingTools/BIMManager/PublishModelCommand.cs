@@ -221,6 +221,36 @@ namespace StingTools.BIMManager
             int elementCount, double[] bounds,
             bool force, string successHeadline)
         {
+            // B2 — send the survey position alongside the geometry so the server
+            // can place this model in the federation without a coordinator
+            // typing a transform. Null when the document has no project location
+            // or its survey point was never moved off the origin, in which case
+            // the model publishes exactly as before (at the origin) rather than
+            // being placed by a guess.
+            var georef = RevitGeoref.Read(doc);
+            bool hasGeoref = georef != null && georef.HasSurveyOrigin;
+            if (hasGeoref)
+            {
+                StingLog.Info(
+                    $"Planscape: publishing with georef E={georef!.EastingM:F3}m N={georef.NorthingM:F3}m " +
+                    $"north={georef.TrueNorthDeg:F3}° crs={georef.CrsEpsg ?? "(undeclared)"}");
+                if (string.IsNullOrWhiteSpace(georef.CrsEpsg))
+                {
+                    // Worth saying out loud: without a CRS the server stores the
+                    // transform but will not apply it on its own, so the model
+                    // still needs one confirmation. Setting the parameter once
+                    // per project removes that step for every future publish.
+                    StingLog.Info(
+                        $"Planscape: no {RevitGeoref.CrsParamName} on Project Information — the transform will be " +
+                        "stored as a suggestion, not auto-applied. Set it once per project to match the project's " +
+                        "declared coordinate system on the server.");
+                }
+            }
+            else
+            {
+                StingLog.Info("Planscape: no survey origin in this document — model will publish un-placed at the project origin.");
+            }
+
             var result = Task.Run(() => client.UploadModelAsync(
                 projectId,
                 modelPath,
@@ -232,7 +262,14 @@ namespace StingTools.BIMManager
                 units: "mm",
                 elementCount: elementCount,
                 bounds: bounds,
-                force: force)).GetAwaiter().GetResult();
+                force: force,
+                georefEastingM:     hasGeoref ? georef!.EastingM     : (double?)null,
+                georefNorthingM:    hasGeoref ? georef!.NorthingM    : (double?)null,
+                georefElevationM:   hasGeoref ? georef!.ElevationM   : (double?)null,
+                georefTrueNorthDeg: hasGeoref ? georef!.TrueNorthDeg : (double?)null,
+                georefCrsEpsg:      hasGeoref ? georef!.CrsEpsg      : null,
+                georefLengthUnit:   hasGeoref ? "mm"                 : null,
+                georefExportMode:   hasGeoref ? georef!.ExportMode   : null)).GetAwaiter().GetResult();
 
             if (!result.ok)
             {

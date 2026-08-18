@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
@@ -33,6 +34,7 @@ public class ModelsController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IFileStorageService _storage;
     private readonly IConverterClient _converter;
+    private readonly IModelGeorefWriter _georef;
     private readonly ILogger<ModelsController> _logger;
 
     // Upload cap — glTF can be large but anything over this is almost certainly
@@ -43,11 +45,13 @@ public class ModelsController : ControllerBase
         PlanscapeDbContext db,
         IFileStorageService storage,
         IConverterClient converter,
+        IModelGeorefWriter georef,
         ILogger<ModelsController> logger)
     {
         _db = db;
         _storage = storage;
         _converter = converter;
+        _georef = georef;
         _logger = logger;
     }
 
@@ -280,6 +284,18 @@ public class ModelsController : ControllerBase
         _logger.LogInformation("Model uploaded — {ModelId} {Format} {Size} bytes for project {ProjectId}",
             row.Id, row.Format, row.FileSizeBytes, projectId);
 
+        // ── B2 — georeferencing → coordinate transform ──────────────────────
+        // Revit exports geometry about the project internal origin, so without
+        // this every Revit model landed at 0,0,0 no matter where the building
+        // is. The survey position arrives as metadata (never baked into the
+        // mesh — a 40 km easting in the vertex data destroys float precision),
+        // and the shared writer turns it into the same kind of transform the IFC
+        // ingest path produces, graded by the same confidence policy.
+        //
+        // Best-effort: a georef failure must not fail an otherwise-good upload.
+        // The geometry is already committed and the model is usable un-placed.
+        await TryWriteGeorefAsync(projectId, row.Id, project.TenantId, req, ct);
+
         // IFC with a configured converter — kick off async IFC→GLB conversion.
         // The IFC is retained as the source row; the sidecar publishes the
         // renderable GLB back through this same endpoint as a separate model.
@@ -298,6 +314,56 @@ public class ModelsController : ControllerBase
         }
 
         return CreatedAtAction(nameof(Get), new { projectId, modelId = row.Id }, ToMetaDto(row));
+    }
+
+    // ── B2 — georef helper ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Turn the optional georef block on an upload into a stored transform.
+    /// No-ops when the caller sent no survey position.
+    /// </summary>
+    private async Task TryWriteGeorefAsync(
+        Guid projectId, Guid modelId, Guid tenantId, UploadModelRequest req, CancellationToken ct)
+    {
+        if (req.GeorefEastingM is null || req.GeorefNorthingM is null) return;
+
+        // A SharedCoordinates export already sits in the survey frame, so
+        // applying the survey origin again would double-count it and put the
+        // model twice as far from where it belongs. Record the position but
+        // write no transform.
+        if (string.Equals(req.GeorefExportMode, "SharedCoordinates", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation(
+                "Model {ModelId} was exported in shared coordinates — geometry is already in the survey frame, no transform written.",
+                modelId);
+            return;
+        }
+
+        try
+        {
+            var georef = new ModelGeoref(
+                EastingM      : req.GeorefEastingM,
+                NorthingM     : req.GeorefNorthingM,
+                ElevationM    : req.GeorefElevationM,
+                TrueNorthDeg  : req.GeorefTrueNorthDeg ?? 0,
+                CrsCode       : req.GeorefCrsEpsg,
+                HasDeclaredCrs: !string.IsNullOrWhiteSpace(req.GeorefCrsEpsg),
+                LengthUnit    : req.GeorefLengthUnit,
+                SourceLabel   : "revit-georef");
+
+            // No IfcAlignmentValidator has run on a GLB, so there is no verdict
+            // to fail on. "PASS" here means "nothing contradicted it", and the
+            // CRS anchor still decides whether it grades HIGH.
+            await _georef.WriteAsync(projectId, modelId, tenantId, georef, verdict: "PASS", ct);
+        }
+        catch (Exception ex)
+        {
+            // The geometry is committed and the model is usable un-placed;
+            // losing the upload over a transform write would be worse.
+            _logger.LogWarning(ex,
+                "Georef transform write failed for model {ModelId} (non-fatal — model is published, un-placed).",
+                modelId);
+        }
     }
 
     // ── Downloads ──────────────────────────────────────────────────────
@@ -747,6 +813,51 @@ public class UploadModelRequest
     /// revision (e.g. updated element map only).
     /// </summary>
     public bool Force { get; set; }
+
+    // ── B2 — georeferencing (optional) ──────────────────────────────────────
+    //
+    // Revit exports its geometry about the PROJECT INTERNAL origin
+    // (ClashExportContext uses Transform.Identity), so a published GLB carries
+    // no survey position and every Revit model landed at 0,0,0 regardless of
+    // where the building actually is. The fix is to send the survey position as
+    // METADATA rather than baking it into the mesh — the same shape the IFC path
+    // already uses, and the reason a 40 km easting does not destroy float
+    // precision in the vertex data.
+    //
+    // All of these are optional. A model without them stays at the origin, which
+    // is the correct outcome for an ungeoreferenced model.
+
+    /// <summary>Survey easting of the model's internal origin, in METRES.</summary>
+    public double? GeorefEastingM { get; set; }
+
+    /// <summary>Survey northing of the model's internal origin, in METRES.</summary>
+    public double? GeorefNorthingM { get; set; }
+
+    /// <summary>Survey elevation of the model's internal origin, in METRES.</summary>
+    public double? GeorefElevationM { get; set; }
+
+    /// <summary>
+    /// Rotation from CRS grid north to the model's internal north, in degrees
+    /// (clockwise positive) — Revit's <c>ProjectPosition.Angle</c>.
+    /// </summary>
+    public double? GeorefTrueNorthDeg { get; set; }
+
+    /// <summary>
+    /// The model's declared CRS, e.g. "EPSG:27700". Supplying it is what lets
+    /// the transform grade HIGH and be applied without a coordinator confirming
+    /// it; without a CRS anchor the transform is stored as a suggestion only.
+    /// </summary>
+    public string? GeorefCrsEpsg { get; set; }
+
+    /// <summary>The model's own length unit — "mm" | "m" | "ft".</summary>
+    public string? GeorefLengthUnit { get; set; }
+
+    /// <summary>
+    /// "ProjectInternal" | "SharedCoordinates" — how the geometry was exported.
+    /// A SharedCoordinates export already sits in the survey frame, so applying
+    /// the survey origin again would double-count it.
+    /// </summary>
+    public string? GeorefExportMode { get; set; }
 }
 
 /// <summary>

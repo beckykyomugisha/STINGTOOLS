@@ -500,57 +500,49 @@ namespace StingTools.BIMManager
             {
                 var sidecarPath = Path.ChangeExtension(glbOutputPath, ".coord.json");
 
-                // Project Base Point and Survey Point
-                // TODO-VERIFY-API: FilteredElementCollector for BasePoint — confirmed available in Revit 2025 API.
-                var pbpCollector = new FilteredElementCollector(doc)
-                    .OfClass(typeof(BasePoint))
-                    .Cast<BasePoint>()
-                    .ToList();
+                // The BasePoint collector that used to stand here was dead: its
+                // two results were only ever consumed by commented-out
+                // GetCoordinateSystem() calls, so it walked the model to produce
+                // nothing. Removed rather than left as decoration.
 
-                var projectBasePoint = pbpCollector.FirstOrDefault(bp => !bp.IsShared);
-                var surveyPoint      = pbpCollector.FirstOrDefault(bp => bp.IsShared);
+                // B2 — read the survey position through the ONE helper the
+                // upload path also uses, so the sidecar and the georef block
+                // sent to the server can never disagree.
+                //
+                // The easting/northing here were previously always null, with a
+                // comment claiming "BasePoint.GetCoordinateSystem() is not
+                // available in Revit 2025 public API". That is true and beside
+                // the point: ProjectLocation.GetProjectPosition(XYZ.Zero) has
+                // always returned EastWest / NorthSouth / Elevation / Angle, and
+                // the old code already called it — it just read Angle and
+                // Elevation and dropped the two coordinates that place the
+                // building. So every Revit model published to Planscape landed
+                // at 0,0,0 no matter where the site actually was.
+                var georef = RevitGeoref.Read(doc);
 
-                // Project location (lat/lon/north angle)
-                ProjectLocation? projectLocation = null;
-                try { projectLocation = doc.ActiveProjectLocation; } catch { /* ignore */ }
+                double? latitude = georef?.LatitudeDeg;
+                double? longitude = georef?.LongitudeDeg;
+                double? elevationMm = georef == null ? (double?)null : georef.ElevationM * 1000.0;
+                double? northAngleDeg = georef?.TrueNorthDeg;
+                double? eastingMm = georef == null ? (double?)null : georef.EastingM * 1000.0;
+                double? northingMm = georef == null ? (double?)null : georef.NorthingM * 1000.0;
+                bool hasSurveyOrigin = georef != null && georef.HasSurveyOrigin;
 
-                double? latitude = null, longitude = null, elevation = null, northAngleDeg = null;
-                double? easting = null, northing = null;
-
-                if (projectLocation != null)
-                {
-                    try
-                    {
-                        var pos = projectLocation.GetProjectPosition(XYZ.Zero);
-                        // Latitude/Longitude moved to SiteLocation in Revit 2025+ API.
-                        var site = doc.SiteLocation;
-                        if (site != null)
-                        {
-                            latitude  = site.Latitude  * (180.0 / Math.PI);
-                            longitude = site.Longitude * (180.0 / Math.PI);
-                        }
-                        northAngleDeg = pos.Angle     * (180.0 / Math.PI);
-                        elevation     = pos.Elevation * FeetToMm;
-                    }
-                    catch { /* not all configurations carry site data */ }
-                }
-
-                // Survey point position via its coordinate system (feet → mm)
-                // NOTE: BasePoint.GetCoordinateSystem() is not available in Revit 2025 public API.
-                // Easting/northing will remain null until a supported API is identified.
-                // if (surveyPoint != null) { ... surveyPoint.GetCoordinateSystem() ... }
-
-                // Project base point coordinate system (feet → mm)
+                // Project base point coordinate system (feet → mm).
+                // BasePoint.GetCoordinateSystem() is not in the Revit 2025 public
+                // API, so this stays null. It is NOT needed for placement: the
+                // survey position above is what locates the model.
                 double? pbpX = null, pbpY = null, pbpZ = null;
-                // NOTE: BasePoint.GetCoordinateSystem() is not available in Revit 2025 public API.
-                // pbpX/pbpY/pbpZ will remain null until a supported API is identified.
 
                 var sidecar = new
                 {
                     schemaVersion = "1.0",
                     generatedBy = "StingTools.RevitGltfExporter",
                     generatedAt = DateTime.UtcNow.ToString("O"),
-                    exportMode = "ProjectInternal",  // TODO: detect shared coordinate export
+                    // The exporter writes geometry about the project internal
+                    // origin (ClashExportContext uses Transform.Identity), so
+                    // this is a statement of fact, not a default.
+                    exportMode = georef?.ExportMode ?? "ProjectInternal",
                     projectBasePoint = (pbpX.HasValue) ? new
                     {
                         x    = pbpX.Value,
@@ -558,19 +550,20 @@ namespace StingTools.BIMManager
                         z    = pbpZ!.Value,
                         unit = "mm",
                     } : (object?)null,
-                    surveyPoint = (easting.HasValue && northing.HasValue) ? new
+                    surveyPoint = hasSurveyOrigin ? new
                     {
-                        easting  = easting.Value,
-                        northing = northing.Value,
+                        easting  = eastingMm!.Value,
+                        northing = northingMm!.Value,
                         unit     = "mm",
                     } : (object?)null,
                     geolocation = latitude.HasValue ? new
                     {
                         latitude          = latitude.Value,
                         longitude         = longitude!.Value,
-                        elevation         = elevation!.Value,
-                        trueNorthAngleDeg = northAngleDeg!.Value,
+                        elevation         = elevationMm ?? 0.0,
+                        trueNorthAngleDeg = northAngleDeg ?? 0.0,
                     } : (object?)null,
+                    crsEpsg = georef?.CrsEpsg,
                     lengthUnit = "mm",
                 };
 

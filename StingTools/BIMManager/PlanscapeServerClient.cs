@@ -2140,7 +2140,20 @@ public sealed partial class PlanscapeServerClient : IDisposable
         string units = "mm",
         int? elementCount = null,
         double[]? bounds = null,
-        bool force = false)
+        bool force = false,
+        // B2 — optional georeferencing. Sent as METADATA beside the geometry,
+        // never baked into the mesh: a site at easting 432,000 m would put every
+        // vertex ~432 km from the origin, where 32-bit float loses millimetre
+        // precision and surfaces z-fight. The server turns this into a
+        // ProjectModelTransform, the same way it does for IFC IfcMapConversion.
+        // Omit it and the model publishes as before, un-placed at the origin.
+        double? georefEastingM = null,
+        double? georefNorthingM = null,
+        double? georefElevationM = null,
+        double? georefTrueNorthDeg = null,
+        string? georefCrsEpsg = null,
+        string? georefLengthUnit = null,
+        string? georefExportMode = null)
     {
         if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError, false);
         if (!File.Exists(modelFilePath))       return (false, Guid.Empty, $"Model file not found: {modelFilePath}", false);
@@ -2178,6 +2191,18 @@ public sealed partial class PlanscapeServerClient : IDisposable
             AddField("Units", units);
             if (force) AddField("Force", "true");
             if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
+            // B2 — georef block. Field names match UploadModelRequest exactly.
+            string Inv(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (georefEastingM.HasValue && georefNorthingM.HasValue)
+            {
+                AddField("GeorefEastingM",  Inv(georefEastingM.Value));
+                AddField("GeorefNorthingM", Inv(georefNorthingM.Value));
+                if (georefElevationM.HasValue)   AddField("GeorefElevationM",   Inv(georefElevationM.Value));
+                if (georefTrueNorthDeg.HasValue) AddField("GeorefTrueNorthDeg", Inv(georefTrueNorthDeg.Value));
+                AddField("GeorefCrsEpsg",     georefCrsEpsg);
+                AddField("GeorefLengthUnit",  georefLengthUnit);
+                AddField("GeorefExportMode",  georefExportMode);
+            }
             if (bounds != null && bounds.Length == 6)
             {
                 AddField("BoundsMinX", bounds[0].ToString(System.Globalization.CultureInfo.InvariantCulture));

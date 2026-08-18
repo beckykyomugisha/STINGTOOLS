@@ -910,3 +910,79 @@ manual PUT additionally clears `AppliedAutomatically` and stamps
 Schema follows ADR 0001 (EnsureCreated + idempotent patcher). `dotnet ef
 migrations add` remains unsafe here — the model snapshot is stale and a new
 migration would try to re-create existing tables.
+
+## 20. Track B / P2 — the Revit GLB path gains a georef source (CLOSED)
+
+### The defect
+
+Revit exports geometry about the **project internal origin**
+(`ClashExportContext` uses `Transform.Identity`), so a published GLB carried no
+survey position and **every Revit model landed at 0,0,0** regardless of where the
+building actually is. The coordinate sidecar that was supposed to carry the
+position (`RevitGltfExporter.ExportCoordinateSidecar`) had three separate faults:
+
+1. Its easting/northing were **always null**, behind a comment claiming
+   `BasePoint.GetCoordinateSystem()` is unavailable in the Revit 2025 API. That is
+   true and beside the point — `ProjectLocation.GetProjectPosition(XYZ.Zero)` has
+   always returned `EastWest` / `NorthSouth` / `Elevation` / `Angle`, the method
+   was **already being called**, and the code read `Angle` and `Elevation` while
+   dropping the two coordinates that place the building.
+   (`ProjectSetupCommand.cs` uses `EastWest`/`NorthSouth` a few files away.)
+2. `exportMode` was hardcoded `"ProjectInternal"` with a `TODO`.
+3. It was **never uploaded** — nothing read the file.
+
+### The fix
+
+The survey position travels as **metadata beside the geometry, never baked into
+the mesh**. That is not a shortcut: a site at easting 432,000 m would put every
+vertex ~432 km from the origin, where 32-bit float mesh coordinates lose
+millimetre precision and surfaces visibly z-fight. It is also exactly what the
+IFC path does with `IfcMapConversion`.
+
+- `RevitGeoref` (plugin) reads `ProjectPosition` once — used by BOTH the sidecar
+  and the upload, so the two cannot disagree.
+- `UploadModelRequest` gains an optional georef block (easting/northing/elevation
+  in metres, true north, CRS, length unit, export mode).
+- `ModelsController.Upload` writes the transform through a shared writer.
+
+**`ModelGeorefWriter` is now the ONE place** that turns a host's georeferencing
+into a stored transform, and `IfcIngestController` was collapsed onto it. Before
+this there was one copy for IFC and none for Revit; adding a second copy is how a
+building ends up in a different place depending on which pipeline last touched
+it — the most expensive class of bug in this system and the hardest to attribute.
+The writer was built around the IFC path's existing convention (`t = -origin`,
+metres → mm) deliberately, so introducing it changes no existing IFC behaviour.
+
+Two "do nothing" cases are as important as the placement:
+
+- **No survey origin → no transform row at all.** Not an identity transform, and
+  emphatically not a guess.
+- **`SharedCoordinates` export → no transform.** That geometry already sits in
+  the survey frame; applying the origin again would double-count it. The plugin
+  only produces `ProjectInternal` today, but the mode is reported as fact rather
+  than assumed, so a future shared-coordinates export cannot silently break.
+
+### The CRS caveat (honest limitation)
+
+Revit has **no native CRS concept**. Without a CRS anchor the transform grades
+LOW and is stored as a suggestion rather than applied, so a Revit model would
+still need one confirmation. The plugin therefore reads an optional
+`PRJ_CRS_EPSG_TXT` project parameter; set it once per project (to match the
+project's declared coordinate system on the server) and every future publish
+auto-places. This is a **project-level declaration, not a per-model transform
+entry**, so the Track B definition of done still holds — but it is a setup step
+and is logged explicitly by the plugin when absent.
+
+### Verification
+
+- **9 tests** on `ModelGeorefWriter`, including
+  `The_ifc_source_label_produces_the_same_numbers_as_the_revit_one` — two hosts
+  reporting the same survey origin must land in the same place, which is the
+  whole point of collapsing the two writers into one.
+- Revit plugin builds against the Revit 2025 API: **0 errors, 0 warnings**.
+- Server build 0 errors; full suite **700 passed / 0 failed / 11 skipped**.
+
+**NOT verified:** `RevitGeoref.Read` itself. It needs a live Revit `Document`, so
+no unit test can reach it — the numbers it produces are asserted only from the
+server side, against hand-written inputs. Reading a real document's survey point
+remains a Revit-session check.
