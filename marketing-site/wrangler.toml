@@ -91,8 +91,19 @@ SITE_URL = "https://planscape.build"
 #                 SELECT * FROM contacts WHERE notified_at IS NULL;
 #               Setting it requires a redeploy (see #674), like every var here.
 
-# D1 binding for the waitlist Function (functions/api/waitlist.ts)
+# D1 binding, shared by every Function (waitlist, auth, billing, licence, contact).
 # Created via: wrangler d1 create planscape-waitlist
+#
+# THIS IS THE PRODUCTION DATABASE. Which binding a deployment actually gets:
+#
+#   wrangler pages deploy --branch=main   -> [env.production] (same DB as here)
+#   wrangler pages deploy --branch=other  -> [env.preview]    (the SEPARATE DB)
+#   wrangler pages dev                    -> local SQLite, via the --d1 flag in
+#                                            the `dev` script; never touches either
+#
+# The three blocks used to name the same database_id, which is how a preview
+# deployment could write live licence data (#652). If you add a binding, add it to
+# all three and make preview's point somewhere disposable.
 [[d1_databases]]
 binding       = "WAITLIST_DB"
 database_name = "planscape-waitlist"
@@ -116,10 +127,26 @@ name = "planscape-marketing-preview"
 [env.preview.vars]
 SITE_URL = "https://preview.planscape.build"
 
+# SEPARATE DATABASE — do not point this back at planscape-waitlist (#652).
+#
+# All three environments used to share one D1, so a preview deployment read and
+# wrote LIVE licence data: it could issue real licences against a real tenant's
+# cap, revoke them, and stamp last_seen_at, none of it distinguishable afterwards
+# from legitimate activity because it landed in the rows the production path
+# writes. The blast radius grew when #621 made `licenses` the seat-entitlement
+# source of truth — the table stopped being a waitlist and started deciding what
+# customers can do and what they are billed for.
+#
+# Created 2026-08-17 and seeded from functions/api/schema.sql. It is empty by
+# design; preview exercises the real code against disposable data.
+#
+# After changing schema.sql, apply it here too or preview breaks in ways
+# production does not:
+#   npx wrangler d1 execute planscape-waitlist-preview --remote --file=./functions/api/schema.sql
 [[env.preview.d1_databases]]
 binding       = "WAITLIST_DB"
-database_name = "planscape-waitlist"
-database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
+database_name = "planscape-waitlist-preview"
+database_id   = "75855f69-2950-4378-b591-18e33af3e5bf"
 
 [[env.preview.r2_buckets]]
 binding     = "DOWNLOADS"
