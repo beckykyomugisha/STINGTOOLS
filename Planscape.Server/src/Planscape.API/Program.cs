@@ -2103,6 +2103,16 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // get them from the EF model via CreateTables, pre-existing DBs get them
         // here. NOT NULL DEFAULT false on the flag so existing rows keep today's
         // behaviour exactly — nothing starts rendering because of a deploy.
+        // P3 — correct the mesh unit on GLB derivatives produced by the IFC→GLB
+        // converter. Those rows copied the SOURCE IFC's unit (commonly "mm")
+        // onto the converted GLB, which glTF 2.0 defines as metres. That was
+        // harmless while nothing read ProjectModel.Units; now that it drives the
+        // viewer's mesh scaling, leaving it would shrink every previously
+        // converted model by 1000. Scoped to converter-produced rows by
+        // UploadedBy so no hand-uploaded model is touched, and a no-op once
+        // applied (and for rows the fixed job already writes as "m").
+        "UPDATE \"ProjectModels\" SET \"Units\" = 'm' " +
+            "WHERE \"UploadedBy\" = 'IFC→GLB converter' AND \"Format\" = 0 AND \"Units\" IS DISTINCT FROM 'm'",
         "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"AppliedAutomatically\" boolean NOT NULL DEFAULT false",
         "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Confidence\" text NULL",
         "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Source\" text NULL",

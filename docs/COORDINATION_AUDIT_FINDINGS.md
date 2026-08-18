@@ -986,3 +986,86 @@ and is logged explicitly by the plugin when absent.
 no unit test can reach it — the numbers it produces are asserted only from the
 server side, against hand-written inputs. Reading a real document's survey point
 remains a Revit-session check.
+
+## 21. Track B / P3 — unit reconciliation (CLOSED)
+
+### The defect
+
+**Two GLB writers in this repo disagreed by a factor of 1000.**
+`GlbSerializer` converted Revit feet → **metres** (`0.3048`);
+`RevitGltfExporter` converted feet → **millimetres** (`304.8`). Both upload to
+the same endpoint and are rendered by the same viewer, which assumes metres —
+glTF 2.0 says "The units for all linear distances are meters", and
+`applyModelTransform` divides the stored millimetre translation by 1000 precisely
+because the geometry it positions is metres.
+
+It hid because **a model viewed alone looks correct at any uniform scale**: the
+camera fits to whatever bounds it finds, so a building rendered 1000x too large
+looks perfectly normal. The mismatch only appears once a Revit model is federated
+with a model from another tool — and then it presents as "the models don't line
+up", which reads as a coordinate problem and sends you looking in the wrong
+place.
+
+Alongside it: `ProjectModel.Units` was written on every upload and **read by
+nothing**, and the ingest path computed a `scaleFactor` whose two branches both
+returned `1.0`, silently discarding any declared `IfcMapConversion` scale.
+
+### The fix
+
+**One convention: the metre.** `RevitGltfExporter` now writes metre vertices, and
+the published bounds moved with it — they describe the same geometry, so leaving
+them in millimetres would have swapped a visible 1000x render bug for an
+invisible bounds one.
+
+`ProjectModel.Units` now means something. It rides on the transform payload the
+viewer already fetches (`meshUnitScale`), and the viewer applies it
+**unconditionally** — a millimetre model needs rescaling whether or not it is
+georeferenced, so it must not sit behind the "is this transform live" gate.
+
+**Mesh unit and georeferencing scale are kept separate and multiplied**, not
+merged. They answer different questions: `ScaleFactor` is a survey correction
+declared by an `IfcMapConversion`; the mesh unit is how the vertex data happens
+to be written. Conflating them makes a unit fix look like a survey error. (A
+deliberate deviation from the runner's "compute scaleFactor from model unit";
+the rendered result is identical because both factors multiply.) The
+previously-dead `scaleFactor` is now real: `ModelGeoref` carries
+`MapConversionScale` and the writer inverts it, matching `AutoAlignService`.
+
+### Two traps found while doing it
+
+1. **The IFC-to-GLB job copied the SOURCE IFC's unit onto the GLB derivative.**
+   Harmless while nothing read the field; the moment `Units` drives scaling it
+   would have shrunk every converted model by 1000. The converter emits glTF, so
+   the derivative is metres by construction. Fixed, plus a **targeted idempotent
+   backfill** for rows already written that way, scoped by `UploadedBy` and
+   `Format = 0` so the source IFC row and every hand-published model are
+   untouched.
+2. **The server defaulted an undeclared unit to `"mm"`.** Any uploader that
+   omitted the field would have been scaled by 1/1000. The default is now the
+   canonical metre; an unknown unit also reads as metres, because the fail-safe
+   direction for "I do not recognise this" is *change nothing* — a wrong guess
+   silently rescales a whole building.
+
+### Verification
+
+- **16 unit tests** on `MeshUnits`, including that unknown/blank reads as metres
+  rather than as a guess.
+- **10 harness assertions** (`tests/web-harness/mesh-units.mjs`) against the
+  shipped sources: the viewer scales a mm mesh with no transform at all; mesh
+  unit and georef scale multiply rather than replace; an absent `meshUnitScale`
+  changes nothing; and a grep-level guard that the two Revit writers still agree
+  — crude, but it is the only thing that fails when someone edits one and not the
+  other.
+- **Backfill SQL proven on real Postgres 16** against a four-row fixture: the
+  mislabelled converted GLB is corrected, an already-correct one is untouched,
+  and both the source IFC row and a genuinely-millimetre hand-published Revit
+  model are left alone. Idempotent on a second pass.
+- Server build 0 errors; Revit plugin builds against the Revit 2025 API with
+  **0 errors, 0 warnings**; full suite **719 passed / 0 failed / 12 skipped**
+  (all skips pre-existing environment-gated Postgres/API tests).
+
+**Behaviour change worth stating plainly:** Revit models published BEFORE this
+change are stored with millimetre meshes and `Units = "mm"`. They now render at
+the correct size because the viewer honours that unit — but a model whose row
+predates the `Units` column entirely would read as metres. Re-publishing puts any
+model on the canonical footing.

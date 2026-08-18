@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -250,7 +251,13 @@ public class ModelsController : ControllerBase
             ThumbnailPath = thumbnailPath,
             ElementMapPath = mapPath,
             ElementCount = req.ElementCount,
-            Units = string.IsNullOrWhiteSpace(req.Units) ? "mm" : req.Units!,
+            // P3 — an undeclared mesh unit is METRES, not millimetres.
+            // glTF 2.0 defines metres for all linear distances and the viewer
+            // has always assumed it; defaulting to "mm" meant any uploader that
+            // omitted the field got its model scaled by 1/1000 the moment this
+            // field started driving rendering. Callers whose mesh really is
+            // millimetres must say so — the Revit plugin does.
+            Units = string.IsNullOrWhiteSpace(req.Units) ? MeshUnits.Canonical : req.Units!,
             Revision = req.Revision,
             BoundsMinX = req.BoundsMinX,
             BoundsMinY = req.BoundsMinY,

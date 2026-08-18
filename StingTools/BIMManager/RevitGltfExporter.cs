@@ -48,7 +48,22 @@ namespace StingTools.BIMManager
         // filesystem scan runs at most once per filename per export session.
         private static readonly Dictionary<string, string?> _texPathCache = new();
 
-        private const double FeetToMm = 304.8;
+        // P3 — GLB VERTICES ARE METRES.
+        //
+        // glTF 2.0: "The units for all linear distances are meters." This
+        // exporter used to write MILLIMETRES (feet x 304.8) while the other GLB
+        // writer in this repo, GlbSerializer, wrote metres (feet x 0.3048) — two
+        // writers, one upload endpoint, one viewer, a factor of 1000 apart.
+        //
+        // It hid for so long because a model viewed ALONE looks correct at any
+        // uniform scale: the camera fits to whatever bounds it finds. The
+        // mismatch only appears once a Revit model is federated with a model
+        // from another tool, and then it appears as "the models don't line up",
+        // which reads like a coordinate problem rather than a unit one.
+        //
+        // (The old FeetToMm constant is gone: the coordinate sidecar now derives
+        // its millimetre survey figures from RevitGeoref, which reads metres.)
+        private const double FeetToMetres = 0.3048;
 
         public RevitGltfExporter(Document doc, bool exportTextures = false)
         {
@@ -454,9 +469,9 @@ namespace StingTools.BIMManager
             for (int i = 0; i < pts.Count; i++)
             {
                 var w = t.OfPoint(pts[i]);
-                _current.Positions.Add((float)(w.X * FeetToMm));
-                _current.Positions.Add((float)(w.Y * FeetToMm));
-                _current.Positions.Add((float)(w.Z * FeetToMm));
+                _current.Positions.Add((float)(w.X * FeetToMetres));
+                _current.Positions.Add((float)(w.Y * FeetToMetres));
+                _current.Positions.Add((float)(w.Z * FeetToMetres));
 
                 XYZ n;
                 if (distrib == DistributionOfNormals.AtEachPoint && i < nrm.Count)

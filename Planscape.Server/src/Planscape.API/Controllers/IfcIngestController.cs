@@ -638,7 +638,11 @@ public class IfcIngestController : ControllerBase
                 CrsCode       : report.CrsName,
                 HasDeclaredCrs: report.HasProjectedCrs,
                 LengthUnit    : report.LengthUnit,
-                SourceLabel   : "ifc-map-conversion");
+                SourceLabel   : "ifc-map-conversion",
+                // Previously dropped: the ingest computed a scaleFactor whose
+                // two branches both returned 1.0, so a declared map-conversion
+                // scale never reached the transform.
+                MapConversionScale: report.MapConversionScale);
 
             var confidence = await _georefWriter.WriteAsync(
                 projectId, projectModelId, tenantId, georef, report.Verdict, ct);
