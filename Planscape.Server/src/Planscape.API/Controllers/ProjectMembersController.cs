@@ -475,9 +475,22 @@ public class ProjectMembersController : ControllerBase
             emailSent,
             inviteLink = inviteUrl,
             linkWarning,
+            // Three outcomes, not two. "Not sent" used to always read "Email is not
+            // configured on the server", which sends the reader to check env vars when
+            // the actual cause may be this ONE recipient — a rejected domain, a
+            // suppression, a bounce. Verified on the live server 2026-08-20: a rejected
+            // address produced exactly that message while Resend was configured and
+            // working. A message that names the wrong cause is worse than a vague one,
+            // because it is actionable in the wrong direction.
             note       = !user.IsActive
-                ? (emailSent ? "An invitation email has been sent with instructions to set a password."
-                             : "Email is not configured on the server — copy the invitation link to the invitee instead.")
+                ? emailSent
+                    ? "An invitation email has been sent with instructions to set a password."
+                    : _emailService.IsConfigured
+                        ? "The invitation was recorded, but the email could not be delivered to this "
+                          + "address — copy the invitation link to the invitee instead. Check the "
+                          + "address, then the server log for the provider's reason."
+                        : "Email is not configured on the server — copy the invitation link to the "
+                          + "invitee instead."
                 : null
         });
     }
