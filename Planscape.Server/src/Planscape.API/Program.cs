@@ -1673,6 +1673,66 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
             app.Logger.LogWarning(ex, "[ACL] Could not read the per-folder ACL population.");
         }
 
+        // Report ProjectMember.Iso19650Role values outside the served vocabulary.
+        //
+        // Until this change the column accepted any string at five write sites, and
+        // it drifted: a local database holds 'S' — a code from the DIFFERENT
+        // vocabulary AppUser.Iso19650Role declares — and 'EL', which is in no
+        // declared vocabulary at all. Neither could have come from a first-party UI.
+        //
+        // The writes are validated now, so the set can only shrink. Tolerating the
+        // rows that already exist is deliberate (see Iso19650Roles): an edit that
+        // omits the field must still succeed, or someone fixing an unrelated field
+        // is blocked by a code they did not write. But tolerating is not the same as
+        // forgetting, and forgetting is how these got here. This says them out loud,
+        // once per boot, so the cleanup issue has a live number rather than a
+        // one-off local measurement.
+        //
+        // Warning in BOTH cases, for the same reason as the ACL block above:
+        // render.yaml pins Serilog to Warning in production, so an Information line
+        // is invisible there — and an absent line cannot be told apart from a check
+        // that never ran.
+        //
+        // Codes and counts only. No user id, no email, no display name: which humans
+        // hold a stray is exactly the question the cleanup issue asks a person to
+        // answer, and it is not one a log line should leak.
+        try
+        {
+            var canonical = Planscape.Core.Entities.Iso19650Roles.All.ToArray();
+
+            var strays = await db.ProjectMembers
+                .IgnoreQueryFilters()
+                .Where(m => m.Iso19650Role != null
+                         && m.Iso19650Role != ""
+                         && !canonical.Contains(m.Iso19650Role))
+                .GroupBy(m => m.Iso19650Role)
+                .Select(g => new { Code = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            if (strays.Count > 0)
+                app.Logger.LogWarning(
+                    "[ISO-ROLE] {Rows} ProjectMember row(s) carry an Iso19650Role outside the served " +
+                    "vocabulary, across {Distinct} distinct value(s): {Codes}. New writes are now " +
+                    "rejected, so this set can only shrink — but these rows are NOT auto-corrected, " +
+                    "because guessing what they were meant to be would be inventing data. A human who " +
+                    "knows those members decides; see the ISO role cleanup issue.",
+                    strays.Sum(x => x.Count),
+                    strays.Count,
+                    string.Join(", ", strays.OrderByDescending(x => x.Count)
+                                            .Select(x => $"'{x.Code}' x{x.Count}")));
+            else
+                app.Logger.LogWarning(
+                    "[ISO-ROLE] Every ProjectMember.Iso19650Role is inside the served vocabulary " +
+                    "({Count} canonical codes). Nothing to clean up.",
+                    canonical.Length);
+        }
+        catch (Exception ex)
+        {
+            // Same contract as the ACL report: a diagnostic must never stop the boot,
+            // and must never fail quietly either.
+            app.Logger.LogWarning(ex, "[ISO-ROLE] Could not read the Iso19650Role population.");
+        }
+
         // #653 — report tenants still carrying a seat-derived account cap.
         //
         // Tenant.MaxUsers used to be written from BillingPlanLimits.TotalSeats
