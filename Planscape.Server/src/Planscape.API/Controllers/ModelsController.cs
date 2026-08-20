@@ -212,6 +212,17 @@ public class ModelsController : ControllerBase
             // view can ship a new ElementCount / Bounds / Revision label.
             if (req.ElementCount > 0) { existing.ElementCount = req.ElementCount; sidecarChanged = true; }
             if (!string.IsNullOrEmpty(req.Revision)) { existing.Revision = req.Revision; sidecarChanged = true; }
+            // Backfill the source-document link on rows published before this
+            // field existed: a republish from the authoring document is the one
+            // moment we can learn it for certain. Only ever fills a blank — it
+            // does not overwrite a link already recorded, because a different
+            // answer here would mean the same bytes came from two documents and
+            // the safe reading of that is "don't re-point the cascade".
+            if (string.IsNullOrWhiteSpace(existing.SourceDocGuid) && !string.IsNullOrWhiteSpace(req.SourceDocGuid))
+            {
+                existing.SourceDocGuid = req.SourceDocGuid!.Trim();
+                sidecarChanged = true;
+            }
             if (req.BoundsMaxX != 0 || req.BoundsMinX != 0)
             {
                 existing.BoundsMinX = req.BoundsMinX; existing.BoundsMinY = req.BoundsMinY; existing.BoundsMinZ = req.BoundsMinZ;
@@ -270,6 +281,10 @@ public class ModelsController : ControllerBase
             FileName = req.File.FileName,
             Format = format,
             StoragePath = geometryPath,
+            // The link to the geometry-delta pipeline — see ProjectModel
+            // .SourceDocGuid and the cascade in Delete. Blank is stored as null
+            // so "absent" has one representation, not two.
+            SourceDocGuid = string.IsNullOrWhiteSpace(req.SourceDocGuid) ? null : req.SourceDocGuid!.Trim(),
             ContentHash = hash,
             FileSizeBytes = req.File.Length,
             ThumbnailPath = thumbnailPath,
@@ -560,29 +575,66 @@ public class ModelsController : ControllerBase
         // so the geometry kept rendering after the model was "deleted". Retire the
         // chunks with it; ModelPurgeJob removes the bytes and the rows after the
         // 30-day grace the entity documents.
-        //
-        // FederatedElement rows are deliberately NOT retired here. They are keyed
-        // to their source by SourceDocGuid + a per-delta GlbStoragePath (written by
-        // FederatedModelController's delta path), whereas a ProjectModel is keyed by
-        // its uploaded-GLB StoragePath — there is no shared key between the two, so
-        // a model delete cannot identify "its" federated elements. The earlier
-        // attempt matched GlbStoragePath == ProjectModel.StoragePath, two keys from
-        // different pipelines that never coincide: it retired nothing while the log
-        // reported a count. Real federated-element retirement needs a proper linkage
-        // (a ProjectModelId or source-doc GUID on FederatedElement) — left as a
-        // follow-up rather than a join that silently matches nothing, or worse
-        // false-matches if the two key spaces ever collide.
         var chunks = await _db.SceneNodes
             .Where(n => n.SourceModelId == modelId && n.DeletedAt == null)
             .ToListAsync(ct);
         foreach (var chunk in chunks) chunk.DeletedAt = row.DeletedAt;
 
+        // Federated elements — the geometry the SAME authoring document pushed
+        // through the delta pipeline. They live in a different key space from
+        // ProjectModel (per-delta GlbStoragePath vs uploaded-GLB StoragePath),
+        // so the only honest join is the source-document GUID both pipelines now
+        // record. An earlier attempt joined the two storage paths, matched
+        // nothing, and reported a retirement count anyway.
+        //
+        // Three cases refuse the cascade rather than guess, because a wrong match
+        // retires geometry a live model still needs:
+        //   • no SourceDocGuid — published before the field existed, or by a
+        //     client that does not send it;
+        //   • the UnknownSourceDocGuid placeholder — a shared bucket, not an
+        //     identity: elements from different documents sit in it together;
+        //   • another LIVE model in this project claims the same document — a
+        //     second revision published with different bytes. Its elements are
+        //     the same elements, and it is not being deleted.
+        int retired = 0;
+        string? skipReason = null;
+        if (string.IsNullOrWhiteSpace(row.SourceDocGuid))
+            skipReason = "the model carries no source-document GUID";
+        else if (row.SourceDocGuid == FederatedElement.UnknownSourceDocGuid)
+            skipReason = $"the model's source-document GUID is the '{FederatedElement.UnknownSourceDocGuid}' placeholder, which is shared across documents";
+        else if (await _db.ProjectModels.AnyAsync(m =>
+                     m.Id != modelId && m.ProjectId == projectId &&
+                     m.SourceDocGuid == row.SourceDocGuid && m.DeletedAt == null, ct))
+            skipReason = "another live model in this project was published from the same document";
+
+        if (skipReason == null)
+        {
+            var elements = await _db.FederatedElements
+                .Where(e => e.TenantId == row.TenantId
+                         && e.ProjectId == projectId
+                         && e.SourceDocGuid == row.SourceDocGuid
+                         && !e.IsDeleted)
+                .ToListAsync(ct);
+            foreach (var el in elements)
+            {
+                el.IsDeleted = true;
+                el.UpdatedAt = DateTime.UtcNow;
+            }
+            retired = elements.Count;
+        }
+
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation(
-            "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) retired with it. " +
-            "Federated elements are not linked to a ProjectModel and are left untouched (see Delete remarks).",
-            modelId, chunks.Count);
+        if (skipReason == null)
+            _logger.LogInformation(
+                "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) and {Elements} federated element(s) " +
+                "retired with it (source document {DocGuid}).",
+                modelId, chunks.Count, retired, row.SourceDocGuid);
+        else
+            _logger.LogInformation(
+                "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) retired with it. " +
+                "Federated elements were left untouched because {Reason}.",
+                modelId, chunks.Count, skipReason);
 
         return NoContent();
     }
@@ -902,6 +954,15 @@ public class UploadModelRequest
     /// revision (e.g. updated element map only).
     /// </summary>
     public bool Force { get; set; }
+
+    /// <summary>
+    /// The authoring document this GLB came from — Revit's
+    /// <c>ProjectInformation.UniqueId</c>. Optional, but supplying it is what
+    /// lets a later model delete retire the federated elements the same
+    /// document pushed through the geometry-delta pipeline; without it the
+    /// cascade is skipped rather than guessed at.
+    /// </summary>
+    public string? SourceDocGuid { get; set; }
 
     // ── B2 — georeferencing (optional) ──────────────────────────────────────
     //
