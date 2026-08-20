@@ -569,7 +569,12 @@ canvas { display: block; touch-action: none; }
   position: absolute;
   top: 70px; right: 16px;
   display: flex; flex-direction: column; gap: 8px;
-  z-index: 1500;
+  /* Above .modal-backdrop (3000). Toasts are the ONLY feedback channel for
+     several in-modal failures — "Title required" among them — and at 1500
+     they rendered underneath the full-screen backdrop, so the user saw a
+     Create button that did nothing and said nothing. A toast that can be
+     covered by the surface that raised it is not a feedback channel. */
+  z-index: 3100;
   pointer-events: none;
 }
 .toast {
@@ -1051,6 +1056,21 @@ canvas { display: block; touch-action: none; }
 /* ── Issue modal — BCC-parity additions ─────────────────────── */
 .modal label .hint {
   font-weight: 400; opacity: 0.7; font-size: 10px; margin-left: 6px;
+}
+/* Required-field marker + inline validation. A toast alone is the wrong
+   channel for "this field is wrong" — it appears away from the field, it
+   expires, and it doesn't survive a scroll. */
+.modal label .req { color: var(--critical); margin-left: 2px; }
+.modal .field-error {
+  color: var(--critical);
+  font-size: 11px;
+  margin: -6px 0 8px;
+}
+.modal .field-error[hidden] { display: none; }
+.modal input.invalid,
+.modal textarea.invalid {
+  border-color: var(--critical);
+  outline: none;
 }
 .modal .row-2 {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
