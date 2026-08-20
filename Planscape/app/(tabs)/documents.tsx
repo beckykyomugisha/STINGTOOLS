@@ -21,7 +21,25 @@ import { useAuthStore } from '@/stores/authStore';
 
 const CDE_STATES: CDEStatus[] = ['WIP', 'SHARED', 'PUBLISHED', 'ARCHIVE'];
 
-const VALID_TRANSITIONS: Record<CDEStatus, CDEStatus[]> = {
+/**
+ * #633 — the CDE state machine is SERVED now (doc.allowedTransitions), not
+ * re-derived here. Two local tables used to hold a copy of it and both had
+ * drifted, in opposite directions:
+ *
+ *   VALID_TRANSITIONS said PUBLISHED -> [ARCHIVE]. The server also allows
+ *   SUPERSEDED and WITHDRAWN, and SHARED -> WITHDRAWN. Three legal moves the
+ *   user simply could not see.
+ *
+ *   TRANSITIONS_REQUIRING_APPROVAL said {WIP->SHARED, SHARED->PUBLISHED}. The
+ *   server says {SHARED->PUBLISHED, PUBLISHED->SUPERSEDED}. So WIP->SHARED was
+ *   sent through an approval workflow the server does not require, and
+ *   PUBLISHED->SUPERSEDED went straight at the transition endpoint, which
+ *   refuses it for want of an approval record.
+ *
+ * Both tables are gone. What remains is the FALLBACK for a server that does
+ * not send the field yet — see transitionsFor() below.
+ */
+const LEGACY_FALLBACK_TRANSITIONS: Record<string, CDEStatus[]> = {
   WIP: ['SHARED'],
   SHARED: ['WIP', 'PUBLISHED'],
   PUBLISHED: ['ARCHIVE'],
@@ -29,18 +47,42 @@ const VALID_TRANSITIONS: Record<CDEStatus, CDEStatus[]> = {
 };
 
 /**
- * Phase 96 — ISO 19650-2 §5.6 approval gates. Transitions into SHARED and
- * PUBLISHED state require Task Information Manager / BIM Coordinator sign-off
- * before the document is released on the CDE. Mobile routes these through
- * the approval workflow endpoints instead of directly calling transitionCDE.
+ * The document's transitions, and where they came from.
+ *
+ * THREE STATES, NOT TWO — the same contract capabilities.ts uses (#634).
+ *
+ *   served  the server computed them; trust them completely, including
+ *           requiresApproval, which decides WHICH ENDPOINT the button calls
+ *   legacy  the field is absent — an older server. UNKNOWN, not "none".
+ *           Offer the old local set so the screen still works, but treat
+ *           approval as unknown and let the server answer: it enforces the
+ *           gate either way and says so when it refuses.
+ *
+ * An empty served array is NOT the legacy case. It means the state machine was
+ * consulted and this is a terminal state (ARCHIVE, SUPERSEDED, WITHDRAWN) —
+ * a real answer, and the screen renders "no further transitions" for it.
  */
-const TRANSITIONS_REQUIRING_APPROVAL = new Set<string>([
-  'WIP->SHARED',
-  'SHARED->PUBLISHED',
-]);
-
-function requiresApproval(from: CDEStatus, to: CDEStatus): boolean {
-  return TRANSITIONS_REQUIRING_APPROVAL.has(`${from}->${to}`);
+function transitionsFor(doc: DocumentRecord):
+  { source: 'served' | 'legacy'; options: { to: string; requiresApproval: boolean | null }[] } {
+  if (Array.isArray(doc.allowedTransitions)) {
+    return {
+      source: 'served',
+      options: doc.allowedTransitions.map((t) => ({
+        to: t.to,
+        requiresApproval: t.requiresApproval,
+      })),
+    };
+  }
+  return {
+    source: 'legacy',
+    options: (LEGACY_FALLBACK_TRANSITIONS[doc.cdeStatus] ?? []).map((to) => ({
+      to,
+      // null = we do not know. NOT false — claiming "no approval needed" would
+      // send PUBLISHED->SUPERSEDED at the wrong endpoint, which is exactly the
+      // bug the old hardcoded table caused.
+      requiresApproval: null,
+    })),
+  };
 }
 
 const SUITABILITY_LABELS: Record<string, string> = {
@@ -148,7 +190,17 @@ export default function DocumentsScreen() {
    * (e.g. SHARED→WIP rework, PUBLISHED→ARCHIVE retention) call transitionCDE
    * directly because they don't release new information to the CDE.
    */
-  async function handleTransition(doc: DocumentRecord, newStatus: CDEStatus) {
+  /**
+   * `needsApproval` comes from the server (doc.allowedTransitions) — or is null
+   * when this server does not send the field yet. Null takes the DIRECT path
+   * deliberately: the server enforces the approval gate itself and refuses with
+   * a reason, so an unknown becomes a message the user can act on. Guessing
+   * "yes" instead would file an approval request for a transition that never
+   * needed one, and the user would wait for a decision nobody was asked to make.
+   */
+  async function handleTransition(
+    doc: DocumentRecord, newStatus: CDEStatus, needsApproval: boolean | null,
+  ) {
     if (!activeProject) return;
     setTransitioning(true);
 
@@ -160,7 +212,7 @@ export default function DocumentsScreen() {
     // pending, and the user was told to wait for an approval that would never
     // arrive. Keep the attempts — and the messages — apart.
     try {
-      if (requiresApproval(doc.cdeStatus, newStatus)) {
+      if (needsApproval === true) {
         // Fire the approval request — does NOT actually move the CDE state;
         // the approver's decideDocumentApproval call does that server-side.
         try {
@@ -434,11 +486,11 @@ function DocumentDetailModal({
   doc: DocumentRecord;
   projectId?: string;
   transitioning: boolean;
-  onTransition: (doc: DocumentRecord, status: CDEStatus) => void;
+  onTransition: (doc: DocumentRecord, status: CDEStatus, needsApproval: boolean | null) => void;
   onClose: () => void;
 }) {
   const cdeColor = getCDEColor(doc.cdeStatus);
-  const validNext = VALID_TRANSITIONS[doc.cdeStatus] ?? [];
+  const { source: transitionSource, options: nextOptions } = transitionsFor(doc);
   const suitLabel = doc.suitabilityCode ? SUITABILITY_LABELS[doc.suitabilityCode] : null;
 
   return (
@@ -474,18 +526,22 @@ function DocumentDetailModal({
           </View>
 
           {/* CDE State Machine — Transition Buttons */}
-          {validNext.length > 0 && (
+          {nextOptions.length > 0 && (
             <View style={styles.transitionSection}>
               <Text style={styles.transitionTitle}>CDE Transition</Text>
               <View style={styles.transitionRow}>
-                {validNext.map((next) => {
+                {nextOptions.map((opt) => {
+                  const next = opt.to as CDEStatus;
                   const nextColor = getCDEColor(next);
-                  const gated = requiresApproval(doc.cdeStatus, next);
+                  // true -> approval route. false -> direct. null -> unknown
+                  // (legacy server): label it plainly rather than asserting
+                  // either, and let the server's own refusal decide.
+                  const gated = opt.requiresApproval === true;
                   return (
                     <TouchableOpacity
                       key={next}
                       style={[styles.transitionBtn, { backgroundColor: nextColor }]}
-                      onPress={() => onTransition(doc, next)}
+                      onPress={() => onTransition(doc, next, opt.requiresApproval)}
                       disabled={transitioning}
                     >
                       {transitioning ? (
@@ -500,12 +556,23 @@ function DocumentDetailModal({
                 })}
               </View>
               <Text style={styles.transitionHint}>
-                {doc.cdeStatus} {'\u2192'} {validNext.join(' / ')}
+                {doc.cdeStatus} {'\u2192'} {nextOptions.map((o) => o.to).join(' / ')}
               </Text>
+              {transitionSource === 'legacy' && (
+                // Say that this list is the app's older built-in guess, not the
+                // server's answer. Without it the screen looks equally
+                // authoritative either way, and missing transitions read as
+                // rules rather than as a gap.
+                <Text style={styles.transitionHint}>
+                  This server does not publish its CDE state machine — showing
+                  this app&apos;s built-in list. Some transitions may be missing,
+                  and the server decides whether approval is required.
+                </Text>
+              )}
             </View>
           )}
 
-          {validNext.length === 0 && (
+          {nextOptions.length === 0 && (
             <View style={styles.transitionSection}>
               <Text style={styles.transitionHint}>This document is in its final CDE state.</Text>
             </View>
