@@ -329,8 +329,14 @@ public class ProjectMembersController : ControllerBase
             // User doesn't exist in this org — create a pending account
             var tenant = await _db.Tenants.FindAsync(tenantId);
             var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-            if (tenant != null && userCount >= tenant.MaxUsers)
-                return BadRequest($"User limit ({tenant.MaxUsers}) reached. Upgrade your plan to add more users.");
+            // Via AccountCeilingPolicy, not a raw >= (#616, #653). This is an
+            // anti-abuse ceiling, not a plan cap — viewers and coordinators are free
+            // — so the message no longer tells the customer to upgrade, which would
+            // be selling them something that does not raise this number.
+            if (!Planscape.Core.AccountCeilingPolicy.Allows(userCount, tenant))
+                return BadRequest(
+                    $"Account limit ({Planscape.Core.AccountCeilingPolicy.Label(tenant!.MaxUsers)}) " +
+                    "reached for this organisation. Contact support if you need it raised.");
 
             user = new AppUser
             {
