@@ -29,6 +29,13 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 | LIC-5 | **Merging licensing changes ships nothing** | Tracked as #651. `marketing-site` has no git-connected Pages build, so `/licences` and every Function change reach production only when a human runs `npm run deploy`. Compounded by the deploy-time binding behaviour corrected in #674: a secret that `wrangler pages secret list` shows is stored, not bound. |
 | LIC-6 | **Preview and production share one D1** | Tracked as #652 (#644 closed as its duplicate). A preview deployment can issue, revoke and stamp rows in the production `licenses` table — now the billing artefact, since #626 made D1 the sole owner of seat entitlement. |
 
+## Planscape hosting — after the connect pass (2026-08-20)
+
+| ID | Item | Detail |
+|---|---|---|
+| HOST-1 | **`api.planscape.build` does not resolve** | Tracked as #705. The plugin's baked default now points at `planscape-api-free.onrender.com` because that is the host that answers; `PlanscapeServerClient.IntendedProductionServerUrl` is the one place to change when the custom domain is attached. Note the service is `planscape-api-free` — `planscape-api`, the name in `render.yaml`, 404s. |
+| HOST-2 | **The API instance sleeps, and waking it takes minutes** | Measured 2026-08-20 after ~2h idle: first request no answer within **180s**, next **66.6s**. The plugin now absorbs this with a pre-login wake probe and says so in the error, but that is mitigation. An always-on plan is the fix, and it pairs naturally with HOST-1 since both are one dashboard visit. Until then, the first Connect of the day is slow and may need a second press. |
+
 ## Entitlement plumbing — after the project-ceiling pass (2026-08-20)
 
 The project cap now resolves in one place (`ProjectCeilingPolicy`): D1's tier grants where

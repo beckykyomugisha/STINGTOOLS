@@ -2,6 +2,43 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 239 — Connect could not survive a cold start)
+
+Phase 237 pointed the plugin at a host that answers. The first real sign-in still failed:
+
+> Login failed: request to https://planscape-api-free.onrender.com timed out before the
+> server responded.
+
+**The server was asleep, not broken.** Free-tier instances idle out. Measured on the live
+host 2026-08-20, roughly two hours after the last traffic: the first request **did not
+answer within 180s at all**, and the next took **66.6s**. The plugin's `HttpClient` carried
+a flat **60s** ceiling, so login could not survive either.
+
+Two things were wrong, and the second is the one that cost time.
+
+**The ceiling was below the measured warm-ish response.** 60s → **120s**. A timeout bounds
+how long we are *willing* to wait, not how long we *do* — a warm call still returns in well
+under a second — so this costs nobody anything and stops failing a request the server is
+answering normally.
+
+**The cold case is not a per-request problem.** Three minutes is not a sane ceiling for
+every sync call, so `WakeServerAsync` now absorbs it *before* login, on a cheap anonymous
+`/health/live` with a 240s budget. `/health/live` and not `/health` — the latter is the
+authenticated diagnostic and answers 403 anonymously, which would read as a dead server
+(same reasoning as `PlanscapeServerTargets.ProbeAsync`). It never fails the caller: a 404
+means an older server, and if it times out, login is about to give a better error anyway.
+A wake taking 5s or more is logged, because that is the explanation for a slow Connect that
+would otherwise look like a hang.
+
+**The message named the wrong cause.** *"Timed out before the server responded"* is true and
+useless — it reads as "the server is broken", so the natural next move is to re-check the
+password, which cannot possibly help. It now says the server may be waking, that the first
+request after a quiet period can take a couple of minutes on the free tier, and that
+pressing Connect again usually succeeds. Same failure mode as Phase 238's invite note: a
+message specific enough to act on, pointing the wrong way.
+
+The durable fix is not in the plugin — it is an always-on instance. Logged in
+[`ROADMAP.md`](ROADMAP.md) against #705, which already wants the custom domain attached.
 #### Completed (Phase 238 — the invite note named the wrong cause)
 
 Follow-on to Phase 237, found by verifying that fix against the live server rather than
