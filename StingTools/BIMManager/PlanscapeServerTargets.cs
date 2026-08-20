@@ -102,6 +102,17 @@ public static class PlanscapeServerTargets
         };
         yield return new ServerTarget
         {
+            // Offered so the custom domain can be selected the moment it is attached
+            // (#705). It does NOT resolve today, and ProbeAsync refuses a target it
+            // cannot reach — which is the point: choosing it before DNS exists fails
+            // at the picker, where the reason is visible, rather than later as a
+            // connect error with no explanation.
+            Label = "Production (custom domain — pending DNS)",
+            Url = PlanscapeServerClient.IntendedProductionServerUrl,
+            IsBuiltIn = true,
+        };
+        yield return new ServerTarget
+        {
             // Matches the docker-compose port mapping (5000:8080) in
             // Planscape.Server/docker/docker-compose.yml.
             Label = "Local (docker)",
