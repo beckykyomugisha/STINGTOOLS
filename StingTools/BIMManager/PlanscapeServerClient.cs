@@ -187,6 +187,17 @@ public sealed partial class PlanscapeServerClient : IDisposable
             _serverUrl = NormalizeServerUrl(serverUrl);
             EnsureHttpClient(_serverUrl);
 
+            // Absorb a cold start HERE, on a cheap anonymous request, rather than
+            // letting the credentialed login pay it and fail.
+            //
+            // Free-tier hosts idle out and take a long time on the first request
+            // back. Measured on the live host 2026-08-20: the first hit did not
+            // answer within 180s at all; the next took 66.6s. Login carried a 60s
+            // ceiling, so it reported "timed out before the server responded" — true,
+            // and useless: it reads as "the server is broken" when the server is
+            // merely asleep, and re-entering the password does not help.
+            await WakeServerAsync(_serverUrl).ConfigureAwait(false);
+
             // ConfigureAwait(false) prevents the continuation from being
             // posted back to a captured SynchronizationContext (e.g. the
             // WPF dispatcher when this is called via .GetResult() from
@@ -1819,6 +1830,49 @@ public sealed partial class PlanscapeServerClient : IDisposable
     //  Private helpers
     // ────────────────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Give a sleeping server time to wake, on an anonymous request, before anything
+    /// that matters is attempted.
+    ///
+    /// <para><b>The long ceiling costs nothing when the server is awake.</b> A timeout
+    /// bounds how long we are willing to wait, not how long we do wait — a warm
+    /// <c>/health/live</c> answers in well under a second. So this is not "make login
+    /// slow for everyone"; it is "stop failing the one user whose call arrives first
+    /// after an idle period".</para>
+    ///
+    /// <para><c>/health/live</c> and not <c>/health</c>: the latter is the
+    /// authenticated full diagnostic and answers 403 to an anonymous caller, which
+    /// would read as a dead server. Same reasoning as
+    /// <c>PlanscapeServerTargets.ProbeAsync</c>.</para>
+    ///
+    /// <para>Never fails the caller. A 404 means an older server without the endpoint,
+    /// and a timeout here means login is likely to fail too — but login gives the far
+    /// better error, so let it be the one to speak.</para>
+    /// </summary>
+    private static async Task WakeServerAsync(string baseUrl)
+    {
+        try
+        {
+            using var probe = new HttpClient { Timeout = TimeSpan.FromSeconds(240) };
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var resp = await probe.GetAsync(baseUrl.TrimEnd('/') + "/health/live")
+                                  .ConfigureAwait(false);
+            sw.Stop();
+
+            // Worth a line at 5s+ — that is the signature of a cold start, and it is
+            // the explanation for a slow "Connect" that would otherwise look like a
+            // hang. Below that it is noise.
+            if (sw.Elapsed.TotalSeconds >= 5)
+                StingLog.Info($"Planscape: server took {sw.Elapsed.TotalSeconds:F1}s to respond " +
+                              $"(HTTP {(int)resp.StatusCode}) — it had most likely idled out and was waking up.");
+        }
+        catch (Exception ex)
+        {
+            StingLog.Warn($"Planscape: pre-login wake probe of {baseUrl} did not succeed ({ex.Message}). " +
+                          "Continuing to login, which reports the real error.");
+        }
+    }
+
     private HttpClient EnsureHttpClient(string baseUrl)
     {
         lock (_httpSem)
@@ -1828,7 +1882,16 @@ public sealed partial class PlanscapeServerClient : IDisposable
             _http = new HttpClient
             {
                 BaseAddress = new Uri(baseUrl),
-                Timeout     = TimeSpan.FromSeconds(60)
+                // 120s, not 60. Measured against the live free-tier host on
+                // 2026-08-20: a request arriving after the instance had idled took
+                // 66.6s to answer — over the old ceiling, so it failed as a timeout
+                // while the server was working normally. A ceiling is not a wait: a
+                // warm call still returns in well under a second.
+                //
+                // The COLD case is handled separately, by WakeServerAsync before
+                // login, because it can exceed three minutes and no sane per-request
+                // ceiling should cover that.
+                Timeout     = TimeSpan.FromSeconds(120)
             };
             _http.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
