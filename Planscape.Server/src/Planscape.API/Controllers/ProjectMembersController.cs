@@ -374,10 +374,16 @@ public class ProjectMembersController : ControllerBase
             // Send invite email with the one-click deep link (token + email +
             // project). baseUrl uses Planscape:PublicBaseUrl when set, so the
             // link a remote guest receives is reachable — never internal localhost.
-            await _emailService.SendInviteEmailAsync(
-                user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, baseUrl, rawInviteToken, projectId);
-            emailDispatched = _emailService.IsConfigured;
+            // Through EmailDispatch: the rows above are ALREADY COMMITTED, and the
+            // ProjectMember row is added further down, so letting the provider throw
+            // here half-creates the invitation and then reports failure. Measured
+            // against production 2026-08-20: 500, empty body, because Resend answered
+            // 422 for the recipient domain.
+            emailDispatched = await Planscape.Infrastructure.Services.EmailDispatch.TrySendAsync(
+                _emailService, _logger, "invite", user.Email,
+                () => _emailService.SendInviteEmailAsync(
+                    user.Email, user.DisplayName, GetCurrentUserName(),
+                    project.Name, baseUrl, rawInviteToken, projectId));
         }
         else if (!user.IsActive)
         {
@@ -390,10 +396,11 @@ public class ProjectMembersController : ControllerBase
             rawInviteToken = MintInviteToken(user);
             await _db.SaveChangesAsync();
 
-            await _emailService.SendInviteEmailAsync(
-                user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, baseUrl, rawInviteToken, projectId);
-            emailDispatched = _emailService.IsConfigured;
+            emailDispatched = await Planscape.Infrastructure.Services.EmailDispatch.TrySendAsync(
+                _emailService, _logger, "invite (reissued)", user.Email,
+                () => _emailService.SendInviteEmailAsync(
+                    user.Email, user.DisplayName, GetCurrentUserName(),
+                    project.Name, baseUrl, rawInviteToken, projectId));
             _logger.LogInformation("[invite] reissued token for {Email} on project {ProjectId}", user.Email, projectId);
         }
 
@@ -442,8 +449,12 @@ public class ProjectMembersController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        // Item 8 — report whether mail ACTUALLY went out (not merely whether SMTP
-        // is configured) so the plugin shows "emailed" vs "copy the link" honestly.
+        // Report whether mail ACTUALLY went out (not merely whether a provider is
+        // configured) so the plugin shows "emailed" vs "copy the link" honestly. This
+        // comment described the intent long before the code could deliver it:
+        // emailDispatched was assigned `_emailService.IsConfigured`, which says a
+        // provider EXISTS, not that it accepted the message — and the only path where
+        // those differ threw before reaching here.
         // Deep link — return the one-click accept URL so the plugin can show + log
         // it and copy it as the fallback when mail wasn't sent.
         bool emailSent = emailDispatched;

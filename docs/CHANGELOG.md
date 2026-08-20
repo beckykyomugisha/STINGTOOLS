@@ -2,6 +2,76 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 237 — connect, invite, sync: three blockers between the plugin and the live server)
+
+Started from a plain request — *"I want to be able to log in, invite a member, and that
+member should see my updates as I sync"* — with the BCC showing **Not connected** against
+`http://127.0.0.1:56519`.
+
+**The chain itself works. It was verified, not assumed.** Against the live API on
+2026-08-20: register a throwaway tenant → create a project → invite → invitee sets a
+password from the emailed token → invitee logs in → owner `POST /api/tagsync/sync`
+(2 created, 100 %, GREEN) → **the invitee reads both elements back**, stamped
+`syncedBy: "Verify Owner"`. Every hop ran on real components; nothing stood in for
+anything.
+
+Three defects stood between that and the user.
+
+**1. The plugin could not reach any live server — the baked default has no DNS.**
+`BakedDefaultServerUrl` was `https://api.planscape.build`, which fails at *connect* — no
+HTTP status at all, because the custom domain has never been attached to a Render service
+(#705). Meanwhile `planscape-api-free.onrender.com/health/live` answers 200. So every
+out-of-the-box install pointed at an address with no DNS record and every "Connect"
+failed. The default is now the hostname that actually serves, with
+`IntendedProductionServerUrl` kept as a named constant and offered as a built-in target
+labelled *pending DNS* — `ProbeAsync` refuses it, which is the point: it fails at the
+picker where the reason is visible. **Swap back when #705 is done.**
+
+`FormatWebAppUrl` needed a matching case. Its rule is `api.<domain>` → `app.<domain>`;
+the Render host matches neither, so "Open Planscape" would have fallen to the
+same-origin `<base>/app/` branch — which **answers 200**, so the mistake would not have
+looked like one. `app.planscape.build` is attached and serving (verified), so only the
+API half needed the workaround.
+
+**2. An email failure took down the whole operation.** Providers throw on hard failure by
+contract; controllers called them bare. `POST /api/projects/{id}/members/invite` answered
+**500 with an empty body** when Resend returned 422 for the recipient — *after* the
+invitee's `AppUser` row and invite token were committed and *before* the `ProjectMember`
+row was added. Half-invited, reported as failed. The endpoint already promised the right
+behaviour — `emailSent: false` plus a copyable link, which the plugin already handles —
+and simply could not reach it.
+
+The same throw defeated `ForgotPassword`'s only security property. That endpoint returns
+an identical 200 for every address *"to prevent email enumeration"*, but an unknown
+address returns before sending (200) while a real one reached the send (500). **A working
+enumeration oracle, demonstrated against production.**
+
+New `EmailDispatch.TrySendAsync` sends, logs the reason, and returns a bool. Not a silent
+catch — the distinction is the whole point. Callers for whom the email *is* the operation
+(`/notifications/test-email`) deliberately still surface failures. `emailDispatched` now
+reports what actually happened rather than `_emailService.IsConfigured`, which says a
+provider *exists*, not that it accepted the message — a comment above that line had
+described the correct intent for some time.
+
+**3. It was undiagnosable from outside.** The only symptom was a 500 with an empty body,
+which reads as "the endpoint is broken", not "the provider rejected the recipient";
+answering it needed Render's logs. `/api/status/bootstrap` now reports `emailProvider`
+and `emailConfigured` — the provider TYPE, never its credentials, since the endpoint is
+anonymous. It resolves the service with `GetService` rather than `[FromServices]` and
+guards `IsConfigured`, because a diagnostic that 500s reports nothing about the condition
+it exists to report.
+
+*The root cause of the original 500s was the `@example.com` addresses in the harness —
+Resend rejects them by design. Email on the live server is correctly configured and does
+send. That makes the defect narrower than it first looked and no less real: any rejected
+recipient, suppression, rate limit or outage reproduces it.*
+
+**Tests.** `EmailDispatchTests` — 7 cases: a throwing provider does not propagate;
+timeout / HTTP / cancellation are enumerated rather than sampled; an unconfigured
+provider reports false **without attempting**; a missing service is not a crash; and
+success still reports true, so the guard cannot quietly become "always false". Suite
+**813 passing, 0 failing**; server and plugin both build 0 errors, plugin 0 warnings.
+
 #### Completed (Phase 236 — one project gate, and the tier D1 was already sending)
 
 Follow-on to #653 (`MaxUsers`). Same shape of defect on the projects axis, but this one

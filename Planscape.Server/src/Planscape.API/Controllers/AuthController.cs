@@ -935,13 +935,22 @@ public class AuthController : ControllerBase
         // not a developer "POST /api/…" instruction. SendPasswordResetEmailAsync
         // builds {PublicBaseUrl}/reset-password?token=…&email=… which the
         // reset-password.html page consumes.
+        //
+        // Through EmailDispatch, because a throwing provider DEFEATS THIS ENDPOINT'S
+        // ONLY SECURITY PROPERTY. An unknown address returns above without sending, so
+        // it always answered 200; a real one reached the send, and when Resend rejected
+        // the recipient the unhandled exception answered 500. Two different answers for
+        // "unknown" and "real" is exactly the enumeration this endpoint exists to
+        // prevent — demonstrated against production on 2026-08-20. The reset token is
+        // already committed by this point, so failing the request would also be a lie
+        // about what happened.
         var emailService = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
-        if (emailService != null)
-        {
-            await emailService.SendPasswordResetEmailAsync(
-                user.Email, resetToken, Planscape.API.PublicUrl.Resolve(_config, Request));
-        }
+        await Planscape.Infrastructure.Services.EmailDispatch.TrySendAsync(
+            emailService, _logger, "password-reset", user.Email,
+            () => emailService!.SendPasswordResetEmailAsync(
+                user.Email, resetToken, Planscape.API.PublicUrl.Resolve(_config, Request)));
 
+        // Same body either way, whatever happened above — see the note on the send.
         return Ok(new { message = "If that email exists, a reset link has been sent." });
     }
 
