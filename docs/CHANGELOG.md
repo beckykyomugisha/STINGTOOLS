@@ -2,6 +2,79 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 236 — one project gate, and the tier D1 was already sending)
+
+Follow-on to #653 (`MaxUsers`). Same shape of defect on the projects axis, but this one
+was **live**, not latent.
+
+**Two gates, two sources, one action.** `ProjectsController.CreateProject` carried both
+`[Quota(QuotaAxis.Projects)]` — which resolves the limit from the tenant's **plan** — and
+an inline `projectCount >= tenant.MaxProjects` reading the tenant **column**. For every
+self-signup those disagreed outright: signup wrote the column from
+`BillingPlanLimits.For(requestedPlan)` where `requestedPlan` is a **caller-supplied**
+field defaulting to `Network` (`int.MaxValue`), while assigning the tenant `Trial` (1).
+The stricter limit won purely because an action filter runs before an action body. Nothing
+was broken, and nothing was designed either — moving either gate would have changed
+behaviour, and a reviewer reading one of them would have drawn the wrong conclusion.
+Deleting the inline check leaves the attribute as the single gate.
+
+**Precedence, stated once.** `ProjectCeilingPolicy`: the plan grants, the column may only
+tighten (`min(plan, columnIfPositive)`). A column that could *loosen* means any generous
+provisioning value silently upgrades the tenant — which is exactly what the old code
+wrote. Non-positive fails **open**, matching `AccountCeilingPolicy`: `count >= cap` cannot
+express "unlimited", so a `-1` sentinel or a `0` from a partial row denies a tenant its
+FIRST project while reporting a cap that points at nothing (#616's failure, one axis over).
+`Tenant.MaxProjects` now defaults to **0** — "no override" — instead of 1.
+
+**The live bug: the handoff threw away the tier.**
+`marketing-site/functions/api/cloud/handoff.ts:77` has always put `tier: tenant.plan_tier`
+in the signed ticket, and `HandoffTicketPayload.Tier` has always deserialised it. Nothing
+read it. The endpoint computed `BillingPlanLimits.For(BillingPlan.Network)` for the column
+and then assigned `Plan = BillingPlan.Trial` — so the generosity its own comment promised
+was never delivered, and `[Quota]`, which reads the plan, **allowed a D1-paying customer
+exactly one project** (and 5 GB). Now: `Tenant.PlanTier` stores the D1 string verbatim,
+`BillingTierMap` translates it, and `ProjectCeilingPolicy.GrantingCap` prefers it over the
+local plan — D1 is the billing authority and this database is a mirror of it. The mirror's
+fallback plan is `Network`, which is what the code always intended. The tier is refreshed
+on **every** handoff, not only at tenant creation: recording it once would freeze a tenant
+at whatever it was on first sign-in and withhold an upgrade already paid for.
+
+Stored as the raw string rather than parsed into `BillingPlan` because the two taxonomies
+genuinely differ — there is no Solo, Firm or Large in the enum, and Network sits where two
+sold tiers are. `BillingTierMap` is the seam, keyed by the **sold** names. An unrecognised
+tier is kept verbatim and grants nothing, falling back rather than reading as 0.
+
+**Trial: 1 → 3 projects.** `pricing.html`'s comparison row has always advertised "Active
+projects: 3" for Solo. The product contradicted the page the customer signed up from, and
+one project cannot evaluate anything that involves comparing two.
+
+**Display now matches enforcement.** `TenantAdminController`'s `usage.projects.max` showed
+the *plan's* figure while the gate used a different one — a "you have used N of M" gauge
+that could tell a user they had room and then refuse. It reads the enforced cap. The signup
+response gains `activeLimits`; its existing `limits` block describes `plannedUpgrade`, not
+the Trial the account was actually created on.
+
+**`TierLimits.cs` deleted** — 100 lines, zero callers. Its `BelowLimit` read
+`adminOverride > 0 ? adminOverride : tierLimit`, a *replacement*, so a per-tenant value
+could raise a cap above what the plan sold. Never exercised, and not the semantics adopted.
+
+**Schema.** `Tenants.PlanTier` reaches existing databases through the idempotent
+`ADD COLUMN IF NOT EXISTS` patcher in `Program.cs`, per
+[`adr/0001-schema-management.md`](adr/0001-schema-management.md) — **not** a
+`dotnet ef migrations add`, which would reach nothing. Nullable with no default, so every
+pre-existing tenant reads as "D1 never told us" and keeps falling back to its plan.
+
+**Tests.** `ProjectCeilingTests` — 20 cases across four properties: no cap can deny a first
+project; the column tightens but never loosens; a known tier outranks the local plan (in
+both directions); Trial matches the pricing page. Plans and sold tiers are **enumerated**,
+so one added later is covered without editing the tests. Suite: **806 passing, 0 failing**,
+`dotnet build` 0 errors. One pre-existing test asserted `Max == 1` for Trial and now reads
+the value from `BillingPlanLimits`, keeping it about the guard rather than the number.
+
+Left open, with reasons, in [`ROADMAP.md`](ROADMAP.md) as **ENT-1..ENT-4**: the two plan
+taxonomies, `PluginOnly` granting unlimited projects, staleness bounded by sign-in, and
+storage still capped by the local plan alone.
+
 #### Completed (Phase 232 — "forbidden says why" across BCC, web and mobile)
 
 Closes the parity gap recorded in **#558**: four states — loading / empty / error /

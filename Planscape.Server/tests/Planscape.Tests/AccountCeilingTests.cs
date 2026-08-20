@@ -25,7 +25,7 @@ public class AccountCeilingTests
     [Theory]
     [InlineData(-2)]              // the #616 wrapped sum
     [InlineData(int.MinValue)]    // 1 + int.MaxValue
-    [InlineData(-1)]              // the repo's own "unlimited" sentinel (TierLimits)
+    [InlineData(-1)]              // the repo's own "unlimited" sentinel (the deleted TierLimits)
     [InlineData(0)]               // a partially-populated row
     public void A_nonsensical_cap_reads_as_unlimited_not_as_deny_everyone(int cap)
     {
@@ -131,6 +131,10 @@ public class AccountCeilingTests
     {
         Plan        = BillingPlan.Trial,
         MaxUsers    = BillingPlanLimits.AccountCeiling,
-        MaxProjects = BillingPlanLimits.For(plan).MaxProjects,
+        // 0, not BillingPlanLimits.For(plan).MaxProjects. Signup no longer provisions
+        // the column from the caller-supplied plan — it is a tightening override and
+        // entitlement comes from the plan itself. See ProjectCeilingPolicy and
+        // ProjectCeilingTests. `plan` still parameterises the seat assertions above.
+        MaxProjects = 0,
     };
 }
