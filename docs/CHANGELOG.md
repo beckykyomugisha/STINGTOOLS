@@ -2,6 +2,32 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 238 — the invite note named the wrong cause)
+
+Follow-on to Phase 237, found by verifying that fix against the live server rather than
+stopping at "it returns 200 now".
+
+The invite response has two outcomes in its `note`: sent, or *"Email is not configured on
+the server."* Once a failing send stopped throwing, a **third** outcome became reachable
+and fell into the second bucket. Measured 2026-08-20: inviting an address Resend rejects
+returned `emailSent: false` with that note, while `/api/status/bootstrap` reported
+`emailProvider: ResendEmailService, emailConfigured: true` — the message named a cause
+that was demonstrably false and pointed the reader at env vars when the problem was one
+recipient.
+
+A wrong-but-actionable message costs more than a vague one: it is specific enough to act
+on and sends you the wrong way. The note now distinguishes "no provider configured" from
+"configured, but this address could not be delivered to", the latter naming the address
+and pointing at the server log for the provider's reason. The BCC's own fallback strings —
+used only when the server sends no note — dropped their "not configured" claim for
+something they can stand behind.
+
+Also confirmed on the live server that the Phase 237 fixes did what they claimed:
+`forgot-password` now answers **200 for both** a real user and an unknown one (the real
+one was 500 — the enumeration oracle), and an invite to a rejected recipient returns 200
+with a working link **and the `ProjectMember` row present**, where the throw previously
+left the invitee half-created.
+
 #### Completed (Phase 237 — connect, invite, sync: three blockers between the plugin and the live server)
 
 Started from a plain request — *"I want to be able to log in, invite a member, and that
