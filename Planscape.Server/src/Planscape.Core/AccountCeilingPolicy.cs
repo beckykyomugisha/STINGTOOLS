@@ -9,7 +9,7 @@ namespace Planscape.Core;
 /// and <c>ProjectMembersController</c>) each open-coded
 /// <c>userCount &gt;= tenant.MaxUsers</c>, and that comparison cannot express
 /// "unlimited": every non-positive value — the <c>-1</c> sentinel this repo already
-/// uses in <see cref="TierLimits"/>, a <c>0</c> from a partially-populated row, or the
+/// the deleted <c>TierLimits</c> used, a <c>0</c> from a partially-populated row, or the
 /// <c>-2</c> that a wrapped seat sum produced in #616 — is <c>&gt;=</c> true at zero
 /// users and denies the tenant its FIRST account, reporting a limit that points at
 /// nothing.</para>

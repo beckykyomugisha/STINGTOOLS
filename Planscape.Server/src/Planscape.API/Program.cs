@@ -2208,6 +2208,19 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "CREATE UNIQUE INDEX \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" " +
             "(\"ProjectId\",\"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL; " +
         "END IF; END $$;",
+        // Tenants.PlanTier — the plan tier planscape.build's D1 names ("solo",
+        // "studio", "practice", "firm", "large", "enterprise"), carried in the cloud
+        // handoff ticket and previously discarded. Same idempotent-patch rationale as
+        // the columns above and per docs/adr/0001-schema-management.md: EnsureCreated
+        // short-circuits once Tenants exists and Migrate() is a no-op against the
+        // un-attributed migration set, so `dotnet ef migrations add` would reach
+        // nothing. Fresh DBs get it from the EF model via CreateTables.
+        //
+        // Nullable with NO default, so every pre-existing tenant reads as "D1 never
+        // told us" and keeps falling back to its local Plan — the tier grants only
+        // where it is actually known. A DEFAULT here would invent an entitlement for
+        // rows nobody has priced.
+        "ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"PlanTier\" text NULL",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)

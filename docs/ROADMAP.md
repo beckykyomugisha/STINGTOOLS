@@ -29,6 +29,19 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 | LIC-5 | **Merging licensing changes ships nothing** | Tracked as #651. `marketing-site` has no git-connected Pages build, so `/licences` and every Function change reach production only when a human runs `npm run deploy`. Compounded by the deploy-time binding behaviour corrected in #674: a secret that `wrangler pages secret list` shows is stored, not bound. |
 | LIC-6 | **Preview and production share one D1** | Tracked as #652 (#644 closed as its duplicate). A preview deployment can issue, revoke and stamp rows in the production `licenses` table — now the billing artefact, since #626 made D1 the sole owner of seat entitlement. |
 
+## Entitlement plumbing — after the project-ceiling pass (2026-08-20)
+
+The project cap now resolves in one place (`ProjectCeilingPolicy`): D1's tier grants where
+present, otherwise the local `BillingPlan`, and `Tenant.MaxProjects` may only tighten. What
+that pass deliberately did **not** try to settle:
+
+| ID | Item | Detail |
+|---|---|---|
+| ENT-1 | **Two plan taxonomies still exist** | planscape.build sells Solo / Studio / Practice / Firm / Large / Enterprise; the server's `BillingPlan` enum is Trial / PluginOnly / Studio / Practice / Network / Enterprise. There is no Solo, Firm or Large in the enum, and Network sits where two sold tiers are. `BillingTierMap` is the seam and is keyed by the **sold** names, because those are what a customer paid against. Unifying them is a commercial decision, not a refactor — and it needs the D1 side to agree, since `plan_tier` is written there. |
+| ENT-2 | **`BillingPlanLimits.For(PluginOnly)` grants unlimited projects** | PluginOnly is documented as "$15/mo — Revit plugin only, local storage, **no cloud sync**", yet its `MaxProjects` is `int.MaxValue` — more cloud projects than Studio or Practice, which cost more. Nothing assigns PluginOnly today (both creation paths write Trial or Network), so it is latent. Left alone deliberately: correcting it downward changes what a priced plan includes, which is a commercial call. |
+| ENT-3 | **Tier changes reach the mirror only at sign-in** | `PlanTier` is refreshed on every handoff, so an upgrade lands the next time the customer signs in through planscape.build. A customer who upgrades and stays logged in keeps the old cap until their next handoff. Full reconciliation (a webhook, or a periodic pull) remains out of scope per `docs/PLANSCAPE_IDENTITY_HANDOFF.md`; this is the honest bound on how stale the mirror can be. |
+| ENT-4 | **Storage is still capped by the local plan alone** | `CheckCanUploadBytesAsync` reads `BillingPlanLimits.For(tenant.Plan).StorageMb` and knows nothing about the tier. It is less visible than projects because the handoff now mirrors onto Network (50 GB) rather than Trial (5 GB), so nobody is squeezed — but it is the same shape of bug, one axis over. `BillingTierMap` would need a storage column and D1 would need to agree on the numbers. |
+
 ## Visibility Center — after the Phase 233 enhancement pass (2026-08-16)
 
 | ID | Item | Detail |
