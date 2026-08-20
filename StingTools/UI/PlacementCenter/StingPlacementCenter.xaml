@@ -1322,6 +1322,87 @@
         </ScrollViewer>
         </TabItem>
 
+        <TabItem Header="Family Converter">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+            <StackPanel>
+
+                <TextBlock Margin="0,4,0,10" TextWrapping="Wrap"
+                           Foreground="#888" FontStyle="Italic" FontSize="11"
+                           Text="Change a family's host / placement type and keep it working across the project. Pick a Target Host per row; the Path column shows whether it converts losslessly (P1 - Unhosted to Face-based checkbox toggle) or needs a template rebuild (P2 - lossy, review needed). Everything renders in the Report panel - no pop-ups except the OS file/folder picker."/>
+
+                <GroupBox Header="1. Load families into the grid" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="180" Height="30" Margin="4,3"
+                                Click="OnFcScan_Click"
+                                Content="&#x27F3; Scan Project Families"
+                                ToolTip="List all loaded model families with their current host / placement type and instance count. Read-only."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="150" Height="30" Margin="4,3"
+                                Click="OnFcImportFolder_Click"
+                                Content="&#x1F4C1; Import Folder..."
+                                ToolTip="Load every .rfa under a chosen folder (recursive) into the project, then rescan. Non-destructive (overwrite load)."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="130" Height="30" Margin="4,3"
+                                Click="OnFcLoadRfa_Click"
+                                Content="&#x1F4C4; Load .rfa..."
+                                ToolTip="Load a single vendor .rfa into the project, then rescan."/>
+                        <CheckBox x:Name="chkFcRehost" Content="Rehost instances" IsChecked="True"
+                                  VerticalAlignment="Center" Margin="14,3,4,3" FontSize="11"
+                                  ToolTip="After a rebuild (P2), attempt to re-place existing instances at their original location. Hosted targets may still need a manual host pick."/>
+                        <CheckBox x:Name="chkFcAllowLossy" Content="&#x26A0; Allow lossy rebuild (P2)" IsChecked="False"
+                                  VerticalAlignment="Center" Margin="10,3,4,3" FontSize="11"
+                                  ToolTip="Required to run any template rebuild (P2). Off = P2 rows report as Skipped. P2 is NOT byte-identical: connectors drop, host-relative geometry re-anchors to the template default - review after."/>
+                    </WrapPanel>
+                </GroupBox>
+
+                <GroupBox Header="2. Families - pick a Target Host per row" Style="{StaticResource GroupBoxStyle}">
+                    <DataGrid x:Name="gridConverter" AutoGenerateColumns="False" CanUserAddRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              SelectionMode="Extended" Height="340" FontSize="11" Margin="2">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Family" Binding="{Binding Name}" IsReadOnly="True" Width="*"/>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" IsReadOnly="True" Width="130"/>
+                            <DataGridTextColumn Header="Current Host" Binding="{Binding CurrentHostDisplay}" IsReadOnly="True" Width="170"/>
+                            <DataGridTextColumn Header="Inst" Binding="{Binding InstanceCount}" IsReadOnly="True" Width="44"/>
+                            <DataGridTemplateColumn Header="&#x2192; Target Host" Width="160">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding AllowedTargets}"
+                                                  SelectedItem="{Binding TargetLabel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  IsEnabled="{Binding Convertible}" Margin="1" FontSize="11"
+                                                  ToolTip="{Binding BlockReason}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Path" Binding="{Binding PathHint}" IsReadOnly="True" Width="90"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" IsReadOnly="True" Width="150"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </GroupBox>
+
+                <GroupBox Header="3. Apply" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="130" Height="30" Margin="4,3"
+                                Click="OnFcApplySelected_Click"
+                                Content="Apply Selected"
+                                ToolTip="Convert the highlighted row(s) whose Target Host differs from the current placement."/>
+                        <Button Style="{StaticResource ToolBtn}" Width="140" Height="30" Margin="4,3"
+                                Click="OnFcApplyAll_Click"
+                                Content="Apply All Pending"
+                                ToolTip="Convert every row that has a pending Target Host. Per-family failures are isolated - the batch never aborts on one bad family."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="120" Height="30" Margin="4,3"
+                                Click="OnFcSaveReload_Click"
+                                Content="Save / Reload"
+                                ToolTip="Belt-and-braces: reload converted families from _BIM_COORD/Families/Converted and report. P1/P2 already load on apply."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="110" Height="30" Margin="4,3"
+                                Click="OnFcAudit_Click"
+                                Content="Audit Only"
+                                ToolTip="Dry run: report the conversion path (P1 lossless / P2 rebuild) and fidelity risk per pending row. No model changes."/>
+                    </WrapPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+        </TabItem>
+
         </TabControl>
 
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
