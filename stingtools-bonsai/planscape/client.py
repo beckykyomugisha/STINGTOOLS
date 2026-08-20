@@ -41,16 +41,21 @@ class PlanscapeClient:
     logging in again.
     """
 
-    def __init__(self, base_url: str, token: Optional[str] = None, timeout: int = 30):
+    def __init__(self, base_url: str, token: Optional[str] = None, timeout: int = 30,
+                 refresh_token: Optional[str] = None):
         self.base_url = (base_url or "").rstrip("/")
         self.token = token or None
+        # The refresh token lets a long tagging session survive access-token
+        # expiry (free-tier tokens are short-lived) without the user having to
+        # click Planscape Login again — see the 401 handling in _request.
+        self.refresh_token = (refresh_token or "").strip() or None
         self.timeout = timeout
 
     # ------------------------------------------------------------------
     # core request
     # ------------------------------------------------------------------
     def _request(self, method: str, path: str, body: Optional[dict] = None,
-                 token: Optional[str] = None) -> Any:
+                 token: Optional[str] = None, _allow_refresh: bool = True) -> Any:
         if not self.base_url:
             raise PlanscapeError("server URL is empty — set it in STING preferences")
         url = self.base_url + path
@@ -69,6 +74,13 @@ class PlanscapeClient:
                 raw = resp.read().decode("utf-8", "replace")
                 return json.loads(raw) if raw.strip() else {}
         except urllib.error.HTTPError as e:
+            # Access token expired mid-session → refresh once and retry, so a
+            # long tagging session doesn't 401 and force a manual re-login.
+            # Guarded (_allow_refresh, token is None) against recursion and the
+            # refresh call itself.
+            if (e.code == 401 and _allow_refresh and token is None
+                    and self.refresh_token and self._refresh()):
+                return self._request(method, path, body, token=None, _allow_refresh=False)
             detail = ""
             try:
                 detail = e.read().decode("utf-8", "replace")
@@ -102,7 +114,38 @@ class PlanscapeClient:
         if not token:
             raise PlanscapeError("login succeeded but no accessToken in response")
         self.token = token
+        # Capture the refresh token so an expired access token self-heals.
+        self.refresh_token = (
+            resp.get("refreshToken") or resp.get("refresh_token") or ""
+        ).strip() or None
         return token, resp
+
+    def _refresh(self) -> bool:
+        """Exchange the stored refresh token for a new access token.
+
+        Returns True on success; never raises (a failed refresh must surface the
+        original 401, not mask it). Sends no bearer — the refresh endpoint reads
+        the refresh token from the body.
+        """
+        if not self.refresh_token:
+            return False
+        try:
+            resp = self._request(
+                "POST", "/api/auth/refresh",
+                {"refreshToken": self.refresh_token},
+                token="", _allow_refresh=False,
+            )
+        except PlanscapeError:
+            return False
+        new_token = resp.get("accessToken") or resp.get("access_token")
+        if not new_token:
+            return False
+        self.token = new_token
+        # The server may rotate the refresh token on use.
+        rotated = (resp.get("refreshToken") or resp.get("refresh_token") or "").strip()
+        if rotated:
+            self.refresh_token = rotated
+        return True
 
     # ------------------------------------------------------------------
     # IFC ingest
