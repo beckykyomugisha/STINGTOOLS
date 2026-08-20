@@ -54,9 +54,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   // the user just navigated to.
   useEffect(() => setRailOpenMobile(false), [pathname]);
 
+  // No session → sign in, carrying where they were headed. Without `next` an
+  // invitee whose session didn't survive the hop lands on /projects and has to
+  // find the project they were invited to by hand.
   useEffect(() => {
-    if (ready && !user) router.replace('/login');
-  }, [ready, user, router]);
+    if (ready && !user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  }, [ready, user, router, pathname]);
 
   function toggleRail() {
     setCollapsed((v) => {
