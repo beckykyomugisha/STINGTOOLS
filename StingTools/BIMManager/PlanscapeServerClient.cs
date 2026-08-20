@@ -347,6 +347,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
         // C2 — stop the real-time listener (fire-and-forget; we don't await in a sync method).
         _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } });
 
+        // Detach the live element-sync triggers. Leaving them attached would make
+        // every disconnected user keep paying the per-change trigger evaluation
+        // for a sync that can no longer be delivered.
+        try { StingTools.Core.Sync.LiveSyncUpdater.StopLive(); }
+        catch (Exception ex) { StingLog.Warn($"LiveSyncUpdater.StopLive: {ex.Message}"); }
+
         StingLog.Info("Planscape: Disconnected.");
     }
 
