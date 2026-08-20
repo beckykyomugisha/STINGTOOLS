@@ -197,15 +197,6 @@ public sealed class AutoAlignService : IAutoAlignService
             SourceLabel   : "auto-align",
             MapConversionScale: targetReport.MapConversionScale);
 
-        // Read the pre-existing row BEFORE the write so a confirmed transform
-        // can be reported back to the caller rather than silently skipped.
-        var existing = await _db.Set<ProjectModelTransform>().AsNoTracking()
-            .FirstOrDefaultAsync(
-                t => t.ProjectModelId == targetModelId
-                  && t.ProjectId      == projectId
-                  && t.TenantId       == tenantId,
-                ct);
-
         // The writer owns the arithmetic and hands back what it computed —
         // including when it REFUSES to write, so a refusal can still tell the
         // coordinator what the survey data says. Recomputing it here is exactly
@@ -227,15 +218,21 @@ public sealed class AutoAlignService : IAutoAlignService
         // auto-align run silently destroyed the confirmed alignment and the
         // coordinator's only signal was the model jumping.
         //
+        // The rule itself lives in ModelGeorefWriter — the write it refused is
+        // the authority on whether it was refused, so this branch reads the
+        // writer's answer instead of re-reading the row and re-testing
+        // IsConfirmed. Two copies of a precedence rule is how they drift, and
+        // the drifted half here would be the one that overwrites.
+        //
         // Unlike the ingest path, which skips quietly because it is a side
         // effect of an upload, this one is an explicit user action: report the
         // refusal, so the coordinator can decide deliberately (delete the
         // transform, or PUT a new one).
-        if (existing is { IsConfirmed: true })
+        if (write.RefusedAsConfirmed)
         {
             _logger.LogInformation(
                 "AutoAlign skipped for model {ModelId}: an existing transform is manually confirmed (confirmed by {AppliedBy} at {AppliedAt}).",
-                targetModelId, existing.AppliedBy ?? "unknown", existing.AppliedAt);
+                targetModelId, write.ConfirmedBy ?? "unknown", write.ConfirmedAt);
 
             return new AutoAlignResult(
                 Success         : false,
