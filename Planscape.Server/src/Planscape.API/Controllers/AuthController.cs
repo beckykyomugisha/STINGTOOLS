@@ -460,7 +460,13 @@ public class AuthController : ControllerBase
             Plan          = BillingPlan.Trial,
             Currency      = currency,
             BillingCycle  = BillingCycle.Monthly,
-            MaxUsers      = planLimits.TotalSeats,
+            // Flat anti-abuse ceiling, NOT planLimits.TotalSeats (#653). The old
+            // derivation read the limits of the plan the caller ASKED for while the
+            // tenant is assigned Trial, so an anonymous signup chose its own cap —
+            // omitted plan gave 20, "Enterprise" gave int.MaxValue. It also charged
+            // free viewers against paid role caps, which the pricing FAQ says we
+            // don't do. Paid entitlement is metered by the D1 licence count.
+            MaxUsers      = BillingPlanLimits.AccountCeiling,
             MaxProjects   = planLimits.MaxProjects,
             MimEnabled    = false,
             TrialExpiresAt = DateTime.UtcNow.AddDays(30)
@@ -1079,6 +1085,14 @@ public class AuthController : ControllerBase
                 .FirstOrDefaultAsync(t => t.Slug == slug);
             if (tenant == null)
             {
+                // Network only for MaxProjects/display. The account ceiling is
+                // deliberately not taken from a plan here: this mirror must not make
+                // entitlement decisions (D1 does), and Network's seat total is 20 —
+                // which would have locked out any D1-paid firm larger than that,
+                // the exact failure the comment below promises to avoid. Compounded
+                // by this path defaulting unknown roles DOWN to Viewer, so it is the
+                // path that manufactures the free accounts a seat-derived cap
+                // charged for. See #653.
                 var limits = BillingPlanLimits.For(BillingPlan.Network);
                 tenant = new Tenant
                 {
@@ -1095,7 +1109,7 @@ public class AuthController : ControllerBase
                     Plan           = BillingPlan.Trial,
                     Currency       = "USD",
                     BillingCycle   = BillingCycle.Monthly,
-                    MaxUsers       = limits.TotalSeats,
+                    MaxUsers       = BillingPlanLimits.AccountCeiling,
                     MaxProjects    = limits.MaxProjects,
                     MimEnabled     = false,
                     TrialExpiresAt = DateTime.UtcNow.AddDays(365)

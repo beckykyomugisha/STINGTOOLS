@@ -1673,6 +1673,63 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
             app.Logger.LogWarning(ex, "[ACL] Could not read the per-folder ACL population.");
         }
 
+        // #653 — report tenants still carrying a seat-derived account cap.
+        //
+        // Tenant.MaxUsers used to be written from BillingPlanLimits.TotalSeats
+        // (MaxAuthors + MaxCoordinators) at both creation paths. That summed two
+        // PAID ROLE caps to bound total ACCOUNTS, so a free viewer consumed a paid
+        // allowance — the opposite of what the pricing page FAQ promises. New
+        // tenants now get the flat BillingPlanLimits.AccountCeiling instead.
+        //
+        // Rows created BEFORE this change keep the old number, and nothing in the
+        // data distinguishes "derived from a plan" from "an admin deliberately
+        // capped this tenant" — 20 could be either. So this REPORTS rather than
+        // rewrites: a blind UPDATE would silently overwrite a deliberate cap, and
+        // the fix for a handful of rows is one reviewed statement, not a guess
+        // applied on every boot. Same reasoning and same shape as the ACL report
+        // above (#631).
+        //
+        // Warning level for the same reason: production runs at
+        // Serilog__MinimumLevel__Default=Warning, so an Information line would be
+        // invisible and its absence unreadable.
+        try
+        {
+            var seatTotals = Enum.GetValues<Planscape.Core.Entities.BillingPlan>()
+                .Select(pl => Planscape.Core.Entities.BillingPlanLimits.For(pl).TotalSeats)
+                .Where(t => t > 0 && t != int.MaxValue)
+                .Distinct()
+                .ToList();
+
+            var legacyCapped = await db.Tenants
+                .IgnoreQueryFilters()
+                .Where(t => t.IsActive && seatTotals.Contains(t.MaxUsers))
+                .Select(t => new { t.Slug, t.MaxUsers })
+                .ToListAsync();
+
+            if (legacyCapped.Count > 0)
+                app.Logger.LogWarning(
+                    "[SEATS] {Count} active tenant(s) carry a MaxUsers matching a plan seat " +
+                    "total ({Totals}) and so may still refuse free viewers: {Tenants}. New " +
+                    "tenants now get the flat ceiling of {Ceiling}. If these are legacy " +
+                    "derived caps rather than deliberate admin limits, raise each with " +
+                    "UPDATE \"Tenants\" SET \"MaxUsers\" = {Ceiling2} WHERE \"Slug\" = ... — " +
+                    "reviewed per tenant, not in bulk. See #653.",
+                    legacyCapped.Count,
+                    string.Join("/", seatTotals),
+                    string.Join(", ", legacyCapped.Select(t => $"{t.Slug}={t.MaxUsers}")),
+                    Planscape.Core.Entities.BillingPlanLimits.AccountCeiling,
+                    Planscape.Core.Entities.BillingPlanLimits.AccountCeiling);
+            else
+                app.Logger.LogWarning(
+                    "[SEATS] No active tenant carries a legacy seat-derived MaxUsers. " +
+                    "Account ceilings are decoupled from paid role caps. See #653.");
+        }
+        catch (Exception ex)
+        {
+            // Never let a diagnostic stop the boot — but never swallow it either.
+            app.Logger.LogWarning(ex, "[SEATS] Could not read the tenant account-cap population.");
+        }
+
         // Postgres RLS policies (#545). OFF unless Database:RlsEnabled is set —
         // the same key that gates RlsConnectionInterceptor above, so the
         // session variable and the policies that read it turn on together
