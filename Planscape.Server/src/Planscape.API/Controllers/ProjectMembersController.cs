@@ -194,6 +194,20 @@ public class ProjectMembersController : ControllerBase
     {
         if (!await IsManagerOrAboveAsync(projectId)) return Forbid();
 
+        // Reject an ISO 19650 role outside the served vocabulary. Same shape as
+        // invalid_project_role below, so a client parses one error, not two.
+        //
+        // Only an EXPLICITLY SUPPLIED value is checked: `req.Iso19650Role == null`
+        // falls through to the profile default or "M" exactly as before. That
+        // matters because two rows in the wild already hold values outside this
+        // list, and someone editing such a member's ProjectRole must not be blocked
+        // by a code they did not write. See Iso19650Roles for why tolerance here is
+        // deliberate, and Program.cs for the boot report that keeps it from becoming
+        // amnesia.
+        if (req.Iso19650Role != null && !Iso19650Roles.IsCanonical(req.Iso19650Role))
+            return BadRequest(new { error = "invalid_iso19650_role", allowed = Iso19650Roles.All });
+
+
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
@@ -290,6 +304,19 @@ public class ProjectMembersController : ControllerBase
                 message = $"You don't have permission to invite members to this project ({auth.reason})."
             });
         }
+
+        // Reject an ISO 19650 role outside the served vocabulary. Same shape as
+        // invalid_project_role below, so a client parses one error, not two.
+        //
+        // Only an EXPLICITLY SUPPLIED value is checked: `req.Iso19650Role == null`
+        // falls through to the profile default or "M" exactly as before. That
+        // matters because two rows in the wild already hold values outside this
+        // list, and someone editing such a member's ProjectRole must not be blocked
+        // by a code they did not write. See Iso19650Roles for why tolerance here is
+        // deliberate, and Program.cs for the boot report that keeps it from becoming
+        // amnesia.
+        if (req.Iso19650Role != null && !Iso19650Roles.IsCanonical(req.Iso19650Role))
+            return BadRequest(new { error = "invalid_iso19650_role", allowed = Iso19650Roles.All });
 
         var tenantId = GetTenantId();
         var project  = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
@@ -514,11 +541,17 @@ public class ProjectMembersController : ControllerBase
         // anything outside the canonical set; same error shape as invalid_kind
         // in DistributionGroupsController.
         //
-        // Iso19650Role is deliberately NOT validated in this pass — its
-        // vocabulary lives in GetRoles() below and constraining it is a
-        // separate, wider change.
+        // Iso19650Role IS now validated — this is the "separate, wider change"
+        // the comment that stood here was waiting for. Its vocabulary moved out of
+        // GetRoles() and into Iso19650Roles, so the list clients are offered and the
+        // list writes are checked against are one list.
         if (req.ProjectRole != null && !ProjectRoles.IsCanonical(req.ProjectRole))
             return BadRequest(new { error = "invalid_project_role", allowed = ProjectRoles.All });
+
+        // Explicitly-supplied only: omitting the field leaves an existing stray
+        // untouched and the edit succeeds. See the note on AddMember above.
+        if (req.Iso19650Role != null && !Iso19650Roles.IsCanonical(req.Iso19650Role))
+            return BadRequest(new { error = "invalid_iso19650_role", allowed = Iso19650Roles.All });
 
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;
@@ -651,27 +684,11 @@ public class ProjectMembersController : ControllerBase
     // ── ISO 19650 roles lookup ─────────────────────────────────────────────────
 
     [HttpGet("roles")]
-    public ActionResult GetRoles() => Ok(new[]
-    {
-        new { Code = "A",  Label = "Appointing Party" },
-        new { Code = "PM", Label = "Project Manager" },
-        new { Code = "BC", Label = "BIM Coordinator" },
-        new { Code = "BA", Label = "BIM Author" },
-        new { Code = "AR", Label = "Architect" },
-        new { Code = "SE", Label = "Structural Engineer" },
-        new { Code = "ME", Label = "MEP Engineer" },
-        new { Code = "CE", Label = "Civil Engineer" },
-        new { Code = "QS", Label = "Quantity Surveyor" },
-        new { Code = "CA", Label = "Contract Administrator" },
-        new { Code = "CT", Label = "Main Contractor" },
-        new { Code = "SC", Label = "Subcontractor" },
-        new { Code = "FM", Label = "Facilities Manager" },
-        new { Code = "OM", Label = "Operations Manager" },
-        new { Code = "CL", Label = "Client Representative" },
-        new { Code = "M",  Label = "Model Author" },
-        new { Code = "V",  Label = "Viewer" },
-        new { Code = "Z",  Label = "Unassigned" }
-    });
+    // Served from Iso19650Roles.Catalogue, not a literal, so the list offered to
+    // clients and the list writes are validated against cannot drift apart. The
+    // response shape is unchanged: [{ code, label }, ...] in the same order.
+    public ActionResult GetRoles() => Ok(
+        Iso19650Roles.Catalogue.Select(r => new { Code = r.Code, Label = r.Label }));
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 

@@ -360,6 +360,20 @@ export function updateProjectMember(
   });
 }
 
+/** The ISO 19650 role vocabulary the SERVER accepts, served from
+ *  Iso19650Roles.Catalogue. Fetch it rather than hardcoding a list: the app
+ *  previously offered ['K','C','TI','L','AP','LAP'], of which the server accepts
+ *  NONE — so every saved value was outside the vocabulary and no gate reading the
+ *  column could interpret it. Writes are validated now, so a hardcoded list is no
+ *  longer merely wrong, it is a 400. */
+export interface Iso19650RoleOption {
+  code: string;
+  label: string;
+}
+export function listIso19650Roles(projectId: string): Promise<Iso19650RoleOption[]> {
+  return apiFetch(`/api/projects/${projectId}/members/roles`);
+}
+
 /** T3-20 — remove a member from the project (server hard-deletes). */
 export function removeProjectMember(projectId: string, memberId: string): Promise<void> {
   return apiFetch(`/api/projects/${projectId}/members/${memberId}`, { method: 'DELETE' });

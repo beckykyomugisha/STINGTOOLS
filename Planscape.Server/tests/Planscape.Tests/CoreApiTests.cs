@@ -579,11 +579,18 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
 
+        // projectRole/iso19650Role are the values a first-party client can actually
+        // produce. This used to read projectRole = "Engineer", iso19650Role = "E" —
+        // NEITHER is in its column's vocabulary ("Engineer" is not a ProjectRole,
+        // and "E" belongs to AppUser's separate ISO list, not the one
+        // GET .../members/roles serves). The test passed because both columns
+        // accepted any string, so it asserted the drift rather than the contract.
         var addResp = await client.PostAsJsonAsync($"{_projBase}/members", new
         {
             userId = TestData.MemberUserId,
-            projectRole = "Engineer",
-            iso19650Role = "E"
+            projectRole = "Contributor",
+            iso19650Role = "ME"          // MEP Engineer — the canonical code for what
+                                         // "E" was reaching for
         });
         Assert.Equal(HttpStatusCode.Created, addResp.StatusCode);
 
@@ -607,12 +614,15 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     public async Task Members_InviteByEmail()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
+        // iso19650Role was "C" — a code from AppUser's vocabulary, and one of the two
+        // letters ProjectSettingsController gated on while matching (essentially)
+        // nobody (#737). "CL" (Client Representative) is the canonical code.
         var response = await client.PostAsJsonAsync($"{_projBase}/members/invite", new
         {
             email = "invited@test.org",
             displayName = "Invited User",
             projectRole = "Viewer",
-            iso19650Role = "C"
+            iso19650Role = "CL"
         });
         // Should succeed — creates pending user and adds as member
         Assert.True(
