@@ -184,6 +184,18 @@ public class ProjectMembersController : ControllerBase
             userId,
             canCurateProject     = await this.CanCurateProjectAsync(_db, projectId, ct),
             canApproveSitePhotos = await this.CanApproveSitePhotosAsync(_db, projectId, ct),
+            // The third capability, proposed in #666 and approved before being
+            // written — which is the step the comment above asks for, honoured
+            // rather than asserted. It is additive: a client that does not read
+            // the field is unaffected, and one that does stops re-deriving the
+            // rule from projectRole by hand.
+            //
+            // The mobile project-settings screen kept its own copy —
+            // {'Admin','Owner','PM','BIM_Manager','BIMManager'} tested against
+            // projectRole — of which 'PM', 'BIM_Manager' and 'BIMManager' are not
+            // ProjectRoles at all. That is the fourth client-side re-derivation of
+            // a server rule in this codebase, and the drift is the same every time.
+            canAdministerProject = await this.CanAdministerProjectAsync(_db, projectId, ct),
         });
     }
 

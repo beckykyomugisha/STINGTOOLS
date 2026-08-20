@@ -47,34 +47,40 @@ void noFourthState;
 
 // Captured from GET /api/projects/{id}/members/capabilities — the anonymous
 // object ProjectMembersController.GetMyCapabilities returns, serialized by
-// ASP.NET Core's default camelCase policy. Only the two booleans are read.
+// ASP.NET Core's default camelCase policy. Only the booleans are read.
 const SERVER_SAMPLE = {
   projectId: '11111111-1111-4111-8111-111111111111',
   userId: '22222222-2222-4222-8222-222222222222',
   canCurateProject: true,
   canApproveSitePhotos: false,
+  canAdministerProject: true,
 };
 
-// Both flags must be booleans on the wire. `flag()` deliberately treats
+// Every flag must be a boolean on the wire. `flag()` deliberately treats
 // anything else as 'unknown' rather than coercing it, so this assertion is
 // what catches the server changing them to strings.
 const curate: boolean = SERVER_SAMPLE.canCurateProject;
 const approve: boolean = SERVER_SAMPLE.canApproveSitePhotos;
+const administer: boolean = SERVER_SAMPLE.canAdministerProject;
 void curate;
 void approve;
+void administer;
 
-// The parsed result carries exactly the two capabilities the server has
-// predicates for. A third does not get added client-side — it goes through
-// the same propose-first step on the server that these two did.
+// The parsed result carries exactly the capabilities the server has predicates
+// for — now three. A fourth does not get added client-side: it goes through the
+// same propose-first step on the server that these did. administerProject was
+// proposed in #666 and approved before it was written.
 const PARSED: ProjectCapabilities = {
   curateProject: 'allowed',
   approveSitePhotos: 'unknown',
+  administerProject: 'denied',
 };
 void PARSED;
 
 const INVENTED: ProjectCapabilities = {
   curateProject: 'allowed',
   approveSitePhotos: 'denied',
+  administerProject: 'allowed',
   // @ts-expect-error — no inventing capabilities the server does not serve.
   canDeleteEverything: 'allowed',
 };

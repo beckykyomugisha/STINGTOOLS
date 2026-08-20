@@ -24,16 +24,20 @@ import { theme } from '@/utils/theme';
 import {
   getProjectSettings,
   updateProjectSettings,
-  getMyProjectAccess,
 } from '@/api/endpoints';
+import { getProjectCapabilities } from '@/api/capabilities';
 import type { ProjectSettings } from '@/types/api';
 import { CAPABILITY_COPY, alertFailure } from '@/utils/forbidden';
 import { useProjectStore } from '@/stores/projectStore';
 
-// Only BIM Managers (K) and tenant-level Admins / Owners can change project
-// admin settings. Coordinators (C) and field roles see the switches greyed
-// out with an explanatory note so they understand why they can't toggle them.
-const ADMIN_EDIT_ROLES = new Set(['Admin', 'Owner', 'PM', 'BIM_Manager', 'BIMManager']);
+// The role set that stood here — {'Admin','Owner','PM','BIM_Manager','BIMManager'}
+// tested against projectRole — is gone. Only 'Admin' and 'Owner' are ProjectRoles
+// at all; 'PM' lives in Iso19650Role, and 'BIM_Manager'/'BIMManager' are in no
+// vocabulary this server has ever served. It was the fourth client-side copy of a
+// server rule in this codebase, and it had drifted exactly like the other three.
+//
+// Authority now comes from GET .../members/capabilities (#666, approved before
+// being written). The server decides; this screen only decides what to OFFER.
 
 export default function ProjectSettingsScreen() {
   const router = useRouter();
@@ -50,21 +54,24 @@ export default function ProjectSettingsScreen() {
     if (!projectId) return;
     try {
       setError(null);
-      const [s, access] = await Promise.all([
+      const [s, caps] = await Promise.all([
         getProjectSettings(projectId),
-        getMyProjectAccess(projectId).catch(() => null),
+        // Never throws: every failure mode yields 'unknown', and a 404 — the one
+        // status that IS authoritative-false — yields 'denied'.
+        getProjectCapabilities(projectId),
       ]);
       setSettings(s);
-      if (access) {
-        const role = access.projectRole ?? '';
-        setCanEdit(access.bypassesAcl || ADMIN_EDIT_ROLES.has(role));
-      } else {
-        // Unknown, not denied: allow UI interaction and let the server
-        // answer. This screen already had the three-state behaviour #558
-        // asks for — site-photos/review.tsx did the opposite and is
-        // corrected in this change to match.
-        setCanEdit(true);
-      }
+
+      // #634's three states, mapped onto this screen's two-and-a-half:
+      //   'allowed' -> offer the toggles
+      //   'denied'  -> disable them and name the capability
+      //   'unknown' -> LEAVE THEM ENABLED and let the attempt report
+      //
+      // Unknown must not render as denied. A dropped connection says nothing
+      // about permissions, and failing closed on a phone locks a legitimate
+      // administrator out of the screen while telling them it is a permissions
+      // problem — which is both wrong and unactionable.
+      setCanEdit(caps.administerProject === 'denied' ? false : true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load settings');
     } finally {

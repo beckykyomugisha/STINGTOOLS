@@ -36,16 +36,29 @@ export interface ProjectCapabilities {
   curateProject: CapabilityState;
   /** Photo approve / reject, share-link issuance, photo policy. */
   approveSitePhotos: CapabilityState;
+  /**
+   * Project-level settings — ISO naming enforcement, the deliverable state
+   * machine, the preferences blob. Proposed in #666 before being written, the
+   * same propose-first step the first two took.
+   *
+   * Replaces a fourth client-side copy of the rule: project-settings/index.tsx
+   * tested projectRole against {Admin, Owner, PM, BIM_Manager, BIMManager}, of
+   * which only Admin and Owner are ProjectRoles. Its own gate had drifted the
+   * same way the two this module already documents had.
+   */
+  administerProject: CapabilityState;
 }
 
 export const UNKNOWN_CAPABILITIES: ProjectCapabilities = {
   curateProject: 'unknown',
   approveSitePhotos: 'unknown',
+  administerProject: 'unknown',
 };
 
 const ALL_DENIED: ProjectCapabilities = {
   curateProject: 'denied',
   approveSitePhotos: 'denied',
+  administerProject: 'denied',
 };
 
 /**
@@ -72,6 +85,10 @@ export async function getProjectCapabilities(projectId: string): Promise<Project
     return {
       curateProject: flag(raw?.canCurateProject),
       approveSitePhotos: flag(raw?.canApproveSitePhotos),
+      // A server that predates the field returns undefined here, which flag()
+      // reads as 'unknown' — NOT denied. That is the correct answer during a
+      // rollout: the old server has not refused, it was never asked.
+      administerProject: flag(raw?.canAdministerProject),
     };
   } catch (e) {
     // The caller cannot see this project at all — nothing is possible on it.

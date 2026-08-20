@@ -178,7 +178,7 @@ public class ProjectCapabilitiesEndpointTests
         };
     }
 
-    private static (bool curate, bool approve, Guid projectId, Guid userId) Read(ActionResult result)
+    private static (bool curate, bool approve, bool administer, Guid projectId, Guid userId) Read(ActionResult result)
     {
         var ok = Assert.IsType<OkObjectResult>(result);
         var v = ok.Value!;
@@ -186,6 +186,7 @@ public class ProjectCapabilitiesEndpointTests
         return (
             (bool)t.GetProperty("canCurateProject")!.GetValue(v)!,
             (bool)t.GetProperty("canApproveSitePhotos")!.GetValue(v)!,
+            (bool)t.GetProperty("canAdministerProject")!.GetValue(v)!,
             (Guid)t.GetProperty("projectId")!.GetValue(v)!,
             (Guid)t.GetProperty("userId")!.GetValue(v)!);
     }
@@ -232,23 +233,60 @@ public class ProjectCapabilitiesEndpointTests
     // ── Capability resolution per role ────────────────────────────────────────
 
     [Theory]
-    [InlineData("manager",                       true,  true)]
-    [InlineData("coordinator",                   true,  false)] // curates, cannot release imagery
-    [InlineData("contributor-who-is-the-iso-PM", true,  true)]  // authority via Iso19650Role
-    [InlineData("plain-contributor",             false, false)]
-    [InlineData("viewer",                        false, false)]
-    public async Task Capabilities_match_the_role(string label, bool expectCurate, bool expectApprove)
+    //                                           curate approve administer
+    [InlineData("manager",                       true,  true,   true)]
+    [InlineData("coordinator",                   true,  false,  false)] // curates; neither releases imagery nor administers
+    [InlineData("contributor-who-is-the-iso-PM", true,  true,   true)]  // authority via Iso19650Role
+    [InlineData("plain-contributor",             false, false,  false)]
+    [InlineData("viewer",                        false, false,  false)]
+    public async Task Capabilities_match_the_role(
+        string label, bool expectCurate, bool expectApprove, bool expectAdminister)
     {
         using var f = NewDb();
         var userId = f.User(label);
 
-        var (curate, approve, pid, uid) = Read(
+        var (curate, approve, administer, pid, uid) = Read(
             await NewController(f, userId).GetMyCapabilities(f.ProjectId));
 
         Assert.Equal(expectCurate, curate);
         Assert.Equal(expectApprove, approve);
+        Assert.Equal(expectAdminister, administer);
         Assert.Equal(f.ProjectId, pid);
         Assert.Equal(userId, uid);
+    }
+
+    [Fact]
+    public async Task Coordinator_curates_but_cannot_administer()
+    {
+        // The second place the predicates diverge, and the one that matters to the
+        // mobile screen: a Coordinator may organise albums and checklists, and may
+        // NOT change ISO naming enforcement or the deliverable state machine.
+        // The role set this replaces on that screen — {Admin, Owner, PM,
+        // BIM_Manager, BIMManager} — got this right by accident and got Manager
+        // wrong, since "Manager" was not in it.
+        using var f = NewDb();
+
+        var (curate, _, administer, _, _) = Read(
+            await NewController(f, f.User("coordinator")).GetMyCapabilities(f.ProjectId));
+
+        Assert.True(curate);
+        Assert.False(administer);
+    }
+
+    [Fact]
+    public async Task A_project_Manager_can_administer_which_the_replaced_client_gate_denied()
+    {
+        // Regression-in-reverse: project-settings/index.tsx tested projectRole
+        // against {'Admin','Owner','PM','BIM_Manager','BIMManager'}. A plain
+        // project MANAGER — the most common administrator — was not in that set,
+        // so the screen greyed the toggles out for exactly the person meant to use
+        // them, while the server (pre-#737) refused everyone anyway.
+        using var f = NewDb();
+
+        var (_, _, administer, _, _) = Read(
+            await NewController(f, f.User("manager")).GetMyCapabilities(f.ProjectId));
+
+        Assert.True(administer);
     }
 
     [Fact]
@@ -259,7 +297,7 @@ public class ProjectCapabilitiesEndpointTests
         // this is the test that fails.
         using var f = NewDb();
 
-        var (curate, approve, _, _) = Read(
+        var (curate, approve, _, _, _) = Read(
             await NewController(f, f.User("coordinator")).GetMyCapabilities(f.ProjectId));
 
         Assert.True(curate);
@@ -277,21 +315,27 @@ public class ProjectCapabilitiesEndpointTests
         Assert.False(f.Db.ProjectMembers.Any(m => m.UserId == admin),
             "Fixture must NOT give the admin a member row, or this proves nothing.");
 
-        var (curate, approve, _, _) = Read(
+        var (curate, approve, administer, _, _) = Read(
             await NewController(f, admin, tenantRole: "Admin").GetMyCapabilities(f.ProjectId));
 
         Assert.True(curate);
         Assert.True(approve);
+        Assert.True(administer);
     }
 
     // ── Response shape ────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Response_carries_exactly_four_fields()
+    public async Task Response_carries_exactly_five_fields()
     {
-        // Two booleans, matching the two predicates that exist. A third
+        // Three booleans, matching the three predicates that exist. A fourth
         // capability goes through propose-first review, so an inline addition
         // should fail here rather than ship unnoticed.
+        //
+        // This guard DID fire when canAdministerProject was added, which is the
+        // point of it. That capability was proposed in #666 and approved before it
+        // was written, so the expectation moves with it — deliberately, in the same
+        // change, rather than the guard being weakened to stop complaining.
         using var f = NewDb();
 
         var ok = Assert.IsType<OkObjectResult>(
@@ -299,7 +343,7 @@ public class ProjectCapabilitiesEndpointTests
 
         var names = ok.Value!.GetType().GetProperties().Select(p => p.Name).OrderBy(n => n).ToArray();
         Assert.Equal(
-            new[] { "canApproveSitePhotos", "canCurateProject", "projectId", "userId" },
+            new[] { "canAdministerProject", "canApproveSitePhotos", "canCurateProject", "projectId", "userId" },
             names);
     }
 }
