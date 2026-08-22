@@ -1,6 +1,6 @@
 {
   "version": "1.1",
-  "description": "Kampala Uganda Temple (KUT) PROJECT OVERLAY for the STING LOD verification matrix. Merged by id/category over the corporate baseline (StingTools/Data/STING_LOD_MATRIX.json) -- project milestones and categoryRules win. Deploy to <project>/_BIM_COORD/lod_matrix.json. \n\nTHIS OVERLAY DELIBERATELY DIVERGES FROM THE CORPORATE BASELINE AT RUNG 500. The baseline requires a serial number and installation date on ten categories, including Lighting Fixtures, Air Terminals, Sprinklers and Fire Alarm Devices. On a project of this size that is thousands of devices, most of which carry no meaningful serial number, and an asset information requirement that cannot be met is worse than a smaller one that can: it is completed at forty per cent and the facilities team cannot rely on any of it. The overlay therefore tiers the requirement by what the asset actually is. \n\nTier A -- serialised plant (Mechanical Equipment, Electrical Equipment, Specialty Equipment). Individually commissioned, carries a nameplate, sits under a service contract. Full asset record including serial number, warranty, expected life, maintenance interval, spares and commissioning date. \n\nTier B -- maintainable devices (Lighting Fixtures, Plumbing Fixtures, Air Terminals, Sprinklers, Fire Alarm Devices, Electrical Fixtures). High count, type-level data plus installation date, supplier, warranty duration and expected life. NO serial number. Fire Alarm Devices instead carry loop and address, which is what the fire alarm cause-and-effect and any future maintenance actually uses. \n\nTier C -- warranted fabric (Roofs, Curtain Panels, Curtain Wall Mullions, Doors, Windows, Casework). No serial number and no maintenance regime, but a warranty the Owner will need to claim against, and on this project a significant quantity of bespoke joinery and specialist envelope. Supplier, warranty guarantor, duration and start date. \n\nTier D -- every other category inherits rung 400 unchanged and carries the asset identifier only. \n\nEach category below carries its COMPLETE ladder, not only rung 500, because the registry replaces a category wholesale. A category listing rung 500 alone would resolve to nothing at the other rungs and its elements would drop silently out of every earlier gate. Regenerate with tools/build_kut_lod_overlay.py rather than editing by hand.",
+  "description": "Kampala Uganda Temple (KUT) PROJECT OVERLAY for the STING LOD verification matrix. Merged by id/category over the corporate baseline (StingTools/Data/STING_LOD_MATRIX.json) -- project milestones and categoryRules win. Deploy to <project>/_BIM_COORD/lod_matrix.json. \n\nTHIS OVERLAY DELIBERATELY DIVERGES FROM THE CORPORATE BASELINE AT RUNG 500. The baseline requires a serial number and installation date on ten categories, including Lighting Fixtures, Air Terminals, Sprinklers and Fire Alarm Devices. On a project of this size that is thousands of devices, most of which carry no meaningful serial number, and an asset information requirement that cannot be met is worse than a smaller one that can: it is completed at forty per cent and the facilities team cannot rely on any of it. The overlay therefore tiers the requirement by what the asset actually is. \n\nTier A -- serialised plant (Mechanical Equipment, Electrical Equipment, Specialty Equipment). Individually commissioned, carries a nameplate, sits under a service contract. Full asset record including serial number, warranty, expected life, maintenance interval, spares and commissioning date. Warranty EXPIRY rather than start: it is the date that triggers action, the duration is captured alongside it so the start is derivable, and unlike the COBie-group warranty-start parameter it is bound to every category. \n\nTier B -- maintainable devices (Lighting Fixtures, Plumbing Fixtures, Air Terminals, Sprinklers, Fire Alarm Devices, Electrical Fixtures). High count, type-level data plus installation date, supplier, warranty duration and expected life. NO serial number. Fire Alarm Devices instead carry loop and address, which is what the fire alarm cause-and-effect and any future maintenance actually uses. \n\nTier C -- warranted fabric (Roofs, Curtain Panels, Curtain Wall Mullions, Doors, Windows, Casework). No serial number and no maintenance regime, but a warranty the Owner will need to claim against, and on this project a significant quantity of bespoke joinery and specialist envelope. Supplier, warranty guarantor, duration and expiry date. \n\nTier D -- every other category inherits rung 400 unchanged and carries the asset identifier only. \n\nEach category below carries its COMPLETE ladder, not only rung 500, because the registry replaces a category wholesale. A category listing rung 500 alone would resolve to nothing at the other rungs and its elements would drop silently out of every earlier gate. Regenerate with tools/build_kut_lod_overlay.py rather than editing by hand.",
   "milestones": [
     {
       "id": "deliverable-a",
@@ -83,11 +83,11 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT",
+            "+MNT_WARRANTY_EXPIRY_TXT",
             "+ASS_EXPECTED_LIFE_YEARS_YRS",
             "+ASS_MAINTENANCE_FREQUENCY_MONTHS",
             "+MNT_SPARE_PARTS_TXT",
-            "+COM_COMMISSION_DATE_TXT"
+            "+COMM_DATE_TXT"
           ]
         }
       }
@@ -138,11 +138,11 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT",
+            "+MNT_WARRANTY_EXPIRY_TXT",
             "+ASS_EXPECTED_LIFE_YEARS_YRS",
             "+ASS_MAINTENANCE_FREQUENCY_MONTHS",
             "+MNT_SPARE_PARTS_TXT",
-            "+COM_COMMISSION_DATE_TXT"
+            "+COMM_DATE_TXT"
           ]
         }
       }
@@ -192,11 +192,11 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT",
+            "+MNT_WARRANTY_EXPIRY_TXT",
             "+ASS_EXPECTED_LIFE_YEARS_YRS",
             "+ASS_MAINTENANCE_FREQUENCY_MONTHS",
             "+MNT_SPARE_PARTS_TXT",
-            "+COM_COMMISSION_DATE_TXT"
+            "+COMM_DATE_TXT"
           ]
         }
       }
@@ -523,7 +523,7 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT"
+            "+MNT_WARRANTY_EXPIRY_TXT"
           ]
         }
       }
@@ -570,7 +570,7 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT"
+            "+MNT_WARRANTY_EXPIRY_TXT"
           ]
         }
       }
@@ -617,7 +617,7 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT"
+            "+MNT_WARRANTY_EXPIRY_TXT"
           ]
         }
       }
@@ -664,7 +664,7 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT"
+            "+MNT_WARRANTY_EXPIRY_TXT"
           ]
         }
       }
@@ -711,7 +711,7 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT"
+            "+MNT_WARRANTY_EXPIRY_TXT"
           ]
         }
       }
@@ -758,7 +758,7 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+COM_WARRANTY_START_TXT"
+            "+MNT_WARRANTY_EXPIRY_TXT"
           ]
         }
       }

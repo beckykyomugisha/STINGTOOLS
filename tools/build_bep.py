@@ -527,7 +527,7 @@ c.table(['Data', 'A', 'B', 'C', 'FF&E', 'D'],
          ['Supplier', 'Yes', 'Yes', 'Yes', 'Yes', '—'],
          ['Warranty guarantor', 'Yes', '—', 'Yes', '—', '—'],
          ['Warranty duration', 'Yes', 'Yes', 'Yes', 'Yes', '—'],
-         ['Warranty start date', 'Yes', '—', 'Yes', '—', '—'],
+         ['Warranty expiry date', 'Yes', '—', 'Yes', '—', '—'],
          ['Expected service life', 'Yes', 'Yes', '—', '—', '—'],
          ['Maintenance interval', 'Yes', '—', '—', '—', '—'],
          ['Recommended spares', 'Yes', '—', '—', '—', '—'],
@@ -543,8 +543,9 @@ c.table(['Item', 'Requirement'],
         [['Date format', 'YYYY-MM-DD throughout. Date fields are held as text, so nothing enforces the '
                          'format automatically; a mixed convention is only discovered at close-out'],
          ['Warranty duration', 'Whole years. Where parts and labour differ, both are recorded'],
-         ['Warranty start', 'The date the warranty period commences, which is not always the installation '
-                            'date. Where they differ, both are recorded'],
+         ['Warranty expiry', 'The date the warranty period ends. Expiry rather than start is recorded '
+                             'because it is the date that triggers action, and the duration is captured '
+                             'alongside it so the start remains derivable'],
          ['Expected service life', 'Whole years, as stated by the manufacturer'],
          ['Maintenance interval', 'Whole months'],
          ['Unique asset reference', 'Allocated by the Appointing Party numbering convention where one is '

@@ -387,7 +387,7 @@ worth more than a complete one met in part. Full schedule: **BEP §14**.
 | Supplier | ✓ | ✓ | ✓ | ✓ |
 | Warranty guarantor | ✓ | — | ✓ | — |
 | Warranty duration | ✓ | ✓ | ✓ | ✓ |
-| Warranty start date | ✓ | — | ✓ | — |
+| Warranty expiry date | ✓ | — | ✓ | — |
 | Expected service life | ✓ | ✓ | — | — |
 | Maintenance interval | ✓ | — | — | — |
 | Recommended spares | ✓ | — | — | — |
@@ -400,8 +400,8 @@ worth more than a complete one met in part. Full schedule: **BEP §14**.
 
 **Conventions.** Dates are `YYYY-MM-DD` — date fields are held as text, so nothing enforces the format
 and a mixed convention only surfaces at close-out. Warranty durations are whole years, parts and
-labour recorded separately where they differ. Warranty start is not always the installation date;
-where they differ, record both.
+labour recorded separately where they differ. Warranty **expiry** is recorded rather than start: it is the date that
+triggers action, and duration is captured alongside it so the start remains derivable.
 
 **Who does what.** The Contractor captures at installation and commissioning; the Information Manager
 verifies completeness monthly by tier and volume. A tier below 95% at the Deliverable D gate is a

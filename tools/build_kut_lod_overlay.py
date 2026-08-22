@@ -35,9 +35,9 @@ TIER_FFE = ['Furniture', 'Furniture Systems']
 
 A_FIELDS = ['+ASS_ASSET_ID_TXT', '+ASS_SERIAL_NR_TXT', '+ASS_INSTALLATION_DATE_TXT',
             '+ASS_SUPPLIER_TXT', '+ASS_WARRANTY_PARTS_TXT', '+ASS_WARRANTY_DURATION_PARTS_YRS',
-            '+COM_WARRANTY_START_TXT', '+ASS_EXPECTED_LIFE_YEARS_YRS',
+            '+MNT_WARRANTY_EXPIRY_TXT', '+ASS_EXPECTED_LIFE_YEARS_YRS',
             '+ASS_MAINTENANCE_FREQUENCY_MONTHS', '+MNT_SPARE_PARTS_TXT',
-            '+COM_COMMISSION_DATE_TXT']
+            '+COMM_DATE_TXT']
 
 B_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+ASS_SUPPLIER_TXT',
             '+ASS_WARRANTY_DURATION_PARTS_YRS', '+ASS_EXPECTED_LIFE_YEARS_YRS']
@@ -46,7 +46,7 @@ B_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+ASS_SUPPLIER_TXT',
 B_EXTRA = {'Fire Alarm Devices': ['+FLS_SFTY_DEV_LOOP_TXT', '+FLS_SFTY_DEV_ADDRESS_TXT']}
 
 C_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+ASS_SUPPLIER_TXT', '+ASS_WARRANTY_PARTS_TXT',
-            '+ASS_WARRANTY_DURATION_PARTS_YRS', '+COM_WARRANTY_START_TXT']
+            '+ASS_WARRANTY_DURATION_PARTS_YRS', '+MNT_WARRANTY_EXPIRY_TXT']
 
 FFE_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+FOHLIO_REF_TXT', '+ASS_SUPPLIER_TXT',
               '+ASS_WARRANTY_DURATION_PARTS_YRS']
@@ -70,7 +70,7 @@ DESCRIPTION = (
     "Tier A -- serialised plant (Mechanical Equipment, Electrical Equipment, Specialty Equipment). "
     "Individually commissioned, carries a nameplate, sits under a service contract. Full asset "
     "record including serial number, warranty, expected life, maintenance interval, spares and "
-    "commissioning date. "
+    "commissioning date. Warranty EXPIRY rather than start: it is the date that triggers action, the duration is captured alongside it so the start is derivable, and unlike the COBie-group warranty-start parameter it is bound to every category. "
     "\n\n"
     "Tier B -- maintainable devices (Lighting Fixtures, Plumbing Fixtures, Air Terminals, "
     "Sprinklers, Fire Alarm Devices, Electrical Fixtures). High count, type-level data plus "
@@ -81,7 +81,7 @@ DESCRIPTION = (
     "Tier C -- warranted fabric (Roofs, Curtain Panels, Curtain Wall Mullions, Doors, Windows, "
     "Casework). No serial number and no maintenance regime, but a warranty the Owner will need to "
     "claim against, and on this project a significant quantity of bespoke joinery and specialist "
-    "envelope. Supplier, warranty guarantor, duration and start date. "
+    "envelope. Supplier, warranty guarantor, duration and expiry date. "
     "\n\n"
     "Tier D -- every other category inherits rung 400 unchanged and carries the asset identifier "
     "only. "
@@ -148,6 +148,44 @@ def main():
             if resolve(r['checks'], rung) is None:
                 print('  MISSING RUNG %s on %s' % (rung, cat))
                 problems += 1
+    # Every required parameter must be BOUND to the category that requires it.
+    # A parameter that is not bound cannot be filled, so requiring it fails 100% of
+    # those elements -- an unachievable requirement that reads as a strict one. Two
+    # COBie-group parameters were caught this way: bound only to comms and security
+    # devices, they would have failed every item of plant and every warranted element.
+    bind = {}
+    for line in io.open('StingTools/Data/RESOLVED_BINDINGS.csv', encoding='utf-8-sig',
+                        errors='replace'):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        parts = line.split(',', 1)
+        if len(parts) < 2:
+            continue
+        nm, cats = parts[0].strip(), parts[1].strip().strip('"')
+        if nm.lower() == 'parameter_name':
+            continue
+        bind[nm] = ['<ALL>'] if cats == '<ALL>' else [x.strip() for x in cats.split('|') if x.strip()]
+
+    unbound = []
+    for r in rules:
+        cat = r['category']
+        for rung in ['300', '350', '400', '500']:
+            for prm in (resolve(r['checks'], rung) or {}).get('params', []):
+                cats = bind.get(prm)
+                if cats is None or (cats != ['<ALL>'] and cat not in cats):
+                    unbound.append((cat, rung, prm))
+    if unbound:
+        seen = set()
+        print('')
+        print('  UNBOUND PARAMETERS -- these can never be filled:')
+        for cat, rung, prm in unbound:
+            if (cat, prm) in seen:
+                continue
+            seen.add((cat, prm))
+            print('    %-24s rung %-4s %s' % (cat, rung, prm))
+        problems += len(seen)
+
     counts = collections.Counter(tier_of.values())
     for tier, cats, _f in TIERS:
         n500 = len(resolve(by_cat.get(cats[0], star)['checks'], '500').get('params', []))

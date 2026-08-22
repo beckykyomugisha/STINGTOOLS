@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-"""Build the KUT Project Delivery Playbook as a formatted corporate .docx."""
-# -*- coding: utf-8 -*-
 """Build the KUT Project Delivery Playbook as a formatted corporate .docx.
 
 Source content: GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md. House style comes from
@@ -480,7 +478,7 @@ table(['Data', 'A', 'B', 'C', 'FF&E'],
        ['Supplier', 'Yes', 'Yes', 'Yes', 'Yes'],
        ['Warranty guarantor', 'Yes', '—', 'Yes', '—'],
        ['Warranty duration', 'Yes', 'Yes', 'Yes', 'Yes'],
-       ['Warranty start date', 'Yes', '—', 'Yes', '—'],
+       ['Warranty expiry date', 'Yes', '—', 'Yes', '—'],
        ['Expected service life', 'Yes', 'Yes', '—', '—'],
        ['Maintenance interval', 'Yes', '—', '—', '—'],
        ['Recommended spares', 'Yes', '—', '—', '—'],
@@ -490,8 +488,9 @@ table(['Data', 'A', 'B', 'C', 'FF&E'],
 callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
         'cause-and-effect schedule, the panel and future maintenance actually use.', 'Fire alarm devices')
 callout('Dates are recorded as YYYY-MM-DD. Warranty durations are whole years, with parts and labour '
-        'recorded separately where they differ. A warranty start date is not always the installation date; '
-        'where they differ, record both.', 'Conventions')
+        'recorded separately where they differ. Warranty EXPIRY is recorded rather than start: it is the '
+        'date that triggers action, and the duration is captured alongside it so the start remains '
+        'derivable.', 'Conventions')
 callout('Capture begins at Stage 3.1 and is reported monthly by tier and by volume from the first month of '
         'construction, so a shortfall is visible while the installer is still on site. A tier below 95 per '
         'cent at the Deliverable D gate is a gate failure, not an observation. A programme that leaves this '
