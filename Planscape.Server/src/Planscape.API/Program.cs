@@ -1,6 +1,7 @@
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 using Planscape.API.Middleware;
+using Planscape.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -1671,6 +1672,62 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
         {
             // Never let a diagnostic stop the boot — but never swallow it either.
             app.Logger.LogWarning(ex, "[ACL] Could not read the per-folder ACL population.");
+        }
+
+        // [ISO] — report ProjectMember rows whose Iso19650Role is outside the
+        // canonical vocabulary, once per boot.
+        //
+        // The column was free text until this change: every write site did
+        // `req.Iso19650Role ?? … ?? "M"` with no validation. That is how three
+        // dead authorization gates happened — a gate compares against a value
+        // nothing prevents and nothing supplies. Writes are validated now, but
+        // rows written BEFORE that are deliberately left alone: rejecting them
+        // retroactively would make an unrelated edit to those members fail, and
+        // remapping them would encode a guess about what two real people were
+        // meant to be.
+        //
+        // Tolerating a stray is correct. Forgetting it is how it got here. So
+        // the strays are made visible rather than merely tolerated, and a human
+        // with project context decides — not a mapping table.
+        //
+        // Warning in BOTH branches, for the reason the [ACL] block above gives:
+        // render.yaml pins Serilog__MinimumLevel__Default=Warning in production,
+        // so an Information line is invisible there, and "no line appeared"
+        // would then be indistinguishable between "no strays" and "the check
+        // never ran".
+        //
+        // Codes only — no names, no emails. The IDs needed to fix them are in
+        // docs/sql/check_iso19650_role_population.sql, context query C.
+        try
+        {
+            var strays = await db.ProjectMembers
+                .IgnoreQueryFilters()
+                .Select(m => m.Iso19650Role)
+                .Where(r => r != null && !Iso19650Roles.AllCodes.Contains(r))
+                .GroupBy(r => r)
+                .Select(g => new { Code = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            if (strays.Count > 0)
+                app.Logger.LogWarning(
+                    "[ISO] {RowCount} ProjectMember row(s) carry an Iso19650Role outside the " +
+                    "canonical vocabulary, across {DistinctCount} distinct value(s): {Values}. " +
+                    "New writes are rejected with invalid_iso19650_role; these pre-date that and " +
+                    "are left as-is deliberately, because remapping them would be a guess. " +
+                    "Identify them with docs/sql/check_iso19650_role_population.sql (query C) and " +
+                    "have someone who knows the appointment set them.",
+                    strays.Sum(x => x.Count),
+                    strays.Count,
+                    string.Join(", ", strays.Select(x => $"{x.Code}={x.Count}")));
+            else
+                app.Logger.LogWarning(
+                    "[ISO] Every ProjectMember row carries a canonical Iso19650Role. " +
+                    "The vocabulary check ran and found nothing.");
+        }
+        catch (Exception ex)
+        {
+            // Never let a diagnostic stop the boot — but never swallow it either.
+            app.Logger.LogWarning(ex, "[ISO] Could not read the Iso19650Role population.");
         }
 
         // Postgres RLS policies (#545). OFF unless Database:RlsEnabled is set —

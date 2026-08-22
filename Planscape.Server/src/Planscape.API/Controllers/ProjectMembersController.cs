@@ -198,6 +198,11 @@ public class ProjectMembersController : ControllerBase
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
+        // Validate the ISO role before either branch below writes it. Both the
+        // reactivate path and the create path do `req.Iso19650Role ?? … ?? "M"`,
+        // so one guard here covers two write sites.
+        if (RejectNonCanonicalIso(req.Iso19650Role) is { } isoBad) return isoBad;
+
         // User must belong to same tenant
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == req.UserId && u.TenantId == tenantId && u.IsActive);
         if (user == null) return NotFound($"User {req.UserId} not found in your organisation");
@@ -290,6 +295,17 @@ public class ProjectMembersController : ControllerBase
                 message = $"You don't have permission to invite members to this project ({auth.reason})."
             });
         }
+
+        // Guards BOTH writes on this path: the new-AppUser branch and the
+        // ProjectMember branch. Worth knowing that those two columns carry
+        // DIFFERENT declared vocabularies — AppUser.cs:14 says
+        // A/M/E/S/H/P/C/I/K/Q/F/W/L/Z — and this endpoint writes the
+        // ProjectMember vocabulary into both. That is how AppUser came to hold
+        // QS/BC/PM/AR, none of which are in its own documented list.
+        // Reconciling the two columns is filed separately; validating against
+        // the vocabulary the UI actually offers is strictly better than the
+        // nothing that was here.
+        if (RejectNonCanonicalIso(req.Iso19650Role) is { } isoBadInvite) return isoBadInvite;
 
         var tenantId = GetTenantId();
         var project  = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
@@ -497,11 +513,15 @@ public class ProjectMembersController : ControllerBase
         // anything outside the canonical set; same error shape as invalid_kind
         // in DistributionGroupsController.
         //
-        // Iso19650Role is deliberately NOT validated in this pass — its
-        // vocabulary lives in GetRoles() below and constraining it is a
-        // separate, wider change.
+        // Iso19650Role was deliberately NOT validated in that pass — the note
+        // here read "its vocabulary lives in GetRoles() below and constraining
+        // it is a separate, wider change". This is that change: the vocabulary
+        // now lives in Iso19650Roles, and GetRoles() renders from it rather
+        // than keeping a second copy.
         if (req.ProjectRole != null && !ProjectRoles.IsCanonical(req.ProjectRole))
             return BadRequest(new { error = "invalid_project_role", allowed = ProjectRoles.All });
+
+        if (RejectNonCanonicalIso(req.Iso19650Role) is { } isoBadUpdate) return isoBadUpdate;
 
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;
@@ -633,30 +653,33 @@ public class ProjectMembersController : ControllerBase
 
     // ── ISO 19650 roles lookup ─────────────────────────────────────────────────
 
+    /// <summary>
+    /// The canonical Iso19650Role vocabulary. Rendered from
+    /// <see cref="Iso19650Roles.All"/> rather than a literal list here: this
+    /// endpoint and the write validation MUST agree, and two literal copies
+    /// drift apart within a phase. That drift is precisely what produced the
+    /// dead K/C gate in ProjectSettingsController.
+    /// </summary>
     [HttpGet("roles")]
-    public ActionResult GetRoles() => Ok(new[]
-    {
-        new { Code = "A",  Label = "Appointing Party" },
-        new { Code = "PM", Label = "Project Manager" },
-        new { Code = "BC", Label = "BIM Coordinator" },
-        new { Code = "BA", Label = "BIM Author" },
-        new { Code = "AR", Label = "Architect" },
-        new { Code = "SE", Label = "Structural Engineer" },
-        new { Code = "ME", Label = "MEP Engineer" },
-        new { Code = "CE", Label = "Civil Engineer" },
-        new { Code = "QS", Label = "Quantity Surveyor" },
-        new { Code = "CA", Label = "Contract Administrator" },
-        new { Code = "CT", Label = "Main Contractor" },
-        new { Code = "SC", Label = "Subcontractor" },
-        new { Code = "FM", Label = "Facilities Manager" },
-        new { Code = "OM", Label = "Operations Manager" },
-        new { Code = "CL", Label = "Client Representative" },
-        new { Code = "M",  Label = "Model Author" },
-        new { Code = "V",  Label = "Viewer" },
-        new { Code = "Z",  Label = "Unassigned" }
-    });
+    public ActionResult GetRoles() => Ok(
+        Iso19650Roles.All.Select(r => new { r.Code, r.Label }));
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Reject an Iso19650Role the caller explicitly supplied that is outside the
+    /// canonical vocabulary. Returns null when there is nothing to complain about.
+    ///
+    /// ONLY VALIDATES A SUPPLIED VALUE. Every write site treats null as "leave it
+    /// alone" / "fall back to a default", and existing rows may legitimately hold
+    /// a stray (the local measurement found 'S' and 'EL'). Rejecting null would
+    /// make those members unsaveable on an unrelated edit, which is the one thing
+    /// this validation promises not to do. Strays are surfaced at boot instead.
+    /// </summary>
+    private ActionResult? RejectNonCanonicalIso(string? iso)
+        => iso != null && !Iso19650Roles.IsCanonical(iso)
+            ? BadRequest(new { error = "invalid_iso19650_role", allowed = Iso19650Roles.AllCodes })
+            : null;
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
