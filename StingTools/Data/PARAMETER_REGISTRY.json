@@ -9070,7 +9070,7 @@
     {
       "param_name": "ASS_INST_DATE_TXT",
       "guid": "0d021db7-c85a-5df7-82e3-6a2fd48eb619",
-      "description": "Ass Inst Date Txt [ISO 19650-3:2020]",
+      "description": "DEPRECATED -- use ASS_INSTALLATION_DATE_TXT. Auto-generated stub retained because the GUID may be bound in existing models; do not write to it.",
       "datatype": "TEXT",
       "group_id": 1,
       "group_name": "ASS_MNG",
@@ -17045,7 +17045,7 @@
     {
       "param_name": "COM_INSTALL_DATE_TXT",
       "guid": "f8a42943-9f11-52d1-b373-6b9b0b7db29f",
-      "description": "Installation date (COBie)",
+      "description": "LEGACY COBie-group alias of ASS_INSTALLATION_DATE_TXT. Read on export as a fallback only. Write ASS_INSTALLATION_DATE_TXT; COBie import populates that one.",
       "datatype": "TEXT",
       "group_id": 3,
       "group_name": "COM_DAT",

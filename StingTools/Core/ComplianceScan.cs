@@ -729,7 +729,13 @@ namespace StingTools.Core
         private const string P_COMM_STATE   = "COMM_STATE_TXT";
         private const string P_QC_INSPECTOR = "ASS_QC_INSPECTOR_TXT";
         private const string P_FAB_STATUS   = "ASS_FAB_STATUS_TXT";
-        private const string P_INSTALL_DATE = "ASS_INSTALL_DATE_TXT";
+        // Canonical installation date. This read a hard-coded "ASS_INSTALL_DATE_TXT",
+        // which PARAMETER_REGISTRY.json marks DEPRECATED and nothing writes -- so the
+        // QA gate's install-date test always saw an empty value and the gate could
+        // never turn on it. The C# constant of that name was already redirected to the
+        // canonical parameter, but a string literal bypasses the redirect. Use the
+        // registry constant so a future rename reaches this call site too.
+        private static readonly string P_INSTALL_DATE = ParamRegistry.INSTALL_DATE;
 
         private static (int gate, string msg) ComputeQaGate(Element el)
         {

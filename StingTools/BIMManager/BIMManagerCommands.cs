@@ -2740,7 +2740,15 @@ namespace StingTools.BIMManager
 
                 // Extract serial number, installation date, warranty start, barcode from STING parameters
                 string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
-                string installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
+                // Read the canonical parameter FIRST, then the legacy COBie-group one.
+                // COBie import writes ASS_INSTALLATION_DATE_TXT (see the field map in the
+                // import path), so reading only COM_INSTALL_DATE_TXT meant an imported
+                // COBie file did not survive a re-export: the date fell through to the
+                // phase-derived fallback below. The legacy read is retained so projects
+                // that populated the COBie-group parameter directly still export.
+                string installDate = ParameterHelpers.GetString(el, ParamRegistry.INSTALL_DATE);
+                if (string.IsNullOrEmpty(installDate))
+                    installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
                 // Phase 40: Derive installation date from phase as ISO 8601 date, not phase NAME.
                 // Previously exported "New Construction" instead of "2025-03-22".
                 if (string.IsNullOrEmpty(installDate))
