@@ -347,7 +347,14 @@ namespace StingTools.Core.Drawing
             // suggestion produced literal "{prj}-{orig}" on the sheet plus DT-098
             // warnings against the tool's own advice. The "ISO19650:" label had
             // also leaked into the pattern value and would render literally.
-            "{project}-{originator}-{vol}-{lvl}-DR-{role}-{seq:D4}", // Full BS 1192 / ISO 19650-2
+            // K-8: this hardcoded "DR" where both the shipped data
+            // (STING_DRAWING_TYPES.json) and the doc comment on
+            // DrawingType.IsoNaming specify {type} — so the tool's own
+            // suggestion contradicted the tool's own catalogue, and a
+            // profile whose IsoNaming.Type is SH / M3 / VS / CA / SP got a
+            // sheet number claiming to be a drawing. {type} resolves from
+            // IsoNaming.Type via DrawingTokenContext.
+            "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}", // Full BS 1192 / ISO 19650-2
         };
 
         public static readonly string[] SheetNamePatterns =

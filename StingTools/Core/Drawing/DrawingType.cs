@@ -433,6 +433,15 @@ namespace StingTools.Core.Drawing
     public sealed class IsoNaming
     {
         [JsonProperty("volume",      NullValueHandling = NullValueHandling.Ignore)] public string Volume { get; set; }       // e.g. "01", "ZZ"
+        /// <summary>
+        /// K-7 — ISO 19650 level/location field. Volume, Type and Role all had
+        /// a profile-level default that DrawingTokenContext falls back to when
+        /// the producing command supplies nothing; Level did not, so {lvl}
+        /// rendered as an empty segment ("…-COT01--DR-A-1001") with no warning.
+        /// Set this to the profile's default level code — "ZZ" for a
+        /// non-level-specific drawing, per ISO 19650-2.
+        /// </summary>
+        [JsonProperty("level",       NullValueHandling = NullValueHandling.Ignore)] public string Level { get; set; }        // e.g. "00", "01", "ZZ"
         [JsonProperty("type",        NullValueHandling = NullValueHandling.Ignore)] public string Type { get; set; }         // DR / SH / M3 / VS / CA / SP
         [JsonProperty("role",        NullValueHandling = NullValueHandling.Ignore)] public string Role { get; set; }         // A / S / M / E / P / FP
         [JsonProperty("suitability", NullValueHandling = NullValueHandling.Ignore)] public string Suitability { get; set; }  // S0..S7 / A1..A5 / B1..B5 / C1..C3
