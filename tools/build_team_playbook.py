@@ -450,23 +450,53 @@ callout('Plumbing fixtures require a maintenance type value from LOD 400. This r
         'teams should confirm the value is being captured at the start of Stage 3.1.', 'Change at LOD 400')
 
 h2('7.3  Asset data for handover (LOD 500)')
-para('At Deliverable D the following categories carry additional asset data. This data is captured during '
-     'construction and installation. It cannot be reconstructed at close-out.')
-table(['Category', 'Additional data at LOD 500'],
-      [['Mechanical equipment', 'Serial number, installation date'],
-       ['Electrical equipment', 'Serial number, installation date'],
-       ['Lighting fixtures', 'Serial number, installation date'],
-       ['Plumbing fixtures', 'Serial number, installation date'],
-       ['Air terminals', 'Serial number, installation date'],
-       ['Sprinklers', 'Serial number, installation date'],
-       ['Fire alarm devices', 'Serial number, installation date'],
-       ['Specialty equipment', 'Serial number, installation date'],
-       ['Furniture', 'Installation date, FF&E reference'],
-       ['Furniture systems', 'Installation date, FF&E reference']],
-      widths=[7.6, 9.0])
-callout('Capture of serial numbers and installation dates begins at Stage 3.1 and is reported monthly from '
-        'the first month of construction. A programme that leaves this to Stage 3.3 will not achieve '
-        'Deliverable D within the 60-day period following furniture installation.', 'Programme requirement')
+para('At Deliverable D, elements carry asset data in addition to the requirements above. The data is '
+     'captured during construction and installation, reported monthly, and verified at the gate. It cannot '
+     'be reconstructed at close-out.')
+para('The requirement is tiered by what the asset is. A requirement applied uniformly to every element '
+     'cannot be met: a serial number on each of several thousand luminaires produces a register completed '
+     'in part, which the facilities team cannot rely on for any of it. The full schedule, including the '
+     'recording conventions, is at Section 14 of the BIM Execution Plan.')
+table(['Tier', 'What it covers', 'Categories'],
+      [['A  Serialised plant', 'Individually commissioned, carries a nameplate, under a service contract '
+        'or connected to the building management system',
+        'Mechanical equipment, electrical equipment, specialty equipment (including baptistry plant, '
+        'audio-visual equipment and lift equipment)'],
+       ['B  Maintainable devices', 'High quantity, maintained, but no meaningful individual serial number',
+        'Lighting fixtures, plumbing fixtures, air terminals, sprinklers, fire alarm devices, electrical '
+        'fixtures'],
+       ['C  Warranted fabric', 'No serial number and no maintenance regime, but a warranty to claim against',
+        'Roofs, curtain panels and mullions, doors, windows, casework and joinery'],
+       ['FF&E', 'Reconciled to the FF&E record', 'Furniture, furniture systems'],
+       ['D  All other elements', 'Identified but not asset-managed', 'Every other category']],
+      widths=[3.2, 6.2, 7.2])
+table(['Data', 'A', 'B', 'C', 'FF&E'],
+      [['Asset identifier', 'Yes', 'Yes', 'Yes', 'Yes'],
+       ['Manufacturer and model reference', 'Yes', 'Yes', '—', 'Yes'],
+       ['Unique asset reference', 'Yes', '—', '—', '—'],
+       ['Serial number', 'Yes', '—', '—', '—'],
+       ['Loop and address', '—', 'Fire alarm devices only', '—', '—'],
+       ['Installation date', 'Yes', 'Yes', 'Yes', 'Yes'],
+       ['Supplier', 'Yes', 'Yes', 'Yes', 'Yes'],
+       ['Warranty guarantor', 'Yes', '—', 'Yes', '—'],
+       ['Warranty duration', 'Yes', 'Yes', 'Yes', 'Yes'],
+       ['Warranty start date', 'Yes', '—', 'Yes', '—'],
+       ['Expected service life', 'Yes', 'Yes', '—', '—'],
+       ['Maintenance interval', 'Yes', '—', '—', '—'],
+       ['Recommended spares', 'Yes', '—', '—', '—'],
+       ['Commissioning date', 'Yes', '—', '—', '—'],
+       ['FF&E reference', '—', '—', '—', 'Yes']],
+      widths=[6.6, 2.4, 4.0, 2.4, 1.8], font=8)
+callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
+        'cause-and-effect schedule, the panel and future maintenance actually use.', 'Fire alarm devices')
+callout('Dates are recorded as YYYY-MM-DD. Warranty durations are whole years, with parts and labour '
+        'recorded separately where they differ. A warranty start date is not always the installation date; '
+        'where they differ, record both.', 'Conventions')
+callout('Capture begins at Stage 3.1 and is reported monthly by tier and by volume from the first month of '
+        'construction, so a shortfall is visible while the installer is still on site. A tier below 95 per '
+        'cent at the Deliverable D gate is a gate failure, not an observation. A programme that leaves this '
+        'to Stage 3.3 will not achieve Deliverable D within the 60-day period following furniture '
+        'installation.', 'Programme requirement')
 
 # ── 8 ────────────────────────────────────────────────────────────────────────
 h1('8  Stage-by-stage delivery')

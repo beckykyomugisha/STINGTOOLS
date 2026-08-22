@@ -75,7 +75,8 @@ c.table(['Section', 'Title'],
          ['11', 'FF&E, handover and operations'],
          ['12', 'Training and competence'],
          ['13', 'Risks and mitigation'],
-         ['14', 'Appendices']],
+         ['14', 'Asset data schedule'],
+         ['15', 'Appendices']],
         widths=[2.6, 14.0], font=9)
 
 # ── 1 ───────────────────────────────────────────────────────────────────────
@@ -485,7 +486,83 @@ c.table(['Risk', 'Impact', 'Mitigation', 'Owner'],
         widths=[5.4, 1.8, 6.4, 3.0], font=8)
 
 # ── 14 ──────────────────────────────────────────────────────────────────────
-c.h1('14  Appendices')
+c.h1('14  Asset data schedule')
+c.para('This schedule defines the asset information to be captured during construction and delivered with '
+       'the record model at Deliverable D. It is tiered by what the asset is, because a requirement applied '
+       'uniformly to every element cannot be met. Requiring a serial number on each of several thousand '
+       'luminaires produces a register completed to perhaps forty per cent, which the facilities team cannot '
+       'rely on for any of it. A smaller requirement, met in full, is worth more than a complete one met in '
+       'part.')
+c.para('Capture begins at Stage 3.1 and is reported monthly. It is verified at the Deliverable D gate.')
+
+c.h2('14.1  Tiers')
+c.table(['Tier', 'What it covers', 'Categories'],
+        [['A  Serialised plant',
+          'Individually commissioned equipment carrying a nameplate, held under a service contract or '
+          'connected to the building management system',
+          'Mechanical equipment, electrical equipment, specialty equipment (including baptistry plant, '
+          'audio-visual equipment and lift equipment)'],
+         ['B  Maintainable devices',
+          'High quantity devices with a maintenance regime but no meaningful individual serial number',
+          'Lighting fixtures, plumbing fixtures, air terminals, sprinklers, fire alarm devices, electrical '
+          'fixtures'],
+         ['C  Warranted fabric',
+          'No serial number and no maintenance regime, but a warranty the Appointing Party will need to '
+          'claim against',
+          'Roofs, curtain panels and mullions, doors, windows, casework and joinery'],
+         ['FF&E', 'Furniture and loose equipment, reconciled to the FF&E record',
+          'Furniture, furniture systems'],
+         ['D  All other elements', 'Identified but not asset-managed', 'Every other category']],
+        widths=[3.4, 6.2, 7.0])
+
+c.h2('14.2  Data required by tier')
+c.table(['Data', 'A', 'B', 'C', 'FF&E', 'D'],
+        [['Asset identifier (the eight-field tag)', 'Yes', 'Yes', 'Yes', 'Yes', 'Yes'],
+         ['Product code', 'Yes', 'Yes', 'Yes', 'Yes', 'From LOD 350'],
+         ['Manufacturer and model reference', 'Yes', 'Yes', '—', 'Yes', 'From LOD 400'],
+         ['Unique asset reference', 'Yes', '—', '—', '—', '—'],
+         ['Serial number', 'Yes', '—', '—', '—', '—'],
+         ['Loop and address', '—', 'Fire alarm devices only', '—', '—', '—'],
+         ['Installation date', 'Yes', 'Yes', 'Yes', 'Yes', '—'],
+         ['Supplier', 'Yes', 'Yes', 'Yes', 'Yes', '—'],
+         ['Warranty guarantor', 'Yes', '—', 'Yes', '—', '—'],
+         ['Warranty duration', 'Yes', 'Yes', 'Yes', 'Yes', '—'],
+         ['Warranty start date', 'Yes', '—', 'Yes', '—', '—'],
+         ['Expected service life', 'Yes', 'Yes', '—', '—', '—'],
+         ['Maintenance interval', 'Yes', '—', '—', '—', '—'],
+         ['Recommended spares', 'Yes', '—', '—', '—', '—'],
+         ['Commissioning date', 'Yes', '—', '—', '—', '—'],
+         ['FF&E reference', '—', '—', '—', 'Yes', '—']],
+        widths=[6.2, 2.2, 3.6, 2.2, 1.6, 2.4], font=8)
+c.callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
+          'cause-and-effect schedule, the panel and any future maintenance actually use; a device serial '
+          'number is not used by anyone once the device is installed.', 'Fire alarm devices')
+
+c.h2('14.3  Conventions')
+c.table(['Item', 'Requirement'],
+        [['Date format', 'YYYY-MM-DD throughout. Date fields are held as text, so nothing enforces the '
+                         'format automatically; a mixed convention is only discovered at close-out'],
+         ['Warranty duration', 'Whole years. Where parts and labour differ, both are recorded'],
+         ['Warranty start', 'The date the warranty period commences, which is not always the installation '
+                            'date. Where they differ, both are recorded'],
+         ['Expected service life', 'Whole years, as stated by the manufacturer'],
+         ['Maintenance interval', 'Whole months'],
+         ['Unique asset reference', 'Allocated by the Appointing Party numbering convention where one is '
+                                    'issued; otherwise the asset identifier is used'],
+         ['Responsibility', 'The Contractor captures the data at installation and commissioning. The '
+                            'Information Manager verifies completeness monthly and at the gate']],
+        widths=[4.0, 12.6])
+
+c.h2('14.4  Reporting')
+c.para('Completeness is reported monthly from the first month of construction, by tier and by volume, so a '
+       'shortfall is visible while the installer is still on site. A tier reported below ninety-five per cent '
+       'at the Deliverable D gate is a gate failure, not an observation.')
+c.callout('This schedule is the project position pending issue of the Appointing Party asset information '
+          'requirements. On receipt, it is reconciled against them and reissued. It is deliberately narrower '
+          'than the standard corporate requirement, which applies serial numbers to categories where they '
+          'cannot realistically be captured.', 'Status')
+
+c.h1('15  Appendices')
 c.table(['Appendix', 'Content', 'Status'],
         [['A', 'Exchange information requirements (Appointing Party)', 'Attached / referenced'],
          ['B', 'Master Information Delivery Plan', 'Attached'],
@@ -493,7 +570,8 @@ c.table(['Appendix', 'Content', 'Status'],
          ['D', 'Responsibility matrix, expanded', 'Attached'],
          ['E', 'Clash matrix', 'Attached'],
          ['F', 'Project Delivery Playbook (KUT-PLN-ZZ-ZZ-RP-Z-0002)', 'Issued separately'],
-         ['G', 'Originator code register', 'To be confirmed — Section 4.2.1']],
+         ['G', 'Originator code register', 'To be confirmed — Section 4.2.1'],
+         ['H', 'Appointing Party asset information requirements', 'Awaited — see Section 14.4']],
         widths=[2.2, 10.4, 4.0])
 
 c.end_mark()

@@ -360,15 +360,52 @@ Categories not listed follow the general rule above.
 
 ## 5B.3 Asset data for handover (LOD 500)
 
-Captured **during construction**. It cannot be reconstructed at close-out.
+Captured **during construction**, reported monthly, verified at the Deliverable D gate. It cannot be
+reconstructed at close-out.
 
-| Category | Additional data at LOD 500 |
-|---|---|
-| Mechanical / Electrical equipment | Serial number, installation date |
-| Lighting fixtures, plumbing fixtures | Serial number, installation date |
-| Air terminals, sprinklers, fire alarm devices | Serial number, installation date |
-| Specialty equipment | Serial number, installation date |
-| Furniture, furniture systems | Installation date, FF&E reference |
+The requirement is **tiered by what the asset is**. A requirement applied uniformly to every element
+cannot be met: a serial number on each of several thousand luminaires produces a register completed
+to perhaps 40%, which the FM team cannot rely on for any of it. A smaller requirement met in full is
+worth more than a complete one met in part. Full schedule: **BEP §14**.
+
+| Tier | Covers | Categories |
+|---|---|---|
+| **A — Serialised plant** | Individually commissioned, carries a nameplate, under a service contract or on the BMS | Mechanical equipment, electrical equipment, specialty equipment (incl. baptistry plant, AV, lift equipment) |
+| **B — Maintainable devices** | High quantity, maintained, but no meaningful individual serial | Lighting fixtures, plumbing fixtures, air terminals, sprinklers, fire alarm devices, electrical fixtures |
+| **C — Warranted fabric** | No serial, no maintenance regime, but a warranty to claim against | Roofs, curtain panels and mullions, doors, windows, casework and joinery |
+| **FF&E** | Reconciled to the FF&E record | Furniture, furniture systems |
+| **D — Everything else** | Identified, not asset-managed | All other categories |
+
+| Data | A | B | C | FF&E |
+|---|---|---|---|---|
+| Asset identifier | ✓ | ✓ | ✓ | ✓ |
+| Manufacturer and model | ✓ | ✓ | — | ✓ |
+| Unique asset reference | ✓ | — | — | — |
+| **Serial number** | ✓ | — | — | — |
+| **Loop and address** | — | fire alarm devices only | — | — |
+| Installation date | ✓ | ✓ | ✓ | ✓ |
+| Supplier | ✓ | ✓ | ✓ | ✓ |
+| Warranty guarantor | ✓ | — | ✓ | — |
+| Warranty duration | ✓ | ✓ | ✓ | ✓ |
+| Warranty start date | ✓ | — | ✓ | — |
+| Expected service life | ✓ | ✓ | — | — |
+| Maintenance interval | ✓ | — | — | — |
+| Recommended spares | ✓ | — | — | — |
+| Commissioning date | ✓ | — | — | — |
+| FF&E reference | — | — | — | ✓ |
+
+> **Fire alarm devices carry loop and address instead of a serial number.** That is the identifier the
+> cause-and-effect schedule, the panel and future maintenance actually use. Nobody uses a smoke
+> detector's serial number after it is installed.
+
+**Conventions.** Dates are `YYYY-MM-DD` — date fields are held as text, so nothing enforces the format
+and a mixed convention only surfaces at close-out. Warranty durations are whole years, parts and
+labour recorded separately where they differ. Warranty start is not always the installation date;
+where they differ, record both.
+
+**Who does what.** The Contractor captures at installation and commissioning; the Information Manager
+verifies completeness monthly by tier and volume. A tier below 95% at the Deliverable D gate is a
+gate failure, not an observation.
 
 > A programme that leaves this to Stage 3.3 will not achieve Deliverable D within the 60 days
 > following furniture installation.
