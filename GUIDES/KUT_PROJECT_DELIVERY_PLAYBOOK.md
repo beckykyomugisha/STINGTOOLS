@@ -1,6 +1,11 @@
 # KUT Project Delivery Playbook
 ### Kampala Uganda Temple — how the whole team delivers information, stage by stage
 
+> **The issued document is `KUT_Project_Delivery_Playbook.docx`** (repo root), built by
+> `tools/build_team_playbook.py`. This markdown is the working draft used to review content.
+> Edit content here, then regenerate the `.docx` — do not hand-edit the Word file, or the two
+> will drift apart.
+
 **Issued by:** Planscape Consulting Engineers Ltd — Information Manager
 **Audience:** every organisation and every person producing information on KUT — Architecture, Interiors, Structure, Mechanical, Electrical, Plumbing, Fire, Low-Voltage, Civil/Site, QS/Cost, and the Contractor and specialist subcontractors when they join.
 **Status:** `[FILL: P01 — for issue at mobilisation]`
@@ -313,6 +318,60 @@ Either way, **place rooms before the first coordination share.** Rooms are the s
 | Linked models | By Shared Coordinates, pinned, and never bound into your model |
 | Purge | Purge unused before every share; report file size in the share note |
 | Warnings | Review Revit warnings before sharing; zero critical warnings at a gate |
+
+---
+
+# PART 5B — Information requirements by stage
+
+Geometry alone does not satisfy a stage. The data below must be present **on the element**, and is
+checked automatically at every gate.
+
+## 5B.1 General requirement at each stage
+
+| LOD | Stage | Geometry | Data required on every element |
+|---|---|---|---|
+| 200 | Deliverable A | Present; generic/placeholder families permitted | Asset identifier |
+| 300 | Deliverable B | Present; **no placeholder or generic families** — a real type is required | Asset identifier |
+| 350 | Deliverable C / conformed | As 300 | Asset identifier, product code |
+| 400 | Construction | As 350; a **manufacturer type** is required | Asset identifier, product code, model reference |
+| 500 | Deliverable D | As 400, **verified against the installed element** | As 400, plus §5B.3 |
+
+## 5B.2 Additional requirements by category
+
+Categories not listed follow the general rule above.
+
+| Category | From LOD 300 | From LOD 350 | From LOD 400 |
+|---|---|---|---|
+| Mechanical / Electrical equipment | System type | Product code | Model ref, manufacturer |
+| Lighting fixtures | System type | Product code | Model ref, manufacturer |
+| **Plumbing fixtures** | System type | Product code | Model ref, manufacturer, **maintenance type** |
+| Air terminals, sprinklers, fire alarm devices | System type | Product code | Model ref, manufacturer |
+| Electrical fixtures | System type | Product code | Model ref, manufacturer |
+| Ducts, pipes, conduits, cable trays + fittings | System type | — | — |
+| Doors, windows | — | Product code | Model ref, manufacturer |
+| Casework, specialty equipment, furniture | — | Product code | Model ref, manufacturer |
+| Curtain panels and mullions | — | Product code | Model ref, manufacturer |
+| Walls, floors, roofs, stairs, framing, columns, foundations | — | Product code | — |
+| Ceilings, railings, ramps | — | — | Product code |
+
+> **Plumbing fixtures gain a maintenance-type requirement at LOD 400** that did not apply earlier.
+> The construction gate is the first point at which it is tested — start capturing it at the
+> beginning of Stage 3.1.
+
+## 5B.3 Asset data for handover (LOD 500)
+
+Captured **during construction**. It cannot be reconstructed at close-out.
+
+| Category | Additional data at LOD 500 |
+|---|---|
+| Mechanical / Electrical equipment | Serial number, installation date |
+| Lighting fixtures, plumbing fixtures | Serial number, installation date |
+| Air terminals, sprinklers, fire alarm devices | Serial number, installation date |
+| Specialty equipment | Serial number, installation date |
+| Furniture, furniture systems | Installation date, FF&E reference |
+
+> A programme that leaves this to Stage 3.3 will not achieve Deliverable D within the 60 days
+> following furniture installation.
 
 ---
 
