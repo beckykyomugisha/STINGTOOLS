@@ -558,8 +558,9 @@ namespace StingTools.Model
                     var schedule = RoomFinishScheduler.GenerateSchedule(doc);
                     if (schedule.Count > 0)
                     {
-                        RoomFinishScheduler.WriteToRooms(doc, schedule);
-                        report.Log.Add($"✓ Step 6: Room finishes — {schedule.Count} rooms");
+                        var write = RoomFinishScheduler.WriteToRooms(doc, schedule);
+                        report.Log.Add($"✓ Step 6: Room finishes — {schedule.Count} rooms scanned, " +
+                            $"{write.Modified} updated, {write.AlreadyPopulated} already populated");
                     }
                     else report.Log.Add("✓ Step 6: No rooms for finish schedule");
                 }

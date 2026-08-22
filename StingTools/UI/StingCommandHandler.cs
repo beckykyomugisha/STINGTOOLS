@@ -1999,6 +1999,8 @@ namespace StingTools.UI
                     case "CoveringSmartApply": RunCommand<Model.CoveringSmartApplyCommand>(app); break;
                     case "CoveringBatchApply": RunCommand<Model.CoveringBatchApplyCommand>(app); break;
                     case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
+                    case "Finish_CreateFloorsFromRooms": RunCommand<Model.CreateFinishFloorsFromRoomsCommand>(app); break;
+                    case "Finish_ReloadCodes": RunCommand<Model.ReloadFinishCodesCommand>(app); break;
                     case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
                     case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
                     case "CoveringFireRating": RunCommand<Model.CoveringFireRatingCommand>(app); break;

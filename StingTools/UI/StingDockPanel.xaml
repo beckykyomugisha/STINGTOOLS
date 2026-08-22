@@ -2815,7 +2815,11 @@
                                     <Button Style="{StaticResource OrangeBtn}" Content="★ Batch All" Tag="CoveringBatchApply" Click="Cmd_Click" FontWeight="Bold"
                                             ToolTip="Batch plaster ALL walls + beams + columns in project"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Room Finishes" Tag="CoveringRoomSchedule" Click="Cmd_Click"
-                                            ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms"/>
+                                            ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms. Writes BOTH the Revit built-in finish parameters and the STING BLE_ROOM_FINISH_* params, so the ISB room finish schedule and IFC export can see them."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Finish Floors" Tag="Finish_CreateFloorsFromRooms" Click="Cmd_Click"
+                                            ToolTip="Create one floor-finish element per room from its floor finish code: sketched on the room boundary, offset 0 from level so the top sits at FFL, Room Bounding off. Re-runnable — rooms that already have a finish floor are skipped."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Finish Codes" Tag="Finish_ReloadCodes" Click="Cmd_Click"
+                                            ToolTip="Reload and list the finish code legend (STING_FINISH_CODES.csv + project override at _BIM_COORD/finish_codes.csv)"/>
                                 </WrapPanel>
                                 <Expander Header="Advanced covering ops" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
