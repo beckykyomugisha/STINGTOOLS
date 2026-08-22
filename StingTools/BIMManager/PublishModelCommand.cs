@@ -428,6 +428,7 @@ namespace StingTools.BIMManager
             // on the second publish of a session, which is the worst kind to reproduce.
             // Only ExportActiveView, which actually asks, may set it true.
             _includeLinksThisRun = false;
+            _exportedKeysThisRun = null;
 
             var dlg = new TaskDialog("Publish Model")
             {
@@ -479,6 +480,7 @@ namespace StingTools.BIMManager
                 var result = RevitGltfExporter.Export(doc, v3d, outPath,
                                                       exportTextures: wantTextures,
                                                       includeLinks: _includeLinksThisRun);
+                _exportedKeysThisRun = result.ElementKeys;
                 StingLog.Info($"Planscape: GLB exported ({result.ElementCount} elements, {result.FileSizeBytes:N0} bytes) → {outPath}");
 
                 // Say it out loud. The whole reason this option exists is that links were
@@ -527,6 +529,23 @@ namespace StingTools.BIMManager
         /// disagreement shows as meshes with no properties, or tree rows with no mesh.
         /// </summary>
         private static bool _includeLinksThisRun;
+
+        /// <summary>
+        /// Keys the GLB export actually wrote, or null when this publish did not run the
+        /// exporter (the user picked an existing .glb/.ifc, so we cannot know what is in
+        /// it and must not pretend to).
+        ///
+        /// <para>The map exists to annotate the geometry, so it should describe THE FILE,
+        /// not the documents the file came from. Measured on a real federated site: 1,407
+        /// elements in the GLB, 37,110 in an independently-built map — 29,521 of them
+        /// <c>Lines</c> and 5,706 <c>Legend Components</c> living in the links' legend and
+        /// detail views. 12.28 MB of mostly annotation for 1,407 meshes, which is what hit
+        /// the server's element-map limit.</para>
+        ///
+        /// <para>Filtering by Revit category cannot solve this — <c>OST_Lines</c> is a
+        /// model category. Only the exporter knows what was drawn.</para>
+        /// </summary>
+        private static HashSet<string>? _exportedKeysThisRun;
 
         /// <summary>
         /// Ask once per publish, and only when it matters.
@@ -781,6 +800,21 @@ namespace StingTools.BIMManager
             else
                 StingLog.Info("Publish: element map covers the host model only (links excluded for this publish).");
 
+            // Describe the FILE, not the documents. Anything that produced no mesh is not
+            // in the GLB, so an entry for it is a tree row the viewer can never select and
+            // bytes the upload has to carry — 95% of the payload on a real federated site.
+            //
+            // Only when we ran the exporter. A user-picked .glb/.ifc leaves this null and
+            // the map keeps its full scope, because guessing which elements a file we did
+            // not produce contains would drop real ones.
+            if (_exportedKeysThisRun != null && _exportedKeysThisRun.Count > 0)
+            {
+                int before = elements.Count;
+                elements = elements.Where(i => _exportedKeysThisRun.Contains(i.Key)).ToList();
+                StingLog.Info($"Publish: element map narrowed to the {elements.Count} element(s) " +
+                              $"actually in the GLB (from {before} with geometry in the documents).");
+            }
+
             var map = new JObject();
             var bb = new BoundingBoxXYZ { Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue),
                                           Max = new XYZ(double.MinValue, double.MinValue, double.MinValue) };
@@ -948,7 +982,10 @@ namespace StingTools.BIMManager
                 : new[] { 0d, 0d, 0d, 0d, 0d, 0d };
             elementCount = count;
 
-            File.WriteAllText(outputPath, map.ToString(Newtonsoft.Json.Formatting.Indented), Encoding.UTF8);
+            // None, not Indented. Measured 12.28 MB pretty vs 9.70 MB compact on a real
+            // model: a 21% saving on a machine-read sidecar that no one opens by hand, and
+            // it counts against an upload limit.
+            File.WriteAllText(outputPath, map.ToString(Newtonsoft.Json.Formatting.None), Encoding.UTF8);
         }
 
         /// <summary>

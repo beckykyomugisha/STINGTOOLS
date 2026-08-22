@@ -2,6 +2,49 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 242 — the element map described the documents, not the model)
+
+The federation fix worked — the GLB went from 13 elements to **1,407**, six links
+contributing ~7,000 elements each. The upload then failed:
+
+```
+Upload failed: HTTP 400: {"error":"element_map_too_large","maxMb":5}
+```
+
+**The map was 12.28 MB describing 1,407 meshes.** Measured on the generated file: 37,110
+entries, of which **29,521 were `Lines` and 5,706 `Legend Components`** — legend and detail
+content living inside the linked files' non-3D views. Real building elements numbered a few
+hundred: 181 walls, 133 pipes, 130 furniture, 106 columns, 87 windows, 67 doors, 57
+toposolids. **95% of the payload was annotation the viewer can never select.**
+
+A category filter cannot fix this — `OST_Lines` *is* a model category, and the entries
+come from views that are not the 3D view. Only the exporter knows what was drawn, so the
+exporter now says: it records the key of every element that produced at least one mesh,
+under the same condition that keeps the node, and the map is narrowed to that set.
+**37,110 → ~1,407.**
+
+Only when this publish ran the exporter. A user-picked `.glb`/`.ifc` leaves the set null
+and the map keeps its full scope, because guessing what a file we did not produce contains
+would drop real elements. Logged as ROADMAP PUB-2.
+
+**Also.** The map is written compact rather than indented — measured 12.28 MB → 9.70 MB, a
+21% saving on a machine-read sidecar nobody opens by hand. And ~2.40 MB of the original was
+pure repetition of the absolute link path in every key, an artefact of the Phase 240
+namespacing; narrowing the set removes most of it.
+
+**Server.** The cap moves 5 MB → 25 MB, into one named constant instead of two magic
+numbers that had to agree. 5 MB is ~19,000 elements at the ~265 bytes/element a real map
+costs — a federated site passes that easily, so the limit was binding on ordinary models,
+not just on this bug. Not raised further on purpose: `DownloadElementMap` reads the whole
+map into a string to merge the cost sidecar, on a 512 MB instance. Storing it gzipped is
+the durable answer — **31× on this file, 12.28 MB → 0.40 MB** — and is logged as PUB-1
+rather than bolted on here, because it needs the serve path and the cost merge to
+decompress.
+
+The refusal now carries `actualMb` and a `hint`. `{"maxMb":5}` alone was true and unusable:
+it never said how large the map *was*, so "slightly over" and "twenty times over" looked
+identical, and nothing pointed at the real cause.
+
 #### Completed (Phase 241 — a model could be published but never removed)
 
 The Models page offered Upload and View and nothing else. A model published by mistake —

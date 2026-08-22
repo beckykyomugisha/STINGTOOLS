@@ -42,6 +42,24 @@ public class ModelsController : ControllerBase
     // an uncompressed IFC or a federated model that should be split.
     private const long MaxModelSizeBytes = 500L * 1024 * 1024;
 
+    /// <summary>
+    /// Cap on the element-map sidecar. Raised from 5 MB.
+    ///
+    /// <para>5 MB is roughly 19,000 elements at the ~265 bytes/element a real map costs,
+    /// which a federated site passes easily. It was also being hit for the wrong reason —
+    /// the plugin was describing every element in the source documents rather than the
+    /// ones in the GLB, so a 1,407-element model shipped a 12.28 MB map of mostly legend
+    /// and detail lines. That is fixed on the plugin side; this raises the ceiling so the
+    /// limit binds on genuinely large models instead of on a bug.</para>
+    ///
+    /// <para>Not larger, deliberately: <c>DownloadElementMap</c> reads the whole map into
+    /// a string to merge the cost sidecar, and the free-tier instance has 512 MB of RAM.
+    /// The durable fix is to store it gzipped — measured 31× on a real map (12.28 MB →
+    /// 0.40 MB) — which needs the serve path and the cost merge to decompress. Logged
+    /// rather than done here.</para>
+    /// </summary>
+    private const long MaxElementMapBytes = 25L * 1024 * 1024;
+
     public ModelsController(
         PlanscapeDbContext db,
         IFileStorageService storage,
@@ -204,8 +222,8 @@ public class ModelsController : ControllerBase
             }
             if (req.ElementMap != null && req.ElementMap.Length > 0)
             {
-                if (req.ElementMap.Length > 5 * 1024 * 1024)
-                    return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+                if (req.ElementMap.Length > MaxElementMapBytes)
+                    return BadRequest(TooLargeBody(req.ElementMap.Length));
                 using var s = req.ElementMap.OpenReadStream();
                 existing.ElementMapPath = await _storage.SaveAsync(
                     tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
@@ -256,8 +274,8 @@ public class ModelsController : ControllerBase
         string? mapPath = null;
         if (req.ElementMap != null && req.ElementMap.Length > 0)
         {
-            if (req.ElementMap.Length > 5 * 1024 * 1024)
-                return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+            if (req.ElementMap.Length > MaxElementMapBytes)
+                return BadRequest(TooLargeBody(req.ElementMap.Length));
             using var s = req.ElementMap.OpenReadStream();
             mapPath = await _storage.SaveAsync(tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
         }
@@ -794,6 +812,26 @@ public class ModelsController : ControllerBase
         ConversionStatus: m.ConversionStatus,
         ConversionError: m.ConversionError,
         DeletedAt: m.DeletedAt);
+
+    /// <summary>
+    /// The refusal, with the numbers and a next step.
+    ///
+    /// <para>The previous body was <c>{"error":"element_map_too_large","maxMb":5}</c> —
+    /// true, and unusable: it did not say how large the map WAS, so there was no way to
+    /// tell "slightly over" from "twenty times over", and no hint that the usual cause is
+    /// a map describing far more than the model contains. <c>actualMb</c> and <c>hint</c>
+    /// are additive; <c>error</c> and <c>maxMb</c> keep their names for anything already
+    /// matching on them.</para>
+    /// </summary>
+    private static object TooLargeBody(long actualBytes) => new
+    {
+        error = "element_map_too_large",
+        maxMb = MaxElementMapBytes / (1024 * 1024),
+        actualMb = Math.Round(actualBytes / 1024d / 1024d, 2),
+        hint = "The element map should describe the elements in the published geometry. "
+             + "A map far larger than the model usually means it also covers annotation, "
+             + "legend or detail content. Update the plugin, or publish fewer linked models.",
+    };
 
     private static ModelFormat InferFormat(string fileName)
     {
