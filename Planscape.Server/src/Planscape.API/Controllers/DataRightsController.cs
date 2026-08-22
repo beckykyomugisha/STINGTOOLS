@@ -53,28 +53,67 @@ public class DataRightsController : ControllerBase
 
         using var archive = new ZipArchive(Response.BodyWriter.AsStream(), ZipArchiveMode.Create, leaveOpen: true);
 
-        await DumpAsync(archive, "tenant.json",     await _db.Tenants.Where(t => t.Id == tenantId).ToListAsync(ct));
-        await DumpAsync(archive, "users.json",      await _db.Users.ToListAsync(ct));
-        await DumpAsync(archive, "projects.json",   await _db.Projects.ToListAsync(ct));
-        await DumpAsync(archive, "members.json",    await _db.ProjectMembers.ToListAsync(ct));
-        await DumpAsync(archive, "issues.json",     await _db.Issues.ToListAsync(ct));
-        await DumpAsync(archive, "documents.json",  await _db.Documents.ToListAsync(ct));
-        await DumpAsync(archive, "models.json",     await _db.ProjectModels.ToListAsync(ct));
-        await DumpAsync(archive, "audit-log.json",  await _db.AuditLogs.OrderBy(a => a.Timestamp).Take(100_000).ToListAsync(ct));
-        await DumpAsync(archive, "subscriptions.json", await _db.Subscriptions.ToListAsync(ct));
-        await DumpAsync(archive, "invoices.json",   await _db.Invoices.ToListAsync(ct));
+        // AsNoTracking on every query: without it EF's relationship fix-up wires
+        // the loaded entities to each other (user.Tenant.Users.Tenant…), and
+        // System.Text.Json then throws "a possible object cycle was detected"
+        // mid-stream — after the 200 and the ZIP header have already gone out,
+        // so the caller receives a truncated archive rather than an error.
+        // ReferenceHandler.IgnoreCycles below is the belt-and-braces guarantee.
+        await DumpAsync(archive, "tenant.json",     await _db.Tenants.AsNoTracking().Where(t => t.Id == tenantId).ToListAsync(ct));
+        await DumpAsync(archive, "users.json",      await _db.Users.AsNoTracking().Select(u => new ExportedUser(
+                                                        u.Id, u.TenantId, u.Email, u.DisplayName, u.Role.ToString(),
+                                                        u.Iso19650Role, u.IsActive, u.CreatedAt, u.LastLoginAt,
+                                                        u.IsDeleted, u.DeletedAt)).ToListAsync(ct));
+        await DumpAsync(archive, "projects.json",   await _db.Projects.AsNoTracking().ToListAsync(ct));
+        await DumpAsync(archive, "members.json",    await _db.ProjectMembers.AsNoTracking().ToListAsync(ct));
+        await DumpAsync(archive, "issues.json",     await _db.Issues.AsNoTracking().ToListAsync(ct));
+        await DumpAsync(archive, "documents.json",  await _db.Documents.AsNoTracking().ToListAsync(ct));
+        await DumpAsync(archive, "models.json",     await _db.ProjectModels.AsNoTracking().ToListAsync(ct));
+        await DumpAsync(archive, "audit-log.json",  await _db.AuditLogs.AsNoTracking().OrderBy(a => a.Timestamp).Take(100_000).ToListAsync(ct));
+        await DumpAsync(archive, "subscriptions.json", await _db.Subscriptions.AsNoTracking().ToListAsync(ct));
+        await DumpAsync(archive, "invoices.json",   await _db.Invoices.AsNoTracking().ToListAsync(ct));
 
         return new EmptyResult();
     }
+
+    /// <summary>
+    /// Users are projected rather than dumped raw so the archive never carries
+    /// credentials. <c>AppUser.PasswordHash</c> and <c>AppUser.RefreshToken</c>
+    /// are authentication secrets for *every* member of the tenant, and this
+    /// ZIP is handed to whoever holds Owner/Admin — a subject-access request is
+    /// not a reason to disclose other people's password hashes.
+    /// </summary>
+    private sealed record ExportedUser(
+        Guid Id, Guid TenantId, string Email, string DisplayName, string Role,
+        string Iso19650Role, bool IsActive, DateTime CreatedAt, DateTime? LastLoginAt,
+        bool IsDeleted, DateTime? DeletedAt);
+
+    private static readonly JsonSerializerOptions ExportJsonOptions = new()
+    {
+        // MUST stay false. DumpAsync writes one WriteLineAsync per row, so the
+        // archive's format is JSON Lines — one self-contained JSON value per line.
+        // With WriteIndented = true each record was pretty-printed across many
+        // lines, which is neither a JSON document (several top-level values, no
+        // enclosing array) nor JSON Lines (records span lines): tenant.json line 1
+        // was the single character "{". Nothing could parse the export.
+        //
+        // Indenting is also why this must not be "fixed" by wrapping each file in
+        // an array instead: the per-line form is what keeps DumpAsync streaming
+        // row-by-row rather than buffering a whole table (issues.json runs to
+        // ~7.4 MB) into one serialized string.
+        //
+        // Guarded by Every_export_entry_is_parseable_JSON_Lines.
+        WriteIndented = false,
+        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+    };
 
     private static async Task DumpAsync<T>(ZipArchive archive, string entryName, IList<T> rows)
     {
         var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
         await using var entryStream = entry.Open();
         await using var writer = new StreamWriter(entryStream);
-        var opts = new JsonSerializerOptions { WriteIndented = true };
         foreach (var row in rows)
-            await writer.WriteLineAsync(JsonSerializer.Serialize(row, opts));
+            await writer.WriteLineAsync(JsonSerializer.Serialize(row, ExportJsonOptions));
     }
 
     [HttpPost("erase")]
