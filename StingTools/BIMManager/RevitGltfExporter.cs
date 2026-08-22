@@ -62,6 +62,30 @@ namespace StingTools.BIMManager
         // ("PlanscapeExportTextures" export option).
         public static bool ExportTextures { get; set; } = false;
         private readonly bool _exportTextures;
+
+        /// <summary>
+        /// Whether linked models are included. <b>Default false — the host model only.</b>
+        ///
+        /// <para>Two publishes serve different purposes and want opposite answers. A
+        /// discipline publish ("here is MY model") wants the host alone: smaller file,
+        /// faster, and the platform federates published models on the viewer side anyway.
+        /// A site or coordination publish wants everything in one artefact.</para>
+        ///
+        /// <para>Off by default because that is the smaller, faster, more predictable
+        /// result and matches what most publishes are for. <b>The obligation that comes
+        /// with the default is that exclusion must be VISIBLE</b> — a federated model
+        /// silently arriving as an empty container is precisely the failure this option
+        /// grew out of, and a default is not an excuse to reproduce it quietly. Callers
+        /// must report how many links were left out.</para>
+        ///
+        /// <para>Set via <c>PLANSCAPE_EXPORT_LINKS=1</c>, this static, or the
+        /// <c>includeLinks</c> parameter on <see cref="Export"/>.</para>
+        /// </summary>
+        public static bool IncludeLinks { get; set; } = false;
+        private readonly bool _includeLinks;
+
+        /// <summary>Links encountered and skipped, so the caller can say so out loud.</summary>
+        public int SkippedLinkCount { get; private set; }
         // Per-material appearance cache (Revit material ElementId.Value → resolved def),
         // so the version-sensitive appearance read runs once per material, not per face.
         private readonly Dictionary<string, MaterialDef?> _appearanceCache = new();
@@ -86,24 +110,29 @@ namespace StingTools.BIMManager
         // its millimetre survey figures from RevitGeoref, which reads metres.)
         private const double FeetToMetres = 0.3048;
 
-        public RevitGltfExporter(Document doc, bool exportTextures = false)
+        public RevitGltfExporter(Document doc, bool exportTextures = false, bool includeLinks = false)
         {
             _doc = doc;
             _exportTextures = exportTextures;
+            _includeLinks = includeLinks;
             _xformStack.Push(Transform.Identity);
             _docStack.Push(doc);
         }
 
-        public static ExportResult Export(Document doc, View3D view, string outputGlbPath, bool? exportTextures = null)
+        public static ExportResult Export(Document doc, View3D view, string outputGlbPath,
+                                          bool? exportTextures = null, bool? includeLinks = null)
         {
             bool textures = exportTextures ?? ExportTextures;
+            bool links = includeLinks
+                ?? (string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_LINKS"), "1", StringComparison.OrdinalIgnoreCase)
+                    || IncludeLinks);
             // S8.2.2 — span around the whole export so telemetry-on users see
             // p99 export latency vs scene size in their dashboards.
             return StingTools.Core.PluginTelemetry.Run(
                 "RevitGltfExporter.export",
                 () =>
                 {
-                    var ctx = new RevitGltfExporter(doc, textures);
+                    var ctx = new RevitGltfExporter(doc, textures, links);
                     var exporter = new CustomExporter(doc, ctx)
                     {
                         IncludeGeometricObjects = false,
@@ -113,6 +142,10 @@ namespace StingTools.BIMManager
                     };
                     exporter.Export(view);
                     var result = ctx.WriteGlb(outputGlbPath);
+                    result.SkippedLinkCount = ctx.SkippedLinkCount;
+                    if (ctx.SkippedLinkCount > 0)
+                        StingLog.Info($"Planscape: GLB excluded {ctx.SkippedLinkCount} linked model instance(s) " +
+                                      "(links off — set PLANSCAPE_EXPORT_LINKS=1 or choose 'include links' to add them).");
                     // Gap J — write coordinate sidecar alongside the GLB so the
                     // server can populate IfcAlignmentReport without re-parsing IFC.
                     ExportCoordinateSidecar(doc, outputGlbPath);
@@ -181,6 +214,15 @@ namespace StingTools.BIMManager
 
         public RenderNodeAction OnLinkBegin(LinkNode node)
         {
+            if (!_includeLinks)
+            {
+                // Skip means Revit does NOT call OnLinkEnd for this node, so nothing is
+                // pushed here — pushing and never popping would leave every element after
+                // the first link resolving against the wrong document and transform.
+                SkippedLinkCount++;
+                return RenderNodeAction.Skip;
+            }
+
             var t = _xformStack.Peek().Multiply(node.GetTransform());
             _xformStack.Push(t);
 
@@ -1084,6 +1126,10 @@ namespace StingTools.BIMManager
             public int ElementCount;
             public double[] BoundsMm = Array.Empty<double>();
             public long FileSizeBytes;
+            /// <summary>Linked model instances NOT in this export. Non-zero means the
+            /// file is the host model only — say so to the user rather than letting a
+            /// federated model arrive as an empty container.</summary>
+            public int SkippedLinkCount;
         }
     }
 }

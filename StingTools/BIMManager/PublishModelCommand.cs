@@ -421,6 +421,14 @@ namespace StingTools.BIMManager
 
         private static string? PromptForModelFileOrExport(Document doc)
         {
+            // Reset per publish. This is static state, so without it a run that picks an
+            // existing file would inherit the ANSWER FROM THE PREVIOUS RUN and build an
+            // element map that disagrees with the geometry — the same
+            // meshes-without-properties symptom, arriving by a different route and only
+            // on the second publish of a session, which is the worst kind to reproduce.
+            // Only ExportActiveView, which actually asks, may set it true.
+            _includeLinksThisRun = false;
+
             var dlg = new TaskDialog("Publish Model")
             {
                 MainInstruction = "How do you want to provide the 3D geometry?",
@@ -467,8 +475,21 @@ namespace StingTools.BIMManager
                 bool wantTextures =
                     string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_TEXTURES"), "1", StringComparison.OrdinalIgnoreCase)
                     || RevitGltfExporter.ExportTextures;
-                var result = RevitGltfExporter.Export(doc, v3d, outPath, exportTextures: wantTextures);
+                _includeLinksThisRun = AskIncludeLinks(doc, v3d);
+                var result = RevitGltfExporter.Export(doc, v3d, outPath,
+                                                      exportTextures: wantTextures,
+                                                      includeLinks: _includeLinksThisRun);
                 StingLog.Info($"Planscape: GLB exported ({result.ElementCount} elements, {result.FileSizeBytes:N0} bytes) → {outPath}");
+
+                // Say it out loud. The whole reason this option exists is that links were
+                // being dropped SILENTLY, and a deliberate default is not a licence to
+                // reproduce that — a user who publishes a federated site and gets an empty
+                // container must be told why, at the moment it happens.
+                if (result.SkippedLinkCount > 0)
+                    TaskDialog.Show("Publish Model",
+                        $"Published the host model only — {result.SkippedLinkCount} linked model(s) were not included.\n\n"
+                      + "If you expected the buildings or site to appear, publish again and choose "
+                      + "\"Include linked models\".");
                 return outPath;
             }
             catch (Exception ex)
@@ -498,6 +519,76 @@ namespace StingTools.BIMManager
         }
 
         // ── Federation support ─────────────────────────────────────────
+
+        /// <summary>
+        /// Whether THIS publish includes linked models. Set by <see cref="AskIncludeLinks"/>
+        /// immediately before the geometry export and read by <c>BuildElementMap</c>, so
+        /// the GLB and the element map can never disagree about what was published — a
+        /// disagreement shows as meshes with no properties, or tree rows with no mesh.
+        /// </summary>
+        private static bool _includeLinksThisRun;
+
+        /// <summary>
+        /// Ask once per publish, and only when it matters.
+        ///
+        /// <para>No links in the view means no question — a dialog whose answer cannot
+        /// change anything is noise. When links ARE present the choice is explicit,
+        /// because both answers are reasonable: a discipline publish wants the host alone
+        /// (smaller, faster, and the viewer federates published models anyway), while a
+        /// site or coordination publish wants one artefact containing everything.</para>
+        ///
+        /// <para><c>PLANSCAPE_EXPORT_LINKS=1</c> skips the prompt for scripted runs.</para>
+        /// </summary>
+        private static bool AskIncludeLinks(Document doc, View view)
+        {
+            int linkCount;
+            try
+            {
+                var lc = view is View3D
+                    ? new FilteredElementCollector(doc, view.Id)
+                    : new FilteredElementCollector(doc);
+                linkCount = lc.OfClass(typeof(RevitLinkInstance)).GetElementCount();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Publish: could not count links — {ex.Message}");
+                linkCount = 0;
+            }
+
+            if (linkCount == 0) return false;
+
+            if (string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_LINKS"), "1",
+                              StringComparison.OrdinalIgnoreCase)
+                || RevitGltfExporter.IncludeLinks)
+            {
+                StingLog.Info($"Publish: including {linkCount} linked model(s) (set by environment/static override).");
+                return true;
+            }
+
+            var dlg = new TaskDialog("Publish Model")
+            {
+                MainInstruction = $"This view contains {linkCount} linked model(s). Include them?",
+                MainContent = "Linked models are the buildings, site or discipline models attached to this file.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+            };
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Host model only  (default)",
+                "Publishes just this file. Smaller and faster, and you can publish each linked "
+              + "model separately — the viewer federates them and gives you per-model visibility.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Include linked models",
+                "Publishes everything visible in this view as one model — the right choice for a "
+              + "federated site or a coordination snapshot. Larger file and a slower export.");
+            var r = dlg.Show();
+            if (r == TaskDialogResult.CommandLink2)
+            {
+                StingLog.Info($"Publish: including {linkCount} linked model(s) by user choice.");
+                return true;
+            }
+            StingLog.Info($"Publish: EXCLUDING {linkCount} linked model(s) by user choice (host model only).");
+            return false;
+        }
+
 
         /// <summary>One element to publish, with the document it came from, the transform
         /// into host coordinates, and the key it shares with its GLB mesh node.</summary>
@@ -685,7 +776,10 @@ namespace StingTools.BIMManager
             // fault in its own way (see RevitGltfExporter's document stack); fixing one
             // without the other gives you either geometry with no properties or
             // properties with no geometry.
-            elements.AddRange(CollectLinkedElements(doc, activeView));
+            if (_includeLinksThisRun)
+                elements.AddRange(CollectLinkedElements(doc, activeView));
+            else
+                StingLog.Info("Publish: element map covers the host model only (links excluded for this publish).");
 
             var map = new JObject();
             var bb = new BoundingBoxXYZ { Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue),
