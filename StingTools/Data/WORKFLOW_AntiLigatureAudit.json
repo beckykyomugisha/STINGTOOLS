@@ -1,6 +1,9 @@
 {
   "id": "AntiLigatureAudit",
   "name": "Anti-ligature audit (HBN 03-01 / FGI Pt 2)",
+  "description": "Runs AntiLigatureValidator over every PSY-* room plus the behavioural-health audit, and reports. READ-ONLY BY CONSTRUCTION: both steps are declared [Transaction(TransactionMode.ReadOnly)] and neither writes a file - nothing in the model or on disk changes, so a failing answer costs only the time to read it.",
+  "readOnly": true,
+  "_readOnlyNote": "Declared, and PROVEN by tools/check_smoke_test.py: every commandTag below resolves to a class carrying [Transaction(TransactionMode.ReadOnly)]. Adding a writer to this preset fails CI. Also checked by hand on 2026-08-22 for file I/O, because the gate only proves the Revit transaction mode: none of these commands writes a document, log or export to disk either. That second half is NOT enforced by CI - if you add a step that renders or exports, this note stops being true before the gate notices.",
   "steps": [
     { "commandTag": "Healthcare_AntiLigature",  "label": "Run AntiLigatureValidator on every PSY-* room" },
     { "commandTag": "Healthcare_BehaviouralHealth","label": "Run behavioural-health audit" }

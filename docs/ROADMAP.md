@@ -790,6 +790,66 @@ deleted the same day. The rules below exist so nothing like it is built again.
 
 ---
 
+## Unreviewed branches — triage of 2026-08-22
+
+40 remote branches had **never had a pull request opened on them**. Not drafts in
+review — nobody was looking at them at all. Re-measured with `git cherry
+origin/main origin/<branch>`, which is the only honest measure: a "3 commits
+ahead" count lies across a rebase, and one branch in this pool
+(`claude/document-manager-iso-review-dbb595`) reports `+2` while `main` already
+holds both its files verbatim plus a superseded banner.
+
+Result: **17 carried no unique patch at all**, 6 were opened as PRs
+(#755-#759, #761), 3 are landable but were left unopened against a self-imposed
+6-PR cap, 2 need a human decision, and the 12 below are **rotted** — real work
+that no longer applies. Each row is a resting place, not a plan. The branch still
+exists; nothing here has been deleted.
+
+**Reviving any of these means re-implementing against today's `main`, not
+rebasing.** The conflict counts are from `git merge-tree` against `main` at
+`10c9d45ed`.
+
+| Branch (tip) | Unique / behind | What it was trying to do | Why it cannot land as-is |
+|---|---|---|---|
+| `claude/tb-w1w5-fold` (`557bd2d04`) | 33 / 597 | Title-block workstream W1-W5, folded: cover-A1 spec rebuilt to v8 layout, 10 new `PRJ_*` params bound, `category_enum_map` fix | 15 conflicts centred on `ParamRegistry.cs`, `MR_PARAMETERS.txt/.csv` and `PARAMETER_REGISTRY.json`. The parameter registry has moved substantially since. Its "Param rename A" was back-ported to `main` separately in PR #565, so the branch is *partly* already landed — which is exactly what makes a blind rebase dangerous. |
+| `claude/tb-w1w5-impl` (`1468c0b30`) | 30 / 620 | The same title-block work, before the fold | **Subsumed by `tb-w1w5-fold`**, which merged it. Triage this one only through the fold; landing both would double-apply. |
+| `claude/render-deploy-merge-504` (`64acdc56f`) | 19 / 379 | Render deploy hardening: a **health check pointed at an endpoint that 403s in production**, `PLANSCAPE_HANDOFF_SECRET` is per-service not env-group, plus a real-PostgreSQL test harness with 0 skips (DEP-7) | 12 conflicts in `Program.cs`, `PlanscapeDbContext.cs`, `PlanscapeWebApplicationFactory.cs`. **The production health-check fix and the Postgres harness are worth re-doing on their own merits** — they are the highest-value single items in this whole rotted set. Treat this row as a specification, not a branch to rescue. |
+| `claude/symbol-sld-only` (`db68f8cea`) | 18 / 906 | Symbol-library and SLD hardening F4-F9: traceable filled-region fallback, orientation-variant audit, guard against switching to an unbuilt library, DWG-to-MEP stage 2 | 6 conflicts across `SymbolConceptRegistry`, `SymbolDefinition`, `SymbolLibraryCreator`, `SymbolOverlayManager`, plus `WorkflowEngine` and `StingCommandHandler`. 906 commits behind; the symbol engine has been reworked underneath it. |
+| `claude/boq-accuracy-hardening` (`80be9d916`) | 16 / 1283 | Ten BOQ production-review accuracy findings; also removes 137 stale pre-Phase-188 tag-family seeds | 15 conflicts in every core BOQ file (`BOQCostManager`, `BOQModels`, `BOQExportCommand`, `BOQProfessionalExportCommand`, add/add on `BoqTotals`/`BoqUnits`). 62 days old, 1,283 behind, and PR #761 rewrites parts of the same surface. |
+| `claude/boq-p4-cost-control` (`0570d989d`) | 2 / 1164 | BOQ P4 — valuations, variations and EVM usable end-to-end; revive dead Cost Manager buttons | 6 conflicts including add/add on `CostControlCommands.cs` and `StarRateBuilderDialog.cs`. Touches 216 files. Same era and same rot as the row above. |
+| `claude/bonsai-installable` (`4c75781bd`) | 5 / 1367 | Make StingTools-for-Bonsai a real installable Blender extension — vendor core + substrate into the `.zip`, correct the archive layout | 2 conflicts, but in `stingtools-bonsai/__init__.py` and the vendor README, and **1,367 commits / 72 days** behind. The Bonsai tree has been through the MBALWA compliance work since (PR #639). |
+| `eager-dirac-check` (`cb1e7bec5`) | 4 / 279 | Expand the Bonsai extension 16 → 29 operators; repair silent pset writes; restore the adapter status API | 2 conflicts, one an **add/add on `stingtools-bonsai/ops/spatial_ops.py`** — the same file was created independently on `main`, so this is divergence, not drift. |
+| `claude/m-pass-deploy` (`2ebb10fcc`) | 3 / 308 | Write the Planscape project link where the readers actually read it (#570, #571); refuse to launch Revit against an unidentifiable plugin | 9 conflicts across the whole `SitePhotos*` UI surface. Overlaps `claude/sitephotos-d1-guards` (it merged it). Its Revit-launcher half already landed — `tools/Start-RevitLocal.ps1` is on `main` in a **later, larger** form (177 lines vs this branch's 106, with `-Prod`, `-Force` and a running-Revit guard). |
+| `claude/sitephotos-d1-guards` (`736e3e334`) | 1 / 309 | Un-fake the site-photo suite: real HTTP, and failures that look like failures | 6 conflicts, the same `SitePhotos*` surface. Subsumed by `m-pass-deploy` above; triage the two together or not at all. |
+| `claude/repo-review-hardening` (`994df8079`) | 3 / 1528 | Repo review A1-A3: `StingLog` midnight-rotation fix, 5 param-GUID conflicts in `PARAMETER_REGISTRY.json`, tenant-isolation pass with `ITenantScoped` + migration + backfill | Only 1 conflict (`REVIEW_LOG.md`, add/add) — but **1,528 commits behind**, the oldest in the pool at 77 days, and it carries an **EF migration and a data backfill**. A migration authored against a 1,528-commit-old schema is not something to rebase; see also the standing rule that this repo's migrations are largely inert (ADR 0001). |
+| `claude/document-manager-iso-review-dbb595` (`711baa905`) | 2 / 776 | ISO 19650 document-manager + folder-structure review, plus a fix-agent prompt | **Not rotted — superseded.** `main` contains both files byte-for-byte plus a `⛔ SUPERSEDED (2026-08-05)` banner. `git cherry` says `+2` only because the banner changed the patch. Safe to delete. |
+
+### Needs a human decision (not triaged here)
+
+| Branch (tip) | Unique / behind | Why it is not a bucket |
+|---|---|---|
+| `claude/kibale-np-bim-modeling-f5e653` (`ade468cfa`) | 141 / 193 | The single largest pool of unreviewed work in the repo: 141 commits, 580 files, 8 days old. It merges with only **2 conflicts** (`StingHvacPanel.xaml`, `docs/INDEX.md`), so it is not rotted — it is simply too large to land on an agent's judgement. It also holds `GUIDES/STINGTOOLS_GAPS_KIBALE_REVIEW.md`, the review document that PR #761 implements items 1-4 of, so **that PR is unreviewable from `main` alone** until this is dealt with. Deciding what to do with it is the highest-value branch decision available. |
+| `claude/kut-lifecycle-integration` (`ce5c98553`) | 42 / 1265 | Phase 199b-f: a full OmniClass table registry, Table 23 + Table 41 maps researched from source, an in-Revit OmniClass selector, optional MasterFormat stamped on tags. 26 conflicts, 223 files, 61 days. The question is strategic — *is owner-facing classification still wanted?* — and no conflict count answers it. |
+
+### Landable, left unopened against the 6-PR cap
+
+Each has exactly one conflicting file. Open these next, in this order:
+
+| Branch (tip) | Unique | Conflict | Note |
+|---|---|---|---|
+| `claude/distgroups-server-canonical` (`5778f596d`) | 1 | `StingTools.csproj` (comment block + `NoWarn` list) | Highest value per line in the pool. It **removes `CS0472` from `NoWarn`** because the suppression was hiding exactly one real bug — `SitePhotosAdminSubTab.cs:171`, where a failed distribution-group create could never reach its error branch — and un-suppressing it is what mechanically stops the bug class returning. 2 files. |
+| `p517-resolve` (`a645403e6`) | 4 | `SitePhotosAdminSubTab.cs` | BCC correctness: assign issues to real people rather than job titles, address transmittals from the project roster, resolve a distribution group by id not name, null-means-failed throughout. |
+| `claude/export-center-layout-issues-557d8e` (`4c1883467`) | 1 | `StingExportCenterDialog.cs` | Export Centre imports Revit's own layouts for `AllInOneMultiLayout`. 4 files. |
+
+## SMK-3 follow-on — `readOnly` proves less than it reads (2026-08-22)
+
+| ID | Item | Detail |
+|---|---|---|
+| SMK-3a | **`"readOnly": true` means "no Revit model write", not "no side effects"** | `check_smoke_test.py` proves the claim by checking every step's command carries `[Transaction(TransactionMode.ReadOnly)]`. That says nothing about the file system. Four presets have every step resolving to `ReadOnly` **and still write to disk**: `WORKFLOW_HTM-01-06-EndoReprocess` and `WORKFLOW_HTM-04-01-Annual` (both run `Healthcare_BatchRDS` → `RdsRenderer.Render`, which writes `.docx`), `WORKFLOW_HealthcareCommissioning` (same, plus `COBieExport`), and `WORKFLOW_MgasVerification` (`MgasVerifyCommand` → `MgasVerificationLog.Persist` → `File.WriteAllText`). They were deliberately **not** declared, because a user reading `readOnly` will not read it as "writes documents to your project folder". Either widen the gate to prove file I/O too, or rename the field to something as narrow as what it checks (`noModelWrite`). Until then, declaring a preset that renders documents would be technically true and practically misleading. |
+| SMK-3b | **A step whose command cannot be resolved silently passes the read-only check** | `check_readonly_claims` skips a step when `tag_to_class` has no entry (`if mode and mode != "ReadOnly"`). `WORKFLOW_DailyFieldWalk` has **7 of 7 steps unresolvable** (`OpenSitePhotos`, `RefreshPhotos`, `PhotoChecklistAudit`, `BulkApprovePending`, `DigestPreview`, `PushDeliverableRegister`, `WorkflowComplete` — none is a `WorkflowEngine.ResolveCommand` case label). If that preset ever declared `readOnly`, CI would pass it while proving nothing, including for the step named *BulkApprove*. The gate should treat "declared read-only but a step is unresolvable" as a failure, not a pass — an unknown is not a clean bill of health. |
+
+---
+
 ### MEP-from-DWG — V2 / V3 backlog
 
 V1 (MEP fixtures from DWG blocks) shipped — see `CHANGELOG.md`. Remaining:

@@ -2,6 +2,81 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 240 — branch and workspace triage: unreviewed work found, landed or laid to rest)
+
+Two pools of work were invisible: **40 remote branches that had never had a PR opened on
+them**, and **uncommitted files sitting in worktrees**, which is the same failure one step
+earlier — not lost yet, but one `git clean` away.
+
+**The measurement had to be redone before anything could be trusted.** A branch's "N commits
+ahead" lies across a rebase: the remote can be 80 commits forward and already contain every
+patch under a new SHA. `git cherry origin/main origin/<branch>` marks each commit `-`
+(already upstream) or `+` (genuinely unique), and only the `+` count means anything. Of 40
+PR-less branches, **17 carried no unique patch at all**. One more,
+`claude/document-manager-iso-review-dbb595`, reports `+2` while `main` holds both its files
+byte-for-byte plus a `⛔ SUPERSEDED` banner — the same lesson in a second costume: `+` says
+the *patch* is not upstream, not that the *content* is missing.
+
+**Rescued, uncommitted.** Six worktrees were dirty. Two held real work that existed nowhere
+in git:
+
+- **`C:/Dev/wt-authz-model`** — an ISO 19650 role vocabulary: `ProjectMember.Iso19650Role`
+  was free text, every write site did `req.Iso19650Role ?? … ?? "M"` with no validation, and
+  that is how a gate comes to compare against a value nothing prevents and nothing supplies.
+  Validates the three write paths, serves `GET .../members/roles` from the same list rather
+  than a second copy, and reports pre-existing non-canonical rows at boot instead of
+  remapping them by guess. Builds clean; its 21 tests pass. Committed to
+  **`claude/iso19650-role-vocabulary`** rather than to the worktree's own branch, because
+  that branch carries **open PR #737** and pushing four more files into it would silently
+  expand someone's review. The new branch is cut from PR #737's exact head, so it stacks.
+- **`C:/Dev/wt-viscenter`** — 13 spec documents (4 BOQ/cost, 7 healthcare, an MCP v2 brief,
+  and a finished 7th wire-annotation diagram), 5–31 KB each, `file:line`-referenced audits.
+  Verified absent from every remote branch with `git rev-list --remotes -1 -- <path>`. They
+  had merely *followed* whatever branch that checkout was on — they have nothing to do with
+  visibility — so they are on **`claude/rescue-uncommitted-spec-docs`**, cut from `main`,
+  and indexed in `docs/INDEX.md`. Not committed: a 1.8 MB `.docx` export of a `.md` already
+  on `main` (derived, no generator, would only drift), a guide already safe on another
+  branch, and a 71-byte stdout capture from the retired `deploy-gold` script.
+
+One dirty worktree was **left alone deliberately**: `brave-elion-f9aaec` committed again six
+minutes into the sweep and was mid-edit on a second file. Committing under a live session is
+worse than leaving work uncommitted.
+
+**Landed as PRs (6):** #755 `setdepth-perf`, #756 `sustainability-laymans-guide`,
+#757 `datarights-json-fix`, #758 `kibale-finish-params`, #759 `scope-box-manager`,
+#761 `kibale-part1-fixes`. Each merges cleanly, and each was **built merged with `main`**
+before its PR was opened — 0 errors / 0 warnings, with `check_workflow_wiring.ps1` (Tier 4 =
+0), `check_smoke_test.py`, 351 BOQ tests and 3 data-rights tests green on the merged trees.
+A PR that does not compile costs a reviewer more than it saves. The 12 rotted branches, the
+2 that need a human, and the 3 landable ones left unopened against a 6-PR cap are written up
+in `ROADMAP.md`; none was deleted.
+
+**SMK-3 — declarative read-only claims.** The advisory named two presets whose prose reads
+read-only without declaring `"readOnly": true`. **Both turned out to be already correct.**
+`WORKFLOW_PlumbingAudit` opens "NOT read-only, despite the name" and names its three writing
+steps; `WORKFLOW_KUT_MonthlyReport` says "this is not a read-only workflow" and names both of
+its — confirmed independently: `CompletenessDashboardCommand` is `[Transaction(Manual)]` and
+builds a legend view, maps sheet parameters and tags sheets inside real transactions. Each
+fires only on a *positive* sentence about something else ("chains the read-only metrics",
+"for a genuinely read-only pre-gate look, use …"), which are the exact two false positives
+`claims_read_only`'s own docstring already documents.
+
+So the prose was not touched. **Rewording honest text to satisfy a heuristic is the failure
+that docstring warns about.** Instead `readonly_prose_hints` now skips a description that
+disclaims read-only anywhere in it: an author who has written "NOT read-only" has
+demonstrably considered the question. A preset that reads read-only and never disclaims it is
+still flagged — proven with six cases, including two that must still fire.
+
+Three presets **were** declared, after checking every step by hand:
+`WORKFLOW_AntiLigatureAudit`, `WORKFLOW_NFPA110-GeneratorTest`, `WORKFLOW_PressureRegimeAudit`
+— every step `[Transaction(TransactionMode.ReadOnly)]` **and** no file I/O. Four more that
+pass the transaction test were deliberately left undeclared because they write `.docx` or
+`.json` to disk; `readOnly` proves "no Revit model write", which is narrower than anyone will
+read it as. That, and the fact that an *unresolvable* step silently passes the check, are
+logged as ROADMAP SMK-3a / SMK-3b.
+
+Advisory list: **2 → 0**. Smoke-gate assertions: **170 → 173**.
+
 #### Completed (Phase 239 — Connect could not survive a cold start)
 
 Phase 237 pointed the plugin at a host that answers. The first real sign-in still failed:
