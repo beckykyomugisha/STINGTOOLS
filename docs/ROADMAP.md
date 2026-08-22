@@ -29,6 +29,14 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 | LIC-5 | **Merging licensing changes ships nothing** | Tracked as #651. `marketing-site` has no git-connected Pages build, so `/licences` and every Function change reach production only when a human runs `npm run deploy`. Compounded by the deploy-time binding behaviour corrected in #674: a secret that `wrangler pages secret list` shows is stored, not bound. |
 | LIC-6 | **Preview and production share one D1** | Tracked as #652 (#644 closed as its duplicate). A preview deployment can issue, revoke and stamp rows in the production `licenses` table — now the billing artefact, since #626 made D1 the sole owner of seat entitlement. |
 
+## Model publishing — after the federation pass (2026-08-22)
+
+| ID | Item | Detail |
+|---|---|---|
+| PUB-1 | **Store the element map gzipped** | Measured on a real federated site: 12.28 MB of JSON gzips to **0.40 MB — 31×**. The cap is 25 MB and cannot go much higher because `ModelsController.DownloadElementMap` reads the whole map into a string to merge the cost sidecar, on a 512 MB free-tier instance. Compressing at rest removes the ceiling problem entirely, but needs the serve path AND the cost merge to decompress, plus a magic-byte check so plugins still sending plain JSON keep working. |
+| PUB-2 | **The map can still over-collect on a user-picked file** | When the publish exports the GLB itself, the map is narrowed to the keys the exporter actually wrote — which took a real model from 37,110 entries to ~1,407. When the user picks an existing `.glb`/`.ifc` we cannot know its contents, so the map keeps its full document scope and the old bloat returns. Reading the element list back out of a picked GLB would close it. |
+| PUB-3 | **Nested-link metadata is collected, its visibility is not filtered** | `CollectLinksRecursive` filters top-level link INSTANCES by the active view, because that is a host element the view can answer for. Deeper links, and per-element visibility inside any link, cannot be filtered by a host view id. The PUB-2 narrowing hides the consequence today; it would reappear on the picked-file path. |
+
 ## Planscape hosting — after the connect pass (2026-08-20)
 
 | ID | Item | Detail |

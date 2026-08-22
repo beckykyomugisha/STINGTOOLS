@@ -2,6 +2,150 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 242 — the element map described the documents, not the model)
+
+The federation fix worked — the GLB went from 13 elements to **1,407**, six links
+contributing ~7,000 elements each. The upload then failed:
+
+```
+Upload failed: HTTP 400: {"error":"element_map_too_large","maxMb":5}
+```
+
+**The map was 12.28 MB describing 1,407 meshes.** Measured on the generated file: 37,110
+entries, of which **29,521 were `Lines` and 5,706 `Legend Components`** — legend and detail
+content living inside the linked files' non-3D views. Real building elements numbered a few
+hundred: 181 walls, 133 pipes, 130 furniture, 106 columns, 87 windows, 67 doors, 57
+toposolids. **95% of the payload was annotation the viewer can never select.**
+
+A category filter cannot fix this — `OST_Lines` *is* a model category, and the entries
+come from views that are not the 3D view. Only the exporter knows what was drawn, so the
+exporter now says: it records the key of every element that produced at least one mesh,
+under the same condition that keeps the node, and the map is narrowed to that set.
+**37,110 → ~1,407.**
+
+Only when this publish ran the exporter. A user-picked `.glb`/`.ifc` leaves the set null
+and the map keeps its full scope, because guessing what a file we did not produce contains
+would drop real elements. Logged as ROADMAP PUB-2.
+
+**Also.** The map is written compact rather than indented — measured 12.28 MB → 9.70 MB, a
+21% saving on a machine-read sidecar nobody opens by hand. And ~2.40 MB of the original was
+pure repetition of the absolute link path in every key, an artefact of the Phase 240
+namespacing; narrowing the set removes most of it.
+
+**Server.** The cap moves 5 MB → 25 MB, into one named constant instead of two magic
+numbers that had to agree. 5 MB is ~19,000 elements at the ~265 bytes/element a real map
+costs — a federated site passes that easily, so the limit was binding on ordinary models,
+not just on this bug. Not raised further on purpose: `DownloadElementMap` reads the whole
+map into a string to merge the cost sidecar, on a 512 MB instance. Storing it gzipped is
+the durable answer — **31× on this file, 12.28 MB → 0.40 MB** — and is logged as PUB-1
+rather than bolted on here, because it needs the serve path and the cost merge to
+decompress.
+
+The refusal now carries `actualMb` and a `hint`. `{"maxMb":5}` alone was true and unusable:
+it never said how large the map *was*, so "slightly over" and "twenty times over" looked
+identical, and nothing pointed at the real cause.
+
+#### Completed (Phase 241 — a model could be published but never removed)
+
+The Models page offered Upload and View and nothing else. A model published by mistake —
+wrong file, wrong discipline, a superseded revision — stayed in the project permanently,
+counting against the tenant's storage quota.
+
+**The API already had the delete.** `ModelsController.Delete` has existed, soft-deleting
+the row, cascading to the model's scene chunks so retired geometry stops rendering, and
+gated to Admin/Owner/Coordinator. `ModelPurgeJob` then removes the bytes after a 30-day
+grace. None of it was reachable: no button anywhere called it. Same shape as the licence
+`revoked_at` gap — a working capability with no way to invoke it.
+
+**The grace period protected nobody.** A soft delete with a 30-day window is only a safety
+net if something can reach into that window. Nothing could list a deleted model, so the
+30 days were not a chance to change your mind, only a delay before the bytes went. `GET
+/models?deleted=true` and a new `POST /models/{id}/restore` make it real; restore brings
+back the scene chunks retired by *that* delete, matched on the delete timestamp so an
+earlier unrelated delete of the same model is not also revived. Restoring the model
+without its chunks would produce a row that renders nothing, which reads as corruption
+rather than a half-finished undo.
+
+Existence of the row is the whole check: the purge job deletes it outright, so anything
+still present is still restorable and a 404 is the honest answer for anything past the
+grace. The page says so in those words rather than "not found", because a retry cannot fix
+it.
+
+**Restore carries the same roles as delete.** A narrower rule would create a state a
+Coordinator can enter and not leave.
+
+**UI.** Per-row Remove with an inline confirm — inline rather than `window.confirm`
+because a native modal cannot say the action is reversible, which is the one fact that
+should decide whether you click. A "Recently removed" section appears only when something
+is in it, showing days remaining per model. The countdown returns null rather than guessing
+when the server sent no timestamp: an invented number on a delete is worse than none,
+because it is the number the user decides against.
+
+`ModelMetaDto` gained `DeletedAt` **appended**, never inserted — it is a positional record
+and the call site already carried that warning from a previous near-miss.
+
+Two mistakes caught before they shipped, both by checking rather than assuming: the first
+draft passed a `notFound` option to `describeFailure`, which takes `{ forbidden, fallback }`
+only and would have silently ignored it; and it styled the destructive button with
+`bg-danger-hover`, a token that does not exist in `tailwind.config.ts`, so the hover state
+would have done nothing.
+
+#### Completed (Phase 240 — publishing a federated model published the container, not the model)
+
+A federated site — host container, every building and the site itself a Revit link, all
+visible in `{3D}` — published as a bare toposolid with no buildings, and the viewer
+reported **8 ELEMENTS / 0% TAGGED** for the whole project.
+
+Two independent faults, either of which alone would have produced a broken publish.
+
+**1. The glTF exporter resolved every element against the host document.**
+`RevitGltfExporter.OnElementBegin` did `_doc.GetElement(id)` where `_doc` is fixed to the
+host. `OnLinkBegin` was implemented and pushed the transform, so Revit *was* traversing
+the links — but element ids are **document-local**, so an id from inside a link looked up
+in the host is not a near-miss, it is a lookup in the wrong table. It returned null and
+`RenderNodeAction.Skip` dropped the geometry. Where the id happened to exist in the host,
+worse: geometry was written carrying another element's name, category, colour and
+`UniqueId` — the key the viewer joins metadata on.
+
+`Clash/ClashExportContext` has always done this correctly, with a document stack and
+`LinkNode.GetDocument()`. This exporter simply never did. It now keeps the same stack, and
+`OnLinkEnd` pops it under the same guard as the transform stack — the two are pushed
+together and must unwind together, or every element after a link resolves against the
+wrong document.
+
+The same bug sat in material resolution (`_doc.GetElement(matId)`), and the appearance
+cache was keyed on the raw `ElementId` value, so a link's material 12 and the host's
+material 12 shared one entry and whichever was seen first decided the name and texture for
+both.
+
+**2. The element map never looked at links at all.** `BuildElementMap` collected from
+`new FilteredElementCollector(doc, activeView.Id)` — host only. On a federated model that
+is a handful of link instances and nothing else, which is the "8 ELEMENTS" exactly. Fixing
+the geometry alone would have given properties-free meshes; fixing the map alone,
+propertied nothing.
+
+It now walks links **recursively**, because Revit's view traversal descends nested links
+and a one-level walk would reproduce the same bug one level down — geometry present,
+properties missing, which is the variant hardest to notice because the model looks right.
+Documents are visited once (a cycle is legal in Revit) and depth is capped.
+
+**Keys.** Host elements keep their bare `UniqueId`, so nothing already published changes.
+Linked elements are namespaced by the link's path, because `UniqueId` is unique *within* a
+document and buildings are routinely Saved-As from one another — two links can genuinely
+carry the same id. Both producers compute the key through one helper; they must, since a
+mismatch renders an element with no properties and errors nowhere.
+
+**Bounds.** A linked element's bounding box is in its own coordinates. All eight corners
+are transformed, not Min/Max — under rotation the transformed Min is not the minimum, and
+a link placed at an angle is the normal case.
+
+**Honest scope limit:** the map collects model elements with geometry from each link, not
+"elements visible in the host's active view" — a view id cannot filter another document's
+collector. The GLB, produced by Revit's own view traversal, remains the authority on what
+is drawn, so the map may list a few elements the geometry does not show. A tree row with
+no mesh is a much smaller problem than the mesh with no properties it replaces. Unloaded
+links are named in the log rather than skipped silently.
+
 #### Completed (KUT mobilisation document set — the pack the team actually receives)
 
 Mobilisation begins the week of 25 August 2026. The project had a BIM Execution Plan template, a
