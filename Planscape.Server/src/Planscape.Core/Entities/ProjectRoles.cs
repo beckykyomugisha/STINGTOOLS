@@ -130,6 +130,64 @@ public static class ProjectRoles
           || m.Iso19650Role == IsoProjectManager
           || m.Iso19650Role == IsoAppointingParty;
 
+    // ── Capability: AdministerProject ───────────────────────────────────────
+    // Editing project-level settings: the ISO 19650 naming-enforcement flag,
+    // the custom deliverable state machine, and the soft preferences blob.
+    //
+    // WHY THIS IS THE THIRD, AND WHY IT IS NOT AN "ISO ROLE CHECK"
+    // -----------------------------------------------------------
+    // ProjectSettingsController.UpdateSettings gated on
+    // `Iso19650Role == "K" || == "C"`. Neither code is assignable: the server's
+    // own vocabulary endpoint (GET members/roles) serves
+    // A/PM/BC/BA/AR/SE/ME/CE/QS/CA/CT/SC/FM/OM/CL/M/V/Z, and neither K nor C is
+    // in it. K/C come from a DIFFERENT list — the one on AppUser.Iso19650Role
+    // (AppUser.cs:14) — so the check was written against one column and applied
+    // to another. Measured 2026-08-18: zero ProjectMember rows carry K or C,
+    // and zero AppUser rows carry them either, so it was not a column mix-up
+    // that used to work. Nobody could edit project settings. Same class as the
+    // eleven dead `ProjectRole == "PM"` gates this file already documents.
+    //
+    // THREE LAYERS, ONE JOB EACH — do not collapse them:
+    //   CAPABILITY       may I DO this?        this class            rarely changes
+    //   INFORMATION ACL  may I SEE this?       ProjectMemberAcl      per member
+    //   ISO 19650 ROLE   who is ACCOUNTABLE?   Iso19650Role          per appointment
+    //
+    // A capability may CONSULT the ISO role as one input, which is what the
+    // PM/A/BC terms below are. What must never happen again is a raw letter
+    // comparison at a call site. ISO 19650 defines information-management
+    // FUNCTIONS (appointing party, lead appointed party, appointed party) that
+    // move with appointments and can change mid-project on novation; they answer
+    // "who is accountable for this deliverable", not "who may perform this
+    // operation". Those change on different clocks, and binding them makes every
+    // appointment change a permissions migration. The single-letter codes are a
+    // house convention, not part of the standard — which is precisely why two
+    // incompatible versions of them exist. Where ISO 19650 does prescribe access
+    // semantics is the CDE (WIP/Shared/Published/Archive plus suitability), and
+    // ISO 19650-5 asks for need-to-know against the INFORMATION; that axis is the
+    // ACL, not this class.
+    //
+    // NO LEGACY TOLERANCE HERE, DELIBERATELY. CanCurate accepts a ProjectRole of
+    // "PM" because the gate it replaced tested that column, so dropping it would
+    // have NARROWED access for any such row. There is no equivalent obligation
+    // here: the gate being replaced granted access to nobody, so no row can lose
+    // anything. Adding terms beyond the three below would widen on a guess.
+
+    public static bool CanAdministerProject(string? projectRole, string? iso19650Role, bool isTenantAdmin = false)
+        => isTenantAdmin
+        || Eq(projectRole, Manager) || Eq(projectRole, Owner) || Eq(projectRole, Admin)
+        || Eq(iso19650Role, IsoProjectManager) || Eq(iso19650Role, IsoAppointingParty)
+        || Eq(iso19650Role, IsoBimCoordinator);
+
+    /// <summary>EF-translatable form. Kept in step with
+    /// <see cref="CanAdministerProject"/>; the tests assert they agree.</summary>
+    public static Expression<Func<ProjectMember, bool>> CanAdministerProjectPredicate =>
+        m => m.ProjectRole == Manager
+          || m.ProjectRole == Owner
+          || m.ProjectRole == Admin
+          || m.Iso19650Role == IsoProjectManager
+          || m.Iso19650Role == IsoAppointingParty
+          || m.Iso19650Role == IsoBimCoordinator;
+
     private static bool Eq(string? a, string b)
         => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 }
