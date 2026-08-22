@@ -1,7 +1,9 @@
 # Document Manager — accuracy / consistency / integration gaps (runner)
 
 **Target file:** [`StingTools/UI/DocumentManagementDialog.cs`](../StingTools/UI/DocumentManagementDialog.cs) (6,661 lines)
-**Baseline:** `main` @ `0bbcb19e5`. Re-derive every line number before editing — this file moves.
+**Baseline:** findings derived on `main` @ `0bbcb19e5`, re-verified unchanged on `main` @ `9552ebb2e`
+(117 commits later — none touched the dialog or the four registry files below). Re-derive every line
+number before editing anyway; this file moves.
 **Status of the surface:** the delete/restore and silent-failure defects were repaired and merged in
 PRs #662 / #696 / #701 and verified in Revit. Everything below is *different* work: the dialog
 disagrees with registries that already exist elsewhere in the same assembly.
