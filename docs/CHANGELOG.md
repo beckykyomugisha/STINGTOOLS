@@ -2,6 +2,51 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 241 — a model could be published but never removed)
+
+The Models page offered Upload and View and nothing else. A model published by mistake —
+wrong file, wrong discipline, a superseded revision — stayed in the project permanently,
+counting against the tenant's storage quota.
+
+**The API already had the delete.** `ModelsController.Delete` has existed, soft-deleting
+the row, cascading to the model's scene chunks so retired geometry stops rendering, and
+gated to Admin/Owner/Coordinator. `ModelPurgeJob` then removes the bytes after a 30-day
+grace. None of it was reachable: no button anywhere called it. Same shape as the licence
+`revoked_at` gap — a working capability with no way to invoke it.
+
+**The grace period protected nobody.** A soft delete with a 30-day window is only a safety
+net if something can reach into that window. Nothing could list a deleted model, so the
+30 days were not a chance to change your mind, only a delay before the bytes went. `GET
+/models?deleted=true` and a new `POST /models/{id}/restore` make it real; restore brings
+back the scene chunks retired by *that* delete, matched on the delete timestamp so an
+earlier unrelated delete of the same model is not also revived. Restoring the model
+without its chunks would produce a row that renders nothing, which reads as corruption
+rather than a half-finished undo.
+
+Existence of the row is the whole check: the purge job deletes it outright, so anything
+still present is still restorable and a 404 is the honest answer for anything past the
+grace. The page says so in those words rather than "not found", because a retry cannot fix
+it.
+
+**Restore carries the same roles as delete.** A narrower rule would create a state a
+Coordinator can enter and not leave.
+
+**UI.** Per-row Remove with an inline confirm — inline rather than `window.confirm`
+because a native modal cannot say the action is reversible, which is the one fact that
+should decide whether you click. A "Recently removed" section appears only when something
+is in it, showing days remaining per model. The countdown returns null rather than guessing
+when the server sent no timestamp: an invented number on a delete is worse than none,
+because it is the number the user decides against.
+
+`ModelMetaDto` gained `DeletedAt` **appended**, never inserted — it is a positional record
+and the call site already carried that warning from a previous near-miss.
+
+Two mistakes caught before they shipped, both by checking rather than assuming: the first
+draft passed a `notFound` option to `describeFailure`, which takes `{ forbidden, fallback }`
+only and would have silently ignored it; and it styled the destructive button with
+`bg-danger-hover`, a token that does not exist in `tailwind.config.ts`, so the hover state
+would have done nothing.
+
 #### Completed (Phase 240 — publishing a federated model published the container, not the model)
 
 A federated site — host container, every building and the site itself a Revit link, all

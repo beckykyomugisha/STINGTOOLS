@@ -58,13 +58,25 @@ public class ModelsController : ControllerBase
 
     // ── List / metadata ────────────────────────────────────────────────
 
+    /// <summary>
+    /// Models in the project. Live only by default.
+    ///
+    /// <para><paramref name="deleted"/> returns the soft-deleted ones instead, which is
+    /// what makes the 30-day grace in <c>ModelPurgeJob</c> reachable. Without a way to
+    /// SEE a deleted model there is no way to restore it, and the grace period protects
+    /// nobody — it just delays the bytes leaving.</para>
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult> List(Guid projectId, CancellationToken ct)
+    public async Task<ActionResult> List(Guid projectId, CancellationToken ct, [FromQuery] bool deleted = false)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
-        var rows = await _db.ProjectModels.AsNoTracking()
-            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
-            .OrderByDescending(m => m.UploadedAt)
+        var q = _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId);
+        q = deleted ? q.Where(m => m.DeletedAt != null) : q.Where(m => m.DeletedAt == null);
+        var rows = await q
+            // Deleted models sort by when they were deleted — the useful order when the
+            // question is "what did I just remove", not "what was uploaded when".
+            .OrderByDescending(m => deleted ? m.DeletedAt : m.UploadedAt)
             .Select(m => ToMetaDto(m))
             .ToListAsync(ct);
         return Ok(rows);
@@ -587,6 +599,54 @@ public class ModelsController : ControllerBase
         return NoContent();
     }
 
+    // ── Restore ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Undo a delete, within the purge grace.
+    ///
+    /// <para>The delete is a SOFT delete with a 30-day window before
+    /// <c>ModelPurgeJob</c> removes the bytes and the row — but nothing could reach that
+    /// window, so it protected no one. Existence of the row IS the check: the purge job
+    /// deletes it outright, so anything still here is still restorable and a 404 is the
+    /// honest answer for anything past the grace.</para>
+    ///
+    /// <para>Restores the scene chunks that <see cref="Delete"/> retired alongside the
+    /// model — and only those, matched on the same <c>SourceModelId</c>. Restoring the
+    /// model without them brings back a row that renders nothing, which reads as a
+    /// corrupted model rather than a half-finished undo.</para>
+    ///
+    /// <para>Same roles as delete. Anyone who can remove a model can put it back; a
+    /// narrower rule would create a state a Coordinator can enter and not leave.</para>
+    /// </summary>
+    [HttpPost("{modelId:guid}/restore")]
+    [Authorize(Roles = "Admin,Owner,Coordinator")]
+    public async Task<IActionResult> Restore(Guid projectId, Guid modelId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+        var row = await _db.ProjectModels
+            .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt != null, ct);
+        if (row == null) return NotFound();
+
+        var deletedAt = row.DeletedAt;
+        row.DeletedAt = null;
+
+        // Only the chunks retired BY THIS DELETE. Matching on SourceModelId alone would
+        // also revive chunks retired by an earlier, unrelated delete of the same model,
+        // so the timestamp is part of the match.
+        var chunks = await _db.SceneNodes
+            .Where(n => n.SourceModelId == modelId && n.DeletedAt == deletedAt)
+            .ToListAsync(ct);
+        foreach (var chunk in chunks) chunk.DeletedAt = null;
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Model {ModelId} restored (was deleted {DeletedAt:u}): {Chunks} scene chunk(s) brought back.",
+            modelId, deletedAt, chunks.Count);
+
+        return NoContent();
+    }
+
     // ── Compliance heatmap ─────────────────────────────────────────────
     /// <summary>
     /// Returns STING tag completeness per element GUID for the project so
@@ -732,7 +792,8 @@ public class ModelsController : ControllerBase
         // C7 - appended rather than inserted: this is a POSITIONAL record, so
         // adding a parameter mid-list silently re-maps every argument after it.
         ConversionStatus: m.ConversionStatus,
-        ConversionError: m.ConversionError);
+        ConversionError: m.ConversionError,
+        DeletedAt: m.DeletedAt);
 
     private static ModelFormat InferFormat(string fileName)
     {
@@ -988,4 +1049,13 @@ public record ModelMetaDto(
     DateTime? StorageMissingAt,
     /// <summary>C7 - Pending | Converting | Done | Failed, or null when no conversion was needed.</summary>
     string? ConversionStatus = null,
-    string? ConversionError = null);
+    string? ConversionError = null,
+    /// <summary>
+    /// When this model was soft-deleted, or null while it is live. Appended, not
+    /// inserted — see the note at the ToMetaDto call site: this is a POSITIONAL record
+    /// and a parameter added mid-list silently re-maps every argument after it.
+    ///
+    /// <para>Present so the UI can show how long is left of the 30-day restore window
+    /// rather than making the user guess when the bytes go.</para>
+    /// </summary>
+    DateTime? DeletedAt = null);
