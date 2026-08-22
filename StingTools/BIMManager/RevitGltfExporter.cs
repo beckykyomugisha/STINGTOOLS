@@ -86,6 +86,11 @@ namespace StingTools.BIMManager
 
         /// <summary>Links encountered and skipped, so the caller can say so out loud.</summary>
         public int SkippedLinkCount { get; private set; }
+
+        /// <summary>Keys of the elements that produced at least one mesh. Populated in
+        /// <see cref="OnElementEnd"/> under the SAME condition that keeps the node, so
+        /// the two can never disagree about what is in the file.</summary>
+        public HashSet<string> WrittenKeys { get; } = new(StringComparer.Ordinal);
         // Per-material appearance cache (Revit material ElementId.Value → resolved def),
         // so the version-sensitive appearance read runs once per material, not per face.
         private readonly Dictionary<string, MaterialDef?> _appearanceCache = new();
@@ -143,6 +148,7 @@ namespace StingTools.BIMManager
                     exporter.Export(view);
                     var result = ctx.WriteGlb(outputGlbPath);
                     result.SkippedLinkCount = ctx.SkippedLinkCount;
+                    result.ElementKeys = ctx.WrittenKeys;
                     if (ctx.SkippedLinkCount > 0)
                         StingLog.Info($"Planscape: GLB excluded {ctx.SkippedLinkCount} linked model instance(s) " +
                                       "(links off — set PLANSCAPE_EXPORT_LINKS=1 or choose 'include links' to add them).");
@@ -193,7 +199,11 @@ namespace StingTools.BIMManager
 
         public void OnElementEnd(ElementId id)
         {
-            if (_current != null && _current.Positions.Count > 0) _nodes.Add(_current);
+            if (_current != null && _current.Positions.Count > 0)
+            {
+                _nodes.Add(_current);
+                WrittenKeys.Add(_current.UniqueId);
+            }
             _current = null;
             _currentUniqueId = null;
             _currentName = null;
@@ -1130,6 +1140,22 @@ namespace StingTools.BIMManager
             /// file is the host model only — say so to the user rather than letting a
             /// federated model arrive as an empty container.</summary>
             public int SkippedLinkCount;
+
+            /// <summary>
+            /// The key of every element that actually produced geometry, so the element
+            /// map can describe THIS FILE rather than the document it came from.
+            ///
+            /// <para>Measured on a real federated site: the GLB held 1,407 elements while
+            /// a map built independently from the same documents held 37,110 — 29,521
+            /// <c>Lines</c> and 5,706 <c>Legend Components</c>, i.e. legend and detail
+            /// content that is not in the 3D model at all. That is 12.28 MB of mostly
+            /// annotation describing 1,407 meshes, and it broke the upload.</para>
+            ///
+            /// <para>A Revit category test cannot fix that: <c>OST_Lines</c> IS a model
+            /// category. Only the exporter knows what got drawn, so it is the exporter
+            /// that must say.</para>
+            /// </summary>
+            public HashSet<string> ElementKeys = new();
         }
     }
 }
