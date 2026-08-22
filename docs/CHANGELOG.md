@@ -2,6 +2,61 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT mobilisation document set — the pack the team actually receives)
+
+Mobilisation begins the week of 25 August 2026. The project had a BIM Execution Plan template, a
+personal BIM Manager playbook and an MIDP CSV, and no document a consultant could work from: the
+playbook is written for the Information Manager and ends with interview preparation, and the internal
+companion is private by design. Four documents now exist as an issued set, all generated.
+
+| Document | Form | Source |
+|---|---|---|
+| BIM Execution Plan | `KUT_BIM_Execution_Plan.docx` | `tools/build_bep.py` |
+| Project Delivery Playbook | `KUT_Project_Delivery_Playbook.docx` | `tools/build_team_playbook.py` |
+| Master Information Delivery Plan | `KUT_Master_Information_Delivery_Plan.xlsx` | `tools/build_midp.py` |
+| Internal playbook (private) | `KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx` | six new parts appended |
+
+`tools/corporate_docx.py` holds the house style the Word documents share. The playbook builder was
+refactored onto it and verified content-neutral — fresh builds from the committed and refactored
+scripts produce identical text across all 700 captured lines, which caught two silent formatting
+regressions before they shipped.
+
+**What researching the configuration changed.** The drafts described level of development in prose.
+`STING_LOD_MATRIX.json` specifies required parameters per category per rung across 34 categories, so
+a task team could not have known what to put on an element to pass a gate. That is now stated. Three
+related corrections: LOD 500 is category-dependent (ten categories require serial number and
+installation date; furniture requires installation date and the FF&E reference; the rest inherit 400),
+Plumbing Fixtures gained a maintenance-type requirement at LOD 400 that the construction gate tests
+first, and suitability runs S0–S7 rather than S0–S4.
+
+**Conflicts resolved to issue the BEP.** The template named the private tooling throughout — in the
+one document the client and every consultant read, against the internal rule that it is never named
+in a project document. Every reference is now an outcome or an obligation, which is what a BEP should
+say anyway: the Appointing Party is entitled to require the check, not to specify the instrument. The
+template also said weekly coordination where the appointment and playbook say fortnightly, and had
+the Information Manager chairing a meeting the responsibility matrix makes the Lead Appointed Party
+accountable for. Speckle was removed; naming it would make an internal convenience a contractual
+dependency.
+
+**An open item that now blocks three documents.** The sheet-number rule enforces a three-character
+originator code; the default is the four-character `PLNS`, and the earlier guidance used `PLNS` in its
+worked example. `KUT-PLNS-01-GF-M3-A-0001` fails today. The BEP states it at §4.2.1, the playbook at
+§4.1, and the MIDP leaves the Originator column empty on all 68 rows rather than propagating a value
+that fails on every container.
+
+**Two defects caught by verification rather than by reading.** Every one of the seven MIDP drop-downs
+pointed at the wrong column of the Lists sheet — Discipline offered originator codes, Type offered LOD
+values, three offered nothing — because the source column was derived from the column being validated
+instead of mapped. It looked correct in the file and would have surfaced when a consultant filled in a
+TIDP. And `validate_tag_config.py`, which the internal playbook instructs the reader to run before
+authoring tag families, does not exist anywhere in the repository; the related "64 missing tag-size
+parameters" claim is unreproducible. Both are corrected in the internal document's new Part I, along
+with five command names that had drifted.
+
+The MIDP grew 51 rows to 68, adding the Stage 3.1 asset-data capture that LOD 500 depends on and that
+nothing had scheduled, the mobilisation deliverables that existed as work but not as rows, gate packs
+as dated deliverables, and the missing Fire, Low Voltage and Civil scopes.
+
 #### Completed (Phase 239 — Connect could not survive a cold start)
 
 Phase 237 pointed the plugin at a host that answers. The first real sign-in still failed:
