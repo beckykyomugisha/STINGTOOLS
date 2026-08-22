@@ -2,6 +2,62 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 240 — publishing a federated model published the container, not the model)
+
+A federated site — host container, every building and the site itself a Revit link, all
+visible in `{3D}` — published as a bare toposolid with no buildings, and the viewer
+reported **8 ELEMENTS / 0% TAGGED** for the whole project.
+
+Two independent faults, either of which alone would have produced a broken publish.
+
+**1. The glTF exporter resolved every element against the host document.**
+`RevitGltfExporter.OnElementBegin` did `_doc.GetElement(id)` where `_doc` is fixed to the
+host. `OnLinkBegin` was implemented and pushed the transform, so Revit *was* traversing
+the links — but element ids are **document-local**, so an id from inside a link looked up
+in the host is not a near-miss, it is a lookup in the wrong table. It returned null and
+`RenderNodeAction.Skip` dropped the geometry. Where the id happened to exist in the host,
+worse: geometry was written carrying another element's name, category, colour and
+`UniqueId` — the key the viewer joins metadata on.
+
+`Clash/ClashExportContext` has always done this correctly, with a document stack and
+`LinkNode.GetDocument()`. This exporter simply never did. It now keeps the same stack, and
+`OnLinkEnd` pops it under the same guard as the transform stack — the two are pushed
+together and must unwind together, or every element after a link resolves against the
+wrong document.
+
+The same bug sat in material resolution (`_doc.GetElement(matId)`), and the appearance
+cache was keyed on the raw `ElementId` value, so a link's material 12 and the host's
+material 12 shared one entry and whichever was seen first decided the name and texture for
+both.
+
+**2. The element map never looked at links at all.** `BuildElementMap` collected from
+`new FilteredElementCollector(doc, activeView.Id)` — host only. On a federated model that
+is a handful of link instances and nothing else, which is the "8 ELEMENTS" exactly. Fixing
+the geometry alone would have given properties-free meshes; fixing the map alone,
+propertied nothing.
+
+It now walks links **recursively**, because Revit's view traversal descends nested links
+and a one-level walk would reproduce the same bug one level down — geometry present,
+properties missing, which is the variant hardest to notice because the model looks right.
+Documents are visited once (a cycle is legal in Revit) and depth is capped.
+
+**Keys.** Host elements keep their bare `UniqueId`, so nothing already published changes.
+Linked elements are namespaced by the link's path, because `UniqueId` is unique *within* a
+document and buildings are routinely Saved-As from one another — two links can genuinely
+carry the same id. Both producers compute the key through one helper; they must, since a
+mismatch renders an element with no properties and errors nowhere.
+
+**Bounds.** A linked element's bounding box is in its own coordinates. All eight corners
+are transformed, not Min/Max — under rotation the transformed Min is not the minimum, and
+a link placed at an angle is the normal case.
+
+**Honest scope limit:** the map collects model elements with geometry from each link, not
+"elements visible in the host's active view" — a view id cannot filter another document's
+collector. The GLB, produced by Revit's own view traversal, remains the authority on what
+is drawn, so the map may list a few elements the geometry does not show. A tree row with
+no mesh is a much smaller problem than the mesh with no properties it replaces. Unloaded
+links are named in the log rather than skipped silently.
+
 #### Completed (Phase 239 — Connect could not survive a cold start)
 
 Phase 237 pointed the plugin at a host that answers. The first real sign-in still failed:

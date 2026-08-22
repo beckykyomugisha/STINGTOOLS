@@ -29,6 +29,27 @@ namespace StingTools.BIMManager
         private readonly List<MeshNode> _nodes = new();
         private readonly Stack<Transform> _xformStack = new();
 
+        /// <summary>
+        /// The document each <see cref="ElementId"/> should be resolved against, tracked
+        /// in step with <see cref="_xformStack"/>.
+        ///
+        /// <para><b>Element ids are document-local.</b> Inside a link, the id handed to
+        /// <see cref="OnElementBegin"/> belongs to the LINKED document, so resolving it
+        /// against the host is not a near-miss — it is a lookup in the wrong table. It
+        /// returned null and the element was skipped, which is why a federated model
+        /// published as a bare site with no buildings. When the id happened to exist in
+        /// the host it was worse: geometry was emitted carrying another element's name,
+        /// category, colour and UniqueId — and UniqueId is the key the viewer joins the
+        /// element map on.</para>
+        ///
+        /// <para>Same approach as <c>Clash/ClashExportContext</c>, which has always done
+        /// this correctly. This exporter simply never did.</para>
+        /// </summary>
+        private readonly Stack<Document> _docStack = new();
+
+        /// <summary>The document currently being traversed — host, or a link.</summary>
+        private Document CurrentDoc => _docStack.Count > 0 ? _docStack.Peek() : _doc;
+
         private MeshNode? _current;
         private string? _currentUniqueId;
         private string? _currentName;
@@ -43,7 +64,7 @@ namespace StingTools.BIMManager
         private readonly bool _exportTextures;
         // Per-material appearance cache (Revit material ElementId.Value → resolved def),
         // so the version-sensitive appearance read runs once per material, not per face.
-        private readonly Dictionary<long, MaterialDef?> _appearanceCache = new();
+        private readonly Dictionary<string, MaterialDef?> _appearanceCache = new();
         // Phase 2 — resolved texture-path cache (by lowercased filename) so the library
         // filesystem scan runs at most once per filename per export session.
         private static readonly Dictionary<string, string?> _texPathCache = new();
@@ -70,6 +91,7 @@ namespace StingTools.BIMManager
             _doc = doc;
             _exportTextures = exportTextures;
             _xformStack.Push(Transform.Identity);
+            _docStack.Push(doc);
         }
 
         public static ExportResult Export(Document doc, View3D view, string outputGlbPath, bool? exportTextures = null)
@@ -113,9 +135,16 @@ namespace StingTools.BIMManager
 
         public RenderNodeAction OnElementBegin(ElementId id)
         {
-            var el = _doc.GetElement(id);
+            var doc = CurrentDoc;
+            var el = doc.GetElement(id);
             if (el == null) return RenderNodeAction.Skip;
-            _currentUniqueId = el.UniqueId;
+            // Namespaced for linked elements. UniqueId is unique WITHIN a document, not
+            // across them, and in practice buildings are routinely Saved-As from one
+            // another — so template-derived elements in two different links can carry
+            // identical UniqueIds. Left bare for host elements so nothing already
+            // published changes key. PublishModelCommand.BuildElementMap computes the
+            // same key through the same helper; if one side changes, both must.
+            _currentUniqueId = ElementKey(doc, _doc, el);
             _currentName = el.Name ?? "";
             _currentCategory = el.Category?.Name ?? "";
             _currentRgb = ResolveCategoryColour(el);
@@ -154,12 +183,69 @@ namespace StingTools.BIMManager
         {
             var t = _xformStack.Peek().Multiply(node.GetTransform());
             _xformStack.Push(t);
+
+            // Push the LINKED document so OnElementBegin resolves ids against it.
+            // Falls back to the current document rather than skipping: a link whose
+            // document cannot be resolved (unloaded mid-export) should still contribute
+            // its geometry, mislabelled, rather than vanish silently.
+            Document linkDoc = null;
+            try { linkDoc = node.GetDocument(); }
+            catch (Exception ex) { StingLog.Warn($"RevitGltfExporter.OnLinkBegin: {ex.Message}"); }
+            _docStack.Push(linkDoc ?? CurrentDoc);
             return RenderNodeAction.Proceed;
         }
 
         public void OnLinkEnd(LinkNode node)
         {
             if (_xformStack.Count > 1) _xformStack.Pop();
+            // Popped unconditionally against the same guard as the transform stack —
+            // the two are pushed together in OnLinkBegin and must unwind together, or
+            // every element after a link resolves against the wrong document.
+            if (_docStack.Count > 1) _docStack.Pop();
+        }
+
+        /// <summary>
+        /// The key a mesh node and its element-map entry share.
+        ///
+        /// <para>Host elements keep their bare <c>UniqueId</c> so previously published
+        /// models keep working. Linked elements are prefixed with the link's identity,
+        /// because <c>UniqueId</c> is unique within a document only.</para>
+        ///
+        /// <para><b>Must stay byte-identical to
+        /// <c>PublishModelCommand.LinkedElementKey</c>.</b> The viewer joins geometry to
+        /// metadata on this string; a mismatch shows an element with no properties, and
+        /// nothing errors.</para>
+        /// </summary>
+        internal static string ElementKey(Document elementDoc, Document hostDoc, Element el)
+        {
+            if (elementDoc == null || hostDoc == null || ReferenceEquals(elementDoc, hostDoc))
+                return el.UniqueId;
+            return LinkScope(elementDoc) + "|" + el.UniqueId;
+        }
+
+        /// <summary>
+        /// Stable identity for a linked document, computable from BOTH
+        /// <c>LinkNode.GetDocument()</c> (the exporter) and
+        /// <c>RevitLinkInstance.GetLinkDocument()</c> (the element map).
+        ///
+        /// <para>PathName first because two links can share a file name in different
+        /// folders; Title as the fallback for cloud models, whose PathName is empty.
+        /// Note this does NOT distinguish two INSTANCES of the same file — both resolve
+        /// to one metadata entry. That is deliberate: the two instances are the same
+        /// source element placed twice, so their name, category, level and quantities
+        /// are identical. Only their position differs, and position lives in the
+        /// geometry, which is emitted per instance.</para>
+        /// </summary>
+        internal static string LinkScope(Document linkDoc)
+        {
+            try
+            {
+                var p = linkDoc.PathName;
+                if (!string.IsNullOrWhiteSpace(p)) return p;
+            }
+            catch (Exception ex) { StingLog.Warn($"RevitGltfExporter.LinkScope: {ex.Message}"); }
+            try { return linkDoc.Title ?? "link"; }
+            catch { return "link"; }
         }
 
         public void OnRPC(RPCNode node) { }
@@ -203,21 +289,30 @@ namespace StingTools.BIMManager
             ElementId matId;
             try { matId = node.MaterialId; } catch { return null; }
             if (matId == null || matId == ElementId.InvalidElementId) return null;
+            // Same document rule as OnElementBegin: a MaterialId inside a link belongs to
+            // the LINKED document. Resolving it against the host yields null (unnamed
+            // material) or, on a numeric collision, a different material entirely.
+            var matDoc = CurrentDoc;
+
+            // Cache key includes the document. Keyed on matId alone, a link's material 12
+            // and the host's material 12 shared one entry, so whichever was seen first
+            // decided the name and texture for both.
             long key = matId.Value;
-            if (_appearanceCache.TryGetValue(key, out var cached)) return cached;
+            string cacheKey = (ReferenceEquals(matDoc, _doc) ? "" : LinkScope(matDoc) + "|") + key;
+            if (_appearanceCache.TryGetValue(cacheKey, out var cached)) return cached;
 
             var def = new MaterialDef();
             try
             {
-                var mat = _doc.GetElement(matId) as Material;
+                var mat = matDoc.GetElement(matId) as Material;
                 def.MatName = mat?.Name ?? ("material " + key);
                 try { var c = node.Color; if (c != null) def.DiffuseRgb = new[] { (int)c.Red, (int)c.Green, (int)c.Blue }; } catch { }
                 try { def.Alpha = 1.0 - Clamp01(node.Transparency); } catch { }
 
-                var assetElem = mat != null ? _doc.GetElement(mat.AppearanceAssetId) as AppearanceAssetElement : null;
+                var assetElem = mat != null ? matDoc.GetElement(mat.AppearanceAssetId) as AppearanceAssetElement : null;
                 var asset = assetElem?.GetRenderingAsset();
                 def.HadAsset = asset != null;
-                if (asset == null) { def.Reason = "no-appearance-asset"; def.ComputeKey(); _appearanceCache[key] = def; return def; }
+                if (asset == null) { def.Reason = "no-appearance-asset"; def.ComputeKey(); _appearanceCache[cacheKey] = def; return def; }
 
                 var dc = ReadColor(asset, "generic_diffuse") ?? ReadColor(asset, "diffuse");
                 if (dc != null) def.DiffuseRgb = dc;
@@ -252,7 +347,7 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex) { def.Reason = "exception: " + ex.Message; StingLog.Warn($"[tex] appearance resolve failed for {def.MatName}: {ex.Message}"); }
 
-            _appearanceCache[key] = def;
+            _appearanceCache[cacheKey] = def;
             return def;
         }
 
