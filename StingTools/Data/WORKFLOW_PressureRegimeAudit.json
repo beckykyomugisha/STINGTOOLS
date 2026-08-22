@@ -1,7 +1,9 @@
 {
   "id": "PressureRegimeAudit",
   "name": "Pressure cascade audit (HTM 03-01)",
-  "description": "Runs PressureRegimeValidator + AdjacencyValidator and produces a per-room report.",
+  "description": "Runs PressureRegimeValidator + AdjacencyValidator and produces a per-room report. READ-ONLY BY CONSTRUCTION: both steps are declared [Transaction(TransactionMode.ReadOnly)] and neither writes a file - the per-room report is presented, not exported.",
+  "readOnly": true,
+  "_readOnlyNote": "Declared, and PROVEN by tools/check_smoke_test.py: every commandTag below resolves to a class carrying [Transaction(TransactionMode.ReadOnly)]. Adding a writer to this preset fails CI. Also checked by hand on 2026-08-22 for file I/O, because the gate only proves the Revit transaction mode: none of these commands writes a document, log or export to disk either. That second half is NOT enforced by CI - if you add a step that renders or exports, this note stops being true before the gate notices.",
   "steps": [
     { "commandTag": "Healthcare_PressureAudit", "label": "Run PressureRegimeValidator" },
     { "commandTag": "Healthcare_AdjacencyAudit","label": "Adjacency confirms anteroom links" }
