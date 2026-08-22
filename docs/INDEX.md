@@ -59,6 +59,10 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 `BOQ_5D_*.md` / `BOQ_COST_MANAGER_5D_WORKSPACE_PROMPT.md` / `BOQ_INLINE_ACTIONS_SLICE3_PROMPT.md` /
 `BOQ_REVIEW_AND_HARDENING_PROMPT.md` (work prompts — intent, check against `CHANGELOG.md`)
 
+Rescued from an uncommitted worktree 2026-08-22, never indexed before — same caveat, these are *intent* not shipped state:
+`BOQ_5D_PHASE2_PROMPT.md` · `BOQ_COST_INTEGRATION_AND_FIXES_PROMPT.md` ·
+`BOQ_QS_IMPLEMENTATION_PROMPT_P1-P4.md` · `PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md`
+
 ## Placement, symbols & families
 
 `PLACEMENT_CENTRE_REVIEW.md` · `PLACEMENT_FAMILY_AUTHORING.md` · `PLACEMENT_SEED_VARIANT_COVERAGE.md` ·
@@ -71,7 +75,7 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 `MULTI_HOST_INTEGRATION_PLAN.md` · `CROSS_HOST_ROUND_TRIP_RUNBOOK.md` ·
 `CROSS_HOST_VALIDATION_CHECKLIST.md` · `PHASE_186_BONSAI_INTEGRATION.md` ·
 `PHASE_186_VERIFICATION_CHECKLIST.md` · `MVP_SCOPE_BONSAI.md` · `EXPORTER_TEXTURES.md` ·
-`MCP_V2_CAPABILITY_EXPOSURE.md`
+`MCP_V2_CAPABILITY_EXPOSURE.md` · `MCP_V2_AGENT_BRIEF.md`
 
 ## Parameters & tagging internals
 
@@ -114,3 +118,11 @@ artefact and check its date before trusting a step:
 ## Domain packs
 
 `HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
+
+Healthcare work prompts, rescued from an uncommitted worktree 2026-08-22 and never
+indexed before. Each is *intent* at the date it was written — check `CHANGELOG.md`
+before assuming any of it shipped:
+`HEALTHCARE_ACCURACY_FIXES_PROMPT.md` · `HEALTHCARE_CHANGELOG_ROADMAP_FIX_PROMPT.md` ·
+`HEALTHCARE_COMPLETENESS_FIXES_PROMPT.md` · `HEALTHCARE_DEFERRED_IMPLEMENTATION_PROMPT.md` ·
+`HEALTHCARE_GAP_FIXES_PROMPT.md` · `HEALTHCARE_PHASE199_FIXES_PROMPT.md` ·
+`HEALTHCARE_PROFILE_COVERAGE_PROMPT.md`
