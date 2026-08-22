@@ -2,9 +2,11 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.API.Authorization;
 
 namespace Planscape.API.Controllers;
@@ -33,33 +35,66 @@ public class ModelsController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly IFileStorageService _storage;
     private readonly IConverterClient _converter;
+    private readonly IModelGeorefWriter _georef;
     private readonly ILogger<ModelsController> _logger;
 
     // Upload cap — glTF can be large but anything over this is almost certainly
     // an uncompressed IFC or a federated model that should be split.
     private const long MaxModelSizeBytes = 500L * 1024 * 1024;
 
+    /// <summary>
+    /// Cap on the element-map sidecar. Raised from 5 MB.
+    ///
+    /// <para>5 MB is roughly 19,000 elements at the ~265 bytes/element a real map costs,
+    /// which a federated site passes easily. It was also being hit for the wrong reason —
+    /// the plugin was describing every element in the source documents rather than the
+    /// ones in the GLB, so a 1,407-element model shipped a 12.28 MB map of mostly legend
+    /// and detail lines. That is fixed on the plugin side; this raises the ceiling so the
+    /// limit binds on genuinely large models instead of on a bug.</para>
+    ///
+    /// <para>Not larger, deliberately: <c>DownloadElementMap</c> reads the whole map into
+    /// a string to merge the cost sidecar, and the free-tier instance has 512 MB of RAM.
+    /// The durable fix is to store it gzipped — measured 31× on a real map (12.28 MB →
+    /// 0.40 MB) — which needs the serve path and the cost merge to decompress. Logged
+    /// rather than done here.</para>
+    /// </summary>
+    private const long MaxElementMapBytes = 25L * 1024 * 1024;
+
     public ModelsController(
         PlanscapeDbContext db,
         IFileStorageService storage,
         IConverterClient converter,
+        IModelGeorefWriter georef,
         ILogger<ModelsController> logger)
     {
         _db = db;
         _storage = storage;
         _converter = converter;
+        _georef = georef;
         _logger = logger;
     }
 
     // ── List / metadata ────────────────────────────────────────────────
 
+    /// <summary>
+    /// Models in the project. Live only by default.
+    ///
+    /// <para><paramref name="deleted"/> returns the soft-deleted ones instead, which is
+    /// what makes the 30-day grace in <c>ModelPurgeJob</c> reachable. Without a way to
+    /// SEE a deleted model there is no way to restore it, and the grace period protects
+    /// nobody — it just delays the bytes leaving.</para>
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult> List(Guid projectId, CancellationToken ct)
+    public async Task<ActionResult> List(Guid projectId, CancellationToken ct, [FromQuery] bool deleted = false)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
-        var rows = await _db.ProjectModels.AsNoTracking()
-            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
-            .OrderByDescending(m => m.UploadedAt)
+        var q = _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId);
+        q = deleted ? q.Where(m => m.DeletedAt != null) : q.Where(m => m.DeletedAt == null);
+        var rows = await q
+            // Deleted models sort by when they were deleted — the useful order when the
+            // question is "what did I just remove", not "what was uploaded when".
+            .OrderByDescending(m => deleted ? m.DeletedAt : m.UploadedAt)
             .Select(m => ToMetaDto(m))
             .ToListAsync(ct);
         return Ok(rows);
@@ -136,6 +171,30 @@ public class ModelsController : ControllerBase
         }
         var existing = await _db.ProjectModels
             .FirstOrDefaultAsync(m => m.TenantId == project.TenantId && m.ProjectId == projectId && m.ContentHash == hash && m.DeletedAt == null, ct);
+
+        // C4 — honour Force.
+        //
+        // The flag has been on UploadModelRequest, documented, and sent by the
+        // plugin's "Publish as a new revision (forced)" mode since it shipped —
+        // and read by nothing. The dedup branch below ran regardless, so a
+        // coordinator who deliberately chose to cut a new revision got a
+        // metadata refresh on the OLD row and no new revision at all. The
+        // operation reported success, which is why it went unnoticed.
+        //
+        // It could not simply insert a second row: the unique filtered index on
+        // (TenantId, ProjectId, ContentHash) WHERE DeletedAt IS NULL rejects
+        // identical bytes. Retiring the previous row frees the index AND makes
+        // the supersede explicit, so the history stays queryable.
+        if (existing != null && req.Force)
+        {
+            existing.DeletedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Force re-publish: retiring model {OldModelId} so a new revision of the same bytes can be created.",
+                existing.Id);
+            existing = null;   // fall through to the normal insert path
+        }
+
         if (existing != null)
         {
             // Geometry hash is identical, so the GLB itself is normally
@@ -163,8 +222,8 @@ public class ModelsController : ControllerBase
             }
             if (req.ElementMap != null && req.ElementMap.Length > 0)
             {
-                if (req.ElementMap.Length > 5 * 1024 * 1024)
-                    return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+                if (req.ElementMap.Length > MaxElementMapBytes)
+                    return BadRequest(TooLargeBody(req.ElementMap.Length));
                 using var s = req.ElementMap.OpenReadStream();
                 existing.ElementMapPath = await _storage.SaveAsync(
                     tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
@@ -215,8 +274,8 @@ public class ModelsController : ControllerBase
         string? mapPath = null;
         if (req.ElementMap != null && req.ElementMap.Length > 0)
         {
-            if (req.ElementMap.Length > 5 * 1024 * 1024)
-                return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+            if (req.ElementMap.Length > MaxElementMapBytes)
+                return BadRequest(TooLargeBody(req.ElementMap.Length));
             using var s = req.ElementMap.OpenReadStream();
             mapPath = await _storage.SaveAsync(tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
         }
@@ -246,7 +305,13 @@ public class ModelsController : ControllerBase
             ThumbnailPath = thumbnailPath,
             ElementMapPath = mapPath,
             ElementCount = req.ElementCount,
-            Units = string.IsNullOrWhiteSpace(req.Units) ? "mm" : req.Units!,
+            // P3 — an undeclared mesh unit is METRES, not millimetres.
+            // glTF 2.0 defines metres for all linear distances and the viewer
+            // has always assumed it; defaulting to "mm" meant any uploader that
+            // omitted the field got its model scaled by 1/1000 the moment this
+            // field started driving rendering. Callers whose mesh really is
+            // millimetres must say so — the Revit plugin does.
+            Units = string.IsNullOrWhiteSpace(req.Units) ? MeshUnits.Canonical : req.Units!,
             Revision = req.Revision,
             BoundsMinX = req.BoundsMinX,
             BoundsMinY = req.BoundsMinY,
@@ -254,6 +319,10 @@ public class ModelsController : ControllerBase
             BoundsMaxX = req.BoundsMaxX,
             BoundsMaxY = req.BoundsMaxY,
             BoundsMaxZ = req.BoundsMaxZ,
+            // C7 — an IFC is not renderable until the sidecar converts it. Say so
+            // in the data, not only in the 202 response body, so the viewer and
+            // the dashboard can tell "still working" from "gave up".
+            ConversionStatus = willConvertIfc ? "Pending" : null,
             UploadedBy = User.FindFirst("display_name")?.Value ?? User.Identity?.Name ?? "",
             UploadedByUserId = CurrentUserId(),
             UploadedAt = DateTime.UtcNow,
@@ -280,6 +349,34 @@ public class ModelsController : ControllerBase
         _logger.LogInformation("Model uploaded — {ModelId} {Format} {Size} bytes for project {ProjectId}",
             row.Id, row.Format, row.FileSizeBytes, projectId);
 
+        // C4 — close the supersede link now that the replacement has an id.
+        if (req.Force)
+        {
+            var retired = await _db.ProjectModels
+                .Where(m => m.TenantId == project.TenantId && m.ProjectId == projectId
+                         && m.ContentHash == hash && m.Id != row.Id
+                         && m.DeletedAt != null && m.SupersededByModelId == null)
+                .OrderByDescending(m => m.DeletedAt)
+                .FirstOrDefaultAsync(ct);
+            if (retired != null)
+            {
+                retired.SupersededByModelId = row.Id;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
+        // ── B2 — georeferencing → coordinate transform ──────────────────────
+        // Revit exports geometry about the project internal origin, so without
+        // this every Revit model landed at 0,0,0 no matter where the building
+        // is. The survey position arrives as metadata (never baked into the
+        // mesh — a 40 km easting in the vertex data destroys float precision),
+        // and the shared writer turns it into the same kind of transform the IFC
+        // ingest path produces, graded by the same confidence policy.
+        //
+        // Best-effort: a georef failure must not fail an otherwise-good upload.
+        // The geometry is already committed and the model is usable un-placed.
+        await TryWriteGeorefAsync(projectId, row.Id, project.TenantId, req, ct);
+
         // IFC with a configured converter — kick off async IFC→GLB conversion.
         // The IFC is retained as the source row; the sidecar publishes the
         // renderable GLB back through this same endpoint as a separate model.
@@ -298,6 +395,56 @@ public class ModelsController : ControllerBase
         }
 
         return CreatedAtAction(nameof(Get), new { projectId, modelId = row.Id }, ToMetaDto(row));
+    }
+
+    // ── B2 — georef helper ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Turn the optional georef block on an upload into a stored transform.
+    /// No-ops when the caller sent no survey position.
+    /// </summary>
+    private async Task TryWriteGeorefAsync(
+        Guid projectId, Guid modelId, Guid tenantId, UploadModelRequest req, CancellationToken ct)
+    {
+        if (req.GeorefEastingM is null || req.GeorefNorthingM is null) return;
+
+        // A SharedCoordinates export already sits in the survey frame, so
+        // applying the survey origin again would double-count it and put the
+        // model twice as far from where it belongs. Record the position but
+        // write no transform.
+        if (string.Equals(req.GeorefExportMode, "SharedCoordinates", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation(
+                "Model {ModelId} was exported in shared coordinates — geometry is already in the survey frame, no transform written.",
+                modelId);
+            return;
+        }
+
+        try
+        {
+            var georef = new ModelGeoref(
+                EastingM      : req.GeorefEastingM,
+                NorthingM     : req.GeorefNorthingM,
+                ElevationM    : req.GeorefElevationM,
+                TrueNorthDeg  : req.GeorefTrueNorthDeg ?? 0,
+                CrsCode       : req.GeorefCrsEpsg,
+                HasDeclaredCrs: !string.IsNullOrWhiteSpace(req.GeorefCrsEpsg),
+                LengthUnit    : req.GeorefLengthUnit,
+                SourceLabel   : "revit-georef");
+
+            // No IfcAlignmentValidator has run on a GLB, so there is no verdict
+            // to fail on. "PASS" here means "nothing contradicted it", and the
+            // CRS anchor still decides whether it grades HIGH.
+            await _georef.WriteAsync(projectId, modelId, tenantId, georef, verdict: "PASS", ct);
+        }
+        catch (Exception ex)
+        {
+            // The geometry is committed and the model is usable un-placed;
+            // losing the upload over a transform write would be worse.
+            _logger.LogWarning(ex,
+                "Georef transform write failed for model {ModelId} (non-fatal — model is published, un-placed).",
+                modelId);
+        }
     }
 
     // ── Downloads ──────────────────────────────────────────────────────
@@ -438,7 +585,83 @@ public class ModelsController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt == null, ct);
         if (row == null) return NotFound();
         row.DeletedAt = DateTime.UtcNow;
+
+        // C4 — cascade. Soft-deleting the model alone left its scene chunks live,
+        // so the geometry kept rendering after the model was "deleted". Retire the
+        // chunks with it; ModelPurgeJob removes the bytes and the rows after the
+        // 30-day grace the entity documents.
+        //
+        // FederatedElement rows are deliberately NOT retired here. They are keyed
+        // to their source by SourceDocGuid + a per-delta GlbStoragePath (written by
+        // FederatedModelController's delta path), whereas a ProjectModel is keyed by
+        // its uploaded-GLB StoragePath — there is no shared key between the two, so
+        // a model delete cannot identify "its" federated elements. The earlier
+        // attempt matched GlbStoragePath == ProjectModel.StoragePath, two keys from
+        // different pipelines that never coincide: it retired nothing while the log
+        // reported a count. Real federated-element retirement needs a proper linkage
+        // (a ProjectModelId or source-doc GUID on FederatedElement) — left as a
+        // follow-up rather than a join that silently matches nothing, or worse
+        // false-matches if the two key spaces ever collide.
+        var chunks = await _db.SceneNodes
+            .Where(n => n.SourceModelId == modelId && n.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var chunk in chunks) chunk.DeletedAt = row.DeletedAt;
+
         await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) retired with it. " +
+            "Federated elements are not linked to a ProjectModel and are left untouched (see Delete remarks).",
+            modelId, chunks.Count);
+
+        return NoContent();
+    }
+
+    // ── Restore ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Undo a delete, within the purge grace.
+    ///
+    /// <para>The delete is a SOFT delete with a 30-day window before
+    /// <c>ModelPurgeJob</c> removes the bytes and the row — but nothing could reach that
+    /// window, so it protected no one. Existence of the row IS the check: the purge job
+    /// deletes it outright, so anything still here is still restorable and a 404 is the
+    /// honest answer for anything past the grace.</para>
+    ///
+    /// <para>Restores the scene chunks that <see cref="Delete"/> retired alongside the
+    /// model — and only those, matched on the same <c>SourceModelId</c>. Restoring the
+    /// model without them brings back a row that renders nothing, which reads as a
+    /// corrupted model rather than a half-finished undo.</para>
+    ///
+    /// <para>Same roles as delete. Anyone who can remove a model can put it back; a
+    /// narrower rule would create a state a Coordinator can enter and not leave.</para>
+    /// </summary>
+    [HttpPost("{modelId:guid}/restore")]
+    [Authorize(Roles = "Admin,Owner,Coordinator")]
+    public async Task<IActionResult> Restore(Guid projectId, Guid modelId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+        var row = await _db.ProjectModels
+            .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt != null, ct);
+        if (row == null) return NotFound();
+
+        var deletedAt = row.DeletedAt;
+        row.DeletedAt = null;
+
+        // Only the chunks retired BY THIS DELETE. Matching on SourceModelId alone would
+        // also revive chunks retired by an earlier, unrelated delete of the same model,
+        // so the timestamp is part of the match.
+        var chunks = await _db.SceneNodes
+            .Where(n => n.SourceModelId == modelId && n.DeletedAt == deletedAt)
+            .ToListAsync(ct);
+        foreach (var chunk in chunks) chunk.DeletedAt = null;
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Model {ModelId} restored (was deleted {DeletedAt:u}): {Chunks} scene chunk(s) brought back.",
+            modelId, deletedAt, chunks.Count);
+
         return NoContent();
     }
 
@@ -583,7 +806,32 @@ public class ModelsController : ControllerBase
         m.BoundsMaxX, m.BoundsMaxY, m.BoundsMaxZ,
         m.UploadedBy, m.UploadedAt,
         StorageOk: m.StorageMissingAt == null,
-        StorageMissingAt: m.StorageMissingAt);
+        StorageMissingAt: m.StorageMissingAt,
+        // C7 - appended rather than inserted: this is a POSITIONAL record, so
+        // adding a parameter mid-list silently re-maps every argument after it.
+        ConversionStatus: m.ConversionStatus,
+        ConversionError: m.ConversionError,
+        DeletedAt: m.DeletedAt);
+
+    /// <summary>
+    /// The refusal, with the numbers and a next step.
+    ///
+    /// <para>The previous body was <c>{"error":"element_map_too_large","maxMb":5}</c> —
+    /// true, and unusable: it did not say how large the map WAS, so there was no way to
+    /// tell "slightly over" from "twenty times over", and no hint that the usual cause is
+    /// a map describing far more than the model contains. <c>actualMb</c> and <c>hint</c>
+    /// are additive; <c>error</c> and <c>maxMb</c> keep their names for anything already
+    /// matching on them.</para>
+    /// </summary>
+    private static object TooLargeBody(long actualBytes) => new
+    {
+        error = "element_map_too_large",
+        maxMb = MaxElementMapBytes / (1024 * 1024),
+        actualMb = Math.Round(actualBytes / 1024d / 1024d, 2),
+        hint = "The element map should describe the elements in the published geometry. "
+             + "A map far larger than the model usually means it also covers annotation, "
+             + "legend or detail content. Update the plugin, or publish fewer linked models.",
+    };
 
     private static ModelFormat InferFormat(string fileName)
     {
@@ -668,8 +916,14 @@ public class ModelsController : ControllerBase
                 revision = m.Revision,
             }).ToListAsync(ct);
 
+        // C4 — exclude chunks whose MODEL is deleted, not just chunks that are
+        // themselves flagged. Before the cascade above nothing ever set
+        // SceneNode.DeletedAt, so this filter matched everything and a deleted
+        // model kept streaming into the viewer.
+        var liveModelIds = models.Select(m => m.id).ToHashSet();
         var chunks = await _db.SceneNodes.AsNoTracking()
-            .Where(n => n.ProjectId == projectId && n.DeletedAt == null)
+            .Where(n => n.ProjectId == projectId && n.DeletedAt == null
+                     && liveModelIds.Contains(n.SourceModelId))   // C4 — filter in SQL, matching SceneNodesController
             .Select(n => new {
                 id = n.Id,
                 sourceModelId = n.SourceModelId,
@@ -747,6 +1001,51 @@ public class UploadModelRequest
     /// revision (e.g. updated element map only).
     /// </summary>
     public bool Force { get; set; }
+
+    // ── B2 — georeferencing (optional) ──────────────────────────────────────
+    //
+    // Revit exports its geometry about the PROJECT INTERNAL origin
+    // (ClashExportContext uses Transform.Identity), so a published GLB carries
+    // no survey position and every Revit model landed at 0,0,0 regardless of
+    // where the building actually is. The fix is to send the survey position as
+    // METADATA rather than baking it into the mesh — the same shape the IFC path
+    // already uses, and the reason a 40 km easting does not destroy float
+    // precision in the vertex data.
+    //
+    // All of these are optional. A model without them stays at the origin, which
+    // is the correct outcome for an ungeoreferenced model.
+
+    /// <summary>Survey easting of the model's internal origin, in METRES.</summary>
+    public double? GeorefEastingM { get; set; }
+
+    /// <summary>Survey northing of the model's internal origin, in METRES.</summary>
+    public double? GeorefNorthingM { get; set; }
+
+    /// <summary>Survey elevation of the model's internal origin, in METRES.</summary>
+    public double? GeorefElevationM { get; set; }
+
+    /// <summary>
+    /// Rotation from CRS grid north to the model's internal north, in degrees
+    /// (clockwise positive) — Revit's <c>ProjectPosition.Angle</c>.
+    /// </summary>
+    public double? GeorefTrueNorthDeg { get; set; }
+
+    /// <summary>
+    /// The model's declared CRS, e.g. "EPSG:27700". Supplying it is what lets
+    /// the transform grade HIGH and be applied without a coordinator confirming
+    /// it; without a CRS anchor the transform is stored as a suggestion only.
+    /// </summary>
+    public string? GeorefCrsEpsg { get; set; }
+
+    /// <summary>The model's own length unit — "mm" | "m" | "ft".</summary>
+    public string? GeorefLengthUnit { get; set; }
+
+    /// <summary>
+    /// "ProjectInternal" | "SharedCoordinates" — how the geometry was exported.
+    /// A SharedCoordinates export already sits in the survey frame, so applying
+    /// the survey origin again would double-count it.
+    /// </summary>
+    public string? GeorefExportMode { get; set; }
 }
 
 /// <summary>
@@ -785,4 +1084,16 @@ public record ModelMetaDto(
     string UploadedBy,
     DateTime UploadedAt,
     bool StorageOk,
-    DateTime? StorageMissingAt);
+    DateTime? StorageMissingAt,
+    /// <summary>C7 - Pending | Converting | Done | Failed, or null when no conversion was needed.</summary>
+    string? ConversionStatus = null,
+    string? ConversionError = null,
+    /// <summary>
+    /// When this model was soft-deleted, or null while it is live. Appended, not
+    /// inserted — see the note at the ToMetaDto call site: this is a POSITIONAL record
+    /// and a parameter added mid-list silently re-maps every argument after it.
+    ///
+    /// <para>Present so the UI can show how long is left of the 30-day restore window
+    /// rather than making the user guess when the bytes go.</para>
+    /// </summary>
+    DateTime? DeletedAt = null);

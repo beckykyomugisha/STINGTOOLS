@@ -2,17 +2,60 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Material Schedule export — after Phase 235 (2026-08-16)
+
+| ID | Item | Detail |
+|---|---|---|
+| MATSCHED-1 | **Partially verified. The integrity criteria pass; the export is not yet producing materials** | A first run reported section letters A/B/C with no duplicates, Summary letters and order matching the body, and a clean Validation sheet — the three defect classes the reference sample failed on. **A later run on the same machine contradicted the clean-Validation half**: 60 commodity rows, 61 R3 issues and a grand total of UGX 0. The two runs are not reconciled and the earlier one is NOT treated as closing this item. Cause of the second run is understood and tracked as MATSCHED-7 and MATSCHED-8: `COST_COMPOUND_TAKEOFF` was off, so no cement/sand/block/brick commodities existed at all, and every unmatched model row — including furniture and casework — was emitted as an unpriced commodity. **What is genuinely established:** the lettering and summary-projection logic behaves in Revit as the unit tests claim. **What is not:** that the export produces a usable material schedule on a real model, or that the file lands in SCHEDULES rather than MISC. Re-verify after MATSCHED-7/8. |
+| MATSCHED-7 | **The export cannot produce materials until a hidden config flag is set** | `CompoundTakeoffBuilder.Enabled()` reads `COST_COMPOUND_TAKEOFF` from `project_config.json`, defaults **off**, and the key is set in **no shipped file**. With it off, walls and slabs stay single composite rows and cement, sand, blocks and bricks are never emitted — the schedule's entire reason to exist. A user has to know about an undocumented flag and hand-edit a config file. The design spec said the command should offer to run in compound mode for the export; the implementation only warns after the fact, which is too late to be useful. |
+| MATSCHED-8 | **Furniture and casework are emitted as purchasable commodities** | The aggregator's "no rule → keep the row in its measured unit" fallback exists so measured work cannot vanish. It also fires on every unmatched model row, so `Bed_Double_Nightstands`, `AD_Floathing TV shelf` and `2D_Chair_&_Ottoman_Accent` became commodity rows: 60 rows of noise, 61 unpriced-commodity issues and a UGX 0 grand total. FF&E is not a material. The fallback needs three buckets, not two — converted commodity, material awaiting a rate (doors, windows, fixtures — legitimately in a material schedule, and present in the reference sample), and excluded-not-a-material — with the excluded count reported rather than silently dropped. |
+| MATSCHED-2 | **`ViewSchedule.CreateKeySchedule` is unproven in this codebase** | Used nowhere; key-schedule columns are project parameters bound to the key category, so the builder must create parameters before writing a row. Plan Task 15 is a 2-hour timeboxed spike: create key schedule → bind text/number parameters → create key instances → populate → place on a sheet via `ScheduleSheetInstance.Create`. If it fails, the named fallback is a Generic Annotation family carrying the commodity fields as type parameters, scheduled normally. Task 16 (the view builder) is deliberately blocked until the spike records an outcome, so guessing at the API costs nothing downstream. |
+| MATSCHED-3 | **Finishes tiling still does not reproduce the reference sample; Roof and painting do** | Roof sheets and tiles convert (category + type-pattern rules, PR #709). **Finishes do not, and the first attempt was withdrawn.** Rules for `paint-wall`, `floor-tile` and `paint-ceiling` matched a whole ELEMENT and converted it to a finish — a wall is not paint and a floor slab is not tiles, so a composite wall row whose type read "plastered" priced the entire wall area as paint buckets. `paint-ceiling` carried no type patterns at all, so every ceiling including a suspended grid became paint. All three were removed in the follow-up rather than left to produce confident wrong numbers. **Painting is now solved in the take-off engine, where it belonged.** The painted area IS the plastered face area (`area × PlasterFaces`), which `CompoundTakeoff` already derived to size plaster volume; it is now emitted as its own constituent kind and split `paint_interior` / `paint_exterior` from `WallType.Function`, so paint routes and converts exactly like cement with none of the whole-element hazard. **Tiling remains open and cannot be faked from a unit table**: a floor's tiled area is not its slab area, and the RC-slab path knows only concrete, rebar and formwork — there is no finish-layer concept to say which floors are tiled at all. That needs a finish-layer take-off. Nails/kg and hoop iron are likewise still absent. |
+| MATSCHED-3b | **Two rules shipped unreachable** | `aggregate` (since #700) and `tile-adhesive` (#709) matched neither a constituent kind nor a category, so neither could ever fire. Both removed. `ShippedDataIntegrityTests.Every_Rule_Is_Reachable` now fails the build on a third. Dead config is worse than absent config: it advertises coverage the export does not have. |
+| MATSCHED-3c | **The two data files were never compared** | `STING_SUPPLIER_UNITS.json` and `STING_MATERIAL_STAGES.json` were each valid and each tested, yet disagreed — category rules inherited the ELEMENT's stage, filing wall paint under SUPERSTRUCTURE. Fixed structurally: a category rule must now declare its own `stageId`, and `ShippedDataIntegrityTests` asserts that, that the stage exists, and that no paint/tile commodity sits in a structural stage. Same class as the "valid JSON + green build + runtime-dead" risk already recorded for this codebase. |
+| MATSCHED-4 | **The commodity price list is indicative, not tendered** | `STING_COMMODITY_RATES.csv` is seeded from the PATMAC sample's own figures (Kampala, mid-2026). Every live project must re-price via the project override at `_data/coord/commodity_rates.csv` before the output is used for tender. An unpriced commodity is honestly reported — rate 0, source `unpriced`, flagged by reconciler rule R3 and highlighted in the workbook — rather than borrowing a neighbour's rate. |
+| MATSCHED-5 | **The XLSX Amount formula diverges from the model once a QS edits a rate** | The workbook writes a live `=F*G` per row while the model derives `AmountUGX`. They agree at generation; if a QS edits a rate in Excel the formula updates and the model does not. That is intended — the workbook is the QS's to edit — but **re-importing an edited workbook is not supported** and no round-trip exists. If one is wanted later, it needs the same reconciliation gate the export has. |
+| MATSCHED-6 | **The mislabelled "Material Schedule" sheet in `BOQExportCommand` is still there** | [`BOQExportCommand.cs:362`](../StingTools/BOQ/BOQExportCommand.cs) filters BOQ rows whose unit is m²/m³/kg and prints them in measured units under that name. Deliberately untouched by Phase 235 — renaming a sheet in a 685-line command that already emits seven of them is safe cleanup, but it is not this feature's work and bundling it would have widened a review that already carried six corrections. |
+
 ## Licensing — after the Phase 234 self-serve pass (2026-08-16)
 
 | ID | Item | Detail |
 |---|---|---|
 | ~~LIC-1~~ | ~~**`issue.ts` has never been exercised by a signed-in user in production**~~ | **CLOSED 2026-08-16.** Issued from the `/licences` page by `mayanjadavis@gmail.com` (tenant `exo`). A `wrangler pages deployment tail` on deployment `6daa6e53` captured `POST /api/license/issue` → **200, outcome ok**, and `licenses` gained its first row ever: `4681-584E-784F-0868-4E48`, expiring `2036-08-03T09:23:49.531Z` — exactly `trial_ends_at` + `TRIAL_GRACE_DAYS`, so the computed path is the one reasoned about. Root cause of the earlier silent failures was **not** the endpoint: the page refused clipboard-damaged input before the fetch, so no request was made and the only feedback was small red text. Fixed in #698. |
 | LIC-2 | **The authenticated `/licences` view is now exercised, but not automatically** | Downgraded 2026-08-16 — the issue path has been driven for real in production (LIC-1), so this is no longer "never run". What remains is that there is **no UI harness**: the four status branches and the #677 expiry guard were verified in a browser against fixtures, and the logged-out path for real, but nothing re-checks any of it on change. A home for page-level tests is blocked on #691 (`marketing-site/tests/` is published, so adding files there worsens an open issue). |
-| LIC-7 | **`last_seen_at` has never been moved by the plugin itself** | The server half is proven — a hand-signed licence presented to the deployed `present.ts` stamped `last_seen_at`, the versions and the `license.first_seen` audit row. But the live licence row still reads `last_seen_at: null`, because the `.lic` has not been installed and Revit not restarted. The remaining unexercised link is `LicensePresenter` → `present.ts` in the field, as opposed to curl → `present.ts`. Install the issued licence at `C:\ProgramData\Planscape\StingTools\StingTools.lic` and restart Revit; the content hash changes, so the 24h throttle does not apply. |
+| ~~LIC-7~~ | ~~**`last_seen_at` has never been moved by the plugin itself**~~ | **CLOSED 2026-08-17.** The issued `.lic` was installed at `C:\ProgramData\Planscape\StingTools\` (old one backed up) and Revit 2025 launched. `LicensePresenter` posted on startup and the row was stamped: `last_seen_at` `null` → `2026-08-17T05:06:01.266Z`, `last_seen_plugin_version` **2.2.0.0** (real assembly version), `last_seen_revit_version` **2025**. Plugin log agrees to the second: `License presented: licensee=exo expires=08/03/2036 inUse=1/10`. `updated_at` stayed at `2026-08-16T21:31:55` — the "being observed is not a change to the licence" rule verified, not just documented — and the audit action was `license.first_seen`, not the routine `license.presented`. The full chain now runs on real components: browser → `issue.ts` → `.lic` on disk → Revit plugin → `present.ts` → D1, with no curl standing in for any hop. |
 | LIC-3 | **Revoke does not exist** | `licenses.revoked_at` is read by `issue.ts` and `present.ts` and **written nowhere in the codebase**. A dead machine's seat can only be freed by hand in D1, which is what `issue.ts`'s own "contact us to move a licence" message quietly depends on. Deliberately out of Phase 234's scope: it is a destructive billing action needing role gating and a confirm step. Additive when wanted — the page already renders a `revoked` status pill for rows that carry the date. |
 | LIC-4 | **A lapsed trial still passes entitlement and mints a dead licence** | Tracked as #677. `expireTrialIfNeeded` exists and is correct but is called **only** on `/api/auth/me`; every other path reads `getTenantById`, a raw `SELECT` with no expiry applied. So `issue.ts` and both download endpoints see a stale `"trial"`. The page guards against handing over the expired licence, but the row is still written and the downloads are still ungated. Fix belongs at the read, not in the UI. |
 | LIC-5 | **Merging licensing changes ships nothing** | Tracked as #651. `marketing-site` has no git-connected Pages build, so `/licences` and every Function change reach production only when a human runs `npm run deploy`. Compounded by the deploy-time binding behaviour corrected in #674: a secret that `wrangler pages secret list` shows is stored, not bound. |
 | LIC-6 | **Preview and production share one D1** | Tracked as #652 (#644 closed as its duplicate). A preview deployment can issue, revoke and stamp rows in the production `licenses` table — now the billing artefact, since #626 made D1 the sole owner of seat entitlement. |
+
+## Model publishing — after the federation pass (2026-08-22)
+
+| ID | Item | Detail |
+|---|---|---|
+| PUB-1 | **Store the element map gzipped** | Measured on a real federated site: 12.28 MB of JSON gzips to **0.40 MB — 31×**. The cap is 25 MB and cannot go much higher because `ModelsController.DownloadElementMap` reads the whole map into a string to merge the cost sidecar, on a 512 MB free-tier instance. Compressing at rest removes the ceiling problem entirely, but needs the serve path AND the cost merge to decompress, plus a magic-byte check so plugins still sending plain JSON keep working. |
+| PUB-2 | **The map can still over-collect on a user-picked file** | When the publish exports the GLB itself, the map is narrowed to the keys the exporter actually wrote — which took a real model from 37,110 entries to ~1,407. When the user picks an existing `.glb`/`.ifc` we cannot know its contents, so the map keeps its full document scope and the old bloat returns. Reading the element list back out of a picked GLB would close it. |
+| PUB-3 | **Nested-link metadata is collected, its visibility is not filtered** | `CollectLinksRecursive` filters top-level link INSTANCES by the active view, because that is a host element the view can answer for. Deeper links, and per-element visibility inside any link, cannot be filtered by a host view id. The PUB-2 narrowing hides the consequence today; it would reappear on the picked-file path. |
+
+## Planscape hosting — after the connect pass (2026-08-20)
+
+| ID | Item | Detail |
+|---|---|---|
+| HOST-1 | **`api.planscape.build` does not resolve** | Tracked as #705. The plugin's baked default now points at `planscape-api-free.onrender.com` because that is the host that answers; `PlanscapeServerClient.IntendedProductionServerUrl` is the one place to change when the custom domain is attached. Note the service is `planscape-api-free` — `planscape-api`, the name in `render.yaml`, 404s. |
+| HOST-2 | **The API instance sleeps, and waking it takes minutes** | Measured 2026-08-20 after ~2h idle: first request no answer within **180s**, next **66.6s**. The plugin now absorbs this with a pre-login wake probe and says so in the error, but that is mitigation. An always-on plan is the fix, and it pairs naturally with HOST-1 since both are one dashboard visit. Until then, the first Connect of the day is slow and may need a second press. |
+
+## Entitlement plumbing — after the project-ceiling pass (2026-08-20)
+
+The project cap now resolves in one place (`ProjectCeilingPolicy`): D1's tier grants where
+present, otherwise the local `BillingPlan`, and `Tenant.MaxProjects` may only tighten. What
+that pass deliberately did **not** try to settle:
+
+| ID | Item | Detail |
+|---|---|---|
+| ENT-1 | **Two plan taxonomies still exist** | planscape.build sells Solo / Studio / Practice / Firm / Large / Enterprise; the server's `BillingPlan` enum is Trial / PluginOnly / Studio / Practice / Network / Enterprise. There is no Solo, Firm or Large in the enum, and Network sits where two sold tiers are. `BillingTierMap` is the seam and is keyed by the **sold** names, because those are what a customer paid against. Unifying them is a commercial decision, not a refactor — and it needs the D1 side to agree, since `plan_tier` is written there. |
+| ENT-2 | **`BillingPlanLimits.For(PluginOnly)` grants unlimited projects** | PluginOnly is documented as "$15/mo — Revit plugin only, local storage, **no cloud sync**", yet its `MaxProjects` is `int.MaxValue` — more cloud projects than Studio or Practice, which cost more. Nothing assigns PluginOnly today (both creation paths write Trial or Network), so it is latent. Left alone deliberately: correcting it downward changes what a priced plan includes, which is a commercial call. |
+| ENT-3 | **Tier changes reach the mirror only at sign-in** | `PlanTier` is refreshed on every handoff, so an upgrade lands the next time the customer signs in through planscape.build. A customer who upgrades and stays logged in keeps the old cap until their next handoff. Full reconciliation (a webhook, or a periodic pull) remains out of scope per `docs/PLANSCAPE_IDENTITY_HANDOFF.md`; this is the honest bound on how stale the mirror can be. |
+| ENT-4 | **Storage is still capped by the local plan alone** | `CheckCanUploadBytesAsync` reads `BillingPlanLimits.For(tenant.Plan).StorageMb` and knows nothing about the tier. It is less visible than projects because the handoff now mirrors onto Network (50 GB) rather than Trial (5 GB), so nobody is squeezed — but it is the same shape of bug, one axis over. `BillingTierMap` would need a storage column and D1 would need to agree on the numbers. |
 
 ## Visibility Center — after the Phase 233 enhancement pass (2026-08-16)
 
@@ -1499,3 +1542,41 @@ core via a service or stay C#).
 
 **Spec:** the R1/R2 implementation plan (work items per codebase, owner decisions D1–D6, phasing, and
 end-to-end acceptance tests) is written up in [`ROUND_TRIP_R1_R2_SPEC.md`](ROUND_TRIP_R1_R2_SPEC.md).
+
+## Federation hardening — open after the A/B/C tracks (2026-08-16)
+
+Follow-ups identified while closing the federation-hardening tracks. Closed items
+are written up in [`COORDINATION_AUDIT_FINDINGS.md`](COORDINATION_AUDIT_FINDINGS.md) PART IV.
+
+- **`IfcController` has no project-membership gate.** It carries `[Authorize]`
+  and checks `Project.TenantId`, but not `[ProjectAccess]` / 
+  `RequireProjectMemberAsync` — the same defect class Track A fixed on
+  `ModelTransform` / `CoordinateSystem` / `Alignment` / `SceneNodes` /
+  `ModelDiff`. Deliberately not fixed in the C3 PR: it was outside the stated
+  scope, and adding the gate changes the plugin's push path for any service
+  account that is not a project member, which needs verification rather than
+  assumption. Same question applies to `TagSyncController` and
+  `FederatedModelController`'s sibling endpoints — audit the whole ingest
+  surface in one pass rather than piecemeal.
+- **`NotificationHub.JoinProject` resolves its tenant off the ambient
+  `ITenantContext`**, which reads `IHttpContextAccessor` — not reliably
+  populated inside a SignalR hub method. It works today; `FederatedModelHub`
+  (Track A2) was given an explicit JWT-derived tenant instead. Align the two.
+- **`ViewStylePack.Checksum` is declared and never computed or verified**
+  (pre-existing; see CLAUDE.md). Wire it or drop it.
+- **`ModelPurgeJob` is unproven against object storage.** The unit tests use a
+  recording stub; a run against real MinIO/S3 (including the deferral path when
+  a delete fails) has not happened.
+- **`RevitGeoref.Read` is unverified against a live Revit document.** It needs a
+  Revit session; the numbers it produces are asserted only from the server side
+  against hand-written inputs.
+- **`docs/PERFECT_PLACEMENT_PROMPT.md` does not exist** despite being cited as
+  the Track B reference. Either write it or stop citing it.
+- **`align-audit.mjs` has 6 failing checks on `main`.** Verified pre-existing by
+  running the harness at `origin/main` in a scratch worktree: same 6 failures,
+  and `coordination-viewer.js` is untouched by the federation-hardening tracks.
+  They cover navigation literals (`/app/#models?project=`, `/app/#overview`), the
+  non-glTF format guard, and the `element` / `camera` query params — i.e. the
+  viewer SPA drifted away from what PLANSCAPE_ALIGNMENT_AUDIT.md pinned. Nothing
+  fails CI on it today, which is why it drifted. Either re-fix the six or retire
+  the assertions; leaving a harness that always fails trains people to ignore it.

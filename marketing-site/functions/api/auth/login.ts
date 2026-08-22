@@ -15,7 +15,7 @@ import {
   toPublicTenant,
 } from "./_lib/db";
 import { issueTokens, refreshCookie } from "./_lib/session";
-import { resolveCap, evaluateCap } from "./_lib/limits";
+import { resolveMemberCap, evaluateCap } from "./_lib/limits";
 
 interface Body {
   email?: string;
@@ -52,7 +52,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
   // the UI can show an upgrade banner once the grace period has ended.
   const members = await countActiveMembers(env.WAITLIST_DB, tenant.id);
   const pending = await countPendingInvites(env.WAITLIST_DB, tenant.id);
-  const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
+  const cap = resolveMemberCap(tenant.plan_product, tenant.plan_tier);
   const capState = evaluateCap(members + pending, cap, tenant.cap_exceeded_since, Date.now());
   const capExceeded = !capState.within;
   const readOnlyMode = capExceeded && capState.graceEnded;

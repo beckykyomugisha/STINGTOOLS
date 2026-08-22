@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -81,8 +82,14 @@ public class IfcToGlbConversionJob
         if (string.IsNullOrWhiteSpace(ifc.StoragePath))
         {
             _logger.LogWarning("IfcToGlbConversionJob: model {ModelId} has no StoragePath; skipping", modelId);
+            await MarkAsync(ifc, "Failed", "the uploaded IFC has no stored file", ct);
             return;
         }
+
+        // C7 - from here on the outcome is recorded on the row, so a coordinator
+        // can tell "still working" from "gave up". Every early return below used
+        // to leave the model advertising itself as converting forever.
+        await MarkAsync(ifc, "Converting", null, ct);
 
         string sourceUrl;
         try
@@ -93,6 +100,8 @@ public class IfcToGlbConversionJob
         {
             _logger.LogWarning(
                 "IfcToGlbConversionJob: storage backend can't presign (local FS dev?); cannot convert {ModelId}", modelId);
+            await MarkAsync(ifc, "Failed",
+                "this storage backend cannot issue presigned URLs, so the converter cannot fetch the file", ct);
             return;
         }
 
@@ -101,6 +110,7 @@ public class IfcToGlbConversionJob
         {
             _logger.LogWarning(
                 "IfcToGlbConversionJob: conversion of IFC {ModelId} failed: {Error}", modelId, result.Error);
+            await MarkAsync(ifc, "Failed", result.Error ?? "the converter reported a failure", ct);
             return;
         }
 
@@ -115,6 +125,8 @@ public class IfcToGlbConversionJob
             {
                 _logger.LogInformation(
                     "IfcToGlbConversionJob: GLB for IFC {ModelId} already exists (hash {Hash}); skipping", modelId, result.Sha256);
+                // The derivative IS there — this run is redundant, not failed.
+                await MarkAsync(ifc, "Done", null, ct);
                 return;
             }
         }
@@ -153,7 +165,16 @@ public class IfcToGlbConversionJob
             StoragePath = key,
             ContentHash = result.Sha256,
             FileSizeBytes = sizeBytes > 0 ? sizeBytes : result.Bytes,
-            Units = string.IsNullOrWhiteSpace(ifc.Units) ? "mm" : ifc.Units,
+            // P3 — the GLB's own mesh unit, NOT the source IFC's.
+            //
+            // This used to copy `ifc.Units` across, which describes the IFC file
+            // (commonly millimetres) rather than the geometry the converter
+            // emits. Harmless while nothing read the field; actively wrong now
+            // that Units drives the viewer's mesh scaling, because it would
+            // shrink every converted model by 1000. glTF 2.0 defines metres and
+            // the converter emits glTF, so the derivative is metres by
+            // construction.
+            Units = MeshUnits.Canonical,
             Revision = ifc.Revision,
             UploadedBy = "IFC→GLB converter",
             UploadedAt = DateTime.UtcNow,
@@ -162,6 +183,7 @@ public class IfcToGlbConversionJob
         try
         {
             await _db.SaveChangesAsync(ct);
+            await MarkAsync(ifc, "Done", null, ct);
             _logger.LogInformation(
                 "IfcToGlbConversionJob: converted IFC {ModelId} → GLB {GlbId} ({Bytes} bytes) for project {ProjectId}",
                 modelId, row.Id, row.FileSizeBytes, ifc.ProjectId);
@@ -173,6 +195,30 @@ public class IfcToGlbConversionJob
             _db.Entry(row).State = EntityState.Detached;
             _logger.LogInformation(
                 "IfcToGlbConversionJob: GLB for IFC {ModelId} inserted concurrently; skipping", modelId);
+        }
+    }
+
+    /// <summary>
+    /// C7 — record the conversion outcome on the source IFC row.
+    ///
+    /// <para>Best-effort by the same logic as the job itself: a status write
+    /// that fails must not turn a SUCCESSFUL conversion into an exception. The
+    /// status is an observability improvement, not a correctness dependency.</para>
+    /// </summary>
+    private async Task MarkAsync(
+        Planscape.Core.Entities.ProjectModel ifc, string status, string? error, CancellationToken ct)
+    {
+        try
+        {
+            ifc.ConversionStatus = status;
+            ifc.ConversionError = error;
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "IfcToGlbConversionJob: could not record status '{Status}' on model {ModelId}.",
+                status, ifc.Id);
         }
     }
 }

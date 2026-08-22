@@ -206,12 +206,12 @@ public class SecurityCriticalPathTests
             seed.Tenants.Add(new Tenant
             {
                 Id = tenantId, Slug = "t", Name = "T",
-                // BillingPlanLimits.For(Trial) caps projects at 1, not the 3 this
-                // test was written against. Seeding 3 leaves the tenant over cap,
-                // which is still exactly what the guard must refuse.
+                // Trial's cap is 3 — raised from 1 to match pricing.html, which has
+                // always advertised "Active projects: 3". MaxProjects is left at its
+                // default 0, i.e. no tightening override, so the plan alone decides.
                 Plan = BillingPlan.Trial,
             });
-            // 3 projects already exist — Trial cap reached.
+            // Exactly at the cap — the boundary the guard must refuse.
             for (int i = 0; i < 3; i++)
                 seed.Projects.Add(new Project { TenantId = tenantId, Code = $"P{i}", Name = $"P{i}" });
             await seed.SaveChangesAsync();
@@ -225,7 +225,9 @@ public class SecurityCriticalPathTests
         Assert.False(result.Allowed);
         Assert.Equal(QuotaAxis.Projects, result.Axis);
         Assert.Equal(3, result.Current);
-        Assert.Equal(1, result.Max);
+        // Read from the plan rather than hard-coded, so this test stays about the
+        // GUARD. The value itself is pinned against pricing.html in ProjectCeilingTests.
+        Assert.Equal(BillingPlanLimits.For(BillingPlan.Trial).MaxProjects, result.Max);
     }
 
     [Fact]

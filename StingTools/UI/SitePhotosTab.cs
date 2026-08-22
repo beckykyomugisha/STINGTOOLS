@@ -99,6 +99,26 @@ namespace StingTools.UI
 
             // Auto-refresh timer (null if not started)
             public DispatcherTimer? RefreshTimer;
+
+            // ── Capabilities (#547 / #558) ─────────────────────────────
+            // Starts all-Unknown, which means "nothing is disabled". The tab
+            // is built synchronously and the answer arrives later; a control
+            // that is enabled while we do not yet know is CORRECT — the
+            // server is still the gate and the attempt still reports. Only an
+            // explicit Denied ever disables anything.
+            public ProjectCapabilities Caps = ProjectCapabilities.Unknown();
+
+            /// <summary>Raised once, on the UI thread, when the capabilities
+            /// answer lands. Sub-tabs subscribe to disable what is now known
+            /// to be denied. Never raised with an Unknown-only result treated
+            /// as denial — handlers must gate on Denied, not on !Allowed.</summary>
+            public event Action? CapabilitiesResolved;
+
+            internal void PublishCapabilities(ProjectCapabilities caps)
+            {
+                Caps = caps;
+                CapabilitiesResolved?.Invoke();
+            }
         }
 
         /// <summary>UI-bindable photo row. Wraps the DTO so we can add a
@@ -197,7 +217,29 @@ namespace StingTools.UI
             });
 
             owner.Closed += (_, _) => state.RefreshTimer?.Stop();
+
+            // Fire-and-forget: the sub-tabs above are already built and
+            // enabled. This can only ever take controls AWAY, never grant
+            // them, so a fetch that never returns leaves the surface in its
+            // honest default — offer the control, let the server answer.
+            _ = LoadCapabilitiesAsync(state);
+
             return tabs;
+        }
+
+        /// <summary>
+        /// Resolve the caller's capabilities on this project and publish them
+        /// to the sub-tabs.
+        ///
+        /// Deliberately has no failure branch that disables anything: the
+        /// client returns all-Unknown for every failure mode, and Unknown
+        /// disables nothing. See PlanscapeServerClient.Capabilities.cs.
+        /// </summary>
+        private static async Task LoadCapabilitiesAsync(TabState state)
+        {
+            var caps = await PlanscapeServerClient.Instance
+                .GetProjectCapabilitiesAsync(state.ProjectId);
+            state.PublishCapabilities(caps);
         }
 
         /// <summary>The Phase 178 review queue, factored out as a sub-tab
@@ -224,6 +266,26 @@ namespace StingTools.UI
             footer.Visibility = Visibility.Collapsed;
             footer.Tag = "BulkFooter";
             root.Children.Add(footer);
+
+            // The queue is built before the capabilities answer lands, so the
+            // rows come up with Approve / Reject live. That is the correct
+            // default (unknown ≠ denied); when the answer arrives, re-render
+            // so a *known* denial actually disables them and says why.
+            bool capsBannerShown = false;
+            state.CapabilitiesResolved += () =>
+            {
+                if (!capsBannerShown)
+                {
+                    var banner = PlanscapeForbidden.BuildBannerIfDenied(
+                        state.Caps.ApproveSitePhotos, PlanscapeCapability.ApproveSitePhotos);
+                    if (banner != null)
+                    {
+                        capsBannerShown = true;
+                        root.Children.Insert(0, banner);
+                    }
+                }
+                _ = ReloadAsync(owner, state, listPanel, footer);
+            };
 
             async Task BootAsync()
             {
@@ -556,7 +618,7 @@ namespace StingTools.UI
                 _           => null,
             };
 
-            List<SitePhotoDto> dtos;
+            List<SitePhotoDto>? dtos;
             try
             {
                 dtos = await PlanscapeServerClient.Instance.ListSitePhotosAsync(
@@ -572,8 +634,23 @@ namespace StingTools.UI
             {
                 StingLog.Warn($"SitePhotosTab.ReloadAsync: {ex.Message}");
                 listPanel.Children.Clear();
-                listPanel.Children.Add(new TextBlock { Text = "Failed to load photos — see log.",
-                    FontSize = 12, Foreground = Brushes.Crimson, Margin = new Thickness(8) });
+                listPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                    "Could not load photos.", ex.Message));
+                return;
+            }
+
+            if (dtos == null)
+            {
+                // Until now this path did not exist: the client answered every
+                // failure with an empty list and the queue rendered "✓ No photos
+                // awaiting review." over it. A refusal and an outage now each
+                // say what they are.
+                listPanel.Children.Clear();
+                listPanel.Children.Add(PlanscapeForbidden.BuildFailureOrForbidden(
+                    "Could not load photos.",
+                    "Site photos are not available to you on this project.",
+                    PlanscapeCapability.ApproveSitePhotos));
+                UpdateFooterVisibility(footer, state);
                 return;
             }
 
@@ -856,6 +933,12 @@ namespace StingTools.UI
                 var wBtn = MakeRowButton("↶ Withdraw", Color.FromRgb(0xC6, 0x28, 0x28),
                     "Withdraw this photo from the client portal");
                 wBtn.Click += async (_, _) => await WithdrawAsync(owner, state, row, listPanel, footer);
+                // Rows are rebuilt on every reload, so reading state.Caps here is
+                // enough — no subscription needed. Denied disables; Unknown does
+                // not, so a user whose capabilities never resolved keeps the
+                // button and finds out from the server.
+                PlanscapeForbidden.ApplyIfDenied(wBtn, state.Caps.ApproveSitePhotos,
+                    PlanscapeCapability.ApproveSitePhotos);
                 actions.Children.Add(wBtn);
             }
             else
@@ -864,11 +947,15 @@ namespace StingTools.UI
                 var aBtn = MakeRowButton("✓ Approve", owner.GreenColourPub,
                     "Approve with caption (defaults to current bulk caption)");
                 aBtn.Click += async (_, _) => await ApproveSingleAsync(owner, state, row, listPanel, footer);
+                PlanscapeForbidden.ApplyIfDenied(aBtn, state.Caps.ApproveSitePhotos,
+                    PlanscapeCapability.ApproveSitePhotos);
                 actions.Children.Add(aBtn);
 
                 var rBtn = MakeRowButton("✗ Reject", Color.FromRgb(0xC6, 0x28, 0x28),
                     "Reject with reason — sender will see the reason in mobile");
                 rBtn.Click += async (_, _) => await RejectAsync(owner, state, row, listPanel, footer);
+                PlanscapeForbidden.ApplyIfDenied(rBtn, state.Caps.ApproveSitePhotos,
+                    PlanscapeCapability.ApproveSitePhotos);
                 actions.Children.Add(rBtn);
             }
 
@@ -995,8 +1082,11 @@ namespace StingTools.UI
                 .ApproveSitePhotoAsync(state.ProjectId, row.Dto.Id, caption.Trim());
             if (dto == null)
             {
-                Autodesk.Revit.UI.TaskDialog.Show("Approve photo",
-                    $"Server rejected the approval.\n\n{PlanscapeServerClient.Instance.LastError ?? "(no detail)"}");
+                // "Server rejected the approval" was true of a 403 and a 500
+                // alike, and told the user nothing about which. Approval is
+                // gated on ApproveSitePhotos; say so when that is the reason.
+                PlanscapeForbidden.ShowFailureOrForbidden(
+                    "Approve photo", PlanscapeCapability.ApproveSitePhotos);
                 return;
             }
             await ReloadAsync(owner, state, listPanel, footer);
@@ -1022,8 +1112,8 @@ namespace StingTools.UI
                 .RejectSitePhotoAsync(state.ProjectId, row.Dto.Id, reason.Trim());
             if (dto == null)
             {
-                Autodesk.Revit.UI.TaskDialog.Show("Reject photo",
-                    $"Server rejected the call.\n\n{PlanscapeServerClient.Instance.LastError ?? "(no detail)"}");
+                PlanscapeForbidden.ShowFailureOrForbidden(
+                    "Reject photo", PlanscapeCapability.ApproveSitePhotos);
                 return;
             }
             await ReloadAsync(owner, state, listPanel, footer);
@@ -1043,8 +1133,8 @@ namespace StingTools.UI
                 .WithdrawSitePhotoAsync(state.ProjectId, row.Dto.Id);
             if (!ok)
             {
-                Autodesk.Revit.UI.TaskDialog.Show("Withdraw photo",
-                    $"Server rejected the withdrawal.\n\n{PlanscapeServerClient.Instance.LastError ?? "(no detail)"}");
+                PlanscapeForbidden.ShowFailureOrForbidden(
+                    "Withdraw photo", PlanscapeCapability.ApproveSitePhotos);
                 return;
             }
             await ReloadAsync(owner, state, listPanel, footer);
@@ -1082,6 +1172,16 @@ namespace StingTools.UI
 
             var (approved, skipped) = await PlanscapeServerClient.Instance
                 .BulkApproveSitePhotosAsync(state.ProjectId, ids, caption);
+
+            // Nothing approved AND the server refused: that is a permission
+            // answer, not a "0 approved, 0 skipped" outcome. Reporting counts
+            // for a call that never ran reads as a successful no-op.
+            if (approved == 0 && PlanscapeServerClient.Instance.LastStatus == 403)
+            {
+                PlanscapeForbidden.ShowDialog("Bulk approve", PlanscapeCapability.ApproveSitePhotos);
+                return;
+            }
+
             Autodesk.Revit.UI.TaskDialog.Show("Bulk approve",
                 $"Approved: {approved}\nSkipped: {skipped}\n\n" +
                 (skipped > 0

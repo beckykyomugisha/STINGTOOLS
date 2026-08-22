@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0",
+  "note": "PRACTICE HEURISTICS, NOT A STANDARD. NRM2 puts tools in Preliminaries as a lump or percentage; no measurement standard publishes gang-to-tool ratios. Calibrated against the PATMAC reference schedule. Project override: <project>/_data/coord/site_tools.json",
+  "tradeRates": {
+    "blockworkM2PerMasonDay": 8.0,
+    "rebarKgPerBenderDay": 120.0,
+    "formworkM2PerCarpenterDay": 10.0,
+    "concreteM3PerMixerDay": 8.0,
+    "helpersPerMason": 1.5,
+    "masonryPhaseFraction": 0.4,
+    "steelPhaseFraction": 0.35,
+    "formworkPhaseFraction": 0.35,
+    "concretePhaseFraction": 0.3
+  },
+  "rules": [
+    {
+      "toolKey": "wheelbarrow",
+      "description": "Wheel barrows",
+      "supplierUnit": "No.",
+      "driver": "helpers",
+      "perDriver": 0.3333,
+      "fixedQuantity": 0,
+      "minimum": 2
+    },
+    {
+      "toolKey": "spade",
+      "description": "Spades",
+      "supplierUnit": "No.",
+      "driver": "helpers",
+      "perDriver": 1.0,
+      "fixedQuantity": 2,
+      "minimum": 4
+    },
+    {
+      "toolKey": "head-pan",
+      "description": "Head pans",
+      "supplierUnit": "No.",
+      "driver": "helpers",
+      "perDriver": 1.0,
+      "fixedQuantity": 0,
+      "minimum": 4
+    },
+    {
+      "toolKey": "jerrycan",
+      "description": "Jerrycans",
+      "supplierUnit": "No.",
+      "driver": "helpers",
+      "perDriver": 1.5,
+      "fixedQuantity": 0,
+      "minimum": 5
+    },
+    {
+      "toolKey": "hoe",
+      "description": "Hoes",
+      "supplierUnit": "No.",
+      "driver": "mixers",
+      "perDriver": 1.0,
+      "fixedQuantity": 0,
+      "minimum": 2
+    },
+    {
+      "toolKey": "pick-axe",
+      "description": "Pick axes",
+      "supplierUnit": "No.",
+      "driver": "helpers",
+      "perDriver": 0.75,
+      "fixedQuantity": 0,
+      "minimum": 2
+    },
+    {
+      "toolKey": "hacksaw-frame",
+      "description": "Hack saw frames",
+      "supplierUnit": "No.",
+      "driver": "barbenders",
+      "perDriver": 0.5,
+      "fixedQuantity": 0,
+      "minimum": 1
+    },
+    {
+      "toolKey": "hacksaw-blade",
+      "description": "Hack saw blades",
+      "supplierUnit": "Bdle",
+      "driver": "barbenders",
+      "perDriver": 2.5,
+      "fixedQuantity": 0,
+      "minimum": 2
+    },
+    {
+      "toolKey": "bow-saw-frame",
+      "description": "Bow saw frames",
+      "supplierUnit": "No.",
+      "driver": "carpenters",
+      "perDriver": 0.5,
+      "fixedQuantity": 0,
+      "minimum": 1
+    },
+    {
+      "toolKey": "bow-saw-blade",
+      "description": "Bow saw blades",
+      "supplierUnit": "No.",
+      "driver": "carpenters",
+      "perDriver": 1.5,
+      "fixedQuantity": 0,
+      "minimum": 2
+    },
+    {
+      "toolKey": "panga",
+      "description": "Pangas",
+      "supplierUnit": "No.",
+      "driver": "site",
+      "perDriver": 0,
+      "fixedQuantity": 1,
+      "minimum": 1
+    },
+    {
+      "toolKey": "sledge-hammer",
+      "description": "Sledge hammer",
+      "supplierUnit": "No.",
+      "driver": "site",
+      "perDriver": 0,
+      "fixedQuantity": 1,
+      "minimum": 1
+    },
+    {
+      "toolKey": "string-rope",
+      "description": "Strings and ropes",
+      "supplierUnit": "Rolls",
+      "driver": "site",
+      "perDriver": 0,
+      "fixedQuantity": 2,
+      "minimum": 2
+    },
+    {
+      "toolKey": "water-tank",
+      "description": "Water tank (200 ltr)",
+      "supplierUnit": "No.",
+      "driver": "storeys",
+      "perDriver": 1.0,
+      "fixedQuantity": 1,
+      "minimum": 1
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 // GET /api/license — what this tenant has licensed, and how much of its cap
 // that uses.
 //
-// The numbers come from resolveCap + countLicensedSeats, the SAME pair issue.ts
+// The numbers come from resolveMachineCap + countLicensedSeats, the SAME pair issue.ts
 // consults before refusing at cap and present.ts reports back. A second query
 // here would be a second definition of "in use", and two definitions in two
 // files is exactly how the server-side seat meter drifted (see _lib/seats.ts).
@@ -19,7 +19,7 @@ import { handlePreflight } from "../auth/_lib/cors";
 import { requireAuth } from "../auth/_lib/auth";
 import { unauthorized } from "../auth/_lib/errors";
 import { getTenantById } from "../auth/_lib/db";
-import { resolveCap } from "../auth/_lib/limits";
+import { resolveMachineCap } from "../auth/_lib/limits";
 import { countLicensedSeats } from "./_lib/seats";
 import type { Env } from "../auth/_lib/types";
 
@@ -54,7 +54,7 @@ export const onRequestGet = withHandler(async ({ request, env }) => {
     .bind(auth.tenantId)
     .all<LicenseRow>();
 
-  const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
+  const cap = resolveMachineCap(tenant.plan_product, tenant.plan_tier);
 
   return {
     // Infinity is not JSON. null means unlimited — the same convention

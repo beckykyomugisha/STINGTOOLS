@@ -26,6 +26,8 @@ import {
   Card,
   DataGrid,
   ErrorNote,
+  ForbiddenNote,
+  ForbiddenPanel,
   Input,
   Modal,
   PageHeader,
@@ -33,7 +35,7 @@ import {
   useToast,
   type Column,
 } from '@/components/ui';
-import { ApiError } from '@/lib/api';
+import { ApiError, isForbidden } from '@/lib/api';
 import { getTenantDashboard, inviteTenantMember } from '@/lib/data';
 import type { QuotaExceeded, TenantDashboard, TenantUser } from '@/lib/types';
 
@@ -53,6 +55,10 @@ export default function TeamPage() {
   const [role, setRole] = useState('Coordinator');
   const [busy, setBusy] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  // Kept alongside the message rather than derived from it: deciding the
+  // treatment by matching the sentence would be exactly the string-sniffing
+  // #624 was filed for.
+  const [inviteForbidden, setInviteForbidden] = useState(false);
 
   const load = useCallback(() => {
     getTenantDashboard()
@@ -62,7 +68,7 @@ export default function TeamPage() {
         setError(null);
       })
       .catch((e) => {
-        if (e instanceof ApiError && e.status === 403) {
+        if (isForbidden(e)) {
           setForbidden(true);
           return;
         }
@@ -77,6 +83,7 @@ export default function TeamPage() {
     if (!addr) return;
     setBusy(true);
     setInviteError(null);
+    setInviteForbidden(false);
     try {
       await inviteTenantMember({ email: addr, displayName: displayName.trim() || addr, role });
       toast(`${addr} invited as ${role}.`, 'success');
@@ -86,6 +93,7 @@ export default function TeamPage() {
       load();
     } catch (e) {
       setInviteError(inviteMessage(e));
+      setInviteForbidden(isForbidden(e));
     } finally {
       setBusy(false);
     }
@@ -130,15 +138,16 @@ export default function TeamPage() {
   ];
 
   if (forbidden) {
+    // Same two sentences as before, in the shared treatment. This page was the
+    // model implementation for #558 — the point of moving it is that the other
+    // surfaces stop re-inventing the treatment, not that this one changes.
     return (
       <AppShell>
         <PageHeader title="Team" />
-        <Card>
-          <p className="text-sm text-fg">You need the Owner or Admin role to manage your firm&rsquo;s team.</p>
-          <p className="mt-1 text-sm text-fg-muted">
-            Project-level membership is managed per project, under Members — that does not require Admin.
-          </p>
-        </Card>
+        <ForbiddenPanel
+          message={<>You need the Owner or Admin role to manage your firm&rsquo;s team.</>}
+          hint="Project-level membership is managed per project, under Members — that does not require Admin."
+        />
       </AppShell>
     );
   }
@@ -236,11 +245,16 @@ export default function TeamPage() {
               Authors and Coordinators are capped separately by your plan.
             </span>
           </label>
-          {inviteError && (
-            <p role="alert" className="rounded bg-danger-subtle px-3 py-2 text-sm text-danger">
-              {inviteError}
-            </p>
-          )}
+          {inviteError &&
+            (inviteForbidden ? (
+              // Same sentence as before, in the forbidden treatment. It was
+              // rendering in the danger colours, which said "something broke"
+              // about the one branch of inviteMessage() that is a permission
+              // answer rather than a failure.
+              <ForbiddenNote>{inviteError}</ForbiddenNote>
+            ) : (
+              <ErrorNote>{inviteError}</ErrorNote>
+            ))}
         </div>
       </Modal>
     </AppShell>
@@ -260,7 +274,9 @@ function inviteMessage(e: unknown): string {
     return `Your plan's seat limit is full.${detail} Upgrade your plan to invite more people.`;
   }
   if (e.status === 409) return 'Someone already has an account with that email.';
-  if (e.status === 403) return 'You need the Owner or Admin role to invite people to the firm.';
+  // Wording unchanged (#558). What changed is the treatment it renders in —
+  // see `inviteForbidden` at the call site.
+  if (isForbidden(e)) return 'You need the Owner or Admin role to invite people to the firm.';
   return e.message;
 }
 

@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "1.0",
+  "note": "Corporate baseline. Project override: <project>/_data/coord/supplier_units.json (merged by commodityKey).",
+  "rules": [
+    {
+      "commodityKey": "cement",
+      "description": "Cement (OPC 42.5N)",
+      "supplierUnit": "Bags",
+      "sourceUnit": "bag",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 2.5,
+      "matchKinds": [
+        "mortar_cement",
+        "plaster_cement"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "sand",
+      "description": "River and pit sand",
+      "supplierUnit": "Trips (Sino Truck)",
+      "sourceUnit": "m3",
+      "sourceUnitsPerSupplierUnit": 12.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "mortar_sand",
+        "plaster_sand"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "block",
+      "description": "Hollow blocks 8\"",
+      "supplierUnit": "No.",
+      "sourceUnit": "nr",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "block_units"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "brick",
+      "description": "Bricks",
+      "supplierUnit": "No.",
+      "sourceUnit": "nr",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "brick_units"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "rebar",
+      "description": "Steel reinforcement bars",
+      "supplierUnit": "Kg",
+      "sourceUnit": "kg",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 7.5,
+      "matchKinds": [
+        "rebar",
+        "mesh"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "formwork-timber",
+      "description": "Sawn timber for formwork",
+      "supplierUnit": "m²",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": false,
+      "defaultWastagePct": 15.0,
+      "matchKinds": [
+        "formwork"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "concrete-ready",
+      "description": "In-situ concrete",
+      "supplierUnit": "m³",
+      "sourceUnit": "m3",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": false,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "concrete",
+        "precast_rib"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "roof-sheet",
+      "description": "Roofing sheets (corrugated / IT4)",
+      "supplierUnit": "No.",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 2.4,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [],
+      "matchCategories": [
+        "Roofs"
+      ],
+      "matchTypePatterns": [
+        "sheet",
+        "it4",
+        "it5",
+        "corrugat",
+        "profil",
+        "metal",
+        "gauge",
+        "g28",
+        "g30"
+      ],
+      "stageId": "roof"
+    },
+    {
+      "commodityKey": "roof-tile",
+      "description": "Roof tiles",
+      "supplierUnit": "No.",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 0.09,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 7.5,
+      "matchKinds": [],
+      "matchCategories": [
+        "Roofs"
+      ],
+      "matchTypePatterns": [
+        "tile",
+        "clay",
+        "concrete tile"
+      ],
+      "stageId": "roof"
+    },
+    {
+      "commodityKey": "paint-interior",
+      "description": "Interior paint (silk, incl. undercoat)",
+      "supplierUnit": "Bkts",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 60.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "paint_interior"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "paint-exterior",
+      "description": "Exterior paint (weather-guard, incl. undercoat)",
+      "supplierUnit": "Bkts",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 50.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "paint_exterior"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    }
+  ]
+}

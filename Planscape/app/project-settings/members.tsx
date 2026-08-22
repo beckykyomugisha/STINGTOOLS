@@ -19,7 +19,6 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { ApiError } from '@/api/client';
 import { theme } from '@/utils/theme';
 import {
   listProjectMembersFull,
@@ -29,7 +28,10 @@ import {
   type ProjectMemberRow,
   type MyProjectAccess,
   type UpdateProjectMemberArgs,
+  listIso19650Roles,
+  type Iso19650RoleOption,
 } from '@/api/endpoints';
+import { CAPABILITY_COPY, alertFailure } from '@/utils/forbidden';
 import { useProjectStore } from '@/stores/projectStore';
 
 // Canonical option lists. Allow-list null/empty on the server means "all";
@@ -37,8 +39,17 @@ import { useProjectStore } from '@/stores/projectStore';
 const CDE_STATES = ['WIP', 'SHARED', 'PUBLISHED', 'ARCHIVE'];
 const DISCIPLINES = ['A', 'S', 'M', 'E', 'P', 'FP', 'LV', 'G'];
 const SUITABILITIES = ['S0', 'S1', 'S2', 'S3', 'S4', 'S6', 'S7', 'A1', 'A2', 'A3', 'B1'];
-const PROJECT_ROLES = ['PM', 'Admin', 'Owner', 'Coordinator', 'Member', 'Viewer'];
-const ISO_ROLES = ['K', 'C', 'TI', 'L', 'AP', 'LAP'];
+// The server's canonical ProjectRole vocabulary (Planscape.Core.Entities.ProjectRoles.All).
+// This list used to read ['PM','Admin','Owner','Coordinator','Member','Viewer'], of
+// which 'PM' and 'Member' are NOT canonical — the server has rejected both with
+// invalid_project_role since that guard landed, so two of the six offered options
+// always failed to save. 'PM' is also the value ProjectRoles.cs tolerates for
+// back-compat while noting "no first-party UI writes it there"; this screen did.
+const PROJECT_ROLES = ['Viewer', 'Contributor', 'Coordinator', 'Manager', 'Owner', 'Admin'];
+
+// ISO 19650 roles are FETCHED, not hardcoded — see loadIsoRoles below. The list
+// that stood here, ['K','C','TI','L','AP','LAP'], contained no code the server
+// serves or accepts, so every save wrote a value outside the vocabulary.
 
 const ALLOWED_EDITORS = new Set(['PM', 'Admin', 'Owner']);
 
@@ -52,6 +63,12 @@ export default function MembersScreen() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // null = not loaded or the request failed. Deliberately NOT defaulted to [] or to
+  // a hardcoded list: an empty picker would read as "this project has no roles",
+  // and a hardcoded one is what put values the server rejects into the column. The
+  // editor below renders the difference explicitly.
+  const [isoRoles, setIsoRoles] = useState<Iso19650RoleOption[] | null>(null);
+
   const canEdit = useMemo(() => {
     if (!myAccess) return false;
     if (myAccess.bypassesAcl) return true;
@@ -62,12 +79,16 @@ export default function MembersScreen() {
     if (!projectId) return;
     try {
       setError(null);
-      const [m, a] = await Promise.all([
+      const [m, a, roles] = await Promise.all([
         listProjectMembersFull(projectId),
         getMyProjectAccess(projectId).catch(() => null),
+        // Failing to load the vocabulary must not fail the whole screen — the
+        // member list is still useful. null is carried through as "unknown".
+        listIso19650Roles(projectId).catch(() => null),
       ]);
       setMembers(m);
       setMyAccess(a);
+      setIsoRoles(roles && roles.length > 0 ? roles : null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load members');
     } finally {
@@ -122,6 +143,7 @@ export default function MembersScreen() {
           onSaved={async () => { setEditingId(null); await load(); }}
           onRemoved={async () => { setEditingId(null); await load(); }}
           projectId={projectId}
+          isoRoles={isoRoles}
         />
       ))}
     </ScrollView>
@@ -129,7 +151,7 @@ export default function MembersScreen() {
 }
 
 function MemberCard({
-  member, editing, canEdit, onStartEdit, onCancelEdit, onSaved, onRemoved, projectId,
+  member, editing, canEdit, onStartEdit, onCancelEdit, onSaved, onRemoved, projectId, isoRoles,
 }: {
   member: ProjectMemberRow;
   editing: boolean;
@@ -139,6 +161,8 @@ function MemberCard({
   onSaved: () => Promise<void>;
   onRemoved: () => Promise<void>;
   projectId: string;
+  /** null = the server's vocabulary could not be loaded. Not the same as empty. */
+  isoRoles: Iso19650RoleOption[] | null;
 }) {
   const [projectRole, setProjectRole] = useState(member.projectRole);
   const [isoRole, setIsoRole] = useState(member.iso19650Role);
@@ -162,24 +186,27 @@ function MemberCard({
     setSaving(true);
     const body: UpdateProjectMemberArgs = {
       projectRole,
-      iso19650Role: isoRole,
       allowedCdeStates: cdeStates,
       allowedDisciplines: disciplines,
       allowedSuitabilities: suitabilities,
     };
+    // Send the ISO role ONLY when the user changed it. The server validates
+    // explicitly-supplied values and tolerates existing ones, so omitting an
+    // unchanged value is what lets a member whose row already holds a code
+    // outside the vocabulary still have their other fields edited from here.
+    // Re-sending it unchanged would turn a tolerated row into a 400.
+    if (isoRole !== member.iso19650Role) body.iso19650Role = isoRole;
     try {
       await updateProjectMember(projectId, member.id, body);
       await onSaved();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      // Read the status off the error. `msg` is the response BODY (ApiError
-      // only falls back to "HTTP <status>" for an empty body), so testing the
-      // message recognised empty-body refusals only — see #646.
-      if (err instanceof ApiError && err.status === 403) {
-        Alert.alert('Permission denied', 'You do not have permission to edit project members.');
-      } else {
-        Alert.alert('Save failed', msg);
-      }
+      // Was a message substring test that only matched an EMPTY body, and a
+      // sentence that did not say who CAN. Both from the shared helper now.
+      alertFailure(err, {
+        title: 'Save failed',
+        forbidden: CAPABILITY_COPY.manageMembers,
+        fallback: 'Save failed',
+      });
     } finally {
       setSaving(false);
     }
@@ -244,7 +271,33 @@ function MemberCard({
           <ChipRow options={PROJECT_ROLES} selected={[projectRole]} onToggle={(v) => setProjectRole(v)} singleSelect />
 
           <Text style={styles.fieldLabel}>ISO 19650 role</Text>
-          <ChipRow options={ISO_ROLES} selected={[isoRole]} onToggle={(v) => setIsoRole(v)} singleSelect />
+          {isoRoles ? (
+            <>
+              <ChipRow
+                options={isoRoles.map((r) => r.code)}
+                selected={[isoRole]}
+                onToggle={(v) => setIsoRole(v)}
+                singleSelect
+              />
+              {isoRole && !isoRoles.some((r) => r.code === isoRole) ? (
+                // The member's stored value is outside the vocabulary the server
+                // serves. Say so rather than showing nothing selected, which would
+                // read as "no role set" and invite an accidental overwrite.
+                <Text style={styles.roleNote}>
+                  Currently "{isoRole}", which is not one of the roles above. Leave it
+                  alone to keep it, or pick a role to replace it.
+                </Text>
+              ) : null}
+            </>
+          ) : (
+            // UNKNOWN, not empty and not denied. Showing an empty chip row here
+            // would claim the project has no roles; substituting a hardcoded list
+            // is what put unusable values in this column in the first place.
+            <Text style={styles.roleNote}>
+              Role list unavailable — keeping "{isoRole || '—'}". Pull to refresh to
+              try again. Other fields still save.
+            </Text>
+          )}
 
           <Text style={styles.fieldLabel}>
             Allowed CDE states <Text style={styles.fieldHint}>(empty = all)</Text>
@@ -415,6 +468,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fieldHint: { color: theme.colors.disabled, fontWeight: '400', textTransform: 'none' },
+  // Says what the picker could NOT show — an out-of-vocabulary stored value, or a
+  // vocabulary that failed to load. Neither is rendered as an empty selection.
+  roleNote: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 16,
+  },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: 10,

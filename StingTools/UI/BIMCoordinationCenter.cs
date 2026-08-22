@@ -4827,8 +4827,11 @@ namespace StingTools.UI
                             // This is NOT the unreachable path.
                             try { System.Windows.Clipboard.SetText(string.IsNullOrEmpty(deepLink) ? invite : deepLink); }
                             catch (Exception cex) { StingLog.Warn($"Suppressed: {cex.Message}"); }
-                            ShowStatus(result.Note ?? "Invite recorded - email not configured on the server; link copied.");
-                            string body = (result.Note ?? "Email is not configured on the server — copy the invitation link to the invitee.")
+                            // The server's note names the actual cause (no provider vs
+                            // this recipient rejected); only guess when it sent none, and
+                            // then say nothing we cannot stand behind.
+                            ShowStatus(result.Note ?? "Invite recorded - no email went out; link copied.");
+                            string body = (result.Note ?? "No invitation email went out — copy the invitation link to the invitee.")
                                         + (string.IsNullOrEmpty(deepLink) ? "" : $"\n\nOne-click invite link (copied to clipboard):\n{deepLink}")
                                         + warnSuffix;
                             TaskDialog.Show("Planscape Invite", body);

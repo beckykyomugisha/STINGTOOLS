@@ -25,15 +25,18 @@ namespace StingTools.BOQ
     [Regeneration(RegenerationOption.Manual)]
     public class BOQExportCommand : IExternalCommand
     {
-        private static readonly XLColor NavyFill = XLColor.FromArgb(26, 58, 92);
-        private static readonly XLColor HeaderFill = XLColor.FromArgb(46, 94, 142);
+        // MAT-SCHED: the three shared with the material-schedule renderer now live
+        // on BoqXlsxStyle so both workbooks cannot drift apart. Aliased here so the
+        // existing call sites read unchanged.
+        private static readonly XLColor NavyFill = BoqXlsxStyle.NavyFill;
+        private static readonly XLColor HeaderFill = BoqXlsxStyle.HeaderFill;
         private static readonly XLColor ArchDisc = XLColor.FromArgb(214, 228, 240);
         private static readonly XLColor StrDisc = XLColor.FromArgb(235, 230, 250);
         private static readonly XLColor MepDisc = XLColor.FromArgb(255, 243, 224);
         private static readonly XLColor EleDisc = XLColor.FromArgb(252, 235, 235);
         private static readonly XLColor PlmDisc = XLColor.FromArgb(225, 245, 238);
         private static readonly XLColor PsDisc  = XLColor.FromArgb(237, 231, 246);
-        private static readonly XLColor ManualRow = XLColor.FromArgb(255, 251, 230);
+        private static readonly XLColor ManualRow = BoqXlsxStyle.ManualRow;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -532,19 +535,9 @@ namespace StingTools.BOQ
 
         // ── Sheet helpers ──────────────────────────────────────────────────
 
-        private void BannerRow(IXLWorksheet ws, string text)
-        {
-            ws.Cell(1, 1).Value = text;
-            ws.Range(1, 1, 1, 16).Merge().Style.Font.SetBold().Font.SetFontSize(12)
-                .Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(NavyFill);
-        }
+        private void BannerRow(IXLWorksheet ws, string text) => BoqXlsxStyle.BannerRow(ws, text);
 
-        private void WriteHeader(IXLWorksheet ws, int row, string[] cols)
-        {
-            for (int i = 0; i < cols.Length; i++) ws.Cell(row, i + 1).Value = cols[i];
-            ws.Range(row, 1, row, cols.Length).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
-                .Fill.SetBackgroundColor(HeaderFill);
-        }
+        private void WriteHeader(IXLWorksheet ws, int row, string[] cols) => BoqXlsxStyle.WriteHeader(ws, row, cols);
 
         private XLColor DisciplineColor(string disc)
         {

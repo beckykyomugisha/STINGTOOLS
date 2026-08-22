@@ -18,12 +18,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Miniflare } from "miniflare";
 
-import { onRequestPost as issueLicense } from "../functions/api/license/issue";
-import { onRequestPost as presentLicense } from "../functions/api/license/present";
-import { onRequestGet as listLicenses } from "../functions/api/license/index";
-import { countLicensedSeats } from "../functions/api/license/_lib/seats";
-import { signLicense } from "../functions/api/license/_lib/crypto";
-import { signJwt } from "../functions/api/auth/_lib/jwt";
+import { onRequestPost as issueLicense } from "../marketing-site/functions/api/license/issue";
+import { onRequestPost as presentLicense } from "../marketing-site/functions/api/license/present";
+import { onRequestGet as listLicenses } from "../marketing-site/functions/api/license/index";
+import { countLicensedSeats } from "../marketing-site/functions/api/license/_lib/seats";
+import { signLicense } from "../marketing-site/functions/api/license/_lib/crypto";
+import { signJwt } from "../marketing-site/functions/api/auth/_lib/jwt";
 
 const JWT_SECRET = "test-secret-at-least-32-bytes-long-for-hs256";
 const TENANT_ID = "tenant-test-0001";

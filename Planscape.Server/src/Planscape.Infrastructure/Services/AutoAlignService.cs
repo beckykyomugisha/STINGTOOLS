@@ -3,6 +3,7 @@ namespace Planscape.Infrastructure.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
@@ -46,12 +47,17 @@ public sealed record AutoAlignResult(
 public sealed class AutoAlignService : IAutoAlignService
 {
     private readonly PlanscapeDbContext          _db;
+    private readonly IModelGeorefWriter           _georefWriter;
     private readonly ILogger<AutoAlignService>   _logger;
 
-    public AutoAlignService(PlanscapeDbContext db, ILogger<AutoAlignService> logger)
+    public AutoAlignService(
+        PlanscapeDbContext db,
+        IModelGeorefWriter georefWriter,
+        ILogger<AutoAlignService> logger)
     {
-        _db     = db;
-        _logger = logger;
+        _db           = db;
+        _georefWriter = georefWriter;
+        _logger       = logger;
     }
 
     public async Task<AutoAlignResult> ComputeAsync(
@@ -135,6 +141,17 @@ public sealed class AutoAlignService : IAutoAlignService
 
             if (refReport?.SurveyEasting != null)
             {
+                // P5 — this is now REPORTING only, not the frame.
+                //
+                // "The most recently validated sibling" was a non-deterministic
+                // frame: it moved every time another model was uploaded, so a
+                // transform computed on Monday was expressed against a different
+                // origin from one computed on Tuesday, and the two silently
+                // disagreed. The writer resolves a STABLE frame instead
+                // (declared benchmark → nominated reference → CRS origin), and
+                // since the same frame is subtracted from every model, relative
+                // placement is identical either way — only the absolute offset
+                // differs, and the viewer recentres that away.
                 refEasting       = refReport.SurveyEasting.Value;
                 refNorthing      = refReport.SurveyNorthing ?? 0;
                 refElevation     = refReport.SurveyElevation;
@@ -156,66 +173,92 @@ public sealed class AutoAlignService : IAutoAlignService
             }
         }
 
-        // ── 5. Compute relative transform ─────────────────────────────────────
-        //   To bring the target INTO the reference frame we subtract the target
-        //   survey origin and add the reference survey origin.
-        //   Values are in metres; multiply by 1000 to get mm (project default).
-        double targetEasting   = targetReport.SurveyEasting!.Value;
-        double targetNorthing  = targetReport.SurveyNorthing ?? 0;
-        double targetElevation = targetReport.SurveyElevation ?? 0;
-        double targetRotDeg    = targetReport.MapConversionRotationDeg ?? 0;
+        // ── 5. Delegate to the ONE writer ─────────────────────────────────────
+        //
+        // P5 — this method used to compute and persist the transform itself,
+        // with its own translation convention (reference-relative) alongside the
+        // IFC ingest path's (each-model-to-origin). Two conventions for the same
+        // job is how a model ends up in a different place depending on which
+        // pipeline last touched it, so both now go through ModelGeorefWriter:
+        // it resolves the project frame, applies the sign, grades the
+        // confidence, and refuses to overwrite a confirmed transform.
+        //
+        // The reference model this method resolved above (steps 3-4) is exactly
+        // the frame the writer resolves for itself, so the behaviour is
+        // preserved — minus the mirrored sign that was in both copies.
+        var georef = new ModelGeoref(
+            EastingM      : targetReport.SurveyEasting,
+            NorthingM     : targetReport.SurveyNorthing,
+            ElevationM    : targetReport.SurveyElevation,
+            TrueNorthDeg  : targetReport.MapConversionRotationDeg ?? 0,
+            CrsCode       : targetReport.CrsName,
+            HasDeclaredCrs: targetReport.HasProjectedCrs,
+            LengthUnit    : targetReport.LengthUnit,
+            SourceLabel   : "auto-align",
+            MapConversionScale: targetReport.MapConversionScale);
 
-        double tx = (refEasting  - targetEasting)  * 1000.0;
-        double ty = (refNorthing - targetNorthing) * 1000.0;
-        double tz = ((refElevation ?? 0) - targetElevation)  * 1000.0;
-
-        double rotDeg = (refRotDeg ?? 0) - targetRotDeg;
-
-        double scaleFactor = (targetReport.MapConversionScale.HasValue
-                              && targetReport.MapConversionScale.Value != 0
-                              && targetReport.MapConversionScale.Value != 1.0)
-                           ? 1.0 / targetReport.MapConversionScale.Value
-                           : 1.0;
-
-        // ── 6. Persist (overwrite if exists) ──────────────────────────────────
-        var existing = await _db.Set<ProjectModelTransform>()
+        // Read the pre-existing row BEFORE the write so a confirmed transform
+        // can be reported back to the caller rather than silently skipped.
+        var existing = await _db.Set<ProjectModelTransform>().AsNoTracking()
             .FirstOrDefaultAsync(
                 t => t.ProjectModelId == targetModelId
                   && t.ProjectId      == projectId
                   && t.TenantId       == tenantId,
                 ct);
 
-        if (existing == null)
-        {
-            existing = new ProjectModelTransform
-            {
-                TenantId       = tenantId,
-                ProjectId      = projectId,
-                ProjectModelId = targetModelId,
-                CreatedAt      = DateTime.UtcNow,
-            };
-            _db.Set<ProjectModelTransform>().Add(existing);
-        }
-        else
-        {
-            existing.UpdatedAt = DateTime.UtcNow;
-        }
+        // The writer owns the arithmetic and hands back what it computed —
+        // including when it REFUSES to write, so a refusal can still tell the
+        // coordinator what the survey data says. Recomputing it here is exactly
+        // how the two implementations drifted apart before P5.
+        var write = await _georefWriter.WriteAsync(
+            projectId, targetModelId, tenantId, georef, targetReport.Verdict, ct);
 
-        existing.TranslationX   = tx;
-        existing.TranslationY   = ty;
-        existing.TranslationZ   = tz;
-        existing.RotationDeg    = rotDeg;
-        existing.ScaleFactor    = scaleFactor;
-        existing.IsAutoComputed = true;
-        existing.IsConfirmed    = false;
-        existing.AppliedBy      = "auto-align-service";
-        existing.AppliedAt      = DateTime.UtcNow;
+        double tx = write.TranslationXMm;
+        double ty = write.TranslationYMm;
+        double tz = write.TranslationZMm;
+        double rotDeg = write.RotationDeg;
+        double scaleFactor = write.ScaleFactor;
 
-        await _db.SaveChangesAsync(ct);
+        // ── 6. Never overwrite a manually-confirmed transform ─────────────────
+        // A coordinator who has confirmed an alignment has made a judgement the
+        // survey data does not capture (a mis-stated IfcMapConversion, a model
+        // deliberately parked off-site, a base point agreed on site). The IFC
+        // ingest path has always respected that; this path did not, so any
+        // auto-align run silently destroyed the confirmed alignment and the
+        // coordinator's only signal was the model jumping.
+        //
+        // Unlike the ingest path, which skips quietly because it is a side
+        // effect of an upload, this one is an explicit user action: report the
+        // refusal, so the coordinator can decide deliberately (delete the
+        // transform, or PUT a new one).
+        if (existing is { IsConfirmed: true })
+        {
+            _logger.LogInformation(
+                "AutoAlign skipped for model {ModelId}: an existing transform is manually confirmed (confirmed by {AppliedBy} at {AppliedAt}).",
+                targetModelId, existing.AppliedBy ?? "unknown", existing.AppliedAt);
+
+            return new AutoAlignResult(
+                Success         : false,
+                // What auto-align WOULD have applied, so the coordinator can
+                // compare it against the alignment they confirmed and decide
+                // deliberately. A bare refusal would be useless at exactly the
+                // moment the answer matters.
+                TranslationX    : tx,
+                TranslationY    : ty,
+                TranslationZ    : tz,
+                RotationDeg     : rotDeg,
+                ScaleFactor     : scaleFactor,
+                ReferenceModelId: referenceModelId,
+                Message         : "This model's transform was manually confirmed by a coordinator and will not be "
+                                + "overwritten automatically. The transform auto-align computed is returned for "
+                                + "comparison; delete the existing transform or PUT a new one to change it.");
+        }
 
         _logger.LogInformation(
-            "AutoAlign computed for model {ModelId}: TX={TX:F3} TY={TY:F3} TZ={TZ:F3} Rot={Rot:F4}° Scale={Scale:F6} ref={Ref}",
-            targetModelId, tx, ty, tz, rotDeg, scaleFactor, referenceModelId ?? "PCS");
+            "AutoAlign computed for model {ModelId}: TX={TX:F3} TY={TY:F3} TZ={TZ:F3} Rot={Rot:F4}° Scale={Scale:F6} ref={Ref} confidence={Confidence} autoApplied={AutoApplied}",
+            targetModelId, tx, ty, tz, rotDeg, scaleFactor, referenceModelId ?? "PCS",
+            TransformConfidencePolicy.ToStorageString(write.Confidence),
+            TransformConfidencePolicy.ShouldAutoApply(write.Confidence));
 
         // Gap K — broadcast the new transform so viewer clients refresh their
         // coordinate frame without polling.

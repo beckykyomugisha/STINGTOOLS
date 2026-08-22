@@ -1088,20 +1088,56 @@ THREE.ColorManagement.enabled = false;
   // BLK-2 — apply a stored ProjectModelTransform to a loaded model root.
   // Translation is stored in mm (server contract); GLB geometry is metres,
   // so convert ÷1000. Rotation is degrees about the project vertical (world Z).
-  // Composed as T·R·S. Guarded so absent / unconfirmed / identity transforms
+  // Composed as T·R·S. Guarded so absent / unapplied / identity transforms
   // leave the model untouched.
+  //
+  // B1 — a transform is LIVE when a coordinator confirmed it (isConfirmed) OR
+  // when the platform graded its georeferencing HIGH and applied it on its own
+  // (appliedAutomatically). Previously the only gate was `isConfirmed !== false`,
+  // and BOTH automatic writers store isConfirmed=false — so a correct,
+  // survey-derived alignment was computed, stored, and then never rendered until
+  // somebody confirmed it by hand. That single line is why same-site models from
+  // different tools did not line up on their own.
+  //
+  // Precedence needs no tie-break here: the automatic writers refuse to overwrite
+  // a row with isConfirmed=true, so a confirmed row already holds the
+  // coordinator's numbers. Manual wins by construction, at write time.
+  //
+  // The `!== false` default is kept for isConfirmed so an older/partial payload
+  // that omits the field still renders as it did before.
+  // P3 — MESH UNITS are applied separately from, and unconditionally alongside,
+  // the georeferencing transform. They answer different questions: scaleFactor
+  // is a survey correction declared by the source, meshUnitScale is how the
+  // vertex data happens to be written. glTF 2.0 defines metres as the unit for
+  // all linear distances and this viewer assumes it (hence the /1000 on the
+  // millimetre translation) — but the Revit exporter wrote MILLIMETRE vertices,
+  // so a Revit-published building rendered 1000x too large. Alone that is
+  // invisible, because the camera fits to whatever bounds it finds; federate it
+  // with a metre model and they are a thousand times apart.
+  //
+  // Unconditional is the point: a mm model needs rescaling whether or not it is
+  // georeferenced, so this must NOT sit behind the `live` gate.
   function applyModelTransform(root, t) {
     if (!root || !t) return;
     const tx = (+t.translationX || 0), ty = (+t.translationY || 0), tz = (+t.translationZ || 0);
     const rot = (+t.rotationDeg || 0);
     const scale = (t.scaleFactor != null ? +t.scaleFactor : 1) || 1;
+    // Unknown/absent reads as 1 (metres) — the glTF default, and the value that
+    // leaves existing behaviour untouched. A wrong guess rescales a building.
+    const meshScale = (t.meshUnitScale != null ? +t.meshUnitScale : 1) || 1;
     const confirmed = (t.isConfirmed !== false);   // default-confirmed if unspecified
+    const autoApplied = (t.appliedAutomatically === true);
+    const live = confirmed || autoApplied;
     const isIdentity = tx === 0 && ty === 0 && tz === 0 && rot === 0 && scale === 1;
-    if (!confirmed || isIdentity) return;
+    const placing = live && !isIdentity;
+    const effectiveScale = (placing ? scale : 1) * meshScale;
+    if (!placing && effectiveScale === 1) return;
     try {
-      root.scale.set(scale, scale, scale);
-      root.rotation.z = rot * Math.PI / 180;
-      root.position.set(tx / 1000, ty / 1000, tz / 1000);
+      if (effectiveScale !== 1) root.scale.set(effectiveScale, effectiveScale, effectiveScale);
+      if (placing) {
+        root.rotation.z = rot * Math.PI / 180;
+        root.position.set(tx / 1000, ty / 1000, tz / 1000);
+      }
       root.updateMatrixWorld(true);
     } catch (e) { console.warn('[viewer] transform apply failed', e); }
   }

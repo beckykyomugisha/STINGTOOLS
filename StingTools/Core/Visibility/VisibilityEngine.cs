@@ -228,15 +228,30 @@ namespace StingTools.Core.Visibility
                 var id = new ElementId((BuiltInCategory)catId);
                 if (catId > 0) id = new ElementId((long)catId);   // import categories are document-created
 
-                // CanCategoryBeHidden is the honest gate: a category the view cannot control
-                // must be reported, not silently skipped.
+                // ORDER MATTERS. Ask "is a change even needed?" BEFORE "is a change allowed?".
+                // Reversed, every ticked category the view cannot control produced a blocker on
+                // every apply — 25 of them in one dialog, most reading '-2001000' because the
+                // restore path passes no name. A category already in the state the user wants
+                // is a no-op, not a problem worth a line in a dialog.
+                if (view.GetCategoryHidden(id) == !visible) return false;
+
                 if (!view.CanCategoryBeHidden(id))
                 {
-                    result?.Blockers.Add($"'{name ?? id.ToString()}' cannot be hidden in this view " +
-                                         "(the view template or Revit itself controls it).");
+                    // Only now is it worth reporting: a change WAS wanted and cannot be made.
+                    // Resolve the display name so the message names the category rather than a
+                    // raw BuiltInCategory id.
+                    string label = name;
+                    if (string.IsNullOrWhiteSpace(label))
+                    {
+                        try { label = Category.GetCategory(view.Document, (BuiltInCategory)catId)?.Name; }
+                        catch { /* optional read */ }
+                    }
+                    result?.Blockers.Add($"'{label ?? id.ToString()}' cannot be " +
+                                         (visible ? "shown" : "hidden") +
+                                         " in this view (the view template or Revit itself controls it).");
                     return false;
                 }
-                if (view.GetCategoryHidden(id) == !visible) return false;   // already right
+
                 view.SetCategoryHidden(id, !visible);
                 return true;
             }
@@ -245,6 +260,23 @@ namespace StingTools.Core.Visibility
                 StingLog.Warn($"SetCategoryVisible({name ?? catId.ToString()}, visible={visible}): {ex.Message}");
                 result?.Blockers.Add($"Could not change visibility of '{name ?? catId.ToString()}': {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Drop any active temporary hide/isolate so the next call can state the whole set.
+        /// Requires an open transaction, like the rest of the temporary API.
+        /// </summary>
+        private static void ClearTemporary(View view)
+        {
+            try
+            {
+                if (view.IsTemporaryHideIsolateActive())
+                    view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"VisibilityEngine.ClearTemporary({view?.Name}): {ex.Message}");
             }
         }
 
@@ -257,11 +289,34 @@ namespace StingTools.Core.Visibility
             var ids = plan.MatchedIds.Select(id => new ElementId(id)).ToList();
             try
             {
-                bool hasTokenWork = plan.Set?.Rules != null &&
-                                    plan.Set.Rules.Any(r => r != null && r.Kind == VisibilityRuleKind.Token);
-
-                if (plan.IsIsolate) view.IsolateElementsTemporary(ids);
-                else if (hasTokenWork && ids.Count > 0) view.HideElementsTemporary(ids);
+                if (plan.IsIsolate)
+                {
+                    ClearTemporary(view);
+                    view.IsolateElementsTemporary(ids);
+                }
+                else
+                {
+                    // No `hasTokenWork` guard here on purpose. Re-ticking the LAST unticked
+                    // token value produces zero token rules, so a guard would skip the clear
+                    // and leave the previous hide standing — the restore would silently do
+                    // nothing, which is the bug this whole change exists to kill. Declarative
+                    // means always stating the full set, including the empty set.
+                    // DECLARATIVE temporary hide. HideElementsTemporary only ever ADDS to the
+                    // hidden set, which is why re-ticking a row never brought anything back.
+                    // Clearing the mode first and re-hiding exactly the currently-matched set
+                    // makes the same gesture reverse: re-tick a value, it drops out of
+                    // MatchedIds, and it is simply not re-hidden.
+                    //
+                    // Temporary is kept as the mechanism ON PURPOSE — it is the fast, no-dirt
+                    // way to isolate and evaluate a model, and switching categories to
+                    // SetCategoryHidden must not cost the token rows that speed.
+                    //
+                    // The cost, stated plainly: an apply also clears elements hidden by hand
+                    // with Revit's own HH, because Revit exposes no way to tell those apart
+                    // from ours. Re-ticking everything therefore shows everything.
+                    ClearTemporary(view);
+                    if (ids.Count > 0) view.HideElementsTemporary(ids);
+                }
 
                 result.Ok = true;
                 result.ElementsAffected = ids.Count;

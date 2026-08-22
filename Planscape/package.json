@@ -18,7 +18,9 @@
     "typecheck": "tsc --noEmit",
     "test:queue": "node --experimental-transform-types tests/offlineQueue.terminal.test.mjs",
     "test:lint-rule": "node tests/lintRule.test.mjs",
-    "test": "npm run test:queue && npm run test:lint-rule && npm run typecheck"
+    "test:forbidden": "node --experimental-transform-types tests/forbidden.states.test.mjs",
+    "test": "npm run test:queue && npm run test:lint-rule && npm run test:forbidden && npm run test:geofence && npm run typecheck",
+    "test:geofence": "node --experimental-transform-types tests/geofenceHeaders.test.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",

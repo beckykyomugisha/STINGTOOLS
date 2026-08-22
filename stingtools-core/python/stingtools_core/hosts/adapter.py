@@ -35,9 +35,18 @@ class GeorefDescriptor:
     easting: Optional[float] = None        # metres
     northing: Optional[float] = None       # metres
     elevation: Optional[float] = None      # metres
-    true_north_deg: Optional[float] = None # clockwise from CRS Y
-    scale: float = 1.0                     # IfcMapConversion.Scale
-    length_unit: str = "mm"                # canonical project unit on this model
+    true_north_deg: Optional[float] = None # degrees, atan2(XAxisOrdinate, XAxisAbscissa)
+    scale: float = 1.0                     # IfcMapConversion.Scale (survey correction)
+
+    #: This MODEL's own length unit — "m" | "mm" | "cm" | "ft" | "in".
+    #:
+    #: Defaults to metres, not millimetres. The previous "mm" default was
+    #: actively wrong: easting/northing above are metres by IFC definition, so
+    #: a descriptor built without an explicit unit described its own
+    #: coordinates as 1000x too large. Metres is also the glTF canonical and
+    #: the server's fail-safe for an unknown unit, so an un-populated
+    #: descriptor now means "change nothing" rather than "rescale by 1000".
+    length_unit: str = "m"
 
 
 @dataclass(frozen=True)

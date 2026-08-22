@@ -27,8 +27,52 @@ namespace StingTools.BOQ.Takeoff
     {
         /// <summary>Config toggle. Default OFF so legacy composite-rate bills are
         /// untouched until a project opts in.</summary>
+        /// <summary>
+        /// MAT-SCHED-7 — per-run override, so the material-schedule export can turn
+        /// compound take-off on for ITS OWN build without editing project config.
+        ///
+        /// The flag defaults off and is set in no shipped file, so the material
+        /// schedule could not produce cement, sand, blocks or bricks at all until a
+        /// user discovered an undocumented key. Null = defer to config, which is
+        /// every other caller's behaviour, unchanged.
+        /// </summary>
+        [ThreadStatic] internal static bool? SessionOverride;
+
+        /// <summary>Set the override and restore it on Dispose. Use with `using`
+        /// so an exception mid-build cannot leave it stuck on.</summary>
+        /// <summary>Force compound mode for one document's build. Scoped to the
+        /// calling thread and to THAT document's cache — a material-schedule
+        /// export in one project must not force a full BOQ re-takeoff in every
+        /// other open project.</summary>
+        internal static IDisposable ForceEnabled(Document doc) => new OverrideScope(true, doc);
+
+        private sealed class OverrideScope : IDisposable
+        {
+            private readonly bool? _prev;
+            private readonly Document _doc;
+
+            public OverrideScope(bool value, Document doc)
+            {
+                _prev = SessionOverride;
+                _doc = doc;
+                SessionOverride = value;
+                // BOQCostManager caches the host take-off. Without dropping it the
+                // override changes nothing — the previous non-compound rows are
+                // handed straight back. Invalidate on the way OUT too, so the next
+                // ordinary BOQ build is not served compound rows it did not ask for.
+                if (_doc != null) BOQCostManager.ForceHostFull(_doc);
+            }
+
+            public void Dispose()
+            {
+                SessionOverride = _prev;
+                if (_doc != null) BOQCostManager.ForceHostFull(_doc);
+            }
+        }
+
         internal static bool Enabled()
         {
+            if (SessionOverride.HasValue) return SessionOverride.Value;
             string v = TagConfig.GetConfigValue("COST_COMPOUND_TAKEOFF");
             if (string.IsNullOrWhiteSpace(v)) return false;
             v = v.Trim().ToLowerInvariant();
@@ -53,7 +97,10 @@ namespace StingTools.BOQ.Takeoff
                 if (cat.IndexOf("Structural Framing", StringComparison.OrdinalIgnoreCase) >= 0
                     || cat.IndexOf("Beam", StringComparison.OrdinalIgnoreCase) >= 0)
                     return BuildRcBeam(doc, el, csvRates);
-                // Columns/foundations retain the composite line for now.
+                if (cat.IndexOf("Column", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return BuildRcColumn(doc, el, csvRates);
+                if (cat.IndexOf("Foundation", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return BuildRcFoundation(doc, el, csvRates);
                 return null;
             }
             catch (Exception ex)
@@ -131,7 +178,8 @@ namespace StingTools.BOQ.Takeoff
                 MortarSandRatio = mortarSand,
                 PlasterCementBagsPerM3 = plasterCement,
                 PlasterSandRatio = plasterSand,
-                IsRcWall = isRc
+                IsRcWall = isRc,
+                IsExteriorWall = IsExteriorWall(doc, el)
             };
             var constituents = CompoundTakeoff.MasonryWall(input);
             if (constituents.Count == 0) return null;
@@ -264,6 +312,7 @@ namespace StingTools.BOQ.Takeoff
                     TypeName = el.Name ?? "",
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
+                    ConstituentKind = c.Kind,
                     GrossQuantity = Math.Round(c.Quantity, 3),
                     RateUGX = rate,
                     RateSource = source,
@@ -305,6 +354,8 @@ namespace StingTools.BOQ.Takeoff
                 case "mortar_cement": return "Cement";
                 case "mortar_sand": return "Sand";
                 case "plaster": return "Plaster";
+                case "paint_interior": return "Painting";
+                case "paint_exterior": return "Painting";
                 case "plaster_cement": return "Cement";
                 case "plaster_sand": return "Sand";
                 case "concrete": return "In-situ Concrete";
@@ -317,7 +368,143 @@ namespace StingTools.BOQ.Takeoff
             }
         }
 
+        // ── RC column ───────────────────────────────────────────────────────
+        //  MAT-SCHED — columns used to keep the composite line, so their
+        //  concrete, rebar and formwork never reached the material schedule and
+        //  the bill was under-measured.
+        private static List<BOQLineItem> BuildRcColumn(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates)
+        {
+            string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
+            // A steel or timber column is not RC — leave it as the composite line
+            // rather than inventing concrete for it.
+            if (material.Contains("steel") || material.Contains("timber") || material.Contains("wood"))
+                return null;
+
+            double volM3 = ReadSolidVolumeM3(doc, el);
+            var (bx, by, hz) = ReadBoundingBoxM(el);
+            if (volM3 <= 0 && (bx <= 0 || by <= 0 || hz <= 0)) return null;
+
+            double band = PropOr("REBAR_ELEMENT COLUMN", "STEEL_KG_PER_M3", 160);
+            bool round = LooksRound(doc, el);
+
+            var constituents = CompoundTakeoff.RcColumn(new RcColumnInput
+            {
+                WidthM = bx, DepthM = by, HeightM = hz,
+                DiameterM = round ? Math.Min(bx, by) : 0,
+                ConcreteM3Override = volM3,
+                RebarBandKgPerM3 = band
+            });
+            return constituents.Count == 0 ? null : Materialise(doc, el, constituents, csvRates, "S", new Resolution());
+        }
+
+        // ── RC foundation ───────────────────────────────────────────────────
+        private static List<BOQLineItem> BuildRcFoundation(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates)
+        {
+            double volM3 = ReadSolidVolumeM3(doc, el);
+            var (bx, by, hz) = ReadBoundingBoxM(el);
+            if (volM3 <= 0 && (bx <= 0 || by <= 0 || hz <= 0)) return null;
+
+            string typeName = (el.Name ?? "").ToLowerInvariant();
+            bool blinding = typeName.Contains("blinding") || typeName.Contains("lean");
+            double band = PropOr("REBAR_ELEMENT FOUNDATION", "STEEL_KG_PER_M3", 100);
+
+            var constituents = CompoundTakeoff.RcFoundation(new RcFoundationInput
+            {
+                LengthM = bx, WidthM = by, DepthM = hz,
+                ConcreteM3Override = volM3,
+                RebarBandKgPerM3 = band,
+                IsBlinding = blinding,
+                // Formed by default. Omitting it silently under-measures, which is
+                // the failure this whole change exists to fix; a project casting
+                // against the excavation can zero the formwork rate instead.
+                FormworkToSides = true
+            });
+            return constituents.Count == 0 ? null : Materialise(doc, el, constituents, csvRates, "S", new Resolution());
+        }
+
+        /// <summary>Solid volume in m³, summed over the element's geometry.</summary>
+        private static double ReadSolidVolumeM3(Document doc, Element el)
+        {
+            try
+            {
+                var opt = new Options { ComputeReferences = false, DetailLevel = ViewDetailLevel.Fine };
+                var ge = el?.get_Geometry(opt);
+                if (ge == null) return 0;
+                double ft3 = SumSolidsFt3(ge);
+                return ft3 * 0.0283168;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("RcVolume", $"ReadSolidVolumeM3 {el?.Id}: {ex.Message}");
+                return 0;
+            }
+        }
+
+        private static double SumSolidsFt3(GeometryElement ge)
+        {
+            double total = 0;
+            foreach (GeometryObject go in ge)
+            {
+                if (go is Solid s && s.Volume > 0) total += s.Volume;
+                else if (go is GeometryInstance gi)
+                {
+                    var inner = gi.GetInstanceGeometry();
+                    if (inner != null) total += SumSolidsFt3(inner);
+                }
+            }
+            return total;
+        }
+
+        /// <summary>Bounding-box extents in metres (x, y, z). Used for formwork
+        /// only — the solid volume, when available, is what prices the concrete.</summary>
+        private static (double x, double y, double z) ReadBoundingBoxM(Element el)
+        {
+            try
+            {
+                var bb = el?.get_BoundingBox(null);
+                if (bb == null) return (0, 0, 0);
+                return ((bb.Max.X - bb.Min.X) * 0.3048,
+                        (bb.Max.Y - bb.Min.Y) * 0.3048,
+                        (bb.Max.Z - bb.Min.Z) * 0.3048);
+            }
+            catch { return (0, 0, 0); }
+        }
+
+        /// <summary>Round columns shutter to their circumference, not a box.</summary>
+        private static bool LooksRound(Document doc, Element el)
+        {
+            try
+            {
+                string n = ((el?.Name ?? "") + " " + (doc?.GetElement(el.GetTypeId())?.Name ?? "")).ToLowerInvariant();
+                return n.Contains("round") || n.Contains("circular") || n.Contains("diameter") || n.Contains("dia.");
+            }
+            catch { return false; }
+        }
+
         // ── Small Revit helpers ─────────────────────────────────────────────
+
+        /// <summary>
+        /// True when the wall type is marked Exterior. Exterior walls take
+        /// weather-guard, interior walls silk — different products at different
+        /// prices. Unknown/unreadable defaults to INTERIOR, the cheaper and more
+        /// common case, rather than inflating a bill with exterior-grade paint.
+        /// </summary>
+        private static bool IsExteriorWall(Document doc, Element el)
+        {
+            try
+            {
+                var wt = doc?.GetElement(el?.GetTypeId()) as WallType;
+                return wt != null && wt.Function == WallFunction.Exterior;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("WallFunction", $"IsExteriorWall {el?.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
         private static double ReadAreaM2(Element el)
         {
             var p = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Planscape.Core.DTOs;
+using Planscape.Core;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
@@ -460,8 +461,24 @@ public class AuthController : ControllerBase
             Plan          = BillingPlan.Trial,
             Currency      = currency,
             BillingCycle  = BillingCycle.Monthly,
-            MaxUsers      = planLimits.TotalSeats,
-            MaxProjects   = planLimits.MaxProjects,
+            // Flat anti-abuse ceiling, NOT planLimits.TotalSeats (#653). The old
+            // derivation read the limits of the plan the caller ASKED for while the
+            // tenant is assigned Trial, so an anonymous signup chose its own cap —
+            // omitted plan gave 20, "Enterprise" gave int.MaxValue. It also charged
+            // free viewers against paid role caps, which the pricing FAQ says we
+            // don't do. Paid entitlement is metered by the D1 licence count.
+            MaxUsers      = BillingPlanLimits.AccountCeiling,
+            // NOT planLimits.MaxProjects. `requestedPlan` is whatever the anonymous
+            // caller put in the request body (defaulting to Network), while the tenant
+            // is assigned Trial two lines above — so this wrote an entitlement the
+            // signup did not grant. Every self-signup carried int.MaxValue here against
+            // a plan allowing 3. It was invisible only because CreateProject also ran
+            // the [Quota] filter, which reads the PLAN, and a filter runs first.
+            //
+            // Left at 0 = "no override". The column is a TIGHTENING knob for support to
+            // reach for; entitlement comes from the plan (or D1's tier). See
+            // ProjectCeilingPolicy.
+            MaxProjects   = 0,
             MimEnabled    = false,
             TrialExpiresAt = DateTime.UtcNow.AddDays(30)
         };
@@ -506,6 +523,15 @@ public class AuthController : ControllerBase
             plannedUpgrade = requestedPlan.ToString(),
             currency       = tenant.Currency,
             trialExpiresAt = tenant.TrialExpiresAt,
+            // What the tenant can do RIGHT NOW. `limits` below describes
+            // `plannedUpgrade`, not the Trial the account was actually created on, so a
+            // client sizing its UI from it would offer capacity the create-project gate
+            // then refuses. Both are returned because they answer different questions.
+            activeLimits   = new
+            {
+                maxProjects = ProjectCeilingPolicy.EffectiveCap(tenant),
+                storageMb   = BillingPlanLimits.For(tenant.Plan).StorageMb,
+            },
             limits         = new
             {
                 maxAuthors      = planLimits.MaxAuthors,
@@ -909,13 +935,22 @@ public class AuthController : ControllerBase
         // not a developer "POST /api/…" instruction. SendPasswordResetEmailAsync
         // builds {PublicBaseUrl}/reset-password?token=…&email=… which the
         // reset-password.html page consumes.
+        //
+        // Through EmailDispatch, because a throwing provider DEFEATS THIS ENDPOINT'S
+        // ONLY SECURITY PROPERTY. An unknown address returns above without sending, so
+        // it always answered 200; a real one reached the send, and when Resend rejected
+        // the recipient the unhandled exception answered 500. Two different answers for
+        // "unknown" and "real" is exactly the enumeration this endpoint exists to
+        // prevent — demonstrated against production on 2026-08-20. The reset token is
+        // already committed by this point, so failing the request would also be a lie
+        // about what happened.
         var emailService = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
-        if (emailService != null)
-        {
-            await emailService.SendPasswordResetEmailAsync(
-                user.Email, resetToken, Planscape.API.PublicUrl.Resolve(_config, Request));
-        }
+        await Planscape.Infrastructure.Services.EmailDispatch.TrySendAsync(
+            emailService, _logger, "password-reset", user.Email,
+            () => emailService!.SendPasswordResetEmailAsync(
+                user.Email, resetToken, Planscape.API.PublicUrl.Resolve(_config, Request)));
 
+        // Same body either way, whatever happened above — see the note on the send.
         return Ok(new { message = "If that email exists, a reset link has been sent." });
     }
 
@@ -1079,24 +1114,42 @@ public class AuthController : ControllerBase
                 .FirstOrDefaultAsync(t => t.Slug == slug);
             if (tenant == null)
             {
-                var limits = BillingPlanLimits.For(BillingPlan.Network);
+                // The account ceiling is deliberately not taken from a plan here: this
+                // mirror must not make entitlement decisions (D1 does), and Network's
+                // seat total is 20 — which would have locked out any D1-paid firm
+                // larger than that. Compounded by this path defaulting unknown roles
+                // DOWN to Viewer, so it is the path that manufactures the free accounts
+                // a seat-derived cap charged for. See #653.
                 tenant = new Tenant
                 {
                     Name         = string.IsNullOrWhiteSpace(p.TenantName) ? slug : p.TenantName!,
                     Slug         = slug,
                     ContactEmail = email,
                     Tier         = LicenseTier.Starter,
-                    // Billing truth lives in planscape.build's D1, not here —
-                    // the handoff endpoint refuses cancelled/read_only tenants
-                    // before minting a ticket. Provision the mirror generously
-                    // so this side never locks out a customer D1 considers
-                    // paid; reconciliation is deliberately out of scope
-                    // (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
-                    Plan           = BillingPlan.Trial,
+                    // Billing truth lives in planscape.build's D1, not here — the
+                    // handoff endpoint refuses cancelled/read_only tenants before
+                    // minting a ticket. Provision the mirror generously so this side
+                    // never locks out a customer D1 considers paid; reconciliation is
+                    // deliberately out of scope (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
+                    //
+                    // Network, not Trial. The old code computed Network's limits and
+                    // then assigned Trial, so the generosity this comment promises was
+                    // never delivered: [Quota(QuotaAxis.Projects)] reads the PLAN, and
+                    // Trial allowed a D1-paying customer one project (and 5 GB). This
+                    // is the mirror's FALLBACK only — when D1 named a tier, PlanTier
+                    // below is what actually grants, via ProjectCeilingPolicy.
+                    Plan           = BillingPlan.Network,
+                    // The ticket has always carried `tier: tenant.plan_tier`
+                    // (marketing-site/functions/api/cloud/handoff.ts) and this endpoint
+                    // has always thrown it away. Store it verbatim; BillingTierMap does
+                    // the translating, and an unrecognised value grants nothing rather
+                    // than being coerced into a plan nobody sold.
+                    PlanTier       = string.IsNullOrWhiteSpace(p.Tier) ? null : p.Tier!.Trim(),
                     Currency       = "USD",
                     BillingCycle   = BillingCycle.Monthly,
-                    MaxUsers       = limits.TotalSeats,
-                    MaxProjects    = limits.MaxProjects,
+                    MaxUsers       = BillingPlanLimits.AccountCeiling,
+                    // 0 = no tightening override. See ProjectCeilingPolicy.
+                    MaxProjects    = 0,
                     MimEnabled     = false,
                     TrialExpiresAt = DateTime.UtcNow.AddDays(365)
                 };
@@ -1129,6 +1182,26 @@ public class AuthController : ControllerBase
             };
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
+        }
+
+        // Refresh the mirrored tier on EVERY handoff, not just at tenant creation.
+        // D1 just vouched for this user by minting the ticket, so the tier in it is
+        // newer than anything stored here; recording it only on creation would freeze
+        // a tenant at whatever it was on first sign-in and silently withhold an
+        // upgrade the customer has already paid for. Cheap and one-directional — this
+        // mirror still never writes entitlement back, and full reconciliation stays
+        // out of scope (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
+        if (user.Tenant != null && !string.IsNullOrWhiteSpace(p.Tier))
+        {
+            var incomingTier = p.Tier!.Trim();
+            if (!string.Equals(user.Tenant.PlanTier, incomingTier, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "Handoff updated tenant {TenantId} tier {Old} -> {New}",
+                    user.Tenant.Id, user.Tenant.PlanTier ?? "(none)", incomingTier);
+                user.Tenant.PlanTier = incomingTier;
+                await _db.SaveChangesAsync();
+            }
         }
 
         // Provision a starter project so a freshly handed-off subscriber does not

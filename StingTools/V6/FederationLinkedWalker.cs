@@ -8,8 +8,21 @@
 // Transforms from link coordinates into host coordinates are
 // applied automatically via RevitLinkInstance.GetTotalTransform().
 //
-// Used by Clash triage (S6.1), As-built reconciliation (S6.5), and
-// any BCC dashboard metric that needs "X across all linked models".
+// STATUS: NOT WIRED. Nothing calls this class (verified by a
+// repo-wide search: zero references outside this file).
+//
+// The line that used to sit here claimed it was "used by Clash triage
+// (S6.1), As-built reconciliation (S6.5), and any BCC dashboard metric
+// that needs 'X across all linked models'". None of those three consume
+// it, and cross-tool clash does not exist at all. That is worse than an
+// undocumented orphan: a reader auditing whether federated clash works
+// finds a docstring asserting it does, and stops looking.
+//
+// The code itself is sound and is kept deliberately — the walk it
+// implements (GetLinkDocument + GetTotalTransform into host coordinates)
+// is exactly what a federated metric needs, and rewriting it later costs
+// more than carrying it. Wire it or delete it; do not re-describe it as
+// used.
 
 using System;
 using System.Collections.Generic;

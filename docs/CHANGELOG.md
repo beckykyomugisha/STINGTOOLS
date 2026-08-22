@@ -2,6 +2,574 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 242 — the element map described the documents, not the model)
+
+The federation fix worked — the GLB went from 13 elements to **1,407**, six links
+contributing ~7,000 elements each. The upload then failed:
+
+```
+Upload failed: HTTP 400: {"error":"element_map_too_large","maxMb":5}
+```
+
+**The map was 12.28 MB describing 1,407 meshes.** Measured on the generated file: 37,110
+entries, of which **29,521 were `Lines` and 5,706 `Legend Components`** — legend and detail
+content living inside the linked files' non-3D views. Real building elements numbered a few
+hundred: 181 walls, 133 pipes, 130 furniture, 106 columns, 87 windows, 67 doors, 57
+toposolids. **95% of the payload was annotation the viewer can never select.**
+
+A category filter cannot fix this — `OST_Lines` *is* a model category, and the entries
+come from views that are not the 3D view. Only the exporter knows what was drawn, so the
+exporter now says: it records the key of every element that produced at least one mesh,
+under the same condition that keeps the node, and the map is narrowed to that set.
+**37,110 → ~1,407.**
+
+Only when this publish ran the exporter. A user-picked `.glb`/`.ifc` leaves the set null
+and the map keeps its full scope, because guessing what a file we did not produce contains
+would drop real elements. Logged as ROADMAP PUB-2.
+
+**Also.** The map is written compact rather than indented — measured 12.28 MB → 9.70 MB, a
+21% saving on a machine-read sidecar nobody opens by hand. And ~2.40 MB of the original was
+pure repetition of the absolute link path in every key, an artefact of the Phase 240
+namespacing; narrowing the set removes most of it.
+
+**Server.** The cap moves 5 MB → 25 MB, into one named constant instead of two magic
+numbers that had to agree. 5 MB is ~19,000 elements at the ~265 bytes/element a real map
+costs — a federated site passes that easily, so the limit was binding on ordinary models,
+not just on this bug. Not raised further on purpose: `DownloadElementMap` reads the whole
+map into a string to merge the cost sidecar, on a 512 MB instance. Storing it gzipped is
+the durable answer — **31× on this file, 12.28 MB → 0.40 MB** — and is logged as PUB-1
+rather than bolted on here, because it needs the serve path and the cost merge to
+decompress.
+
+The refusal now carries `actualMb` and a `hint`. `{"maxMb":5}` alone was true and unusable:
+it never said how large the map *was*, so "slightly over" and "twenty times over" looked
+identical, and nothing pointed at the real cause.
+
+#### Completed (Phase 241 — a model could be published but never removed)
+
+The Models page offered Upload and View and nothing else. A model published by mistake —
+wrong file, wrong discipline, a superseded revision — stayed in the project permanently,
+counting against the tenant's storage quota.
+
+**The API already had the delete.** `ModelsController.Delete` has existed, soft-deleting
+the row, cascading to the model's scene chunks so retired geometry stops rendering, and
+gated to Admin/Owner/Coordinator. `ModelPurgeJob` then removes the bytes after a 30-day
+grace. None of it was reachable: no button anywhere called it. Same shape as the licence
+`revoked_at` gap — a working capability with no way to invoke it.
+
+**The grace period protected nobody.** A soft delete with a 30-day window is only a safety
+net if something can reach into that window. Nothing could list a deleted model, so the
+30 days were not a chance to change your mind, only a delay before the bytes went. `GET
+/models?deleted=true` and a new `POST /models/{id}/restore` make it real; restore brings
+back the scene chunks retired by *that* delete, matched on the delete timestamp so an
+earlier unrelated delete of the same model is not also revived. Restoring the model
+without its chunks would produce a row that renders nothing, which reads as corruption
+rather than a half-finished undo.
+
+Existence of the row is the whole check: the purge job deletes it outright, so anything
+still present is still restorable and a 404 is the honest answer for anything past the
+grace. The page says so in those words rather than "not found", because a retry cannot fix
+it.
+
+**Restore carries the same roles as delete.** A narrower rule would create a state a
+Coordinator can enter and not leave.
+
+**UI.** Per-row Remove with an inline confirm — inline rather than `window.confirm`
+because a native modal cannot say the action is reversible, which is the one fact that
+should decide whether you click. A "Recently removed" section appears only when something
+is in it, showing days remaining per model. The countdown returns null rather than guessing
+when the server sent no timestamp: an invented number on a delete is worse than none,
+because it is the number the user decides against.
+
+`ModelMetaDto` gained `DeletedAt` **appended**, never inserted — it is a positional record
+and the call site already carried that warning from a previous near-miss.
+
+Two mistakes caught before they shipped, both by checking rather than assuming: the first
+draft passed a `notFound` option to `describeFailure`, which takes `{ forbidden, fallback }`
+only and would have silently ignored it; and it styled the destructive button with
+`bg-danger-hover`, a token that does not exist in `tailwind.config.ts`, so the hover state
+would have done nothing.
+
+#### Completed (Phase 240 — publishing a federated model published the container, not the model)
+
+A federated site — host container, every building and the site itself a Revit link, all
+visible in `{3D}` — published as a bare toposolid with no buildings, and the viewer
+reported **8 ELEMENTS / 0% TAGGED** for the whole project.
+
+Two independent faults, either of which alone would have produced a broken publish.
+
+**1. The glTF exporter resolved every element against the host document.**
+`RevitGltfExporter.OnElementBegin` did `_doc.GetElement(id)` where `_doc` is fixed to the
+host. `OnLinkBegin` was implemented and pushed the transform, so Revit *was* traversing
+the links — but element ids are **document-local**, so an id from inside a link looked up
+in the host is not a near-miss, it is a lookup in the wrong table. It returned null and
+`RenderNodeAction.Skip` dropped the geometry. Where the id happened to exist in the host,
+worse: geometry was written carrying another element's name, category, colour and
+`UniqueId` — the key the viewer joins metadata on.
+
+`Clash/ClashExportContext` has always done this correctly, with a document stack and
+`LinkNode.GetDocument()`. This exporter simply never did. It now keeps the same stack, and
+`OnLinkEnd` pops it under the same guard as the transform stack — the two are pushed
+together and must unwind together, or every element after a link resolves against the
+wrong document.
+
+The same bug sat in material resolution (`_doc.GetElement(matId)`), and the appearance
+cache was keyed on the raw `ElementId` value, so a link's material 12 and the host's
+material 12 shared one entry and whichever was seen first decided the name and texture for
+both.
+
+**2. The element map never looked at links at all.** `BuildElementMap` collected from
+`new FilteredElementCollector(doc, activeView.Id)` — host only. On a federated model that
+is a handful of link instances and nothing else, which is the "8 ELEMENTS" exactly. Fixing
+the geometry alone would have given properties-free meshes; fixing the map alone,
+propertied nothing.
+
+It now walks links **recursively**, because Revit's view traversal descends nested links
+and a one-level walk would reproduce the same bug one level down — geometry present,
+properties missing, which is the variant hardest to notice because the model looks right.
+Documents are visited once (a cycle is legal in Revit) and depth is capped.
+
+**Keys.** Host elements keep their bare `UniqueId`, so nothing already published changes.
+Linked elements are namespaced by the link's path, because `UniqueId` is unique *within* a
+document and buildings are routinely Saved-As from one another — two links can genuinely
+carry the same id. Both producers compute the key through one helper; they must, since a
+mismatch renders an element with no properties and errors nowhere.
+
+**Bounds.** A linked element's bounding box is in its own coordinates. All eight corners
+are transformed, not Min/Max — under rotation the transformed Min is not the minimum, and
+a link placed at an angle is the normal case.
+
+**Honest scope limit:** the map collects model elements with geometry from each link, not
+"elements visible in the host's active view" — a view id cannot filter another document's
+collector. The GLB, produced by Revit's own view traversal, remains the authority on what
+is drawn, so the map may list a few elements the geometry does not show. A tree row with
+no mesh is a much smaller problem than the mesh with no properties it replaces. Unloaded
+links are named in the log rather than skipped silently.
+
+#### Completed (Phase 239 — Connect could not survive a cold start)
+
+Phase 237 pointed the plugin at a host that answers. The first real sign-in still failed:
+
+> Login failed: request to https://planscape-api-free.onrender.com timed out before the
+> server responded.
+
+**The server was asleep, not broken.** Free-tier instances idle out. Measured on the live
+host 2026-08-20, roughly two hours after the last traffic: the first request **did not
+answer within 180s at all**, and the next took **66.6s**. The plugin's `HttpClient` carried
+a flat **60s** ceiling, so login could not survive either.
+
+Two things were wrong, and the second is the one that cost time.
+
+**The ceiling was below the measured warm-ish response.** 60s → **120s**. A timeout bounds
+how long we are *willing* to wait, not how long we *do* — a warm call still returns in well
+under a second — so this costs nobody anything and stops failing a request the server is
+answering normally.
+
+**The cold case is not a per-request problem.** Three minutes is not a sane ceiling for
+every sync call, so `WakeServerAsync` now absorbs it *before* login, on a cheap anonymous
+`/health/live` with a 240s budget. `/health/live` and not `/health` — the latter is the
+authenticated diagnostic and answers 403 anonymously, which would read as a dead server
+(same reasoning as `PlanscapeServerTargets.ProbeAsync`). It never fails the caller: a 404
+means an older server, and if it times out, login is about to give a better error anyway.
+A wake taking 5s or more is logged, because that is the explanation for a slow Connect that
+would otherwise look like a hang.
+
+**The message named the wrong cause.** *"Timed out before the server responded"* is true and
+useless — it reads as "the server is broken", so the natural next move is to re-check the
+password, which cannot possibly help. It now says the server may be waking, that the first
+request after a quiet period can take a couple of minutes on the free tier, and that
+pressing Connect again usually succeeds. Same failure mode as Phase 238's invite note: a
+message specific enough to act on, pointing the wrong way.
+
+The durable fix is not in the plugin — it is an always-on instance. Logged in
+[`ROADMAP.md`](ROADMAP.md) against #705, which already wants the custom domain attached.
+#### Completed (Phase 238 — the invite note named the wrong cause)
+
+Follow-on to Phase 237, found by verifying that fix against the live server rather than
+stopping at "it returns 200 now".
+
+The invite response has two outcomes in its `note`: sent, or *"Email is not configured on
+the server."* Once a failing send stopped throwing, a **third** outcome became reachable
+and fell into the second bucket. Measured 2026-08-20: inviting an address Resend rejects
+returned `emailSent: false` with that note, while `/api/status/bootstrap` reported
+`emailProvider: ResendEmailService, emailConfigured: true` — the message named a cause
+that was demonstrably false and pointed the reader at env vars when the problem was one
+recipient.
+
+A wrong-but-actionable message costs more than a vague one: it is specific enough to act
+on and sends you the wrong way. The note now distinguishes "no provider configured" from
+"configured, but this address could not be delivered to", the latter naming the address
+and pointing at the server log for the provider's reason. The BCC's own fallback strings —
+used only when the server sends no note — dropped their "not configured" claim for
+something they can stand behind.
+
+Also confirmed on the live server that the Phase 237 fixes did what they claimed:
+`forgot-password` now answers **200 for both** a real user and an unknown one (the real
+one was 500 — the enumeration oracle), and an invite to a rejected recipient returns 200
+with a working link **and the `ProjectMember` row present**, where the throw previously
+left the invitee half-created.
+
+#### Completed (Phase 237 — connect, invite, sync: three blockers between the plugin and the live server)
+
+Started from a plain request — *"I want to be able to log in, invite a member, and that
+member should see my updates as I sync"* — with the BCC showing **Not connected** against
+`http://127.0.0.1:56519`.
+
+**The chain itself works. It was verified, not assumed.** Against the live API on
+2026-08-20: register a throwaway tenant → create a project → invite → invitee sets a
+password from the emailed token → invitee logs in → owner `POST /api/tagsync/sync`
+(2 created, 100 %, GREEN) → **the invitee reads both elements back**, stamped
+`syncedBy: "Verify Owner"`. Every hop ran on real components; nothing stood in for
+anything.
+
+Three defects stood between that and the user.
+
+**1. The plugin could not reach any live server — the baked default has no DNS.**
+`BakedDefaultServerUrl` was `https://api.planscape.build`, which fails at *connect* — no
+HTTP status at all, because the custom domain has never been attached to a Render service
+(#705). Meanwhile `planscape-api-free.onrender.com/health/live` answers 200. So every
+out-of-the-box install pointed at an address with no DNS record and every "Connect"
+failed. The default is now the hostname that actually serves, with
+`IntendedProductionServerUrl` kept as a named constant and offered as a built-in target
+labelled *pending DNS* — `ProbeAsync` refuses it, which is the point: it fails at the
+picker where the reason is visible. **Swap back when #705 is done.**
+
+`FormatWebAppUrl` needed a matching case. Its rule is `api.<domain>` → `app.<domain>`;
+the Render host matches neither, so "Open Planscape" would have fallen to the
+same-origin `<base>/app/` branch — which **answers 200**, so the mistake would not have
+looked like one. `app.planscape.build` is attached and serving (verified), so only the
+API half needed the workaround.
+
+**2. An email failure took down the whole operation.** Providers throw on hard failure by
+contract; controllers called them bare. `POST /api/projects/{id}/members/invite` answered
+**500 with an empty body** when Resend returned 422 for the recipient — *after* the
+invitee's `AppUser` row and invite token were committed and *before* the `ProjectMember`
+row was added. Half-invited, reported as failed. The endpoint already promised the right
+behaviour — `emailSent: false` plus a copyable link, which the plugin already handles —
+and simply could not reach it.
+
+The same throw defeated `ForgotPassword`'s only security property. That endpoint returns
+an identical 200 for every address *"to prevent email enumeration"*, but an unknown
+address returns before sending (200) while a real one reached the send (500). **A working
+enumeration oracle, demonstrated against production.**
+
+New `EmailDispatch.TrySendAsync` sends, logs the reason, and returns a bool. Not a silent
+catch — the distinction is the whole point. Callers for whom the email *is* the operation
+(`/notifications/test-email`) deliberately still surface failures. `emailDispatched` now
+reports what actually happened rather than `_emailService.IsConfigured`, which says a
+provider *exists*, not that it accepted the message — a comment above that line had
+described the correct intent for some time.
+
+**3. It was undiagnosable from outside.** The only symptom was a 500 with an empty body,
+which reads as "the endpoint is broken", not "the provider rejected the recipient";
+answering it needed Render's logs. `/api/status/bootstrap` now reports `emailProvider`
+and `emailConfigured` — the provider TYPE, never its credentials, since the endpoint is
+anonymous. It resolves the service with `GetService` rather than `[FromServices]` and
+guards `IsConfigured`, because a diagnostic that 500s reports nothing about the condition
+it exists to report.
+
+*The root cause of the original 500s was the `@example.com` addresses in the harness —
+Resend rejects them by design. Email on the live server is correctly configured and does
+send. That makes the defect narrower than it first looked and no less real: any rejected
+recipient, suppression, rate limit or outage reproduces it.*
+
+**Tests.** `EmailDispatchTests` — 7 cases: a throwing provider does not propagate;
+timeout / HTTP / cancellation are enumerated rather than sampled; an unconfigured
+provider reports false **without attempting**; a missing service is not a crash; and
+success still reports true, so the guard cannot quietly become "always false". Suite
+**813 passing, 0 failing**; server and plugin both build 0 errors, plugin 0 warnings.
+
+#### Completed (Phase 236 — one project gate, and the tier D1 was already sending)
+
+Follow-on to #653 (`MaxUsers`). Same shape of defect on the projects axis, but this one
+was **live**, not latent.
+
+**Two gates, two sources, one action.** `ProjectsController.CreateProject` carried both
+`[Quota(QuotaAxis.Projects)]` — which resolves the limit from the tenant's **plan** — and
+an inline `projectCount >= tenant.MaxProjects` reading the tenant **column**. For every
+self-signup those disagreed outright: signup wrote the column from
+`BillingPlanLimits.For(requestedPlan)` where `requestedPlan` is a **caller-supplied**
+field defaulting to `Network` (`int.MaxValue`), while assigning the tenant `Trial` (1).
+The stricter limit won purely because an action filter runs before an action body. Nothing
+was broken, and nothing was designed either — moving either gate would have changed
+behaviour, and a reviewer reading one of them would have drawn the wrong conclusion.
+Deleting the inline check leaves the attribute as the single gate.
+
+**Precedence, stated once.** `ProjectCeilingPolicy`: the plan grants, the column may only
+tighten (`min(plan, columnIfPositive)`). A column that could *loosen* means any generous
+provisioning value silently upgrades the tenant — which is exactly what the old code
+wrote. Non-positive fails **open**, matching `AccountCeilingPolicy`: `count >= cap` cannot
+express "unlimited", so a `-1` sentinel or a `0` from a partial row denies a tenant its
+FIRST project while reporting a cap that points at nothing (#616's failure, one axis over).
+`Tenant.MaxProjects` now defaults to **0** — "no override" — instead of 1.
+
+**The live bug: the handoff threw away the tier.**
+`marketing-site/functions/api/cloud/handoff.ts:77` has always put `tier: tenant.plan_tier`
+in the signed ticket, and `HandoffTicketPayload.Tier` has always deserialised it. Nothing
+read it. The endpoint computed `BillingPlanLimits.For(BillingPlan.Network)` for the column
+and then assigned `Plan = BillingPlan.Trial` — so the generosity its own comment promised
+was never delivered, and `[Quota]`, which reads the plan, **allowed a D1-paying customer
+exactly one project** (and 5 GB). Now: `Tenant.PlanTier` stores the D1 string verbatim,
+`BillingTierMap` translates it, and `ProjectCeilingPolicy.GrantingCap` prefers it over the
+local plan — D1 is the billing authority and this database is a mirror of it. The mirror's
+fallback plan is `Network`, which is what the code always intended. The tier is refreshed
+on **every** handoff, not only at tenant creation: recording it once would freeze a tenant
+at whatever it was on first sign-in and withhold an upgrade already paid for.
+
+Stored as the raw string rather than parsed into `BillingPlan` because the two taxonomies
+genuinely differ — there is no Solo, Firm or Large in the enum, and Network sits where two
+sold tiers are. `BillingTierMap` is the seam, keyed by the **sold** names. An unrecognised
+tier is kept verbatim and grants nothing, falling back rather than reading as 0.
+
+**Trial: 1 → 3 projects.** `pricing.html`'s comparison row has always advertised "Active
+projects: 3" for Solo. The product contradicted the page the customer signed up from, and
+one project cannot evaluate anything that involves comparing two.
+
+**Display now matches enforcement.** `TenantAdminController`'s `usage.projects.max` showed
+the *plan's* figure while the gate used a different one — a "you have used N of M" gauge
+that could tell a user they had room and then refuse. It reads the enforced cap. The signup
+response gains `activeLimits`; its existing `limits` block describes `plannedUpgrade`, not
+the Trial the account was actually created on.
+
+**`TierLimits.cs` deleted** — 100 lines, zero callers. Its `BelowLimit` read
+`adminOverride > 0 ? adminOverride : tierLimit`, a *replacement*, so a per-tenant value
+could raise a cap above what the plan sold. Never exercised, and not the semantics adopted.
+
+**Schema.** `Tenants.PlanTier` reaches existing databases through the idempotent
+`ADD COLUMN IF NOT EXISTS` patcher in `Program.cs`, per
+[`adr/0001-schema-management.md`](adr/0001-schema-management.md) — **not** a
+`dotnet ef migrations add`, which would reach nothing. Nullable with no default, so every
+pre-existing tenant reads as "D1 never told us" and keeps falling back to its plan.
+
+**Tests.** `ProjectCeilingTests` — 20 cases across four properties: no cap can deny a first
+project; the column tightens but never loosens; a known tier outranks the local plan (in
+both directions); Trial matches the pricing page. Plans and sold tiers are **enumerated**,
+so one added later is covered without editing the tests. Suite: **806 passing, 0 failing**,
+`dotnet build` 0 errors. One pre-existing test asserted `Max == 1` for Trial and now reads
+the value from `BillingPlanLimits`, keeping it about the guard rather than the number.
+
+Left open, with reasons, in [`ROADMAP.md`](ROADMAP.md) as **ENT-1..ENT-4**: the two plan
+taxonomies, `PluginOnly` granting unlimited projects, staleness bounded by sign-in, and
+storage still capped by the local plan alone.
+
+#### Completed (Phase 232 — "forbidden says why" across BCC, web and mobile)
+
+Closes the parity gap recorded in **#558**: four states — loading / empty / error /
+**forbidden** — visually distinct on every surface, with forbidden naming the capability
+rather than the HTTP status. Landed as three PRs, one per surface, so each surface's
+behaviour changes are reviewable on their own terms.
+
+**The rule, three states not two** (#634 corrected the #547 docstring that said otherwise):
+
+| | | |
+|---|---|---|
+| `allowed` | explicit `true` | offer the control |
+| `denied` | explicit `false`, **or 404** | disable it, name the capability |
+| `unknown` | transport failure / timeout / 5xx / unparseable body | **leave it enabled**, let the attempt report |
+
+404 is authoritative-false — it says the caller cannot see the project at all. A dropped
+connection says nothing about permissions. Rendering unknown as denied is the house
+anti-pattern in a new costume: an absent answer displayed as a definite one, the same
+mistake as an empty list standing in for a failed load.
+
+**Three defects found while building it, each bigger than the wording fix that surfaced it:**
+
+1. **BCC — `ListSitePhotosAsync` returned an empty list on every failure.** HTTP error,
+   exception, missing envelope: all answered `new List<SitePhotoDto>()`. The review queue
+   rendered "✓ No photos awaiting review." over an unreachable server and the grid rendered
+   "No photos to show." with a `0 photos` counter. Same fabrication #550 removed elsewhere,
+   still live in the two busiest panes — and the reason neither could show a forbidden state:
+   nothing ever reached them saying anything had gone wrong. Now returns `null` on failure,
+   `[]` only when the project genuinely has none.
+
+2. **Web — four sites showed users the literal string `Request failed (HTTP 403)`.**
+   ASP.NET `Forbid()` sends an empty body; `api()` falls back to that placeholder. Model
+   upload, member invite, member remove and CDE transition each rendered it verbatim in a red
+   error toast. `ApiError.serverMessage` now records whether the server actually said
+   anything, so a forbidden state can prefer the server's own sentence and fall back to
+   naming the capability — without matching `"Request failed (HTTP "` out of a message.
+
+3. **Mobile — two screens failed CLOSED on unknown, and one of the gates was reading the
+   wrong field.** `site-photos/review.tsx` set `authorised = false` on ANY error, so one
+   dropped request showed a legitimate reviewer "Reviewer access only" — on a phone, a lift
+   or a tunnel reported as a permissions problem. Its gate tested
+   `APPROVER_ROLES = {PM, Admin, Owner}` against `projectRole`, but **"PM" is not a
+   ProjectRole** — it lives in `Iso19650Role` — so a project Manager or Coordinator whom the
+   server permits failed mobile's own gate. Same wrong-field bug as the eleven dead
+   `ProjectRole == "PM"` checks #547 replaced. `issue-detail.tsx` treated a null role as
+   "not a coordinator" and refused transitions locally without asking the server.
+
+**What each surface got:**
+
+| Surface | |
+|---|---|
+| **BCC** (#642) | `PlanscapeServerClient.Capabilities.cs` (tri-state, never throws) · `PlanscapeForbidden.cs` — one treatment, amber + lock, not the crimson error state · `LastStatus` on the client, set in the three HTTP helpers **and** the streaming export path, carrying the status as a **number** so nobody substring-matches it out of a message · capability-driven affordance across all five site-photo sub-tabs |
+| **planscape-web** (#643) | `ForbiddenNote` / `ForbiddenPanel` / a `forbidden` toast tone · `isForbidden()` + `describeFailure()` · `ApiError.serverMessage` · `lib/capabilities.ts` + `useProjectCapabilities()` · seven sites migrated, wording preserved verbatim on the three that already had it |
+| **Planscape mobile** (#645) | `src/api/capabilities.ts` (tri-state) · `src/utils/forbidden.ts` — `isForbidden` reads `.status`, **not** `message.includes('HTTP 403')` · five sites migrated, two of them behaviour corrections |
+
+**`msg.includes('HTTP 403')` was never a status test.** Mobile's `ApiError` is built as
+``new ApiError(res.status, body || `HTTP ${res.status}`)``, so the message is the response
+**body** and the `HTTP 403` string appears only when the body was **empty**. Five screens
+tested for it. A 403 carrying a reason — the useful kind — fell through to the generic
+failure branch every time. That is the #624 defect, latent in five more places than #624
+covered.
+
+**Deliberately not done, and why:**
+
+- **No `useProjectCapabilities` call where it has no consumer.** Web has no album /
+  checklist / distribution-group UI, so the hook has exactly one call site rather than being
+  scaffolding — an unused role-derivation API is what this work removes, not adds.
+- **Export is not gated in the BCC.** `POST photo-export` carries `[Authorize]` and no
+  capability check on the server; disabling it would invent a restriction that does not exist.
+- **The NDA flow is untouched.** `nda_required` is content gating with its own
+  accept-and-retry journey; folding it into a generic forbidden state would make it worse.
+- **`documents.tsx` and `issues.tsx` were left alone** — they are the subject of open PRs
+  #628 and #629 and will migrate onto the shared helper after those land.
+
+**Verification.** BCC: `dotnet build` 0/0, 15 new tests driving the real client against a
+real socket (killed server, 404, 500/502/401, HTML body, missing field, string `"true"`),
+full project 31 passed / 1 skipped. Web: `tsc --noEmit` clean, 100 tests passing (20 new),
+`next build` compiled. Mobile: `tsc --noEmit` clean, lint 0 errors / 122 warnings
+(unchanged from baseline), and a type-level test that was **demonstrated to fail** —
+6 errors — when `'unknown'` is removed from `CapabilityState`, then pass again when
+restored. None of the three has been exercised on screen.
+
+#### Completed (Phase 236 — Material Schedule verified in Revit; roofs, paint, and three defects withdrawn)
+
+Phase 235 shipped a material schedule that had **never run inside Revit**. This phase ran it, fixed
+what the run exposed, and closed the integrity gate.
+
+**1 — Run in Revit (2026-08-17), and only half of it held up.** A first run reported section letters
+A/B/C with no duplicates, the Summary letters and order matching the body, and a clean Validation
+sheet — the three defect classes the PATMAC reference sample failed on. **A later run contradicted
+the clean-Validation half**: 60 commodity rows, 61 unpriced-commodity issues, grand total UGX 0.
+
+The lettering and summary-projection logic is therefore established to behave in Revit as its unit
+tests claim. **That the export produces a usable material schedule is not**, and MATSCHED-1 stays
+open rather than being closed on the more flattering of two runs. The second run's cause is
+understood and tracked as MATSCHED-7 (`COST_COMPOUND_TAKEOFF` defaults off and is set in no shipped
+file, so cement, sand, blocks and bricks are never emitted at all) and MATSCHED-8 (every unmatched
+model row, furniture and casework included, is emitted as an unpriced commodity).
+
+**2 — The button was invisible.** It shipped inside a collapsed `<Expander>` on the BIM tab, one of
+six stacked collapsed groups, so a brand-new feature was effectively undiscoverable. Surfaced in
+the **BOQ & Cost Manager → Materials tab** (where the by-material rollup already lives) and in a
+new Actions-tab group, and the dock-panel expander now opens by default (#707).
+
+**3 — Roof and Finishes exported in m².** Supplier-unit rules matched only on `CompoundTakeoff`'s
+constituent kind, and those rows carry none — the engine emits 13 kinds, all masonry, RC and
+plaster. Rules now also match on Revit **category**, narrowed by an optional type-name pattern,
+because a concrete flat roof and a corrugated-sheet roof are both `Roofs` and buy completely
+differently. A category hit whose type fails is left in measured units and reported by new
+reconciler rule **R5** rather than converted on a guess (#709).
+
+**4 — Three of those rules were unsound, and were withdrawn.** `paint-wall`, `floor-tile` and
+`paint-ceiling` matched a whole ELEMENT and converted it to a finish: a composite wall row whose
+type read "plastered" priced the entire wall area as paint buckets, and `paint-ceiling` carried no
+type patterns at all, so a suspended grid became paint. Two further rules (`aggregate` since Phase
+235, `tile-adhesive`) matched neither a kind nor a category and could never fire. All five removed.
+Root cause was structural: **the two shipped data files were each valid and each tested, but nothing
+compared them**, so rules matching `Walls` and `Floors` silently inherited those categories' stage
+and filed finishes under the frame. A commodity now declares its own `stageId`, and
+`ShippedDataIntegrityTests` fails the build on an unreachable rule, a category rule with no stage,
+a stage that does not exist, an unpriced commodity or an orphaned rate (#710).
+
+**5 — Painting measured properly.** The painted area needed no new measurement: it IS the plastered
+face area (`area × PlasterFaces`), which `CompoundTakeoff` already derived to size plaster volume
+and simply never emitted. It now emits as its own constituent kind, split `paint_interior` /
+`paint_exterior` from `WallType.Function` (silk vs weather-guard are different products at different
+prices; unreadable defaults to interior, the cheaper case). An unplastered wall emits no paint at
+all — the branch is guarded by `PlasterFaces > 0` — so fair-faced blockwork cannot put buckets in a
+bill nobody ordered (#712).
+
+**Also fixed: `build.bat` and `deploy.bat` had never worked on this machine.** Both called plain
+`bash`, which on Windows resolves to `C:\Windows\System32\bash.exe` — the WSL launcher — and died
+with `execvpe(/bin/bash) failed` **after** `dotnet build` succeeded. So they printed "DEPLOY FAILED"
+over a clean 0-error compile, staged nothing, installed nothing, and left the plugin at whatever the
+previous deploy had put there: a silent-stale-plugin generator of the same class as the retired GOLD
+folder. Git ships bash at `<git>\bin\bash.exe` but only puts `<git>\cmd` on PATH, so it must be
+resolved explicitly (#703).
+
+**Still open:** tiling (ROADMAP MATSCHED-3) — a floor's tiled area is not its slab area, and the
+RC-slab path knows only concrete, rebar and formwork, so there is no finish-layer concept to say
+which floors are tiled. That needs a take-off, not a unit table. Nails/kg and hoop iron likewise.
+
+Tests 196 → **281**. Build 0/0 throughout.
+
+#### Completed (Phase 235 — Material Schedule export: stage-sectioned commodities in supplier units)
+
+StingTools could not produce the document a site or procurement team actually buys from. The BOQ
+measures **finished work** in **measured units** (m² of wall, m³ of concrete); a material schedule
+answers *what do I buy, in what unit, how much* — bags of cement, trips of sand, No. of blocks.
+Nothing converted between them. `BOQExportCommand` shipped a sheet **named** "Material Schedule"
+([`BOQExportCommand.cs:362`](../StingTools/BOQ/BOQExportCommand.cs)) that filtered BOQ rows whose
+unit happened to be m²/m³/kg and printed them unchanged — which is why the capability looked
+present when it was not. That sheet is untouched here; renaming it is separate cleanup.
+
+Built against a supplied reference document, `PATMAC MALL, Material Schedule.pdf` (4 pages, 11
+sections, UGX 347,914,455). **Its four arithmetic defects became the acceptance fixtures:** section
+letters `C`/`D`/`E` each used twice; a summary whose order did not match the body; a row reading
+`DPM 1 Roll × 300,000 = 150,000`; and sand priced at both 1,500,000 and 1,400,000 per trip.
+
+**1 — Three of the four defect classes are structural, not detected.** `AmountUGX`,
+`StageSection.SubTotalUGX` and `WorksSubtotalUGX` are **derived properties**, so an amount that
+disagrees with quantity × rate cannot be represented. Section letters are assigned at build time by
+`StageMapper.AssignLetters` and never authored, and `MaterialScheduleDocument.Summary` **projects
+from the same `Stages` list the body renders** — so body and summary cannot diverge. Only
+one-commodity-two-rates needs a reconciler.
+
+**2 — Six of eight load-bearing assumptions in the plan were false.** Every one was caught by
+checking the code rather than trusting the plan, and every one changed the implementation.
+Compound take-off is **off by default** (`COST_COMPOUND_TAKEOFF`), so without it there are no
+constituent rows at all and the schedule would have built empty — the builder now detects and
+reports that. The constituent kind survived only as a `"[Compound: …]"` prefix inside `Note`, so
+kind-routing was not free; it is now a first-class `BOQLineItem.ConstituentKind`, additive and
+null-defaulting so existing JSON snapshots deserialise unchanged. **No commodity rates existed
+anywhere** — both shipped rate CSVs key on Revit *category*, so `ResolveConstituentRate` returned
+`(0, "None", 20)` for every constituent; a price list and resolver are new. The BOQ's `LabourUGX`
+split is nulled on manual override and on modal-rate aggregation, so deriving labour from it would
+silently under-report — labour is a QS lump with an advisory suggestion. `ViewSchedule.CreateKeySchedule`
+is used **nowhere** in this codebase, so schedule views are deferred behind a timeboxed spike with a
+named fallback. And the export-routing fix needed two entries, not one (see 4).
+
+**3 — Three defects were found reviewing the implementation, all introduced by the plan.** An
+empty provisional-sum category matched the **first** section, because `"ANYTHING".IndexOf("")`
+returns 0 — an uncategorised UGX 30m sum could file itself under Tools & Equipment. The labour
+suggestion summed **every** model row once per section, so all eight stages advertised the whole
+project's labour as their own (no total was wrong, `AmountUGX` stayed 0, but a QS would reasonably
+read it as per-stage). And provisional sums matched their category against section **titles** while
+the stage library routes by **category** — `"Electrical Equipment"` does not appear in
+`"ELEMENT 06: ELECTRICAL INSTALLATION"`, so a services sum minted a duplicate section at the end of
+the document while the correct routing sat unused in the JSON. All three now live in the Revit-free
+`ManualRowPlacer` with tests; they had shipped because they were in `MaterialScheduleBuilder`, which
+needs a `Document` and therefore had no tests.
+
+**4 — One pre-existing bug surfaced: `ProjectSetup.Load` never backfilled export routes.** It only
+null-guarded `ExportRoutes`, so a key added to the shipped defaults reached **only projects set up
+after the change**. Under CdeFirst that is not cosmetic — `ProjectFolderEngine.GetExportFolder`
+returns `MISC` for any unrouted key *before* `ExportTypeToFolder` is consulted, silently. This has
+applied to every export type ever added. Fixed as a v1 → v2 schema migration beside the existing
+v0 → v1. A customised route is never overwritten and a deliberately-blanked one stays blank;
+`SchemaVersion`'s default stays **1 on purpose**, because bumping it to 2 would make a file written
+without the field look already-migrated and skip the backfill.
+
+**Shape.** `Core/MaterialSchedule/` (7 files, Revit-free): model, `SupplierUnitConverter`,
+`CommodityRateResolver`, `StageMapper`, `CommodityAggregator`, `Reconciler`, `ManualRowPlacer`.
+`BOQ/MaterialSchedule/` (builder + XLSX writer) and `Commands/MaterialSchedule/`. Three data files
+— `STING_SUPPLIER_UNITS.json`, `STING_MATERIAL_STAGES.json`, `STING_COMMODITY_RATES.csv` — each
+corporate baseline plus project override, and each with a test that deserialises the **shipped**
+file so a Newtonsoft field-name or type mismatch fails at build rather than going runtime-dead.
+`BoqXlsxStyle` extracts the banner/header helpers from `BOQExportCommand` **verbatim** (the real
+banner merges columns 1–16 at font size 12; the real header does not wrap) so both workbooks stay
+one visual family. Prices are a **renderer flag** — the engine computes identically either way.
+
+**Verified:** `dotnet build` 0 errors / 0 warnings; `StingTools.Boq.Tests` **254 passing**, up from
+a 196 baseline; `tools/check_path_discipline.ps1` clean. PR #700.
+
+**Not verified — this has never run inside Revit.** Tasks 14–16 of the plan are open: end-to-end
+verification, the `CreateKeySchedule` spike, and the view builder that is deliberately blocked until
+the spike records an outcome. See ROADMAP MATSCHED-1..5.
+
 #### Completed (Phase 234 — self-serve licences, and the licensing chain proven end to end)
 
 `POST /api/license/issue` had been implemented, deployed and working for weeks. **Nothing called
@@ -74,8 +642,41 @@ echoes the value back on failure; it deliberately does not strip unknown charact
 typed for a `0` still fails loudly. Verified by a 17-case table test that extracts the function
 live from the page, plus both paths driven in a browser.
 
+**8 — The last hop, proven with real components (2026-08-17).** The issued `.lic` was installed at
+`C:\ProgramData\Planscape\StingTools\` (previous one backed up) and Revit 2025 launched.
+`LicensePresenter` posted on startup:
+
+```
+2026-08-17 08:06:01 [INFO] License presented: licensee=exo expires=08/03/2036 inUse=1/10
+```
+
+| Field | Before | After |
+|---|---|---|
+| `last_seen_at` | `null` | **2026-08-17T05:06:01.266Z** |
+| `last_seen_plugin_version` | `null` | **2.2.0.0** (real assembly version) |
+| `last_seen_revit_version` | `null` | **2025** |
+| `updated_at` | 2026-08-16T21:31:55 | **unchanged** |
+
+Audit trail reads `license.issued` → `license.first_seen`. So the chain runs end to end on real
+components — browser → `issue.ts` → `.lic` on disk → Revit plugin → `present.ts` → D1 — with curl
+standing in for nothing. Two design decisions verified rather than assumed: `updated_at` is not
+touched by observation, and a first sighting audits as `license.first_seen`, not the routine
+`license.presented`. ROADMAP LIC-7 closed.
+
+**Two operational traps this cost time on, both now written down:**
+
+- **`StingLog`'s file is date-stamped** — `StingTools_yyyyMMdd.log`, not `StingTools.log`. Searching
+  the undated name returns nothing, which reads as "the plugin never logged" rather than "you
+  looked in the wrong place". CLAUDE.md corrected.
+- **The `.addin` `<Assembly>` path moved twice more during this phase** (`wt-viscenter`, then
+  `relaxed-goodall-bd632a`), the second time four minutes before Revit was launched. It was
+  re-grepped and the target DLL re-checked for the presenter *before* starting Revit — had it been
+  a build without `LicensePresenter`, the result would have been a confident false negative. Verify
+  a DLL's contents by decoding UTF-16 at **both** byte alignments; a single-alignment scan already
+  produced one wrong answer this phase.
+
 Also merged PR #626 (retires the per-user quota axes, closes #619) and closed #644 as a duplicate
-of #652. Filed #673, #674, #677, #691, #693, #694. Spec and plan:
+of #652. Filed #673, #674, #677, #691, #693, #694, #705. Spec and plan:
 [`superpowers/specs/2026-08-16-licences-page-design.md`](superpowers/specs/2026-08-16-licences-page-design.md),
 [`superpowers/plans/2026-08-16-licences-self-serve.md`](superpowers/plans/2026-08-16-licences-self-serve.md).
 

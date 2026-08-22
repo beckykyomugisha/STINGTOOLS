@@ -127,12 +127,34 @@ public class ProjectMembersController : ControllerBase
     /// exactly how the eleven dead <c>ProjectRole == "PM"</c> gates happened.
     /// The server owns the rule; clients render what it returns.
     ///
-    /// CLIENT CONTRACT — 404 MEANS ALL CAPABILITIES ARE FALSE.
-    /// A 404 says the caller cannot see this project at all. Treat every
-    /// capability as false. Never "unknown, so proceed" — a fail-open default
-    /// here would undo the gate on all three surfaces at once. The same
-    /// applies to a network error, a timeout, or a body you cannot parse:
-    /// absence of an explicit <c>true</c> is <c>false</c>.
+    /// CLIENT CONTRACT — THREE STATES, NOT TWO.
+    ///
+    /// <list type="bullet">
+    /// <item><b>allowed</b> — an explicit <c>true</c>. Offer the control.</item>
+    /// <item><b>denied</b> — an explicit <c>false</c>, or a <b>404</b>. Disable the
+    /// control and name the capability. A 404 is authoritative: it says the caller
+    /// cannot see this project at all.</item>
+    /// <item><b>unknown</b> — a network error, a timeout, or a body you cannot
+    /// parse. <b>Leave the control enabled</b> and let the attempt report honestly.
+    /// A dropped connection says nothing about permissions.</item>
+    /// </list>
+    ///
+    /// The distinction matters because capabilities drive AFFORDANCE, not
+    /// enforcement. The server is the only gate; a client's snapshot can be stale,
+    /// so every action still attempts and reports its refusal. Rendering
+    /// <i>unknown</i> as <i>denied</i> would disable a legitimate user's controls on
+    /// a network blip, and would look identical to a permissions problem — the exact
+    /// confusion issue #558 exists to remove. It is also the house anti-pattern in a
+    /// new costume: an absent answer displayed as a definite one, the same mistake as
+    /// an empty list standing in for a failed load.
+    ///
+    /// This paragraph previously said the opposite — that absence of an explicit
+    /// <c>true</c> is <c>false</c>, network errors included. That is recorded here
+    /// rather than quietly replaced, because two mobile call sites already fail
+    /// closed on unknown (<c>site-photos/review.tsx</c>,
+    /// <c>issue-detail.tsx</c>) and #558 corrects them; a reader who finds one of
+    /// those and this docstring disagreeing should know which way the correction
+    /// runs.
     ///
     /// Deliberately two booleans, matching the two predicates that actually
     /// exist on <see cref="ProjectRoles"/>. A third does not get added inline
@@ -171,6 +193,20 @@ public class ProjectMembersController : ControllerBase
     public async Task<ActionResult> AddMember(Guid projectId, [FromBody] AddMemberRequest req)
     {
         if (!await IsManagerOrAboveAsync(projectId)) return Forbid();
+
+        // Reject an ISO 19650 role outside the served vocabulary. Same shape as
+        // invalid_project_role below, so a client parses one error, not two.
+        //
+        // Only an EXPLICITLY SUPPLIED value is checked: `req.Iso19650Role == null`
+        // falls through to the profile default or "M" exactly as before. That
+        // matters because two rows in the wild already hold values outside this
+        // list, and someone editing such a member's ProjectRole must not be blocked
+        // by a code they did not write. See Iso19650Roles for why tolerance here is
+        // deliberate, and Program.cs for the boot report that keeps it from becoming
+        // amnesia.
+        if (req.Iso19650Role != null && !Iso19650Roles.IsCanonical(req.Iso19650Role))
+            return BadRequest(new { error = "invalid_iso19650_role", allowed = Iso19650Roles.All });
+
 
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
@@ -269,6 +305,19 @@ public class ProjectMembersController : ControllerBase
             });
         }
 
+        // Reject an ISO 19650 role outside the served vocabulary. Same shape as
+        // invalid_project_role below, so a client parses one error, not two.
+        //
+        // Only an EXPLICITLY SUPPLIED value is checked: `req.Iso19650Role == null`
+        // falls through to the profile default or "M" exactly as before. That
+        // matters because two rows in the wild already hold values outside this
+        // list, and someone editing such a member's ProjectRole must not be blocked
+        // by a code they did not write. See Iso19650Roles for why tolerance here is
+        // deliberate, and Program.cs for the boot report that keeps it from becoming
+        // amnesia.
+        if (req.Iso19650Role != null && !Iso19650Roles.IsCanonical(req.Iso19650Role))
+            return BadRequest(new { error = "invalid_iso19650_role", allowed = Iso19650Roles.All });
+
         var tenantId = GetTenantId();
         var project  = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
@@ -307,8 +356,14 @@ public class ProjectMembersController : ControllerBase
             // User doesn't exist in this org — create a pending account
             var tenant = await _db.Tenants.FindAsync(tenantId);
             var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-            if (tenant != null && userCount >= tenant.MaxUsers)
-                return BadRequest($"User limit ({tenant.MaxUsers}) reached. Upgrade your plan to add more users.");
+            // Via AccountCeilingPolicy, not a raw >= (#616, #653). This is an
+            // anti-abuse ceiling, not a plan cap — viewers and coordinators are free
+            // — so the message no longer tells the customer to upgrade, which would
+            // be selling them something that does not raise this number.
+            if (!Planscape.Core.AccountCeilingPolicy.Allows(userCount, tenant))
+                return BadRequest(
+                    $"Account limit ({Planscape.Core.AccountCeilingPolicy.Label(tenant!.MaxUsers)}) " +
+                    "reached for this organisation. Contact support if you need it raised.");
 
             user = new AppUser
             {
@@ -346,10 +401,16 @@ public class ProjectMembersController : ControllerBase
             // Send invite email with the one-click deep link (token + email +
             // project). baseUrl uses Planscape:PublicBaseUrl when set, so the
             // link a remote guest receives is reachable — never internal localhost.
-            await _emailService.SendInviteEmailAsync(
-                user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, baseUrl, rawInviteToken, projectId);
-            emailDispatched = _emailService.IsConfigured;
+            // Through EmailDispatch: the rows above are ALREADY COMMITTED, and the
+            // ProjectMember row is added further down, so letting the provider throw
+            // here half-creates the invitation and then reports failure. Measured
+            // against production 2026-08-20: 500, empty body, because Resend answered
+            // 422 for the recipient domain.
+            emailDispatched = await Planscape.Infrastructure.Services.EmailDispatch.TrySendAsync(
+                _emailService, _logger, "invite", user.Email,
+                () => _emailService.SendInviteEmailAsync(
+                    user.Email, user.DisplayName, GetCurrentUserName(),
+                    project.Name, baseUrl, rawInviteToken, projectId));
         }
         else if (!user.IsActive)
         {
@@ -362,10 +423,11 @@ public class ProjectMembersController : ControllerBase
             rawInviteToken = MintInviteToken(user);
             await _db.SaveChangesAsync();
 
-            await _emailService.SendInviteEmailAsync(
-                user.Email, user.DisplayName, GetCurrentUserName(),
-                project.Name, baseUrl, rawInviteToken, projectId);
-            emailDispatched = _emailService.IsConfigured;
+            emailDispatched = await Planscape.Infrastructure.Services.EmailDispatch.TrySendAsync(
+                _emailService, _logger, "invite (reissued)", user.Email,
+                () => _emailService.SendInviteEmailAsync(
+                    user.Email, user.DisplayName, GetCurrentUserName(),
+                    project.Name, baseUrl, rawInviteToken, projectId));
             _logger.LogInformation("[invite] reissued token for {Email} on project {ProjectId}", user.Email, projectId);
         }
 
@@ -414,8 +476,12 @@ public class ProjectMembersController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        // Item 8 — report whether mail ACTUALLY went out (not merely whether SMTP
-        // is configured) so the plugin shows "emailed" vs "copy the link" honestly.
+        // Report whether mail ACTUALLY went out (not merely whether a provider is
+        // configured) so the plugin shows "emailed" vs "copy the link" honestly. This
+        // comment described the intent long before the code could deliver it:
+        // emailDispatched was assigned `_emailService.IsConfigured`, which says a
+        // provider EXISTS, not that it accepted the message — and the only path where
+        // those differ threw before reaching here.
         // Deep link — return the one-click accept URL so the plugin can show + log
         // it and copy it as the fallback when mail wasn't sent.
         bool emailSent = emailDispatched;
@@ -436,9 +502,22 @@ public class ProjectMembersController : ControllerBase
             emailSent,
             inviteLink = inviteUrl,
             linkWarning,
+            // Three outcomes, not two. "Not sent" used to always read "Email is not
+            // configured on the server", which sends the reader to check env vars when
+            // the actual cause may be this ONE recipient — a rejected domain, a
+            // suppression, a bounce. Verified on the live server 2026-08-20: a rejected
+            // address produced exactly that message while Resend was configured and
+            // working. A message that names the wrong cause is worse than a vague one,
+            // because it is actionable in the wrong direction.
             note       = !user.IsActive
-                ? (emailSent ? "An invitation email has been sent with instructions to set a password."
-                             : "Email is not configured on the server — copy the invitation link to the invitee instead.")
+                ? emailSent
+                    ? "An invitation email has been sent with instructions to set a password."
+                    : _emailService.IsConfigured
+                        ? "The invitation was recorded, but the email could not be delivered to this "
+                          + "address — copy the invitation link to the invitee instead. Check the "
+                          + "address, then the server log for the provider's reason."
+                        : "Email is not configured on the server — copy the invitation link to the "
+                          + "invitee instead."
                 : null
         });
     }
@@ -475,11 +554,17 @@ public class ProjectMembersController : ControllerBase
         // anything outside the canonical set; same error shape as invalid_kind
         // in DistributionGroupsController.
         //
-        // Iso19650Role is deliberately NOT validated in this pass — its
-        // vocabulary lives in GetRoles() below and constraining it is a
-        // separate, wider change.
+        // Iso19650Role IS now validated — this is the "separate, wider change"
+        // the comment that stood here was waiting for. Its vocabulary moved out of
+        // GetRoles() and into Iso19650Roles, so the list clients are offered and the
+        // list writes are checked against are one list.
         if (req.ProjectRole != null && !ProjectRoles.IsCanonical(req.ProjectRole))
             return BadRequest(new { error = "invalid_project_role", allowed = ProjectRoles.All });
+
+        // Explicitly-supplied only: omitting the field leaves an existing stray
+        // untouched and the edit succeeds. See the note on AddMember above.
+        if (req.Iso19650Role != null && !Iso19650Roles.IsCanonical(req.Iso19650Role))
+            return BadRequest(new { error = "invalid_iso19650_role", allowed = Iso19650Roles.All });
 
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;
@@ -612,27 +697,11 @@ public class ProjectMembersController : ControllerBase
     // ── ISO 19650 roles lookup ─────────────────────────────────────────────────
 
     [HttpGet("roles")]
-    public ActionResult GetRoles() => Ok(new[]
-    {
-        new { Code = "A",  Label = "Appointing Party" },
-        new { Code = "PM", Label = "Project Manager" },
-        new { Code = "BC", Label = "BIM Coordinator" },
-        new { Code = "BA", Label = "BIM Author" },
-        new { Code = "AR", Label = "Architect" },
-        new { Code = "SE", Label = "Structural Engineer" },
-        new { Code = "ME", Label = "MEP Engineer" },
-        new { Code = "CE", Label = "Civil Engineer" },
-        new { Code = "QS", Label = "Quantity Surveyor" },
-        new { Code = "CA", Label = "Contract Administrator" },
-        new { Code = "CT", Label = "Main Contractor" },
-        new { Code = "SC", Label = "Subcontractor" },
-        new { Code = "FM", Label = "Facilities Manager" },
-        new { Code = "OM", Label = "Operations Manager" },
-        new { Code = "CL", Label = "Client Representative" },
-        new { Code = "M",  Label = "Model Author" },
-        new { Code = "V",  Label = "Viewer" },
-        new { Code = "Z",  Label = "Unassigned" }
-    });
+    // Served from Iso19650Roles.Catalogue, not a literal, so the list offered to
+    // clients and the list writes are validated against cannot drift apart. The
+    // response shape is unchanged: [{ code, label }, ...] in the same order.
+    public ActionResult GetRoles() => Ok(
+        Iso19650Roles.Catalogue.Select(r => new { Code = r.Code, Label = r.Label }));
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 

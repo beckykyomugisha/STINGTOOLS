@@ -2588,6 +2588,7 @@
                                             ToolTip="Unified DWG Wizard — auto-detect whether the imported DWG is structural / architectural / MEP and dispatch to the right wizard."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Auto Rooms" Tag="AutoCreateRooms" Click="Cmd_Click" ToolTip="Auto-place Rooms into every enclosed boundary on the active plan view's level. Skips circuits that already have a room; numbers new ones sequentially after the existing count."/>
                                 </WrapPanel>
                                 <Expander Header="Multi-building site (§B1-B6)" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
@@ -3228,7 +3229,11 @@
                                     <Button Style="{StaticResource OrangeBtn}" Content="✓ Prep Export" Tag="BOQPrepForExport" Click="Cmd_Click"
                                             ToolTip="Run the pre-export quality gate chain (compliance, containers, stale, BOQ data quality, warnings, placeholders). Only go to export when all gates are green."/>
                                 </WrapPanel>
-                                <Expander Header="BOQ + 5D ops" FontSize="10" Margin="0,2,0,0">
+                                <!-- Expanded by default: this group holds the BOQ and material-schedule
+                                     exports, which are the most-reached-for actions on this tab. A new
+                                     feature landing inside a collapsed expander is invisible, not merely
+                                     one click away. -->
+                                <Expander Header="BOQ + 5D ops" FontSize="10" Margin="0,2,0,0" IsExpanded="True">
                                     <WrapPanel Margin="0,4">
                                         <Button Style="{StaticResource BlueBtn}" Content="BCC Refresh" Tag="BOQBccRefresh" Click="Cmd_Click"
                                                 ToolTip="Refresh BOQ × BIM Coordination Center integrations: compute cost impact per open issue, remediation cost per clash, BOQ data-quality band, and synthetic BOQ-gap warnings. Auto-hooks (revision snapshot, meeting agenda, deliverable row, CDE routing) fire from their host commands."/>
@@ -3236,6 +3241,8 @@
                                                 ToolTip="Visualise per-category rate provenance (Override / CSV / COBie / Default / None). HTML + CSV emitted so QS knows which categories need review."/>
                                         <Button Style="{StaticResource BlueBtn}" Content="Export" Tag="BOQExport" Click="Cmd_Click"
                                                 ToolTip="Export an 8-sheet BOQ data workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot) for QS round-tripping"/>
+                                        <Button Style="{StaticResource BlueBtn}" Content="Material Schedule" Tag="MaterialSchedule_Export" Click="Cmd_Click"
+                                                ToolTip="Export a stage-sectioned material schedule in supplier units (Bags / Trips / No.) as XLSX, with an include/exclude prices toggle"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Import" Tag="BOQImport" Click="Cmd_Click"
                                                 ToolTip="Import a previously exported BOQ spreadsheet and apply rate overrides"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Snap Diff" Tag="BOQSnapshotCompare" Click="Cmd_Click"

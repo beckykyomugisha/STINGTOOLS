@@ -1672,7 +1672,7 @@ STINGTOOLS/
 - Contains `ToggleDockPanelCommand`
 
 ### `StingLog` (static) — `Core/StingLog.cs` (127 lines)
-- Thread-safe file logger (`StingTools.log` alongside the DLL)
+- Thread-safe file logger, alongside the DLL. **The filename is date-stamped — `StingTools_yyyyMMdd.log`, not `StingTools.log`.** Searching for the undated name finds nothing and reads as "the plugin never logged", which is a different and much more alarming conclusion; it cost a wrong call on 2026-08-17. The DLL's location is whatever the installed `.addin` points at, and that moves — see [[project-stingtools-deploy-target]] / grep `<Assembly>` first.
 - Uses buffered `StreamWriter` with `FileShare.Read` for performance
 - Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`, `Shutdown()`
 - `Shutdown()` flushes and closes the log file
@@ -2582,6 +2582,38 @@ loser's folder went stale unannounced. That is the root cause of a long-running
 the manifest had been on `CompiledPlugin` for some time and GOLD had sat unbuilt
 for 16 days. **Older runners that name GOLD as the deploy target are wrong** —
 use the manifest.
+
+### What the repo says is not what is serving — check the live thing
+
+> **Before concluding a change is broken, or that a fix worked, verify against the
+> thing actually running.** Five separate instances of this cost hours on
+> 2026-08-16/17 alone. In every one, a correct change had no effect, and the
+> absence of an error read as "the code is wrong".
+
+The pattern: a repo artefact *describes* a deployment, and something else *is* the
+deployment. The artefact is not lying so much as inert, and nothing warns you.
+
+| Surface | The trap | The check |
+|---|---|---|
+| **Revit plugin** | The `.addin` `<Assembly>` path moves between checkouts — it changed **five times** in two days, twice to another agent's worktree. Building the right code into the wrong folder succeeds silently. | `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin \| sort -u` |
+| **marketing-site** | No git-connected Pages build (#651). **Merging deploys nothing** — a human must run `npm run deploy`. Pages' static fallback then makes an undeployed Function return 405/200-HTML, indistinguishable from a route that never existed. | Probe a known-good Function, the new one, and a nonsense path; compare all three |
+| **Pages secrets** | Bindings are captured at **deployment** time (#674). `wrangler pages secret list` showing a name proves it is **stored**, not **bound**. Setting a secret and re-probing yields the *old* behaviour. | Set it, **redeploy**, then probe |
+| **Render** | `render.yaml` declares `planscape-api`; production is `planscape-api-free` (#717). The blueprint governs **nothing** — editing `autoDeploy` there changes no behaviour. Dashboard Auto-Deploy is the real trigger, and it is unfiltered, so a Revit-plugin commit rebuilds the .NET API. | `curl -o /dev/null -w "%{http_code}" https://planscape-api.onrender.com/` → 404 |
+| **D1 schema** | A new table in `schema.sql` does **not** exist in production until applied. Deploying first gives a runtime `no such table`. Never re-run the whole file — it holds bare `ALTER TABLE`s that fail on re-run. | Apply only the new DDL, **before** deploying |
+
+**Two corollaries worth internalising.**
+
+*An absent side effect never tells you why.* A silent no-op looks identical to a
+wrong fix, a bad credential, and a command that never ran. When something
+reportedly done has no observable effect, stop re-running it and get the error —
+a log, a tail, a screenshot. Prefer making the next attempt self-recording over
+asking for the same output twice.
+
+*Verify the instrument before trusting its silence.* A `wrangler pages deployment
+tail` binds to one deployment id, so **any deploy invalidates it** — watching a
+superseded deployment reports zero requests forever. Prove the tail is alive
+(generate a request, watch the line count move) before reading "no traffic" as
+evidence of anything.
 
 ### Branching
 

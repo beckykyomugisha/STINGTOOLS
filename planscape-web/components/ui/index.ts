@@ -5,6 +5,8 @@ export {
   Card,
   EmptyState,
   ErrorNote,
+  ForbiddenNote,
+  ForbiddenPanel,
   Input,
   LoadingBlock,
   PageHeader,

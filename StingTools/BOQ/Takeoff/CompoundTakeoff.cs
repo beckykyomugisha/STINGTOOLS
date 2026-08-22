@@ -39,9 +39,12 @@ namespace StingTools.BOQ.Takeoff
         public double FaceAreaM2;        // one elevation (net) area of the wall
         public bool IsBrick;             // brickwork vs blockwork
         public double UnitsPerM2;        // BRICKS_PER_M2 / BLOCKS_PER_M2
+        /// <summary>RETIRED. Wastage belongs to the supplier-unit rule; leaving it
+        /// here as well double-counted it. Kept so existing callers still compile.</summary>
         public double UnitWastePct;      // cutting waste on the units
         public int PlasterFaces;         // 0 / 1 / 2 plastered faces
         public double PlasterThicknessM; // plaster coat thickness
+        /// <summary>RETIRED — see UnitWastePct.</summary>
         public double PlasterWastePct;
         public double MortarRatioM3PerM2;     // mortar volume per m² of wall
         public double MortarCementBagsPerM3;  // from MORTAR mix (MAT-2)
@@ -49,6 +52,10 @@ namespace StingTools.BOQ.Takeoff
         public double PlasterCementBagsPerM3; // from PLASTER mix (MAT-2)
         public double PlasterSandRatio;
         public bool IsRcWall;            // adds formwork (both faces) when true
+        /// <summary>Exterior walls paint as weather-guard, interior as silk —
+        /// different products at different prices, so they are separate
+        /// commodities. Read from WallType.Function by the Revit-side builder.</summary>
+        public bool IsExteriorWall;
     }
 
     public struct RcElementInput
@@ -57,6 +64,38 @@ namespace StingTools.BOQ.Takeoff
         public double ConcreteM3Net;  // net of MAT-1 void factor
         public double RebarBandKgPerM3;
         public double FormworkM2;     // soffit + sides / both wall faces
+    }
+
+    /// <summary>
+    /// MAT-SCHED — RC column inputs (all m). A column shutters on ALL FOUR faces
+    /// and has no soffit, so its formwork is perimeter × height.
+    /// </summary>
+    public struct RcColumnInput
+    {
+        public double WidthM;             // rectangular b
+        public double DepthM;             // rectangular d
+        public double DiameterM;          // > 0 → round column; overrides W×D
+        public double HeightM;
+        public double ConcreteM3Override; // > 0 → Revit's own solid volume wins
+        public double RebarBandKgPerM3;
+    }
+
+    /// <summary>
+    /// MAT-SCHED — RC foundation inputs (all m). A pad or strip bears on the
+    /// ground, so there is no soffit shutter; only the SIDES are formed, and only
+    /// when it is not cast against a neat excavation.
+    /// </summary>
+    public struct RcFoundationInput
+    {
+        public double LengthM;
+        public double WidthM;
+        public double DepthM;
+        public double ConcreteM3Override;
+        public double RebarBandKgPerM3;
+        /// <summary>Blinding is unreinforced by definition.</summary>
+        public bool IsBlinding;
+        /// <summary>False when cast against the excavation face.</summary>
+        public bool FormworkToSides;
     }
 
     /// <summary>MAT-4.3 — RC beam inputs (all m).</summary>
@@ -93,11 +132,21 @@ namespace StingTools.BOQ.Takeoff
             // 1. The walling itself, measured m² (the QS prices £/m² by type).
             lines.Add(new CompoundLine(masonryKind, $"{masonryWord} wall", "m2", area, SecMasonry));
 
-            // 2. Units (bricks/blocks) nr, incl. cutting waste.
+            // 2. Units (bricks/blocks) nr — NET of waste.
+            //
+            // Wastage lives in ONE place: the supplier-unit rule. It used to be
+            // applied here as well, so blocks and bricks carried cutting waste
+            // twice (engine ~5% then the rule's 5%, ≈10% effective) and nobody
+            // could see which allowance was which.
+            //
+            // Brick and block are DISTINCT kinds. A single "units" kind sent a
+            // brick wall's brick count into the block commodity, so bricks were
+            // ordered as blocks.
             if (m.UnitsPerM2 > 0)
             {
-                double units = area * m.UnitsPerM2 * (1.0 + Math.Max(0, m.UnitWastePct) / 100.0);
-                lines.Add(new CompoundLine("units", m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry));
+                double units = area * m.UnitsPerM2;
+                lines.Add(new CompoundLine(m.IsBrick ? "brick_units" : "block_units",
+                    m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry));
             }
 
             // 3. Mortar m³ and its cement (bags) + sand (m³) from the MAT-2 mix.
@@ -119,14 +168,28 @@ namespace StingTools.BOQ.Takeoff
                 double plasterArea = area * m.PlasterFaces;
                 lines.Add(new CompoundLine("plaster", $"Plaster ({m.PlasterFaces} face{(m.PlasterFaces > 1 ? "s" : "")})",
                     "m2", plasterArea, SecPlaster));
-                double plasterVol = plasterArea * Math.Max(0, m.PlasterThicknessM)
-                                    * (1.0 + Math.Max(0, m.PlasterWastePct) / 100.0);
+                // NET of waste — the supplier-unit rule owns the allowance. This
+                // used to multiply by PlasterWastePct (20%), so the cement and
+                // sand derived from it were wasted twice.
+                double plasterVol = plasterArea * Math.Max(0, m.PlasterThicknessM);
                 if (plasterVol > 0 && m.PlasterCementBagsPerM3 > 0)
                     lines.Add(new CompoundLine("plaster_cement", "Plaster — cement", "bag",
                         plasterVol * m.PlasterCementBagsPerM3, SecPlaster));
                 if (plasterVol > 0 && m.PlasterSandRatio > 0)
                     lines.Add(new CompoundLine("plaster_sand", "Plaster — sand", "m3",
                         plasterVol * m.PlasterSandRatio, SecPlaster));
+
+                // Painted area IS the plastered face area — no new measurement,
+                // just the quantity already derived above given its own kind so
+                // paint routes and converts like any other constituent. Wastage
+                // stays with the supplier-unit rule (the spreading rate absorbs
+                // over-application), exactly as it does for plaster.
+                // An unplastered wall is not painted: this whole branch is
+                // guarded by PlasterFaces > 0.
+                lines.Add(new CompoundLine(
+                    m.IsExteriorWall ? "paint_exterior" : "paint_interior",
+                    m.IsExteriorWall ? "Paint — exterior (weather-guard)" : "Paint — interior",
+                    "m2", plasterArea, SecPlaster));
             }
 
             // 5. Formwork for an RC wall (both faces).
@@ -223,6 +286,55 @@ namespace StingTools.BOQ.Takeoff
         }
 
         /// <summary>Constituent lines for an RC slab / beam / column / wall.</summary>
+        /// <summary>
+        /// Column constituents. Formwork is the perimeter × height — all four
+        /// faces, no soffit. A round column uses its circumference: treating
+        /// Ø152 as a 152 square would over-order shuttering by about 27%.
+        /// </summary>
+        public static List<CompoundLine> RcColumn(RcColumnInput c)
+        {
+            double h = Math.Max(0, c.HeightM);
+            bool round = c.DiameterM > 0;
+
+            double derivedM3 = round
+                ? Math.PI * c.DiameterM * c.DiameterM / 4.0 * h
+                : Math.Max(0, c.WidthM) * Math.Max(0, c.DepthM) * h;
+            double conc = c.ConcreteM3Override > 0 ? c.ConcreteM3Override : derivedM3;
+
+            double perimeter = round
+                ? Math.PI * c.DiameterM
+                : 2.0 * (Math.Max(0, c.WidthM) + Math.Max(0, c.DepthM));
+            double formwork = perimeter * h;
+
+            return RcElement(new RcElementInput
+            {
+                ElementKind = "column",
+                ConcreteM3Net = conc,
+                RebarBandKgPerM3 = c.RebarBandKgPerM3,
+                FormworkM2 = formwork
+            });
+        }
+
+        /// <summary>
+        /// Foundation constituents. Only the SIDES are shuttered — a pad bears on
+        /// the ground, so there is no soffit — and not even those when it is cast
+        /// against the excavation. Blinding carries no reinforcement.
+        /// </summary>
+        public static List<CompoundLine> RcFoundation(RcFoundationInput f)
+        {
+            double l = Math.Max(0, f.LengthM), w = Math.Max(0, f.WidthM), d = Math.Max(0, f.DepthM);
+            double conc = f.ConcreteM3Override > 0 ? f.ConcreteM3Override : l * w * d;
+            double formwork = f.FormworkToSides ? 2.0 * (l + w) * d : 0;
+
+            return RcElement(new RcElementInput
+            {
+                ElementKind = f.IsBlinding ? "blinding" : "foundation",
+                ConcreteM3Net = conc,
+                RebarBandKgPerM3 = f.IsBlinding ? 0 : f.RebarBandKgPerM3,
+                FormworkM2 = formwork
+            });
+        }
+
         public static List<CompoundLine> RcElement(RcElementInput r)
         {
             var lines = new List<CompoundLine>();

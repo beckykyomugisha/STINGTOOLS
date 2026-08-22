@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -28,10 +29,22 @@ public class QuotaGuardService : IQuotaGuardService
         _tenantContext = tenantContext;
     }
 
+    /// <summary>
+    /// The <b>single</b> project gate. <c>ProjectsController.CreateProject</c> used to
+    /// carry a second one inline (<c>projectCount &gt;= tenant.MaxProjects</c>) reading
+    /// a different source; two gates on one action meant the answer depended on
+    /// filter-vs-body ordering rather than on policy. If another project-creating path
+    /// appears, give it <c>[Quota(QuotaAxis.Projects)]</c> — do not re-add a local check.
+    /// </summary>
     public async Task<QuotaResult> CheckCanAddProjectAsync(CancellationToken ct = default)
     {
-        var (limits, current) = await CountAsync(QuotaAxis.Projects, ct);
-        return Result(QuotaAxis.Projects, current, limits.MaxProjects);
+        var (_, current, tenant) = await CountAsync(QuotaAxis.Projects, ct);
+
+        // D1's tier grants where present, else the local plan; the tenant column may
+        // only tighten. Resolving all three in ONE place is the point — a caller that
+        // read a single source would disagree with this service and, being closer to
+        // the action, would win.
+        return Result(QuotaAxis.Projects, current, ProjectCeilingPolicy.EffectiveCap(tenant));
     }
 
     public async Task<QuotaResult> CheckCanUploadBytesAsync(long incomingBytes, CancellationToken ct = default)
@@ -55,7 +68,12 @@ public class QuotaGuardService : IQuotaGuardService
         return QuotaResult.Allow(QuotaAxis.Storage, used, capBytes);
     }
 
-    private async Task<(BillingPlanLimits.Limits, int)> CountAsync(QuotaAxis axis, CancellationToken ct)
+    /// <summary>
+    /// Returns the tenant alongside its plan limits and the live count, because the
+    /// caller needs BOTH sources to resolve a cap and re-querying would risk them
+    /// disagreeing.
+    /// </summary>
+    private async Task<(BillingPlanLimits.Limits, int, Tenant?)> CountAsync(QuotaAxis axis, CancellationToken ct)
     {
         var tenant = await _db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == _tenantContext.TenantId, ct);
         var limits = BillingPlanLimits.For(tenant?.Plan ?? BillingPlan.Trial);
@@ -65,12 +83,16 @@ public class QuotaGuardService : IQuotaGuardService
             QuotaAxis.Projects => await _db.Projects.CountAsync(p => p.TenantId == tid, ct),
             _                  => 0,
         };
-        return (limits, current);
+        return (limits, current, tenant);
     }
 
     private static QuotaResult Result(QuotaAxis axis, int current, int max)
     {
-        if (max == int.MaxValue) return QuotaResult.Allow(axis, current, max);
+        // Non-positive is "unlimited", not "deny everyone". A bare `current >= max`
+        // here would refuse a tenant its FIRST project on a 0 or a -1 sentinel, and
+        // then report the cap it refused against — which is the #616 failure in a
+        // different axis. Same convention as ProjectCeilingPolicy/AccountCeilingPolicy.
+        if (max <= 0 || max == int.MaxValue) return QuotaResult.Allow(axis, current, max);
         if (current >= max)
             return QuotaResult.Denied(axis, current, max,
                 $"{axis} cap reached ({current} of {max}).");

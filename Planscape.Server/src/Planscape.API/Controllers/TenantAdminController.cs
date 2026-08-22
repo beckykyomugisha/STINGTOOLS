@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.Core;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -84,7 +85,13 @@ public class TenantAdminController : ControllerBase
                 // Seat usage now lives where seats are sold: the D1 licence
                 // count (#621). `limits` below still advertises what the plan
                 // includes; we simply no longer claim to measure it here.
-                projects     = new { current = projectCount,     max = limits.MaxProjects },
+                // The ENFORCED cap, not the plan's advertised one. This row is a
+                // "you have used N of M" gauge, so showing a number the create-project
+                // gate does not use is how a user is told they have room and then
+                // refused. ProjectCeilingPolicy is the same resolution QuotaGuardService
+                // runs — plan (or D1 tier) grants, tenant column tightens. The plan's
+                // advertised figure is still below, under `limits`.
+                projects     = new { current = projectCount, max = ProjectCeilingPolicy.EffectiveCap(tenant) },
                 storage      = new { currentMb = storageBytes / 1024 / 1024, maxMb = limits.StorageMb },
                 memberSeats  = memberCount,
             },

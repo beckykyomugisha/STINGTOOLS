@@ -110,7 +110,7 @@ namespace StingTools.Commands.IFC
                     byte[] glb = GlbSerializer.Serialize(buffers);
                     StingLog.Info($"IFC_PushModel: GLB serialised ({glb.Length / 1024:N0} kB), uploading…");
 
-                    bool ok = await client.PostGeometryDeltaAsync(glb, System.Array.Empty<int>());
+                    bool ok = await client.PostGeometryDeltaAsync(glb, System.Array.Empty<long>());
                     StingLog.Info(ok
                         ? $"IFC_PushModel: geometry upload succeeded ({glb.Length / 1024:N0} kB)"
                         : $"IFC_PushModel: geometry upload failed — {client.LastError}");
