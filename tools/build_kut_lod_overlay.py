@@ -13,6 +13,7 @@ Run from the repository root; writes project-templates/KUT/_BIM_COORD/lod_matrix
 import collections
 import io
 import json
+import sys
 
 CORPORATE = 'StingTools/Data/STING_LOD_MATRIX.json'
 OVERLAY = 'project-templates/KUT/_BIM_COORD/lod_matrix.json'
@@ -93,7 +94,56 @@ DESCRIPTION = (
 )
 
 
+def drift_report(corp_by_cat, star, rules, milestones, corp_milestones):
+    """What the overlay would discard if it were not regenerated.
+
+    The overlay pins a category wholesale, so a corporate improvement to a pinned
+    category's rungs 200 to 400 is silently discarded for this project. Because the
+    overlay is GENERATED from corporate, regenerating adopts the improvement -- but
+    only if somebody regenerates. This names what has moved so the decision to adopt
+    or to keep the pin is made deliberately, rather than by neglect.
+
+    Returns a list of human-readable drift lines.
+    """
+    lines = []
+    committed = None
+    try:
+        committed = json.load(io.open(OVERLAY, encoding='utf-8'))
+    except Exception:
+        return ['overlay not readable -- regenerate']
+
+    live = {r['category']: r['checks'] for r in rules}
+    old = {r['category']: r['checks'] for r in committed.get('categoryRules', [])}
+
+    for cat in sorted(set(live) | set(old)):
+        if cat not in old:
+            lines.append('%-24s newly pinned by this generator' % cat)
+            continue
+        if cat not in live:
+            lines.append('%-24s pinned in the committed overlay but no longer in a tier' % cat)
+            continue
+        for rung in ['100', '200', '300', '350', '400']:
+            a = json.dumps(old[cat].get(rung), sort_keys=True)
+            b = json.dumps(live[cat].get(rung), sort_keys=True)
+            if a != b:
+                lines.append('%-24s rung %-4s corporate has moved since the overlay was written'
+                             % (cat, rung))
+
+    if json.dumps(corp_milestones, sort_keys=True) != json.dumps(
+            committed.get('milestones'), sort_keys=True):
+        lines.append('milestones               corporate milestone ladder has changed')
+
+    # Categories corporate defines that this project does not pin: they follow
+    # corporate automatically. Reported as coverage, not as drift.
+    unpinned = sorted(set(corp_by_cat) - set(live) - {'*'})
+    if unpinned:
+        lines.append('(%d corporate categories are not pinned and follow corporate: %s)'
+                     % (len(unpinned), ', '.join(unpinned[:8]) + (' ...' if len(unpinned) > 8 else '')))
+    return lines
+
+
 def main():
+    check_only = '--check' in sys.argv
     corp = json.load(io.open(CORPORATE, encoding='utf-8'))
     by_cat = {c['category']: c for c in corp['categoryRules']}
     star = by_cat['*']
@@ -119,8 +169,23 @@ def main():
         'milestones': corp['milestones'],
         'categoryRules': rules,
     }
-    io.open(OVERLAY, 'w', encoding='utf-8', newline='\n').write(
-        json.dumps(overlay, indent=2, ensure_ascii=False) + '\n')
+    rendered = json.dumps(overlay, indent=2, ensure_ascii=False) + '\n'
+    drift = drift_report(by_cat, star, rules, overlay['milestones'], corp['milestones'])
+
+    stale = False
+    try:
+        stale = io.open(OVERLAY, encoding='utf-8').read() != rendered
+    except Exception:
+        stale = True
+
+    if check_only:
+        if stale:
+            print('LOD overlay is STALE -- corporate has moved, or the tier definition has.')
+            print('Run: python tools/build_kut_lod_overlay.py')
+        else:
+            print('LOD overlay is current with the corporate baseline.')
+    else:
+        io.open(OVERLAY, 'w', encoding='utf-8', newline='\n').write(rendered)
 
     # ── verify: every category resolves at every rung, and 500 is what we meant
     def resolve(checks, key, seen=None):
@@ -139,7 +204,7 @@ def main():
             out['params'] = (plain if plain else list(base.get('params', []))) + plus
         return out
 
-    print('overlay written: %s' % OVERLAY)
+    print('%s: %s' % ('overlay checked' if check_only else 'overlay written', OVERLAY))
     print('categories: %d\n' % len(rules))
     problems = 0
     for r in rules:
@@ -192,9 +257,15 @@ def main():
         got = resolve([r for r in rules if r['category'] == cats[0]][0]['checks'], '500')
         print('  Tier %-4s %2d categories  |  rung 500 fields: %d  (e.g. %s)'
               % (tier, counts[tier], len(got['params']), cats[0]))
+    if drift:
+        print('')
+        print('  Drift against the corporate baseline:')
+        for line in drift:
+            print('    %s' % line)
+
     print('\n%s' % ('all categories resolve at every rung' if not problems
                     else 'PROBLEMS: %d' % problems))
-    return 1 if problems else 0
+    return 1 if (problems or (check_only and stale)) else 0
 
 
 if __name__ == '__main__':
