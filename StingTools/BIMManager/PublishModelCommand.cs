@@ -421,6 +421,14 @@ namespace StingTools.BIMManager
 
         private static string? PromptForModelFileOrExport(Document doc)
         {
+            // Reset per publish. This is static state, so without it a run that picks an
+            // existing file would inherit the ANSWER FROM THE PREVIOUS RUN and build an
+            // element map that disagrees with the geometry — the same
+            // meshes-without-properties symptom, arriving by a different route and only
+            // on the second publish of a session, which is the worst kind to reproduce.
+            // Only ExportActiveView, which actually asks, may set it true.
+            _includeLinksThisRun = false;
+
             var dlg = new TaskDialog("Publish Model")
             {
                 MainInstruction = "How do you want to provide the 3D geometry?",
@@ -467,8 +475,21 @@ namespace StingTools.BIMManager
                 bool wantTextures =
                     string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_TEXTURES"), "1", StringComparison.OrdinalIgnoreCase)
                     || RevitGltfExporter.ExportTextures;
-                var result = RevitGltfExporter.Export(doc, v3d, outPath, exportTextures: wantTextures);
+                _includeLinksThisRun = AskIncludeLinks(doc, v3d);
+                var result = RevitGltfExporter.Export(doc, v3d, outPath,
+                                                      exportTextures: wantTextures,
+                                                      includeLinks: _includeLinksThisRun);
                 StingLog.Info($"Planscape: GLB exported ({result.ElementCount} elements, {result.FileSizeBytes:N0} bytes) → {outPath}");
+
+                // Say it out loud. The whole reason this option exists is that links were
+                // being dropped SILENTLY, and a deliberate default is not a licence to
+                // reproduce that — a user who publishes a federated site and gets an empty
+                // container must be told why, at the moment it happens.
+                if (result.SkippedLinkCount > 0)
+                    TaskDialog.Show("Publish Model",
+                        $"Published the host model only — {result.SkippedLinkCount} linked model(s) were not included.\n\n"
+                      + "If you expected the buildings or site to appear, publish again and choose "
+                      + "\"Include linked models\".");
                 return outPath;
             }
             catch (Exception ex)
@@ -497,6 +518,235 @@ namespace StingTools.BIMManager
             return ok == true ? dlg.FileName : null;
         }
 
+        // ── Federation support ─────────────────────────────────────────
+
+        /// <summary>
+        /// Whether THIS publish includes linked models. Set by <see cref="AskIncludeLinks"/>
+        /// immediately before the geometry export and read by <c>BuildElementMap</c>, so
+        /// the GLB and the element map can never disagree about what was published — a
+        /// disagreement shows as meshes with no properties, or tree rows with no mesh.
+        /// </summary>
+        private static bool _includeLinksThisRun;
+
+        /// <summary>
+        /// Ask once per publish, and only when it matters.
+        ///
+        /// <para>No links in the view means no question — a dialog whose answer cannot
+        /// change anything is noise. When links ARE present the choice is explicit,
+        /// because both answers are reasonable: a discipline publish wants the host alone
+        /// (smaller, faster, and the viewer federates published models anyway), while a
+        /// site or coordination publish wants one artefact containing everything.</para>
+        ///
+        /// <para><c>PLANSCAPE_EXPORT_LINKS=1</c> skips the prompt for scripted runs.</para>
+        /// </summary>
+        private static bool AskIncludeLinks(Document doc, View view)
+        {
+            int linkCount;
+            try
+            {
+                var lc = view is View3D
+                    ? new FilteredElementCollector(doc, view.Id)
+                    : new FilteredElementCollector(doc);
+                linkCount = lc.OfClass(typeof(RevitLinkInstance)).GetElementCount();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Publish: could not count links — {ex.Message}");
+                linkCount = 0;
+            }
+
+            if (linkCount == 0) return false;
+
+            if (string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_LINKS"), "1",
+                              StringComparison.OrdinalIgnoreCase)
+                || RevitGltfExporter.IncludeLinks)
+            {
+                StingLog.Info($"Publish: including {linkCount} linked model(s) (set by environment/static override).");
+                return true;
+            }
+
+            var dlg = new TaskDialog("Publish Model")
+            {
+                MainInstruction = $"This view contains {linkCount} linked model(s). Include them?",
+                MainContent = "Linked models are the buildings, site or discipline models attached to this file.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+            };
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Host model only  (default)",
+                "Publishes just this file. Smaller and faster, and you can publish each linked "
+              + "model separately — the viewer federates them and gives you per-model visibility.");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Include linked models",
+                "Publishes everything visible in this view as one model — the right choice for a "
+              + "federated site or a coordination snapshot. Larger file and a slower export.");
+            var r = dlg.Show();
+            if (r == TaskDialogResult.CommandLink2)
+            {
+                StingLog.Info($"Publish: including {linkCount} linked model(s) by user choice.");
+                return true;
+            }
+            StingLog.Info($"Publish: EXCLUDING {linkCount} linked model(s) by user choice (host model only).");
+            return false;
+        }
+
+
+        /// <summary>One element to publish, with the document it came from, the transform
+        /// into host coordinates, and the key it shares with its GLB mesh node.</summary>
+        private readonly struct MapItem
+        {
+            public MapItem(Document doc, Element el, Transform xf, string key)
+            { Doc = doc; El = el; Xf = xf; Key = key; }
+            public Document Doc { get; }
+            public Element El { get; }
+            public Transform Xf { get; }
+            public string Key { get; }
+        }
+
+        /// <summary>
+        /// Every element inside every loaded Revit link, paired with its document and
+        /// placement transform.
+        ///
+        /// <para><b>Scope note, stated plainly:</b> this returns model elements with
+        /// geometry from each link, NOT "elements visible in the host's active view".
+        /// A view id belongs to the host document, so it cannot filter a linked
+        /// document's collector, and per-element visibility across a link is not
+        /// something the API answers cheaply. The GLB — which Revit's own view traversal
+        /// produces — remains the authority on what is drawn. The practical effect is
+        /// that the map can list a few elements the geometry does not show; a tree row
+        /// with no mesh is a far smaller problem than the mesh with no properties this
+        /// replaces.</para>
+        ///
+        /// <para>Links that are unloaded, or that fail to resolve, are skipped with a
+        /// warning rather than failing the publish — a partial federation is still worth
+        /// publishing, and the log says which link was missing.</para>
+        /// </summary>
+        private static IEnumerable<MapItem> CollectLinkedElements(Document host, View activeView)
+        {
+            var results = new List<MapItem>();
+            // Keyed by document identity so a cycle (A links B links A) terminates, and
+            // so the same file linked twice is not collected twice into one map.
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                RevitGltfExporter.LinkScope(host)
+            };
+            CollectLinksRecursive(host, activeView, Transform.Identity, visited, results, depth: 0);
+            return results;
+        }
+
+        /// <summary>
+        /// Walks links, then links inside those links.
+        ///
+        /// <para>Revit's own view traversal descends nested links, so the GLB contains
+        /// them. A one-level metadata walk would therefore reproduce the exact bug this
+        /// change fixes, one level down — geometry present, properties missing — which is
+        /// the failure mode hardest to notice because the model looks right.</para>
+        ///
+        /// <para>Depth is capped and documents are visited once. A cycle is legal in
+        /// Revit and would otherwise recurse until the stack gives out.</para>
+        /// </summary>
+        private static void CollectLinksRecursive(
+            Document parent, View activeView, Transform parentXf,
+            HashSet<string> visited, List<MapItem> results, int depth)
+        {
+            const int MaxDepth = 8;
+            if (depth >= MaxDepth)
+            {
+                StingLog.Warn($"Publish: link nesting deeper than {MaxDepth} in '{parent.Title}' — not descending further.");
+                return;
+            }
+
+            List<RevitLinkInstance> links;
+            try
+            {
+                // At the top level, filter by the active view so links hidden in THIS view
+                // are not published — the link INSTANCE is a host element, so unlike
+                // per-element visibility this is a question the host view can answer.
+                // Deeper down there is no equivalent view, so take them all.
+                var lc = (depth == 0 && activeView is View3D)
+                    ? new FilteredElementCollector(parent, activeView.Id)
+                    : new FilteredElementCollector(parent);
+                links = lc.OfClass(typeof(RevitLinkInstance))
+                          .Cast<RevitLinkInstance>()
+                          .ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Publish: could not enumerate links in '{parent.Title}' — {ex.Message}");
+                return;
+            }
+
+            foreach (var link in links)
+            {
+                Document ldoc = null;
+                try { ldoc = link.GetLinkDocument(); }
+                catch (Exception ex) { StingLog.Warn($"Publish: link '{link.Name}' — {ex.Message}"); }
+
+                if (ldoc == null)
+                {
+                    // Unloaded link. Named explicitly: silently publishing a federation
+                    // minus one building is exactly the failure this whole change fixes.
+                    StingLog.Warn($"Publish: link '{link.Name}' is not loaded — its elements are NOT in this publish.");
+                    continue;
+                }
+
+                Transform xf;
+                try { xf = parentXf.Multiply(link.GetTotalTransform() ?? Transform.Identity); }
+                catch { xf = parentXf; }
+
+                string scope = RevitGltfExporter.LinkScope(ldoc);
+                if (!visited.Add(scope))
+                {
+                    StingLog.Info($"Publish: link '{ldoc.Title}' already collected — skipping duplicate/cyclic reference.");
+                    continue;
+                }
+                int n = 0;
+                try
+                {
+                    foreach (var e in new FilteredElementCollector(ldoc)
+                                          .WhereElementIsNotElementType()
+                                          .Where(e => e.Category != null
+                                                      && e.Category.CategoryType == CategoryType.Model
+                                                      && e.get_Geometry(new Options()) != null))
+                    {
+                        results.Add(new MapItem(ldoc, e, xf, scope + "|" + e.UniqueId));
+                        n++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Publish: collecting from link '{link.Name}' failed — {ex.Message}");
+                }
+                StingLog.Info($"Publish: link '{ldoc.Title}' contributed {n} element(s).");
+
+                // Descend. The transform accumulates, so a building nested two links deep
+                // still lands in host coordinates.
+                CollectLinksRecursive(ldoc, activeView, xf, visited, results, depth + 1);
+            }
+        }
+
+        /// <summary>
+        /// The eight transformed corners of a bounding box.
+        ///
+        /// <para>All eight, not Min and Max. Under rotation the transformed Min is not
+        /// the minimum of the transformed box — taking the two corners gives an AABB that
+        /// can be smaller than the geometry it is meant to contain, and a link placed at
+        /// an angle is the normal case, not an exotic one.</para>
+        /// </summary>
+        private static IEnumerable<XYZ> Corners(BoundingBoxXYZ b, Transform xf)
+        {
+            var t = xf ?? Transform.Identity;
+            // A BoundingBoxXYZ carries its own Transform; fold it in so a box expressed
+            // in a non-identity local frame is read correctly before the link transform.
+            var local = b.Transform ?? Transform.Identity;
+            for (int i = 0; i < 8; i++)
+            {
+                var p = new XYZ((i & 1) == 0 ? b.Min.X : b.Max.X,
+                                (i & 2) == 0 ? b.Min.Y : b.Max.Y,
+                                (i & 4) == 0 ? b.Min.Z : b.Max.Z);
+                yield return t.OfPoint(local.OfPoint(p));
+            }
+        }
+
         // ── Element map generator ──────────────────────────────────────
 
         private static void BuildElementMap(
@@ -508,10 +758,28 @@ namespace StingTools.BIMManager
                 ? new FilteredElementCollector(doc, activeView.Id)
                 : new FilteredElementCollector(doc);
 
+            // Host elements first, each paired with the document it belongs to and the
+            // transform that puts it in host coordinates (identity, by definition).
             var elements = collector
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && e.get_Geometry(new Options()) != null)
+                .Select(e => new MapItem(doc, e, Transform.Identity,
+                                         RevitGltfExporter.ElementKey(doc, doc, e)))
                 .ToList();
+
+            // …then everything inside the loaded links.
+            //
+            // Without this the map described the HOST FILE ONLY. On a federated model —
+            // where the host is a container and every building is a link — that is a
+            // handful of link instances and nothing else, which is why the viewer
+            // reported "8 ELEMENTS / 0% TAGGED" for a whole site. The GLB had the same
+            // fault in its own way (see RevitGltfExporter's document stack); fixing one
+            // without the other gives you either geometry with no properties or
+            // properties with no geometry.
+            if (_includeLinksThisRun)
+                elements.AddRange(CollectLinkedElements(doc, activeView));
+            else
+                StingLog.Info("Publish: element map covers the host model only (links excluded for this publish).");
 
             var map = new JObject();
             var bb = new BoundingBoxXYZ { Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue),
@@ -523,9 +791,13 @@ namespace StingTools.BIMManager
             var sysHist = new Dictionary<string, int>();
             var sysUnresolvedCats = new Dictionary<string, int>();
 
-            foreach (var el in elements)
+            foreach (var item in elements)
             {
-                var guid = el.UniqueId;
+                var el   = item.El;
+                // The element's OWN document. Level lookup, quantities and materials all
+                // read from it, and for a linked element the host knows none of them.
+                var edoc = item.Doc;
+                var guid = item.Key;
                 var tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
 
                 // Track bounds from EVERY element with a bounding box, not just
@@ -536,12 +808,16 @@ namespace StingTools.BIMManager
                 var eb = el.get_BoundingBox(null);
                 if (eb != null)
                 {
-                    bb.Min = new XYZ(Math.Min(bb.Min.X, eb.Min.X),
-                                     Math.Min(bb.Min.Y, eb.Min.Y),
-                                     Math.Min(bb.Min.Z, eb.Min.Z));
-                    bb.Max = new XYZ(Math.Max(bb.Max.X, eb.Max.X),
-                                     Math.Max(bb.Max.Y, eb.Max.Y),
-                                     Math.Max(bb.Max.Z, eb.Max.Z));
+                    // A linked element's bounding box is in ITS OWN coordinates. Folded
+                    // into the host AABB untransformed, a link with any offset drags the
+                    // published bounds out to enclose empty space, and the viewer opens
+                    // zoomed to nothing. Transform all eight corners — transforming only
+                    // Min/Max is wrong as soon as the link is rotated.
+                    foreach (var c in Corners(eb, item.Xf))
+                    {
+                        bb.Min = new XYZ(Math.Min(bb.Min.X, c.X), Math.Min(bb.Min.Y, c.Y), Math.Min(bb.Min.Z, c.Z));
+                        bb.Max = new XYZ(Math.Max(bb.Max.X, c.X), Math.Max(bb.Max.Y, c.Y), Math.Max(bb.Max.Z, c.Z));
+                    }
                     boundsContributors++;
                 }
 
@@ -576,7 +852,7 @@ namespace StingTools.BIMManager
                     // untagged ones still get name + category + level + elementId
                     // which is what the right-panel Properties tab needs.
                     string lvlOnly = "";
-                    try { lvlOnly = ParameterHelpers.GetLevelCode(doc, el) ?? ""; } catch { }
+                    try { lvlOnly = ParameterHelpers.GetLevelCode(edoc, el) ?? ""; } catch { }
                     var untaggedEntry = new JObject
                     {
                         ["name"]      = el.Name ?? "",
@@ -593,7 +869,7 @@ namespace StingTools.BIMManager
                         ["elementId"] = el.Id.Value,
                     };
                     AddCost(el, untaggedEntry);   // M3 — per-element cost (rate × measured qty)
-                    AddQuantitiesAndMaterials(doc, el, untaggedEntry);   // E4 — area/volume/length + materials
+                    AddQuantitiesAndMaterials(edoc, el, untaggedEntry);   // E4 — area/volume/length + materials
                     map[guid] = untaggedEntry;
                     count++;
                     continue;
@@ -631,7 +907,7 @@ namespace StingTools.BIMManager
                     ["elementId"]  = el.Id.Value,
                 };
                 AddCost(el, taggedEntry);     // M3 — per-element cost
-                AddQuantitiesAndMaterials(doc, el, taggedEntry);   // E4 — area/volume/length + materials
+                AddQuantitiesAndMaterials(edoc, el, taggedEntry);   // E4 — area/volume/length + materials
                 map[guid] = taggedEntry;
                 count++;
             }
