@@ -1,276 +1,44 @@
 # -*- coding: utf-8 -*-
 """Build the KUT Project Delivery Playbook as a formatted corporate .docx."""
-import copy
-from docx import Document
-from docx.enum.section import WD_SECTION
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
+# -*- coding: utf-8 -*-
+"""Build the KUT Project Delivery Playbook as a formatted corporate .docx.
+
+Source content: GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md. House style comes from
+tools/corporate_docx.py, shared with tools/build_bep.py so the issued set looks
+like one set.
+"""
+import os
+import sys
+
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Cm, Pt, RGBColor
 
-OUT = 'KUT_Project_Delivery_Playbook.docx'
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
 
-NAVY = RGBColor(0x1F, 0x36, 0x54)
-SLATE = RGBColor(0x44, 0x4F, 0x5C)
-GREY = RGBColor(0x7A, 0x7A, 0x7A)
-RULE = '1F3654'
-BAND = 'E8EDF3'
-SHADE = 'F4F6F9'
+OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_Project_Delivery_Playbook.docx')
+c = CorporateDoc()
+d = c.d
+h1, h2, h3 = c.h1, c.h2, c.h3
+para, bullet, numlist, callout, table = c.para, c.bullet, c.numlist, c.callout, c.table
+sec = c.section
 
-d = Document()
+c.title_page(
+    title='Project Delivery Playbook',
+    eyebrow='Kampala Uganda Temple',
+    strapline='Information management, production and delivery procedures for all appointed parties',
+    control_rows=[
+        ('Document reference', 'KUT-PLN-ZZ-ZZ-RP-Z-0002'),
+        ('Revision', 'P01'),
+        ('Status / suitability', 'A1 — Authorised for use'),
+        ('Prepared by', 'Planscape Consulting Engineers Ltd'),
+        ('Role', 'Information Manager'),
+        ('Date of issue', '[FILL]'),
+    ],
+    note='Prepared for the Kampala Uganda Temple project on behalf of the Lead Appointed Party. '
+         'Issued through the Common Data Environment. Uncontrolled when printed.')
 
-# ── page + base styles ───────────────────────────────────────────────────────
-sec = d.sections[0]
-sec.page_width, sec.page_height = Cm(21.0), Cm(29.7)
-sec.left_margin = sec.right_margin = Cm(2.2)
-sec.top_margin = Cm(2.2)
-sec.bottom_margin = Cm(2.0)
-
-normal = d.styles['Normal']
-normal.font.name = 'Calibri'
-normal.font.size = Pt(10)
-normal.font.color.rgb = RGBColor(0x1A, 0x1A, 0x1A)
-normal.paragraph_format.space_after = Pt(6)
-normal.paragraph_format.line_spacing = 1.12
-
-for nm, size, colour, before, after in (
-        ('Heading 1', 16, NAVY, 20, 8),
-        ('Heading 2', 12.5, NAVY, 14, 5),
-        ('Heading 3', 11, SLATE, 10, 4)):
-    st = d.styles[nm]
-    st.font.name = 'Calibri'
-    st.font.size = Pt(size)
-    st.font.bold = True
-    st.font.color.rgb = colour
-    st.font.italic = False
-    st.paragraph_format.space_before = Pt(before)
-    st.paragraph_format.space_after = Pt(after)
-    st.paragraph_format.keep_with_next = True
-
-
-def _shade(cell, hexcolour):
-    el = OxmlElement('w:shd')
-    el.set(qn('w:val'), 'clear')
-    el.set(qn('w:fill'), hexcolour)
-    cell._tc.get_or_add_tcPr().append(el)
-
-
-def _rule_below(par, colour=RULE, size=8):
-    pPr = par._p.get_or_add_pPr()
-    bdr = OxmlElement('w:pBdr')
-    bottom = OxmlElement('w:bottom')
-    bottom.set(qn('w:val'), 'single')
-    bottom.set(qn('w:sz'), str(size))
-    bottom.set(qn('w:space'), '4')
-    bottom.set(qn('w:color'), colour)
-    bdr.append(bottom)
-    pPr.append(bdr)
-
-
-def h1(text, page_break=True):
-    if page_break:
-        d.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-    p = d.add_heading(text, level=1)
-    _rule_below(p)
-    return p
-
-
-def h2(text):
-    return d.add_heading(text, level=2)
-
-
-def h3(text):
-    return d.add_heading(text, level=3)
-
-
-def para(text, bold=False, italic=False, size=None, colour=None, align=None, space_after=None):
-    p = d.add_paragraph()
-    r = p.add_run(text)
-    r.bold, r.italic = bold, italic
-    if size:
-        r.font.size = Pt(size)
-    if colour:
-        r.font.color.rgb = colour
-    if align is not None:
-        p.alignment = align
-    if space_after is not None:
-        p.paragraph_format.space_after = Pt(space_after)
-    return p
-
-
-def bullet(items, indent=0.0):
-    for it in items:
-        p = d.add_paragraph()
-        p.paragraph_format.left_indent = Cm(0.6 + indent)
-        p.paragraph_format.space_after = Pt(3)
-        p.add_run(u'• ').bold = True
-        _rich(p, it)
-
-
-def numlist(items):
-    for n, it in enumerate(items, 1):
-        p = d.add_paragraph()
-        p.paragraph_format.left_indent = Cm(0.8)
-        p.paragraph_format.space_after = Pt(3)
-        p.add_run('%d. ' % n).bold = True
-        _rich(p, it)
-
-
-def _rich(p, text):
-    """**bold** segments inside a string."""
-    for i, chunk in enumerate(text.split('**')):
-        if chunk:
-            p.add_run(chunk).bold = bool(i % 2)
-
-
-def callout(text, title=None):
-    t = d.add_table(rows=1, cols=1)
-    t.alignment = WD_TABLE_ALIGNMENT.LEFT
-    c = t.cell(0, 0)
-    _shade(c, SHADE)
-    c._tc.get_or_add_tcPr().append(_margins())
-    p0 = c.paragraphs[0]
-    if title:
-        r = p0.add_run(title.upper())
-        r.bold = True
-        r.font.size = Pt(8.5)
-        r.font.color.rgb = NAVY
-        p0 = c.add_paragraph()
-    _rich(p0, text)
-    for r_ in p0.runs:
-        r_.font.size = Pt(9.5)
-    d.add_paragraph().paragraph_format.space_after = Pt(2)
-    return t
-
-
-def _margins():
-    mar = OxmlElement('w:tcMar')
-    for side, v in (('top', 100), ('start', 140), ('bottom', 100), ('end', 140)):
-        e = OxmlElement('w:' + side)
-        e.set(qn('w:w'), str(v))
-        e.set(qn('w:type'), 'dxa')
-        mar.append(e)
-    return mar
-
-
-def table(headers, rows, widths=None, font=8.5, caption=None):
-    t = d.add_table(rows=1, cols=len(headers))
-    t.style = 'Table Grid'
-    t.alignment = WD_TABLE_ALIGNMENT.LEFT
-    hdr = t.rows[0]
-    for i, x in enumerate(headers):
-        c = hdr.cells[i]
-        c.text = ''
-        p = c.paragraphs[0]
-        r = p.add_run(x)
-        r.bold = True
-        r.font.size = Pt(font)
-        r.font.color.rgb = NAVY
-        _shade(c, BAND)
-    trPr = hdr._tr.get_or_add_trPr()
-    rep = OxmlElement('w:tblHeader')          # repeat header row across pages
-    trPr.append(rep)
-    for row in rows:
-        cells = t.add_row().cells
-        for i, x in enumerate(row):
-            cells[i].text = ''
-            p = cells[i].paragraphs[0]
-            p.paragraph_format.space_after = Pt(2)
-            _rich(p, str(x))
-            for r in p.runs:
-                r.font.size = Pt(font)
-    if widths:
-        for row in t.rows:
-            for i, w in enumerate(widths):
-                row.cells[i].width = Cm(w)
-    if caption:
-        cp = d.add_paragraph()
-        cr = cp.add_run(caption)
-        cr.font.size = Pt(8)
-        cr.italic = True
-        cr.font.color.rgb = GREY
-    d.add_paragraph().paragraph_format.space_after = Pt(2)
-    return t
-
-
-def _field(par, instr):
-    r = par.add_run()
-    fc = OxmlElement('w:fldChar'); fc.set(qn('w:fldCharType'), 'begin'); r._r.append(fc)
-    it = OxmlElement('w:instrText'); it.set(qn('xml:space'), 'preserve'); it.text = instr
-    r._r.append(it)
-    fs = OxmlElement('w:fldChar'); fs.set(qn('w:fldCharType'), 'separate'); r._r.append(fs)
-    fe = OxmlElement('w:fldChar'); fe.set(qn('w:fldCharType'), 'end'); r._r.append(fe)
-
-
-# ── title page ───────────────────────────────────────────────────────────────
-for _ in range(4):
-    d.add_paragraph()
-p = d.add_paragraph()
-r = p.add_run('KAMPALA UGANDA TEMPLE')
-r.font.size = Pt(11)
-r.bold = True
-r.font.color.rgb = SLATE
-p.paragraph_format.space_after = Pt(2)
-
-p = d.add_paragraph()
-r = p.add_run('Project Delivery Playbook')
-r.font.size = Pt(30)
-r.bold = True
-r.font.color.rgb = NAVY
-p.paragraph_format.space_after = Pt(4)
-_rule_below(p, RULE, 12)
-
-p = d.add_paragraph()
-r = p.add_run('Information management, production and delivery procedures for all appointed parties')
-r.font.size = Pt(12)
-r.font.color.rgb = SLATE
-p.paragraph_format.space_before = Pt(10)
-
-for _ in range(10):
-    d.add_paragraph()
-
-t = d.add_table(rows=0, cols=2)
-for k, v in (('Document reference', 'KUT-PLN-ZZ-ZZ-RP-Z-0002'),
-             ('Revision', 'P01'),
-             ('Status / suitability', 'A1 — Authorised for use'),
-             ('Prepared by', 'Planscape Consulting Engineers Ltd'),
-             ('Role', 'Information Manager'),
-             ('Date of issue', '[FILL]')):
-    cells = t.add_row().cells
-    rp = cells[0].paragraphs[0]
-    rr = rp.add_run(k)
-    rr.bold = True
-    rr.font.size = Pt(9)
-    rr.font.color.rgb = SLATE
-    vp = cells[1].paragraphs[0]
-    vr = vp.add_run(v)
-    vr.font.size = Pt(9)
-    cells[0].width, cells[1].width = Cm(5.0), Cm(11.6)
-
-d.add_paragraph()
-p = d.add_paragraph()
-r = p.add_run('Prepared for the Kampala Uganda Temple project on behalf of the Lead Appointed Party. '
-              'Issued through the Common Data Environment. Uncontrolled when printed.')
-r.font.size = Pt(8)
-r.italic = True
-r.font.color.rgb = GREY
-
-# ── footer ───────────────────────────────────────────────────────────────────
-footer = sec.footer
-fp = footer.paragraphs[0]
-fp.alignment = WD_ALIGN_PARAGRAPH.LEFT
-fr = fp.add_run('KUT Project Delivery Playbook   |   Rev P01   |   Page ')
-fr.font.size = Pt(8)
-fr.font.color.rgb = GREY
-_field(fp, ' PAGE ')
-fr2 = fp.add_run(' of ')
-fr2.font.size = Pt(8)
-fr2.font.color.rgb = GREY
-_field(fp, ' NUMPAGES ')
-for r in fp.runs:
-    r.font.size = Pt(8)
-    r.font.color.rgb = GREY
+c.footer('KUT Project Delivery Playbook   |   Rev P01')
 
 # ── document control ─────────────────────────────────────────────────────────
 h1('Document control')
@@ -469,13 +237,7 @@ para('Every model, drawing, document and modelled element on this project carrie
 
 h2('4.1  Container name')
 para('Applies to every file, model, drawing, sheet, schedule and document.')
-p = d.add_paragraph()
-r = p.add_run('KUT - PLN - 01 - GF - M3 - A - 0001')
-r.font.name = 'Consolas'
-r.font.size = Pt(13)
-r.bold = True
-r.font.color.rgb = NAVY
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+c.mono('KUT - PLN - 01 - GF - M3 - A - 0001', 13)
 table(['Field', 'Length', 'Meaning', 'Example'],
       [['Project', '3', 'Always KUT', 'KUT'],
        ['Originator', '3', 'The organisation that produced the container (Section 4.2)', 'PLN'],
@@ -559,13 +321,7 @@ callout('A suitability code is a statement of the reliance other parties may pla
 
 h2('4.7  Asset identifier')
 para('Every modelled element carries an eight-field identifier assembled from the data held on the element.')
-p = d.add_paragraph()
-r = p.add_run('M - BLD1 - Z01 - L02 - HVAC - SUP - AHU - 0003')
-r.font.name = 'Consolas'
-r.font.size = Pt(12)
-r.bold = True
-r.font.color.rgb = NAVY
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+c.mono('M - BLD1 - Z01 - L02 - HVAC - SUP - AHU - 0003', 12)
 table(['Field', 'Content', 'Source'],
       [['Discipline', 'Role code (Section 4.3)', 'Element category and discipline'],
        ['Location', 'Volume code (Section 2.3)', 'Room, workset or project information'],
@@ -1102,22 +858,13 @@ h2('E.3  Zone codes')
 para('Zone codes are assigned per volume in the form Z01, Z02 and so on, and are confirmed by the Information '
      'Manager at mobilisation. The zoning register is issued with the project template.')
 
-d.add_paragraph()
-p = d.add_paragraph()
-r = p.add_run('End of document')
-r.font.size = Pt(9)
-r.italic = True
-r.font.color.rgb = GREY
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+c.end_mark()
 
-# ── core properties ──────────────────────────────────────────────────────────
-cp = d.core_properties
-cp.title = 'KUT Project Delivery Playbook'
-cp.subject = 'Kampala Uganda Temple — information management, production and delivery procedures'
-cp.author = 'Planscape Consulting Engineers Ltd'
-cp.last_modified_by = 'Planscape Consulting Engineers Ltd'
-cp.category = 'Project procedure'
-cp.comments = 'Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.'
+c.properties(
+    title='KUT Project Delivery Playbook',
+    subject='Kampala Uganda Temple — information management, production and delivery procedures',
+    category='Project procedure',
+    comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.')
 
-d.save(OUT)
+c.save(OUT)
 print('saved:', OUT)
