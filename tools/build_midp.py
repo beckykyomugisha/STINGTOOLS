@@ -60,6 +60,16 @@ R = [
     ('Z-003', 'Information Management', 'Responsibility matrix (RACI)', 'Document', 'Mobilisation', 'n/a', 'XLSX', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', ''),
     ('Z-004', 'Information Management', 'Project template, family library and title blocks', 'Document', 'Mobilisation', 'n/a', 'RVT/RFA', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Issued to every task team'),
     ('Z-005', 'Information Management', 'Originator code register', 'Document', 'Mobilisation', 'n/a', 'XLSX', 'A1', 'Published', 'M0', 'Appointing Party', 'TIDP-Z', 'Required before any container is numbered'),
+    ('Z-007', 'Information Management', 'Standards reconciliation schedule (BEP section 4.1.3)', 'Document', 'Mobilisation', 'n/a', 'DOCX/PDF', 'S3', 'Shared', 'M0', 'All disciplines', 'TIDP-Z', 'Opened at mobilisation; CLOSED before Technical Design. An open row means two parties may design to different bases'),
+    ('Z-008', 'Information Management', 'Shared coordinates seed model', 'Model', 'Mobilisation', 'n/a', 'RVT', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Survey point, project base point, true north, levels and grids. Every model acquires coordinates from it'),
+    ('Z-009', 'Information Management', 'Level and grid register', 'Schedule', 'Mobilisation', 'n/a', 'XLSX/PDF', 'A1', 'Published', 'M0', 'Lead Appointed Party', 'TIDP-Z', 'Level codes appear in every container name'),
+    ('Z-011', 'Information Management', 'Software and version register', 'Schedule', 'Mobilisation', 'n/a', 'XLSX', 'A1', 'Published', 'M0', 'All parties', 'TIDP-Z', 'One authoring version project-wide for the duration of a stage'),
+    ('Z-012', 'Information Management', 'CDE folder structure and permission matrix', 'Document', 'Mobilisation', 'n/a', 'PDF', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', ''),
+    ('Z-013', 'Information Management', 'Information classification and access schedule', 'Document', 'Mobilisation', 'n/a', 'PDF', 'A1', 'Published', 'M0', 'Appointing Party', 'TIDP-Z', 'Restricted spaces and systems must be classified BEFORE modelling begins'),
+    ('Z-014', 'Information Management', 'Clash matrix and tolerance schedule', 'Document', 'Mobilisation', 'n/a', 'PDF', 'S3', 'Shared', 'M1', 'MEP and structural leads', 'TIDP-Z', 'Required before the first coordination cycle of Stage 2.2'),
+    ('Z-015', 'Information Management', 'IFC export configuration', 'Document', 'Mobilisation', 'n/a', 'PDF/JSON', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Issued centrally, or every consultant IFC differs'),
+    ('Z-016', 'Information Management', 'Shared parameter file', 'Document', 'Mobilisation', 'n/a', 'TXT', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Central ownership; a locally added parameter has a different GUID'),
+    ('Z-017', 'Information Management', 'Capability and capacity assessment', 'Report', 'Mobilisation', 'n/a', 'XLSX', 'S3', 'Shared', 'M1', 'Lead Appointed Party', 'TIDP-Z', 'ISO 19650-2; the Stage 0 test model is its practical form'),
     ('Z-006', 'All disciplines', 'Task Information Delivery Plan', 'Document', 'Mobilisation', 'n/a', 'XLSX', 'S3', 'Shared', 'M0', 'Task Team Managers', 'TIDP-ALL', 'One per appointed party'),
     ('Z-010', 'Information Management', 'Federated coordination model', 'Model', '2.1 Deliverable A', '200', 'NWC/IFC', 'S1', 'Shared', 'M1', 'BIM Coordinator', 'TIDP-Z', 'First federation'),
     ('A-100', 'Architecture', 'Architectural model', 'Model', '2.1 Deliverable A', '200', 'RVT/IFC', 'S2', 'Shared', 'M1', 'Architecture lead', 'TIDP-A', 'Massing and generic systems; rooms placed'),
@@ -75,7 +85,7 @@ R = [
     ('A-201', 'Architecture', 'General arrangement plans, sections and elevations (50%)', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', ''),
     ('A-202', 'Architecture', 'Door and window schedules', 'Schedule', '2.2 Deliverable B', '300', 'PDF/XLSX', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', ''),
     ('A-203', 'Architecture', 'Room data sheets (key spaces)', 'Room data sheet', '2.2 Deliverable B', '300', 'PDF', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', ''),
-    ('A-204', 'Architecture', 'Existing conditions and removals plan', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', 'Demolition classification is a manual task; see BEP 10.3'),
+    ('A-204', 'Architecture', 'Existing conditions and removals plan', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', 'Demolition classification is a manual task; see BEP 10.4'),
     ('S-200', 'Structure', 'Structural model', 'Model', '2.2 Deliverable B', '300', 'RVT/IFC', 'S2', 'Shared', 'M4', 'Structural lead', 'TIDP-S', 'Sized members; penetrations coordinated'),
     ('S-201', 'Structure', 'General arrangement drawings (50%)', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'Structural lead', 'TIDP-S', ''),
     ('M-200', 'Mechanical', 'Mechanical model', 'Model', '2.2 Deliverable B', '300', 'RVT/IFC', 'S2', 'Shared', 'M4', 'MEP lead', 'TIDP-M', 'Real equipment; risers fixed'),
@@ -155,10 +165,10 @@ ws.merge_cells('B7:C7')
 ws.row_dimensions[7].height = 32
 
 meta = [
-    ('Document reference', 'KUT-PLN-ZZ-ZZ-SC-Z-0001'),
+    ('Document reference', 'KUT-SMB-ZZ-ZZ-SC-Z-0001'),
     ('Revision', 'P01'),
     ('Status / suitability', 'A1 — Authorised for use'),
-    ('Prepared by', 'Planscape Consulting Engineers Ltd (Information Manager)'),
+    ('Prepared by', 'Symbion Consulting Group Studios (Information Manager)'),
     ('Baselined', '[FILL — date]'),
     ('Last updated', '[FILL — date]'),
     ('Update frequency', 'Monthly, and at every data drop'),
@@ -402,8 +412,8 @@ ls['A1'].border = box
 
 wb.properties.title = 'KUT Master Information Delivery Plan'
 wb.properties.subject = 'Kampala Uganda Temple — aggregated information delivery schedule'
-wb.properties.creator = 'Planscape Consulting Engineers Ltd'
-wb.properties.lastModifiedBy = 'Planscape Consulting Engineers Ltd'
+wb.properties.creator = 'Symbion Consulting Group Studios'
+wb.properties.lastModifiedBy = 'Symbion Consulting Group Studios'
 wb.properties.category = 'Project procedure'
 
 # Determinism. openpyxl stamps dcterms:created and dcterms:modified from the wall
