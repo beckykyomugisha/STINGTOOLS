@@ -97,7 +97,9 @@ jobs:
       - name: Install the document libraries
         # Separate from the regeneration step so a dependency failure reads as a
         # dependency failure, not as a stale document.
-        run: python -m pip install --quiet python-docx openpyxl
+        run: |
+          python -m pip install --quiet python-docx openpyxl
+          python -c "import docx, openpyxl; print('python-docx', docx.__version__); print('openpyxl  ', openpyxl.__version__)"
 
       - name: Confirm regeneration is a no-op
         # Belt and braces. The gate above proves freshness from the digest the
@@ -111,7 +113,11 @@ jobs:
           python tools/build_bep.py
           python tools/build_team_playbook.py
           python tools/build_midp.py
-          git diff --exit-code -- 'KUT_*.docx' 'KUT_*.xlsx'
+          git diff --exit-code -- 'KUT_*.docx' 'KUT_*.xlsx' || {
+            echo "--- which OPC parts actually differ ---"
+            python tools/diff_ooxml.py
+            exit 1
+          }
 
       - name: Confirm the LOD overlay regenerates identically
         run: |
