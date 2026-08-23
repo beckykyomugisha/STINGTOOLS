@@ -357,8 +357,23 @@ def _sheet_parts(z: zipfile.ZipFile):
 
 
 def _sheet_rows(ws, shared):
+    """Rows padded to their real positions: rows[i] is spreadsheet row i+1.
+
+    A worksheet omits rows that carry nothing, so a naive append collapses the
+    gaps and every row index after the first blank is wrong. That matters
+    wherever a position is reported back to a person: the TIDP table starts at
+    row 16 under a header block, and telling somebody to fix "row 13" sends them
+    to the wrong row of their own return.
+    """
     rows = []
     for row in ws.iter(_S + "row"):
+        try:
+            n = int(row.get("r") or 0)
+        except ValueError:
+            n = 0
+        if n:
+            while len(rows) < n - 1:
+                rows.append([])
         cells = []
         for c in row.iter(_S + "c"):
             idx = _col_index(c.get("r") or "")
@@ -373,9 +388,13 @@ def _sheet_rows(ws, shared):
                     text = shared[int(v.text)]
                 except (TypeError, ValueError, IndexError):
                     text = ""
-            elif v is not None:
-                text = v.text or ""
+            elif v is not None and (v.text or "") != "":
+                text = v.text
             elif f is not None:
+                # A formula cell often carries an EMPTY cached <v> alongside its
+                # <f>, so testing for <v> first reported every formula in the
+                # workbook as a blank cell -- the whole Summary sheet, and the
+                # variance column of the register.
                 text = "=" + (f.text or "")
             else:
                 text = ""

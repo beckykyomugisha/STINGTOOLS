@@ -2,6 +2,30 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## KUT mobilisation pack — after the Phase 243 hardening (2026-08-23)
+
+**The four items in the first table are NOT ours to close.** They belong to the
+Appointing Party or to engineering judgement. Resolving them in the repository would
+look like progress while removing a decision from the people who own it. They are
+recorded so nobody mistakes them for oversights.
+
+| ID | Item | Whose decision |
+|---|---|---|
+| KUT-OPEN-1 | **Originator code length** — the automated container-naming rule enforces exactly 3 characters; the Information Manager's own code `PLNS` is 4. Either issue 3-character codes to every organisation, or widen the permitted range to 3–6, which is closer to general ISO 19650 practice. **No container may be numbered until this is settled** — renumbering after Deliverable A touches every issued document. Stated in BEP §4.2.1, playbook §4.1, and left empty in every MIDP `Originator` cell. | The Appointing Party's originator register |
+| KUT-OPEN-2 | **Clash clearances and tolerances** (BEP §7.2, playbook §12.3) | Engineering judgement; the Owner may specify |
+| KUT-OPEN-3 | **Every `[FILL]`** — 66 in the BEP, 40 in the playbook, 10 in the MIDP. Names, dates, project number, procurement route. Legitimate at Rev P01. The gate counts them and fails only on a **rise**, against `docs/examples/KUT/placeholder_baseline.json`; lower the baseline in the same commit when one is closed, to lock the gain in. | The project team, as the information arrives |
+| KUT-OPEN-4 | **Whether Tier A/B/C/FF&E membership is right** | A project decision recorded in the overlay. Argue it here before moving a category — the gate now holds the documents and the overlay to each other, so moving one without the other fails |
+
+| ID | Item | Detail |
+|---|---|---|
+| KUT-1 | **The monthly asset-data completeness report does not exist as code** | MIDP row Z-514 promises an "Asset data completeness report — monthly, by tier and by volume", and the BEP makes a tier below 95 % at the Deliverable D gate a **gate failure**. Nothing produces it. `WORKFLOW_KUT_MonthlyReport.json` chains tag/naming completeness, model health and the KPI dashboard — none of which is asset data by tier. The closest existing surface is `LOD_Verify`, which checks the same rung-500 fields but reports pass/fail per category at the gate, not completeness per tier per volume monthly. The date-format validator was therefore wired into LOD verification, which is where those fields are actually read. Building the monthly report is a new command surface and was deliberately not invented; when it is built, the tier/volume rollup and the date-format non-conformance count belong in it. |
+| KUT-2 | **`BIM Coordinator` is assigned deliverables but never appears in the playbook** | The register makes it responsible for `Z-010`, `Z-210` and `Z-211`; the BEP project-team table defines the role; the playbook — the document a task team actually works from — does not mention it once. The gate reports this as an **advisory, not a failure**: adding a role to an issued document is an editorial decision, not a gate's to force. Either add it to playbook §3.1 or reassign those three rows to a role the playbook does define. |
+| KUT-3 | **`COM_INSTALL_DATE_TXT` is a legacy alias that pickers still offer** | The Phase 243 picker filter keys on a description beginning `DEPRECATED`; this one begins `LEGACY`, so it is not caught. It must stay **readable** — the COBie export fallback depends on it — but offering it for a new mapping or a new write is the same trap the deprecation filter exists to close. Either re-word the registry description, or widen the rule to `LEGACY` as well and confirm nothing writes to it. |
+| KUT-4 | **The document gate cannot see whether the requirements are RIGHT** | Stated here so a green run is not over-read. It proves the pack does not contradict itself and matches the LOD overlay. It cannot judge whether a tier is sensible, whether a stage LOD is achievable, or anything at all about a real Revit model. The manual smoke test remains the only thing that touches Revit. |
+| KUT-5 | **`--apply` on the TIDP merge leaves the register hand-edited** | `merge_tidp.py --apply` writes rows into a **generated** workbook, so `check_kut_documents.py` will immediately and correctly report it as edited since generation. The tool says so on completion. The clean path is to fold accepted rows into `tools/build_midp.py` and regenerate before issue; `--apply` is for the Information Manager's working copy between issues. A `--emit-python` mode that prints the rows as `build_midp.py` tuples would close the loop properly. |
+| KUT-6 | **`merge_tidp.py` cannot correct an existing row** | `--overwrite-conflicts` is accepted and then declines to act, printing why: a conflicting `Ref` needs the register row corrected in place, which the tool does not do, and two parties disagreeing about one deliverable is a question for a person rather than a merge rule. Either implement in-place correction with an audit line, or drop the flag. Leaving a flag that explains itself instead of working is better than one that silently overwrites, but it is not the end state. |
+| KUT-7 | **`ViewStylePack.Checksum`-style asymmetry: the pack's `.docx` are gated, the internal playbook is not** | `KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx` is hand-maintained and exempt from the leakage check by name — correctly, since it is ours and may name the tooling. But nothing checks it is current, and it duplicates procedure from the playbook. If it drifts, the internal reader is the one misled. Generating it from a source, the way the other three are, is the obvious fix. |
+
 ## Material Schedule export — after Phase 235 (2026-08-16)
 
 | ID | Item | Detail |

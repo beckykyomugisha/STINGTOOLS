@@ -1,6 +1,8 @@
 # Documentation Index
 
 133 documents live in `docs/`, plus 23 at the repository root. This is the table of contents.
+Issued project documents that live outside `docs/` are indexed here too — see
+*KUT mobilisation pack* below.
 
 **How to read a doc's status.** Most files here are point-in-time artefacts, not living
 specification. Before acting on one, check its date and whether it says *plan/prompt/proposal*
@@ -110,6 +112,37 @@ artefact and check its date before trusting a step:
 
 `SMOKE_TEST_ConduitSleeve.md` · `SMOKE_TEST_PM_COMPLETE.md` · `ELECTRICAL_SMOKETEST_CHECKLIST.md` ·
 `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` · `PR306_MANUAL_QA.md` · `GOLD_CONSOLIDATED_SWEEP_CHECKLIST.md`
+
+## KUT mobilisation pack (issued documents + their generators)
+
+The pack the Kampala Uganda Temple project is being run from. Mobilisation began the week of
+25 August 2026 and these documents are relied on now.
+
+**Two rules govern every file in this section.** The three issued documents never name the
+tooling — no product name, command, parameter or file path — because they are read by the client
+and by every consultant, and the Appointing Party is entitled to require a check without being
+told the instrument. And no generated file is ever hand-edited: edit the generator and
+regenerate. Both rules are enforced by `tools/check_kut_documents.py`, so breaking either fails
+CI rather than reaching an issue.
+
+| Document | Status |
+|---|---|
+| [`../KUT_BIM_Execution_Plan.docx`](../KUT_BIM_Execution_Plan.docx) | ✅ **Issued Rev P01 — GENERATED, do not edit.** `KUT-PLN-ZZ-ZZ-RP-Z-0001`. What the project requires. Built by `tools/build_bep.py`. |
+| [`../KUT_Project_Delivery_Playbook.docx`](../KUT_Project_Delivery_Playbook.docx) | ✅ **Issued Rev P01 — GENERATED, do not edit.** `KUT-PLN-ZZ-ZZ-RP-Z-0002`. How a task team satisfies the BEP; the document a consultant works from. Built by `tools/build_team_playbook.py`. |
+| [`../KUT_Master_Information_Delivery_Plan.xlsx`](../KUT_Master_Information_Delivery_Plan.xlsx) | ✅ **Issued Rev P01 — GENERATED, do not edit.** `KUT-PLN-ZZ-ZZ-SC-Z-0001`. 68 deliverables, when each lands, and the TIDP return template. Built by `tools/build_midp.py`. |
+| [`../KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx`](../KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx) | ✅ **Current — INTERNAL, hand-maintained.** The only document in the pack that may name the tooling, and the only one not generated. Never issued to the client or to a consultant. |
+| [`../project-templates/KUT/_BIM_COORD/lod_matrix.json`](../project-templates/KUT/_BIM_COORD/lod_matrix.json) | ✅ **Current — GENERATED, do not edit.** The tiered LOD overlay the close-out gate runs against. Built by `tools/build_kut_lod_overlay.py`; `--check` proves it still matches the corporate baseline. |
+
+| Generator / tool | What it does |
+|---|---|
+| `tools/build_bep.py` · `tools/build_team_playbook.py` · `tools/build_midp.py` | The three issued documents. Change content HERE, never in the `.docx` / `.xlsx`. |
+| `tools/build_kut_lod_overlay.py` | The LOD overlay, and the tier definitions (A serialised plant · B maintainable devices · C warranted fabric · FF&E · D everything else). `--check` is CI-gated. |
+| `tools/build_smoke_test.py` | The manual Revit smoke-test checklist, rendered from `examples/KUT/smoke_test.json`. |
+| `tools/corporate_docx.py` | ✅ **The shared house style.** One definition of page setup, palette, headings, tables and callouts, so the issued set looks like one set. A change here changes every document at its next build. Also owns the deterministic, stamped save. |
+| `tools/kut_docs_lib.py` | Determinism and the two staleness digests (`inputs-sha256` over the generators, `parts-sha256` over the document's own parts), plus stdlib readers for `.docx` / `.xlsx`. Stdlib-only so the gate runs on a bare runner. |
+| `tools/midp_schema.py` | The MIDP/TIDP columns, permitted-value lists and drop-down column mapping. Shared by the builder and the merge tool so a return is validated against exactly what the workbook offered. |
+| `tools/check_kut_documents.py` | ✅ **The gate.** Proves the pack is internally consistent, matches the LOD overlay, names no tooling, and is a current un-edited regeneration. Run by `.github/workflows/kut-document-gate.yml`. It proves nothing about whether the requirements are *right*, and nothing about a real Revit model. |
+| `tools/merge_tidp.py` | Merges returned TIDP workbooks into the register. **Preview by default**; writes only on `--apply`; refuses a conflicting `Ref` unless told otherwise. |
 
 ## Domain packs
 
