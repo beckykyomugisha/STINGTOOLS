@@ -9,12 +9,18 @@ Palette and register conventions match the issued Word documents produced by
 tools/corporate_docx.py.
 """
 import datetime
+import pathlib
+import sys
 
 from openpyxl import Workbook
 from openpyxl.formatting.rule import CellIsRule, FormulaRule
 from openpyxl.styles import Alignment, Border, Font, NamedStyle, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import kut_docs_lib as K                                          # noqa: E402
+from midp_schema import COLS, LIST_COL, LISTS, MIDP_VALIDATED, TIDP_VALIDATED   # noqa: E402
 
 OUT = 'KUT_Master_Information_Delivery_Plan.xlsx'
 
@@ -41,27 +47,9 @@ small_f = Font(name='Calibri', size=8.5, italic=True, color=SLATE)
 hdr_fill = PatternFill('solid', fgColor=BAND)
 shade_fill = PatternFill('solid', fgColor=SHADE)
 
-# ── validation lists ────────────────────────────────────────────────────────
-LISTS = {
-    'Discipline': ['Information Management', 'Architecture', 'Interiors', 'Structure', 'Mechanical',
-                   'Electrical', 'Public Health', 'Fire Protection', 'Low Voltage', 'Civil and Site',
-                   'QS / Cost', 'FF&E', 'Contractor', 'All disciplines'],
-    'Type': ['Model', 'Drawing', 'Schedule', 'Document', 'Specification', 'Report', 'Calculation',
-             'Room data sheet', 'Model/Drawing', 'Model/Document'],
-    'Stage': ['Mobilisation', '2.1 Deliverable A', '2.2 Deliverable B', '2.3 Deliverable C',
-              '2.4 Tender', '2.5 Conformed set', '3.1 Construction', '3.2 FF&E', '3.3 Deliverable D'],
-    'LOD': ['n/a', '100', '200', '300', '350', '400', '500'],
-    'Suitability': ['S0', 'S1', 'S2', 'S3', 'S4', 'A1', 'B1'],
-    'CDE State': ['WIP', 'Shared', 'Published', 'Archived'],
-    'RAG': ['Green', 'Amber', 'Red', 'Complete'],
-}
-
-COLS = [
-    ('Ref', 10), ('Discipline', 20), ('Originator', 12), ('Deliverable', 44), ('Type', 15),
-    ('Stage', 20), ('LOD', 7), ('Format', 15), ('Suitability', 11), ('CDE State', 12),
-    ('Planned month', 14), ('Planned date', 13), ('Actual date', 13), ('Variance (days)', 14),
-    ('Responsible', 20), ('TIDP ref', 10), ('RAG', 11), ('Notes', 40),
-]
+# Validation lists and register columns live in tools/midp_schema.py so that
+# tools/merge_tidp.py validates a returned TIDP against exactly what this
+# workbook offered. See that module for why.
 
 # ── register rows ───────────────────────────────────────────────────────────
 # Ref, Discipline, Deliverable, Type, Stage, LOD, Format, Suit, State, Month, Responsible, TIDP, Notes
@@ -247,13 +235,10 @@ ms.freeze_panes = 'A2'
 ms.auto_filter.ref = 'A1:R%d' % last
 
 # Drop-downs. The source column on the Lists sheet is NOT the same letter as the
-# column being validated -- map them explicitly. Pointing a list at its own column
-# letter silently offers the wrong values, which a reader would take as correct.
-LIST_COL = {'Discipline': 'A', 'Originator': 'B', 'Type': 'C', 'Stage': 'D',
-            'LOD': 'E', 'Suitability': 'F', 'CDE State': 'G', 'RAG': 'H'}
-
-for col_letter, key in (('B', 'Discipline'), ('E', 'Type'), ('F', 'Stage'), ('G', 'LOD'),
-                        ('I', 'Suitability'), ('J', 'CDE State'), ('Q', 'RAG')):
+# column being validated -- LIST_COL maps them explicitly, in midp_schema.py.
+# Pointing a list at its own column letter silently offers the wrong values,
+# which a reader would take as correct.
+for col_letter, key in MIDP_VALIDATED:
     src = LIST_COL[key]
     dv = DataValidation(type='list', formula1="'Lists'!$%s$2:$%s$30" % (src, src),
                         allow_blank=True, showDropDown=False)
@@ -314,8 +299,7 @@ for n in range(blank_start, blank_start + 40):
         c.font = body_f
         if i in (13, 14):
             c.number_format = 'dd mmm yyyy'
-for col_letter, key in (('C', 'Discipline'), ('F', 'Type'), ('G', 'Stage'), ('H', 'LOD'),
-                        ('J', 'Suitability'), ('K', 'CDE State'), ('R', 'RAG')):
+for col_letter, key in TIDP_VALIDATED:
     src = LIST_COL[key]
     dv = DataValidation(type='list', formula1="'Lists'!$%s$2:$%s$30" % (src, src), allow_blank=True,
                         showDropDown=False)
@@ -421,9 +405,24 @@ wb.properties.subject = 'Kampala Uganda Temple — aggregated information delive
 wb.properties.creator = 'Planscape Consulting Engineers Ltd'
 wb.properties.lastModifiedBy = 'Planscape Consulting Engineers Ltd'
 wb.properties.category = 'Project procedure'
-wb.properties.description = ('Rev P01. Issued through the Common Data Environment. '
-                             'Uncontrolled when printed.')
+
+# Determinism. openpyxl stamps dcterms:created and dcterms:modified from the wall
+# clock, so an unpinned build produced a different binary every run -- and that
+# was true of the committed workbook until this was added. An always-dirty binary
+# diff trains reviewers to ignore `git status` on exactly the file a hand-edit
+# would show up in. Pinned, regeneration is a genuine no-op.
+_EPOCH = datetime.datetime(*K.EPOCH)
+wb.properties.created = _EPOCH
+wb.properties.modified = _EPOCH
+
+# The staleness stamp rides in dc:description, which openpyxl already writes, so
+# the gate can read it back with plain `zipfile` and stay stdlib-only.
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
+wb.properties.description = K.with_provenance(
+    'Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.',
+    'tools/build_midp.py', K.inputs_digest(_ROOT, OUT))
 
 wb.active = 0
 wb.save(OUT)
+K.finalise(pathlib.Path(OUT))
 print('saved:', OUT, '|', len(R), 'deliverables')

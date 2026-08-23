@@ -2147,6 +2147,24 @@ namespace StingTools.BIMManager
         /// Classify COBie AssetType based on element category and active preset.
         /// Categories like Furniture → Moveable; MEP equipment → Fixed; etc.
         /// </summary>
+        /// <summary>
+        /// The first non-empty value among <paramref name="order"/>.
+        ///
+        /// The order comes from CobieFieldMap, canonical parameter first, so a
+        /// model carrying both a freshly imported value and a leftover legacy one
+        /// exports the current copy rather than the stale one.
+        /// </summary>
+        private static string ReadFirst(Element el, System.Collections.Generic.IReadOnlyList<string> order)
+        {
+            if (el == null || order == null) return null;
+            foreach (string p in order)
+            {
+                string v = ParameterHelpers.GetString(el, p);
+                if (!string.IsNullOrEmpty(v)) return v;
+            }
+            return null;
+        }
+
         private static string ClassifyAssetType(string categoryName, COBiePreset preset)
         {
             if (string.IsNullOrEmpty(categoryName)) return "Fixed";
@@ -2651,7 +2669,7 @@ namespace StingTools.BIMManager
                     ["Description"] = ParameterHelpers.GetString(fs, "ASS_DESCRIPTION_TXT"),
                     ["AssetType"] = ClassifyAssetType(fs.Category?.Name ?? "", activePreset),
                     ["Manufacturer"] = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT"),
-                    ["ModelNumber"] = ParameterHelpers.GetString(fs, "ASS_MODEL_NR_TXT"),
+                    ["ModelNumber"] = ReadFirst(fs, StingTools.Core.Cobie.CobieFieldMap.TypeReadOrder("ModelNumber")),
                     ["WarrantyGuarantorParts"] = warrantyParts,
                     ["WarrantyDurationParts"] = warrantyDurParts,
                     ["WarrantyGuarantorLabor"] = warrantyLabor,
@@ -2739,16 +2757,15 @@ namespace StingTools.BIMManager
                 };
 
                 // Extract serial number, installation date, warranty start, barcode from STING parameters
-                string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
+                string serialNumber = ParameterHelpers.GetString(
+                    el, StingTools.Core.Cobie.CobieFieldMap.ComponentColumns["SerialNumber"]);
                 // Read the canonical parameter FIRST, then the legacy COBie-group one.
                 // COBie import writes ASS_INSTALLATION_DATE_TXT (see the field map in the
                 // import path), so reading only COM_INSTALL_DATE_TXT meant an imported
                 // COBie file did not survive a re-export: the date fell through to the
                 // phase-derived fallback below. The legacy read is retained so projects
                 // that populated the COBie-group parameter directly still export.
-                string installDate = ParameterHelpers.GetString(el, ParamRegistry.INSTALL_DATE);
-                if (string.IsNullOrEmpty(installDate))
-                    installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
+                string installDate = ReadFirst(el, StingTools.Core.Cobie.CobieFieldMap.ReadOrder("InstallationDate"));
                 // Phase 40: Derive installation date from phase as ISO 8601 date, not phase NAME.
                 // Previously exported "New Construction" instead of "2025-03-22".
                 if (string.IsNullOrEmpty(installDate))
@@ -2771,11 +2788,17 @@ namespace StingTools.BIMManager
                     }
                     catch (Exception ex2) { StingLog.Warn($"Phase install date lookup failed: {ex2.Message}"); }
                 }
-                string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
+                // The extended import wrote MNT_WARRANTY_START_TXT, which does not
+                // exist in the registry, so it wrote nothing at all; this read the
+                // only real parameter. Both sides now name the same one, so the
+                // value survives -- on the five categories COM_WARRANTY_START_TXT
+                // is bound to. See CobieFieldMap.NarrowlyBound for the rest.
+                string warrantyStart = ReadFirst(el, StingTools.Core.Cobie.CobieFieldMap.ReadOrder("WarrantyStartDate"));
                 // Phase 40: If warranty start is empty, derive from installation date
                 if (string.IsNullOrEmpty(warrantyStart) && !string.IsNullOrEmpty(installDate))
                     warrantyStart = installDate;
-                string barCode = ParameterHelpers.GetString(el, "ASS_BARCODE_TXT");
+                string barCode = ParameterHelpers.GetString(
+                    el, StingTools.Core.Cobie.CobieFieldMap.ComponentColumns["BarCode"]);
 
                 // Read TAG7 narrative for rich description
                 string tag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
@@ -10277,18 +10300,11 @@ namespace StingTools.BIMManager
 
                 int matched = 0, updated = 0, skipped = 0;
 
-                // COBie column → STING parameter mapping
-                var columnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["Description"] = "ASS_DESCRIPTION_TXT",
-                    ["SerialNumber"] = "ASS_SERIAL_NR_TXT",
-                    ["BarCode"] = "ASS_BARCODE_TXT",
-                    ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
-                    ["WarrantyDurationParts"] = "ASS_WARRANTY_DURATION_PARTS_YRS",
-                    ["WarrantyGuarantorParts"] = "ASS_WARRANTY_PARTS_TXT",
-                    ["InstallationDate"] = "ASS_INSTALLATION_DATE_TXT",
-                    ["WarrantyStartDate"] = "COM_WARRANTY_START_TXT",
-                };
+                // COBie column → STING parameter mapping. One definition, shared
+                // with the extended import, the Type import and the export. There
+                // were three hand-written copies and they disagreed; this one was
+                // the correct set, which is why it is the one that survived.
+                var columnMap = StingTools.Core.Cobie.CobieFieldMap.ComponentColumns;
 
                 using (Transaction tx = new Transaction(doc, "STING COBie Import"))
                 {

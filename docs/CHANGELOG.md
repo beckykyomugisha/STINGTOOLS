@@ -2,6 +2,119 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 243 — the KUT mobilisation pack was being relied on with no gate)
+
+Mobilisation began the week of 25 August 2026 and the pack — a BEP, a delivery
+playbook, a MIDP and the LOD overlay — was in use. Its cross-document consistency
+had been verified exactly **once**, by an ad-hoc script that was never committed.
+Nothing re-checked it, so the first person to edit one generator and not the others
+would have shipped two documents that both claimed to be authoritative.
+
+**The pack was not deterministic, despite being described as such.** Measured on the
+committed files: both `.docx` rebuilt with identical part content but all 18 zip
+entries carrying the wall clock, and the `.xlsx` additionally carrying openpyxl's
+`dcterms:created`/`modified`. Every regeneration dirtied three binaries with pure
+noise — worse than no diff, because it trains reviewers to ignore `git status` on
+exactly the files a hand-edit shows up in. `tools/kut_docs_lib.py` pins the zip epoch
+and the core dates on the finished bytes, so determinism no longer depends on which
+library did the writing (openpyxl rewrites `modified` as it saves, so pinning the
+workbook properties beforehand was not enough).
+
+Each document now carries **two** digests in its core properties: `inputs-sha256` over
+the generators, and `parts-sha256` over its own parts. Neither implies the other —
+the first catches a generator edit that was never re-run, the second catches a
+hand-edit in Word afterwards.
+
+`tools/check_kut_documents.py` (stdlib-only, so it runs on a bare runner) asserts
+freshness, stage→LOD agreement across four sources, the suitability vocabulary, the
+volume register, role definitions, document references, the section 14 tier tables
+against the LOD overlay, absence of any tooling name, and that the `[FILL]` count is
+not rising against a committed baseline. `.github/workflows/kut-document-gate.yml`
+runs it and finally invokes `build_kut_lod_overlay.py --check`, which existed and was
+CI-ready but which nothing had ever called.
+
+**One check passed a deliberate break and had to be rebuilt.** The tier check inferred
+tier membership *from* the rung-500 parameters and then verified those parameters
+against the tier — circular, so moving a category between tiers moved its inferred
+tier too and the contradiction cancelled out. Promoting Sprinklers to demand a serial
+number in the overlay alone was reported as green. Membership now comes from the
+documents and the required fields from the JSON, which is the only arrangement that
+can see the disagreement. Same failure class as the two asset parameters once required
+on categories they were not bound to. Six breaks in total were run and reverted; all
+six now fail loudly.
+
+Also fixed in the reader, each found by disbelieving a number: `docx_paragraphs`
+descended into table cells and would have baselined 131 placeholders for the BEP
+instead of 66; `.xlsx` rows were collapsed where a worksheet omits empty ones, so a
+reported row number sent the reader to the wrong row of their own return; and a
+formula cell carrying an empty cached `<v>` read as blank, which hid every formula in
+the workbook including the whole Summary sheet.
+
+**Date format (G2).** Every date parameter is TEXT and the BEP mandates `YYYY-MM-DD`
+with nothing enforcing it. `Core/Validation/DateFormatRule.cs` validates the value
+where LOD verification already reads these fields. Scope is an allow-list, never a
+name pattern: four `PRJ_TB_*` title-block dates are documented as `DD-Mon-YYYY` on
+purpose, and a `*_DATE_TXT` rule would have failed every sheet in the project for
+holding exactly what it was told to hold. The monthly asset-data completeness report
+the MIDP promises (row Z-514) **does not exist as code** and is logged in ROADMAP
+rather than invented.
+
+**Deprecation (G3).** `ParamRegistry` gains `DeprecatedParams` / `IsDeprecated` /
+`PickerOrder`. Superseded parameters sort **last** rather than vanish — one may hold a
+value on an element in an older model, and the lookup dialog is how somebody would
+find it. Membership is by description, never by name: `ASS_INSTALL_DATE_TXT` is both a
+deprecated registry entry and a C# constant that resolves to the canonical parameter.
+`FamilyParamCreatorCommand` is deliberately untouched, because it uses the registry as
+an "is STING" test for purge scoping. No registry data changed; no GUID removed.
+
+**COBie round-trip (G4).** The field mapping was separable from the Revit calls, so
+`Core/Cobie/CobieFieldMap.cs` holds it and both the import and the export read from
+it — the test guards the real code, not a copy. Extracting it exposed more of the
+same defect, and PR review then showed the first diagnosis of the warranty half was
+wrong in a way that mattered.
+
+**Corrected.** The claim was that the import wrote `MNT_WARRANTY_START_TXT` while the
+export read `COM_WARRANTY_START_TXT`. The disagreement was real, but
+`MNT_WARRANTY_START_TXT` **does not exist in `PARAMETER_REGISTRY.json` at all**, so the
+import wrote nothing whatsoever — it was not a mismatch between two live values, it was
+a column read from the spreadsheet and discarded in silence. Review found that eleven
+targets across the three COBie maps were in that state:
+
+    MNT_WARRANTY_START_TXT, MNT_WARRANTY_YRS_TXT, MNT_WARRANTY_PROVIDER_TXT,
+    ASS_MODEL_NUM_TXT, MNT_EXPECTED_LIFE_TXT, ASS_REPLACEMENT_COST_TXT,
+    BLE_LENGTH_TXT, BLE_WIDTH_TXT, BLE_HEIGHT_TXT, ASS_COLOUR_TXT
+
+`ParameterHelpers.SetString` returns false when the parameter is not on the element, so
+warranty guarantor, warranty duration, expected life, nominal dimensions and colour
+never reached a single element. The KUT LOD overlay requires `ASS_WARRANTY_PARTS_TXT`
+and `ASS_WARRANTY_DURATION_PARTS_YRS` at rung 500 for Tier A and Tier C, so **a COBie
+handover file could not satisfy the close-out gate by import alone** — the gate
+correctly reported data missing that the importer had read and thrown away. The real
+COBie parameters existed the whole time; `ASS_NOM_LENGTH_TXT`, `ASS_COLOR_TXT` and
+`ASS_MODEL_REF_TXT` carry `[COBie V2.4]` in their own registry descriptions.
+
+All three import maps and the export now read one definition, with the targets the
+primary import already used. `CobieFieldMapTests` asserts every target against the
+shipped data — present in the registry, resolving in `RESOLVED_BINDINGS.csv`, and
+`TEXT` in `MR_PARAMETERS.txt`, because `SetString` refuses any other storage type as
+silently as a missing parameter. A target bound to only some categories must be
+declared in `NarrowlyBound` with the categories it reaches, so that hazard is visible
+rather than silent. This is the blind spot the LOD matrix already closed with its own
+binding gate: **a map validated only against itself certifies its own mistakes**, and
+the round-trip test added earlier in this phase had done exactly that. Smoke-test step
+34 still covers the model half a Revit-free test cannot.
+
+**TIDP merge (G5).** `tools/merge_tidp.py` reads returned workbooks, validates against
+the same lists `build_midp.py` wrote the drop-downs from (now shared via
+`tools/midp_schema.py`), and reports what would be added, is already identical,
+conflicts, or is invalid. **Preview by default** — and preview is stdlib-only, so the
+safe operation always runs; writing needs openpyxl and says so. A `Ref` that exists
+with different content is refused, including when two returns disagree with each
+other.
+
+Documents, generators, the shared style module and every new tool are indexed in
+[`INDEX.md`](INDEX.md).
+
 #### Completed (Phase 242 — the element map described the documents, not the model)
 
 The federation fix worked — the GLB went from 13 elements to **1,407**, six links

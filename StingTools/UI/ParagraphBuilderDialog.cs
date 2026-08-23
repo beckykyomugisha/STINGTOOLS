@@ -487,8 +487,8 @@ namespace StingTools.UI
                 foreach (var kv in ParamRegistry.AllParamGuids) list.Add(kv.Key);
             }
             catch (Exception ex) { StingLog.Warn($"ParagraphBuilder: catalog build: {ex.Message}"); }
-            list.Sort(StringComparer.OrdinalIgnoreCase);
-            return list;
+            // Superseded parameters sort last -- see ParamRegistry.PickerOrder.
+            return ParamRegistry.PickerOrder(list);
         }
 
         private Border MakeCard()

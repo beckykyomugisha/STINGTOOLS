@@ -4823,7 +4823,10 @@ namespace StingTools.UI
                 if (!paramNames.Contains(p))
                     paramNames.Add(p);
             }
-            paramNames.Sort(StringComparer.OrdinalIgnoreCase);
+            // Superseded parameters sort last so they are not picked by mistake.
+            // They stay in the list: one may hold a value on an element in an
+            // older model, and this dialog is how someone would find it.
+            paramNames = ParamRegistry.PickerOrder(paramNames);
 
             // Build category list
             var categories = viewElements

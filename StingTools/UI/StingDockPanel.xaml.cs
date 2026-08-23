@@ -2206,7 +2206,11 @@ namespace StingTools.UI
             // R1-UI-02: Snapshot to local to prevent race on _instance
             var inst = _instance;
             if (inst == null) return;
-            var list = paramNames is IList<string> l ? l : new List<string>(paramNames);
+            // Superseded parameters sort to the end of every dropdown. Done here
+            // rather than at each caller because this is the one choke point the
+            // panel's parameter combos go through, so a future caller inherits it.
+            // See ParamRegistry.PickerOrder for why they are ordered, not removed.
+            var list = Core.ParamRegistry.PickerOrder(paramNames);
             inst.Dispatcher.BeginInvoke(new Action(() =>
             {
                 try
