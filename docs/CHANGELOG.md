@@ -69,11 +69,40 @@ an "is STING" test for purge scoping. No registry data changed; no GUID removed.
 
 **COBie round-trip (G4).** The field mapping was separable from the Revit calls, so
 `Core/Cobie/CobieFieldMap.cs` holds it and both the import and the export read from
-it — the test guards the real code, not a copy. Extracting it exposed a **second live
-instance** of the same defect: the import writes `MNT_WARRANTY_START_TXT` and the
-export read only `COM_WARRANTY_START_TXT`, so an imported warranty start date did not
-survive a re-export either. Both fixed, canonical first with the legacy alias retained
-as a fallback. Smoke-test step 34 covers the model half a Revit-free test cannot.
+it — the test guards the real code, not a copy. Extracting it exposed more of the
+same defect, and PR review then showed the first diagnosis of the warranty half was
+wrong in a way that mattered.
+
+**Corrected.** The claim was that the import wrote `MNT_WARRANTY_START_TXT` while the
+export read `COM_WARRANTY_START_TXT`. The disagreement was real, but
+`MNT_WARRANTY_START_TXT` **does not exist in `PARAMETER_REGISTRY.json` at all**, so the
+import wrote nothing whatsoever — it was not a mismatch between two live values, it was
+a column read from the spreadsheet and discarded in silence. Review found that eleven
+targets across the three COBie maps were in that state:
+
+    MNT_WARRANTY_START_TXT, MNT_WARRANTY_YRS_TXT, MNT_WARRANTY_PROVIDER_TXT,
+    ASS_MODEL_NUM_TXT, MNT_EXPECTED_LIFE_TXT, ASS_REPLACEMENT_COST_TXT,
+    BLE_LENGTH_TXT, BLE_WIDTH_TXT, BLE_HEIGHT_TXT, ASS_COLOUR_TXT
+
+`ParameterHelpers.SetString` returns false when the parameter is not on the element, so
+warranty guarantor, warranty duration, expected life, nominal dimensions and colour
+never reached a single element. The KUT LOD overlay requires `ASS_WARRANTY_PARTS_TXT`
+and `ASS_WARRANTY_DURATION_PARTS_YRS` at rung 500 for Tier A and Tier C, so **a COBie
+handover file could not satisfy the close-out gate by import alone** — the gate
+correctly reported data missing that the importer had read and thrown away. The real
+COBie parameters existed the whole time; `ASS_NOM_LENGTH_TXT`, `ASS_COLOR_TXT` and
+`ASS_MODEL_REF_TXT` carry `[COBie V2.4]` in their own registry descriptions.
+
+All three import maps and the export now read one definition, with the targets the
+primary import already used. `CobieFieldMapTests` asserts every target against the
+shipped data — present in the registry, resolving in `RESOLVED_BINDINGS.csv`, and
+`TEXT` in `MR_PARAMETERS.txt`, because `SetString` refuses any other storage type as
+silently as a missing parameter. A target bound to only some categories must be
+declared in `NarrowlyBound` with the categories it reaches, so that hazard is visible
+rather than silent. This is the blind spot the LOD matrix already closed with its own
+binding gate: **a map validated only against itself certifies its own mistakes**, and
+the round-trip test added earlier in this phase had done exactly that. Smoke-test step
+34 still covers the model half a Revit-free test cannot.
 
 **TIDP merge (G5).** `tools/merge_tidp.py` reads returned workbooks, validates against
 the same lists `build_midp.py` wrote the drop-downs from (now shared via

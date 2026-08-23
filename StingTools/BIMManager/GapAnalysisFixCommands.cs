@@ -176,25 +176,11 @@ namespace StingTools.BIMManager
             int lastRow = Math.Min(sheet.LastRowUsed()?.RowNumber() ?? 1, 5001);
             int updated = 0;
 
-            var typeColumnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Description"] = "ASS_DESCRIPTION_TXT",
-                ["Manufacturer"] = "ASS_MANUFACTURER_TXT",
-                ["ModelNumber"] = "ASS_MODEL_NUM_TXT",
-                ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
-                ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
-                ["ReplacementCost"] = "ASS_REPLACEMENT_COST_TXT",
-                ["ExpectedLife"] = "MNT_EXPECTED_LIFE_TXT",
-                ["NominalLength"] = "BLE_LENGTH_TXT",
-                ["NominalWidth"] = "BLE_WIDTH_TXT",
-                ["NominalHeight"] = "BLE_HEIGHT_TXT",
-                ["Material"] = "ASS_MATERIAL_TXT",
-                ["Color"] = "ASS_COLOUR_TXT",
-                ["Finish"] = "ASS_FINISH_TXT",
-                ["Grade"] = "ASS_GRADE_TXT",
-                ["Shape"] = "ASS_SHAPE_TXT",
-                ["Size"] = "ASS_SIZE_TXT",
-            };
+            // Nine of the sixteen targets this map used named parameters that do
+            // not exist in the registry, so warranty, expected life, nominal
+            // dimensions and colour were read from the spreadsheet and discarded
+            // in silence. See StingTools.Core.Cobie.CobieFieldMap.
+            var typeColumnMap = StingTools.Core.Cobie.CobieFieldMap.TypeColumns;
 
             for (int row = 2; row <= lastRow; row++)
             {
