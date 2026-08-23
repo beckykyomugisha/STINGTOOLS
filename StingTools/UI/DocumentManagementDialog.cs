@@ -126,6 +126,212 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrLightE8    = FZ(0xE8, 0xE8, 0xE8);
         private static readonly SolidColorBrush BrLightDD    = FZ(0xDD, 0xDD, 0xDD);
 
+        // ══════════════════════════════════════════════════════════════
+        //  CANONICAL VOCABULARIES
+        //
+        //  Every list this dialog offers the user is resolved here, from the
+        //  registry that already owns it elsewhere in the assembly. Before this,
+        //  the dialog carried private copies that had drifted: the suitability
+        //  combo still spelled the pre-2018 BS 1192 meanings of S5/S6/S7, and its
+        //  CDE state machine knew four states where the engine knows seven — so
+        //  the Document Manager and the BIM Coordination Center enforced different
+        //  rules on the same files. Do not add a vocabulary to this file; point at
+        //  the registry that owns it instead.
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Codes in lifecycle order (S, then A, then B, then CR/AB/AR), from the
+        /// ISO 19650 registry.</summary>
+        private static string[] SuitabilityCodeList =>
+            Core.Drawing.Iso19650Vocabulary.SuitabilityCodes;
+
+        /// <summary>"S4 — Suitable for stage approval". Falls back to the bare code for a value
+        /// stored before the registry knew it, rather than rendering blank.</summary>
+        private static string SuitabilityLabel(string code) =>
+            Core.Drawing.Iso19650Vocabulary.SuitabilityLabels.TryGetValue(code ?? "", out string lbl)
+                ? lbl : (code ?? "");
+
+        /// <summary>Legend colour by code family — S = in-progress, A = authorised,
+        /// B = partial sign-off, CR/AB/AR = record and retirement.</summary>
+        private static SolidColorBrush SuitabilityBrush(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return BrFgDark;
+            if (code.StartsWith("AB") || code.StartsWith("AR")) return BrRed;
+            switch (code[0])
+            {
+                case 'S': return code == "S0" ? BrFgSub : BrTeal;
+                case 'A': return BrGreen;
+                case 'B': return BrOrange;
+                default:  return BrFgDark;   // CR — as-constructed record
+            }
+        }
+
+        /// <summary>The seven ISO 19650-2 CDE statuses the engine's state machine knows:
+        /// the four live containers plus SUPERSEDED / WITHDRAWN / OBSOLETE.</summary>
+        private static string[] CdeStatusList =>
+            Core.Drawing.Iso19650Vocabulary.CdeStatesWithTerminal;
+
+        /// <summary>
+        /// Where a document in <paramref name="cdeState"/> lives on disk.
+        /// <para>
+        /// DECISION (WP2): the three terminal statuses do NOT get folders of their own.
+        /// <see cref="Core.StingPaths.CdeStates"/> defines exactly four CDE containers and
+        /// ProjectFolderEngine.GetFolderPath can resolve no others, so inventing SUPERSEDED /
+        /// WITHDRAWN / OBSOLETE folders here would add three top-level directories to every
+        /// project layout. A retired document is filed in ARCHIVE and its status is carried in
+        /// the register's cde_status field — which is what
+        /// <see cref="Core.Drawing.Iso19650Vocabulary.TerminalStatuses"/> already documents:
+        /// "these are NOT CDE containers — a document does not live in a SUPERSEDED folder".
+        /// </para>
+        /// </summary>
+        private static string CdeTargetFolder(string cdeState)
+        {
+            string s = (cdeState ?? "").Trim().ToUpperInvariant();
+            if (Core.StingPaths.CdeStates.Contains(s)) return s;
+            if (Core.Drawing.Iso19650Vocabulary.TerminalStatuses.Contains(s)) return "ARCHIVE";
+            return "WIP";
+        }
+
+        /// <summary>Default suitability for a CDE status, per ISO 19650. The terminal statuses
+        /// map to AB (abandoned / superseded) and AR (archive) — both real codes in
+        /// Iso19650Vocabulary.SuitabilityLabels, confirmed before being hardcoded here.</summary>
+        private static string SuitabilityForCde(string cdeState)
+        {
+            switch ((cdeState ?? "").Trim().ToUpperInvariant())
+            {
+                case "WIP":        return "S0";
+                case "SHARED":     return "S3";   // Fit for review & comment
+                case "PUBLISHED":  return "S4";   // Fit for stage approval (2021 UK NA)
+                case "ARCHIVE":    return "AR";   // Archive
+                case "SUPERSEDED": return "AB";   // Abandoned / superseded
+                case "WITHDRAWN":  return "AB";
+                case "OBSOLETE":   return "AR";
+                default:           return "S0";
+            }
+        }
+
+        /// <summary>ISO 19650-2 document status code for a CDE status.</summary>
+        private static string StatusCodeForCde(string cdeState)
+        {
+            switch ((cdeState ?? "").Trim().ToUpperInvariant())
+            {
+                case "PUBLISHED":  return "IFA";   // Issued for Approval
+                case "SHARED":     return "IFC";   // Issued for Coordination
+                case "ARCHIVE":
+                case "SUPERSEDED":
+                case "WITHDRAWN":
+                case "OBSOLETE":   return "IFR";   // Issued for Record
+                default:           return "IFI";   // Issued for Information
+            }
+        }
+
+        /// <summary>
+        /// Discipline codes offered by the filter tree and the team-member picker.
+        /// <para>
+        /// Union of two registries, because neither alone is complete. The validator's
+        /// ValidDiscCodes is the configurable set — built-ins plus CUSTOM_VALID_DISC from
+        /// project_config.json, which is how a healthcare project adds H / MG / RP.
+        /// TagConfig.DiscMap is what the tagger actually assigns from a category, and it emits
+        /// FLS, which the validator's built-in set does not carry. A picker narrower than
+        /// either hides a project's own documents from it.
+        /// </para>
+        /// <para>
+        /// DiscMap is keyed by Revit CATEGORY name and valued by discipline code, so the codes
+        /// are its Values, not its Keys.
+        /// </para>
+        /// </summary>
+        private static List<string> DisciplineCodeList()
+        {
+            var codes = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (string c in ISO19650Validator.ValidDiscCodes)
+                    if (!string.IsNullOrWhiteSpace(c)) codes.Add(c.Trim().ToUpperInvariant());
+                if (TagConfig.DiscMap != null)
+                    foreach (string c in TagConfig.DiscMap.Values)
+                        if (!string.IsNullOrWhiteSpace(c)) codes.Add(c.Trim().ToUpperInvariant());
+            }
+            catch (Exception ex)
+            {
+                // A config-load failure must not empty the picker — say so in the log and fall
+                // through to the built-in codes below.
+                StingLog.Warn($"DisciplineCodeList: falling back to built-in codes — {ex.Message}");
+            }
+            if (codes.Count == 0)
+                foreach (string c in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" }) codes.Add(c);
+            return codes.ToList();
+        }
+
+        /// <summary>Help text for the legend. Descriptions only — the CODES come from
+        /// <see cref="DisciplineCodeList"/>, so a project-defined code still gets a row.</summary>
+        private static readonly Dictionary<string, string> DisciplineDescriptions =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["M"]   = "Mechanical — HVAC, heating, ventilation",
+                ["E"]   = "Electrical — power, lighting, comms",
+                ["P"]   = "Plumbing — DHW, DCW, sanitary, drainage",
+                ["A"]   = "Architectural — walls, doors, windows, floors",
+                ["S"]   = "Structural — columns, beams, foundations",
+                ["FP"]  = "Fire Protection — sprinklers, suppression",
+                ["FLS"] = "Fire, Life & Safety — alarms, detection, call points",
+                ["LV"]  = "Low Voltage — data, CCTV, access control",
+                ["G"]   = "General — multi-discipline / unclassified",
+                ["H"]   = "Healthcare — clinical planning and equipment",
+                ["MG"]  = "Medical Gas — MGPS pipeline and terminal units",
+                ["RP"]  = "Radiation Protection — shielding and controlled areas",
+            };
+
+        private static SolidColorBrush DisciplineBrush(string code)
+        {
+            switch ((code ?? "").ToUpperInvariant())
+            {
+                case "M":   return Brushes.Blue;
+                case "E":   return Brushes.Goldenrod;
+                case "P":   return BrGreen;
+                case "A":   return BrFgSub;
+                case "S":   return BrRed;
+                case "FP":
+                case "FLS": return BrOrange;
+                case "LV":  return BrPurple;
+                default:    return BrFgDark;
+            }
+        }
+
+        /// <summary>Canonical issue statuses, spelled the way IssueStore persists them. The
+        /// dialog used to offer RESPONDED / ACCEPTED / REJECTED, none of which the normalizer
+        /// emits — so those filter nodes could never match a stored row. Unknown is omitted: it
+        /// is a parse outcome, not a status anyone files under.</summary>
+        private static readonly string[] IssueStatusList =
+        {
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Open),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.InProgress),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Resolved),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Closed),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Void),
+        };
+
+        /// <summary>Issue priorities, from the registry the BIM Coordination Center and the SLA
+        /// thresholds already share — BIMManagerEngine.SLAThresholdsHours is keyed by exactly
+        /// these. Three separate copies of this list used to live in this file.</summary>
+        private static List<string> IssuePriorityList() =>
+            BIMManager.BIMManagerEngine.IssuePriorities.Keys.ToList();
+
+        /// <summary>
+        /// Sticky-note categories.
+        /// <para>
+        /// NOT bound to a registry, deliberately. The only other note-category list in the
+        /// assembly is BIMManager.StickyNoteCategoriesCommand.DefaultCategories, and it is a
+        /// genuinely different vocabulary ("Design Query", "Snagging", "Change Order") read
+        /// from a different store. Unifying them would re-file notes already on disk under
+        /// categories that no longer exist — a data migration, not a rebinding, and out of
+        /// scope here. Kept as one member so this file at least holds a single copy; the
+        /// divergence is recorded in docs/ROADMAP.md.
+        /// </para>
+        /// </summary>
+        private static readonly string[] StickyNoteCategoryList =
+        {
+            "GENERAL", "OBSERVATION", "ACTION", "WARNING", "COORDINATION", "QA",
+        };
+
         // ── State ─────────────────────────────────────────────────────
         private static ObservableCollection<DocItemVM> _allItems;
         private static ListCollectionView _view;
@@ -760,7 +966,12 @@ namespace StingTools.UI
             var byCDE        = _allItems.GroupBy(i => i.CDE ?? "").ToDictionary(g => g.Key, g => g.Count());
             var byIssuePri   = issueItems.GroupBy(i => i.Priority ?? "").ToDictionary(g => g.Key, g => g.Count());
             var byIssueType  = issueItems.GroupBy(i => i.Type ?? "").ToDictionary(g => g.Key, g => g.Count());
-            var byIssueStatus = issueItems.GroupBy(i => i.Status ?? "").ToDictionary(g => g.Key, g => g.Count());
+            // Grouped on the canonical spelling, not the raw one: IssueStore rows arrive as
+            // "Closed", "CLOSED", "resolved" and so on, and a raw group key never matches the
+            // canonical label the node below asks for — the node then silently reported 0.
+            var byIssueStatus = issueItems
+                .GroupBy(i => IssueStatusNormalizer.Canonical(i.Status ?? ""))
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
             int overdueCount = issueItems.Count(i => i.IsOverdue);
             int clashTotalCount = _allItems.Count(i => i.Category == "CLASH");
             int stickyTotalCount = _allItems.Count(i => i.Category == "STICKY");
@@ -782,7 +993,7 @@ namespace StingTools.UI
 
             // ── BY DISCIPLINE (GAP NAV-01) ──
             var discNode = MakeTreeItem("BY DISCIPLINE", "DISC_ROOT", false);
-            foreach (string disc in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "Z" })
+            foreach (string disc in DisciplineCodeList())
             {
                 byDisc.TryGetValue(disc.ToUpperInvariant(), out int count);
                 if (count > 0)
@@ -804,10 +1015,13 @@ namespace StingTools.UI
 
             // ── CDE STATUS ──
             var cdeNode = MakeTreeItem("CDE STATUS", "CDE_ROOT", false);
-            foreach (var (code, label) in new[] { ("WIP", "Work In Progress"), ("SHARED", "Shared"),
-                ("PUBLISHED", "Published"), ("ARCHIVE", "Archive") })
+            foreach (string code in CdeStatusList)
             {
                 byCDE.TryGetValue(code, out int count);
+                // The four live containers always show, so the tree still reads as a lifecycle
+                // when a project has nothing retired; the three terminal statuses appear only
+                // once something is in them, rather than as three permanent empty rows.
+                if (count == 0 && !Core.StingPaths.CdeStates.Contains(code)) continue;
                 cdeNode.Items.Add(MakeTreeItem($"{code} ({count})", $"CDE:{code}", false));
             }
             _treeView.Items.Add(cdeNode);
@@ -827,7 +1041,7 @@ namespace StingTools.UI
             var issuesNode = MakeTreeItem("ISSUES & RFIs", "CAT:ISSUE", false);
             // By priority first
             var priNode = MakeTreeItem("By Priority", "ISSUE_PRI", false);
-            foreach (string pri in new[] { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" })
+            foreach (string pri in IssuePriorityList())
             {
                 byIssuePri.TryGetValue(pri, out int count);
                 if (count > 0)
@@ -845,7 +1059,7 @@ namespace StingTools.UI
             issuesNode.Items.Add(typeNode);
             // By status
             var issStatNode = MakeTreeItem("By Status", "ISSUE_STAT", false);
-            foreach (string st in new[] { "OPEN", "IN_PROGRESS", "RESPONDED", "ACCEPTED", "REJECTED", "CLOSED", "VOID" })
+            foreach (string st in IssueStatusList)
             {
                 byIssueStatus.TryGetValue(st, out int count);
                 if (count > 0)
@@ -1659,22 +1873,20 @@ namespace StingTools.UI
             var root = new StackPanel();
 
             root.Children.Add(MakeLegendHeader("CDE STATUS (ISO 19650-1 §12)"));
-            root.Children.Add(MakeLegendRow("WIP", "Work In Progress — being developed by originator", BrFgSub));
-            root.Children.Add(MakeLegendRow("SHARED", "Shared — issued for coordination/review", BrTeal));
-            root.Children.Add(MakeLegendRow("PUBLISHED", "Published — approved for use", BrGreen));
-            root.Children.Add(MakeLegendRow("ARCHIVE", "Archive — retained for reference only", BrFgSub));
+            foreach (var kv in BIMManager.BIMManagerEngine.CDEStates)
+                root.Children.Add(MakeLegendRow(kv.Key, kv.Value,
+                    kv.Key == "SHARED" ? BrTeal : kv.Key == "PUBLISHED" ? BrGreen : BrFgSub));
 
             root.Children.Add(MakeLegendHeader("SUITABILITY CODES (ISO 19650 Table 9)"));
-            root.Children.Add(MakeLegendRow("S0", "Work In Progress — preliminary, not for sharing", BrFgSub));
-            root.Children.Add(MakeLegendRow("S1", "Fit for Coordination — internal team collaboration", BrTeal));
-            root.Children.Add(MakeLegendRow("S2", "Fit for Information — shared with external parties", BrGreen));
-            root.Children.Add(MakeLegendRow("S3", "Fit for Review & Comment — client/stakeholder input", BrOrange));
-            root.Children.Add(MakeLegendRow("S4", "Fit for Stage Approval — RIBA stage gate sign-off", BrGreen));
-            root.Children.Add(MakeLegendRow("S5", "Fit for Manufacturing / Procurement", BrPurple));
-            root.Children.Add(MakeLegendRow("S6", "Fit for PIM Authorisation — production model", BrPurple));
-            root.Children.Add(MakeLegendRow("S7", "Fit for AIM Authorisation — asset handover", BrPurple));
-            root.Children.Add(MakeLegendRow("CR", "As-Constructed Record Document", BrFgDark));
-            root.Children.Add(MakeLegendRow("AB", "Abandoned / Superseded — obsolete version", BrRed));
+            foreach (string code in SuitabilityCodeList)
+            {
+                // Strip the "S4 — " prefix the registry label carries; the code is its own column.
+                string label = SuitabilityLabel(code);
+                int dash = label.IndexOf('\u2014');
+                root.Children.Add(MakeLegendRow(code,
+                    dash >= 0 ? label.Substring(dash + 1).Trim() : label,
+                    SuitabilityBrush(code)));
+            }
 
             root.Children.Add(MakeLegendHeader("DOCUMENT STATUS CODES (ISO 19650-2 §5.6)"));
             foreach (var kv in BIMManager.DocStatusCodes.All.Take(20))
@@ -1709,14 +1921,12 @@ namespace StingTools.UI
             root.Children.Add(MakeLegendRow("SUPERSEDED", "Replaced by newer transmittal", BrFgSub));
 
             root.Children.Add(MakeLegendHeader("DISCIPLINE CODES (STING)"));
-            root.Children.Add(MakeLegendRow("M", "Mechanical — HVAC, heating, ventilation", Brushes.Blue));
-            root.Children.Add(MakeLegendRow("E", "Electrical — power, lighting, comms", Brushes.Goldenrod));
-            root.Children.Add(MakeLegendRow("P", "Plumbing — DHW, DCW, sanitary, drainage", BrGreen));
-            root.Children.Add(MakeLegendRow("A", "Architectural — walls, doors, windows, floors", BrFgSub));
-            root.Children.Add(MakeLegendRow("S", "Structural — columns, beams, foundations", BrRed));
-            root.Children.Add(MakeLegendRow("FP", "Fire Protection — alarms, sprinklers, suppression", BrOrange));
-            root.Children.Add(MakeLegendRow("LV", "Low Voltage — data, CCTV, access control", BrPurple));
-            root.Children.Add(MakeLegendRow("G", "General — multi-discipline / unclassified", BrFgDark));
+            foreach (string code in DisciplineCodeList())
+                root.Children.Add(MakeLegendRow(code,
+                    DisciplineDescriptions.TryGetValue(code, out string dDesc)
+                        ? dDesc
+                        : "Project-defined discipline code (project_config.json)",
+                    DisciplineBrush(code)));
 
             root.Children.Add(MakeLegendHeader("DATA DROP MILESTONES (ISO 19650-2 §5.3)"));
             root.Children.Add(MakeLegendRow("DD1", "Stage 2 — Concept Design (BEP, tag structure, COBie schema)", BrTeal));
@@ -2014,10 +2224,21 @@ namespace StingTools.UI
             // Suitability code
             stack.Children.Add(new TextBlock { Text = "Suitability Code:", Margin = new Thickness(0, 6, 0, 2) });
             var suitCombo = new System.Windows.Controls.ComboBox();
-            foreach (string s in new[] { "S0 — WIP", "S1 — Coordination", "S2 — Information", "S3 — Review & Comment",
-                "S4 — Stage Approval", "S5 — Costing", "S6 — Contractor Design", "S7 — Manufacture" })
-                suitCombo.Items.Add(s);
-            suitCombo.SelectedIndex = 2;
+            // The full ISO 19650 set — S0-S7 plus the A/B authorization codes, CR, AB and AR.
+            // Offering S0-S7 alone meant a PUBLISHED transmittal could not carry a correct
+            // authorization code at all. Items are keyed by Tag so the stored value never
+            // depends on where the label happens to put a space.
+            foreach (string code in SuitabilityCodeList)
+            {
+                var cbi = new System.Windows.Controls.ComboBoxItem
+                {
+                    Content = SuitabilityLabel(code),
+                    Tag = code,
+                };
+                if (code == "S2") cbi.IsSelected = true;   // Suitable for information
+                suitCombo.Items.Add(cbi);
+            }
+            if (suitCombo.SelectedIndex < 0 && suitCombo.Items.Count > 0) suitCombo.SelectedIndex = 0;
             stack.Children.Add(suitCombo);
 
             // Purpose / notes
@@ -2072,7 +2293,8 @@ namespace StingTools.UI
                     if (int.TryParse(raw.Replace("TX-", ""), out int n) && n > maxNum) maxNum = n;
                 }
                 string transId = $"TX-{maxNum + 1:D4}";
-                string suitCode = (suitCombo.SelectedItem?.ToString() ?? "S2").Split(' ')[0];
+                string suitCode =
+                    (suitCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? "S2";
                 var docList = new JArray(selected.Select(s => s.Title).ToArray());
 
                 // Build per-recipient delivery tracking
@@ -2215,7 +2437,7 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(title)) return;
 
             // Priority selection
-            var priorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" };
+            var priorities = IssuePriorityList();
             string priority = StingListPicker.Show($"{issueType} Priority", "Select priority:", priorities);
             if (string.IsNullOrEmpty(priority)) priority = "MEDIUM";
 
@@ -2833,7 +3055,8 @@ namespace StingTools.UI
 
                 // Discipline dropdown
                 var discCombo = new System.Windows.Controls.ComboBox();
-                foreach (string d in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "" }) discCombo.Items.Add(d);
+                foreach (string d in DisciplineCodeList()) discCombo.Items.Add(d);
+                discCombo.Items.Add("");   // "any / unassigned" — keep last so it is opt-in
                 discCombo.SelectedIndex = 0;
                 stack.Children.Add(new TextBlock { Text = "Discipline", FontSize = 10, Margin = new Thickness(0, 6, 0, 2) });
                 stack.Children.Add(discCombo);
@@ -4150,7 +4373,7 @@ namespace StingTools.UI
                 "Naming Check" => "Audit all sheet names against ISO 19650 naming convention with auto-correction suggestions",
                 "Transmittal" => "Create ISO 19650 transmittal record with document list, recipient, and delivery tracking",
                 "Publish CDE" => "Create ISO 19650 CDE folder package with discipline sub-folders and deliverable manifest",
-                "CDE Status" => "View/update Common Data Environment suitability codes (S0-S7) for project containers",
+                "CDE Status" => "View/update Common Data Environment suitability codes (full ISO 19650 set: S0-S7, A1-A5, B1-B6, CR, AB, AR) for project containers",
                 "Review Tracker" => "Track model review cycles, approval workflows, and information exchanges",
                 "MIDP Tracker" => "Master Information Delivery Plan — track deliverable progress per discipline and RIBA stage",
                 // Issues
@@ -4841,15 +5064,24 @@ namespace StingTools.UI
             }
         }
 
-        // ── CDE state machine — ISO 19650 valid transitions ──
-        private static readonly Dictionary<string, string[]> CDETransitions = new(StringComparer.OrdinalIgnoreCase)
+        // ── CDE state machine ──
+        // There is no table here on purpose. BIMManagerEngine.CDEStateTransitions is the one
+        // ISO 19650-2 state machine in this assembly (7 states, Phase 40) and the BIM
+        // Coordination Center already enforces it. The private 4-state copy that used to sit
+        // here disagreed with it: it had no SUPERSEDED, WITHDRAWN or OBSOLETE, so this dialog
+        // could not withdraw or supersede a document, and it accepted transitions on the same
+        // files that the Coordination Center refused.
+
+        /// <summary>Next states the engine allows from <paramref name="currentCde"/>.
+        /// An empty state means first assignment, which the engine treats as unconstrained.</summary>
+        private static List<string> ValidCdeTargets(string currentCde)
         {
-            [""] = new[] { "WIP" },
-            ["WIP"] = new[] { "SHARED" },
-            ["SHARED"] = new[] { "WIP", "PUBLISHED" },  // Can return to WIP for rework
-            ["PUBLISHED"] = new[] { "ARCHIVE" },
-            ["ARCHIVE"] = Array.Empty<string>()  // Terminal state
-        };
+            string cur = (currentCde ?? "").Trim();
+            if (cur.Length == 0) return CdeStatusList.ToList();
+            return BIMManager.BIMManagerEngine.CDEStateTransitions.TryGetValue(cur, out var next)
+                ? next.ToList()
+                : new List<string>();
+        }
 
         private static void BulkUpdateCDE(Document doc)
         {
@@ -4858,23 +5090,32 @@ namespace StingTools.UI
                 "document rows that have a file on disk");
             if (selected == null) return;
 
-            // Determine valid transitions based on current state of first selected doc
+            // Valid transitions come from the engine, not from a copy kept here.
             string currentCDE = selected.FirstOrDefault()?.CDE ?? "WIP";
-            var validTargets = CDETransitions.TryGetValue(currentCDE, out string[] targets) ? targets : new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+            var validTargets = ValidCdeTargets(currentCDE);
 
             // Check for mixed CDE states in selection
             var distinctStates = selected.Select(s => s.CDE ?? "WIP").Distinct().ToList();
             if (distinctStates.Count > 1)
             {
-                // Mixed states — show all options but warn
-                validTargets = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+                // Mixed states — offer the union of what is legal from EVERY state present, so
+                // the picker never lists a target that is illegal for all of them, and validate
+                // per document below.
+                validTargets = distinctStates
+                    .SelectMany(ValidCdeTargets)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(t => Array.IndexOf(CdeStatusList, t))
+                    .ToList();
                 var mixedMsg = $"Selected documents have mixed CDE states: {string.Join(", ", distinctStates)}.\n\n" +
                     "ISO 19650 recommends transitioning documents with the same CDE state together.\nProceed anyway?";
                 if (MessageBox.Show(mixedMsg, "Mixed CDE States", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             }
-            else if (validTargets.Length == 0)
+            if (validTargets.Count == 0)
             {
-                MessageBox.Show($"Documents in '{currentCDE}' state cannot transition further (terminal state).", "CDE Transition");
+                MessageBox.Show(
+                    $"Documents in '{currentCDE}' state cannot transition further — it is a terminal state.\n\n" +
+                    $"Valid states: {string.Join(", ", CdeStatusList)}.",
+                    "CDE Transition", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -4885,7 +5126,10 @@ namespace StingTools.UI
                     "WIP" => "WIP — Return to Work In Progress for rework",
                     "SHARED" => "SHARED — Issue for coordination/review (S1-S4)",
                     "PUBLISHED" => "PUBLISHED — Approve and publish (A-codes, contractual)",
-                    "ARCHIVE" => "ARCHIVE — Superseded, retained for audit",
+                    "ARCHIVE" => "ARCHIVE — Retained for audit",
+                    "SUPERSEDED" => "SUPERSEDED — Replaced by a newer revision (filed in ARCHIVE)",
+                    "WITHDRAWN" => "WITHDRAWN — Removed from the CDE, no longer valid (filed in ARCHIVE)",
+                    "OBSOLETE" => "OBSOLETE — Historically retained, not for use (filed in ARCHIVE)",
                     _ => t
                 };
                 return desc;
@@ -4894,15 +5138,43 @@ namespace StingTools.UI
             string pick = StingListPicker.Show("Update CDE Status",
                 $"Current state: {currentCDE}\nTransition {selected.Count} document(s) to:", cdeOptions);
             if (string.IsNullOrEmpty(pick)) return;
-            string newCDE = pick.Split(' ')[0].Trim();
+            string newCDE = pick.Split(' ')[0].Trim().ToUpperInvariant();
+
+            // Refuse illegal transitions with the ENGINE's message rather than letting a
+            // mixed-selection union quietly promote a document the engine would block.
+            var blocked = new List<string>();
+            foreach (var it in selected)
+            {
+                string err = BIMManager.BIMManagerEngine.ValidateCDETransition(it.CDE ?? "", newCDE);
+                if (!string.IsNullOrEmpty(err)) blocked.Add($"{it.Title}: {err}");
+            }
+            if (blocked.Count > 0)
+            {
+                var bMsg = new StringBuilder();
+                bMsg.AppendLine($"{blocked.Count} of {selected.Count} document(s) cannot move to {newCDE}:");
+                bMsg.AppendLine();
+                foreach (string b in blocked.Take(10)) bMsg.AppendLine($"  • {b}");
+                if (blocked.Count > 10) bMsg.AppendLine($"  … and {blocked.Count - 10} more — see StingTools.log");
+                StingLog.Warn($"BulkUpdateCDE: {blocked.Count} illegal transition(s) to {newCDE} refused.");
+                if (blocked.Count == selected.Count)
+                {
+                    MessageBox.Show(bMsg.ToString().TrimEnd(), "STING CDE Update",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                bMsg.AppendLine();
+                bMsg.Append($"Continue with the remaining {selected.Count - blocked.Count}?");
+                if (MessageBox.Show(bMsg.ToString(), "STING CDE Update",
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+                selected = selected
+                    .Where(it => string.IsNullOrEmpty(
+                        BIMManager.BIMManagerEngine.ValidateCDETransition(it.CDE ?? "", newCDE)))
+                    .ToList();
+            }
 
             // Move files to corresponding CDE folder
-            string targetFolder = newCDE.ToUpperInvariant() switch
-            {
-                "WIP" => "WIP", "SHARED" => "SHARED",
-                "PUBLISHED" => "PUBLISHED", "ARCHIVE" => "ARCHIVE",
-                _ => "WIP"
-            };
+            // SUPERSEDED / WITHDRAWN / OBSOLETE are statuses, not containers — see CdeTargetFolder.
+            string targetFolder = CdeTargetFolder(newCDE);
             int moved = 0;
             var movedPaths = new List<string>();
             var moveFailed = new List<string>();
@@ -4919,8 +5191,11 @@ namespace StingTools.UI
                     // name means these differ, and the transmittal recorded a dead path.
                     movedPaths.Add(landedAt);
                     // Log activity for each file
+                    // Name the status AND the container when they differ, so the activity
+                    // log does not claim a file went to a folder that does not exist.
                     ProjectFolderEngine.LogActivity(doc, "CDE_UPDATE", item.Id ?? item.Title,
-                        $"Moved to {newCDE}");
+                        newCDE == targetFolder ? $"Moved to {newCDE}"
+                                               : $"Set to {newCDE}, filed in {targetFolder}");
                 }
                 else moveFailed.Add(item.Title);
             }
@@ -4952,23 +5227,13 @@ namespace StingTools.UI
                             string oldSuit = entry["suitability"]?.ToString() ?? "S0";
                             entry["cde_status"] = newCDE.ToUpperInvariant();
                             entry["date"] = DateTime.Now.ToString("yyyy-MM-dd");
-                            // Map CDE to default suitability per ISO 19650
-                            string suit = newCDE.ToUpperInvariant() switch
-                            {
-                                "WIP" => "S0",
-                                "SHARED" => "S3",       // Fit for review & comment
-                                "PUBLISHED" => "S4",    // Fit for stage approval (2021 UK NA)
-                                "ARCHIVE" => "AB",      // Abandoned/superseded
-                                _ => "S0"
-                            };
+                            // Map CDE to default suitability per ISO 19650. ARCHIVE now maps to
+                            // AR (archive) rather than AB (abandoned) — archiving a document is
+                            // not the same as abandoning it, and AB is what SUPERSEDED and
+                            // WITHDRAWN mean.
+                            string suit = SuitabilityForCde(newCDE);
                             entry["suitability"] = suit;
-                            entry["status_code"] = newCDE.ToUpperInvariant() switch
-                            {
-                                "PUBLISHED" => "IFA",   // Issued for Approval
-                                "SHARED" => "IFC",      // Issued for Coordination
-                                "ARCHIVE" => "IFR",     // Issued for Record
-                                _ => "IFI"              // Issued for Information
-                            };
+                            entry["status_code"] = StatusCodeForCde(newCDE);
                             // CDE-03: Log suitability transition with audit trail
                             CoordStores.AppendHistory(entry, oldCDE, newCDE.ToUpperInvariant(),
                                 Environment.UserName, $"suitability {oldSuit}→{suit}");
@@ -4985,7 +5250,9 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"BulkUpdateCDE register sync: {ex.Message}"); }
 
             var cdeReport = new StringBuilder();
-            cdeReport.AppendLine($"Moved to {targetFolder}: {moved} of {selected.Count}");
+            cdeReport.AppendLine(newCDE == targetFolder
+                ? $"Moved to {targetFolder}: {moved} of {selected.Count}"
+                : $"Set to {newCDE} (filed in {targetFolder}): {moved} of {selected.Count}");
             if (moveFailed.Count > 0)
             {
                 cdeReport.AppendLine($"Failed: {moveFailed.Count}");
@@ -5113,7 +5380,7 @@ namespace StingTools.UI
             string text = PromptForText("Create Sticky Note", "Enter note text:", "");
             if (string.IsNullOrEmpty(text)) return;
 
-            var categories = new List<string> { "GENERAL", "OBSERVATION", "ACTION", "WARNING", "COORDINATION", "QA" };
+            var categories = StickyNoteCategoryList.ToList();
             string category = StingListPicker.Show("Note Category", "Select category:", categories);
             if (string.IsNullOrEmpty(category)) category = "GENERAL";
 
@@ -5866,7 +6133,9 @@ namespace StingTools.UI
             if (_currentFilter.StartsWith("PRIORITY:"))
                 return item.Category == "ISSUE" && Eq(item.Priority, _currentFilter.Substring(9));
             if (_currentFilter.StartsWith("ISSUESTATUS:"))
-                return item.Category == "ISSUE" && Eq(item.Status, _currentFilter.Substring(12));
+                return item.Category == "ISSUE" && Eq(
+                    IssueStatusNormalizer.Canonical(item.Status ?? ""),
+                    _currentFilter.Substring(12));
             if (_currentFilter == "OVERDUE")
                 return item.IsOverdue;
             if (_currentFilter.StartsWith("DD:"))
@@ -6258,13 +6527,28 @@ namespace StingTools.UI
 
             // ── CDE / Status ──
             var cdeMenu = new MenuItem { Header = "Set CDE Status" };
-            foreach (string cde in new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" })
+            foreach (string cde in CdeStatusList)
             {
                 string c = cde;
-                cdeMenu.Items.Add(MakeMenuItem(c, $"Move to {c} folder and update register", (s, e) =>
+                string folder = CdeTargetFolder(c);
+                string hint = c == folder
+                    ? $"Move to {folder} folder and update register"
+                    : $"Record status {c} and file the document in {folder}";
+                cdeMenu.Items.Add(MakeMenuItem(c, hint, (s, e) =>
                 {
                     var item = RequireFileRow("Set CDE status");
                     if (item == null) return;
+
+                    // The engine's state machine, same as the Coordination Center enforces.
+                    string transError = BIMManager.BIMManagerEngine.ValidateCDETransition(item.CDE ?? "", c);
+                    if (!string.IsNullOrEmpty(transError))
+                    {
+                        MessageBox.Show($"{item.Title}\n\n{transError}",
+                            "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        SetStatus($"CDE transition refused: {item.CDE} → {c}");
+                        return;
+                    }
+
                     if (!File.Exists(item.FilePath))
                     {
                         MessageBox.Show($"No file to move.\n\n{item.Title}\n\nThis row is a register entry; " +
@@ -6272,15 +6556,40 @@ namespace StingTools.UI
                             "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Information);
                         return;
                     }
-                    if (!ProjectFolderEngine.MoveFile(doc, item.FilePath, c))
+                    if (!ProjectFolderEngine.MoveFile(doc, item.FilePath, folder))
                     {
-                        MessageBox.Show($"Could not move {item.Title} to {c}.\n\n" +
+                        MessageBox.Show($"Could not move {item.Title} to {folder}.\n\n" +
                             "The file may be locked, or the target folder could not be resolved. See StingTools.log.",
                             "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        SetStatus($"CDE move to {c} failed for {item.Title}");
+                        SetStatus($"CDE move to {folder} failed for {item.Title}");
                         return;
                     }
-                    SetStatus($"Moved {item.Title} → {c}");
+                    // Record the STATUS, not the folder — the two differ for the terminal
+                    // statuses, and without this a SUPERSEDED document would be
+                    // indistinguishable from an archived one the moment the dialog reloaded.
+                    // Written directly rather than through ApplyRegisterEdit because the file
+                    // has ALREADY moved by now: that helper's failure message says "Nothing was
+                    // changed", which would be false, and a half-applied move is exactly the
+                    // kind of thing this dialog must not misreport.
+                    if (UpdateDocRegisterField(doc, item.Id, "cde_status", c))
+                    {
+                        item.CDE = c;
+                        SetStatus(c == folder
+                            ? $"Moved {item.Title} → {c}"
+                            : $"Set {item.Title} → {c} (filed in {folder})");
+                    }
+                    else
+                    {
+                        StingLog.Warn($"Set CDE status: {item.Title} moved to {folder} but the " +
+                            $"register was not updated to {c}.");
+                        MessageBox.Show(
+                            $"{item.Title} was moved to {folder}, but the register could not be " +
+                            $"updated to '{c}'.\n\nThe file is in the right place; its CDE status " +
+                            "is not recorded. The register may have no matching entry, or could " +
+                            "not be written. See StingTools.log.",
+                            "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        SetStatus($"{item.Title} moved to {folder}; CDE status NOT recorded");
+                    }
                     RefreshData();
                 }));
             }
@@ -6302,10 +6611,11 @@ namespace StingTools.UI
             menu.Items.Add(statusMenu);
 
             var suitMenu = new MenuItem { Header = "Set Suitability Code" };
-            foreach (var kv in BIMManager.BIMManagerEngine.SuitabilityCodes)
+            foreach (string code in SuitabilityCodeList)
             {
-                string code = kv.Key;
-                suitMenu.Items.Add(MakeMenuItem($"{code} — {kv.Value}", $"Set suitability to {code}", (s, e) =>
+                // SuitabilityLabel already begins with the code ("S4 — Suitable for stage
+                // approval"). The old "{code} — {kv.Value}" rendered it twice.
+                suitMenu.Items.Add(MakeMenuItem(SuitabilityLabel(code), $"Set suitability to {code}", (s, e) =>
                 {
                     var item = RequireRow("Set Suitability Code");
                     if (item == null) return;
@@ -6335,7 +6645,7 @@ namespace StingTools.UI
             {
                 var item = RequireIssueRow("Change Priority");
                 if (item == null) return;
-                var priorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" };
+                var priorities = IssuePriorityList();
                 string pick = StingListPicker.Show("Change Priority", "Select new priority:", priorities);
                 if (string.IsNullOrEmpty(pick)) return;
                 ApplyIssueEdit(doc, item, "priority", pick, "priority", () => item.Priority = pick);
