@@ -583,5 +583,5 @@ c.properties(
     category='Project procedure',
     comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.')
 
-c.save(OUT)
+c.save(OUT, generator='tools/build_bep.py')
 print('saved:', OUT)

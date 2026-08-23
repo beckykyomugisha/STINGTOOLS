@@ -16,12 +16,21 @@ Usage:
     doc.table(['A', 'B'], [['1', '2']])
     doc.save('Out.docx')
 """
+import datetime
+import pathlib
+import sys
+
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import kut_docs_lib as K                                          # noqa: E402
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 NAVY = RGBColor(0x1F, 0x36, 0x54)
 SLATE = RGBColor(0x44, 0x4F, 0x5C)
@@ -315,6 +324,36 @@ class CorporateDoc:
         cp.category = category
         cp.comments = comments
 
-    def save(self, path):
+    def save(self, path, generator=None):
+        """Write the document deterministically and stamp it.
+
+        `generator` is the repo-relative path of the script calling this, e.g.
+        'tools/build_bep.py'. Given one, the document carries two digests: over
+        the generators that produced it, and over its own finished parts. The
+        gate reads both back with `zipfile` and refuses a document that was
+        regenerated from stale sources or hand-edited in Word afterwards.
+
+        Without a `generator` the document is still made deterministic but is
+        left unstamped -- for a caller outside the gated KUT pack.
+        """
+        # python-docx writes created/modified from the wall clock. Pinning both
+        # to a fixed epoch is what makes regeneration a genuine no-op, so a real
+        # content change is the only thing a binary diff ever reports.
+        cp = self.d.core_properties
+        cp.created = datetime.datetime(*K.EPOCH)
+        cp.modified = datetime.datetime(*K.EPOCH)
+        cp.revision = 1
+
+        name = pathlib.Path(path).name
+        if generator and name in K.GENERATED:
+            # Appended, not assigned: properties() has already put the issue
+            # status in here and that is the half a reader sees in Word.
+            # Only the gated pack is stamped -- build_team_playbook.py honours
+            # PLAYBOOK_OUT, and a document written somewhere else is not the
+            # issued one, so claiming provenance for it would be a lie.
+            cp.comments = K.with_provenance(
+                cp.comments, generator, K.inputs_digest(REPO_ROOT, name))
+
         self.d.save(path)
+        K.finalise(pathlib.Path(path))
         return path
