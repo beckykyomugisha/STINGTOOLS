@@ -306,17 +306,11 @@ namespace StingTools.BIMManager
             int lastRow = Math.Min(sheet.LastRowUsed()?.RowNumber() ?? 1, 10001);
             int updated = 0;
 
-            var columnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Description"] = "ASS_DESCRIPTION_TXT",
-                ["SerialNumber"] = "ASS_SERIAL_NR_TXT",
-                ["BarCode"] = "ASS_BARCODE_TXT",
-                ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
-                ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
-                ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
-                ["InstallationDate"] = "ASS_INSTALLATION_DATE_TXT",
-                ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
-            };
+            // One definition, shared with the export. These two maps used to be
+            // written out separately in two files and disagreed about the
+            // installation date, so an imported COBie file did not survive a
+            // re-export. See StingTools.Core.Cobie.CobieFieldMap.
+            var columnMap = StingTools.Core.Cobie.CobieFieldMap.ComponentColumns;
 
             for (int row = 2; row <= lastRow; row++)
             {

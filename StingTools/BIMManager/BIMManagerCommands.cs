@@ -2739,16 +2739,20 @@ namespace StingTools.BIMManager
                 };
 
                 // Extract serial number, installation date, warranty start, barcode from STING parameters
-                string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
+                string serialNumber = ParameterHelpers.GetString(
+                    el, StingTools.Core.Cobie.CobieFieldMap.ComponentColumns["SerialNumber"]);
                 // Read the canonical parameter FIRST, then the legacy COBie-group one.
                 // COBie import writes ASS_INSTALLATION_DATE_TXT (see the field map in the
                 // import path), so reading only COM_INSTALL_DATE_TXT meant an imported
                 // COBie file did not survive a re-export: the date fell through to the
                 // phase-derived fallback below. The legacy read is retained so projects
                 // that populated the COBie-group parameter directly still export.
-                string installDate = ParameterHelpers.GetString(el, ParamRegistry.INSTALL_DATE);
-                if (string.IsNullOrEmpty(installDate))
-                    installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
+                string installDate = null;
+                foreach (string p in StingTools.Core.Cobie.CobieFieldMap.ReadOrder("InstallationDate"))
+                {
+                    installDate = ParameterHelpers.GetString(el, p);
+                    if (!string.IsNullOrEmpty(installDate)) break;
+                }
                 // Phase 40: Derive installation date from phase as ISO 8601 date, not phase NAME.
                 // Previously exported "New Construction" instead of "2025-03-22".
                 if (string.IsNullOrEmpty(installDate))
@@ -2771,11 +2775,22 @@ namespace StingTools.BIMManager
                     }
                     catch (Exception ex2) { StingLog.Warn($"Phase install date lookup failed: {ex2.Message}"); }
                 }
-                string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
+                // Same defect as the installation date, found when the map was
+                // extracted: the import writes MNT_WARRANTY_START_TXT and this
+                // read only ever looked at the COBie-group alias, so an imported
+                // warranty start date did not survive a re-export either -- it
+                // fell through to the installation date below.
+                string warrantyStart = null;
+                foreach (string p in StingTools.Core.Cobie.CobieFieldMap.ReadOrder("WarrantyStartDate"))
+                {
+                    warrantyStart = ParameterHelpers.GetString(el, p);
+                    if (!string.IsNullOrEmpty(warrantyStart)) break;
+                }
                 // Phase 40: If warranty start is empty, derive from installation date
                 if (string.IsNullOrEmpty(warrantyStart) && !string.IsNullOrEmpty(installDate))
                     warrantyStart = installDate;
-                string barCode = ParameterHelpers.GetString(el, "ASS_BARCODE_TXT");
+                string barCode = ParameterHelpers.GetString(
+                    el, StingTools.Core.Cobie.CobieFieldMap.ComponentColumns["BarCode"]);
 
                 // Read TAG7 narrative for rich description
                 string tag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
