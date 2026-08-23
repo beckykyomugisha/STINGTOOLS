@@ -25,6 +25,8 @@ def head_bytes(rel: str):
 
 
 def main() -> int:
+    import zlib
+    print("zlib %s | python %s" % (zlib.ZLIB_VERSION, sys.version.split()[0]))
     for name in K.ISSUED:
         path = Path(name)
         if not path.exists():
@@ -65,13 +67,20 @@ def main() -> int:
                     print("      ... (truncated)")
                     break
         # Packaging-only differences are worth naming explicitly: they mean the
-        # document content is identical and only the zip metadata moved.
-        meta = [n for n in sorted(names_n & names_o)
-                if zn.getinfo(n).date_time != zo.getinfo(n).date_time]
-        if meta:
-            print("  zip entry timestamps differ on %d part(s), e.g. %s: %s vs %s"
-                  % (len(meta), meta[0], zn.getinfo(meta[0]).date_time,
-                     zo.getinfo(meta[0]).date_time))
+        # document content is identical and only the zip container moved, which
+        # points at the compressor or the entry headers, not at the generator.
+        fields = ("date_time", "compress_type", "external_attr", "create_system",
+                  "create_version", "extract_version", "flag_bits", "internal_attr",
+                  "CRC", "compress_size", "volume")
+        for part in sorted(names_n & names_o):
+            a, b = zn.getinfo(part), zo.getinfo(part)
+            moved = [(f, getattr(a, f, None), getattr(b, f, None)) for f in fields
+                     if getattr(a, f, None) != getattr(b, f, None)]
+            extra = [] if a.extra == b.extra else [("extra", a.extra, b.extra)]
+            if moved or extra:
+                print("  CONTAINER DIFFERS: %s" % part)
+                for f, x, y in moved + extra:
+                    print("      %-16s now=%r  HEAD=%r" % (f, x, y))
     return 0
 
 
