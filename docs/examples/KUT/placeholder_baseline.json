@@ -1,6 +1,6 @@
 {
-  "_why": "[FILL] is legitimate at Rev P01 -- the names, dates, project number and procurement route genuinely are not settled, and the pack says so. Forbidding placeholders would be wrong. Leaving them uncounted would let the pack quietly acquire new holes while appearing to converge. So the count is baselined and tools/check_kut_documents.py fails only on an INCREASE. When a placeholder is closed, lower the number here in the same commit to lock the gain in.",
-  "KUT_BIM_Execution_Plan.docx": 66,
+  "_why": "[FILL] is legitimate at Rev P01 -- the names, dates, project number and procurement route genuinely are not settled, and the pack says so. Forbidding placeholders would be wrong. Leaving them uncounted would let the pack quietly acquire new holes while appearing to converge. So the count is baselined and tools/check_kut_documents.py fails only on an INCREASE. When a placeholder is closed, lower the number here in the same commit to lock the gain in. RAISED at Phase 244 from 66 to 164 for the BEP: the mobilisation completeness pass added the standards reconciliation schedule, the coordinate system and level registers, the clash matrix and tolerances, the CDE folder and permission matrices, the information classification schedule, the capability assessment and the mobilisation checklist. Those sections are STRUCTURE for information the project does not yet have. The alternative to a placeholder was to omit the section, which hides the gap, or to invent a value, which is worse. A rise is acceptable only when it is deliberate and recorded, as here; the count must fall from now on.",
+  "KUT_BIM_Execution_Plan.docx": 164,
   "KUT_Project_Delivery_Playbook.docx": 40,
   "KUT_Master_Information_Delivery_Plan.xlsx": 10
 }
