@@ -65,6 +65,23 @@ PARTS_PREFIX = "parts-sha256:"
 # The part carrying the stamps, and therefore excluded from parts-sha256.
 STAMP_PART = "docProps/core.xml"
 
+# Fixed POSIX mode for every zip entry: regular file, 0600, the value Python's
+# own `writestr` uses.
+#
+# It has to be pinned rather than carried over, because openpyxl writes the
+# WORKSHEET parts from temp files via ZipFile.write() instead of writestr, and
+# that path reads the mode off the filesystem. So the five worksheet entries
+# came out 0666 on Windows and 0600 on Linux while every other part was already
+# 0600, and the .xlsx therefore failed a cross-platform byte comparison with
+# every part identical in name, content and timestamp -- a difference visible
+# only in the container. The two .docx already carry this value throughout, so
+# pinning it changes nothing about them.
+#
+# Nothing reads this field for an OOXML document; it exists for unix zip
+# extraction. Normalising it is the last thing standing between "deterministic
+# on one machine" and "deterministic anywhere".
+EXTERNAL_ATTR = 0o600 << 16
+
 # Fixed epoch for zip entry timestamps and core dates. Any constant would do;
 # this one is obviously synthetic so nobody reads it as a real authoring date.
 EPOCH = (2020, 1, 1, 0, 0, 0)
@@ -178,7 +195,7 @@ def finalise(path: Path) -> None:
         for info, data in entries:
             new = zipfile.ZipInfo(info.filename, date_time=EPOCH)
             new.compress_type = info.compress_type
-            new.external_attr = info.external_attr
+            new.external_attr = EXTERNAL_ATTR
             new.create_system = 0    # pin to FAT so the host OS is not encoded
             zout.writestr(new, data)
     shutil.move(str(tmp), str(path))
