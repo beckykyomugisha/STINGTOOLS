@@ -1,0 +1,6 @@
+{
+  "_why": "[FILL] is legitimate at Rev P01 -- the names, dates, project number and procurement route genuinely are not settled, and the pack says so. Forbidding placeholders would be wrong. Leaving them uncounted would let the pack quietly acquire new holes while appearing to converge. So the count is baselined and tools/check_kut_documents.py fails only on an INCREASE. When a placeholder is closed, lower the number here in the same commit to lock the gain in.",
+  "KUT_BIM_Execution_Plan.docx": 66,
+  "KUT_Project_Delivery_Playbook.docx": 40,
+  "KUT_Master_Information_Delivery_Plan.xlsx": 10
+}

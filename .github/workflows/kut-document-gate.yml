@@ -1,0 +1,125 @@
+name: KUT Issued Document Gate
+
+# The KUT mobilisation pack is three documents that restate the same facts for
+# three audiences -- what the project requires (BEP), how a task team satisfies
+# it (playbook), and when each deliverable lands (MIDP) -- plus the LOD overlay
+# that the quality gate actually runs against.
+#
+# Restating a fact three times is a drift generator. Their cross-document
+# consistency had been verified exactly once, by an ad-hoc script that was never
+# committed, so the checks would rot the moment somebody edited one generator and
+# not the others. A stage LOD corrected in the BEP and not the playbook leaves
+# two documents both claiming to be authoritative, and the consultant reads
+# whichever one they were sent.
+#
+# WHAT THIS GATE PROVES
+#   * each document is a current regeneration and has not been hand-edited;
+#   * stages, LODs, suitability codes, volumes, roles and document references
+#     agree across all three;
+#   * the asset tier tables agree with the LOD overlay -- the check that matters
+#     most, because the documents tell a contractor what to capture and the gate
+#     decides whether they passed. When those disagree somebody is failed for a
+#     field nobody asked them for, with no remedy available;
+#   * no tooling is named in a document the client or a consultant reads;
+#   * the [FILL] count is not rising.
+#
+# WHAT IT CANNOT PROVE: whether the requirements are the RIGHT requirements, and
+# anything at all about a real Revit model. A green run is not a validated pack.
+#
+# NO PYTHON DEPENDENCIES in the gate itself -- check_kut_documents.py is
+# stdlib-only so it runs on a bare runner, the same constraint the smoke-test
+# gate works under. A .docx and a .xlsx are OPC zips of XML; reading them needs
+# no library. Only the REGENERATION step below installs anything, and it is a
+# separate step so that a dependency problem there cannot be mistaken for a
+# document problem.
+
+on:
+  push:
+    paths:
+      - 'KUT_*.docx'
+      - 'KUT_*.xlsx'
+      - 'tools/build_bep.py'
+      - 'tools/build_team_playbook.py'
+      - 'tools/build_midp.py'
+      - 'tools/build_kut_lod_overlay.py'
+      - 'tools/corporate_docx.py'
+      - 'tools/kut_docs_lib.py'
+      - 'tools/midp_schema.py'
+      - 'tools/check_kut_documents.py'
+      - 'tools/merge_tidp.py'
+      - 'project-templates/KUT/**'
+      - 'StingTools/Data/STING_LOD_MATRIX.json'
+      - 'docs/examples/KUT/placeholder_baseline.json'
+      - '.github/workflows/kut-document-gate.yml'
+  pull_request:
+    paths:
+      - 'KUT_*.docx'
+      - 'KUT_*.xlsx'
+      - 'tools/build_bep.py'
+      - 'tools/build_team_playbook.py'
+      - 'tools/build_midp.py'
+      - 'tools/build_kut_lod_overlay.py'
+      - 'tools/corporate_docx.py'
+      - 'tools/kut_docs_lib.py'
+      - 'tools/midp_schema.py'
+      - 'tools/check_kut_documents.py'
+      - 'tools/merge_tidp.py'
+      - 'project-templates/KUT/**'
+      - 'StingTools/Data/STING_LOD_MATRIX.json'
+      - 'docs/examples/KUT/placeholder_baseline.json'
+      - '.github/workflows/kut-document-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  kut-documents:
+    name: Issued pack vs itself and vs the LOD overlay
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Gate the issued documents
+        run: python tools/check_kut_documents.py --verbose
+
+      - name: Confirm the LOD overlay is current with the corporate baseline
+        # This check already existed and was CI-ready, but nothing ran it. The
+        # overlay is what the quality gate enforces at close-out, so a drift
+        # between it and the corporate baseline changes what a contractor is
+        # held to without anyone deciding that.
+        run: python tools/build_kut_lod_overlay.py --check
+
+      - name: Install the document libraries
+        # Separate from the regeneration step so a dependency failure reads as a
+        # dependency failure, not as a stale document.
+        run: |
+          python -m pip install --quiet python-docx openpyxl
+          python -c "import docx, openpyxl; print('python-docx', docx.__version__); print('openpyxl  ', openpyxl.__version__)"
+
+      - name: Confirm regeneration is a no-op
+        # Belt and braces. The gate above proves freshness from the digest the
+        # generator stamps into each document, which needs no libraries. This
+        # proves the generators on disk really do reproduce the committed bytes,
+        # so a generator change that silently alters output cannot land
+        # unnoticed. It only works because the documents are byte-deterministic:
+        # zip entry timestamps and the OOXML core dates are pinned to a fixed
+        # epoch, without which this diff would fire on every run and be ignored.
+        run: |
+          python tools/build_bep.py
+          python tools/build_team_playbook.py
+          python tools/build_midp.py
+          git diff --exit-code -- 'KUT_*.docx' 'KUT_*.xlsx' || {
+            echo "--- which OPC parts actually differ ---"
+            python tools/diff_ooxml.py
+            exit 1
+          }
+
+      - name: Confirm the LOD overlay regenerates identically
+        run: |
+          python tools/build_kut_lod_overlay.py
+          git diff --exit-code -- 'project-templates/KUT/_BIM_COORD/lod_matrix.json'

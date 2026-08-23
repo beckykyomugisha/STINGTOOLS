@@ -206,6 +206,14 @@ What the gate cannot prove is everything about real geometry — whether the tag
    - Depends on: step(s) 2
    - Note: Was KUT_KpiDashboard, which still resolves as an alias. The code comes from PRJ_ORG_PROJECT_CODE_TXT, so with step 2 done the log is KUT_kpi_log.jsonl; an existing kut_kpi_log.jsonl is read and appended to rather than orphaned.
 
+## Platform round-trips (Part C)
+
+34. **COBie export, import, re-export — the round-trip survives** — **COBie Export** (STING panel · BIM · COBie V2.4 — FM HANDOVER)
+   - Expected: Export to a spreadsheet. In the Component sheet, set InstallationDate to 2027-03-12 and WarrantyStartDate to 2027-03-19 on two rows, then import with COBie In (SETUP tab, 'Audits & reports') and export again. BOTH values must come back unchanged on BOTH rows. An installation date that returns as today's date, as the project issue date, or blank means the export is not reading what the import wrote.
+   - Command tag: `COBieExport`
+   - Depends on: step(s) 2
+   - Note: The unit test CobieFieldMapTests proves the column-to-parameter MAPPING round-trips, and it is what stops this regressing. It cannot open Revit, so it cannot show that the element matched, that the write was accepted, or that the worksheet parsed — which is why this step exists. Two fields had this defect: InstallationDate (import wrote ASS_INSTALLATION_DATE_TXT, export read only COM_INSTALL_DATE_TXT) and WarrantyStartDate (import wrote MNT_WARRANTY_START_TXT, export read only COM_WARRANTY_START_TXT). Both silently fell through to a derived value, which is why the check is that the value is UNCHANGED rather than merely present.
+
 Log any failure with the command, the `StingTools.log` excerpt, and the model context.
 
 **This file is generated.** Edit `docs/examples/KUT/smoke_test.json` and run `python tools/build_smoke_test.py`; `tools/check_smoke_test.py` fails CI if the two disagree. See [`docs/examples/_smoke_test_schema.md`](../_smoke_test_schema.md).

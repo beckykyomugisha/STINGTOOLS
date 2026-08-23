@@ -13,6 +13,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The shipped data the COBie map is asserted against. A map validated only
+         against itself is the blind spot the LOD matrix already had: eleven COBie
+         targets named parameters that do not exist, and every one of those columns
+         was read from the spreadsheet and discarded in silence. -->
+    <None Include="..\StingTools\Data\PARAMETER_REGISTRY.json" Link="Data\PARAMETER_REGISTRY.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\RESOLVED_BINDINGS.csv" Link="Data\RESOLVED_BINDINGS.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\MR_PARAMETERS.txt" Link="Data\MR_PARAMETERS.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
@@ -43,6 +59,8 @@
          LodVerificationEngine.cs (which needs a Document) precisely so the
          "an empty scope is not a green gate" rule is provable here. -->
     <Compile Include="..\StingTools\Core\Validation\LodMatrixModel.cs" Link="Core\Validation\LodMatrixModel.cs" />
+    <Compile Include="..\StingTools\Core\Validation\DateFormatRule.cs" Link="Core\Validation\DateFormatRule.cs" />
+    <Compile Include="..\StingTools\Core\Cobie\CobieFieldMap.cs" Link="Core\Cobie\CobieFieldMap.cs" />
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Core\Classification\CsiMasterFormat.cs" />
     <Compile Include="..\StingTools\Core\Validation\DeviceCoordination.cs" Link="Core\Validation\DeviceCoordination.cs" />
