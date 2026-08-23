@@ -239,15 +239,23 @@ _R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 
 
 def docx_paragraphs(path: Path):
-    """Every paragraph of a .docx body, in document order.
+    """Body paragraphs of a .docx, in document order, EXCLUDING table cells.
 
     Runs inside a paragraph are concatenated, because a single sentence is
     routinely split across runs by formatting and a naive per-run read would
     never match a phrase that straddles a bold word.
+
+    Paragraphs inside tables are excluded because docx_tables() returns them,
+    and anything that adds the two together would count table content twice.
+    That is not hypothetical: it inflated the [FILL] count of the BEP from 66
+    to 131 before it was caught, which would have baselined a number twice the
+    real one and then reported a fall every time a placeholder was closed.
     """
     with zipfile.ZipFile(path) as z:
         root = ET.fromstring(z.read("word/document.xml"))
-    return ["".join(t.text or "" for t in p.iter(_W + "t")) for p in root.iter(_W + "p")]
+    in_table = {id(p) for tbl in root.iter(_W + "tbl") for p in tbl.iter(_W + "p")}
+    return ["".join(t.text or "" for t in p.iter(_W + "t"))
+            for p in root.iter(_W + "p") if id(p) not in in_table]
 
 
 def docx_tables(path: Path):
