@@ -1,0 +1,87 @@
+{
+  "$comment": "Legacy S-code drift accepted at baseline. These files describe shipped behaviour or are historical records; they are not the teaching surface. THIS LIST MAY SHRINK, NEVER GROW. A new hit outside it fails the build. Tier 1 paths (cpd/, marketing-site/, GUIDES/, docs/CPD_*) are never baselined.",
+  "updated": "2026-08-26",
+  "codesVersion": "1.0.0",
+  "entries": [
+    {
+      "file": "docs/AEC_FILTER_LIBRARY.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/AGENT_FIX_PROMPT_ISO19650_CONSOLIDATION.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/bcc-guide.md",
+      "rule": "S-CODE-PUBLISHED"
+    },
+    {
+      "file": "docs/BIM_MANAGEMENT_GUIDE.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/CHANGELOG.md",
+      "rule": "S-CODE-PUBLISHED"
+    },
+    {
+      "file": "docs/CHANGELOG.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/DOCUMENT_MANAGER_GAPS_RUNNER.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/DOCUMENT_MANAGER_GUIDE.md",
+      "rule": "S-CODE-PUBLISHED"
+    },
+    {
+      "file": "docs/DOCUMENT_MANAGER_GUIDE.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/DRAWINGS_PRODUCTION_LAYMANS_GUIDE.md",
+      "rule": "S-CODE-PUBLISHED"
+    },
+    {
+      "file": "docs/DRAWINGS_PRODUCTION_LAYMANS_GUIDE.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/guides/DRAWING_PRODUCTION_SYSTEM_GUIDE.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/HEALTHCARE_PACK_DESIGN.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/ISO19650_DOC_FOLDER_REVIEW.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/ISO19650_INREVIT_VERIFICATION.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/ROADMAP.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "docs/superpowers/specs/2026-07-31-document-sync-design.md",
+      "rule": "S7-TABLE"
+    },
+    {
+      "file": "StingTools/Data/BIM_COORDINATION_WORKFLOW_GUIDE.md",
+      "rule": "S-CODE-PUBLISHED"
+    },
+    {
+      "file": "StingTools/Data/DRAWING_TEMPLATE_GUIDE.md",
+      "rule": "S-CODE-PUBLISHED"
+    },
+    {
+      "file": "StingTools/Data/DRAWING_TEMPLATE_GUIDE.md",
+      "rule": "S7-TABLE"
+    }
+  ]
+}

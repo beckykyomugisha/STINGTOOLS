@@ -41,7 +41,7 @@
   <ol>
     <li><strong>Naming convention</strong> — every file and document gets an ISO 19650 name.</li>
     <li><strong>CDE state machine</strong> — WIP → Shared → Published → Archived.</li>
-    <li><strong>Suitability &amp; revision codes</strong> — S0–S7 and P/A revisions.</li>
+    <li><strong>Suitability, authorization &amp; revision codes</strong> — S codes on shared information, A/B codes on published, and P/C/A revisions.</li>
     <li><strong>Audit trail</strong> — hash-chained log over every state change.</li>
   </ol>
 
@@ -92,12 +92,27 @@ KIH-PLNS-ZZ-XX-DR-M-0042.pdf</code></pre>
       <tr><td>S2</td><td>Suitable for information</td><td>Shared</td></tr>
       <tr><td>S3</td><td>Suitable for internal review &amp; comment</td><td>Shared</td></tr>
       <tr><td>S4</td><td>Suitable for stage approval</td><td>Published</td></tr>
-      <tr><td>S5</td><td>Suitable for PIM authorization</td><td>Published</td></tr>
-      <tr><td>S6</td><td>Suitable for AIM authorization</td><td>Published</td></tr>
-      <tr><td>S7</td><td>Suitable for asset operation</td><td>Published</td></tr>
     </tbody>
   </table>
-  <p>The default mapping (S1/S2 → Shared, S4–S7 → Published) is the standard interpretation. Customize per project in Settings.</p>
+  <p>S0&ndash;S4 are consistent across national annexes. Codes above S4 vary in both number and
+  wording between annexes and individual project protocols &mdash; Planscape lets you define them
+  per project, and <strong>your BEP is authoritative</strong>.</p>
+
+  <h3>Published information carries an authorization code, not a suitability code</h3>
+  <p>These are <strong>two different code families that coexist</strong>, not competing versions of
+  one table. Once information is authorised and moves into Published, it no longer carries an
+  S code:</p>
+  <table>
+    <thead><tr><th>Code</th><th>Meaning</th><th>CDE container</th></tr></thead>
+    <tbody>
+      <tr><td>A1&hellip;An</td><td>Accepted &mdash; authorised for the stated purpose</td><td>Published</td></tr>
+      <tr><td>B1&hellip;Bn</td><td>Accepted with comments &mdash; the originator must address them next revision</td><td>Published</td></tr>
+    </tbody>
+  </table>
+  <p><strong>The rule:</strong> S codes describe the suitability of <em>shared</em> information &mdash; what the
+  recipient may do with it. A and B codes describe the authorization status of <em>published</em>
+  information. A drawing shared for coordination is <code>S1</code>; that same drawing, approved and
+  published, is <code>A1</code>.</p>
 
   <h2>Step 4 — Revision codes</h2>
   <p>Planscape uses the P (pre-construction) and C (construction) revision scheme:</p>

@@ -1,0 +1,206 @@
+{
+  "$comment": "SINGLE SOURCE OF TRUTH for all ISO 19650 code tables used by Planscape training, templates and docs. Edit here only. Run `node cpd/build.mjs` to regenerate outputs and `node cpd/validate.mjs` to check the repo for drift.",
+  "version": "1.0.0",
+  "updated": "2026-08-26",
+  "governingRule": "Where this data and a project's BIM Execution Plan disagree, the BEP wins. These tables are the most widely used default set, not law.",
+
+  "parties": [
+    { "id": "appointing", "name": "Appointing party", "usually": "The client — university, ministry, developer, owner", "does": "Commissions the work. Issues the EIR. Receives and accepts the information." },
+    { "id": "lead", "name": "Lead appointed party", "usually": "Lead consultant or main contractor", "does": "Responds to the EIR with a BEP. Coordinates the appointed parties. Compiles the MIDP. Answerable for the whole information deliverable." },
+    { "id": "appointed", "name": "Appointed party", "usually": "Sub-consultants, specialists, subcontractors", "does": "Produces information for its own task, to a TIDP. Answerable to the lead appointed party." }
+  ],
+
+  "requirementChain": [
+    { "code": "OIR", "name": "Organizational Information Requirements", "question": "What information does this organisation need to run itself?", "setBy": "The organisation" },
+    { "code": "AIR", "name": "Asset Information Requirements", "question": "What do we need to know about the asset in operation?", "setBy": "Asset owner / operator" },
+    { "code": "PIR", "name": "Project Information Requirements", "question": "What must this project tell us, to decide at each stage?", "setBy": "Appointing party" },
+    { "code": "EIR", "name": "Exchange Information Requirements", "question": "What exactly is handed over, at this exchange, in what form?", "setBy": "Appointing party to lead appointed party" }
+  ],
+
+  "nameFields": [
+    { "pos": 1, "id": "project",   "name": "Project",         "what": "Short project code", "notes": "3-6 characters. Fixed for the life of the project.", "example": "KIH" },
+    { "pos": 2, "id": "originator","name": "Originator",      "what": "The organisation that authored it", "notes": "3-4 characters. Not the individual, and not the discipline - the firm.", "example": "PLNS" },
+    { "pos": 3, "id": "volume",    "name": "Volume/System",   "what": "Spatial or system subdivision", "notes": "ZZ = whole project. Use zone codes only where the project defines them.", "example": "ZZ" },
+    { "pos": 4, "id": "level",     "name": "Level/Location",  "what": "Floor or location", "notes": "ZZ = all levels, XX = not applicable. Otherwise per the BEP.", "example": "02" },
+    { "pos": 5, "id": "type",      "name": "Type",            "what": "What kind of container", "notes": "See type codes.", "example": "DR" },
+    { "pos": 6, "id": "role",      "name": "Role",            "what": "Discipline of the originator", "notes": "See role codes.", "example": "M" },
+    { "pos": 7, "id": "number",    "name": "Number",          "what": "Sequential", "notes": "Zero-padded, usually four digits. 0017, never 17.", "example": "0017" }
+  ],
+  "nameSeparator": "-",
+  "nameNotFields": ["Suitability", "Revision"],
+  "nameNotFieldsNote": "Suitability and revision are metadata attributes that travel with the container in the CDE. Some firms append them to filenames as a local convenience; that is not part of the required name.",
+
+  "roleCodes": [
+    { "code": "A", "name": "Architect" },
+    { "code": "B", "name": "Building surveyor" },
+    { "code": "C", "name": "Civil engineer" },
+    { "code": "D", "name": "Drainage / highways engineer" },
+    { "code": "E", "name": "Electrical engineer" },
+    { "code": "F", "name": "Facilities manager" },
+    { "code": "G", "name": "Geographical / land surveyor" },
+    { "code": "H", "name": "Heating / ventilation engineer" },
+    { "code": "I", "name": "Interior designer" },
+    { "code": "K", "name": "Client" },
+    { "code": "L", "name": "Landscape architect" },
+    { "code": "M", "name": "Mechanical engineer" },
+    { "code": "P", "name": "Public health engineer" },
+    { "code": "Q", "name": "Quantity surveyor" },
+    { "code": "S", "name": "Structural engineer" },
+    { "code": "T", "name": "Town planner" },
+    { "code": "W", "name": "Contractor" },
+    { "code": "X", "name": "Subcontractor" },
+    { "code": "Y", "name": "Specialist designer" },
+    { "code": "Z", "name": "General - non-disciplinary" }
+  ],
+  "roleCodesLocal": [
+    { "code": "FP", "name": "Fire protection", "note": "Common local addition. Legitimate provided the BEP defines it." }
+  ],
+
+  "typeCodes": [
+    { "code": "M2", "name": "2D model" },
+    { "code": "M3", "name": "3D model" },
+    { "code": "CM", "name": "Combined / federated model" },
+    { "code": "DR", "name": "Drawing", "warn": "A drawing is DR even when produced from a model. M3 is the model file itself." },
+    { "code": "SH", "name": "Schedule" },
+    { "code": "SP", "name": "Specification" },
+    { "code": "BQ", "name": "Bill of quantities" },
+    { "code": "CA", "name": "Calculations" },
+    { "code": "CO", "name": "Correspondence" },
+    { "code": "CP", "name": "Cost plan" },
+    { "code": "CR", "name": "Clash report" },
+    { "code": "CX", "name": "Commissioning" },
+    { "code": "CF", "name": "Certificate" },
+    { "code": "FN", "name": "File note" },
+    { "code": "HS", "name": "Health and safety" },
+    { "code": "IE", "name": "Information exchange file" },
+    { "code": "IF", "name": "Image file" },
+    { "code": "AF", "name": "Animation file" },
+    { "code": "MI", "name": "Minutes / actions" },
+    { "code": "MS", "name": "Method statement" },
+    { "code": "PR", "name": "Programme" },
+    { "code": "RD", "name": "Room data sheet" },
+    { "code": "RI", "name": "Request for information" },
+    { "code": "RP", "name": "Report" },
+    { "code": "SN", "name": "Snagging list" },
+    { "code": "SU", "name": "Survey" },
+    { "code": "VS", "name": "Validation report" }
+  ],
+
+  "cdeStates": [
+    { "id": "WIP",       "name": "WIP",       "write": "The author only", "read": "The author's own team", "holds": "Daily work. Nobody else's business.", "codeFamily": "suitability" },
+    { "id": "SHARED",    "name": "Shared",    "write": "The author, by publishing into it", "read": "All project members", "holds": "Issued for coordination, information or review", "codeFamily": "suitability" },
+    { "id": "PUBLISHED", "name": "Published", "write": "Only the authorised approver, under the approval process", "read": "All members + external parties", "holds": "Contract-grade, authorised information", "codeFamily": "authorization" },
+    { "id": "ARCHIVED",  "name": "Archived",  "write": "Nobody - system-controlled", "read": "Read-only, all", "holds": "The historical record. Every superseded revision.", "codeFamily": "none" }
+  ],
+  "cdeTransitions": [
+    { "from": "WIP", "to": "SHARED", "action": "share", "by": "author" },
+    { "from": "SHARED", "to": "PUBLISHED", "action": "authorise", "by": "approver" },
+    { "from": "PUBLISHED", "to": "ARCHIVED", "action": "supersede", "by": "system" }
+  ],
+
+  "codeFamilies": {
+    "suitability": {
+      "appliesTo": ["WIP", "SHARED"],
+      "question": "What may the recipient DO with this?",
+      "stableCore": ["S0", "S1", "S2", "S3", "S4"],
+      "variesAbove": "S4",
+      "variationNote": "Codes above S4 vary between national annexes and project protocols in number and wording. Some projects use them; many do not. Check the BEP.",
+      "codes": [
+        { "code": "S0", "meaning": "Initial status / work in progress", "recipientMay": "Nothing. Not for issue. Sits in WIP." },
+        { "code": "S1", "meaning": "Suitable for coordination", "recipientMay": "Position and design their own work against it. Expect it to change." },
+        { "code": "S2", "meaning": "Suitable for information", "recipientMay": "Be aware of it. Not an invitation to design against." },
+        { "code": "S3", "meaning": "Suitable for review and comment", "recipientMay": "Review and return comments." },
+        { "code": "S4", "meaning": "Suitable for stage approval", "recipientMay": "Approve or reject at a stage gate." }
+      ]
+    },
+    "authorization": {
+      "appliesTo": ["PUBLISHED"],
+      "question": "Was this accepted, and with what qualification?",
+      "codes": [
+        { "code": "A1...An", "meaning": "Accepted", "detail": "Authorised for the stated purpose. The number denotes purpose or stage, per the BEP." },
+        { "code": "B1...Bn", "meaning": "Accepted with comments", "detail": "Authorised, but the originator must address the comments at the next revision." }
+      ]
+    }
+  },
+  "codeFamilyRule": "S codes describe the suitability of SHARED information. A and B codes describe the authorization status of PUBLISHED information. They coexist; a container does not carry both at once. A drawing shared for coordination is S1. That same drawing, approved and published, is A1.",
+
+  "revisionCodes": [
+    { "prefix": "P", "stage": "Preliminary / pre-construction", "sequence": "P01, P02, P03 ..." },
+    { "prefix": "C", "stage": "Contractual / construction issue", "sequence": "C01, C02 ..." }
+  ],
+  "revisionRule": "Crossing from P into C restarts the numbering under the new letter. A drawing at P03 issued for construction for the first time becomes C01, not P04.",
+
+  "cdeTests": [
+    { "n": 1, "test": "State transitions exist and are enforced - you cannot drag a file into Published", "ifFails": "The status of every file is a matter of opinion" },
+    { "n": 2, "test": "Access control is tied to state - nobody can overwrite approved information", "ifFails": "Contract-grade information is one careless drag from being lost" },
+    { "n": 3, "test": "There is an audit trail - you can answer who approved this, and when", "ifFails": "You cannot defend a submission that is challenged" },
+    { "n": 4, "test": "Suitability and revision travel with the container", "ifFails": "Nobody downstream knows what they may do with it" },
+    { "n": 5, "test": "There is a single source of truth - one authoritative version", "ifFails": "Teams coordinate against different versions and clashes never converge" }
+  ],
+
+  "selfAudit": [
+    { "n": 1, "q": "Does the project have a BEP - and has anyone read it in the last three months?" },
+    { "n": 2, "q": "Can you produce a MIDP showing every deliverable, its owner and its date?" },
+    { "n": 3, "q": "Do containers carry compliant names, consistently - including the ones produced last week?" },
+    { "n": 4, "q": "Are there four distinct CDE states with enforced permissions - not four folders anyone can write to?", "critical": true },
+    { "n": 5, "q": "Does every shared container carry a suitability code, and every published one an authorization code?", "critical": true },
+    { "n": 6, "q": "Could you show an auditor who authorised the current published revision of any given drawing, and when?", "critical": true }
+  ],
+  "selfAuditRule": "Score honestly, not generously. A fail on any critical question means the project is not running an ISO 19650 information management process, whatever the BEP claims.",
+
+  "midpMinimumRow": [
+    { "field": "deliverable", "label": "The deliverable", "why": "what container is to be produced" },
+    { "field": "responsible", "label": "The responsible party", "why": "who owes it" },
+    { "field": "date", "label": "The date", "why": "when it is due" }
+  ],
+  "midpColumns": ["Ref","Discipline","Originator","Deliverable","Type","Stage","LOIN","Format","Suitability","CDE State","Planned Date","Actual Date","Responsible","TIDP Ref","RAG","Notes"],
+
+  "bepMustSettle": [
+    "The information delivery strategy and how it responds to the EIR",
+    "Roles and responsibilities, including who performs information management",
+    "Standards, methods and procedures - including the naming convention and the code tables this project uses",
+    "The CDE: platform, states, permissions, transition and approval process",
+    "Software, versions and exchange formats",
+    "The coordinate system and units - agreed once at mobilisation, never changed",
+    "The MIDP, or a commitment to produce one and when",
+    "Quality assurance and model validation - how compliance is checked, by whom, how often",
+    "Security requirements per ISO 19650-5"
+  ],
+
+  "commonMistakes": [
+    "Calling the client the lead appointed party. They are the appointing party.",
+    "Listing suitability or revision as a field in the container name. They are metadata.",
+    "Naming a drawing M3. A drawing is DR, even when generated from a model.",
+    "Writing 17 instead of 0017.",
+    "Inventing a zone code when the project is not subdivided. Use ZZ.",
+    "Issuing at S2 what you meant to issue at S1 - or the reverse.",
+    "Putting an S code on published information. Published carries A or B.",
+    "Going P03 to P04 when the drawing has gone to construction. It becomes C01.",
+    "Calling a shared folder a CDE because the filenames are tidy.",
+    "Writing a BEP once, filing it, and never opening it again."
+  ],
+
+  "glossary": [
+    { "term": "AIM", "means": "Asset Information Model - the information set for the asset in operation" },
+    { "term": "AIR", "means": "Asset Information Requirements" },
+    { "term": "BEP", "means": "BIM Execution Plan" },
+    { "term": "CDE", "means": "Common Data Environment" },
+    { "term": "EIR", "means": "Exchange Information Requirements" },
+    { "term": "Information container", "means": "Any named, structured set of information - a model, drawing, schedule, document" },
+    { "term": "LOIN", "means": "Level of Information Need" },
+    { "term": "MIDP", "means": "Master Information Delivery Plan" },
+    { "term": "OIR", "means": "Organizational Information Requirements" },
+    { "term": "PIM", "means": "Project Information Model - the information set produced during delivery" },
+    { "term": "PIR", "means": "Project Information Requirements" },
+    { "term": "Suitability", "means": "What a recipient may do with shared information" },
+    { "term": "Task team", "means": "A group delivering a defined package of information" },
+    { "term": "TIDP", "means": "Task Information Delivery Plan" }
+  ],
+
+  "standards": [
+    { "ref": "ISO 19650-1:2018", "covers": "Concepts and principles" },
+    { "ref": "ISO 19650-2:2018", "covers": "Delivery phase of assets" },
+    { "ref": "ISO 19650-3", "covers": "Operational phase" },
+    { "ref": "ISO 19650-5", "covers": "Security-minded approach" }
+  ]
+}

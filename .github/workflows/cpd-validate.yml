@@ -1,0 +1,36 @@
+name: CPD pack
+
+on:
+  push:
+    paths: ['cpd/**', 'docs/**', 'GUIDES/**', 'marketing-site/**', '.github/workflows/cpd-validate.yml']
+  pull_request:
+    paths: ['cpd/**', 'docs/**', 'GUIDES/**', 'marketing-site/**']
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Validate — no code-table drift
+        run: node cpd/validate.mjs
+
+      - name: Build the pack (primary + resit variant)
+        run: |
+          node cpd/build.mjs
+          node cpd/build.mjs --variant=1
+
+      - name: Certificates smoke test
+        run: node cpd/certificates.mjs
+
+      - name: Fail if the committed pack is stale
+        run: |
+          if ! git diff --quiet -- cpd/dist; then
+            echo "::error::cpd/dist is out of date. Run 'node cpd/build.mjs' and commit the result."
+            git diff --stat -- cpd/dist
+            exit 1
+          fi
+          echo "Committed pack matches the source data."

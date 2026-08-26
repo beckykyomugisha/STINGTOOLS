@@ -1,0 +1,16 @@
+{
+  "name": "planscape-cpd",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generates the PLNS-CPD-01 course pack from a single source of truth. Zero dependencies.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "node build.mjs",
+    "build:resit": "node build.mjs --variant=1",
+    "certificates": "node certificates.mjs",
+    "validate": "node validate.mjs",
+    "baseline": "node validate.mjs --update-baseline",
+    "all": "node validate.mjs && node build.mjs && node build.mjs --variant=1 && node certificates.mjs"
+  }
+}

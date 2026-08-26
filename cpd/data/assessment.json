@@ -1,0 +1,348 @@
+{
+  "$comment": "Assessment item bank. Each item may carry `variants` - alternative scenario parameter sets used to generate equivalent resit papers. Variant 0 is the primary paper. Generate with: node cpd/build.mjs --variant=N NOTE: totals are enforced by cpd/validate.mjs - sum(item.marks) must equal totalMarks and passMark must be >= 70%.",
+  "version": "1.1",
+  "totalMarks": 42,
+  "passMark": 30,
+  "timeMinutes": 10,
+  "conditions": "Closed book. The delegate field guide is NOT permitted during assessment.",
+  "resitPolicy": "One free resit within 30 days, on a variant paper. Change the scenarios, not the concepts - keep the outcome map and marks identical so papers stay equivalent.",
+  "retentionYears": 2,
+  "retentionNote": "A CPD board may audit a provider's assessment records. A provider who cannot produce marked scripts on request risks accreditation.",
+  "items": [
+    {
+      "id": "Q1",
+      "type": "mcq",
+      "marks": 2,
+      "lo": "LO1",
+      "variants": [
+        {
+          "stem": "A university commissions a new laboratory building. It engages a lead consultant, who in turn engages a structural sub-consultant. Under ISO 19650, what is the *university's* role?"
+        },
+        {
+          "stem": "A ministry commissions a regional hospital. It appoints a lead architect, who engages an MEP sub-consultant. Under ISO 19650, what is the *ministry's* role?"
+        }
+      ],
+      "options": [
+        "Lead appointed party",
+        "Appointing party",
+        "Appointed party",
+        "Task team manager"
+      ],
+      "answer": 1,
+      "note": "The client who commissions and receives the information. Common error: A - delegates conflate 'the one in charge' with lead appointed party, which is the lead consultant, not the client."
+    },
+    {
+      "id": "Q2",
+      "type": "mcq",
+      "marks": 2,
+      "lo": "LO1",
+      "variants": [
+        {
+          "stem": "Place the four information requirement types in the order in which they cascade, from the broadest organisational level down to the specific exchange:"
+        }
+      ],
+      "options": [
+        "EIR to PIR to AIR to OIR",
+        "PIR to OIR to EIR to AIR",
+        "OIR to AIR to PIR to EIR",
+        "AIR to OIR to EIR to PIR"
+      ],
+      "answer": 2,
+      "note": "Organisational, asset, project, exchange. Common error: A, reciting it backwards."
+    },
+    {
+      "id": "Q3",
+      "type": "mcq",
+      "marks": 2,
+      "lo": "LO1",
+      "variants": [
+        {
+          "stem": "Which party *issues* the Exchange Information Requirements, and which party *responds* to them?"
+        }
+      ],
+      "options": [
+        "The lead appointed party issues; the appointing party responds",
+        "The appointing party issues; the lead appointed party responds",
+        "The appointed party issues; the lead appointed party responds",
+        "The information manager issues; the client responds"
+      ],
+      "answer": 1,
+      "note": "The EIR is a client-side demand; the BEP is the supply-side response. Do not accept D - 'information manager' is a function, not a party, and may sit either side."
+    },
+    {
+      "id": "Q4",
+      "type": "mcq",
+      "marks": 2,
+      "lo": "LO2",
+      "variants": [
+        {
+          "stem": "Which of the following is *not* one of the required fields in an information container name?",
+          "options": [
+            "Originator",
+            "Volume or system",
+            "File size",
+            "Role"
+          ],
+          "answer": 2
+        },
+        {
+          "stem": "Which of the following is *not* one of the required fields in an information container name?",
+          "options": [
+            "Level or location",
+            "Author's initials",
+            "Type",
+            "Project"
+          ],
+          "answer": 1
+        }
+      ],
+      "note": "The seven fields are project, originator, volume/system, level, type, role, number."
+    },
+    {
+      "id": "Q5",
+      "type": "mcq",
+      "marks": 2,
+      "lo": "LO3",
+      "variants": [
+        {
+          "stem": "A structural engineer completes a slab layout drawing and issues it so the mechanical and electrical teams can coordinate their services against it. Which suitability code applies?",
+          "options": [
+            "S0",
+            "S1",
+            "S3",
+            "S4"
+          ],
+          "answer": 1
+        },
+        {
+          "stem": "An architect issues a site survey to the project team purely so they are aware of the existing constraints. It is not for anyone to design against. Which suitability code applies?",
+          "options": [
+            "S1",
+            "S2",
+            "S3",
+            "S4"
+          ],
+          "answer": 1
+        }
+      ],
+      "note": "Issued for coordination is S1; issued for awareness only is S2. Common error on variant 0: S3, which is review and comment - a different purpose and a contractually different obligation."
+    },
+    {
+      "id": "Q6",
+      "type": "mcq",
+      "marks": 2,
+      "lo": "LO3",
+      "variants": [
+        {
+          "stem": "In a correctly configured Common Data Environment, who holds *write* access to a container in the *Published* state?"
+        }
+      ],
+      "options": [
+        "The originating author",
+        "Any project member",
+        "Only the party authorised to approve, under the project's approval process",
+        "Everyone with a project login"
+      ],
+      "answer": 2,
+      "note": "Controlled write access under an approval process is what defines Published. A is WIP behaviour; B and D describe a shared drive. IMPORTANT: a delegate who additionally observes that Published information carries an A or B authorization code rather than an S code is CORRECT and must not be penalised."
+    },
+    {
+      "id": "Q7",
+      "type": "mcq",
+      "marks": 2,
+      "lo": "LO4",
+      "variants": [
+        {
+          "stem": "A practice submits a BIM Execution Plan *as part of its tender response*, before any contract is signed. This document is:"
+        }
+      ],
+      "options": [
+        "A post-appointment BEP",
+        "A pre-appointment BEP",
+        "A Master Information Delivery Plan",
+        "An Exchange Information Requirement"
+      ],
+      "answer": 1,
+      "note": "Submitted with the tender, before contract."
+    },
+    {
+      "id": "Q8",
+      "type": "written",
+      "marks": 4,
+      "lo": "LO2",
+      "variants": [
+        {
+          "stem": "List the seven required fields of an information container name, **in the correct order**."
+        }
+      ],
+      "answer": "Project - Originator - Volume/System - Level/Location - Type - Role - Number",
+      "marking": [
+        "Half a mark per correct field named (3.5 available), half a mark for correct sequence. Award the sequence mark only if all seven are present and correctly ordered.",
+        "Accept 'Volume', 'System' or 'Volume/System' for field 3; 'Level' or 'Location' for field 4. Minor wording variation is fine - the delegate must show they know what the field does, not recite a label."
+      ],
+      "reject": "Suitability or revision listed as a field. These are metadata attributes, not part of the required name. Frequent and important error - flag it verbally when returning papers."
+    },
+    {
+      "id": "Q9",
+      "type": "written",
+      "marks": 4,
+      "lo": "LO2",
+      "variants": [
+        {
+          "project": "Kigali Innovation Hub",
+          "projectCode": "KIH",
+          "originator": "PLNS",
+          "discipline": "mechanical",
+          "role": "M",
+          "container": "drawing",
+          "volume": "ZZ",
+          "volumeDesc": "whole project (no zone subdivision)",
+          "level": "02",
+          "n": 17,
+          "number": "0017",
+          "typeCode": "DR"
+        },
+        {
+          "project": "Mbarara Teaching Hospital",
+          "projectCode": "MTH",
+          "originator": "PLNS",
+          "discipline": "electrical",
+          "role": "E",
+          "container": "3D model",
+          "volume": "ZZ",
+          "volumeDesc": "whole project (no zone subdivision)",
+          "level": "GF",
+          "n": 4,
+          "number": "0004",
+          "typeCode": "M3"
+        }
+      ],
+      "stemTemplate": "You are working on the **{project}**, project code `{projectCode}`. Your firm's originator code is `{originator}`. Construct the container name for: a **{discipline} {container}**, covering the **{volumeDesc}**, at **level {level}**, being the **{n}th** such container. Write the full name. State any assumption you make.",
+      "answerTemplate": "{projectCode}-{originator}-{volume}-{level}-{typeCode}-{role}-{number}",
+      "marking": [
+        "Project code and originator: half a mark each (given in the question).",
+        "Volume/System: 1 mark. THE DISCRIMINATING MARK. ZZ = whole project, not subdivided. A delegate who invents a zone code has not understood the field.",
+        "Level: half a mark. Must match the stated level exactly - not L02, not 2.",
+        "Type: 1 mark. Read the question - a drawing is DR, a model is M3. This is the second discriminating mark.",
+        "Role: half a mark.",
+        "Number: half a mark. Zero-padded to four digits. An unpadded number scores zero for this element.",
+        "Full credit for a different but internally consistent convention ONLY if the delegate explicitly states the convention they are working to. Real projects vary; a delegate who says so is demonstrating exactly the judgement the course teaches."
+      ]
+    },
+    {
+      "id": "Q10",
+      "type": "written",
+      "marks": 3,
+      "lo": "LO3",
+      "variants": [
+        {
+          "stem": "Explain the difference between suitability code **S1** and suitability code **S2**. Give one example of information that would carry each."
+        },
+        {
+          "stem": "Explain the difference between suitability code **S2** and suitability code **S3**. Give one example of information that would carry each."
+        }
+      ],
+      "answer": "S1 - Suitable for coordination. Issued so other task teams can position and design their own work against it. It is expected to change.\nS2 - Suitable for information. Issued so others are aware of it. Not an invitation to coordinate against, and carries no expectation the recipient will design to it.\nS3 - Suitable for review and comment. Issued so the recipient reviews it and returns comments.",
+      "marking": [
+        "1 mark per correct definition, 1 mark for a valid example pair.",
+        "Valid examples: S1 - a structural frame model issued so MEP can route services through it. S2 - a site survey, planning constraint drawing or specification issued for awareness. S3 - a draft specification issued to the client for comment."
+      ],
+      "reject": "A delegate who writes only 'S1 is for coordination, S2 is for information' has restated the label without explaining it. Award 1 mark total. The distinction that earns the marks is that S1 carries an expectation of use and S2 does not."
+    },
+    {
+      "id": "Q11",
+      "type": "written",
+      "marks": 3,
+      "lo": "LO3",
+      "variants": [
+        {
+          "stem": "A delegate asks: \"Our BEP lists suitability codes up to S7, but the guide I downloaded online only goes to S4. Which is correct?\" Answer the question, and state the general rule."
+        }
+      ],
+      "answer": "Both may be correct. Suitability codes above S4 vary between national annexes, published guidance and individual project protocols. There is no single universal table.\nThe rule: the project's BEP is authoritative. Whatever suitability schedule the BEP defines governs that project, and it must be agreed before information exchange begins.",
+      "marking": [
+        "1 mark for recognising that variation is legitimate rather than one source being wrong; 2 marks for stating the BEP-is-authoritative rule.",
+        "Award full marks to a delegate who answers only 'check the BEP - it defines the codes for the project'. That is the operationally correct answer and the entire point of the question."
+      ],
+      "reject": "Award zero for picking one table and declaring the other wrong, however confidently argued."
+    },
+    {
+      "id": "Q12",
+      "type": "written",
+      "marks": 4,
+      "lo": "LO3",
+      "variants": [
+        {
+          "stem": "A colleague says: \"We're ISO 19650 compliant - we've got a shared folder on the company server, and everyone names their files properly.\" Give **three** specific reasons why this is not a Common Data Environment."
+        }
+      ],
+      "answerFrom": "cdeTests",
+      "marking": [
+        "One and a third marks each, rounded to the delegate's benefit. Any three of the five CDE tests.",
+        "A delegate who explicitly observes that correct naming is necessary but not sufficient may be awarded the fourth mark."
+      ],
+      "reject": "Sentiment in place of mechanism. 'It's not secure enough' or 'it's disorganised' earns nothing. 'You can't tell who approved a file' earns full credit for that point."
+    },
+    {
+      "id": "Q13",
+      "type": "written",
+      "marks": 3,
+      "lo": "LO3",
+      "variants": [
+        {
+          "stem": "A drawing is at revision `P03`. It is now issued for construction for the first time. What revision code does it carry, and what does the letter signify?",
+          "answer": "C01. The C signifies a construction-stage issue - the information is now issued for construction rather than as a pre-construction (preliminary) revision.",
+          "reject": "Do not accept P04. The point of the question is that crossing from pre-construction into construction restarts the numbering under a new letter - it does not continue the P sequence."
+        },
+        {
+          "stem": "A specification is at revision `P07`. It is now issued for construction for the first time. What revision code does it carry, and what does the letter signify?",
+          "answer": "C01. The C signifies a construction-stage issue. Note that the P number reached does not carry over - C numbering starts at 01.",
+          "reject": "Do not accept P08 or C07. The letter change restarts the count."
+        }
+      ],
+      "marking": [
+        "2 marks for the code, 1 mark for correctly explaining the letter."
+      ]
+    },
+    {
+      "id": "Q14",
+      "type": "written",
+      "marks": 4,
+      "lo": "LO5",
+      "variants": [
+        {
+          "stem": "Explain the relationship between a **TIDP** and a **MIDP**. State which party produces each."
+        }
+      ],
+      "answer": "A Task Information Delivery Plan (TIDP) is produced by each task team and lists that team's own deliverables, responsibilities and dates.\nThe Master Information Delivery Plan (MIDP) is compiled by the lead appointed party, aggregating all the TIDPs into a single federated delivery programme for the whole project.",
+      "marking": [
+        "1 mark - TIDP is per task team. 1 - produced by the task team itself. 1 - MIDP aggregates the TIDPs. 1 - MIDP compiled by the lead appointed party."
+      ],
+      "reject": "Cap at 2 marks where a delegate describes both documents accurately but does not convey that the MIDP is BUILT FROM the TIDPs. The relationship is the point of the question."
+    },
+    {
+      "id": "Q15",
+      "type": "written",
+      "marks": 3,
+      "lo": "LO5",
+      "variants": [
+        {
+          "stem": "You are compiling a MIDP. Name the **three** minimum pieces of information that every row must carry for the plan to function as a delivery control document."
+        }
+      ],
+      "answerFrom": "midpMinimumRow",
+      "marking": [
+        "1 mark each.",
+        "Also accept, in place of any of the three: the suitability code at delivery, or the milestone the row serves - defensible additions from a delegate thinking about the document as a control instrument."
+      ],
+      "reject": "File format, file size or software version. Useful metadata, but a MIDP row without what / who / when cannot control delivery at all."
+    }
+  ],
+  "administration": [
+    "Layout. Question paper one side; a separate answer form with Section A as a circling grid and Section B as ruled boxes sized to the marks available. Do not let delegates write on the question paper.",
+    "Delegate identification. Name, professional registration number, board. The registration number is what the certificate is issued against - capture it here rather than chasing it afterwards.",
+    "Borderline scripts (26-27). Re-mark Section B in full before recording a fail. Short-answer marking has real spread between markers.",
+    "Variant paper for resits. Generate with --variant=1. The outcome map and marks are identical by construction.",
+    "Retain scripts for two years. A board may audit a provider's assessment records."
+  ]
+}

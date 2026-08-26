@@ -1,0 +1,58 @@
+{
+  "$comment": "Exercise workbook source. Exercises 1-3 are collected and marked; Exercise 4 is private to the delegate and never collected.",
+  "version": "1.0",
+  "exercises": [
+    {
+      "id": "EX1", "module": "m2", "title": "Name six containers", "mins": 15,
+      "method": "On paper. Peer-marked.", "collected": true,
+      "brief": "You are the mechanical engineer at PLNS on the **Kigali Innovation Hub** (project code `KIH`). The project is not subdivided into zones. Name the six information containers below. Where information is missing, state the assumption you make.",
+      "items": [
+        { "n": 1, "ask": "Your 3D mechanical model, covering the whole project, all levels. First of its kind.", "answer": "KIH-PLNS-ZZ-ZZ-M3-M-0001", "why": "All levels is ZZ, not a specific floor. M3 for a model." },
+        { "n": 2, "ask": "A ductwork layout drawing for level 03. Twelfth drawing in the series.", "answer": "KIH-PLNS-ZZ-03-DR-M-0012", "why": "DR for a drawing, level 03 is specific." },
+        { "n": 3, "ask": "The architect's (originator code ARCH) general arrangement drawing for the ground floor. Third in series.", "answer": "KIH-ARCH-ZZ-GF-DR-A-0003", "why": "The ORIGINATOR changes to ARCH and the ROLE to A. Tests that delegates separate the two fields." },
+        { "n": 4, "ask": "Your mechanical equipment schedule, whole project, all levels. First in series.", "answer": "KIH-PLNS-ZZ-ZZ-SH-M-0001", "why": "SH for schedule." },
+        { "n": 5, "ask": "A clash report produced by the BIM coordinator at PLNS, covering the whole project. Second in series.", "answer": "KIH-PLNS-ZZ-ZZ-CR-Z-0002", "why": "Role Z - general, non-disciplinary. A clash report is not a mechanical deliverable. This is the hardest item." },
+        { "n": 6, "ask": "The structural engineer's (originator STRU) calculations for the level 01 slab. Ninth in series.", "answer": "KIH-STRU-ZZ-01-CA-S-0009", "why": "CA for calculations, role S." }
+      ],
+      "marking": "One mark per fully correct name; half a mark for a name with exactly one field wrong. Items 3 and 5 are the discriminators - 3 tests originator-versus-role, 5 tests the non-disciplinary role code.",
+      "teachingNote": "Item 5 will produce debate. Let it run for two minutes. The point is that role describes the discipline of the CONTENT, and a federated clash report belongs to no single discipline."
+    },
+    {
+      "id": "EX2", "module": "m3", "title": "Route eight documents", "mins": 20,
+      "method": "Worked exercise, on paper.", "collected": true,
+      "brief": "For each document below, state (a) which CDE state it belongs in, (b) which code it carries - a suitability code if shared, an authorization code if published - and (c) the revision code. Two of these are deliberately ambiguous: say what you would do and what you would check.",
+      "items": [
+        { "n": 1, "ask": "A draft mechanical layout the engineer is still working on. Nobody else has seen it.", "state": "WIP", "code": "S0", "rev": "P01", "why": "Not for issue. Sits in WIP." },
+        { "n": 2, "ask": "A structural frame model issued so the MEP team can route services through it. Second preliminary issue.", "state": "Shared", "code": "S1", "rev": "P02", "why": "Coordination - carries an expectation of use." },
+        { "n": 3, "ask": "A topographical survey issued so the whole team is aware of site constraints. Nobody is to design to it yet.", "state": "Shared", "code": "S2", "rev": "P01", "why": "Information only - no expectation of use." },
+        { "n": 4, "ask": "A draft specification sent to the client asking for their comments. First issue.", "state": "Shared", "code": "S3", "rev": "P01", "why": "Review and comment." },
+        { "n": 5, "ask": "A general arrangement drawing approved by the client at the end of stage 3, with no comments.", "state": "Published", "code": "A1", "rev": "P04", "why": "PUBLISHED CARRIES AN AUTHORIZATION CODE, NOT A SUITABILITY CODE. This is the item that teaches the two code families." },
+        { "n": 6, "ask": "The same drawing, approved but with three comments the architect must resolve next revision.", "state": "Published", "code": "B1", "rev": "P04", "why": "Accepted with comments." },
+        { "n": 7, "ambiguous": true, "ask": "A drawing at P05 that the contractor has started building from, but which the client has not formally approved.", "state": "AMBIGUOUS", "code": "-", "rev": "-", "why": "There is no correct answer. If it is being built from, it should be Published and at C01 - but it has not been authorised, so it cannot be. The honest answer: STOP. This is a live risk, not a filing question. Check the BEP's approval process and escalate. A delegate who says 'it depends' and explains why has answered correctly." },
+        { "n": 8, "ambiguous": true, "ask": "A model issued to a sub-consultant who is not named in the project's CDE permissions.", "state": "AMBIGUOUS", "code": "-", "rev": "-", "why": "The state and code are the easy part - the problem is that the recipient is outside the CDE, so the transfer is uncontrolled and unlogged. Check the BEP, and whether ISO 19650-5 security requirements apply. The answer is a process failure, not a code." }
+      ],
+      "marking": "Half a mark for each of state, code and revision on items 1-6 (9 marks). Items 7 and 8 are marked on reasoning only, 1.5 marks each: full marks for recognising the ambiguity and naming what they would check; zero for confidently inventing an answer.",
+      "teachingNote": "Items 7 and 8 exist to build the reflex the whole course depends on: when the standard does not settle it, the BEP does - and when the BEP does not settle it either, you escalate rather than guess. Do not let a delegate talk you into a 'right answer' for these."
+    },
+    {
+      "id": "EX3", "module": "m4", "title": "Draft BEP clauses and a MIDP", "mins": 30,
+      "method": "Guided drafting, on paper and in the supplied spreadsheet.", "collected": true,
+      "brief": "Using the supplied delivery programme, complete three BEP clauses and build a ten-row MIDP.",
+      "parts": [
+        { "part": "A", "marks": 6, "ask": "Draft the BEP clause covering the **naming convention**. It must state the field order, give a worked example, and say where the code tables are defined.", "answer": "Must contain: the seven-field order; a worked example using the project's own code; and an explicit statement of where the type/role/suitability tables are defined for this project (an appendix, or a named standard). A clause that gives the format but does not say where the code tables live has not settled anything." },
+        { "part": "B", "marks": 6, "ask": "Draft the BEP clause covering the **CDE**. It must name the four states, say who may write to each, and describe the approval process for moving into Published.", "answer": "Must contain: four named states; write permission per state; and a NAMED ROLE authorised to approve into Published. A clause that says 'the project lead approves' without saying who that is, or what happens in their absence, fails the test." },
+        { "part": "C", "marks": 4, "ask": "Draft the BEP clause covering the **coordinate system and units**. One paragraph.", "answer": "Must state: the coordinate system, the project base point, the units (mm), and that these are fixed at mobilisation and never changed. The 'never changed' commitment is the substance of the clause." },
+        { "part": "D", "marks": 10, "ask": "Build a ten-row MIDP from the supplied delivery programme. Every row must carry at minimum the deliverable, the responsible party and the date.", "answer": "One mark per row that carries all three of what/who/when. Award nothing extra for additional columns, but note that a delegate who adds suitability-at-delivery or a TIDP reference is thinking correctly about the document as a control instrument." }
+      ],
+      "marking": "26 marks. Parts A-C are marked on whether the clause SETTLES the question, not on prose quality. The test for every clause: could two task teams read this and still disagree? If yes, it fails.",
+      "teachingNote": "Delegates write vague clauses because vague clauses feel safe. Push back hard on any clause containing 'as appropriate', 'as required' or 'to be agreed'. Those three phrases are how a BEP becomes decorative."
+    },
+    {
+      "id": "EX4", "module": "m5", "title": "Audit your own project", "mins": 15,
+      "method": "Private. Not collected, not marked, not seen by the instructor.", "collected": false,
+      "brief": "Run the six-point self-audit against a project you are working on right now. Answer honestly - nobody will see this.",
+      "fromData": "selfAudit",
+      "teachingNote": "This is the most important fifteen minutes of the day and it must stay private. A person who publicly admits their project is non-compliant gets defensive; a person who discovers it privately gets motivated. Say explicitly, twice, that it will not be collected. Do not walk the room looking over shoulders."
+    }
+  ]
+}

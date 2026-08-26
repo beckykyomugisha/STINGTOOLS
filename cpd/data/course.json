@@ -1,0 +1,159 @@
+{
+  "code": "PLNS-CPD-01",
+  "title": "ISO 19650 in Practice",
+  "subtitle": "Delivering a Compliant Information Model",
+  "version": "1.0",
+  "updated": "2026-08-26",
+  "provider": {
+    "name": "Planscape Ltd",
+    "location": "Kampala, Uganda",
+    "email": "hello@planscape.build"
+  },
+  "trainer": {
+    "name": "Mayanja Davis",
+    "role": "Information Manager",
+    "firm": "Planscape Consulting Engineers Ltd",
+    "evidence": "Information Manager, Kampala Uganda Temple - a live ISO 19650-2 information management regime with BEP, MIDP and audited CDE."
+  },
+  "contactHours": 4,
+  "pointsSought": 4,
+  "pointsBasis": "1 point per contact hour - CONFIRM against the board's current scale",
+  "startTime": "09:00",
+  "endTime": "13:00",
+  "registration": "08:30",
+  "delegates": {
+    "min": 12,
+    "max": 30
+  },
+  "passMark": 0.7,
+  "boards": [
+    "BORAQS (Kenya)",
+    "ERB / UIPE (Uganda)",
+    "AAK",
+    "IEK"
+  ],
+  "mode": "In-person, computer lab or laptop-equipped venue. Online variant available.",
+  "audience": "Registered architects, engineers, quantity surveyors and construction managers in project delivery roles",
+  "prerequisite": "Working familiarity with a BIM authoring tool. No prior standards knowledge assumed.",
+  "outcomes": [
+    {
+      "id": "LO1",
+      "verb": "Identify",
+      "text": "the parties, roles and information requirement chain defined in ISO 19650-1 (OIR to AIR to PIR to EIR) and state which party owes which information to whom."
+    },
+    {
+      "id": "LO2",
+      "verb": "Construct",
+      "text": "a compliant information container name from a project brief, correctly populating all seven fields, and explain the function of each field."
+    },
+    {
+      "id": "LO3",
+      "verb": "Route",
+      "text": "an information container through the four CDE states and assign the correct suitability or authorization code and revision code at each transition."
+    },
+    {
+      "id": "LO4",
+      "verb": "Draft",
+      "text": "the core clauses of a BIM Execution Plan, and distinguish a pre-appointment from a post-appointment BEP."
+    },
+    {
+      "id": "LO5",
+      "verb": "Build",
+      "text": "a Master Information Delivery Plan from a delivery programme, identifying deliverables, responsible parties and target dates."
+    },
+    {
+      "id": "LO6",
+      "verb": "Evaluate",
+      "text": "an existing project's information management against the standard and name at least three specific non-conformances with their remedies.",
+      "assessedBy": "Exercise 4 (private self-audit) - deliberately not examined, as a delegate cannot be marked on a project the examiner has not seen."
+    }
+  ],
+  "runsheet": [
+    {
+      "start": "09:00",
+      "mins": 20,
+      "id": "open",
+      "title": "Opening - why information management fails",
+      "body": "Three anonymised regional case failures: a rejected donor submission, a handover with no asset data, a coordination cycle that never converged. What each one cost.",
+      "mode": "Lecture + discussion"
+    },
+    {
+      "start": "09:20",
+      "mins": 45,
+      "id": "m1",
+      "title": "Module 1 - The standard, decoded",
+      "body": "ISO 19650-1 concepts. The three parties. The information requirement chain. Level of Information Need. What -2 adds for the delivery phase, and what -5 requires on security.",
+      "mode": "Whiteboard - no software"
+    },
+    {
+      "start": "10:05",
+      "mins": 45,
+      "id": "m2",
+      "title": "Module 2 - Naming and classification",
+      "body": "The container naming convention field by field, and why each exists. Classification systems, and when they are contractually required.",
+      "mode": "Lecture + paper exercise",
+      "exercise": "EX1"
+    },
+    {
+      "start": "10:50",
+      "mins": 15,
+      "id": "break",
+      "title": "Break",
+      "break": true
+    },
+    {
+      "start": "11:05",
+      "mins": 45,
+      "id": "m3",
+      "title": "Module 3 - The CDE and its state machine",
+      "body": "The four containers and their permissions. Suitability codes for shared information, authorization codes for published. Revision codes. The central lesson: a shared drive is not a CDE.",
+      "mode": "Lecture + worked exercise",
+      "exercise": "EX2"
+    },
+    {
+      "start": "11:50",
+      "mins": 40,
+      "id": "m4",
+      "title": "Module 4 - The BEP and the MIDP",
+      "body": "The two documents that turn intent into obligation. Pre- versus post-appointment BEP. The MIDP as contractual spine, with the TIDP beneath it.",
+      "mode": "Guided drafting",
+      "exercise": "EX3"
+    },
+    {
+      "start": "12:30",
+      "mins": 20,
+      "id": "m5",
+      "title": "Module 5 - Proving compliance",
+      "body": "How you demonstrate conformance when challenged: audit trail, model validation, measurable naming and tagging compliance. Automating the check versus doing it by inspection.",
+      "mode": "Demonstration + self-audit",
+      "exercise": "EX4"
+    },
+    {
+      "start": "12:50",
+      "mins": 10,
+      "id": "assess",
+      "title": "Assessment and close",
+      "body": "Fifteen questions mapped to outcomes 1-5. Toolkit distribution.",
+      "mode": "Assessment"
+    }
+  ],
+  "clinic": {
+    "start": "13:15",
+    "mins": 30,
+    "optional": true,
+    "note": "Outside the accredited hours. Announced twice as optional and not required for points. This is where software is installed. Keeping the boundary clean protects the accreditation."
+  },
+  "packItems": [
+    "ISO 19650 field guide",
+    "BEP template (generic, editable)",
+    "MIDP template (spreadsheet)",
+    "Self-audit checklist",
+    "Exercise workbook with model answers",
+    "Certificate of completion"
+  ],
+  "neutralityRules": [
+    "Modules 1-4 are taught standard-first and tool-agnostic. Exercises 1-3 are done on paper and in a spreadsheet. A delegate who leaves and buys nothing must still have received full value.",
+    "Software appears only as the instructor's working method, in Module 5. Naming alternatives (ACC, Revizto, BIMcollab) strengthens the course rather than weakening it.",
+    "The commercial offer sits outside the accredited hours. The four contact hours end at 13:00; the optional clinic starts at 13:15."
+  ]
+}

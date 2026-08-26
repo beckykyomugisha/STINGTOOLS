@@ -55,7 +55,8 @@ On completion, a delegate will be able to:
    correctly populating all seven fields, and **explain** the function of each field.
 3. **Route** an information container through the four CDE states
    (WIP → Shared → Published → Archived) and **assign** the correct suitability
-   code (S0–S7) and revision code (P/C/A) at each transition.
+   code (S0–S4) or authorization code (A/B, on published information) and revision
+   code (P/C) at each transition.
 4. **Draft** the core clauses of a BIM Execution Plan, and **distinguish** a
    pre-appointment from a post-appointment BEP.
 5. **Build** a Master Information Delivery Plan from a delivery programme,
@@ -75,7 +76,7 @@ live project during the session.*
 | **09:20–10:05** | **Module 1 — The standard, decoded** | ISO 19650-1 concepts. The three parties: appointing / lead appointed / appointed. The information requirement chain OIR → AIR → PIR → EIR. Level of Information Need. What -2 adds for the delivery phase. What ISO 19650-5 requires on security. | Lecture, whiteboard. **No software.** |
 | **10:05–10:50** | **Module 2 — Naming and classification** | The information container naming convention, field by field: project / originator / volume / level / type / role / number. Why each field exists. Classification systems (Uniclass, MasterFormat) and when they are required. **Exercise 1:** name six containers from a written project brief, on paper. Peer-marked. | Lecture + paper exercise |
 | **10:50–11:05** | *Break* | | |
-| **11:05–11:50** | **Module 3 — The CDE and its state machine** | The four containers and their write/read permissions. Suitability codes S0–S7 and the standard mapping to containers. Revision codes: P (pre-construction), C (construction), A (as-built), and minor revisions. **The central lesson: a shared drive is not a CDE.** What makes it one — controlled transitions, permissions, an audit trail. **Exercise 2:** route eight documents through the state machine, assigning suitability and revision at each step. | Lecture + worked exercise |
+| **11:05–11:50** | **Module 3 — The CDE and its state machine** | The four containers and their write/read permissions. Suitability codes S0–S4 on **shared** information; A/B authorization codes on **published** information — the two families and why conflating them is the most consequential coding error in practice. Revision codes: P (pre-construction), C (construction), and minor revisions. **The central lesson: a shared drive is not a CDE.** What makes it one — controlled transitions, permissions, an audit trail. **Exercise 2:** route eight documents through the state machine, assigning suitability and revision at each step. | Lecture + worked exercise |
 | **11:50–12:30** | **Module 4 — The BEP and the MIDP** | The two documents that turn intent into obligation. Pre-appointment vs post-appointment BEP. Mandatory clauses and the ones firms omit. The MIDP as the contractual spine, and the TIDP beneath it. **Exercise 3:** complete three BEP clauses and build a ten-row MIDP from a supplied delivery programme. | Guided drafting |
 | **12:30–12:50** | **Module 5 — Proving compliance** | How you demonstrate conformance when challenged: the audit trail, model validation, measurable naming and tagging compliance. Automating the check versus doing it by inspection. **Exercise 4:** delegates audit their own current project against a six-point checklist and privately record their non-conformances. | Demonstration + self-audit |
 | **12:50–13:00** | **Assessment and close** | Written assessment. Toolkit distribution. | Assessment |
