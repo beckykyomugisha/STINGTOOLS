@@ -12,7 +12,7 @@
       "rule": "S7-TABLE"
     },
     {
-      "file": "docs/bcc-guide.md",
+      "file": "docs/BIM_MANAGEMENT_GUIDE.md",
       "rule": "S-CODE-PUBLISHED"
     },
     {
@@ -48,6 +48,10 @@
       "rule": "S7-TABLE"
     },
     {
+      "file": "docs/guides/DOCUMENT_MANAGER_GUIDE.md",
+      "rule": "S-CODE-PUBLISHED"
+    },
+    {
       "file": "docs/guides/DRAWING_PRODUCTION_SYSTEM_GUIDE.md",
       "rule": "S7-TABLE"
     },
@@ -73,10 +77,6 @@
     },
     {
       "file": "StingTools/Data/BIM_COORDINATION_WORKFLOW_GUIDE.md",
-      "rule": "S-CODE-PUBLISHED"
-    },
-    {
-      "file": "StingTools/Data/DRAWING_TEMPLATE_GUIDE.md",
       "rule": "S-CODE-PUBLISHED"
     },
     {

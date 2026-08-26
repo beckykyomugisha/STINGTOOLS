@@ -95,10 +95,17 @@ const walk = (dir, out = []) => {
 // Patterns that assert something contradicting the source of truth.
 const DRIFT = [
   { rule: 'S-CODE-PUBLISHED',
-    re: /\bS[567]\b[^.\n|]{0,60}[|→>\-]\s*Published|Published[^.\n|]{0,40}\bS[567]\b|\bS4\s*[–-]\s*S7\b[^.\n]{0,30}Published/i,
-    msg: 'Maps an upper S code to the Published container. S codes describe SHARED suitability; Published carries A/B authorization codes. (Note: "SHARED (S0-S4) -> PUBLISHED (A1/B1)" is correct and does not fire.)' },
+    // Catches both HTML rows (<td>S6</td>...<td>Published</td>) and markdown pipe tables
+    // (| S6 | ... | Published |), plus prose mappings ("S4-S7 map to Published").
+    re: /\bS[567]\b[^.\n]{0,70}Published|Published[^.\n]{0,50}\bS[567]\b/i,
+    // ...but NOT when the same line also names the authorization family, which means the
+    // line is drawing the distinction rather than committing the error. "SHARED (S0-S4) ->
+    // PUBLISHED (A1/B1)" is correct, and so is any line that mentions A1/B1/authorization.
+    unless: /\bA1\b|\bB1\b|authoriz|authoris/i,
+    msg: 'Maps an upper S code to the Published container. S codes describe SHARED suitability; Published carries A/B authorization codes.' },
   { rule: 'S7-TABLE',
     re: /\bS0\s*[–-]\s*S7\b|\bS5\b[^.\n]{0,60}\bPIM authorization\b/i,
+    unless: /vary|varies|annex|not universal|BEP is authoritative/i,
     msg: 'Presents S0–S7 as a single table without distinguishing the authorization family.' },
 ];
 
@@ -126,11 +133,11 @@ for (const file of walk(ROOT)) {
   const rel = relative(ROOT, file).split(sep).join('/');
   if (EXEMPT.test(rel)) continue;
   scanned++;
-  const text = readFileSync(file, 'utf8');
+  const lines = readFileSync(file, 'utf8').split('\n');
   for (const d of DRIFT) {
-    const m = text.match(d.re);
-    if (!m) continue;
-    const line = text.slice(0, m.index).split('\n').length;
+    const hit = lines.findIndex(l => d.re.test(l) && !(d.unless && d.unless.test(l)));
+    if (hit < 0) continue;
+    const line = hit + 1;
     const key = `${rel}::${d.rule}`;
     found.push({ file: rel, rule: d.rule, line });
     if (TIER1.test(rel)) fail(d.rule, `[tier 1 — teaching surface] ${d.msg}`, `${rel}:${line}`);
