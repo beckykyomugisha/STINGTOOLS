@@ -11658,6 +11658,18 @@ namespace StingTools.UI
     {
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         internal static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        // Phase 195 — a modeless window that opens behind the Revit main window is
+        // unreachable: Revit is modal-blocked by the pending ExternalEvent, so the
+        // user cannot click Revit to move it out of the way. SetForegroundWindow +
+        // BringWindowToTop after Show() guarantee the window surfaces.
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        internal static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        internal static extern bool BringWindowToTop(IntPtr hWnd);
     }
 
     /// <summary>Phase 98: Centralised window-owner helper.
@@ -11786,11 +11798,49 @@ namespace StingTools.UI
             return w.ShowDialog();
         }
 
-        /// <summary>Convenience wrapper — apply owner then call <c>Show()</c>.</summary>
+        /// <summary>Convenience wrapper — apply owner then call <c>Show()</c>, then
+        /// force the window to the foreground.
+        /// <para>
+        /// Phase 195: owning the HWND is necessary but NOT sufficient. A modeless
+        /// window shown from inside an ExternalEvent can still be created behind the
+        /// Revit main window, and because Revit is input-blocked until the event
+        /// completes the user cannot click Revit to uncover it — the window is
+        /// effectively lost (reported on the Drawing Type Editor). Activate() alone
+        /// is unreliable across process-level foreground locks, so we also go
+        /// through SetForegroundWindow/BringWindowToTop, and switch ShowInTaskbar on
+        /// so the window is always recoverable via Alt-Tab / the taskbar even if the
+        /// foreground call is refused by Windows.
+        /// </para></summary>
         public static void ShowOwned(System.Windows.Window w)
         {
+            if (w == null) return;
             ApplyOwner(w);
+            try { w.ShowInTaskbar = true; } catch (Exception ex) { StingLog.Warn($"ShowOwned taskbar: {ex.Message}"); }
             w.Show();
+            BringToFront(w);
+        }
+
+        /// <summary>Raise an already-shown window to the foreground. Safe to call on
+        /// a window that is minimised, hidden behind Revit, or already on top.</summary>
+        public static void BringToFront(System.Windows.Window w)
+        {
+            if (w == null) return;
+            try
+            {
+                if (w.WindowState == System.Windows.WindowState.Minimized)
+                    w.WindowState = System.Windows.WindowState.Normal;
+                w.Activate();
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    NativeMethods.BringWindowToTop(hwnd);
+                    NativeMethods.SetForegroundWindow(hwnd);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"StingWindowHelper.BringToFront: {ex.Message}");
+            }
         }
     }
 

@@ -297,6 +297,11 @@ namespace StingTools.UI
                 .OrderBy(s => s, StringComparer.OrdinalIgnoreCase);
         }
 
+        /// <summary>The editor is single-instance and modeless. Held so a second
+        /// launch re-surfaces the open window instead of stacking a duplicate
+        /// behind Revit (Phase 195).</summary>
+        public static DrawingTypeEditorDialog CurrentInstance { get; set; }
+
         public DrawingTypeEditorDialog(Document doc)
         {
             _doc = doc;
@@ -310,15 +315,24 @@ namespace StingTools.UI
             MinWidth = 900; MinHeight = 520;
             Background = new SolidColorBrush(BgColor);
             FontFamily = new FontFamily("Segoe UI");
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            // Phase 195 — CenterScreen, not CenterOwner. This window has no managed
+            // WPF Owner (the owner is Revit's raw HWND), and CenterOwner with no
+            // WPF Owner degrades to a system-default position that can land the
+            // window off-screen or fully behind Revit. Owner + foreground are
+            // handled by StingWindowHelper at Show() time.
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            ShowInTaskbar = true;
             DarkDialogTheme.ApplyComboBoxFix(this, CardBg, FgColor, CardBorder);
 
-            try
-            {
-                var helper = new System.Windows.Interop.WindowInteropHelper(this);
-                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-            }
-            catch { }
+            // Was: helper.Owner = Process.GetCurrentProcess().MainWindowHandle.
+            // That returns IntPtr.Zero (or a stray HWND) often enough inside Revit
+            // that the editor opened unowned and dropped behind the main window,
+            // where it could not be reached — Revit itself is input-blocked while
+            // the command's ExternalEvent is pending. StingWindowHelper.ApplyOwner
+            // resolves the real "Rvt_MainWindow" HWND (preferring the BCC when open).
+            StingWindowHelper.ApplyOwner(this);
+
+            Closed += (s, e) => { if (ReferenceEquals(CurrentInstance, this)) CurrentInstance = null; };
 
             // Phase 137 — initialise _packs in the constructor (was inside
             // BuildViewStylePacksTab) so Tab 0 controls that reference the
@@ -1623,7 +1637,8 @@ namespace StingTools.UI
                     ("Edit CSV…",   "TitleBlockEditCsv",   "Open the in-Revit DataGrid for TITLE_BLOCK.csv (no external editor needed)"),
                     ("Populate",    "TitleBlockPopulate",  "Bulk-write PRJ_TB_* values from TITLE_BLOCK.csv to every sheet"),
                     ("Validate",    "TitleBlockValidate",  "Audit completeness — missing fields, invalid suitability codes, stale syncs"),
-                    ("Set Variant", "TitleBlockSetVariant","Auto-swap STING_TB_* family by paper size + viewport aspect"),
+                    ("Swap TBs",    "TitleBlock_Swap",     "Swap the title block on the active sheet / selected sheets / all sheets / all sheets on one family, to any loaded type. Placed views are never moved or deleted."),
+                    ("Set Variant", "TitleBlockSetVariant","Auto-swap the legacy v1.0 STING_TB_* strip families by paper size + viewport aspect. No-op on the v2.0 BIM/NONBIM scheme."),
                     ("Legend Bind", "DisciplineLegendBind","Place LGD-{DISC}-NOTES legend view into title-block notes region"),
                     ("Pre-Export",  "PreExportValidate",   "Pre-export completeness gate — blocks PDF/DWF when critical fields are empty"),
                 }));

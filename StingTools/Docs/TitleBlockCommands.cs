@@ -53,6 +53,55 @@ namespace StingTools.Docs
             VARIANT_A0R, VARIANT_A0B, VARIANT_A1R, VARIANT_A1B, VARIANT_A3R, VARIANT_A3B
         };
 
+        /// <summary>
+        /// True when <paramref name="familyName"/> carries the strip-direction
+        /// variant token for <paramref name="variant"/> (e.g. "A1-B" matches
+        /// STING_TB_A1_B_v1.0).
+        /// <para>
+        /// Phase 195 — this used to be a bare <c>IndexOf("A1_B")</c>, which also
+        /// matched <c>STING_TB_A1_BIM_v2.0</c> because "A1_B" is a prefix of
+        /// "A1_BIM". Every v2.0 BIM family was therefore silently registered as the
+        /// B-strip variant of its size, so Set Variant reported sheets as "already
+        /// matching" and swapped nothing. The token must be delimited on both sides
+        /// by a non-alphanumeric character (or a string boundary) to count.
+        /// </para>
+        /// </summary>
+        internal static bool FamilyMatchesVariant(string familyName, string variant)
+        {
+            if (string.IsNullOrWhiteSpace(familyName) || string.IsNullOrWhiteSpace(variant))
+                return false;
+
+            // Accept both "A1_B" and "A1-B" spellings in the family name.
+            foreach (string token in new[] { variant.Replace("-", "_"), variant.Replace("_", "-") })
+            {
+                int from = 0;
+                while (from <= familyName.Length - token.Length)
+                {
+                    int i = familyName.IndexOf(token, from, StringComparison.OrdinalIgnoreCase);
+                    if (i < 0) break;
+
+                    int before = i - 1;
+                    int after = i + token.Length;
+                    bool leftOk = before < 0 || !char.IsLetterOrDigit(familyName[before]);
+                    bool rightOk = after >= familyName.Length || !char.IsLetterOrDigit(familyName[after]);
+                    if (leftOk && rightOk) return true;
+
+                    from = i + 1;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>True for the post-May-2026 naming scheme
+        /// (STING_TB_&lt;SIZE&gt;_BIM_v2.0 / _NONBIM_v2.0), which has no R/B strip
+        /// variant and is therefore outside Set Variant's remit.</summary>
+        internal static bool IsBimSchemeFamily(string familyName)
+        {
+            if (string.IsNullOrWhiteSpace(familyName)) return false;
+            return familyName.IndexOf("_NONBIM", StringComparison.OrdinalIgnoreCase) >= 0
+                || familyName.IndexOf("_BIM", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         internal static readonly string[] SupportedDisciplines = new[]
         {
             "ARCH", "STR", "MEP", "ELE", "PLM", "FP", "LV", "COORD", "GEN"
@@ -724,14 +773,24 @@ namespace StingTools.Docs
                 .ToList();
 
             var byVariant = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
+            var bimSchemeFamilies = new List<string>();
             foreach (var sym in loadedTbs)
             {
                 string fn = sym.FamilyName ?? "";
+
+                // v2.0 BIM/NONBIM families carry no R/B strip variant — record them
+                // for the diagnostic below rather than mis-binding them to a strip.
+                if (TitleBlockEngine.IsBimSchemeFamily(fn))
+                {
+                    if (!bimSchemeFamilies.Contains(fn)) bimSchemeFamilies.Add(fn);
+                    continue;
+                }
+
                 foreach (string v in TitleBlockEngine.AllVariants)
                 {
-                    // Match STING_TB_A1_R_v1.0 / A1-R / A1_R in family name
-                    string vUnder = v.Replace("-", "_");
-                    if (fn.IndexOf(vUnder, StringComparison.OrdinalIgnoreCase) >= 0)
+                    // Match STING_TB_A1_R_v1.0 / A1-R / A1_R in family name.
+                    // Delimiter-aware — see TitleBlockEngine.FamilyMatchesVariant.
+                    if (TitleBlockEngine.FamilyMatchesVariant(fn, v))
                     {
                         if (!byVariant.ContainsKey(v)) byVariant[v] = sym;
                         break;
@@ -741,10 +800,34 @@ namespace StingTools.Docs
 
             if (byVariant.Count == 0)
             {
+                if (bimSchemeFamilies.Count > 0)
+                {
+                    // The common case now: the project is on the v2.0 scheme, where
+                    // the variant axis is BIM/NONBIM, not R/B strip. Set Variant has
+                    // nothing to do here and saying "no families loaded" would be a
+                    // lie — name the families and point at the right command.
+                    TaskDialog.Show("STING Set Variant",
+                        "This project uses the v2.0 title-block naming scheme " +
+                        "(BIM / NONBIM), which has no R/B strip variant — so " +
+                        "Set Variant has nothing to swap.\n\n" +
+                        "Loaded:\n  " + string.Join("\n  ", bimSchemeFamilies) + "\n\n" +
+                        "Use instead:\n" +
+                        "  \u2022 Swap TBs \u2014 pick any loaded title block and apply it to " +
+                        "the active sheet, selected sheets, or every sheet.\n" +
+                        "  \u2022 BIM Mode \u2014 toggle the active sheet between its BIM and " +
+                        "NONBIM variant.\n" +
+                        "  \u2022 Migrate Legacy \u2014 move v1.0 sheets onto their v2.0 BIM " +
+                        "variant in bulk.\n\n" +
+                        "Set Variant only applies to the six v1.0 strip families " +
+                        "(A0-R/A0-B/A1-R/A1-B/A3-R/A3-B).");
+                    return Result.Cancelled;
+                }
+
                 TaskDialog.Show("STING Set Variant",
-                    "No STING_TB_* title block families loaded in this project.\n\n" +
+                    "No STING_TB_* strip-variant title block families loaded in this project.\n\n" +
                     "Load the six STING_TB_*_v1.0.rfa families (A0-R/A0-B/A1-R/A1-B/A3-R/A3-B) " +
-                    "then re-run this command.");
+                    "then re-run this command \u2014 or use 'Swap TBs' to apply any loaded " +
+                    "title block to your sheets.");
                 return Result.Cancelled;
             }
 

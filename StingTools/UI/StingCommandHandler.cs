@@ -1063,6 +1063,10 @@ namespace StingTools.UI
                     case "TitleBlockPopulate":     RunCommand<Docs.TitleBlockPopulateCommand>(app); break;
                     case "TitleBlockValidate":     RunCommand<Docs.TitleBlockValidateCommand>(app); break;
                     case "TitleBlockSetVariant":   RunCommand<Docs.TitleBlockSetVariantCommand>(app); break;
+                    // Phase 195 — scope-aware swap to ANY loaded title block family.
+                    // Set Variant only handles the six v1.0 R/B strip families, and
+                    // Sheet Manager's swap does one sheet at a time.
+                    case "TitleBlock_Swap":        RunCommand<Docs.TitleBlockSwapCommand>(app); break;
                     case "DisciplineLegendBind":   RunCommand<Docs.DisciplineLegendBindCommand>(app); break;
                     case "SheetCountAutoUpdate":   RunCommand<Docs.SheetCountAutoUpdateCommand>(app); break;
                     case "RevisionSync":           RunCommand<Docs.RevisionSyncCommand>(app); break;
