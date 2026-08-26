@@ -24,6 +24,9 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+// StingListPicker lives in namespace StingTools.Select despite sitting in UI/ —
+// the sibling title-block commands import it the same way.
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Docs

@@ -6559,7 +6559,7 @@ namespace StingTools.UI
             }
 
             var labels = tbTypes.Select(t => $"{t.FamilyName} : {t.Name}").ToList();
-            string pick = StingListPicker.Show("Title Block Rescue",
+            string pick = StingTools.Select.StingListPicker.Show("Title Block Rescue",
                 $"{missingSheets.Count} sheet(s) have no title block:\n  {sample}\n\n" +
                 "Place which title block on them?", labels);
             if (string.IsNullOrEmpty(pick)) return;
