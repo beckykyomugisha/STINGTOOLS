@@ -11659,7 +11659,7 @@ namespace StingTools.UI
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         internal static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
-        // Phase 195 — a modeless window that opens behind the Revit main window is
+        // Phase 244 — a modeless window that opens behind the Revit main window is
         // unreachable: Revit is modal-blocked by the pending ExternalEvent, so the
         // user cannot click Revit to move it out of the way. SetForegroundWindow +
         // BringWindowToTop after Show() guarantee the window surfaces.
@@ -11801,7 +11801,7 @@ namespace StingTools.UI
         /// <summary>Convenience wrapper — apply owner then call <c>Show()</c>, then
         /// force the window to the foreground.
         /// <para>
-        /// Phase 195: owning the HWND is necessary but NOT sufficient. A modeless
+        /// Phase 244: owning the HWND is necessary but NOT sufficient. A modeless
         /// window shown from inside an ExternalEvent can still be created behind the
         /// Revit main window, and because Revit is input-blocked until the event
         /// completes the user cannot click Revit to uncover it — the window is

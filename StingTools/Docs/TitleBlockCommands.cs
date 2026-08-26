@@ -58,7 +58,7 @@ namespace StingTools.Docs
         /// variant token for <paramref name="variant"/> (e.g. "A1-B" matches
         /// STING_TB_A1_B_v1.0).
         /// <para>
-        /// Phase 195 — this used to be a bare <c>IndexOf("A1_B")</c>, which also
+        /// Phase 244 — this used to be a bare <c>IndexOf("A1_B")</c>, which also
         /// matched <c>STING_TB_A1_BIM_v2.0</c> because "A1_B" is a prefix of
         /// "A1_BIM". Every v2.0 BIM family was therefore silently registered as the
         /// B-strip variant of its size, so Set Variant reported sheets as "already
@@ -861,7 +861,11 @@ namespace StingTools.Docs
 
                     try
                     {
-                        if (!targetSym.IsActive) targetSym.Activate();
+                        // Activate must be followed by a regeneration before the
+                        // symbol can be assigned (Phase 244 — the sibling swaps in
+                        // TitleBlockMigrationCommands / TitleBlockSlotCommands
+                        // already did this; this one did not).
+                        if (!targetSym.IsActive) { targetSym.Activate(); doc.Regenerate(); }
                         tb.Symbol = targetSym;
                         ParameterHelpers.SetString(tb, ParamRegistry.TB_VARIANT, targetVariant,
                             overwrite: true);

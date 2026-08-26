@@ -299,7 +299,7 @@ namespace StingTools.UI
 
         /// <summary>The editor is single-instance and modeless. Held so a second
         /// launch re-surfaces the open window instead of stacking a duplicate
-        /// behind Revit (Phase 195).</summary>
+        /// behind Revit (Phase 244).</summary>
         public static DrawingTypeEditorDialog CurrentInstance { get; set; }
 
         public DrawingTypeEditorDialog(Document doc)
@@ -315,7 +315,7 @@ namespace StingTools.UI
             MinWidth = 900; MinHeight = 520;
             Background = new SolidColorBrush(BgColor);
             FontFamily = new FontFamily("Segoe UI");
-            // Phase 195 — CenterScreen, not CenterOwner. This window has no managed
+            // Phase 244 — CenterScreen, not CenterOwner. This window has no managed
             // WPF Owner (the owner is Revit's raw HWND), and CenterOwner with no
             // WPF Owner degrades to a system-default position that can land the
             // window off-screen or fully behind Revit. Owner + foreground are

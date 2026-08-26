@@ -2,6 +2,66 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 244 — swapping a title block was blocked in four separate places)
+
+The report was "I have views on sheets and I cannot change the title block". Four
+independent defects sat behind it, three of them silent.
+
+**Set Variant matched the wrong families and swapped nothing.** The variant index did
+a bare `IndexOf("A1_B")` over each family name, and `A1_B` is a prefix of `A1_BIM` —
+so every v2.0 `STING_TB_<SIZE>_BIM_v2.0` family was registered as the B-strip variant
+of its size. Sheets on it were then judged "already matching" and skipped:
+0 swapped / 2 already matching on a two-sheet project, with a green progress bar.
+`TitleBlockEngine.FamilyMatchesVariant` now requires the token to be delimited by a
+non-alphanumeric character (or a string boundary) on both sides, and
+`IsBimSchemeFamily` keeps the v2.0 families out of the strip index entirely. A project
+that turns out to be all-v2.0 now gets its families named back to it and a pointer to
+the right command, instead of "no STING_TB_* families loaded" — which was false.
+
+**Nothing could swap many sheets to an arbitrary title block.** Sheet Manager's swap
+took any family but one sheet at a time; Set Variant covered every sheet but only the
+six v1.0 strip families, and only to the variant it inferred. New
+`Docs/TitleBlockSwapCommand` (`TitleBlock_Swap`, button "Swap TBs") takes a scope —
+active sheet / current selection / all sheets / every sheet currently on one family —
+then a target type, and reassigns the `FamilySymbol` on the existing instance.
+Viewports are never touched. Sheets with no title block get one placed. Where the new
+paper size differs it names the affected sheets and points at Auto Layout, because
+viewports keep their sheet XY and can land outside the new border; where the family
+changed it says to re-run Populate, because an incoming family that does not declare a
+`PRJ_TB_*` parameter cannot carry its value across.
+
+**Swapping to a title block you had not used yet threw.** A `FamilySymbol` that has
+never been placed is inactive and cannot be assigned. `SheetManagerCommands`
+swap branch called neither `Activate()` nor `Regenerate()` — so it failed on exactly
+the case a swap exists for — and `TitleBlockSetVariantCommand` activated without
+regenerating. Both now match the sibling swaps in `TitleBlockMigrationCommands` /
+`TitleBlockSlotCommands`, which already had it right.
+
+**The Drawing Type Editor could open behind Revit, unreachable.** It owned itself to
+`Process.GetCurrentProcess().MainWindowHandle`, which is frequently `IntPtr.Zero`
+inside Revit; unowned, it could be created behind the main window, and because Revit
+is input-blocked while the launching `ExternalEvent` is pending there was no way to
+click Revit to uncover it. It also used `CenterOwner` with no managed WPF owner, which
+degrades to a system-default position. It now resolves its owner through
+`StingWindowHelper.ApplyOwner`, centres on screen, shows in the taskbar, and is forced
+to the foreground by a new `StingWindowHelper.BringToFront`. It is single-instance —
+a second launch re-surfaces the open window rather than stacking a duplicate behind
+Revit.
+
+**The general form of that bug was live plugin-wide.**
+`StingWindowHelper.InstallGlobalOwnerHandler` has existed since Phase 104, and its own
+comment says "Registered once at plugin load by StingToolsApp" — but nothing ever
+called it. Every dialog that did not call `ApplyOwner` itself was therefore unowned
+and free to fall behind Revit or the BCC. `StingToolsApp.OnStartup` now installs it.
+
+**"Rescue" rescued nothing.** `TitleBlockRescue` counted the sheets missing a title
+block and told the user to go place them by hand from the Insert tab, one sheet at a
+time; it also counted placeholder sheets, which can never host one. It now excludes
+placeholders and offers to place a chosen title block on every sheet that is missing
+one.
+
+Not build-verified — no .NET SDK or Revit API in the authoring sandbox.
+
 #### Completed (Phase 243 — the KUT mobilisation pack was being relied on with no gate)
 
 Mobilisation began the week of 25 August 2026 and the pack — a BEP, a delivery

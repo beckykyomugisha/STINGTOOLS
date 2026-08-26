@@ -73,6 +73,19 @@ namespace StingTools.Core
                 }
                 // -----------------------------------------------------------
 
+                // Phase 244 — install the global WPF window-owner class handler.
+                // It has existed since Phase 104 and its own comment claims
+                // "Registered once at plugin load by StingToolsApp" — but nothing
+                // ever called it. Without it, any dialog that does not call
+                // StingWindowHelper.ApplyOwner itself opens unowned, which lets it
+                // fall behind the Revit main window (or the BCC). A modeless one is
+                // then unreachable: Revit is input-blocked while the launching
+                // ExternalEvent is pending, so the user cannot click Revit to
+                // uncover it. This is the general form of the Drawing Type Editor
+                // "invisible window" report.
+                try { StingTools.UI.StingWindowHelper.InstallGlobalOwnerHandler(); }
+                catch (Exception wex) { StingLog.Warn("InstallGlobalOwnerHandler: " + wex.Message); }
+
                 // Pack 0 — establish offline-first defaults. Per-project config
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();

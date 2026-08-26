@@ -23,7 +23,7 @@ namespace StingTools.Commands.Drawing
             {
                 var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
 
-                // Phase 195 — single instance. Re-launching used to construct a
+                // Phase 244 — single instance. Re-launching used to construct a
                 // second editor that could open behind Revit; with Revit itself
                 // input-blocked until the ExternalEvent completes there was then no
                 // way to reach either window. Now a second launch just re-surfaces
@@ -44,7 +44,7 @@ namespace StingTools.Commands.Drawing
                 // section/elevation runners, etc.) never fired their dispatched
                 // commands. Modeless lets ExternalEvent.Raise complete.
                 //
-                // Phase 195 — ShowOwned() replaces the raw Show() + a hand-rolled
+                // Phase 244 — ShowOwned() replaces the raw Show() + a hand-rolled
                 // Process.GetCurrentProcess().MainWindowHandle owner. That handle is
                 // frequently IntPtr.Zero inside Revit, which left the editor unowned
                 // and behind the main window with no way to click through to it.

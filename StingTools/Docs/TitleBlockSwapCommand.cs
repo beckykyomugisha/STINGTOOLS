@@ -1,4 +1,4 @@
-// StingTools — Title Block Swap (Phase 195)
+// StingTools — Title Block Swap (Phase 244)
 //
 // Fills the gap between the two title-block swap paths that existed before:
 //
@@ -162,6 +162,7 @@ namespace StingTools.Docs
 
             // ── Swap ────────────────────────────────────────────────────────
             int swapped = 0, placed = 0, already = 0, failed = 0;
+            int crossFamily = 0;
             var sizeChanged = new List<string>();
             var detail = new List<string>();
             var failures = new List<string>();
@@ -193,12 +194,15 @@ namespace StingTools.Docs
                         string fromLabel = tb.Symbol != null
                             ? $"{tb.Symbol.FamilyName} : {tb.Symbol.Name}" : "(unknown)";
                         bool differentSize = !SameSheetSize(doc, sheet, tb, newType);
+                        bool differentFamily = tb.Symbol != null && !string.Equals(
+                            tb.Symbol.FamilyName, newType.FamilyName, StringComparison.OrdinalIgnoreCase);
 
                         tb.Symbol = newType;
                         swapped++;
                         detail.Add($"{sheet.SheetNumber}: {fromLabel} → {newType.FamilyName} : {newType.Name}");
                         if (differentSize && sheet.GetAllViewports().Count > 0)
                             sizeChanged.Add(sheet.SheetNumber);
+                        if (differentFamily) crossFamily++;
                     }
                     catch (Exception ex)
                     {
@@ -237,6 +241,18 @@ namespace StingTools.Docs
                        "Arrange on Sheet) on:\n  " +
                        string.Join(", ", sizeChanged.Take(40)) +
                        (sizeChanged.Count > 40 ? $"  … +{sizeChanged.Count - 40} more" : ""));
+            }
+
+            if (crossFamily > 0)
+            {
+                // Instance parameters live on the instance, but only survive a swap
+                // if the incoming family also declares them. Crossing families can
+                // therefore blank PRJ_TB_* values that the old family carried.
+                b.AddSection("After a cross-family swap")
+                 .Text($"{crossFamily} sheet(s) moved to a different family. Any PRJ_TB_* " +
+                       "value the new family does not declare is now empty — run " +
+                       "'Populate' to re-write them from TITLE_BLOCK.csv, then " +
+                       "'Validate' to confirm nothing is missing.");
             }
 
             if (failures.Count > 0)

@@ -885,6 +885,13 @@ namespace StingTools.Docs
                 using (var tx = new Transaction(doc, "STING Swap Title Block"))
                 {
                     tx.Start();
+                    // Phase 244 — a FamilySymbol that has never been placed in this
+                    // project is inactive, and assigning an inactive symbol throws.
+                    // That is exactly the case here: the user is swapping TO a title
+                    // block they have not used yet. Activate + Regenerate first (the
+                    // place-one branch below already did this; the swap branch did
+                    // not, so swapping to any unused type failed).
+                    if (!newType.IsActive) { newType.Activate(); doc.Regenerate(); }
                     currentTb.Symbol = newType;
                     tx.Commit();
                 }
@@ -898,7 +905,7 @@ namespace StingTools.Docs
                 using (var tx = new Transaction(doc, "STING Place Title Block"))
                 {
                     tx.Start();
-                    if (!newType.IsActive) newType.Activate();
+                    if (!newType.IsActive) { newType.Activate(); doc.Regenerate(); }
                     doc.Create.NewFamilyInstance(XYZ.Zero, newType, sheet as Element,
                         Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
                     tx.Commit();

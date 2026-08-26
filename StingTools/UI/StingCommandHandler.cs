@@ -1063,7 +1063,7 @@ namespace StingTools.UI
                     case "TitleBlockPopulate":     RunCommand<Docs.TitleBlockPopulateCommand>(app); break;
                     case "TitleBlockValidate":     RunCommand<Docs.TitleBlockValidateCommand>(app); break;
                     case "TitleBlockSetVariant":   RunCommand<Docs.TitleBlockSetVariantCommand>(app); break;
-                    // Phase 195 — scope-aware swap to ANY loaded title block family.
+                    // Phase 244 — scope-aware swap to ANY loaded title block family.
                     // Set Variant only handles the six v1.0 R/B strip families, and
                     // Sheet Manager's swap does one sheet at a time.
                     case "TitleBlock_Swap":        RunCommand<Docs.TitleBlockSwapCommand>(app); break;
@@ -6510,26 +6510,92 @@ namespace StingTools.UI
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
 
-            // Find sheets missing title blocks
+            // Phase 244 — this used to only count the sheets and tell the user to go
+            // place title blocks by hand, one sheet at a time, from the Insert tab.
+            // A button called "Rescue" that rescues nothing is worse than no button:
+            // it reads as broken. It now offers to place a chosen title block on
+            // every sheet that is missing one. Placeholder sheets are excluded —
+            // they cannot host a title block, so counting them as "missing" only
+            // inflated the number with sheets nothing could ever fix.
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
                 .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder)
+                .OrderBy(s => s.SheetNumber)
                 .ToList();
 
-            int missing = 0;
-            foreach (var s in sheets)
-            {
-                var tbs = new FilteredElementCollector(doc, s.Id)
+            var missingSheets = sheets.Where(s =>
+                !new FilteredElementCollector(doc, s.Id)
                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .WhereElementIsNotElementType()
-                    .ToList();
-                if (tbs.Count == 0) missing++;
+                    .Any()).ToList();
+
+            if (missingSheets.Count == 0)
+            {
+                TaskDialog.Show("Title Block Rescue",
+                    $"Scanned {sheets.Count} sheet(s).\n\nEvery sheet has a title block.");
+                return;
             }
 
+            var tbTypes = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsElementType()
+                .Cast<FamilySymbol>()
+                .OrderBy(fs => fs.FamilyName).ThenBy(fs => fs.Name)
+                .ToList();
+
+            string sample = string.Join(", ", missingSheets.Take(15).Select(s => s.SheetNumber))
+                + (missingSheets.Count > 15 ? $"  … +{missingSheets.Count - 15} more" : "");
+
+            if (tbTypes.Count == 0)
+            {
+                TaskDialog.Show("Title Block Rescue",
+                    $"Scanned {sheets.Count} sheet(s).\n" +
+                    $"Missing title blocks: {missingSheets.Count}\n  {sample}\n\n" +
+                    "No title block family is loaded, so nothing can be placed. " +
+                    "Load one (Insert \u2192 Load Family, or the 'Build\u2026' command) " +
+                    "and re-run Rescue.");
+                return;
+            }
+
+            var labels = tbTypes.Select(t => $"{t.FamilyName} : {t.Name}").ToList();
+            string pick = StingListPicker.Show("Title Block Rescue",
+                $"{missingSheets.Count} sheet(s) have no title block:\n  {sample}\n\n" +
+                "Place which title block on them?", labels);
+            if (string.IsNullOrEmpty(pick)) return;
+
+            int idx = labels.IndexOf(pick);
+            if (idx < 0 || idx >= tbTypes.Count) return;
+            var sym = tbTypes[idx];
+
+            int placed = 0, failed = 0;
+            using (var tx = new Transaction(doc, "STING Title Block Rescue"))
+            {
+                tx.Start();
+                if (!sym.IsActive) { sym.Activate(); doc.Regenerate(); }
+                foreach (var s in missingSheets)
+                {
+                    try
+                    {
+                        doc.Create.NewFamilyInstance(XYZ.Zero, sym, s as Element,
+                            Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                        placed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"TB rescue: place failed on {s.SheetNumber}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            StingLog.Info($"TB Rescue: placed {placed}, failed {failed}, of {missingSheets.Count} sheet(s).");
             TaskDialog.Show("Title Block Rescue",
-                $"Scanned {sheets.Count} sheets.\n" +
-                $"Missing title blocks: {missing}\n\n" +
-                "To fix, open the sheet and place a title block from Insert tab.");
+                $"Scanned {sheets.Count} sheet(s).\n" +
+                $"Were missing a title block: {missingSheets.Count}\n" +
+                $"Placed '{sym.FamilyName} : {sym.Name}': {placed}\n" +
+                $"Failed: {failed}");
         }
 
         // ── Revision operations ─────────────────────────────────────
