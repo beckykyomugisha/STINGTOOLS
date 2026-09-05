@@ -61,6 +61,22 @@ public static class ControllerProjectMembershipExtensions
         => HasCapabilityAsync(controller, db, projectId, ProjectRoles.CanApproveSitePhotosPredicate, ct);
 
     /// <summary>
+    /// True when the caller may ADMINISTER this project — edit project-level
+    /// settings (ISO naming enforcement, the custom deliverable state machine,
+    /// the preferences blob).
+    ///
+    /// Replaces the <c>Iso19650Role == "K" || == "C"</c> check in
+    /// <c>ProjectSettingsController.UpdateSettings</c>. Neither code is
+    /// assignable through any UI and neither appears in the vocabulary this
+    /// server itself serves, so that gate granted access to NOBODY. Routing it
+    /// through the capability layer WIDENS who may edit project settings, from
+    /// nobody to project managers and above. See <see cref="ProjectRoles"/>.
+    /// </summary>
+    public static Task<bool> CanAdministerProjectAsync(
+        this ControllerBase controller, PlanscapeDbContext db, Guid projectId, CancellationToken ct = default)
+        => HasCapabilityAsync(controller, db, projectId, ProjectRoles.CanAdministerProjectPredicate, ct);
+
+    /// <summary>
     /// Shared body. The tenant `role` claim (Admin / Owner) grants without any
     /// ProjectMember row — that is pre-existing behaviour at every site this
     /// replaces, kept deliberately.

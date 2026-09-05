@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Planscape.Infrastructure.Data;
 using Planscape.API.Authorization;
+using Planscape.API.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -130,8 +131,29 @@ public class ProjectSettingsController : ControllerBase
     }
 
     /// <summary>
-    /// Project admin can overwrite the overrides JSON. Caller must have a
-    /// project role of K (BIM Manager) or C (Coordinator).
+    /// Project admin can overwrite the overrides JSON.
+    ///
+    /// Authorization is the <c>CanAdministerProject</c> capability
+    /// (<see cref="Planscape.Core.Entities.ProjectRoles"/>): tenant Admin/Owner,
+    /// or a ProjectRole of Manager/Owner/Admin, or an ISO 19650 role of
+    /// PM / A / BC.
+    ///
+    /// THIS WIDENS ACCESS, AND THE PREVIOUS RULE IS WORTH RECORDING. This
+    /// endpoint used to require <c>member.Iso19650Role</c> to be "K" or "C" —
+    /// described here as "a project role of K (BIM Manager) or C (Coordinator)".
+    /// Neither code is assignable. <c>GET api/projects/{id}/members/roles</c>,
+    /// the vocabulary this same server serves and the web grid picks from,
+    /// offers A/PM/BC/BA/AR/SE/ME/CE/QS/CA/CT/SC/FM/OM/CL/M/V/Z — no K, no C.
+    /// K and C belong to a different list, the one on
+    /// <c>AppUser.Iso19650Role</c>, so the check was written against one column
+    /// and applied to another. Measured 2026-08-18 against the local stack: zero
+    /// ProjectMember rows carry K or C — and zero AppUser rows do either, so it
+    /// was never a column mix-up that happened to work. Nobody could edit
+    /// project settings.
+    ///
+    /// The gate now consults the ISO role as ONE INPUT to a capability rather
+    /// than comparing letters at the call site, which is the practice that
+    /// produced this bug and the eleven dead <c>ProjectRole == "PM"</c> gates.
     /// </summary>
     [HttpPut]
     public async Task<ActionResult> UpdateSettings(Guid projectId, [FromBody] Dictionary<string, object?> overrides)
@@ -141,12 +163,11 @@ public class ProjectSettingsController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound();
 
-        var userIdClaim = User.FindFirst("user_id")?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId)) return Forbid();
-
-        var member = await _db.ProjectMembers
-            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive);
-        if (member == null || (member.Iso19650Role != "K" && member.Iso19650Role != "C"))
+        // One capability, resolved server-side. It also handles the tenant
+        // Admin/Owner claim, which the replaced check ignored entirely — a
+        // tenant Owner with no ProjectMember row was refused their own
+        // project's settings.
+        if (!await this.CanAdministerProjectAsync(_db, projectId))
             return Forbid();
 
         // Phase 144 — split admin booleans (first-class columns) from soft
