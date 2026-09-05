@@ -123,6 +123,12 @@ services:
         value: https://planscape.build
       - key: Cors__Origins__1
         sync: false             # https://planscape-web-free-XXXX.onrender.com (post-deploy)
+      # ── Where the BROWSER app lives (WebAppUrl.Resolve) ──
+      # Same post-deploy value as Cors__Origins__1. The accept-invite page needs
+      # it to land an invitee in the product after they set a password; leaving
+      # it unset only works while the API host keeps the planscape-api* naming.
+      - key: Planscape__WebAppUrl
+        sync: false             # https://planscape-web-free-XXXX.onrender.com (post-deploy)
       - key: Serilog__MinimumLevel__Default
         value: Warning
 
