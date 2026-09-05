@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -189,6 +189,50 @@ namespace StingTools.Docs
                 .WhereElementIsNotElementType()
                 .OrderBy(e => e.Name)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Best-guess scope box for a view, by word overlap between the two
+        /// names. Promoted out of the retired ScopeBoxManagerCommand TaskDialog
+        /// so the Scope Box Manager dialog's "Auto-assign to views" footer
+        /// action keeps the exact behaviour the stub had — same scoring, same
+        /// null-on-no-match.
+        /// </summary>
+        internal static Element FindBestScopeBox(View view, List<Element> scopeBoxes)
+        {
+            if (scopeBoxes == null || scopeBoxes.Count == 0) return null;
+            if (scopeBoxes.Count == 1) return scopeBoxes[0];
+
+            string viewName = (view.Name ?? "").ToUpperInvariant();
+
+            int bestScore = 0;
+            Element bestMatch = null;
+
+            foreach (var sb in scopeBoxes)
+            {
+                string sbName = (sb.Name ?? "").ToUpperInvariant();
+                int score = 0;
+
+                // Score based on shared words
+                var sbWords = sbName.Split(new[] { ' ', '-', '_', '.' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string word in sbWords)
+                {
+                    if (word.Length >= 2 && viewName.Contains(word))
+                        score += word.Length;
+                }
+
+                // Bonus for zone/level matching
+                if (sbName.Contains("ZONE") && viewName.Contains("ZONE"))
+                    score += 5;
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMatch = sb;
+                }
+            }
+
+            return bestMatch; // may still be null if no match
         }
 
         // ── Assign scope box to view ──
@@ -1151,225 +1195,48 @@ namespace StingTools.Docs
     //  4. SCOPE BOX MANAGER — Assign, audit, and manage scope boxes
     // ════════════════════════════════════════════════════════════════════
 
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class ScopeBoxManagerCommand : IExternalCommand
     {
+        // Was a TaskDialog with three command links (audit usage / auto-assign /
+        // clear all). It could not rename anything, knew nothing of the
+        // STING:: binder grammar, and offered no way to see the 93 drawing-type
+        // ids you were expected to type from memory.
+        //
+        // All three of its actions survive as footer buttons in the dialog that
+        // replaces it, so absorbing the tag loses no behaviour.
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            Document doc = ctx.Doc;
-
-            var scopeBoxes = DocAutomationHelper.GetScopeBoxes(doc);
-
-            // Build scope box usage map
-            var usage = new Dictionary<ElementId, List<string>>();
-            foreach (var sb in scopeBoxes)
-                usage[sb.Id] = new List<string>();
-
-            var allViews = new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
-                .Where(v => !v.IsTemplate && v.CanBePrinted && !(v is ViewSheet))
-                .ToList();
-
-            int viewsWithScopeBox = 0;
-            int viewsWithoutScopeBox = 0;
-
-            foreach (View v in allViews)
+            try
             {
+                var app = commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
+                if (app?.ActiveUIDocument?.Document == null)
+                {
+                    TaskDialog.Show("STING", "No document open.");
+                    return Result.Failed;
+                }
+
+                // Modeless. A modal WPF window blocks Revit's ExternalEvent
+                // queue, so the dialog's own write actions would never fire —
+                // the same reason DrawingTypeEditorCommand uses Show().
+                var dlg = new StingTools.UI.ScopeBoxManagerDialog(app);
                 try
                 {
-                    Parameter p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
-                    if (p != null)
-                    {
-                        ElementId sbId = p.AsElementId();
-                        if (sbId != null && sbId != ElementId.InvalidElementId)
-                        {
-                            viewsWithScopeBox++;
-                            if (usage.TryGetValue(sbId, out var sbList))
-                                sbList.Add(v.Name);
-                        }
-                        else
-                        {
-                            viewsWithoutScopeBox++;
-                        }
-                    }
-                    else
-                    {
-                        viewsWithoutScopeBox++;
-                    }
+                    var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
+                    helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); viewsWithoutScopeBox++; }
-            }
-
-            // Action selection
-            TaskDialog actionDlg = new TaskDialog("Scope Box Manager");
-            actionDlg.MainInstruction = $"{scopeBoxes.Count} scope boxes, {allViews.Count} views";
-            actionDlg.MainContent =
-                $"Views with scope box:    {viewsWithScopeBox}\n" +
-                $"Views without scope box: {viewsWithoutScopeBox}\n\n" +
-                "Choose action:";
-            actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Audit scope box usage",
-                "Report which scope boxes are used by which views");
-            actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Auto-assign scope boxes to unassigned views",
-                $"Assign scope boxes to {viewsWithoutScopeBox} views by level/name matching");
-            actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Clear all scope box assignments",
-                "Remove scope box assignments from all views");
-            actionDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var action = actionDlg.Show();
-
-            if (action == TaskDialogResult.CommandLink1)
-            {
-                // Audit report
-                var report = new StringBuilder();
-                report.AppendLine("Scope Box Usage Audit");
-                report.AppendLine(new string('═', 50));
-                report.AppendLine($"  Total scope boxes: {scopeBoxes.Count}");
-                report.AppendLine($"  Views assigned:    {viewsWithScopeBox}");
-                report.AppendLine($"  Views unassigned:  {viewsWithoutScopeBox}");
-                report.AppendLine();
-
-                foreach (var sb in scopeBoxes)
-                {
-                    var views = usage[sb.Id];
-                    report.AppendLine($"  [{sb.Name}] — {views.Count} views");
-                    foreach (string vn in views.Take(5))
-                        report.AppendLine($"    • {vn}");
-                    if (views.Count > 5)
-                        report.AppendLine($"    ... and {views.Count - 5} more");
-                }
-
-                // Unused scope boxes
-                var unused = scopeBoxes.Where(sb => usage[sb.Id].Count == 0).ToList();
-                if (unused.Count > 0)
-                {
-                    report.AppendLine();
-                    report.AppendLine("── UNUSED SCOPE BOXES ──");
-                    foreach (var sb in unused)
-                        report.AppendLine($"  {sb.Name} (0 views)");
-                }
-
-                TaskDialog td = new TaskDialog("Scope Box Audit");
-                td.MainInstruction = $"{scopeBoxes.Count} scope boxes, {viewsWithScopeBox} assigned";
-                td.MainContent = report.ToString();
-                td.Show();
+                catch (Exception ex) { StingLog.Warn($"ScopeBoxManager owner: {ex.Message}"); }
+                dlg.Show();
                 return Result.Succeeded;
             }
-            else if (action == TaskDialogResult.CommandLink2)
+            catch (Exception ex)
             {
-                // Auto-assign: match scope box names to view names/levels
-                int assigned = 0;
-                using (Transaction tx = new Transaction(doc, "STING Auto-Assign Scope Boxes"))
-                {
-                    tx.Start();
-                    foreach (View v in allViews)
-                    {
-                        try
-                        {
-                            Parameter p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
-                            if (p == null || p.IsReadOnly) continue;
-                            ElementId currentSb = p.AsElementId();
-                            if (currentSb != null && currentSb != ElementId.InvalidElementId) continue;
-
-                            // Find best matching scope box by name similarity
-                            Element bestMatch = FindBestScopeBox(v, scopeBoxes);
-                            if (bestMatch != null)
-                            {
-                                p.Set(bestMatch.Id);
-                                assigned++;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"Assign scope box to '{v.Name}': {ex.Message}");
-                        }
-                    }
-                    tx.Commit();
-                }
-
-                TaskDialog.Show("Scope Box Manager",
-                    $"Auto-assigned scope boxes to {assigned} views.");
-                return Result.Succeeded;
+                StingLog.Error("ScopeBoxManager", ex);
+                message = ex.Message;
+                return Result.Failed;
             }
-            else if (action == TaskDialogResult.CommandLink3)
-            {
-                int cleared = 0;
-                using (Transaction tx = new Transaction(doc, "STING Clear Scope Box Assignments"))
-                {
-                    tx.Start();
-                    foreach (View v in allViews)
-                    {
-                        try
-                        {
-                            Parameter p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
-                            if (p != null && !p.IsReadOnly)
-                            {
-                                ElementId currentSb = p.AsElementId();
-                                if (currentSb != null && currentSb != ElementId.InvalidElementId)
-                                {
-                                    p.Set(ElementId.InvalidElementId);
-                                    cleared++;
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"Clear scope box from view: {ex.Message}");
-                        }
-                    }
-                    tx.Commit();
-                }
-
-                TaskDialog.Show("Scope Box Manager", $"Cleared scope box from {cleared} views.");
-                return Result.Succeeded;
-            }
-
-            return Result.Cancelled;
-        }
-
-        private static Element FindBestScopeBox(View view, List<Element> scopeBoxes)
-        {
-            if (scopeBoxes.Count == 0) return null;
-            if (scopeBoxes.Count == 1) return scopeBoxes[0];
-
-            string viewName = (view.Name ?? "").ToUpperInvariant();
-
-            // Try to match by name overlap
-            int bestScore = 0;
-            Element bestMatch = null;
-
-            foreach (var sb in scopeBoxes)
-            {
-                string sbName = (sb.Name ?? "").ToUpperInvariant();
-                int score = 0;
-
-                // Score based on shared words
-                var sbWords = sbName.Split(new[] { ' ', '-', '_', '.' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string word in sbWords)
-                {
-                    if (word.Length >= 2 && viewName.Contains(word))
-                        score += word.Length;
-                }
-
-                // Bonus for zone/level matching
-                if (sbName.Contains("ZONE") && viewName.Contains("ZONE"))
-                    score += 5;
-
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestMatch = sb;
-                }
-            }
-
-            return bestMatch; // may still be null if no match
         }
     }
 
