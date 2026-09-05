@@ -148,6 +148,10 @@ services:
 
   # ── Redis / Key Value — FREE ────────────────────────────────────────────────
   - type: keyvalue
+    # NOTE, if this is ever upgraded: Render loses a Free Key Value instance's DATA when
+    # you change its instance type — unlike Postgres, which is preserved. Here that is
+    # tolerable (refresh-token activity and the SignalR backplane; sessions drop and
+    # re-establish) but it must be a decision, not a surprise.
     name: planscape-redis-free
     region: frankfurt
     plan: free                  # if the validator rejects this line, remove it —
@@ -156,7 +160,30 @@ services:
     ipAllowList: []             # internal connections only
 
 databases:
-  # ── PostgreSQL — FREE (time-limited; see caveats at top) ────────────────────
+  # ── PostgreSQL — FREE ───────────────────────────────────────────────────────
+  #
+  # ⚠️ THIS DATABASE HAS AN EXPIRY DATE, AND THE API DIES WITH IT.
+  #
+  # Render's terms (checked 2026-08-22): "Free Render Postgres databases expire 30 days
+  # after creation", then "you have a grace period of 14 days to upgrade it to a paid
+  # instance type. After the grace period, Render deletes the database (along with all of
+  # its data)." The 30 days was reduced from 90 — older notes saying 90 are wrong.
+  #
+  # At day 30 the database becomes INACCESSIBLE, not merely at-risk. Every API request
+  # needs it, so planscape-api-free stops serving entirely: no login, no sync, no models.
+  #
+  # This blueprint was committed 2026-07-30 and the stack was curled live 2026-07-31
+  # (see CONFIRMED LIVE at the top), so unless the database has been recreated since:
+  #     expires  ~2026-08-29 / 08-30   (inaccessible)
+  #     deleted  ~2026-09-12 / 09-13   (data gone)
+  # Confirm the real date in the Render dashboard — it displays one — because a recreate
+  # restarts the clock.
+  #
+  # ⚠️ AND: IF THIS BLUEPRINT IS CONNECTED, THIS `plan: free` LINE CAN UNDO AN UPGRADE.
+  # Render applies blueprint-declared fields on sync, so a dashboard upgrade to a paid
+  # instance can be pulled back to free by the next sync — which re-arms the deletion
+  # clock on a database somebody thought was safe. After upgrading, change this line to
+  # match the plan chosen, or disconnect the blueprint. Do not leave them disagreeing.
   - name: planscape-db-free
     databaseName: planscape
     user: planscape
