@@ -266,6 +266,9 @@ namespace StingTools.Tags
     {
         public ElementId OriginalId { get; set; }
         public FamilySymbol Symbol { get; set; }
+        /// <summary>Type (symbol) name captured while the instance is live, so the
+        /// symbol can be re-resolved from a rebuilt/reloaded family by name.</summary>
+        public string TypeName { get; set; } = "";
         public Level Level { get; set; }
         public XYZ LocationPoint { get; set; }
         public double Rotation { get; set; }
@@ -283,6 +286,7 @@ namespace StingTools.Tags
             {
                 OriginalId = inst.Id,
                 Symbol = inst.Symbol,
+                TypeName = inst.Symbol?.Name ?? "",
                 Params = FamilyQuickEditHelpers.SnapshotInstanceParams(inst),
                 PlacementType = inst.Symbol?.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid,
                 OriginalHostDescription = FamilyQuickEditHelpers.DescribeHost(inst),
