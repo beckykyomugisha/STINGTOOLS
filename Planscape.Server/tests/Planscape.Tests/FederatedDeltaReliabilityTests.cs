@@ -404,4 +404,45 @@ public class FederatedDeltaReliabilityTests
             Assert.True(await IsDeletedAsync(w));
         }
     }
+
+    // ── the source-document link ────────────────────────────────────────────
+
+    [Fact]
+    public async Task A_delta_records_the_source_document_it_was_sent_with()
+    {
+        // This is the key ModelsController.Delete joins on to retire a deleted
+        // model's federated elements. Before the plugin sent it, the endpoint's
+        // only other source was a source_doc_guid claim that nothing issues, so
+        // every element landed in the shared placeholder bucket.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(w, db, new StubStorage())
+                    .PostDelta(w.Project, Glb("uid-arch", 501), null, "doc-guid-arch");
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            var row = await check.FederatedElements.SingleAsync(e => e.ElementId == 501);
+            Assert.Equal("doc-guid-arch", row.SourceDocGuid);
+        }
+    }
+
+    [Fact]
+    public async Task A_delta_without_a_source_document_still_applies_under_the_placeholder()
+    {
+        // Back-compat: an older plugin sends no field. It must keep working, and
+        // it must land somewhere identifiable as "unattributed" rather than be
+        // rejected or silently attributed to a real document.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(w, db, new StubStorage())
+                    .PostDelta(w.Project, Glb("uid-legacy", 502), null);
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            var row = await check.FederatedElements.SingleAsync(e => e.ElementId == 502);
+            Assert.Equal(FederatedElement.UnknownSourceDocGuid, row.SourceDocGuid);
+        }
+    }
 }
