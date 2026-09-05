@@ -91,7 +91,13 @@ namespace StingTools.BOQ
 
                 double valueAtRisk = flagged.Values.Sum(f => f.item.TotalUGX);
                 int pricedCount = total - noRate.Count;
-                double pricedPct = total > 0 ? 100.0 * pricedCount / total : 100.0;
+                // H-3 — an empty bill is NOT a fully-priced bill. This used to fall
+                // back to 100.0, so a BOQ that produced zero modelled rows reported
+                // "100% priced" to the QS: the strongest possible green light on the
+                // weakest possible evidence. Zero rows is unknown, not perfect.
+                bool hasRows = total > 0;
+                double pricedPct = hasRows ? 100.0 * pricedCount / total : 0.0;
+                string pricedPctTxt = hasRows ? $"{pricedPct:0.#}%" : "n/a";
 
                 // CSV worklist for the QS.
                 string csvPath = null;
@@ -121,10 +127,12 @@ namespace StingTools.BOQ
                 catch (Exception ex) { StingLog.Warn($"BOQ rate-gap CSV: {ex.Message}"); csvPath = null; }
 
                 var panel = StingResultPanel.Create("BOQ — Rate-gap report");
-                panel.SetSubtitle($"{pricedPct:0.#}% priced · value at risk UGX {valueAtRisk:N0} · {flagged.Count} item(s) need a price");
+                panel.SetSubtitle(hasRows
+                    ? $"{pricedPctTxt} priced · value at risk UGX {valueAtRisk:N0} · {flagged.Count} item(s) need a price"
+                    : "No modelled BOQ rows — nothing to price, and no coverage figure can be given");
                 panel.AddSection("SUMMARY")
                     .Metric("Modelled items", total.ToString())
-                    .Metric("Priced", $"{pricedCount} ({pricedPct:0.#}%)")
+                    .Metric("Priced", $"{pricedCount} ({pricedPctTxt})")
                     .Metric("No rate", noRate.Count.ToString())
                     .Metric("Low confidence", $"{lowConf.Count} (< {floor})")
                     .Metric("Defaulted rate", defaulted.Count.ToString())
@@ -228,7 +236,12 @@ namespace StingTools.BOQ
                     .OrderByDescending(m => m.CarbonKg).ToList();
                 int verifiedRows = rows.Count(IsVerified);
                 int missingRows = rows.Count(IsMissing);
-                double epdPct = total > 0 ? 100.0 * verifiedRows / total : 100.0;
+                // H-3 — same false green light as the rate-gap report above: with no
+                // rows this returned 100.0 and told the QS the bill was fully
+                // EPD-verified. Nothing verified out of nothing is unknown, not 100%.
+                bool hasEpdRows = total > 0;
+                double epdPct = hasEpdRows ? 100.0 * verifiedRows / total : 0.0;
+                string epdPctTxt = hasEpdRows ? $"{epdPct:0.#}%" : "n/a";
                 double totalCarbon = rows.Sum(i => i.EmbodiedCarbonKg);
                 double gapCarbon = rows.Where(i => !IsVerified(i)).Sum(i => i.EmbodiedCarbonKg);
 
@@ -256,10 +269,12 @@ namespace StingTools.BOQ
                 catch (Exception ex) { StingLog.Warn($"BOQ carbon-gap CSV: {ex.Message}"); csvPath = null; }
 
                 var panel = StingResultPanel.Create("BOQ — Carbon-gap report");
-                panel.SetSubtitle($"{epdPct:0.#}% EPD-verified · {gaps.Count} material(s) need a better factor");
+                panel.SetSubtitle(hasEpdRows
+                    ? $"{epdPctTxt} EPD-verified · {gaps.Count} material(s) need a better factor"
+                    : "No carbon-bearing rows — no EPD-verification figure can be given");
                 panel.AddSection("SUMMARY")
                     .Metric("Carbon-bearing rows", total.ToString())
-                    .Metric("EPD-verified rows", $"{verifiedRows} ({epdPct:0.#}%)")
+                    .Metric("EPD-verified rows", $"{verifiedRows} ({epdPctTxt})")
                     .Metric("Missing-factor rows", missingRows.ToString())
                     .Metric("Total embodied carbon", $"{totalCarbon / 1000.0:N1} tCO₂e")
                     .Metric("Carbon not EPD-backed", $"{gapCarbon / 1000.0:N1} tCO₂e",
