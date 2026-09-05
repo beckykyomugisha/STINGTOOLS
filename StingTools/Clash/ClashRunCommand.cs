@@ -383,7 +383,7 @@ namespace StingTools.Core.Clash
                 {
                     // Build the ElementId list once. Revit 2024+: ElementId(long).
                     var ids = new List<ElementId>(keys.Count);
-                    foreach (var k in keys) ids.Add(new ElementId((long)k.ElementId));
+                    foreach (var k in keys) ids.Add(new ElementId(k.ElementId));
                     // Single-collector pass scoped to these ids; constructs
                     // an Id → Element map without per-mesh API hits.
                     var byId = new Dictionary<long, Element>(keys.Count);
@@ -711,7 +711,7 @@ namespace StingTools.Core.Clash
         private static void WriteColdInitLiveFlags(Document doc, ClashRunRecord run)
         {
             if (doc == null || run?.Clashes == null) return;
-            var flagged = new HashSet<int>();
+            var flagged = new HashSet<long>();
             foreach (var c in run.Clashes)
             {
                 if (c.State == "Resolved" || c.State == "Void") continue;
@@ -724,7 +724,7 @@ namespace StingTools.Core.Clash
             // Empty cleared list — clearing is owned by the live session's
             // RefreshElement / RemoveElement and was already handled by
             // SeedFromRun's diff. We only need to assert flag=1 here.
-            LiveClashFlag.Apply(doc, flagged, Array.Empty<int>());
+            LiveClashFlag.Apply(doc, flagged, Array.Empty<long>());
             StingLog.Info($"WriteColdInitLiveFlags: wrote CLASH_LIVE_FLAG=1 on {flagged.Count} elements");
         }
 
