@@ -29,3 +29,7 @@ panga,No.,10000,Panga
 sledge-hammer,No.,100000,Sledge hammer
 string-rope,Rolls,10000,Strings and ropes
 water-tank,No.,75000,Water tank 200 litre
+floor-tile,Boxes,55000,Ceramic floor tile 600x600 box of 4 (1.44 m2)
+wall-tile,Boxes,45000,Ceramic wall tile 300x600 box of 8 (1.44 m2)
+tile-adhesive,Bags,35000,Cementitious tile adhesive 20kg bag
+tile-grout,Bags,25000,Tile grout 5kg bag

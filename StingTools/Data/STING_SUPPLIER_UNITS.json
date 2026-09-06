@@ -184,6 +184,70 @@
       "matchCategories": [],
       "matchTypePatterns": [],
       "stageId": ""
+    },
+    {
+      "commodityKey": "floor-tile",
+      "description": "Floor tiles",
+      "spec": "600x600 (4 pcs = 1.44 m2 per box)",
+      "supplierUnit": "Boxes",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 1.44,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10,
+      "matchKinds": [
+        "floor_tile"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "wall-tile",
+      "description": "Wall tiles",
+      "spec": "300x600 (8 pcs = 1.44 m2 per box)",
+      "supplierUnit": "Boxes",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 1.44,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10,
+      "matchKinds": [
+        "wall_tile"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "tile-adhesive",
+      "description": "Tile adhesive",
+      "spec": "cementitious, 20 kg bag",
+      "supplierUnit": "Bags",
+      "sourceUnit": "kg",
+      "sourceUnitsPerSupplierUnit": 20.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 0,
+      "matchKinds": [
+        "tile_adhesive"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "tile-grout",
+      "description": "Tile grout",
+      "spec": "5 kg bag",
+      "supplierUnit": "Bags",
+      "sourceUnit": "kg",
+      "sourceUnitsPerSupplierUnit": 5.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 0,
+      "matchKinds": [
+        "tile_grout"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
     }
   ]
 }

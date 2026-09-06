@@ -24,7 +24,8 @@ namespace StingTools.BOQ.Takeoff
         public string Kind;         // "blockwork" | "brickwork" | "units" | "mortar" |
                                     // "mortar_cement" | "mortar_sand" | "plaster" |
                                     // "plaster_cement" | "plaster_sand" | "concrete" |
-                                    // "rebar" | "formwork"
+                                    // "rebar" | "formwork" | "floor_tile" |
+                                    // "wall_tile" | "tile_adhesive" | "tile_grout"
         public string Description;
         public string Unit;         // "m2" | "m3" | "nr" | "kg" | "bag"
         public double Quantity;
@@ -56,6 +57,36 @@ namespace StingTools.BOQ.Takeoff
         /// different products at different prices, so they are separate
         /// commodities. Read from WallType.Function by the Revit-side builder.</summary>
         public bool IsExteriorWall;
+
+        /// <summary>
+        /// Faces carrying a TILED finish (0-2), read from the wall type's
+        /// compound structure. Those faces are plastered as a backing but NOT
+        /// painted — you do not paint a tiled wall — so they are deducted from
+        /// the painted area. Without this the same face is finished twice.
+        /// </summary>
+        public int TiledFaces;
+    }
+
+    /// <summary>
+    /// MAT-SCHED — tiling, measured from the host's own finish LAYER.
+    ///
+    /// A floor's tiled area is not its slab area and cannot be inferred from
+    /// one: the RC-slab path knows only concrete, rebar and formwork, and has
+    /// no way to say whether a floor is tiled at all. An earlier attempt to
+    /// convert whole ELEMENTS to tiles from a unit table was withdrawn for
+    /// exactly that reason — it priced entire floors as tiling.
+    ///
+    /// The compound structure answers it directly: a Finish1/Finish2 layer whose
+    /// material reads as tile IS the tiled area, and its absence means the
+    /// surface is not tiled.
+    /// </summary>
+    public struct TiledFinishInput
+    {
+        public double AreaM2;            // net tiled area — one face, not the element
+        public bool IsWall;              // wall tiling and floor tiling are different products
+        public string TileLabel;         // material name, for the description
+        public double AdhesiveKgPerM2;   // manufacturer spreading rate
+        public double GroutKgPerM2;      // joint width / tile size dependent
     }
 
     public struct RcElementInput
@@ -186,10 +217,15 @@ namespace StingTools.BOQ.Takeoff
                 // over-application), exactly as it does for plaster.
                 // An unplastered wall is not painted: this whole branch is
                 // guarded by PlasterFaces > 0.
-                lines.Add(new CompoundLine(
-                    m.IsExteriorWall ? "paint_exterior" : "paint_interior",
-                    m.IsExteriorWall ? "Paint — exterior (weather-guard)" : "Paint — interior",
-                    "m2", plasterArea, SecPlaster));
+                // A tiled face is plastered as backing but never painted, so it
+                // comes off the painted area. Clamped at 0: a wall tiled on more
+                // faces than it is plastered on must not emit NEGATIVE paint.
+                int paintedFaces = Math.Max(0, m.PlasterFaces - Math.Max(0, m.TiledFaces));
+                if (paintedFaces > 0)
+                    lines.Add(new CompoundLine(
+                        m.IsExteriorWall ? "paint_exterior" : "paint_interior",
+                        m.IsExteriorWall ? "Paint — exterior (weather-guard)" : "Paint — interior",
+                        "m2", area * paintedFaces, SecPlaster));
             }
 
             // 5. Formwork for an RC wall (both faces).
@@ -333,6 +369,39 @@ namespace StingTools.BOQ.Takeoff
                 RebarBandKgPerM3 = f.IsBlinding ? 0 : f.RebarBandKgPerM3,
                 FormworkM2 = formwork
             });
+        }
+
+        /// <summary>
+        /// MAT-SCHED — tiling constituents for ONE tiled face or floor.
+        ///
+        /// Quantities are NET of wastage; the supplier-unit rule owns the
+        /// allowance, as it does for every other constituent. Tiles carry the
+        /// largest allowance of anything in the schedule (cuts at every edge and
+        /// every penetration), which is precisely why it belongs in one visible,
+        /// arguable place rather than baked in here.
+        ///
+        /// Skirting is NOT measured: it runs to a room's PERIMETER, which a
+        /// floor's area cannot yield. Deriving it from area would be a guess.
+        /// </summary>
+        public static List<CompoundLine> TiledFinish(TiledFinishInput t)
+        {
+            var lines = new List<CompoundLine>();
+            double area = Math.Max(0, t.AreaM2);
+            if (area <= 0) return lines;
+
+            string label = string.IsNullOrWhiteSpace(t.TileLabel) ? "tiling" : t.TileLabel.Trim();
+            lines.Add(new CompoundLine(t.IsWall ? "wall_tile" : "floor_tile",
+                t.IsWall ? $"Wall tiling — {label}" : $"Floor tiling — {label}",
+                "m2", area, SecPlaster));
+
+            if (t.AdhesiveKgPerM2 > 0)
+                lines.Add(new CompoundLine("tile_adhesive", "Tile adhesive", "kg",
+                    area * t.AdhesiveKgPerM2, SecPlaster));
+            if (t.GroutKgPerM2 > 0)
+                lines.Add(new CompoundLine("tile_grout", "Tile grout", "kg",
+                    area * t.GroutKgPerM2, SecPlaster));
+
+            return lines;
         }
 
         public static List<CompoundLine> RcElement(RcElementInput r)
