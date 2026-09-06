@@ -160,10 +160,17 @@ of the two situations you are in.
 | `STING_IRONMONGERY_SETS.json` + loader + tests | 3h | D2, D3 |
 | Emitter + memorandum wiring + scan tally + tests | 4h | — |
 | Conformance report section | 2h | D5 |
-| Adding parameters to actual `.rfa` files | **yours** | not a code task |
+| Adding parameters to loaded families | **automatable** | see the correction below |
 
-The last row is the real cost and it is not mine to do. A code change that nobody's families
-satisfy produces exactly the output we have today.
+> **CORRECTED.** This row originally read *"yours — not a code task"*. That was wrong.
+> `FamilyAugmentationEngine` already does `EditFamily` → `FamilyManager.AddParameter` →
+> `LoadFamily` on families loaded in the project, with a rollback beside it. Adding the
+> parameters is automatable; see
+> [`MATERIAL_SCHEDULE_BASELINE_LAYER2_LAYER3_SPEC.md`](MATERIAL_SCHEDULE_BASELINE_LAYER2_LAYER3_SPEC.md).
+>
+> What remains human is the VALUE, not the parameter — and the line between a reviewed
+> mapping table (a declaration) and a silent code mapping (an inference, withdrawn in #710)
+> is set out in §5 of that spec.
 
 ---
 
