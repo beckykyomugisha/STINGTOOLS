@@ -148,6 +148,17 @@ namespace StingTools.Core.MaterialSchedule
         /// closed, so a workbook reviewed later could not say why it looked the
         /// way it did. A deliverable has to carry its own explanation.
         /// </summary>
+        /// <summary>
+        /// The project rate file this run resolved, absolute.
+        ///
+        /// Carried on the document because the reconciler is Revit-free and
+        /// cannot ask StingPaths. It matters: every message used to name
+        /// "_BIM_COORD/commodity_rates.csv", which is the ALIAS. The live
+        /// folder is _data/coord, and a user following the text literally
+        /// landed in a stale legacy folder and concluded the file was missing.
+        /// </summary>
+        public string ProjectRatesPath = "";
+
         public List<string> Warnings = new List<string>();
 
         /// <summary>MAT-SCHED-8 — model rows dropped as not-a-material, by category.

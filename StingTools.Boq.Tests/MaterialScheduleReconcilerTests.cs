@@ -90,6 +90,41 @@ namespace StingTools.Boq.Tests
         }
 
         [Fact]
+        public void The_Unpriced_Message_Never_Names_The_BIM_COORD_ALIAS()
+        {
+            // It used to say "add a row keyed 'X' to _BIM_COORD/commodity_rates.csv".
+            // _BIM_COORD is the ALIAS; the live folder is _data/coord. A reader
+            // following that literally opened a stale legacy folder, found
+            // nothing, and concluded the file was missing — which it was, because
+            // until the rate editor nothing in the codebase ever wrote it.
+            var doc = TwoStages(1_400_000, 1_400_000);
+            doc.Stages[0].Commodities[0].RateUGX = 0;
+            doc.Options.ShowPrices = true;
+
+            var r3 = Reconciler.Check(doc).Issues.Single(i => i.Code == "R3");
+
+            Assert.DoesNotContain("_BIM_COORD", r3.Message);
+            Assert.DoesNotContain("commodity_rates.csv", r3.Message);
+        }
+
+        [Fact]
+        public void The_Unpriced_Message_Names_The_Action_And_Says_The_Total_Is_Short()
+        {
+            // The key is the row's display name, so most of them carry a
+            // non-ASCII em dash an exact lookup will miss if it is retyped.
+            // Price Commodities seeds it, so nothing has to be typed.
+            var doc = TwoStages(1_400_000, 1_400_000);
+            doc.Stages[0].Commodities[0].RateUGX = 0;
+            doc.Options.ShowPrices = true;
+
+            var r3 = Reconciler.Check(doc).Issues.Single(i => i.Code == "R3");
+
+            Assert.Contains("Price Commodities", r3.Message);
+            Assert.Contains("nothing has to be retyped", r3.Message);
+            Assert.Contains("under-statement", r3.Message);
+        }
+
+        [Fact]
         public void An_Unpriced_Commodity_Is_Not_Flagged_When_Prices_Are_Hidden()
         {
             var doc = TwoStages(1_400_000, 1_400_000);

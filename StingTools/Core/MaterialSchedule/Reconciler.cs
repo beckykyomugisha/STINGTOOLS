@@ -105,15 +105,27 @@ namespace StingTools.Core.MaterialSchedule
                         Code = "R3",
                         StageId = stage.StageId,
                         CommodityKey = c.CommodityKey,
-                        // Name the key and the file. 47 door and window rows came
-                        // back unpriced in one export; "has no rate" alone leaves
-                        // the reader to work out WHERE a rate goes, and the key is
-                        // a 70-character Revit type name nobody will retype from
-                        // memory.
+                        // Name the ACTION, not the file.
+                        //
+                        // This used to say "add a row keyed 'X' to
+                        // _BIM_COORD/commodity_rates.csv", which was wrong twice
+                        // over. _BIM_COORD is the ALIAS - the live folder is
+                        // _data/coord - so a reader following it literally landed
+                        // in a stale legacy folder and concluded the file was
+                        // missing. And the key is the row's DISPLAY NAME, so most
+                        // of them carry a non-ASCII em dash that an exact
+                        // OrdinalIgnoreCase lookup will miss in silence if it is
+                        // retyped as a hyphen.
+                        //
+                        // Price Commodities seeds the key from the schedule, so
+                        // it never has to be typed. The resolved path is stated
+                        // ONCE, in the export notes, for anyone preparing rates
+                        // outside Revit - repeating it on 25 rows was noise.
                         Message = $"'{c.Description}' ({c.OrderQuantity:N0} {c.SupplierUnit}) in "
-                                + $"{stage.Title} has no rate. It will total zero in a priced schedule. "
-                                + $"Add a row keyed '{c.CommodityKey}' to "
-                                + "_BIM_COORD/commodity_rates.csv to price it."
+                                + $"{stage.Title} has no rate, so it totals zero here and the grand "
+                                + "total is that much of an under-statement. Price it with "
+                                + "BOQ tab -> Price Commodities: this row is already listed there, "
+                                + "so nothing has to be retyped."
                     });
         }
 

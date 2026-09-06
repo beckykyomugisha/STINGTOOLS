@@ -87,5 +87,40 @@ namespace StingTools.Core.MaterialSchedule
                    + "happen — report it rather than trusting the number.";
             return s;
         }
+
+        /// <summary>
+        /// Where this run's project rates live, stated ONCE.
+        ///
+        /// The per-row R3 messages used to repeat "_BIM_COORD/commodity_rates.csv"
+        /// on every unpriced row — 25 times in one export, and wrong: _BIM_COORD
+        /// is the alias, the live folder is _data/coord, and a reader following
+        /// it literally opened a stale legacy folder and concluded the file did
+        /// not exist. It genuinely did not, because until the rate editor
+        /// NOTHING in the codebase ever wrote it.
+        ///
+        /// So: the rows name the action, this names the file, and the path is
+        /// the RESOLVED absolute one rather than a relative guess.
+        ///
+        /// Returns NULL when nothing is unpriced — a path nobody needs is noise
+        /// on a clean export.
+        /// </summary>
+        public static string RatesFileNote(string resolvedPath, int unpricedCount)
+        {
+            if (unpricedCount <= 0) return null;
+
+            string s = "Rates for the unpriced rows: use BOQ tab -> Price Commodities, which lists "
+                     + "every commodity with the unpriced ones first and needs only a number typed "
+                     + "— the keys come from the schedule, and most of them contain characters that "
+                     + "cannot be retyped reliably.";
+
+            if (!string.IsNullOrWhiteSpace(resolvedPath))
+                s += " It writes " + resolvedPath.Trim()
+                   + ", which is a plain CSV: hand-editable, and copyable to the next project.";
+            else
+                s += " It writes commodity_rates.csv in the project's coordination folder — but this "
+                   + "run could not resolve that path, which usually means the project has not been "
+                   + "saved.";
+            return s;
+        }
     }
 }
