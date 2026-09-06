@@ -74,6 +74,26 @@ namespace StingTools.Core.MaterialSchedule
         public string SourceNote = "";
 
         /// <summary>
+        /// The consumable driver this commodity contributes to, e.g.
+        /// "roof_covering_m2". Empty for most commodities.
+        ///
+        /// This used to be a hardcoded pair of keys inside ConsumableDrivers:
+        ///
+        ///     commodityKey == "roof-sheet" || commodityKey == "roof-tile"
+        ///
+        /// Five roofing commodities were then added to the DATA file, none of
+        /// them fed the fastener driver, and a real export reported the driver
+        /// as zero for a shingle roof that was measured, converted and priced
+        /// three rows above. Two lists of roofing commodities — one in code,
+        /// one in data — drift the moment either is edited, and only the data
+        /// one is ever edited.
+        ///
+        /// Declaring it here means adding a sixth roofing type needs no code
+        /// change, and a commodity that feeds nothing simply says nothing.
+        /// </summary>
+        public string FeedsDriver = "";
+
+        /// <summary>
         /// The construction stage this commodity belongs to, overriding whatever
         /// stage the ELEMENT's category routes to. Required on any category rule.
         ///
