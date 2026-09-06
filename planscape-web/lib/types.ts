@@ -119,6 +119,10 @@ export interface ProjectModel {
   format?: string;
   revision?: string;
   uploadedAt?: string;
+  /** Set only on rows from listModels(projectId, { deleted: true }). The server
+   *  soft-deletes and purges the bytes 30 days later, so this is what the UI counts
+   *  down from — otherwise the restore window is invisible and the user has to guess. */
+  deletedAt?: string;
 }
 
 // Federation — one Draco/GLB chunk per discipline (+level/system), produced by

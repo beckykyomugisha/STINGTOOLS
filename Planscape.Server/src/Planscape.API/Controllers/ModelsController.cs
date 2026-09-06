@@ -42,6 +42,24 @@ public class ModelsController : ControllerBase
     // an uncompressed IFC or a federated model that should be split.
     private const long MaxModelSizeBytes = 500L * 1024 * 1024;
 
+    /// <summary>
+    /// Cap on the element-map sidecar. Raised from 5 MB.
+    ///
+    /// <para>5 MB is roughly 19,000 elements at the ~265 bytes/element a real map costs,
+    /// which a federated site passes easily. It was also being hit for the wrong reason —
+    /// the plugin was describing every element in the source documents rather than the
+    /// ones in the GLB, so a 1,407-element model shipped a 12.28 MB map of mostly legend
+    /// and detail lines. That is fixed on the plugin side; this raises the ceiling so the
+    /// limit binds on genuinely large models instead of on a bug.</para>
+    ///
+    /// <para>Not larger, deliberately: <c>DownloadElementMap</c> reads the whole map into
+    /// a string to merge the cost sidecar, and the free-tier instance has 512 MB of RAM.
+    /// The durable fix is to store it gzipped — measured 31× on a real map (12.28 MB →
+    /// 0.40 MB) — which needs the serve path and the cost merge to decompress. Logged
+    /// rather than done here.</para>
+    /// </summary>
+    private const long MaxElementMapBytes = 25L * 1024 * 1024;
+
     public ModelsController(
         PlanscapeDbContext db,
         IFileStorageService storage,
@@ -58,13 +76,25 @@ public class ModelsController : ControllerBase
 
     // ── List / metadata ────────────────────────────────────────────────
 
+    /// <summary>
+    /// Models in the project. Live only by default.
+    ///
+    /// <para><paramref name="deleted"/> returns the soft-deleted ones instead, which is
+    /// what makes the 30-day grace in <c>ModelPurgeJob</c> reachable. Without a way to
+    /// SEE a deleted model there is no way to restore it, and the grace period protects
+    /// nobody — it just delays the bytes leaving.</para>
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult> List(Guid projectId, CancellationToken ct)
+    public async Task<ActionResult> List(Guid projectId, CancellationToken ct, [FromQuery] bool deleted = false)
     {
         if (!await ProjectInTenant(projectId, ct)) return Forbid();
-        var rows = await _db.ProjectModels.AsNoTracking()
-            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
-            .OrderByDescending(m => m.UploadedAt)
+        var q = _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId);
+        q = deleted ? q.Where(m => m.DeletedAt != null) : q.Where(m => m.DeletedAt == null);
+        var rows = await q
+            // Deleted models sort by when they were deleted — the useful order when the
+            // question is "what did I just remove", not "what was uploaded when".
+            .OrderByDescending(m => deleted ? m.DeletedAt : m.UploadedAt)
             .Select(m => ToMetaDto(m))
             .ToListAsync(ct);
         return Ok(rows);
@@ -192,8 +222,8 @@ public class ModelsController : ControllerBase
             }
             if (req.ElementMap != null && req.ElementMap.Length > 0)
             {
-                if (req.ElementMap.Length > 5 * 1024 * 1024)
-                    return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+                if (req.ElementMap.Length > MaxElementMapBytes)
+                    return BadRequest(TooLargeBody(req.ElementMap.Length));
                 using var s = req.ElementMap.OpenReadStream();
                 existing.ElementMapPath = await _storage.SaveAsync(
                     tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
@@ -212,6 +242,17 @@ public class ModelsController : ControllerBase
             // view can ship a new ElementCount / Bounds / Revision label.
             if (req.ElementCount > 0) { existing.ElementCount = req.ElementCount; sidecarChanged = true; }
             if (!string.IsNullOrEmpty(req.Revision)) { existing.Revision = req.Revision; sidecarChanged = true; }
+            // Backfill the source-document link on rows published before this
+            // field existed: a republish from the authoring document is the one
+            // moment we can learn it for certain. Only ever fills a blank — it
+            // does not overwrite a link already recorded, because a different
+            // answer here would mean the same bytes came from two documents and
+            // the safe reading of that is "don't re-point the cascade".
+            if (string.IsNullOrWhiteSpace(existing.SourceDocGuid) && !string.IsNullOrWhiteSpace(req.SourceDocGuid))
+            {
+                existing.SourceDocGuid = req.SourceDocGuid!.Trim();
+                sidecarChanged = true;
+            }
             if (req.BoundsMaxX != 0 || req.BoundsMinX != 0)
             {
                 existing.BoundsMinX = req.BoundsMinX; existing.BoundsMinY = req.BoundsMinY; existing.BoundsMinZ = req.BoundsMinZ;
@@ -244,8 +285,8 @@ public class ModelsController : ControllerBase
         string? mapPath = null;
         if (req.ElementMap != null && req.ElementMap.Length > 0)
         {
-            if (req.ElementMap.Length > 5 * 1024 * 1024)
-                return BadRequest(new { error = "element_map_too_large", maxMb = 5 });
+            if (req.ElementMap.Length > MaxElementMapBytes)
+                return BadRequest(TooLargeBody(req.ElementMap.Length));
             using var s = req.ElementMap.OpenReadStream();
             mapPath = await _storage.SaveAsync(tenantSlug, $"{projectCode}/models", req.ElementMap.FileName, s, ct);
         }
@@ -270,6 +311,10 @@ public class ModelsController : ControllerBase
             FileName = req.File.FileName,
             Format = format,
             StoragePath = geometryPath,
+            // The link to the geometry-delta pipeline — see ProjectModel
+            // .SourceDocGuid and the cascade in Delete. Blank is stored as null
+            // so "absent" has one representation, not two.
+            SourceDocGuid = string.IsNullOrWhiteSpace(req.SourceDocGuid) ? null : req.SourceDocGuid!.Trim(),
             ContentHash = hash,
             FileSizeBytes = req.File.Length,
             ThumbnailPath = thumbnailPath,
@@ -560,29 +605,114 @@ public class ModelsController : ControllerBase
         // so the geometry kept rendering after the model was "deleted". Retire the
         // chunks with it; ModelPurgeJob removes the bytes and the rows after the
         // 30-day grace the entity documents.
-        //
-        // FederatedElement rows are deliberately NOT retired here. They are keyed
-        // to their source by SourceDocGuid + a per-delta GlbStoragePath (written by
-        // FederatedModelController's delta path), whereas a ProjectModel is keyed by
-        // its uploaded-GLB StoragePath — there is no shared key between the two, so
-        // a model delete cannot identify "its" federated elements. The earlier
-        // attempt matched GlbStoragePath == ProjectModel.StoragePath, two keys from
-        // different pipelines that never coincide: it retired nothing while the log
-        // reported a count. Real federated-element retirement needs a proper linkage
-        // (a ProjectModelId or source-doc GUID on FederatedElement) — left as a
-        // follow-up rather than a join that silently matches nothing, or worse
-        // false-matches if the two key spaces ever collide.
         var chunks = await _db.SceneNodes
             .Where(n => n.SourceModelId == modelId && n.DeletedAt == null)
             .ToListAsync(ct);
         foreach (var chunk in chunks) chunk.DeletedAt = row.DeletedAt;
 
+        // Federated elements — the geometry the SAME authoring document pushed
+        // through the delta pipeline. They live in a different key space from
+        // ProjectModel (per-delta GlbStoragePath vs uploaded-GLB StoragePath),
+        // so the only honest join is the source-document GUID both pipelines now
+        // record. An earlier attempt joined the two storage paths, matched
+        // nothing, and reported a retirement count anyway.
+        //
+        // Three cases refuse the cascade rather than guess, because a wrong match
+        // retires geometry a live model still needs:
+        //   • no SourceDocGuid — published before the field existed, or by a
+        //     client that does not send it;
+        //   • the UnknownSourceDocGuid placeholder — a shared bucket, not an
+        //     identity: elements from different documents sit in it together;
+        //   • another LIVE model in this project claims the same document — a
+        //     second revision published with different bytes. Its elements are
+        //     the same elements, and it is not being deleted.
+        int retired = 0;
+        string? skipReason = null;
+        if (string.IsNullOrWhiteSpace(row.SourceDocGuid))
+            skipReason = "the model carries no source-document GUID";
+        else if (row.SourceDocGuid == FederatedElement.UnknownSourceDocGuid)
+            skipReason = $"the model's source-document GUID is the '{FederatedElement.UnknownSourceDocGuid}' placeholder, which is shared across documents";
+        else if (await _db.ProjectModels.AnyAsync(m =>
+                     m.Id != modelId && m.ProjectId == projectId &&
+                     m.SourceDocGuid == row.SourceDocGuid && m.DeletedAt == null, ct))
+            skipReason = "another live model in this project was published from the same document";
+
+        if (skipReason == null)
+        {
+            var elements = await _db.FederatedElements
+                .Where(e => e.TenantId == row.TenantId
+                         && e.ProjectId == projectId
+                         && e.SourceDocGuid == row.SourceDocGuid
+                         && !e.IsDeleted)
+                .ToListAsync(ct);
+            foreach (var el in elements)
+            {
+                el.IsDeleted = true;
+                el.UpdatedAt = DateTime.UtcNow;
+            }
+            retired = elements.Count;
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        if (skipReason == null)
+            _logger.LogInformation(
+                "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) and {Elements} federated element(s) " +
+                "retired with it (source document {DocGuid}).",
+                modelId, chunks.Count, retired, row.SourceDocGuid);
+        else
+            _logger.LogInformation(
+                "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) retired with it. " +
+                "Federated elements were left untouched because {Reason}.",
+                modelId, chunks.Count, skipReason);
+
+        return NoContent();
+    }
+
+    // ── Restore ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Undo a delete, within the purge grace.
+    ///
+    /// <para>The delete is a SOFT delete with a 30-day window before
+    /// <c>ModelPurgeJob</c> removes the bytes and the row — but nothing could reach that
+    /// window, so it protected no one. Existence of the row IS the check: the purge job
+    /// deletes it outright, so anything still here is still restorable and a 404 is the
+    /// honest answer for anything past the grace.</para>
+    ///
+    /// <para>Restores the scene chunks that <see cref="Delete"/> retired alongside the
+    /// model — and only those, matched on the same <c>SourceModelId</c>. Restoring the
+    /// model without them brings back a row that renders nothing, which reads as a
+    /// corrupted model rather than a half-finished undo.</para>
+    ///
+    /// <para>Same roles as delete. Anyone who can remove a model can put it back; a
+    /// narrower rule would create a state a Coordinator can enter and not leave.</para>
+    /// </summary>
+    [HttpPost("{modelId:guid}/restore")]
+    [Authorize(Roles = "Admin,Owner,Coordinator")]
+    public async Task<IActionResult> Restore(Guid projectId, Guid modelId, CancellationToken ct)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+        var row = await _db.ProjectModels
+            .FirstOrDefaultAsync(m => m.Id == modelId && m.ProjectId == projectId && m.DeletedAt != null, ct);
+        if (row == null) return NotFound();
+
+        var deletedAt = row.DeletedAt;
+        row.DeletedAt = null;
+
+        // Only the chunks retired BY THIS DELETE. Matching on SourceModelId alone would
+        // also revive chunks retired by an earlier, unrelated delete of the same model,
+        // so the timestamp is part of the match.
+        var chunks = await _db.SceneNodes
+            .Where(n => n.SourceModelId == modelId && n.DeletedAt == deletedAt)
+            .ToListAsync(ct);
+        foreach (var chunk in chunks) chunk.DeletedAt = null;
+
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Model {ModelId} soft-deleted: {Chunks} scene chunk(s) retired with it. " +
-            "Federated elements are not linked to a ProjectModel and are left untouched (see Delete remarks).",
-            modelId, chunks.Count);
+            "Model {ModelId} restored (was deleted {DeletedAt:u}): {Chunks} scene chunk(s) brought back.",
+            modelId, deletedAt, chunks.Count);
 
         return NoContent();
     }
@@ -732,7 +862,28 @@ public class ModelsController : ControllerBase
         // C7 - appended rather than inserted: this is a POSITIONAL record, so
         // adding a parameter mid-list silently re-maps every argument after it.
         ConversionStatus: m.ConversionStatus,
-        ConversionError: m.ConversionError);
+        ConversionError: m.ConversionError,
+        DeletedAt: m.DeletedAt);
+
+    /// <summary>
+    /// The refusal, with the numbers and a next step.
+    ///
+    /// <para>The previous body was <c>{"error":"element_map_too_large","maxMb":5}</c> —
+    /// true, and unusable: it did not say how large the map WAS, so there was no way to
+    /// tell "slightly over" from "twenty times over", and no hint that the usual cause is
+    /// a map describing far more than the model contains. <c>actualMb</c> and <c>hint</c>
+    /// are additive; <c>error</c> and <c>maxMb</c> keep their names for anything already
+    /// matching on them.</para>
+    /// </summary>
+    private static object TooLargeBody(long actualBytes) => new
+    {
+        error = "element_map_too_large",
+        maxMb = MaxElementMapBytes / (1024 * 1024),
+        actualMb = Math.Round(actualBytes / 1024d / 1024d, 2),
+        hint = "The element map should describe the elements in the published geometry. "
+             + "A map far larger than the model usually means it also covers annotation, "
+             + "legend or detail content. Update the plugin, or publish fewer linked models.",
+    };
 
     private static ModelFormat InferFormat(string fileName)
     {
@@ -903,6 +1054,15 @@ public class UploadModelRequest
     /// </summary>
     public bool Force { get; set; }
 
+    /// <summary>
+    /// The authoring document this GLB came from — Revit's
+    /// <c>ProjectInformation.UniqueId</c>. Optional, but supplying it is what
+    /// lets a later model delete retire the federated elements the same
+    /// document pushed through the geometry-delta pipeline; without it the
+    /// cascade is skipped rather than guessed at.
+    /// </summary>
+    public string? SourceDocGuid { get; set; }
+
     // ── B2 — georeferencing (optional) ──────────────────────────────────────
     //
     // Revit exports its geometry about the PROJECT INTERNAL origin
@@ -988,4 +1148,13 @@ public record ModelMetaDto(
     DateTime? StorageMissingAt,
     /// <summary>C7 - Pending | Converting | Done | Failed, or null when no conversion was needed.</summary>
     string? ConversionStatus = null,
-    string? ConversionError = null);
+    string? ConversionError = null,
+    /// <summary>
+    /// When this model was soft-deleted, or null while it is live. Appended, not
+    /// inserted — see the note at the ToMetaDto call site: this is a POSITIONAL record
+    /// and a parameter added mid-list silently re-maps every argument after it.
+    ///
+    /// <para>Present so the UI can show how long is left of the 30-day restore window
+    /// rather than making the user guess when the bytes go.</para>
+    /// </summary>
+    DateTime? DeletedAt = null);

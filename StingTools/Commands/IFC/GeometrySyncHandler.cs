@@ -98,7 +98,7 @@ namespace StingTools.Commands.IFC
                 // Extract mesh geometry on the Revit API thread (required)
                 var buffers = new List<ClashMeshBuffer>(changedIds.Count);
                 var extractedIds = new List<long>(changedIds.Count);
-                string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
+                string docGuid = SourceDocumentId.For(doc);
                 foreach (long eid in changedIds)
                 {
                     var buf = TryExtractElement(doc, eid, docGuid);
@@ -140,7 +140,7 @@ namespace StingTools.Commands.IFC
                             // C1 - the return value was previously discarded, so
                             // a non-2xx, an expired token or an unset project id
                             // all looked identical to success.
-                            delivered = await c.PostGeometryDeltaAsync(glb, capturedDeleted);
+                            delivered = await c.PostGeometryDeltaAsync(glb, capturedDeleted, capturedDocGuid);
                             if (delivered)
                                 StingLog.Info($"GeometrySyncHandler: delta uploaded ({glb.Length / 1024} kB, {capturedDeleted.Count} tombstones)");
                             else
@@ -236,7 +236,7 @@ namespace StingTools.Commands.IFC
                 // skip-don't-mis-key rule. Run "Stabilize IFC GUIDs" for cross-host.
                 string ifcGuid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
 
-                var key = new ClashElementKey(docGuid, -1, (int)el.Id.Value, el.UniqueId, ifcGuid);
+                var key = new ClashElementKey(docGuid, -1, el.Id.Value, el.UniqueId, ifcGuid);
                 return new ClashMeshBuffer(key, el.Category.Name, verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex)

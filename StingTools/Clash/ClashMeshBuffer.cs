@@ -58,12 +58,16 @@ namespace StingTools.Core.Clash
     public sealed class ClashElementKey : IEquatable<ClashElementKey>
     {
         public string DocGuid { get; }
-        public int LinkInstanceElementId { get; }   // -1 for host
-        public int ElementId { get; }
+        // Revit 2024+ ElementId.Value is Int64 and a long-lived model can mint
+        // ids past int.MaxValue. Narrowing here truncated the identity, so an
+        // add stored one id and the matching delete carried another — the
+        // tombstone missed and stale geometry lingered (issue #722).
+        public long LinkInstanceElementId { get; }   // -1 for host
+        public long ElementId { get; }
         public string UniqueId { get; }
         public string IfcGuid { get; }
 
-        public ClashElementKey(string docGuid, int linkInstanceElementId, int elementId, string uniqueId, string ifcGuid)
+        public ClashElementKey(string docGuid, long linkInstanceElementId, long elementId, string uniqueId, string ifcGuid)
         {
             DocGuid = docGuid ?? "";
             LinkInstanceElementId = linkInstanceElementId;
@@ -87,8 +91,11 @@ namespace StingTools.Core.Clash
             unchecked
             {
                 int h = DocGuid?.GetHashCode() ?? 0;
-                h = (h * 397) ^ LinkInstanceElementId;
-                h = (h * 397) ^ ElementId;
+                // Hash the full 64 bits — folding the high word in rather than
+                // letting an implicit narrowing drop it, so two ids that differ
+                // only above bit 31 land in different buckets.
+                h = (h * 397) ^ LinkInstanceElementId.GetHashCode();
+                h = (h * 397) ^ ElementId.GetHashCode();
                 return h;
             }
         }

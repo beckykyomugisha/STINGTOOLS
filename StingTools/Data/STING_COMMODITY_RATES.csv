@@ -29,3 +29,12 @@ panga,No.,10000,Panga
 sledge-hammer,No.,100000,Sledge hammer
 string-rope,Rolls,10000,Strings and ropes
 water-tank,No.,75000,Water tank 200 litre
+floor-tile,Boxes,55000,Ceramic floor tile 600x600 box of 4 (1.44 m2)
+wall-tile,Boxes,45000,Ceramic wall tile 300x600 box of 8 (1.44 m2)
+tile-adhesive,Bags,35000,Cementitious tile adhesive 20kg bag
+tile-grout,Bags,25000,Tile grout 5kg bag
+skirting,m,15000,Skirting per linear metre (tile / cement / timber, as scheduled)
+ceiling-board,Sheets,45000,Gypsum ceiling board 1200x2400x12.5mm per sheet
+ceiling-furring,Lengths,12000,Ceiling furring channel / T-grid 3.6 m length
+dpm,Rolls,250000,Damp-proof membrane 1000ga polythene 4m x 25m roll
+roof-underlay,Rolls,180000,Roof underlay / sarking membrane 1m x 45m roll

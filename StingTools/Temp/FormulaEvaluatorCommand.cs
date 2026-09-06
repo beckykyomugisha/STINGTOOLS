@@ -9,6 +9,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;   // G-13: MaterialLookupCsv — backs lookup() in the parser
 
 namespace StingTools.Temp
 {
@@ -32,6 +33,10 @@ namespace StingTools.Temp
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+
+            // G-5: batch boundary — restore the formula-failure warn allowance so
+            // this run's diagnostics are not suppressed by an earlier run's.
+            FormulaEngine.ResetWarnBudget();
 
             string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
             if (csvPath == null)
@@ -813,6 +818,15 @@ namespace StingTools.Temp
         }
 
         /// <summary>
+        /// G-5 — restore the per-batch allowance of formula-failure warnings.
+        /// Call at every evaluation batch boundary. Without it the budget is a
+        /// session-lifetime counter: one model full of broken formulas exhausts
+        /// it and every subsequent run in that Revit session logs nothing, which
+        /// is the same invisible-failure problem the G-5 work set out to remove.
+        /// </summary>
+        public static void ResetWarnBudget() => ExpressionParser.ResetWarnBudget();
+
+        /// <summary>
         /// Evaluate a numeric formula using recursive descent parsing.
         /// Supports: +, -, *, /, ^, (), if(), log(), comparison operators.
         /// </summary>
@@ -822,6 +836,15 @@ namespace StingTools.Temp
             {
                 var parser = new ExpressionParser(expression, context);
                 double result = parser.Parse();
+
+                // G-5: the parser hit a path that cannot produce a real number
+                // (division by zero, undefined power, unknown identifier, or an
+                // unresolved function such as lookup()). Returning null makes the
+                // caller SKIP the write; returning 0 would stamp a false quantity
+                // into the model and read as a real, priced figure downstream.
+                if (parser.Failed)
+                    return null;
+
                 // Guard against NaN/Infinity from Math.Pow (e.g., 0^-1, (-1)^0.5)
                 // or pathological division chains that produce Infinity
                 if (double.IsNaN(result) || double.IsInfinity(result))
@@ -987,6 +1010,52 @@ namespace StingTools.Temp
             private readonly Dictionary<string, object> _ctx;
             private int _pos;
 
+            // G-5: a formula that cannot be evaluated must NOT resolve to zero.
+            // Every path that used to substitute 0 for a failure now records the
+            // reason here; EvaluateNumeric turns a non-null reason into a null
+            // result so WriteNumericResult skips the element instead of stamping
+            // a false quantity into the model. First failure wins — it is the
+            // root cause; later ones are usually its knock-on effects.
+            private string _failure;
+
+            /// <summary>Non-null when evaluation hit a path that cannot produce a real number.</summary>
+            public bool Failed => _failure != null;
+
+            /// <summary>Reason for the first failure, or null.</summary>
+            public string FailureReason => _failure;
+
+            /// <summary>Warn allowance for ONE evaluation batch — see <see cref="_warnBudget"/>.</summary>
+            internal const int WarnBudgetPerBatch = 200;
+
+            // Failures fire per element per formula, so an unguarded Warn floods
+            // StingTools.log on a batch run — hence the budget. It is reset at each
+            // batch boundary (FormulaEngine.ResetWarnBudget, called from
+            // PostTagCleanup and FormulaEvaluatorCommand.Execute) rather than being
+            // a once-per-session allowance: as a session-lifetime counter, one messy
+            // model could exhaust it and every later run — including the one someone
+            // is actually watching the log for — would be silent.
+            private static int _warnBudget = WarnBudgetPerBatch;
+
+            internal static void ResetWarnBudget()
+                => System.Threading.Interlocked.Exchange(ref _warnBudget, WarnBudgetPerBatch);
+
+            private void Fail(string reason)
+            {
+                if (_failure != null) return;   // keep the first (root-cause) failure
+                _failure = reason;
+
+                int remaining = System.Threading.Interlocked.Decrement(ref _warnBudget);
+                if (remaining >= 0)
+                {
+                    string shown = _expr != null && _expr.Length > 120
+                        ? _expr.Substring(0, 120) + "…"
+                        : _expr;
+                    StingLog.Warn($"Formula not evaluated ({reason}) in: {shown}");
+                    if (remaining == 0)
+                        StingLog.Warn("Further formula-evaluation warnings suppressed for this session.");
+                }
+            }
+
             public ExpressionParser(string expr, Dictionary<string, object> ctx)
             {
                 _expr = expr;
@@ -1080,7 +1149,14 @@ namespace StingTools.Temp
                     {
                         _pos++;
                         double divisor = ParsePower();
-                        result = divisor != 0 ? result / divisor : 0;
+                        if (divisor == 0)
+                        {
+                            // G-5: was `result = 0`. A division by zero means an input
+                            // was missing or zero-valued; zero is not the answer.
+                            Fail("division by zero");
+                            result = 0;
+                        }
+                        else result /= divisor;
                     }
                     else break;
                 }
@@ -1097,7 +1173,14 @@ namespace StingTools.Temp
                     double exp = ParseUnary();
                     double powered = Math.Pow(result, exp);
                     // Guard: Math.Pow(0,-1)=Infinity, Math.Pow(-1,0.5)=NaN
-                    result = (double.IsNaN(powered) || double.IsInfinity(powered)) ? 0 : powered;
+                    // G-5: was `result = 0`, which hid the undefined result from
+                    // EvaluateNumeric's own NaN/Infinity check further up.
+                    if (double.IsNaN(powered) || double.IsInfinity(powered))
+                    {
+                        Fail($"undefined power ({result}^{exp})");
+                        result = 0;
+                    }
+                    else result = powered;
                 }
                 return result;
             }
@@ -1150,6 +1233,20 @@ namespace StingTools.Temp
                     return ParseIf();
                 if (ident.Equals("log", StringComparison.OrdinalIgnoreCase))
                     return ParseLog();
+                if (ident.Equals("lookup", StringComparison.OrdinalIgnoreCase))
+                    return ParseLookup();
+
+                // G-5: an identifier immediately followed by '(' is a function call.
+                // Only if() and log() are implemented, so anything else — lookup()
+                // above all — used to evaluate to 0 AND abandon the rest of the
+                // expression, because the unconsumed argument list stops the parse.
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(')
+                {
+                    Fail($"unresolved function '{ident}()'");
+                    SkipBalancedParens();   // leave the cursor somewhere sane
+                    return 0;
+                }
 
                 // Variable lookup
                 if (_ctx.TryGetValue(ident, out object val))
@@ -1158,9 +1255,15 @@ namespace StingTools.Temp
                     if (val is string s && double.TryParse(s, NumberStyles.Any,
                         CultureInfo.InvariantCulture, out double parsed))
                         return parsed;
+
+                    // Present but not a number — a TEXT parameter used in arithmetic.
+                    Fail($"non-numeric value for '{ident}'");
+                    return 0;
                 }
 
-                return 0; // unknown variable defaults to 0
+                // G-5: was `return 0` — an unresolved input is not a zero input.
+                Fail($"unknown identifier '{ident}'");
+                return 0;
             }
 
             private double ParseNumber()
@@ -1185,6 +1288,28 @@ namespace StingTools.Temp
                 return _pos > start ? _expr.Substring(start, _pos - start) : "";
             }
 
+            /// <summary>
+            /// Consume a parenthesised argument list from the opening '(' to its match,
+            /// so an unresolved function call does not strand the cursor mid-expression.
+            /// </summary>
+            private void SkipBalancedParens()
+            {
+                if (_pos >= _expr.Length || _expr[_pos] != '(') return;
+                int depth = 0;
+                while (_pos < _expr.Length)
+                {
+                    char c = _expr[_pos];
+                    if (c == '"') { SkipString(); continue; }
+                    if (c == '(') depth++;
+                    else if (c == ')')
+                    {
+                        depth--;
+                        if (depth == 0) { _pos++; return; }
+                    }
+                    _pos++;
+                }
+            }
+
             private void SkipString()
             {
                 _pos++; // skip opening quote
@@ -1205,17 +1330,31 @@ namespace StingTools.Temp
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
 
+                // G-5: both branches are parsed (the cursor has to cross them), but
+                // if() is logically lazy — only the branch actually returned may
+                // fail the formula. Without this, a divide-by-zero in the discarded
+                // branch would void a result the model is entitled to.
+                string failureBefore = _failure;
+
                 double trueVal = ParseComparison();
+                string failureTrue = _failure;
+                _failure = failureBefore;
 
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
 
                 double falseVal = ParseComparison();
+                string failureFalse = _failure;
+                _failure = failureBefore;
 
                 SkipWhitespace();
                 if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
 
-                return condition != 0 ? trueVal : falseVal;
+                bool takeTrue = condition != 0;
+                string takenFailure = takeTrue ? failureTrue : failureFalse;
+                if (takenFailure != null) _failure = takenFailure;
+
+                return takeTrue ? trueVal : falseVal;
             }
 
             private double ParseIfCondition()
@@ -1254,6 +1393,99 @@ namespace StingTools.Temp
                 // Not a string comparison — restore position and parse as numeric
                 _pos = savedPos;
                 return ParseComparison();
+            }
+
+            /// <summary>
+            /// G-13 — lookup(TABLE, KEY, COLUMN) against MATERIAL_LOOKUP.csv.
+            ///
+            /// TABLE and COLUMN are bare literals (CONCRETE, CEMENT_BAGS_PER_M3).
+            /// KEY is usually the NAME OF A PARAMETER whose *value* is the row key
+            /// ("C25"), but may also be a literal TypeKey (PRIMER) — so it is
+            /// resolved through the context first and used verbatim if absent.
+            ///
+            /// 27 formulas / 29 calls use this. Until now none of them worked:
+            /// 'lookup' fell through to the variable branch, evaluated to 0, and
+            /// left the unconsumed argument list to terminate the parse — so the
+            /// REST of the expression was discarded too. Every one of those wrote
+            /// a zero into a bill.
+            /// </summary>
+            private double ParseLookup()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '(') _pos++;
+
+                string table  = ReadBareToken();
+                SkipArgSeparator();
+                string keyRef = ReadBareToken();
+                SkipArgSeparator();
+                string column = ReadBareToken();
+
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ')') _pos++;
+
+                if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(column))
+                {
+                    Fail($"malformed lookup({table},{keyRef},{column})");
+                    return 0;
+                }
+
+                // The key may be a parameter holding the TypeKey, or a literal.
+                string key = keyRef;
+                if (!string.IsNullOrEmpty(keyRef) && _ctx.TryGetValue(keyRef, out object kv))
+                {
+                    string resolved = kv as string ?? kv?.ToString();
+                    // An EMPTY parameter is not a key — fall through to DEFAULT
+                    // rather than querying "CONCRETE " and silently missing.
+                    if (!string.IsNullOrWhiteSpace(resolved)) key = resolved;
+                    else key = "DEFAULT";
+                }
+
+                // TryGetProperty, not GetProperty: the latter returns 0 for both
+                // "absent" and "present and zero", and MATERIAL_LOOKUP.csv holds
+                // eight legitimate zeros in exactly these columns (unreinforced
+                // blinding steel, nailed-tile fasteners, self-standing formwork
+                // props). Treating those as a miss would fail a formula whose
+                // correct answer is 0 — inverting the G-5 fix for those rows.
+                if (MaterialLookupCsv.TryGetProperty($"{table} {key}", column, out double v))
+                    return v;
+
+                // Fall back to the table's DEFAULT row, which the registry
+                // indexes under the bare category name.
+                if (MaterialLookupCsv.TryGetProperty(table, column, out v))
+                    return v;
+
+                // G-5 composition: no value means the formula cannot be evaluated,
+                // so it is skipped rather than written as 0.
+                Fail($"lookup({table},{key},{column}) found no value");
+                return 0;
+            }
+
+            /// <summary>
+            /// Read one bare lookup argument — an unquoted identifier, optionally
+            /// quoted. Stops at ',' or ')'. Does not evaluate.
+            /// </summary>
+            private string ReadBareToken()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == '"')
+                {
+                    _pos++;
+                    int qs = _pos;
+                    while (_pos < _expr.Length && _expr[_pos] != '"') _pos++;
+                    string quoted = _expr.Substring(qs, _pos - qs).Trim();
+                    if (_pos < _expr.Length) _pos++;   // closing quote
+                    return quoted;
+                }
+                int start = _pos;
+                while (_pos < _expr.Length && _expr[_pos] != ',' && _expr[_pos] != ')')
+                    _pos++;
+                return _expr.Substring(start, _pos - start).Trim();
+            }
+
+            private void SkipArgSeparator()
+            {
+                SkipWhitespace();
+                if (_pos < _expr.Length && _expr[_pos] == ',') _pos++;
             }
 
             private double ParseLog()

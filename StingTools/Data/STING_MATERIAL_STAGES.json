@@ -48,7 +48,7 @@
     {
       "stageId": "tools",
       "title": "TOOLS AND EQUIPMENT",
-      "preamble": "Site establishment tools and small plant. Manual rows only — no modelled source.",
+      "preamble": "Site establishment tools and small plant. Manual rows only â€” no modelled source.",
       "order": 10,
       "constituentKinds": [],
       "categories": [],
@@ -59,7 +59,9 @@
       "title": "ELEMENT 01: SUB-STRUCTURE",
       "preamble": "The works in this element include all works up to and including the ground floor slab.",
       "order": 20,
-      "constituentKinds": [],
+      "constituentKinds": [
+        "dpm"
+      ],
       "categories": [
         "Structural Foundations",
         "Structural Foundation"
@@ -98,11 +100,22 @@
       "title": "ELEMENT 03: ROOF",
       "preamble": "Roof structure and covering.",
       "order": 40,
-      "constituentKinds": [],
+      "constituentKinds": [
+        "roof_underlay"
+      ],
       "categories": [
         "Roofs"
       ],
-      "levelCodes": []
+      "levelCodes": [],
+      "typePatterns": [
+        "roofcap",
+        "roof cap",
+        "roof-cap",
+        "roofing",
+        "ridge",
+        "barge board",
+        "fascia"
+      ]
     },
     {
       "stageId": "doors-windows",
@@ -126,7 +139,17 @@
         "plaster_cement",
         "plaster_sand",
         "paint_interior",
-        "paint_exterior"
+        "paint_exterior",
+        "floor_tile",
+        "wall_tile",
+        "tile_adhesive",
+        "tile_grout",
+        "skirting",
+        "screed",
+        "screed_cement",
+        "screed_sand",
+        "ceiling_board",
+        "ceiling_furring"
       ],
       "categories": [
         "Ceilings"
@@ -167,11 +190,61 @@
       "order": 90,
       "constituentKinds": [],
       "categories": [
-        "Site",
-        "Hardscape",
-        "Parking"
+        "Hardscape"
       ],
-      "levelCodes": []
+      "levelCodes": [],
+      "typePatterns": [
+        "gate",
+        "fence",
+        "bollard",
+        "kerb",
+        "paving",
+        "manhole"
+      ]
+    }
+  ],
+  "exclusionProtectedCategories": [
+    "Doors",
+    "Windows"
+  ],
+  "intermediateMeasures": [
+    {
+      "kind": "blockwork",
+      "children": [
+        "block_units"
+      ],
+      "note": "blockwork area; bought as blocks and mortar below"
+    },
+    {
+      "kind": "brickwork",
+      "children": [
+        "brick_units"
+      ],
+      "note": "brickwork area; bought as bricks and mortar below"
+    },
+    {
+      "kind": "mortar",
+      "children": [
+        "mortar_cement",
+        "mortar_sand"
+      ],
+      "note": "mortar volume; bought as cement and sand below"
+    },
+    {
+      "kind": "plaster",
+      "children": [
+        "plaster_cement",
+        "plaster_sand"
+      ],
+      "note": "plastered area; bought as cement and sand below"
+    },
+    {
+      "kind": "screed",
+      "children": [
+        "screed_cement",
+        "screed_sand"
+      ],
+      "note": "screeded area; bought as cement and sand below"
     }
   ]
 }

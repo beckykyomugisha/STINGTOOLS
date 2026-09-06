@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.6.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
@@ -47,6 +48,19 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\Reconciler.cs" Link="MaterialSchedule\Reconciler.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ManualRowPlacer.cs" Link="MaterialSchedule\ManualRowPlacer.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\SiteToolsCalculator.cs" Link="MaterialSchedule\SiteToolsCalculator.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\IntermediateMeasures.cs" Link="MaterialSchedule\IntermediateMeasures.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\TileScanTally.cs" Link="MaterialSchedule\TileScanTally.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\FinishTextClassifier.cs" Link="MaterialSchedule\FinishTextClassifier.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\RoomFinishTally.cs" Link="MaterialSchedule\RoomFinishTally.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\ScreedScanTally.cs" Link="MaterialSchedule\ScreedScanTally.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\CeilingScanTally.cs" Link="MaterialSchedule\CeilingScanTally.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\MembraneScanTally.cs" Link="MaterialSchedule\MembraneScanTally.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
+    <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
+         is testable, not just the model behind it. -->
+    <Compile Include="..\StingTools\BOQ\BoqXlsxStyle.cs" Link="MaterialSchedule\BoqXlsxStyle.cs" />
+    <Compile Include="..\StingTools\BOQ\MaterialSchedule\MaterialScheduleXlsxWriter.cs" Link="MaterialSchedule\MaterialScheduleXlsxWriter.cs" />
     <Compile Include="..\StingTools\Core\ExportRouteMerge.cs" Link="ExportRouteMerge.cs" />
   </ItemGroup>
 
@@ -75,6 +89,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_MATERIAL_STAGES.json" Link="Data\STING_MATERIAL_STAGES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_PROJECT_BASELINE.json" Link="Data\STING_PROJECT_BASELINE.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

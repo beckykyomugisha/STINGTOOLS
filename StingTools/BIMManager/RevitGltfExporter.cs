@@ -29,6 +29,27 @@ namespace StingTools.BIMManager
         private readonly List<MeshNode> _nodes = new();
         private readonly Stack<Transform> _xformStack = new();
 
+        /// <summary>
+        /// The document each <see cref="ElementId"/> should be resolved against, tracked
+        /// in step with <see cref="_xformStack"/>.
+        ///
+        /// <para><b>Element ids are document-local.</b> Inside a link, the id handed to
+        /// <see cref="OnElementBegin"/> belongs to the LINKED document, so resolving it
+        /// against the host is not a near-miss — it is a lookup in the wrong table. It
+        /// returned null and the element was skipped, which is why a federated model
+        /// published as a bare site with no buildings. When the id happened to exist in
+        /// the host it was worse: geometry was emitted carrying another element's name,
+        /// category, colour and UniqueId — and UniqueId is the key the viewer joins the
+        /// element map on.</para>
+        ///
+        /// <para>Same approach as <c>Clash/ClashExportContext</c>, which has always done
+        /// this correctly. This exporter simply never did.</para>
+        /// </summary>
+        private readonly Stack<Document> _docStack = new();
+
+        /// <summary>The document currently being traversed — host, or a link.</summary>
+        private Document CurrentDoc => _docStack.Count > 0 ? _docStack.Peek() : _doc;
+
         private MeshNode? _current;
         private string? _currentUniqueId;
         private string? _currentName;
@@ -41,9 +62,38 @@ namespace StingTools.BIMManager
         // ("PlanscapeExportTextures" export option).
         public static bool ExportTextures { get; set; } = false;
         private readonly bool _exportTextures;
+
+        /// <summary>
+        /// Whether linked models are included. <b>Default false — the host model only.</b>
+        ///
+        /// <para>Two publishes serve different purposes and want opposite answers. A
+        /// discipline publish ("here is MY model") wants the host alone: smaller file,
+        /// faster, and the platform federates published models on the viewer side anyway.
+        /// A site or coordination publish wants everything in one artefact.</para>
+        ///
+        /// <para>Off by default because that is the smaller, faster, more predictable
+        /// result and matches what most publishes are for. <b>The obligation that comes
+        /// with the default is that exclusion must be VISIBLE</b> — a federated model
+        /// silently arriving as an empty container is precisely the failure this option
+        /// grew out of, and a default is not an excuse to reproduce it quietly. Callers
+        /// must report how many links were left out.</para>
+        ///
+        /// <para>Set via <c>PLANSCAPE_EXPORT_LINKS=1</c>, this static, or the
+        /// <c>includeLinks</c> parameter on <see cref="Export"/>.</para>
+        /// </summary>
+        public static bool IncludeLinks { get; set; } = false;
+        private readonly bool _includeLinks;
+
+        /// <summary>Links encountered and skipped, so the caller can say so out loud.</summary>
+        public int SkippedLinkCount { get; private set; }
+
+        /// <summary>Keys of the elements that produced at least one mesh. Populated in
+        /// <see cref="OnElementEnd"/> under the SAME condition that keeps the node, so
+        /// the two can never disagree about what is in the file.</summary>
+        public HashSet<string> WrittenKeys { get; } = new(StringComparer.Ordinal);
         // Per-material appearance cache (Revit material ElementId.Value → resolved def),
         // so the version-sensitive appearance read runs once per material, not per face.
-        private readonly Dictionary<long, MaterialDef?> _appearanceCache = new();
+        private readonly Dictionary<string, MaterialDef?> _appearanceCache = new();
         // Phase 2 — resolved texture-path cache (by lowercased filename) so the library
         // filesystem scan runs at most once per filename per export session.
         private static readonly Dictionary<string, string?> _texPathCache = new();
@@ -65,23 +115,29 @@ namespace StingTools.BIMManager
         // its millimetre survey figures from RevitGeoref, which reads metres.)
         private const double FeetToMetres = 0.3048;
 
-        public RevitGltfExporter(Document doc, bool exportTextures = false)
+        public RevitGltfExporter(Document doc, bool exportTextures = false, bool includeLinks = false)
         {
             _doc = doc;
             _exportTextures = exportTextures;
+            _includeLinks = includeLinks;
             _xformStack.Push(Transform.Identity);
+            _docStack.Push(doc);
         }
 
-        public static ExportResult Export(Document doc, View3D view, string outputGlbPath, bool? exportTextures = null)
+        public static ExportResult Export(Document doc, View3D view, string outputGlbPath,
+                                          bool? exportTextures = null, bool? includeLinks = null)
         {
             bool textures = exportTextures ?? ExportTextures;
+            bool links = includeLinks
+                ?? (string.Equals(Environment.GetEnvironmentVariable("PLANSCAPE_EXPORT_LINKS"), "1", StringComparison.OrdinalIgnoreCase)
+                    || IncludeLinks);
             // S8.2.2 — span around the whole export so telemetry-on users see
             // p99 export latency vs scene size in their dashboards.
             return StingTools.Core.PluginTelemetry.Run(
                 "RevitGltfExporter.export",
                 () =>
                 {
-                    var ctx = new RevitGltfExporter(doc, textures);
+                    var ctx = new RevitGltfExporter(doc, textures, links);
                     var exporter = new CustomExporter(doc, ctx)
                     {
                         IncludeGeometricObjects = false,
@@ -91,6 +147,11 @@ namespace StingTools.BIMManager
                     };
                     exporter.Export(view);
                     var result = ctx.WriteGlb(outputGlbPath);
+                    result.SkippedLinkCount = ctx.SkippedLinkCount;
+                    result.ElementKeys = ctx.WrittenKeys;
+                    if (ctx.SkippedLinkCount > 0)
+                        StingLog.Info($"Planscape: GLB excluded {ctx.SkippedLinkCount} linked model instance(s) " +
+                                      "(links off — set PLANSCAPE_EXPORT_LINKS=1 or choose 'include links' to add them).");
                     // Gap J — write coordinate sidecar alongside the GLB so the
                     // server can populate IfcAlignmentReport without re-parsing IFC.
                     ExportCoordinateSidecar(doc, outputGlbPath);
@@ -113,9 +174,16 @@ namespace StingTools.BIMManager
 
         public RenderNodeAction OnElementBegin(ElementId id)
         {
-            var el = _doc.GetElement(id);
+            var doc = CurrentDoc;
+            var el = doc.GetElement(id);
             if (el == null) return RenderNodeAction.Skip;
-            _currentUniqueId = el.UniqueId;
+            // Namespaced for linked elements. UniqueId is unique WITHIN a document, not
+            // across them, and in practice buildings are routinely Saved-As from one
+            // another — so template-derived elements in two different links can carry
+            // identical UniqueIds. Left bare for host elements so nothing already
+            // published changes key. PublishModelCommand.BuildElementMap computes the
+            // same key through the same helper; if one side changes, both must.
+            _currentUniqueId = ElementKey(doc, _doc, el);
             _currentName = el.Name ?? "";
             _currentCategory = el.Category?.Name ?? "";
             _currentRgb = ResolveCategoryColour(el);
@@ -131,7 +199,11 @@ namespace StingTools.BIMManager
 
         public void OnElementEnd(ElementId id)
         {
-            if (_current != null && _current.Positions.Count > 0) _nodes.Add(_current);
+            if (_current != null && _current.Positions.Count > 0)
+            {
+                _nodes.Add(_current);
+                WrittenKeys.Add(_current.UniqueId);
+            }
             _current = null;
             _currentUniqueId = null;
             _currentName = null;
@@ -152,14 +224,80 @@ namespace StingTools.BIMManager
 
         public RenderNodeAction OnLinkBegin(LinkNode node)
         {
+            if (!_includeLinks)
+            {
+                // Skip means Revit does NOT call OnLinkEnd for this node, so nothing is
+                // pushed here — pushing and never popping would leave every element after
+                // the first link resolving against the wrong document and transform.
+                SkippedLinkCount++;
+                return RenderNodeAction.Skip;
+            }
+
             var t = _xformStack.Peek().Multiply(node.GetTransform());
             _xformStack.Push(t);
+
+            // Push the LINKED document so OnElementBegin resolves ids against it.
+            // Falls back to the current document rather than skipping: a link whose
+            // document cannot be resolved (unloaded mid-export) should still contribute
+            // its geometry, mislabelled, rather than vanish silently.
+            Document linkDoc = null;
+            try { linkDoc = node.GetDocument(); }
+            catch (Exception ex) { StingLog.Warn($"RevitGltfExporter.OnLinkBegin: {ex.Message}"); }
+            _docStack.Push(linkDoc ?? CurrentDoc);
             return RenderNodeAction.Proceed;
         }
 
         public void OnLinkEnd(LinkNode node)
         {
             if (_xformStack.Count > 1) _xformStack.Pop();
+            // Popped unconditionally against the same guard as the transform stack —
+            // the two are pushed together in OnLinkBegin and must unwind together, or
+            // every element after a link resolves against the wrong document.
+            if (_docStack.Count > 1) _docStack.Pop();
+        }
+
+        /// <summary>
+        /// The key a mesh node and its element-map entry share.
+        ///
+        /// <para>Host elements keep their bare <c>UniqueId</c> so previously published
+        /// models keep working. Linked elements are prefixed with the link's identity,
+        /// because <c>UniqueId</c> is unique within a document only.</para>
+        ///
+        /// <para><b>Must stay byte-identical to
+        /// <c>PublishModelCommand.LinkedElementKey</c>.</b> The viewer joins geometry to
+        /// metadata on this string; a mismatch shows an element with no properties, and
+        /// nothing errors.</para>
+        /// </summary>
+        internal static string ElementKey(Document elementDoc, Document hostDoc, Element el)
+        {
+            if (elementDoc == null || hostDoc == null || ReferenceEquals(elementDoc, hostDoc))
+                return el.UniqueId;
+            return LinkScope(elementDoc) + "|" + el.UniqueId;
+        }
+
+        /// <summary>
+        /// Stable identity for a linked document, computable from BOTH
+        /// <c>LinkNode.GetDocument()</c> (the exporter) and
+        /// <c>RevitLinkInstance.GetLinkDocument()</c> (the element map).
+        ///
+        /// <para>PathName first because two links can share a file name in different
+        /// folders; Title as the fallback for cloud models, whose PathName is empty.
+        /// Note this does NOT distinguish two INSTANCES of the same file — both resolve
+        /// to one metadata entry. That is deliberate: the two instances are the same
+        /// source element placed twice, so their name, category, level and quantities
+        /// are identical. Only their position differs, and position lives in the
+        /// geometry, which is emitted per instance.</para>
+        /// </summary>
+        internal static string LinkScope(Document linkDoc)
+        {
+            try
+            {
+                var p = linkDoc.PathName;
+                if (!string.IsNullOrWhiteSpace(p)) return p;
+            }
+            catch (Exception ex) { StingLog.Warn($"RevitGltfExporter.LinkScope: {ex.Message}"); }
+            try { return linkDoc.Title ?? "link"; }
+            catch { return "link"; }
         }
 
         public void OnRPC(RPCNode node) { }
@@ -203,21 +341,30 @@ namespace StingTools.BIMManager
             ElementId matId;
             try { matId = node.MaterialId; } catch { return null; }
             if (matId == null || matId == ElementId.InvalidElementId) return null;
+            // Same document rule as OnElementBegin: a MaterialId inside a link belongs to
+            // the LINKED document. Resolving it against the host yields null (unnamed
+            // material) or, on a numeric collision, a different material entirely.
+            var matDoc = CurrentDoc;
+
+            // Cache key includes the document. Keyed on matId alone, a link's material 12
+            // and the host's material 12 shared one entry, so whichever was seen first
+            // decided the name and texture for both.
             long key = matId.Value;
-            if (_appearanceCache.TryGetValue(key, out var cached)) return cached;
+            string cacheKey = (ReferenceEquals(matDoc, _doc) ? "" : LinkScope(matDoc) + "|") + key;
+            if (_appearanceCache.TryGetValue(cacheKey, out var cached)) return cached;
 
             var def = new MaterialDef();
             try
             {
-                var mat = _doc.GetElement(matId) as Material;
+                var mat = matDoc.GetElement(matId) as Material;
                 def.MatName = mat?.Name ?? ("material " + key);
                 try { var c = node.Color; if (c != null) def.DiffuseRgb = new[] { (int)c.Red, (int)c.Green, (int)c.Blue }; } catch { }
                 try { def.Alpha = 1.0 - Clamp01(node.Transparency); } catch { }
 
-                var assetElem = mat != null ? _doc.GetElement(mat.AppearanceAssetId) as AppearanceAssetElement : null;
+                var assetElem = mat != null ? matDoc.GetElement(mat.AppearanceAssetId) as AppearanceAssetElement : null;
                 var asset = assetElem?.GetRenderingAsset();
                 def.HadAsset = asset != null;
-                if (asset == null) { def.Reason = "no-appearance-asset"; def.ComputeKey(); _appearanceCache[key] = def; return def; }
+                if (asset == null) { def.Reason = "no-appearance-asset"; def.ComputeKey(); _appearanceCache[cacheKey] = def; return def; }
 
                 var dc = ReadColor(asset, "generic_diffuse") ?? ReadColor(asset, "diffuse");
                 if (dc != null) def.DiffuseRgb = dc;
@@ -252,7 +399,7 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex) { def.Reason = "exception: " + ex.Message; StingLog.Warn($"[tex] appearance resolve failed for {def.MatName}: {ex.Message}"); }
 
-            _appearanceCache[key] = def;
+            _appearanceCache[cacheKey] = def;
             return def;
         }
 
@@ -989,6 +1136,26 @@ namespace StingTools.BIMManager
             public int ElementCount;
             public double[] BoundsMm = Array.Empty<double>();
             public long FileSizeBytes;
+            /// <summary>Linked model instances NOT in this export. Non-zero means the
+            /// file is the host model only — say so to the user rather than letting a
+            /// federated model arrive as an empty container.</summary>
+            public int SkippedLinkCount;
+
+            /// <summary>
+            /// The key of every element that actually produced geometry, so the element
+            /// map can describe THIS FILE rather than the document it came from.
+            ///
+            /// <para>Measured on a real federated site: the GLB held 1,407 elements while
+            /// a map built independently from the same documents held 37,110 — 29,521
+            /// <c>Lines</c> and 5,706 <c>Legend Components</c>, i.e. legend and detail
+            /// content that is not in the 3D model at all. That is 12.28 MB of mostly
+            /// annotation describing 1,407 meshes, and it broke the upload.</para>
+            ///
+            /// <para>A Revit category test cannot fix that: <c>OST_Lines</c> IS a model
+            /// category. Only the exporter knows what got drawn, so it is the exporter
+            /// that must say.</para>
+            /// </summary>
+            public HashSet<string> ElementKeys = new();
         }
     }
 }

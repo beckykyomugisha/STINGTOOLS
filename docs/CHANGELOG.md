@@ -76,6 +76,758 @@ read it as. That, and the fact that an *unresolvable* step silently passes the c
 logged as ROADMAP SMK-3a / SMK-3b.
 
 Advisory list: **2 → 0**. Smoke-gate assertions: **170 → 173**.
+#### Completed (Phase 249 — the membranes nobody was buying)
+
+`MaterialFunctionAssignment.Membrane` layers were ignored entirely. A ground-bearing slab's DPM and
+a roof's underlay are both real purchased materials whose area the model already **states**, and
+both produced nothing — silently. Third and last of the layer-reading tasks, on the same
+`HostLayerCache` primitive as the screed and the ceilings.
+
+**Emitted.** `dpm` (m² → **Rolls** of 4 m × 25 m = 100 m²) and `roof_underlay` (m² → **Rolls** of
+1 m × 45 m = 45 m²), both rounded up, both carrying a **15% lap allowance in the supplier-unit rule**
+— a DPM laps 150–300 mm at every joint and turns up at the perimeter, so if that allowance is not
+there it exists nowhere and every order under-buys. Layers are **counted, not collapsed**: a build-up
+declaring two membrane layers really does need twice the roll.
+
+**Which commodity a layer is:** the NAME decides when it is unambiguous (`underlay` / `sarking` /
+`breather` / `felt` → underlay; `dpm` / `damp-proof` / `polythene` / `visqueen` → DPM), otherwise
+the **HOST** decides — a membrane in a roof is an underlay, one in a floor is a DPM. That is a fact
+the model states, not an inference from a type name.
+
+**Routing.** `dpm` → **substructure**, whose preamble is already "all works up to and including the
+ground floor slab", which is exactly where a DPM sits — next to the blinding and hardcore, where a
+QS looks for it. `roof_underlay` → **roof**. Kind routing is global, so a membrane on a suspended
+upper floor is also filed under substructure; that is a real limitation of one route per kind, it is
+recorded in ROADMAP, and a project override moves it.
+
+**Two things are deliberately NOT priced, and the export says both.**
+
+* **Insulation.** The runner's explicit caution, and it is handled by *reporting*, not by silence.
+  Insulation is bought by **thickness**, not by the square metre of roll; absorbing it into a
+  membrane commodity would mis-price both. Every insulation layer seen — whether by function or by
+  material name — is counted and **named** in the scan, with a line saying why it was not converted.
+  A shipped-data test asserts no commodity rule exists that could absorb it, so this fails the day
+  one appears.
+* **Wall membranes.** Counted once per wall TYPE and never measured. A layer's area on a wall is the
+  wall **face** area, and a horizontal damp-proof course occupies one course of it — measuring the
+  face would over-order by an order of magnitude, and nothing in the layer distinguishes a
+  one-course DPC from a full-height cavity membrane. Emitting nothing is correct; emitting nothing
+  **silently** is the failure this task removes, so the scope boundary is reported.
+
+**A gate was blind, and it was hiding a corrupted regex in shipped code.** Deleting the entire
+insulation exclusion list left `Insulation_Is_Never_A_Membrane` green — its inputs never matched the
+membrane pattern at all, so the exclusion never ran. Chasing that down found something worse: the
+`\b` word boundaries in `NotMembranePattern` and `InsulationPattern` had been **eaten on the way
+into the file** and shipped as literal backspace bytes, leaving bare `eps|xps|pir|pur` substrings.
+Bare `pur` matches **"Purlin"** — so *"Purlin Underlay"*, a real membrane, would have been discarded
+with no row and no warning, which is the exact defect class this task exists to remove.
+
+The intended form was wrong too: `eps\b` bounds only the right side and still matches "Steps". Both
+sides are required. Repaired to `\b(eps|xps|pir|pur)\b`, pinned by tests in both directions
+("Steps" / "Purlin" / "Respiratory" must not match; "PIR Board" / "XPS Board" / "EPS 70" must), and
+the whole tree was swept for stray backspace bytes — none remain. The tests that could not fail now
+name what they do and do not prove.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 581 → **644 green**. All
+four gates pass. **Twenty-five deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored** — DPM and underlay merged into one commodity, layers collapsed, a lap
+allowance applied twice, a negative layer count, membranes emitted in m³, the exclusion list deleted
+(two ways), the host overriding an explicit name, a non-membrane given a default kind, the roll size
+wrong, the lap allowance zeroed, the source unit changed, an insulation commodity introduced, the
+baseline rate removed (which also fires the pre-existing `Every_Commodity_Rule_Has_A_Baseline_Rate`),
+both stage routes dropped, `dpm` declared an intermediate, four ways of making the tally lie, and
+three forms of the word-boundary defect including the one that actually shipped.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone.* `ReadMembranes`,
+`NoteWallMembranes` and `MembraneConstituents` have **never executed against a real model**, and
+neither has the layer reader they sit on. The runner's opening gate — a real export showing tiling
+under FINISHES — **has not been satisfied**, so the whole layer-reading path is unverified and
+membranes inherit that status in full, exactly as the screed and the ceilings do. Proven here is the
+arithmetic, the classifier, the host/name precedence, the diagnostic message and the shipped-data
+seams.
+
+**T4, T5 and T6 were not attempted** and remain open in ROADMAP.
+
+#### Completed (Phase 248 — ceilings decomposed into nothing at all)
+
+`CeilingType` appeared in **no branch** of `CompoundTakeoffBuilder.TryBuild`. Not mishandled —
+absent. `STING Suspended Gypsum Ceiling` produced no boards, no furring and no skim, and produced
+them silently, which is indistinguishable from a model that has no ceilings.
+
+Rides the `HostLayerCache` primitive extracted in Phase 247, which is why the three layer tasks are
+sequential and not parallel.
+
+**Emitted.** `ceiling_board` (m² → **Sheets** at 2.88 m² for a 1200×2400 board) ·
+`ceiling_furring` (m → **Lengths** of 3.6 m) · and for a wet coat, the existing `plaster` /
+`plaster_cement` / `plaster_sand` kinds rather than ceiling-only twins of them — a bag of cement is
+a bag of cement, and two commodities would split one order into two part-loads and round each up
+separately.
+
+**Board and plaster are two findings, not one classification.** Plasterboard skimmed after fixing
+carries both, and the model states both; collapsing them would drop whichever lost. They can
+nonetheless never accept the same layer: board wins outright inside `IsCeilingPlaster`.
+
+**Furring is ratio-derived and says so in three places.** The model does not state grid spacing and
+no measurement standard publishes the figure, so `CEILING,DEFAULT,FURRING_M_PER_M2` (2.7 m/m² for a
+600×600 exposed grid) is a practice ratio. It is qualified on the **row description**, on the
+**commodity rule's description** (which is what the workbook actually prints), and by a **banner**
+on the document — and the banner is conditional on furring having been derived at all, because a
+banner qualifying a row that was never emitted is noise, and noise is how real banners come to be
+ignored. Furring also rides on the **board**, not on the ceiling: a skim on a concrete soffit has
+no grid, and emitting one would invent a frame the model never described.
+
+**Nothing is invented when a driver is missing.** No furring ratio → board but no furring. No
+stated skim thickness → the plastered area but no cement and no sand. No recognised finish → the
+composite line, not an empty section. Ceiling **paint** is not emitted at all: nothing in the model
+says whether a ceiling is painted, and inferring it from the ceiling's existence is the guess that
+priced whole walls as paint in the rules withdrawn by #710.
+
+**Two defects were caught by tests before they shipped, and both are recorded in the code.**
+
+1. The board pattern matched bare `gypsum`, so **"Gypsum Skim" — a wet coat — classified as sheets
+   of plasterboard**, wrong in the count, the rate and the trade. A board *word* is now required.
+   Gypsum is the material; board is the product.
+2. The exclusion list carried bare `acoustic` and bare `metal`, which would have **rejected
+   "Acoustic Plasterboard", a genuine 1200×2400 sheet**. Over-exclusion is not the safe direction —
+   it drops a real material silently, which is precisely the omission this task exists to fix. It
+   now names product *forms*, not adjectives.
+
+**Two gates were found BLIND during the break-it pass, and that is the part worth reading.** Both
+passed with the thing they existed to protect deleted:
+
+* `Things_Not_Bought_By_The_Sheet_Are_Not_Board` was green with the entire exclusion list removed.
+  After the board pattern was narrowed, none of its inputs carried a board word, so they were turned
+  away by the positive pattern and **the exclusion never ran**. A second test now uses names that
+  *do* match the board pattern (`"PVC Wall Board"`, `"Timber Wall Board"`), so the exclusion is
+  load-bearing and can fail.
+* `Both_Ceiling_Kinds_Route_To_Finishes` was green with **both kinds deleted from the stage
+  library**, because the *category* `Ceilings` already routes to finishes. It now also resolves
+  against `Walls`, which routes to SUPERSTRUCTURE, so it proves what the cross-cutting requirement
+  actually asks: kind beats category.
+
+Both are the failure mode this codebase has been bitten by three times — a test that has only ever
+been seen passing, passing for a reason other than the one it claims.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 520 → **581 green**. All
+four gates pass. **Twenty-one deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored** — furring emitted for a soffit skim, an invented furring ratio, an invented
+skim thickness, the derived-row qualification dropped from the engine and again from the commodity
+rule, furring emitted in m², bare `gypsum` re-admitted as board, the exclusion list deleted, the
+exclusion over-widened, board/plaster disjointness removed, the lookup key misspelled, the ratio put
+outside any believable grid, the sheet size wrong, board sold in fractional sheets, furring's source
+unit changed, the baseline rate removed (which also fires the pre-existing
+`Every_Commodity_Rule_Has_A_Baseline_Rate`), the stage route dropped, `ceiling_board` wrongly
+declared an intermediate, and four ways of making the tally lie.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone.* `ReadCeilingFinish`,
+`BuildCeiling` and the `Ceilings` branch of `TryBuild` have **never executed against a real model**,
+and neither has the layer reader they sit on. The runner's opening gate — a real export showing
+tiling under FINISHES — **has not been satisfied**, so the whole layer-reading path is unverified
+and ceilings inherit that status in full. Proven here is the arithmetic, the two classifiers, the
+diagnostic message, the banner condition, and the four shipped-data seams.
+
+#### Completed (Phase 247 — the screed that contributed nothing)
+
+`STING RC Slab 150 - Ceramic Tiled` carries a 40 mm **Cement Screed** Substrate layer. It reached
+no export, produced no cement and no sand, and raised no warning — because the compound-structure
+walk asked exactly one question of exactly one kind of layer: *"is this Finish1 or Finish2, and is
+its material a tile?"*. Every screeded floor in every project was short its cement and its sand,
+and the only evidence was an absence.
+
+**The fix is a refactor before it is a feature.** `ReadTiledFinish` owned the `CompoundStructure`
+walk outright and was tile-shaped. It is now split: `HostLayerCache` returns **every** layer with
+its function, its material name and its thickness (`CompoundStructureLayer.Width`, feet → m), cached
+per TYPE because a compound structure belongs to the type; each consumer applies its own predicate
+and keeps its own tally. The tile answer is unchanged — same layers, same predicate, same counts —
+and T2/T3 ride the same primitive.
+
+**Emitted:** `screed` (m², memorandum), `screed_cement` (bag), `screed_sand` (m³), off the
+FLOOR/ROOF path only. A wall's "sand-cement" substrate is its render, which the wall path already
+measures as plaster; measuring it again here would not add a material, it would double-count one.
+
+**Five invariants this had to satisfy, and how.**
+
+* **The driver is never assumed.** The layer's declared width is the thickness. A screed layer of
+  zero width emits **nothing** — not a zero-quantity row, which would read as a measurement — and
+  the scan reports it as its own count, separate from a rejection, because "the name was right and
+  the driver was missing" sends someone to a different place than "the name was wrong".
+  `MATERIAL_LOOKUP` ships `SCREED,*,THICKNESS_M`; it is deliberately **not** read.
+* **Wastage stays in one place.** Engine quantities are NET; the supplier-unit rule owns the
+  allowance. `SCREED,*,WASTE_PCT` is likewise not read.
+* **No new commodities.** `screed_cement` joins the existing `cement` rule's `matchKinds` and
+  `screed_sand` joins `sand`. Minting a parallel "screed cement" would split one order into two
+  part-loads and round each up separately.
+* **No new mix table.** `MATERIAL_LOOKUP` already had `SCREED,STANDARD/HEAVY_DUTY/DEFAULT` rows in
+  the PLASTER shape (`MIX_CEMENT_BAGS_PER_M3` / `MIX_SAND_RATIO`). Those are consumed as they
+  stand — two figures for one ratio is a disagreement nobody would ever compare — and a test
+  asserts the 1:4 screed matches the 1:4 mortar, and the 1:3 matches the 1:3.
+* **Disjoint from tiling by construction.** `FinishTextClassifier.IsScreed` returns false for
+  anything `IsTile` accepts, rather than hoping two patterns never overlap. "Terrazzo Screed" is
+  the case that proves they can. It also refuses `plaster`, `render`, `mortar` and `skim`
+  outright — each is already measured somewhere else.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 465 → **520 green**.
+All four gates pass (`check_command_doc_acquisition`, `check_path_discipline`,
+`check_workflow_wiring`, plus the shipped-data seam tests). **Fourteen deliberately wrong inputs
+were each shown to make the matching gate FAIL, then restored** — an invented default thickness, a
+second wastage multiplier, cement emitted in m³, the classifier widened onto plaster, the
+tile-disjointness guard removed, a `ScreedKey` naming a row that does not exist, the screed 1:4
+silently disagreeing with the mortar 1:4, a zeroed lookup ratio, `screed_cement` losing its
+commodity, the stage route dropped, the intermediate declaration dropped, the intermediate declared
+with only one child, and two ways of making the tally lie.
+
+**What was NOT verified, and must not be read as working.** *Nothing Revit-side has been run by
+anyone.* `HostLayerCache`, `ReadScreed` and the screed constituents have **never executed against a
+real model**, and neither has the tile layer reader they were extracted from — MATSCHED-1 has said
+so since #780 and still says so. The runner for this work opens with a gate requiring a real export
+that shows tiling appearing under FINISHES; **that gate has not been satisfied**, so the entire
+layer-reading path is unverified and the screed feature inherits that status in full. What is
+proven is the arithmetic, the classifier, the diagnostic message and the shipped-data seams — every
+part that can run without Revit.
+
+#### Completed (Phase 246 — three reachability failures, and the gate that ends them)
+
+Phase 245 shipped the model-authoring baseline. Then a user clicked its button and nothing happened,
+and the four PRs that followed are all about the same thing: **code that compiles, dispatches, builds
+and logs cleanly, and still does not run.** Each looked correct at the layer that was checked.
+
+**1 — A `case` label is not a wiring.** #789's commit said "neither is born unreachable", meaning both
+commands had a dispatch case in `StingCommandHandler`. There was no button in any XAML, no `.addin`
+external-command entry and no `WorkflowEngine.ResolveCommand` binding, so **nothing could reach the
+case.** The claim is what hid it: a green build plus a present `case` reads as wired. Buttons added to
+the SETUP tab under MODEL BASELINE (#792).
+
+**2 — A button is not a working command.** With the buttons in place both were still lifeless, and
+the log said exactly why:
+
+    10:12:01 RunCommand<BaselineAuditCommand>: start
+    10:12:01 RunCommand<BaselineAuditCommand>: done
+
+They RAN, five times, returned instantly, and showed nothing. `RunCommand<T>` calls
+`cmd.Execute(NULL, …)` **by design** and expects the `StingCommandHandler.CurrentApp` fallback; both
+commands read `data?.Application?…`, got null, and returned `Cancelled` on their first line. The
+textbook ribbon-command pattern is silently dead from the dock panel (#794).
+
+**3 — And it was never only these two.** 38 sites across 23 files carried the same shape, all routed
+through the `ParameterHelpers.GetDoc / GetUIDoc / GetApp` helpers that already existed for it. Two
+were worse than dead buttons: **`MasterSetupCommand` step 20 read the healthcare profile through the
+null `commandData`, so Healthcare Pack setup skipped itself on every panel-run Master Setup** — a
+skipped step logs nothing — and `WorkflowEngine`'s plugin-hook fallback took the same path, so custom
+plugin commands could never resolve from the panel.
+
+**The gate is the deliverable.** This defect had already been fixed twice: 28 sites across
+`Commands/Drawing`, then `Commands/Cost` — `BOQ_COST_INTEGRATION_AND_FIXES_PROMPT.md` §A.4 even
+prescribes the grep. Three rounds of one defect is a missing gate, not three mistakes.
+`tools/check_command_doc_acquisition.ps1` now fails the build on a dispatched command that reads
+`commandData` directly, and runs in CI beside the path-discipline and wiring checks, baseline zero.
+It was verified BOTH ways before being kept: its first run failed on the comments explaining the fix
+— a gate that cries wolf over prose is a gate somebody disables — and after that was fixed, a
+repaired site was deliberately re-broken and it caught it (#796).
+
+**4 — Then the baseline ran, and running it found two more.** First real Apply: 12 materials, 4 wall
+types and 3 roof types created; **all 4 floor types and the ceiling rejected** with *"Input compound
+structure has wrong EndCap condition for this element type."* `CreateSimpleCompoundStructure` returns
+a wall-shaped `EndCapCondition`, which Revit accepts on a `WallType` and refuses elsewhere — hence the
+clean split by element class. The floor types are the ones carrying the tiled finish layer, so the
+single thing the baseline exists to fix was the one thing that did not get created.
+
+The second defect there is worse. Minting is two steps and it failed on the second, so `Duplicate`
+had already committed: the model kept five types **named for the baseline** while carrying the source
+type's layers — a floor called "Ceramic Tiled" with no tile in it. The next audit reads those as
+existing and refuses to touch them, because a name match with a different build-up is a conflict, not
+something to overwrite. The failure would have become permanent, and the audit would have reported
+the model as *closer* to conforming than before Apply ran. A half-made type is now deleted: either
+the type is what the baseline describes or it is not there at all (#798).
+
+**Verified in Revit.** The re-run created **24 of 24 with no failures**, and the re-audit reports
+"nothing to create — already conforming: 32". The two outstanding items are family-backed
+(Structural Columns, Structural Foundations) and are reported as guidance, never as work Apply will
+do — the honest split behaving as designed.
+
+**Also: the mislabelled sheet, finally.** `BOQExportCommand` emitted a sheet called "Material
+Schedule" that is BOQ rows filtered to m2/m3/kg in MEASURED units. Defensible while nothing else
+claimed the name; now actively dangerous, because two documents answering to one name is how somebody
+prices square metres of blockwork as though they were blocks. Renamed **"Measured by Material"**, with
+a banner saying what it is and pointing at the real export. Closes MATSCHED-6.
+
+Build 0/0 throughout, tests 465.
+
+#### Completed (Phase 245 — Material Schedule: what a model has to SAY before it can be measured)
+
+Phase 244 fixed the six defects the first real export exposed. Running it again exposed a
+different class of problem entirely — not wrong numbers, but **missing statements**. A take-off can
+only measure what the model describes, and this model described almost nothing about its finishes.
+Four exports were run against real work in one session; each one moved the question rather than
+answering it, which is itself the finding.
+
+**1 — Six more defects, and one of them was a claim I had written.** Three rows reported *"order
+quantity 174.60 is below the net measured 174.60"*, which reads as a false alarm and was not one:
+the model held **174.6044**. `MidpointRounding.AwayFromZero` decides only TIES, yet the comment
+claimed it meant a divisible order could never round below what was measured. Worse, the test
+written to catch exactly this compared the order against `Math.Round(net, 2)` — the rounding under
+test. **A gate compared with its own transformation cannot fail.** Ceiling at 2 dp; the test now
+compares against the raw net (#777).
+
+The defect that could have cost money was quieter. `Blockwork wall` 175 m² sat beside
+`Hollow blocks 2,292 No. @ 2,500` — the same wall, twice — with an R3 telling the reader the first
+was missing a rate. Intermediate measures are now **memoranda**: quantity kept (it is how the derived
+count is checked), amount hard-zero, no rate cell, no formula. Marking is **conditional on the
+children being present**, because turning a double-count into an omission is worse: a duplicated line
+is arguable, a missing one is invisible. Also: roofs decomposed into nothing (856 m² arrived as
+unpriced area), stage routing filed a roof cap and a gate under SUPERSTRUCTURE, and one Windows row
+was dropped by a pattern written for Generic Models voids (#777).
+
+**2 — Tiling, measured from the finish layer.** The first attempt at this matched whole ELEMENTS from
+the unit table and was withdrawn in #710 for pricing entire floors as tiling. The blocker was real: a
+floor's tiled area is not its slab area, and the RC-slab path knows only concrete, rebar and formwork.
+The compound structure answers it directly — a `Finish1`/`Finish2` layer whose material reads as tile
+IS the tiled area, and its absence means the surface is not tiled. Wall tiling also corrected the
+paint: a tiled face is plastered as backing but never painted, so tiled faces come off the painted
+area — the #777 double-count wearing different clothes (#780).
+
+**3 — Then the export said there was nothing to measure, and could not say why.** Zero tiling rows,
+no errors. Two incompatible causes fit that output exactly — the model describes no finish layers, or
+it describes them under names the pattern misses — and nothing separated them. **An absent side
+effect never tells you why.** The scan now reports its own denominator, and names every material it
+rejected, because if the pattern is what is wrong those names are the evidence for it. Caching the
+walk by TYPE fixed a real miscount on the way: walls read their finish twice, once for the paint
+deduction and once for the tiling (#783).
+
+The very next export answered it: *10 wall/floor types inspected, 1 carries a finish layer, and that
+one is `Gypsum Wall Board`.*
+
+**4 — So finishes gained a SECOND source.** That model is not broken; most architects never layer
+finishes, they record them on the ROOM — and this plugin has been harvesting `ROOM_FINISH_FLOOR` /
+`_WALL` / `_BASE` into `BLE_*` all along without anything reading them for quantities. The room source
+measures what the room states, from `Room.Area` and `Room.Perimeter`. If ANY type carried a tiled
+layer, room tiling is skipped whole and the export says so — otherwise a correctly-layered model shows
+zero room tiling and looks broken when it is the guard working. **Skirting arrived for free**, closing
+something recorded as out of reach: it needs a perimeter, and `Room.Perimeter` sits beside the
+base-finish field. Two guards worth naming — "carpet tile", "vinyl tile", "LVT", "ceiling tile", "roof
+tile" and "acoustic tile" all contain the word and would have been priced with adhesive and grout at
+ceramic rates; and rooms carry the literals "None", "N/A", "-" and "TBC" far more often than they
+carry nothing, each of which would mint skirting around a room that has none (#786).
+
+**5 — The diagnostic could not be recovered from the deliverable.** The scan lines lived only in the
+post-export dialog, so a workbook reviewed an hour later could not say why it looked the way it did —
+reviewing one meant asking for a screenshot. The same mistake one level up. Notes now travel on the
+document and are written to the Validation sheet above the issues they explain. The clean-run message
+was anchored at a hardcoded row 4, which notes push into; a test pinned to that was **confirmed to
+fail** against the old row before being kept. The XLSX writer turns out to be Revit-free — ClosedXML
+only — so those tests write a REAL workbook and read it back, the first time anything in this feature
+has been asserted on the deliverable rather than the model behind it (#788).
+
+With that in place the next export explained itself: *23 placed rooms read, 0 name a tiled floor,
+0 a tiled wall, 0 a skirting — the rooms carry no finish text.* Both sources ran, both found nothing,
+and neither guessed.
+
+**6 — Which is a model-authoring problem, so the baseline became data.** Fixing it one model at a time
+is not a system. `STING_PROJECT_BASELINE.json` declares the materials and host types a STING model is
+authored with, and two commands compare a project to it. **Not an `.rte`** — a Revit template is
+binary and only authorable inside Revit, and an `.rte` would only help NEW projects while this also
+fixes the ones already underway. Deliberately narrow, too: view templates, drawing types, view style
+packs, 290 AEC filters and material packs already exist as commands and none of that is repeated.
+
+The honest split is why there are two verbs. Materials, wall/floor/roof/ceiling types and levels are
+creatable; structural columns, framing, foundations, doors and windows are FAMILY types, so with no
+`.rfa` loaded there is nothing to create and they are reported as guidance, never as work Apply will
+do. **Audit first, write on confirm**; Apply mints only what the audit marked Missing, and a type whose
+name matches but whose build-up differs is a CONFLICT, never an overwrite — the model's version may be
+the correct one. Material names are load-bearing (the take-off infers brick vs block vs RC from them;
+the roof rules match on type name), so the shipped baseline is tested against the classifiers that
+consume it. Levels ship EMPTY: auditing every model against someone else's storey heights is noise
+(#789).
+
+**Tests 351 → 465.** Build 0/0 throughout. Six existing tests were corrected rather than loosened, and
+three separate gates — the rounding contract, the MATERIAL_LOOKUP key seam and the Validation row
+anchor — were each pointed at a deliberately wrong input and **confirmed to fail** before being kept.
+
+**Not verified.** The Revit-side halves — the tile-layer reader, the room-finish reader and the entire
+baseline minter — have never touched a real model. See MATSCHED-1.
+
+#### Completed (Phase 244 — Material Schedule: the first real export, and the six defects it exposed)
+
+Phase 236 left the material schedule merged but never run. It was run, and the export
+disagreed with itself in ways no unit test could have caught, because every defect lived in the
+seam between two things that were each individually correct.
+
+**1 — It could not produce materials at all.** `COST_COMPOUND_TAKEOFF` defaults off and is set in
+**no shipped file**, so cement, sand, blocks and bricks were never emitted. The first export said it
+plainly — *"60 of 60 model rows carried no constituent kind"* — and totalled UGX 0. The command now
+detects this **before** building and offers to enable it for that export only. The override drops
+`BOQCostManager`'s host take-off cache on entry and exit, without which it would have changed
+nothing: the cached non-compound rows come straight back (#716).
+
+**2 — Furniture was sold as a building material.** The aggregator's *"no rule → keep the measured
+unit"* fallback fired on every unmatched row, so `Bed_Double_Nightstands` and
+`2D_Chair_&_Ottoman_Accent` became purchasable commodities. Three buckets now, not two: converted
+commodity, material awaiting a rate, and excluded-not-a-material — the last **counted and reported**,
+never silently dropped. Doors, windows and fixtures are deliberately **not** excluded; they are bought
+(#716). A later pass added description-pattern exclusion, because the worst offender — an OPENING sold
+**1,187 times** — was category `Generic Models`, which elsewhere holds real building elements (#724).
+
+**3 — Square metres were sold as pieces.** The sheet read `Bricks · No. · 364.31`. That was 364
+**square metres** of brickwork relabelled as a brick count: `MasonryWall` emits `brickwork` in m², the
+`brick` rule buys per `nr`, and **nothing checked that a rule's sourceUnit matched the measured unit**.
+Worse, `blockwork` (m²) and `units` (nr) both mapped to commodity `block`, so an area was *added to a
+piece count* — the export's block figure implied 2,024 m² of wall while its mortar implied 994 m², and
+both derive from the same `area` in the same function. The aggregator now refuses unlike-unit
+conversions, and area measures are no longer commodities (#728).
+
+**4 — Wastage was applied twice.** Engine and supplier-unit rule both applied it: blocks carried ~10%
+instead of 5%, plaster cement ~23% instead of 2.5%. It now lives in **exactly one place**, the
+supplier-unit rule, which is what the converter's own documentation already claimed. `UnitWastePct`
+and `PlasterWastePct` survive as retired no-ops so callers compile, with a test asserting they change
+nothing (#728).
+
+**5 — Columns and foundations were under-measured.** `CompoundTakeoffBuilder` handled Walls, Floors
+and Structural Framing only — *"Columns/foundations retain the composite line for now"* — so three RC
+columns arrived as unpriced m³ lumps and no SUB-STRUCTURE section appeared at all. Both now
+decompose. Formwork is the part that needed thought: a column shutters all four faces with no soffit,
+a round column uses its circumference (treating Ø152 as a square over-orders shuttering by ~27%), a
+pad shutters only its sides because it bears on the ground, and blinding carries no rebar (#725).
+
+**6 — Order quantities were raw floats.** `164.48145 m³` of concrete, `0.479999210217142 m³` of column
+concrete. Order quantity is what someone buys and what the amount derives from, so binary residue was
+reaching the money column. Countable units still round **up** — you cannot buy 2.08 truck trips —
+while divisible units round to 2 dp *away from zero*, so an order can never fall below the measured
+net and quietly under-order (#724).
+
+**Also landed.** Painting is measured properly: the painted area IS the plastered face area
+(`area × PlasterFaces`), which the engine already derived and simply never emitted; it is now its own
+constituent kind, split interior/exterior from `WallType.Function`, and an unplastered wall emits no
+paint at all (#712). Roof sheets and tiles convert by category **narrowed by a type-name pattern**, so
+a concrete flat roof cannot come out as a sheet count — it stays measured and is flagged R5 (#709).
+Three unsound finish rules and two unreachable ones were **withdrawn** rather than left to produce
+confident wrong numbers, and the data seam that let them through is now pinned by tests (#710). The
+hot path was indexed and the cache flush scoped to one document (#719).
+
+**Site tools (MATSCHED-9).** The schedule now opens with a tools section, derived
+`work → trade-days → gang → tools`. **There is no standard for this** — NRM2 prices tools in
+preliminaries and no measurement standard publishes a wheelbarrows-per-mason ratio — so it ships as an
+editable table calibrated against the reference schedule, and says so in the JSON, the class header
+and a banner on every export. With no programme duration it produces **nothing** rather than inventing
+a crew; duration comes from `PRJ_DURATION_DAYS` with a dialog fallback, and storeys are counted from
+the model's own Levels (#736).
+
+**Tests 196 → 351.** Build 0/0 throughout. Three existing tests encoded the old double-wastage
+behaviour and were **corrected, not loosened**; three more failed first and turned out to be wrong
+themselves — a 6-dp assertion against a 4-dp contract, and a storey test contradicting its own comment.
+
+**Not verified.** Everything from #728 onward — the unit guard, single wastage, columns, foundations
+and tools — has passed tests and CI but **has not been seen in a real export**. See MATSCHED-1.
+
+#### Completed (Phase 243 — the KUT mobilisation pack was being relied on with no gate)
+
+Mobilisation began the week of 25 August 2026 and the pack — a BEP, a delivery
+playbook, a MIDP and the LOD overlay — was in use. Its cross-document consistency
+had been verified exactly **once**, by an ad-hoc script that was never committed.
+Nothing re-checked it, so the first person to edit one generator and not the others
+would have shipped two documents that both claimed to be authoritative.
+
+**The pack was not deterministic, despite being described as such.** Measured on the
+committed files: both `.docx` rebuilt with identical part content but all 18 zip
+entries carrying the wall clock, and the `.xlsx` additionally carrying openpyxl's
+`dcterms:created`/`modified`. Every regeneration dirtied three binaries with pure
+noise — worse than no diff, because it trains reviewers to ignore `git status` on
+exactly the files a hand-edit shows up in. `tools/kut_docs_lib.py` pins the zip epoch
+and the core dates on the finished bytes, so determinism no longer depends on which
+library did the writing (openpyxl rewrites `modified` as it saves, so pinning the
+workbook properties beforehand was not enough).
+
+Each document now carries **two** digests in its core properties: `inputs-sha256` over
+the generators, and `parts-sha256` over its own parts. Neither implies the other —
+the first catches a generator edit that was never re-run, the second catches a
+hand-edit in Word afterwards.
+
+`tools/check_kut_documents.py` (stdlib-only, so it runs on a bare runner) asserts
+freshness, stage→LOD agreement across four sources, the suitability vocabulary, the
+volume register, role definitions, document references, the section 14 tier tables
+against the LOD overlay, absence of any tooling name, and that the `[FILL]` count is
+not rising against a committed baseline. `.github/workflows/kut-document-gate.yml`
+runs it and finally invokes `build_kut_lod_overlay.py --check`, which existed and was
+CI-ready but which nothing had ever called.
+
+**One check passed a deliberate break and had to be rebuilt.** The tier check inferred
+tier membership *from* the rung-500 parameters and then verified those parameters
+against the tier — circular, so moving a category between tiers moved its inferred
+tier too and the contradiction cancelled out. Promoting Sprinklers to demand a serial
+number in the overlay alone was reported as green. Membership now comes from the
+documents and the required fields from the JSON, which is the only arrangement that
+can see the disagreement. Same failure class as the two asset parameters once required
+on categories they were not bound to. Six breaks in total were run and reverted; all
+six now fail loudly.
+
+Also fixed in the reader, each found by disbelieving a number: `docx_paragraphs`
+descended into table cells and would have baselined 131 placeholders for the BEP
+instead of 66; `.xlsx` rows were collapsed where a worksheet omits empty ones, so a
+reported row number sent the reader to the wrong row of their own return; and a
+formula cell carrying an empty cached `<v>` read as blank, which hid every formula in
+the workbook including the whole Summary sheet.
+
+**Date format (G2).** Every date parameter is TEXT and the BEP mandates `YYYY-MM-DD`
+with nothing enforcing it. `Core/Validation/DateFormatRule.cs` validates the value
+where LOD verification already reads these fields. Scope is an allow-list, never a
+name pattern: four `PRJ_TB_*` title-block dates are documented as `DD-Mon-YYYY` on
+purpose, and a `*_DATE_TXT` rule would have failed every sheet in the project for
+holding exactly what it was told to hold. The monthly asset-data completeness report
+the MIDP promises (row Z-514) **does not exist as code** and is logged in ROADMAP
+rather than invented.
+
+**Deprecation (G3).** `ParamRegistry` gains `DeprecatedParams` / `IsDeprecated` /
+`PickerOrder`. Superseded parameters sort **last** rather than vanish — one may hold a
+value on an element in an older model, and the lookup dialog is how somebody would
+find it. Membership is by description, never by name: `ASS_INSTALL_DATE_TXT` is both a
+deprecated registry entry and a C# constant that resolves to the canonical parameter.
+`FamilyParamCreatorCommand` is deliberately untouched, because it uses the registry as
+an "is STING" test for purge scoping. No registry data changed; no GUID removed.
+
+**COBie round-trip (G4).** The field mapping was separable from the Revit calls, so
+`Core/Cobie/CobieFieldMap.cs` holds it and both the import and the export read from
+it — the test guards the real code, not a copy. Extracting it exposed more of the
+same defect, and PR review then showed the first diagnosis of the warranty half was
+wrong in a way that mattered.
+
+**Corrected.** The claim was that the import wrote `MNT_WARRANTY_START_TXT` while the
+export read `COM_WARRANTY_START_TXT`. The disagreement was real, but
+`MNT_WARRANTY_START_TXT` **does not exist in `PARAMETER_REGISTRY.json` at all**, so the
+import wrote nothing whatsoever — it was not a mismatch between two live values, it was
+a column read from the spreadsheet and discarded in silence. Review found that eleven
+targets across the three COBie maps were in that state:
+
+    MNT_WARRANTY_START_TXT, MNT_WARRANTY_YRS_TXT, MNT_WARRANTY_PROVIDER_TXT,
+    ASS_MODEL_NUM_TXT, MNT_EXPECTED_LIFE_TXT, ASS_REPLACEMENT_COST_TXT,
+    BLE_LENGTH_TXT, BLE_WIDTH_TXT, BLE_HEIGHT_TXT, ASS_COLOUR_TXT
+
+`ParameterHelpers.SetString` returns false when the parameter is not on the element, so
+warranty guarantor, warranty duration, expected life, nominal dimensions and colour
+never reached a single element. The KUT LOD overlay requires `ASS_WARRANTY_PARTS_TXT`
+and `ASS_WARRANTY_DURATION_PARTS_YRS` at rung 500 for Tier A and Tier C, so **a COBie
+handover file could not satisfy the close-out gate by import alone** — the gate
+correctly reported data missing that the importer had read and thrown away. The real
+COBie parameters existed the whole time; `ASS_NOM_LENGTH_TXT`, `ASS_COLOR_TXT` and
+`ASS_MODEL_REF_TXT` carry `[COBie V2.4]` in their own registry descriptions.
+
+All three import maps and the export now read one definition, with the targets the
+primary import already used. `CobieFieldMapTests` asserts every target against the
+shipped data — present in the registry, resolving in `RESOLVED_BINDINGS.csv`, and
+`TEXT` in `MR_PARAMETERS.txt`, because `SetString` refuses any other storage type as
+silently as a missing parameter. A target bound to only some categories must be
+declared in `NarrowlyBound` with the categories it reaches, so that hazard is visible
+rather than silent. This is the blind spot the LOD matrix already closed with its own
+binding gate: **a map validated only against itself certifies its own mistakes**, and
+the round-trip test added earlier in this phase had done exactly that. Smoke-test step
+34 still covers the model half a Revit-free test cannot.
+
+**TIDP merge (G5).** `tools/merge_tidp.py` reads returned workbooks, validates against
+the same lists `build_midp.py` wrote the drop-downs from (now shared via
+`tools/midp_schema.py`), and reports what would be added, is already identical,
+conflicts, or is invalid. **Preview by default** — and preview is stdlib-only, so the
+safe operation always runs; writing needs openpyxl and says so. A `Ref` that exists
+with different content is refused, including when two returns disagree with each
+other.
+
+Documents, generators, the shared style module and every new tool are indexed in
+[`INDEX.md`](INDEX.md).
+
+#### Completed (Phase 242 — the element map described the documents, not the model)
+
+The federation fix worked — the GLB went from 13 elements to **1,407**, six links
+contributing ~7,000 elements each. The upload then failed:
+
+```
+Upload failed: HTTP 400: {"error":"element_map_too_large","maxMb":5}
+```
+
+**The map was 12.28 MB describing 1,407 meshes.** Measured on the generated file: 37,110
+entries, of which **29,521 were `Lines` and 5,706 `Legend Components`** — legend and detail
+content living inside the linked files' non-3D views. Real building elements numbered a few
+hundred: 181 walls, 133 pipes, 130 furniture, 106 columns, 87 windows, 67 doors, 57
+toposolids. **95% of the payload was annotation the viewer can never select.**
+
+A category filter cannot fix this — `OST_Lines` *is* a model category, and the entries
+come from views that are not the 3D view. Only the exporter knows what was drawn, so the
+exporter now says: it records the key of every element that produced at least one mesh,
+under the same condition that keeps the node, and the map is narrowed to that set.
+**37,110 → ~1,407.**
+
+Only when this publish ran the exporter. A user-picked `.glb`/`.ifc` leaves the set null
+and the map keeps its full scope, because guessing what a file we did not produce contains
+would drop real elements. Logged as ROADMAP PUB-2.
+
+**Also.** The map is written compact rather than indented — measured 12.28 MB → 9.70 MB, a
+21% saving on a machine-read sidecar nobody opens by hand. And ~2.40 MB of the original was
+pure repetition of the absolute link path in every key, an artefact of the Phase 240
+namespacing; narrowing the set removes most of it.
+
+**Server.** The cap moves 5 MB → 25 MB, into one named constant instead of two magic
+numbers that had to agree. 5 MB is ~19,000 elements at the ~265 bytes/element a real map
+costs — a federated site passes that easily, so the limit was binding on ordinary models,
+not just on this bug. Not raised further on purpose: `DownloadElementMap` reads the whole
+map into a string to merge the cost sidecar, on a 512 MB instance. Storing it gzipped is
+the durable answer — **31× on this file, 12.28 MB → 0.40 MB** — and is logged as PUB-1
+rather than bolted on here, because it needs the serve path and the cost merge to
+decompress.
+
+The refusal now carries `actualMb` and a `hint`. `{"maxMb":5}` alone was true and unusable:
+it never said how large the map *was*, so "slightly over" and "twenty times over" looked
+identical, and nothing pointed at the real cause.
+
+#### Completed (Phase 241 — a model could be published but never removed)
+
+The Models page offered Upload and View and nothing else. A model published by mistake —
+wrong file, wrong discipline, a superseded revision — stayed in the project permanently,
+counting against the tenant's storage quota.
+
+**The API already had the delete.** `ModelsController.Delete` has existed, soft-deleting
+the row, cascading to the model's scene chunks so retired geometry stops rendering, and
+gated to Admin/Owner/Coordinator. `ModelPurgeJob` then removes the bytes after a 30-day
+grace. None of it was reachable: no button anywhere called it. Same shape as the licence
+`revoked_at` gap — a working capability with no way to invoke it.
+
+**The grace period protected nobody.** A soft delete with a 30-day window is only a safety
+net if something can reach into that window. Nothing could list a deleted model, so the
+30 days were not a chance to change your mind, only a delay before the bytes went. `GET
+/models?deleted=true` and a new `POST /models/{id}/restore` make it real; restore brings
+back the scene chunks retired by *that* delete, matched on the delete timestamp so an
+earlier unrelated delete of the same model is not also revived. Restoring the model
+without its chunks would produce a row that renders nothing, which reads as corruption
+rather than a half-finished undo.
+
+Existence of the row is the whole check: the purge job deletes it outright, so anything
+still present is still restorable and a 404 is the honest answer for anything past the
+grace. The page says so in those words rather than "not found", because a retry cannot fix
+it.
+
+**Restore carries the same roles as delete.** A narrower rule would create a state a
+Coordinator can enter and not leave.
+
+**UI.** Per-row Remove with an inline confirm — inline rather than `window.confirm`
+because a native modal cannot say the action is reversible, which is the one fact that
+should decide whether you click. A "Recently removed" section appears only when something
+is in it, showing days remaining per model. The countdown returns null rather than guessing
+when the server sent no timestamp: an invented number on a delete is worse than none,
+because it is the number the user decides against.
+
+`ModelMetaDto` gained `DeletedAt` **appended**, never inserted — it is a positional record
+and the call site already carried that warning from a previous near-miss.
+
+Two mistakes caught before they shipped, both by checking rather than assuming: the first
+draft passed a `notFound` option to `describeFailure`, which takes `{ forbidden, fallback }`
+only and would have silently ignored it; and it styled the destructive button with
+`bg-danger-hover`, a token that does not exist in `tailwind.config.ts`, so the hover state
+would have done nothing.
+
+#### Completed (Phase 240 — publishing a federated model published the container, not the model)
+
+A federated site — host container, every building and the site itself a Revit link, all
+visible in `{3D}` — published as a bare toposolid with no buildings, and the viewer
+reported **8 ELEMENTS / 0% TAGGED** for the whole project.
+
+Two independent faults, either of which alone would have produced a broken publish.
+
+**1. The glTF exporter resolved every element against the host document.**
+`RevitGltfExporter.OnElementBegin` did `_doc.GetElement(id)` where `_doc` is fixed to the
+host. `OnLinkBegin` was implemented and pushed the transform, so Revit *was* traversing
+the links — but element ids are **document-local**, so an id from inside a link looked up
+in the host is not a near-miss, it is a lookup in the wrong table. It returned null and
+`RenderNodeAction.Skip` dropped the geometry. Where the id happened to exist in the host,
+worse: geometry was written carrying another element's name, category, colour and
+`UniqueId` — the key the viewer joins metadata on.
+
+`Clash/ClashExportContext` has always done this correctly, with a document stack and
+`LinkNode.GetDocument()`. This exporter simply never did. It now keeps the same stack, and
+`OnLinkEnd` pops it under the same guard as the transform stack — the two are pushed
+together and must unwind together, or every element after a link resolves against the
+wrong document.
+
+The same bug sat in material resolution (`_doc.GetElement(matId)`), and the appearance
+cache was keyed on the raw `ElementId` value, so a link's material 12 and the host's
+material 12 shared one entry and whichever was seen first decided the name and texture for
+both.
+
+**2. The element map never looked at links at all.** `BuildElementMap` collected from
+`new FilteredElementCollector(doc, activeView.Id)` — host only. On a federated model that
+is a handful of link instances and nothing else, which is the "8 ELEMENTS" exactly. Fixing
+the geometry alone would have given properties-free meshes; fixing the map alone,
+propertied nothing.
+
+It now walks links **recursively**, because Revit's view traversal descends nested links
+and a one-level walk would reproduce the same bug one level down — geometry present,
+properties missing, which is the variant hardest to notice because the model looks right.
+Documents are visited once (a cycle is legal in Revit) and depth is capped.
+
+**Keys.** Host elements keep their bare `UniqueId`, so nothing already published changes.
+Linked elements are namespaced by the link's path, because `UniqueId` is unique *within* a
+document and buildings are routinely Saved-As from one another — two links can genuinely
+carry the same id. Both producers compute the key through one helper; they must, since a
+mismatch renders an element with no properties and errors nowhere.
+
+**Bounds.** A linked element's bounding box is in its own coordinates. All eight corners
+are transformed, not Min/Max — under rotation the transformed Min is not the minimum, and
+a link placed at an angle is the normal case.
+
+**Honest scope limit:** the map collects model elements with geometry from each link, not
+"elements visible in the host's active view" — a view id cannot filter another document's
+collector. The GLB, produced by Revit's own view traversal, remains the authority on what
+is drawn, so the map may list a few elements the geometry does not show. A tree row with
+no mesh is a much smaller problem than the mesh with no properties it replaces. Unloaded
+links are named in the log rather than skipped silently.
+
+#### Completed (KUT mobilisation document set — the pack the team actually receives)
+
+Mobilisation begins the week of 25 August 2026. The project had a BIM Execution Plan template, a
+personal BIM Manager playbook and an MIDP CSV, and no document a consultant could work from: the
+playbook is written for the Information Manager and ends with interview preparation, and the internal
+companion is private by design. Four documents now exist as an issued set, all generated.
+
+| Document | Form | Source |
+|---|---|---|
+| BIM Execution Plan | `KUT_BIM_Execution_Plan.docx` | `tools/build_bep.py` |
+| Project Delivery Playbook | `KUT_Project_Delivery_Playbook.docx` | `tools/build_team_playbook.py` |
+| Master Information Delivery Plan | `KUT_Master_Information_Delivery_Plan.xlsx` | `tools/build_midp.py` |
+| Internal playbook (private) | `KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx` | six new parts appended |
+
+`tools/corporate_docx.py` holds the house style the Word documents share. The playbook builder was
+refactored onto it and verified content-neutral — fresh builds from the committed and refactored
+scripts produce identical text across all 700 captured lines, which caught two silent formatting
+regressions before they shipped.
+
+**What researching the configuration changed.** The drafts described level of development in prose.
+`STING_LOD_MATRIX.json` specifies required parameters per category per rung across 34 categories, so
+a task team could not have known what to put on an element to pass a gate. That is now stated. Three
+related corrections: LOD 500 is category-dependent (ten categories require serial number and
+installation date; furniture requires installation date and the FF&E reference; the rest inherit 400),
+Plumbing Fixtures gained a maintenance-type requirement at LOD 400 that the construction gate tests
+first, and suitability runs S0–S7 rather than S0–S4.
+
+**Conflicts resolved to issue the BEP.** The template named the private tooling throughout — in the
+one document the client and every consultant read, against the internal rule that it is never named
+in a project document. Every reference is now an outcome or an obligation, which is what a BEP should
+say anyway: the Appointing Party is entitled to require the check, not to specify the instrument. The
+template also said weekly coordination where the appointment and playbook say fortnightly, and had
+the Information Manager chairing a meeting the responsibility matrix makes the Lead Appointed Party
+accountable for. Speckle was removed; naming it would make an internal convenience a contractual
+dependency.
+
+**An open item that now blocks three documents.** The sheet-number rule enforces a three-character
+originator code; the default is the four-character `PLNS`, and the earlier guidance used `PLNS` in its
+worked example. `KUT-PLNS-01-GF-M3-A-0001` fails today. The BEP states it at §4.2.1, the playbook at
+§4.1, and the MIDP leaves the Originator column empty on all 68 rows rather than propagating a value
+that fails on every container.
+
+**Two defects caught by verification rather than by reading.** Every one of the seven MIDP drop-downs
+pointed at the wrong column of the Lists sheet — Discipline offered originator codes, Type offered LOD
+values, three offered nothing — because the source column was derived from the column being validated
+instead of mapped. It looked correct in the file and would have surfaced when a consultant filled in a
+TIDP. And `validate_tag_config.py`, which the internal playbook instructs the reader to run before
+authoring tag families, does not exist anywhere in the repository; the related "64 missing tag-size
+parameters" claim is unreproducible. Both are corrected in the internal document's new Part I, along
+with five command names that had drifted.
+
+The MIDP grew 51 rows to 68, adding the Stage 3.1 asset-data capture that LOD 500 depends on and that
+nothing had scheduled, the mobilisation deliverables that existed as work but not as rows, gate packs
+as dated deliverables, and the missing Fire, Low Voltage and Civil scopes.
 
 #### Completed (Phase 239 — Connect could not survive a cold start)
 

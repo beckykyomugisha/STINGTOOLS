@@ -546,7 +546,7 @@ namespace StingTools.Model
             try
             {
                 var app = ParameterHelpers.GetApp(commandData);
-                var doc = app?.ActiveUIDocument?.Document ?? commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = app?.ActiveUIDocument?.Document ?? ParameterHelpers.GetDoc(commandData);
                 if (doc == null)
                 {
                     TaskDialog.Show("STING", "No active document.");
@@ -613,7 +613,7 @@ namespace StingTools.Model
             try
             {
                 var app = ParameterHelpers.GetApp(commandData);
-                var doc = app?.ActiveUIDocument?.Document ?? commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = app?.ActiveUIDocument?.Document ?? ParameterHelpers.GetDoc(commandData);
                 if (doc == null)
                 {
                     TaskDialog.Show("STING", "No active document.");
@@ -665,7 +665,7 @@ namespace StingTools.Model
             try
             {
                 var app = ParameterHelpers.GetApp(commandData);
-                var doc = app?.ActiveUIDocument?.Document ?? commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = app?.ActiveUIDocument?.Document ?? ParameterHelpers.GetDoc(commandData);
                 if (doc == null)
                 {
                     TaskDialog.Show("STING", "No active document.");
@@ -746,7 +746,7 @@ namespace StingTools.Model
             try
             {
                 var app = ParameterHelpers.GetApp(commandData);
-                var uidoc = app?.ActiveUIDocument ?? commandData?.Application?.ActiveUIDocument;
+                var uidoc = app?.ActiveUIDocument ?? ParameterHelpers.GetUIDoc(commandData);
                 var doc = uidoc?.Document;
                 if (doc == null || uidoc == null)
                 {
@@ -887,7 +887,7 @@ namespace StingTools.Model
             try
             {
                 var app = ParameterHelpers.GetApp(commandData);
-                var uidoc = app?.ActiveUIDocument ?? commandData?.Application?.ActiveUIDocument;
+                var uidoc = app?.ActiveUIDocument ?? ParameterHelpers.GetUIDoc(commandData);
                 var doc = uidoc?.Document;
                 if (doc == null || uidoc == null)
                 {
@@ -967,7 +967,7 @@ namespace StingTools.Model
             try
             {
                 var app = ParameterHelpers.GetApp(commandData);
-                var uidoc = app?.ActiveUIDocument ?? commandData?.Application?.ActiveUIDocument;
+                var uidoc = app?.ActiveUIDocument ?? ParameterHelpers.GetUIDoc(commandData);
                 var doc = uidoc?.Document;
                 if (doc == null || uidoc == null)
                 {

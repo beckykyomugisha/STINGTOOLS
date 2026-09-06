@@ -74,9 +74,24 @@ namespace StingTools.Core
             public int SchemeRendered { get; set; }
             /// <summary>Phase 192: tagged elements (TAG1 present) with at least one empty enabled-scheme target.</summary>
             public int SchemeMissing { get; set; }
-            /// <summary>Phase 192: scheme render coverage over tagged elements (100% when none tracked).</summary>
-            public double SchemeCoveragePct =>
-                (SchemeRendered + SchemeMissing) > 0 ? SchemeRendered * 100.0 / (SchemeRendered + SchemeMissing) : 100;
+            /// <summary>
+            /// Phase 192: scheme render coverage over tagged elements.
+            /// H-3 — null when nothing was tracked, NOT 100. This used to return 100
+            /// on a zero denominator (and the old summary documented that as intent),
+            /// so a project with a scheme enabled but no tagged elements reported
+            /// "scheme 100%" — a perfect score derived from no evidence. Every
+            /// sibling percentage on this class returns 0 on an empty denominator;
+            /// this one is nullable so its single consumer can print "n/a" and keep
+            /// "nothing to measure" distinct from "measured, and it is zero".
+            /// </summary>
+            public double? SchemeCoveragePct =>
+                (SchemeRendered + SchemeMissing) > 0
+                    ? SchemeRendered * 100.0 / (SchemeRendered + SchemeMissing)
+                    : (double?)null;
+
+            /// <summary>H-3: display form of <see cref="SchemeCoveragePct"/> — "n/a" when untracked.</summary>
+            public string SchemeCoverageText =>
+                SchemeCoveragePct.HasValue ? SchemeCoveragePct.Value.ToString("F0") + "%" : "n/a";
             /// <summary>AE-05: Per-token empty count for granular compliance reporting.</summary>
             public Dictionary<string, int> EmptyTokenCounts { get; } = new Dictionary<string, int>
             {
@@ -137,7 +152,7 @@ namespace StingTools.Core
                 $"{(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}" +
                 $"{(StaleCount > 0 ? $"{StaleCount} stale | " : "")}" +
                 $"{(SheetsUntagged > 0 ? $"{SheetsUntagged}/{TotalSheets} sheets untagged | " : "")}" +
-                $"{(SchemeEnabled ? $"scheme {SchemeCoveragePct:F0}%{(SchemeMissing > 0 ? $" ({SchemeMissing} unrendered)" : "")} | " : "")}" +
+                $"{(SchemeEnabled ? $"scheme {SchemeCoverageText}{(SchemeMissing > 0 ? $" ({SchemeMissing} unrendered)" : "")} | " : "")}" +
                 $"{(LpsChecksTotal > 0 ? $"LPS {LpsVerdict} ({LpsChecksFail} fail) | " : "")}" +
                 $"{Untagged} untagged";
 
@@ -729,7 +744,13 @@ namespace StingTools.Core
         private const string P_COMM_STATE   = "COMM_STATE_TXT";
         private const string P_QC_INSPECTOR = "ASS_QC_INSPECTOR_TXT";
         private const string P_FAB_STATUS   = "ASS_FAB_STATUS_TXT";
-        private const string P_INSTALL_DATE = "ASS_INSTALL_DATE_TXT";
+        // Canonical installation date. This read a hard-coded "ASS_INSTALL_DATE_TXT",
+        // which PARAMETER_REGISTRY.json marks DEPRECATED and nothing writes -- so the
+        // QA gate's install-date test always saw an empty value and the gate could
+        // never turn on it. The C# constant of that name was already redirected to the
+        // canonical parameter, but a string literal bypasses the redirect. Use the
+        // registry constant so a future rename reaches this call site too.
+        private static readonly string P_INSTALL_DATE = ParamRegistry.INSTALL_DATE;
 
         private static (int gate, string msg) ComputeQaGate(Element el)
         {

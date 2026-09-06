@@ -777,6 +777,12 @@ namespace StingTools.UI
                     // the dock panel even when the panel is open.
                     case "Vis_OpenFloating": RunCommand<Commands.Visibility.OpenVisibilityDropdownFloatingCommand>(app); break;
                     case "Vis_Apply": RunCommand<Commands.Visibility.ApplyVisibilityCommand>(app); break;
+                    // STING project baseline — the model-authoring standard.
+                    // Audit is read-only; Apply shows the full list of what it
+                    // would create and writes nothing until that is confirmed.
+                    case "Baseline_Audit": RunCommand<Commands.Baseline.BaselineAuditCommand>(app); break;
+                    case "Baseline_Apply": RunCommand<Commands.Baseline.BaselineApplyCommand>(app); break;
+
                     // Live tick apply — same path, no report dialog.
                     case "Vis_ApplyLive": RunCommand<Commands.Visibility.ApplyVisibilityLiveCommand>(app); break;
                     case "Vis_Isolate": RunCommand<Commands.Visibility.IsolateVisibilityCommand>(app); break;
@@ -4823,7 +4829,10 @@ namespace StingTools.UI
                 if (!paramNames.Contains(p))
                     paramNames.Add(p);
             }
-            paramNames.Sort(StringComparer.OrdinalIgnoreCase);
+            // Superseded parameters sort last so they are not picked by mistake.
+            // They stay in the list: one may hold a value on an element in an
+            // older model, and this dialog is how someone would find it.
+            paramNames = ParamRegistry.PickerOrder(paramNames);
 
             // Build category list
             var categories = viewElements

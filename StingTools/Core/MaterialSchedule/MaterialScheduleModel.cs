@@ -37,8 +37,31 @@ namespace StingTools.Core.MaterialSchedule
         public bool ConversionBlocked;
         public string ConversionNote = "";
 
+        /// <summary>The constituent kind this row came from, or "" for a row that
+        /// carried none. Used to decide whether the row is an intermediate.</summary>
+        public string SourceKind = "";
+
+        /// <summary>
+        /// True when this row is an INTERMEDIATE MEASURE whose purchasable
+        /// constituents are separately listed in the same document — blockwork
+        /// area against the block count derived from it, mortar volume against
+        /// its cement and sand.
+        ///
+        /// The first real export listed all four alongside their own children
+        /// and flagged each with R3 ("has no rate. It will total zero"), which
+        /// reads as an instruction to price them. Rating 175 m2 of blockwork
+        /// next to 2,292 blocks pays for the same wall twice.
+        ///
+        /// A memorandum row keeps its quantity — it is the audit trail that
+        /// makes the derived counts checkable — but it can never carry money:
+        /// AmountUGX is hard-zero, so the double-count is unrepresentable
+        /// rather than merely discouraged.
+        /// </summary>
+        public bool IsMemorandum;
+        public string MemorandumNote = "";
+
         /// <summary>Derived — see the file header. Rounded to whole UGX.</summary>
-        public double AmountUGX => Math.Round(OrderQuantity * RateUGX, 0);
+        public double AmountUGX => IsMemorandum ? 0 : Math.Round(OrderQuantity * RateUGX, 0);
 
         /// <summary>True when no rate could be resolved for this commodity.</summary>
         public bool IsUnpriced => RateUGX <= 0;
@@ -113,6 +136,19 @@ namespace StingTools.Core.MaterialSchedule
         public List<StageSection> Stages = new List<StageSection>();
         public MaterialScheduleOptions Options = new MaterialScheduleOptions();
         public MaterialScheduleReconciliation Reconciliation = new MaterialScheduleReconciliation();
+
+        /// <summary>
+        /// Everything the export needed to say about itself: the compound-takeoff
+        /// gate, excluded rows, the tiling and room-finish scans, site-tool
+        /// heuristics.
+        ///
+        /// These used to exist ONLY in the post-export dialog. The tiling scan
+        /// was added precisely so that "no tiling appeared" stopped being
+        /// ambiguous — and then its answer vanished the moment the dialog was
+        /// closed, so a workbook reviewed later could not say why it looked the
+        /// way it did. A deliverable has to carry its own explanation.
+        /// </summary>
+        public List<string> Warnings = new List<string>();
 
         /// <summary>MAT-SCHED-8 — model rows dropped as not-a-material, by category.
         /// Reported so an exclusion is a stated decision, never a silent loss.</summary>

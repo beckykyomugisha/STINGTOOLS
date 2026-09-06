@@ -1,6 +1,10 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Planscape.API.Controllers;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -69,6 +73,46 @@ public class ModelLifecycleTests
         public Task<PresignedUpload> GetPresignedPutUrlAsync(string k, string c, TimeSpan v, long m, CancellationToken ct = default) => throw No();
         public Task<string> GetPresignedGetUrlAsync(string k, TimeSpan v, CancellationToken ct = default, bool b = false) => throw No();
         public Task MoveAsync(string s, string d, CancellationToken ct = default, bool b = false) => throw No();
+    }
+
+    /// <summary>Neither Delete nor the purge job georeferences anything.</summary>
+    private sealed class UnusedGeorefWriter : IModelGeorefWriter
+    {
+        public Task<GeorefWriteResult> WriteAsync(
+            Guid projectId, Guid projectModelId, Guid tenantId,
+            ModelGeoref georef, string? verdict, CancellationToken ct = default)
+            => throw new NotSupportedException("Delete does not georeference");
+    }
+
+    private sealed class UnusedConverter : IConverterClient
+    {
+        public bool IsConfigured => false;
+        public Task<ConverterGlbResult> ConvertIfcToGlbAsync(
+            string sourceUrl, string fileName, string? discipline, CancellationToken ct = default)
+            => throw new NotSupportedException("Delete does not convert");
+    }
+
+    private static ModelsController NewController(PlanscapeDbContext db, Guid tenantId)
+    {
+        var ctrl = new ModelsController(
+            db,
+            new RecordingStorage(),
+            new UnusedConverter(),
+            new UnusedGeorefWriter(),
+            NullLogger<ModelsController>.Instance);
+
+        ctrl.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                {
+                    new Claim("tenant_id", tenantId.ToString()),
+                    new Claim("user_id", Guid.NewGuid().ToString()),
+                }, "test")),
+            },
+        };
+        return ctrl;
     }
 
     private sealed record World(SqliteConnection Conn, Guid Tenant, Guid Project, Guid Model);
@@ -197,6 +241,218 @@ public class ModelLifecycleTests
             using var check = NewContext(w.Conn, w.Tenant);
             Assert.True(await check.ProjectModels.IgnoreQueryFilters().AnyAsync(m => m.Id == w.Model),
                 "the row was purged even though its bytes could not be deleted — the storage is now orphaned");
+        }
+    }
+
+    // ── the federated-element cascade, and its false-positive guards ────────
+    //
+    // ModelsController.Delete used to try to retire a model's federated
+    // elements by matching FederatedElement.GlbStoragePath ==
+    // ProjectModel.StoragePath. Those are keys from different pipelines — the
+    // per-delta GLB key vs the uploaded-GLB key — so it matched nothing while
+    // the log reported a count. That join was removed and the gap documented;
+    // ProjectModel.SourceDocGuid is the real linkage, and these pin both what
+    // it must retire and what it must not touch.
+
+    private const string DocGuid = "doc-guid-arch";
+
+    private static void SeedFederatedElement(
+        PlanscapeDbContext ctx, Guid tenant, Guid project, string sourceDocGuid, long elementId)
+        => ctx.FederatedElements.Add(new FederatedElement
+        {
+            TenantId = tenant, ProjectId = project,
+            SourceDocGuid = sourceDocGuid, Source = "revit-plugin",
+            ElementId = elementId, UniqueId = $"uid-{elementId}",
+            GlbStoragePath = $"t_x/{elementId}-delta.glb", IsDeleted = false,
+        });
+
+    private static async Task<bool> IsElementDeletedAsync(World w, long elementId)
+    {
+        using var ctx = NewContext(w.Conn, w.Tenant);
+        return await ctx.FederatedElements
+            .Where(e => e.ElementId == elementId).Select(e => e.IsDeleted).SingleAsync();
+    }
+
+    [Fact]
+    public async Task Deleting_a_model_retires_the_federated_elements_its_document_pushed()
+    {
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                (await seed.ProjectModels.SingleAsync(m => m.Id == w.Model)).SourceDocGuid = DocGuid;
+                SeedFederatedElement(seed, w.Tenant, w.Project, DocGuid, 101);
+                SeedFederatedElement(seed, w.Tenant, w.Project, DocGuid, 102);
+                await seed.SaveChangesAsync();
+            }
+
+            using (var db = NewContext(w.Conn, w.Tenant))
+            {
+                var result = await NewController(db, w.Tenant).Delete(w.Project, w.Model, default);
+                Assert.IsType<NoContentResult>(result);
+            }
+
+            Assert.True(await IsElementDeletedAsync(w, 101));
+            Assert.True(await IsElementDeletedAsync(w, 102));
+        }
+    }
+
+    [Fact]
+    public async Task Deleting_a_model_leaves_another_documents_elements_alone()
+    {
+        // The false-positive guard. A federated element from a DIFFERENT source
+        // document — a second discipline model federated into the same project —
+        // must survive; retiring it would blank live geometry the coordinator
+        // never asked to remove.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                (await seed.ProjectModels.SingleAsync(m => m.Id == w.Model)).SourceDocGuid = DocGuid;
+                SeedFederatedElement(seed, w.Tenant, w.Project, DocGuid, 101);
+                SeedFederatedElement(seed, w.Tenant, w.Project, "doc-guid-mech", 202);
+                await seed.SaveChangesAsync();
+            }
+
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(db, w.Tenant).Delete(w.Project, w.Model, default);
+
+            Assert.True(await IsElementDeletedAsync(w, 101));
+            Assert.False(await IsElementDeletedAsync(w, 202),
+                "another document's federated elements were retired by this model's delete");
+        }
+    }
+
+    [Fact]
+    public async Task Deleting_a_model_leaves_another_projects_elements_alone()
+    {
+        // Same guard across the project boundary — the join is scoped by tenant
+        // and project as well as document, so a doc GUID that recurs in a second
+        // project (a template model copied between them) cannot leak.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var otherProject = Guid.NewGuid();
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                (await seed.ProjectModels.SingleAsync(m => m.Id == w.Model)).SourceDocGuid = DocGuid;
+                seed.Projects.Add(new Project
+                {
+                    Id = otherProject, TenantId = w.Tenant, Name = "Annex",
+                    Code = $"AX-{Guid.NewGuid():N}"[..8], Status = ProjectStatus.Active,
+                });
+                SeedFederatedElement(seed, w.Tenant, w.Project, DocGuid, 101);
+                SeedFederatedElement(seed, w.Tenant, otherProject, DocGuid, 303);
+                await seed.SaveChangesAsync();
+            }
+
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(db, w.Tenant).Delete(w.Project, w.Model, default);
+
+            Assert.True(await IsElementDeletedAsync(w, 101));
+            Assert.False(await IsElementDeletedAsync(w, 303),
+                "another project's federated elements were retired by this model's delete");
+        }
+    }
+
+    [Fact]
+    public async Task A_model_with_no_source_document_retires_nothing()
+    {
+        // Every model published before SourceDocGuid existed carries null. The
+        // cascade must skip rather than fall back to some looser match — a
+        // wrong match here retires geometry a live model still needs.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                SeedFederatedElement(seed, w.Tenant, w.Project, DocGuid, 101);
+                await seed.SaveChangesAsync();
+            }
+
+            using (var db = NewContext(w.Conn, w.Tenant))
+                Assert.IsType<NoContentResult>(
+                    await NewController(db, w.Tenant).Delete(w.Project, w.Model, default));
+
+            Assert.False(await IsElementDeletedAsync(w, 101));
+        }
+    }
+
+    [Fact]
+    public async Task The_placeholder_source_document_retires_nothing()
+    {
+        // "revit-plugin" is what every delta landed under before the plugin
+        // started sending a real GUID — a shared bucket holding elements from
+        // many documents. Treating it as an identity would let one model's
+        // delete wipe every Revit-sourced element in the project.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                (await seed.ProjectModels.SingleAsync(m => m.Id == w.Model)).SourceDocGuid =
+                    FederatedElement.UnknownSourceDocGuid;
+                SeedFederatedElement(
+                    seed, w.Tenant, w.Project, FederatedElement.UnknownSourceDocGuid, 101);
+                await seed.SaveChangesAsync();
+            }
+
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(db, w.Tenant).Delete(w.Project, w.Model, default);
+
+            Assert.False(await IsElementDeletedAsync(w, 101),
+                "the shared placeholder was treated as a document identity");
+        }
+    }
+
+    [Fact]
+    public async Task A_second_live_model_from_the_same_document_holds_the_elements()
+    {
+        // Two live revisions of the same document (published with different
+        // bytes, so both rows exist). They describe the SAME elements, and one
+        // of them is not being deleted — so nothing is retired.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                (await seed.ProjectModels.SingleAsync(m => m.Id == w.Model)).SourceDocGuid = DocGuid;
+                seed.ProjectModels.Add(new ProjectModel
+                {
+                    Id = Guid.NewGuid(), TenantId = w.Tenant, ProjectId = w.Project,
+                    Name = "ARCH rev B", FileName = "b.glb", StoragePath = "t_x/b.glb",
+                    SourceDocGuid = DocGuid,
+                });
+                SeedFederatedElement(seed, w.Tenant, w.Project, DocGuid, 101);
+                await seed.SaveChangesAsync();
+            }
+
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(db, w.Tenant).Delete(w.Project, w.Model, default);
+
+            Assert.False(await IsElementDeletedAsync(w, 101),
+                "elements were retired while a live sibling model still publishes the same document");
+        }
+    }
+
+    [Fact]
+    public async Task The_model_and_its_scene_chunks_are_still_retired_when_the_cascade_is_skipped()
+    {
+        // The mirror case: skipping the federated half must not skip the halves
+        // that always worked.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var db = NewContext(w.Conn, w.Tenant))
+                await NewController(db, w.Tenant).Delete(w.Project, w.Model, default);
+
+            using var check = NewContext(w.Conn, w.Tenant);
+            Assert.NotNull((await check.ProjectModels.IgnoreQueryFilters()
+                .SingleAsync(m => m.Id == w.Model)).DeletedAt);
+            Assert.NotNull((await check.SceneNodes.IgnoreQueryFilters()
+                .SingleAsync(n => n.SourceModelId == w.Model)).DeletedAt);
         }
     }
 

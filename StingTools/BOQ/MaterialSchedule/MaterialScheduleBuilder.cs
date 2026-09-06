@@ -42,6 +42,11 @@ namespace StingTools.BOQ.MaterialSchedule
 
             result.CompoundTakeoffWasOff = !Takeoff.CompoundTakeoffBuilder.Enabled();
 
+            // Before the take-off, not after: the scan counts what THIS run
+            // inspected, and a stale count from a previous export would answer
+            // the wrong question.
+            Takeoff.CompoundTakeoffBuilder.ResetLayerScans();
+
             var boq = BOQCostManager.BuildBOQDocument(doc);
             var inputs = new AggregatorInputs
             {
@@ -55,6 +60,8 @@ namespace StingTools.BOQ.MaterialSchedule
             inputs.DefaultStageId = lib.DefaultStageId;
             inputs.ExcludedCategories = lib.ExcludedCategories;
             inputs.ExcludedDescriptionPatterns = lib.ExcludedDescriptionPatterns;
+            inputs.ExclusionProtectedCategories = lib.ExclusionProtectedCategories;
+            inputs.IntermediateMeasures = lib.IntermediateMeasures;
             inputs.Rates = LoadRates(doc);
 
             foreach (var item in boq.AllItems.Where(i => i.Source == BOQRowSource.Model))
@@ -73,6 +80,23 @@ namespace StingTools.BOQ.MaterialSchedule
                     LevelCode = item.Level ?? "",
                     TraceRef = string.IsNullOrEmpty(item.BOQLineRef) ? item.Id : item.BOQLineRef
                 });
+            }
+
+            // SECOND finish source. The layer source reads a TYPE's compound
+            // structure; this reads what the ROOM says. Gated so the two can
+            // never measure the same surface: if any type carried a tiled
+            // layer, room tiling is skipped entirely. Skirting is never
+            // suppressed — no layer source produces it.
+            var roomTally = new RoomFinishTally();
+            try
+            {
+                bool layerTiling = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Tally.TypesMatched > 0;
+                inputs.Constituents.AddRange(RoomFinishGatherer.Gather(doc, layerTiling, roomTally));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Room finishes could not be read: {ex.Message}");
+                StingLog.Warn($"MaterialScheduleBuilder room finishes: {ex.Message}");
             }
 
             var msDoc = CommodityAggregator.Build(inputs);
@@ -99,6 +123,44 @@ namespace StingTools.BOQ.MaterialSchedule
                 result.Warnings.Add(
                     $"{result.RowsWithoutKind} of {result.ConstituentRowsSeen} model rows carried no "
                   + $"constituent kind and were routed to the default stage.");
+
+            // Reported whether or not tiling was found. A schedule with no tiling
+            // rows is either a model that describes no finishes or a pattern that
+            // failed to recognise them, and only the denominator tells them apart.
+            string tileScan = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Summary();
+            if (!string.IsNullOrEmpty(tileScan)) result.Warnings.Add(tileScan);
+
+            // Same contract, same reason (MATSCHED-T1): a schedule with no screed
+            // cement means one of four unrelated things, and only the denominator
+            // tells them apart.
+            string screedScan = Takeoff.CompoundTakeoffBuilder.ScreedScan.Summary();
+            if (!string.IsNullOrEmpty(screedScan)) result.Warnings.Add(screedScan);
+
+            // MATSCHED-T2 — ceilings decomposed into nothing at all before this,
+            // and an empty result is indistinguishable from a model with no
+            // ceilings unless the scan says which it was.
+            string ceilingScan = Takeoff.CompoundTakeoffBuilder.CeilingScan.Summary();
+            if (!string.IsNullOrEmpty(ceilingScan)) result.Warnings.Add(ceilingScan);
+
+            // The furring banner is separate and CONDITIONAL: a ratio must never
+            // be presented as a measurement, and a banner qualifying a row that
+            // was never emitted is noise.
+            string furringBanner = Takeoff.CompoundTakeoffBuilder.CeilingScan.Tally.FurringBanner();
+            if (!string.IsNullOrEmpty(furringBanner)) result.Warnings.Add(furringBanner);
+
+            // MATSCHED-T3 — membranes were ignored entirely. The scan also
+            // reports the two things this take-off deliberately does NOT price
+            // (insulation, and wall membranes), so each is a stated decision
+            // rather than an unexplained absence.
+            string membraneScan = Takeoff.CompoundTakeoffBuilder.MembraneScan.Summary();
+            if (!string.IsNullOrEmpty(membraneScan)) result.Warnings.Add(membraneScan);
+
+            string roomScan = roomTally.Summary();
+            if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
+
+            // AFTER every warning is collected, so the workbook and the dialog
+            // can never disagree about what this run reported.
+            msDoc.Warnings.AddRange(result.Warnings);
 
             StingLog.Info($"MaterialScheduleBuilder: {msDoc.Stages.Count} stage(s), "
                         + $"{msDoc.Stages.Sum(s => s.Commodities.Count)} commodity row(s), "
