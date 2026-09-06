@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 250 — PM-3 close-out: instructed dayworks, capture → price → final account)
+#### Completed (Phase 223 — PM-3 close-out: instructed dayworks, capture → price → final account)
 
 The tender annexure has always shipped a **DAYWORKS SCHEDULE**, but it is a *rates
 framework* whose own wording defers quantities to be "priced at final account". Nothing
