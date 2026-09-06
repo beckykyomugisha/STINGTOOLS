@@ -782,6 +782,8 @@ namespace StingTools.UI
                     // would create and writes nothing until that is confirmed.
                     case "Baseline_Audit": RunCommand<Commands.Baseline.BaselineAuditCommand>(app); break;
                     case "Baseline_Apply": RunCommand<Commands.Baseline.BaselineApplyCommand>(app); break;
+                    // Read-only: writes a catalogue pack JSON, never the model.
+                    case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
 
                     // Live tick apply — same path, no report dialog.
                     case "Vis_ApplyLive": RunCommand<Commands.Visibility.ApplyVisibilityLiveCommand>(app); break;

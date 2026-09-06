@@ -2,6 +2,74 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 252 — the baseline reaches family-backed elements, and a catalogue that renews itself)
+
+Phase 246 shipped a baseline that could create wall, floor, roof and ceiling types and could only
+REPORT on doors, windows and structural families. Four layers close that, and the T6 proposal that
+preceded them had to be corrected first.
+
+**The correction.** The T6 proposal said adding parameters to families was "yours — not a code task".
+It was wrong: `FamilyAugmentationEngine` has done the `EditFamily` → `AddParameter` → `LoadFamily`
+round trip for symbol families all along. The row is amended in place with the correction visible
+rather than quietly edited, so anyone reading it later sees both the error and why (#809).
+
+**B1 — types minted inside loaded families (#811).** `FamilySymbol.Duplicate`, which nothing in this
+codebase had used before; only `TextNoteType` and `DimensionType` were ever duplicated. What it still
+will not do is conjure the family: a type whose category has no family matching its
+`familyNamePatterns` is GUIDANCE, never Missing, so Apply cannot promise a mint that must fail —
+deleting that branch fails three tests.
+
+Two failures already paid for were pre-empted. `Duplicate` commits BEFORE the parameter set runs, so
+a failure would leave a type named for the baseline carrying the source's dimensions, which the next
+audit reads as conforming — #798, exactly. Half-made types are deleted. And same name, different
+size is a CONFLICT: the model's 800×2100 may be deliberate.
+
+Three details earned their comments. Findings gained a `MatchKey`, because two categories can want
+the same type name and the minter would otherwise re-parse a display string the auditor formatted.
+The audit and the mint now share ONE inventory — reading twice would let the model change between the
+report somebody approves and the write that follows. And a sub-millimetre difference is rounding, not
+a conflict: Revit stores feet, so 900 mm returns as 899.9997.
+
+**B2 — shared type parameters on loaded families (#813).** Two constraints shaped it, neither in the
+spec. `Document.EditFamily` **cannot run inside an open transaction**, so layer 3 does not join the
+mint's transaction; it runs after that commits, each round trip owning its own — the shape
+`VisibilityEngine.Reset` uses for the same reason. And the parameters must be SHARED:
+`FamilyManager.AddParameter(name, group, spec, isInstance)` creates a family-LOCAL parameter with no
+GUID, so two families given "the same" parameter hold two unrelated ones that cannot be scheduled
+together — correct-looking in any single family and useless in aggregate.
+
+An unresolvable parameter name blocks Apply before a single family is opened. The report is
+Revit-free and tested because of one case: total failure, every family refusing, nothing added — a
+summary mentioning only successes would print NOTHING there, indistinguishable from "not asked to
+act".
+
+**B3 — catalogue packs, opt-in and adopted by nobody (#814).** Shipping thirty East African types in
+the corporate baseline would make one reading of the market a standard every project is audited
+against; a project whose doors are genuinely 850 wide would be told on every run that it is missing a
+type it does not want. So packs are adopted BY ID, additive, overridable per type, and versioned in
+the id so V1 → V2 is a migration rather than a silent redefinition. An unknown pack id is REPORTED —
+silently ignoring a typo leaves somebody believing they adopted a catalogue they did not.
+
+**B4 — harvest (#815).** The piece that stops the catalogue ossifying: it reads the types actually
+PLACED in a delivered model and writes a pack for review, so the catalogue grows from work that was
+built and paid for. PLACED only — a type nobody used is evidence that somebody loaded a family. Two
+refusals carry tests: our own minted types are not harvested back, or the catalogue becomes a record
+of ITSELF; and the family's own name is the only pattern used, because inferring "Door" from
+"M_Single-Flush" is the inference-from-a-name that #710 withdrew.
+
+**Tests 716 → 766**, build 0/0 throughout, all four gates PASS, **11 mutations verified failing**
+before their tests were kept.
+
+**One mutation proved nothing, and that is recorded rather than counted.** A B3 mutation removed the
+early-return guard on an empty `adoptCatalogues` list and nothing failed — an empty list simply does
+not loop, so the guard is a fast path and not the protection. The real mutation makes the loop
+iterate every pack, and that does fail. A mutation that proves nothing is worth less than no
+mutation, because it reads as evidence.
+
+**Not verified.** Nothing here has run in Revit. `FamilySymbol.Duplicate`, `EditFamily`,
+`AddParameter`, `LoadFamily` and the harvest pass are all unexercised, on top of the five features
+from Phases 247-251 that are also unexercised. See MATSCHED-T-VERIFY.
+
 #### Completed (Phase 240 — branch and workspace triage: unreviewed work found, landed or laid to rest)
 
 Two pools of work were invisible: **40 remote branches that had never had a PR opened on

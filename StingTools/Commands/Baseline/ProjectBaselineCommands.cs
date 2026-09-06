@@ -49,7 +49,51 @@ namespace StingTools.Commands.Baseline
             Merge(b.CeilingTypes, over.CeilingTypes, t => t.Name);
             Merge(b.Levels, over.Levels, l => l.Name);
             Merge(b.FamilyExpectations, over.FamilyExpectations, f => f.Category);
+            Merge(b.FamilyTypes, over.FamilyTypes, t => (t.Category ?? "") + "|" + t.TypeName);
+            Merge(b.FamilyParameters, over.FamilyParameters, f => f.Category);
+            if (over.AdoptCatalogues != null && over.AdoptCatalogues.Count > 0)
+                b.AdoptCatalogues = over.AdoptCatalogues;
             return b;
+        }
+
+        /// <summary>
+        /// Catalogue packs, merged in AFTER the project override so a project
+        /// type always wins over a pack type of the same name. Adoption is
+        /// opt-in: with no adoptCatalogues this does nothing at all.
+        /// </summary>
+        public static CatalogueAdoptionResult AdoptCatalogues(Document doc, ProjectBaseline baseline)
+        {
+            var lib = ReadCatalogues(StingToolsApp.FindDataFile("STING_TYPE_CATALOGUES.json"))
+                      ?? new TypeCatalogueLibrary();
+            try
+            {
+                var over = ReadCatalogues(StingPaths.MetaFile(doc, "_BIM_COORD", "type_catalogues.json"));
+                if (over?.Packs != null)
+                    foreach (var pk in over.Packs)
+                    {
+                        if (pk == null || string.IsNullOrWhiteSpace(pk.Id)) continue;
+                        int i = lib.Packs.FindIndex(x =>
+                            string.Equals(x.Id, pk.Id, StringComparison.OrdinalIgnoreCase));
+                        if (i >= 0) lib.Packs[i] = pk; else lib.Packs.Add(pk);
+                    }
+            }
+            catch (Exception ex) { StingLog.Warn("AdoptCatalogues override: " + ex.Message); }
+
+            return CatalogueAdopter.Adopt(baseline, lib);
+        }
+
+        private static TypeCatalogueLibrary ReadCatalogues(string path)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+                return JsonConvert.DeserializeObject<TypeCatalogueLibrary>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ReadCatalogues [" + path + "]: " + ex.Message);
+                return null;
+            }
         }
 
         private static void Merge<T>(List<T> baseList, List<T> overrides, Func<T, string> key)
@@ -562,8 +606,14 @@ namespace StingTools.Commands.Baseline
             }
 
             var baseline = BaselineRegistry.Load(doc);
+            var adoption = BaselineRegistry.AdoptCatalogues(doc, baseline);
             var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc, baseline));
-            TaskDialog.Show("STING Project Baseline — audit", BaselineAuditor.Report(audit));
+            audit.BaselineProblems.AddRange(BaselineAugmenter.UnresolvableParameters(doc, baseline));
+
+            string report = BaselineAuditor.Report(audit);
+            string adopted = adoption.Summary();
+            if (!string.IsNullOrEmpty(adopted)) report = adopted + "\n\n" + report;
+            TaskDialog.Show("STING Project Baseline — audit", report);
             return Result.Succeeded;
         }
     }
@@ -582,11 +632,18 @@ namespace StingTools.Commands.Baseline
             }
 
             var baseline = BaselineRegistry.Load(doc);
+            var adoption = BaselineRegistry.AdoptCatalogues(doc, baseline);
             // The SAME inventory feeds the audit and the mint. Reading twice
             // would let the model change between them, so Apply could mint
             // against facts the user never saw in the report.
             var inventory = BaselineModelReader.Read(doc, baseline);
             var audit = BaselineAuditor.Audit(baseline, inventory);
+
+            // A shared-parameter name that the FILE does not define cannot be
+            // added to anything. Resolving it here means Apply refuses before a
+            // single family is opened, rather than half-augmenting a model and
+            // reporting the rest as failures.
+            audit.BaselineProblems.AddRange(BaselineAugmenter.UnresolvableParameters(doc, baseline));
 
             if (audit.BaselineProblems.Count > 0)
             {
@@ -603,10 +660,12 @@ namespace StingTools.Commands.Baseline
 
             // Audit first, write on confirm. Nothing reaches a live model
             // without the full list of what will change being read first.
+            string adoptedNote = adoption.Summary();
             var dlg = new TaskDialog("STING Project Baseline — apply?")
             {
                 MainInstruction = $"Create {audit.MissingCount} missing item(s)?",
-                MainContent = BaselineAuditor.Report(audit),
+                MainContent = (string.IsNullOrEmpty(adoptedNote) ? "" : adoptedNote + "\n\n")
+                            + BaselineAuditor.Report(audit),
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No
             };
@@ -620,8 +679,20 @@ namespace StingTools.Commands.Baseline
                 tx.Commit();
             }
 
-            StingLog.Info($"BaselineApply: created {mint.Created}, failed {mint.Failed.Count}");
-            TaskDialog.Show("STING Project Baseline", mint.Summary()
+            // AFTER the commit, and deliberately not inside it: Document.EditFamily
+            // cannot run within an open transaction, so layer 3 sequences itself
+            // the way VisibilityEngine.Reset sequences its two mechanisms.
+            var augment = BaselineAugmenter.Apply(doc, baseline, audit);
+
+            StingLog.Info($"BaselineApply: created {mint.Created}, failed {mint.Failed.Count}, "
+                        + $"families augmented {augment.FamiliesAugmented}, "
+                        + $"augment failures {augment.Failed.Count}");
+
+            string report = mint.Summary();
+            string aug = augment.Summary();
+            if (!string.IsNullOrEmpty(aug)) report += "\n\n" + aug;
+
+            TaskDialog.Show("STING Project Baseline", report
                 + "\n\nRe-run the audit to confirm, then export a material schedule: "
                 + "types carrying tiled finish layers are what make tiling measurable.");
             return Result.Succeeded;
