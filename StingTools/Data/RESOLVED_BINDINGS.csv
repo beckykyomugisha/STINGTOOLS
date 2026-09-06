@@ -1266,7 +1266,9 @@ FLT_STATUS_TXT,Generic Models
 FLT_SURFACE_PATTERN_TXT,Generic Models
 FLT_TRANSPARENCY_INT,Generic Models
 FLT_USED_IN_TEMPLATES_TXT,Generic Models
+FOHLIO_CURRENCY_TXT,<ALL>
 FOHLIO_REF_TXT,<ALL>
+FOHLIO_UNIT_COST_NR,<ALL>
 FOUND_BEAR_UTIL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 FOUND_SOIL_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 FOUND_SUMMARY_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
