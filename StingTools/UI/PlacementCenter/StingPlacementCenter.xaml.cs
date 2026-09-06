@@ -176,6 +176,100 @@ namespace StingTools.UI.PlacementCenter
             btnCatAll.Click  += (_,__) => SetAllCategoryChecks(true);
             btnCatNone.Click += (_,__) => SetAllCategoryChecks(false);
 
+            // Glazing + maintenance-clearance write-back. These three editors
+            // were populated from the selected rule but had no commit handler,
+            // so every edit was discarded on selection change — which is the
+            // real reason the fields looked "edited but never consumed".
+            if (chkToughenedGlazing != null)
+            {
+                chkToughenedGlazing.Checked   += (_,__) => CommitField(() => VM.Selected.ToughenedGlazingRequired = true);
+                chkToughenedGlazing.Unchecked += (_,__) => CommitField(() => VM.Selected.ToughenedGlazingRequired = false);
+            }
+            if (cmbGlazingSpec != null)
+                cmbGlazingSpec.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.GlazingSpec = cmbGlazingSpec.SelectedItem as string ?? "");
+            if (cmbMaintenanceClearance != null)
+                cmbMaintenanceClearance.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.MaintenanceClearance = cmbMaintenanceClearance.SelectedItem as string ?? "");
+
+            // Phase 224 — the rest of the uncommitted editor cards.
+            //
+            // An audit of the per-rule sync block (every control assigned from a
+            // `s.<Property>`) found 16 further editors populated from the selected
+            // rule with no write-back handler, so their edits were discarded on
+            // selection change exactly as the glazing / clearance ones were.
+            // Notably this included txtStandardsCsv — the ApplicableStandards
+            // editor itself could not be edited.
+            //
+            // Read-only displays (txtSourcePack, txtRuleError) are deliberately
+            // excluded: SourcePack is loader-owned and txtRuleError renders
+            // validation output.
+
+            // Clearances / geometry (numeric)
+            if (txtWallClearance != null)
+                txtWallClearance.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.WallClearanceMm = ParseDouble(txtWallClearance.Text, VM.Selected.WallClearanceMm));
+            if (txtObstructionClearance != null)
+                txtObstructionClearance.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.ObstructionClearanceMm = ParseDouble(txtObstructionClearance.Text, VM.Selected.ObstructionClearanceMm));
+            if (txtRouteMinBendRadius != null)
+                txtRouteMinBendRadius.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.RouteMinBendRadiusMm = ParseDouble(txtRouteMinBendRadius.Text, VM.Selected.RouteMinBendRadiusMm));
+            if (txtSillHeight != null)
+                txtSillHeight.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.SillHeightMm = ParseDouble(txtSillHeight.Text, VM.Selected.SillHeightMm));
+            if (txtHeadHeight != null)
+                txtHeadHeight.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.HeadHeightMm = ParseDouble(txtHeadHeight.Text, VM.Selected.HeadHeightMm));
+            if (txtCillToFloor != null)
+                txtCillToFloor.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.CillToFloorMm = ParseDouble(txtCillToFloor.Text, VM.Selected.CillToFloorMm));
+
+            // Free text
+            if (txtIpRatingMin != null)
+                txtIpRatingMin.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.IpRatingMin = txtIpRatingMin.Text ?? "");
+            if (txtStandardsCsv != null)
+                txtStandardsCsv.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.ApplicableStandardsCsv = txtStandardsCsv.Text ?? "");
+            if (txtPostAuditTag != null)
+                txtPostAuditTag.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.PostAuditTag = txtPostAuditTag.Text ?? "");
+
+            // Combos. The sync block substitutes a default when the rule value is
+            // empty ("INTERIOR" for RouteFace, "NONE" for WetZoneExclusion); the
+            // commit path mirrors that so a round-trip is stable rather than
+            // rewriting the rule with the placeholder on first selection.
+            if (cmbRouteFace != null)
+                cmbRouteFace.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.RouteFace = cmbRouteFace.SelectedItem as string ?? VM.Selected.RouteFace);
+            if (cmbBuildingType != null)
+                cmbBuildingType.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.BuildingType = cmbBuildingType.SelectedItem as string ?? VM.Selected.BuildingType);
+            if (cmbWetZone != null)
+                cmbWetZone.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.WetZoneExclusion = cmbWetZone.SelectedItem as string ?? VM.Selected.WetZoneExclusion);
+            if (cmbHeightStandard != null)
+                cmbHeightStandard.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.HeightStandard = cmbHeightStandard.SelectedItem as string ?? VM.Selected.HeightStandard);
+
+            // Checkboxes
+            if (chkAccessibilityCheck != null)
+            {
+                chkAccessibilityCheck.Checked   += (_,__) => CommitField(() => VM.Selected.AccessibilityCheck = true);
+                chkAccessibilityCheck.Unchecked += (_,__) => CommitField(() => VM.Selected.AccessibilityCheck = false);
+            }
+            if (chkRequiresCOBieFields != null)
+            {
+                chkRequiresCOBieFields.Checked   += (_,__) => CommitField(() => VM.Selected.RequiresCOBieFields = true);
+                chkRequiresCOBieFields.Unchecked += (_,__) => CommitField(() => VM.Selected.RequiresCOBieFields = false);
+            }
+            if (chkRequiresIfcMapping != null)
+            {
+                chkRequiresIfcMapping.Checked   += (_,__) => CommitField(() => VM.Selected.RequiresIfcMapping = true);
+                chkRequiresIfcMapping.Unchecked += (_,__) => CommitField(() => VM.Selected.RequiresIfcMapping = false);
+            }
+
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
             cmbCategory.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
@@ -269,6 +363,12 @@ namespace StingTools.UI.PlacementCenter
             VM.AttachFilteredView();
             gridRules.ItemsSource = VM.FilteredRules;
             if (VM.Rules.Count > 0) gridRules.SelectedIndex = 0;
+
+            // Generate the Auto-place checklist from the category registry +
+            // the rules just loaded. Must run after LoadFromProject so per-row
+            // rule counts are real.
+            try { VM.RebuildCategoryChecklist(_doc); }
+            catch (Exception cEx) { StingLog.Warn($"Auto-place checklist first-build: {cEx.Message}"); }
 
             // Phase D — populate history grid on first open so the
             // panel surface isn't a wall of empties.
@@ -2097,61 +2197,52 @@ namespace StingTools.UI.PlacementCenter
                 UpdateStatus();
         }
 
-        // Phase 139.8 — checklist plumbing.
-        private (System.Windows.Controls.CheckBox cb, string cat)[] CategoryChecklist()
-            => new (System.Windows.Controls.CheckBox, string)[]
-            {
-                (cbCatElec,   "Electrical Fixtures"),
-                (cbCatLtgDev, "Lighting Devices"),
-                (cbCatLtgFix, "Lighting Fixtures"),
-                (cbCatComm,   "Communication Devices"),
-                (cbCatData,   "Data Devices"),
-                (cbCatSec,    "Security Devices"),
-                (cbCatFire,   "Fire Alarm Devices"),
-                (cbCatPlm,    "Plumbing Fixtures"),
-                (cbCatHvac,   "Air Terminals"),
-                (cbCatSpr,    "Sprinklers"),
-                (cbCatMech,   "Mechanical Equipment"),
-                (cbCatCond,   "Conduits"),
-                (cbCatJBox,   "Junction Boxes"),
-                (cbCatPipe,   "Pipes"),
-                (cbCatTray,   "Cable Trays"),
-                (cbCatSpec,   "Specialty Equipment"),
-                (cbCatFurn,   "Furniture"),
-                (cbCatNurse,  "Nurse Call Devices"),
-            };
+        // Auto-place checklist plumbing.
+        //
+        // The checklist is generated from PlacementCategoryRegistry into
+        // VM.CategoryChecklist and rendered by an ItemsControl, so there are no
+        // named CheckBox fields to keep in sync with the engine any more. The
+        // old "N of M checkboxes are NULL → stale XAML build" diagnostic is
+        // replaced by an empty-collection check, which is the equivalent failure
+        // for the generated path.
 
         private System.Collections.Generic.HashSet<string> ReadCategoryChecklist()
         {
             var s = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-            // Phase 139.20 — log every checkbox state + null-state. If
-            // many cb fields are null, the XAML auto-generated bindings
-            // didn't compile (stale build). If all fields exist but the
-            // user thinks they ticked one and we report unchecked, the
-            // problem is UI confusion not code. Either way the user can
-            // read the StingLog and we know which root cause to chase.
-            int totalCb = 0, nullCb = 0, checkedCb = 0;
-            var checkedNames = new System.Collections.Generic.List<string>();
-            var nullNames    = new System.Collections.Generic.List<string>();
-            foreach (var (cb, cat) in CategoryChecklist())
+            var items = VM?.CategoryChecklist;
+            if (items == null || items.Count == 0)
             {
-                totalCb++;
-                if (cb == null) { nullCb++; nullNames.Add(cat); continue; }
-                if (cb.IsChecked == true) { checkedCb++; checkedNames.Add(cat); s.Add(cat); }
+                StingLog.Warn("PlacementCenter: Auto-place checklist is empty — the category registry produced " +
+                              "no rows (STING_CATEGORY_TO_SEED_MAP.json missing from the data path?). " +
+                              "Treating the run as 'every category in the active rule pack allowed'.");
+                return s;
             }
-            StingLog.Info($"PlacementCenter: category checklist read — {totalCb} controls, " +
-                          $"{nullCb} NULL ({(nullNames.Count > 0 ? string.Join(", ", nullNames) : "")}), " +
-                          $"{checkedCb} ticked ({(checkedNames.Count > 0 ? string.Join(", ", checkedNames) : "<none>")}).");
-            if (nullCb > 0)
-                StingLog.Warn($"PlacementCenter: {nullCb} of {totalCb} category checkboxes are NULL — " +
-                              "XAML auto-generated bindings did not compile. Rebuild the plug-in.");
+
+            var checkedNames = new System.Collections.Generic.List<string>();
+            foreach (var item in items)
+            {
+                if (item == null || !item.IsChecked) continue;
+                checkedNames.Add(item.Category);
+                s.Add(item.Category);
+            }
+
+            StingLog.Info($"PlacementCenter: category checklist read — {items.Count} categories, " +
+                          $"{items.Count(i => !i.IsPlaceable)} non-placeable, " +
+                          $"{checkedNames.Count} ticked " +
+                          $"({(checkedNames.Count > 0 ? string.Join(", ", checkedNames) : "<none>")}).");
             return s;
         }
 
+        /// <summary>
+        /// "All" / "None". Non-placeable categories are never ticked — the item's
+        /// IsChecked setter refuses them — so "All" means "all placeable".
+        /// </summary>
         private void SetAllCategoryChecks(bool on)
         {
-            foreach (var (cb, _) in CategoryChecklist())
-                if (cb != null) cb.IsChecked = on;
+            var items = VM?.CategoryChecklist;
+            if (items == null) return;
+            foreach (var item in items)
+                if (item != null) item.IsChecked = on;
         }
 
         private void UpdateStatus()

@@ -20,9 +20,7 @@
       "WetZoneExclude": false,
       "HeightStandardRef": "BS7671_SOCKET_STD",
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "StandardRef": "BS 7671:2018+A4 Reg 553",
       "Notes": "1G 13A socket at 450mm FFL."
@@ -45,9 +43,7 @@
       "WetZoneExclude": false,
       "HeightStandardRef": "KITCHEN_SOCKET_ABOVE_WORKTOP",
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 75,
       "StandardRef": "BS 7671:2018+A4 kitchen supplement",
       "Notes": "2G 13A above-worktop socket."
@@ -68,6 +64,7 @@
       "PlasterOffsetMode": "None",
       "Priority": 60,
       "StandardRef": "BS 7671 kitchen supplement",
+      "ApplicableStandards": ["BS 7671"],
       "Notes": "Island socket above worktop.",
       "VariantHint": "MK_SOCKET_KITCHEN_ISLAND"
     },
@@ -89,9 +86,7 @@
       "WetZoneExclude": false,
       "HeightStandardRef": "BS7671_SOCKET_STD",
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "MaxPerRoom": 4,
       "StandardRef": "BS 7671 Part 5",
@@ -116,9 +111,7 @@
       "WetZoneClass": "Zone2",
       "HeightStandardRef": "BS7671_SOCKET_STD",
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 80,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671 Part 7-701",
@@ -141,9 +134,7 @@
       "PlasterOffsetMode": "None",
       "HeightStandardRef": "BS7671_SOCKET_STD",
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "StandardRef": "BS 7671",
       "Notes": "Surface 1G socket in utility / garage."
@@ -165,9 +156,7 @@
       "PlasterOffsetMode": "None",
       "HeightStandardRef": "EXTERNAL_SOCKET_STD",
       "BuildingType": "Residential",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 75,
       "StandardRef": "BS 7671",
       "Notes": "External weatherproof switched socket."
@@ -188,9 +177,7 @@
       "InsertionOrigin": "FixingCentreMidpoint",
       "PlasterOffsetMode": "Auto",
       "HeightStandardRef": "BS7671_SWITCH_STD",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "MaxPerRoom": 2,
       "StandardRef": "BS 7671 Reg 553.1",
@@ -215,9 +202,7 @@
       "HeightStandardRef": "BS7671_SWITCH_STD",
       "Priority": 65,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "StandardRef": "BS 7671 Reg 553.1",
       "Notes": "2-gang light switch latch-side.",
       "VariantHint": "One Way Switch"
@@ -240,9 +225,7 @@
       "HeightStandardRef": "BS7671_SWITCH_STD",
       "Priority": 60,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "StandardRef": "BS 7671 Reg 553.1",
       "Notes": "3-gang light switch latch-side.",
       "VariantHint": "One Way Switch"
@@ -265,9 +248,7 @@
       "HeightStandardRef": "BS7671_SWITCH_STD",
       "Priority": 65,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "StandardRef": "BS 7671 Reg 553.1",
       "Notes": "1G dimmer in 35mm box."
     },
@@ -287,9 +268,7 @@
       "InsertionOrigin": "FixingCentreMidpoint",
       "PlasterOffsetMode": "Auto",
       "HeightStandardRef": "BS7671_SWITCH_STD",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 60,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
@@ -313,10 +292,7 @@
       "PlasterOffsetMode": "Auto",
       "HeightStandardRef": "BS8300_SOCKET_ACCESS",
       "AccessibilityCheck": true,
-      "ApplicableStandards": [
-        "BS8300",
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 8300", "BS 7671"],
       "Priority": 80,
       "StandardRef": "BS 8300:2018 Table 3",
       "Notes": "Accessible socket 750mm FFL."
@@ -338,9 +314,7 @@
       "PlasterOffsetMode": "Auto",
       "HeightStandardRef": "BS8300_SWITCH_ACCESS",
       "AccessibilityCheck": true,
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 80,
       "MaxPerRoom": 1,
       "StandardRef": "BS 8300:2018 Table 3",
@@ -369,6 +343,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BCO 2019 / BS 7671",
+      "ApplicableStandards": ["BCO2019", "BS 7671"],
       "Notes": "Workstation triple cluster slot 0 \u2014 13A."
     },
     {
@@ -393,6 +368,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BCO 2019 / BS 7671",
+      "ApplicableStandards": ["BCO2019", "BS 7671"],
       "Notes": "Workstation triple cluster slot 1 \u2014 13A."
     },
     {
@@ -417,6 +393,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI / BS EN 50173",
+      "ApplicableStandards": ["BICSI", "BS EN 50173"],
       "Notes": "Workstation triple cluster slot 2 \u2014 RJ45."
     },
     {
@@ -441,6 +418,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI",
+      "ApplicableStandards": ["BICSI"],
       "Notes": "AV quad cluster slot 0 \u2014 HDMI."
     },
     {
@@ -465,6 +443,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI",
+      "ApplicableStandards": ["BICSI"],
       "Notes": "AV quad cluster slot 1 \u2014 USB-C."
     },
     {
@@ -489,6 +468,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
+      "ApplicableStandards": ["BS 7671"],
       "Notes": "AV quad cluster slot 2 \u2014 13A."
     },
     {
@@ -513,6 +493,7 @@
       "Priority": 65,
       "MaxPerRoom": 1,
       "StandardRef": "BICSI",
+      "ApplicableStandards": ["BICSI"],
       "Notes": "AV quad cluster slot 3 \u2014 RJ45."
     },
     {
@@ -533,10 +514,7 @@
       "CompletionPhase": "Handover",
       "BoxFamilyTypeRegex": "(?i)Conduit_Square.*75sq",
       "BoxLocationIdParam": "STING_BOX_LOCATION_ID",
-      "ApplicableStandards": [
-        "BS7671",
-        "BS4568"
-      ],
+      "ApplicableStandards": ["BS 7671", "BS 4568"],
       "Priority": 50,
       "StandardRef": "BS 4568",
       "Notes": "First-fix square box for 1G socket."
@@ -559,10 +537,7 @@
       "CompletionPhase": "Handover",
       "BoxFamilyTypeRegex": "(?i)Conduit_Square.*75sq.*57",
       "BoxLocationIdParam": "STING_BOX_LOCATION_ID",
-      "ApplicableStandards": [
-        "BS7671",
-        "BS4568"
-      ],
+      "ApplicableStandards": ["BS 7671", "BS 4568"],
       "Priority": 50,
       "StandardRef": "BS 4568",
       "Notes": "First-fix deep square box for 2G socket."
@@ -585,10 +560,7 @@
       "CompletionPhase": "Handover",
       "BoxFamilyTypeRegex": "(?i)Conduit_Square.*75sq.*44",
       "BoxLocationIdParam": "STING_BOX_LOCATION_ID",
-      "ApplicableStandards": [
-        "BS7671",
-        "BS4568"
-      ],
+      "ApplicableStandards": ["BS 7671", "BS 4568"],
       "Priority": 50,
       "StandardRef": "BS 4568",
       "Notes": "First-fix square box for 1G switch."
@@ -608,9 +580,7 @@
       "InsertionOrigin": "BoxCentre",
       "PlasterOffsetMode": "None",
       "ConstructionPhase": "Construction",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 50,
       "MaxPerRoom": 2,
       "StandardRef": "BS 7671 / BS 5733",
@@ -632,9 +602,7 @@
       "InsertionOrigin": "BoxCentre",
       "PlasterOffsetMode": "None",
       "ConstructionPhase": "Construction",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 50,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
@@ -660,9 +628,7 @@
       "PlasterOffsetMode": "Auto",
       "BuildingType": "Office",
       "HeightStandardRef": "BS7671_SOCKET_STD",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 65,
       "StandardRef": "BCO 2019",
       "Notes": "Office desk power 1 twin per 4.5m\u00b2."
@@ -686,6 +652,7 @@
       "BuildingType": "Office",
       "Priority": 60,
       "StandardRef": "BCO 2019",
+      "ApplicableStandards": ["BCO2019"],
       "Notes": "Floor box density 1 per 9m\u00b2.",
       "VariantHint": "MK_SOCKET_FLOORBOX_DENSITY"
     },
@@ -706,9 +673,7 @@
       "PlasterOffsetMode": "None",
       "BuildingType": "Industrial",
       "HeightStandardRef": "BS7671_SOCKET_STD",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "StandardRef": "BS 7671",
       "Notes": "Metal Clad IP2X surface socket in plant."
@@ -730,9 +695,7 @@
       "PlasterOffsetMode": "None",
       "BuildingType": "Industrial",
       "HeightStandardRef": "EXTERNAL_SOCKET_STD",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 75,
       "StandardRef": "BS 7671",
       "Notes": "Metal Clad IP66 weatherproof socket."
@@ -758,9 +721,7 @@
       "PlasterOffsetMode": "Auto",
       "BuildingType": "Healthcare",
       "HeightStandardRef": "HTM0601_BEDHEAD_SOCKET",
-      "ApplicableStandards": [
-        "HTM0601"
-      ],
+      "ApplicableStandards": ["HTM 0601"],
       "Priority": 75,
       "StandardRef": "HTM 06-01",
       "Notes": "Bedhead 13A socket Grid Plus slot 0."
@@ -786,9 +747,7 @@
       "PlasterOffsetMode": "Auto",
       "BuildingType": "Healthcare",
       "HeightStandardRef": "HTM0601_BEDHEAD_SOCKET",
-      "ApplicableStandards": [
-        "HTM0601"
-      ],
+      "ApplicableStandards": ["HTM 0601"],
       "Priority": 75,
       "StandardRef": "HTM 06-01",
       "Notes": "Bedhead data slot 1."
@@ -809,9 +768,7 @@
       "PlasterOffsetMode": "Auto",
       "BuildingType": "Healthcare",
       "HeightStandardRef": "HTM0601_NURSE_CALL",
-      "ApplicableStandards": [
-        "HTM0601"
-      ],
+      "ApplicableStandards": ["HTM 0601"],
       "Priority": 80,
       "MaxPerRoom": 1,
       "StandardRef": "HTM 06-01",
@@ -832,9 +789,7 @@
       "InsertionOrigin": "FixingCentreMidpoint",
       "PlasterOffsetMode": "Auto",
       "HeightStandardRef": "FCU_SPUR_STD",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 60,
       "StandardRef": "BS 7671",
       "Notes": "Fused connection unit at 450mm FFL."
@@ -855,10 +810,7 @@
       "PlasterOffsetMode": "Auto",
       "BuildingType": "Healthcare",
       "HeightStandardRef": "HTM0601_BEDHEAD_SOCKET",
-      "ApplicableStandards": [
-        "BS7671",
-        "HTM0601"
-      ],
+      "ApplicableStandards": ["BS 7671", "HTM 0601"],
       "Priority": 75,
       "MaxPerRoom": 2,
       "StandardRef": "HTM 06-01 + BS 7671",
@@ -880,9 +832,7 @@
       "PlasterOffsetMode": "Auto",
       "BuildingType": "Residential",
       "HeightStandardRef": "BS7671_SOCKET_STD",
-      "ApplicableStandards": [
-        "BS7671"
-      ],
+      "ApplicableStandards": ["BS 7671"],
       "Priority": 70,
       "MaxPerRoom": 1,
       "StandardRef": "BS 7671",
