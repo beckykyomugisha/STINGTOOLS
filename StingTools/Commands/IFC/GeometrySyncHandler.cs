@@ -236,7 +236,7 @@ namespace StingTools.Commands.IFC
                 // skip-don't-mis-key rule. Run "Stabilize IFC GUIDs" for cross-host.
                 string ifcGuid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
 
-                var key = new ClashElementKey(docGuid, -1, (int)el.Id.Value, el.UniqueId, ifcGuid);
+                var key = new ClashElementKey(docGuid, -1, el.Id.Value, el.UniqueId, ifcGuid);
                 return new ClashMeshBuffer(key, el.Category.Name, verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex)

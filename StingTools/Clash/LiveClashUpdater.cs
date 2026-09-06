@@ -15,8 +15,11 @@ namespace StingTools.Core.Clash
             new AddInId(new Guid("3C9A4E2D-5F7B-4A12-9B8F-C1D2E3F4A5B6")),
             new Guid("3C9A4E2D-5F7B-4A12-9B8F-C1D2E3F4A5B7"));
 
-        public static readonly ConcurrentQueue<(string DocGuid, int ElementId)> DirtyQueue =
-            new ConcurrentQueue<(string, int)>();
+        // 64-bit element ids: Revit 2024+ ElementId.Value is Int64 and the
+        // deletion sentinel below negates the id, so a narrowing cast could
+        // both truncate the identity and flip the sentinel's meaning (#722).
+        public static readonly ConcurrentQueue<(string DocGuid, long ElementId)> DirtyQueue =
+            new ConcurrentQueue<(string, long)>();
 
         // Parallel queue consumed by GeometrySyncHandler (delta geometry push to Planscape).
         // Kept separate from DirtyQueue so clash detection and geometry sync can drain
@@ -64,19 +67,18 @@ namespace StingTools.Core.Clash
             {
                 var doc = data.GetDocument();
                 string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
-                // ElementId.IntegerValue is obsolete in Revit 2024+; use Value (Int64).
                 // C2 - this updater feeds CLASH only. It no longer pushes to
                 // GeometrySyncQueue: GeometrySyncUpdater owns that queue and
                 // covers every model category, whereas this trigger covers the
                 // nine categories clash cares about. Enqueuing from both would
                 // simply duplicate work for those nine.
                 foreach (var id in data.GetModifiedElementIds())
-                    DirtyQueue.Enqueue((docGuid, (int)id.Value));
+                    DirtyQueue.Enqueue((docGuid, id.Value));
                 foreach (var id in data.GetAddedElementIds())
-                    DirtyQueue.Enqueue((docGuid, (int)id.Value));
-                // Deleted elements: pushed with -1 sentinel to trigger removal from BVH.
+                    DirtyQueue.Enqueue((docGuid, id.Value));
+                // Deleted elements: pushed negated as a sentinel to trigger removal from BVH.
                 foreach (var id in data.GetDeletedElementIds())
-                    DirtyQueue.Enqueue((docGuid, -(int)id.Value));
+                    DirtyQueue.Enqueue((docGuid, -id.Value));
             }
             catch (Exception ex)
             {
