@@ -49,7 +49,51 @@ namespace StingTools.Commands.Baseline
             Merge(b.CeilingTypes, over.CeilingTypes, t => t.Name);
             Merge(b.Levels, over.Levels, l => l.Name);
             Merge(b.FamilyExpectations, over.FamilyExpectations, f => f.Category);
+            Merge(b.FamilyTypes, over.FamilyTypes, t => (t.Category ?? "") + "|" + t.TypeName);
+            Merge(b.FamilyParameters, over.FamilyParameters, f => f.Category);
+            if (over.AdoptCatalogues != null && over.AdoptCatalogues.Count > 0)
+                b.AdoptCatalogues = over.AdoptCatalogues;
             return b;
+        }
+
+        /// <summary>
+        /// Catalogue packs, merged in AFTER the project override so a project
+        /// type always wins over a pack type of the same name. Adoption is
+        /// opt-in: with no adoptCatalogues this does nothing at all.
+        /// </summary>
+        public static CatalogueAdoptionResult AdoptCatalogues(Document doc, ProjectBaseline baseline)
+        {
+            var lib = ReadCatalogues(StingToolsApp.FindDataFile("STING_TYPE_CATALOGUES.json"))
+                      ?? new TypeCatalogueLibrary();
+            try
+            {
+                var over = ReadCatalogues(StingPaths.MetaFile(doc, "_BIM_COORD", "type_catalogues.json"));
+                if (over?.Packs != null)
+                    foreach (var pk in over.Packs)
+                    {
+                        if (pk == null || string.IsNullOrWhiteSpace(pk.Id)) continue;
+                        int i = lib.Packs.FindIndex(x =>
+                            string.Equals(x.Id, pk.Id, StringComparison.OrdinalIgnoreCase));
+                        if (i >= 0) lib.Packs[i] = pk; else lib.Packs.Add(pk);
+                    }
+            }
+            catch (Exception ex) { StingLog.Warn("AdoptCatalogues override: " + ex.Message); }
+
+            return CatalogueAdopter.Adopt(baseline, lib);
+        }
+
+        private static TypeCatalogueLibrary ReadCatalogues(string path)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+                return JsonConvert.DeserializeObject<TypeCatalogueLibrary>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ReadCatalogues [" + path + "]: " + ex.Message);
+                return null;
+            }
         }
 
         private static void Merge<T>(List<T> baseList, List<T> overrides, Func<T, string> key)
@@ -78,7 +122,7 @@ namespace StingTools.Commands.Baseline
 
     internal static class BaselineModelReader
     {
-        public static ModelInventory Read(Document doc)
+        public static ModelInventory Read(Document doc, ProjectBaseline baseline = null)
         {
             var inv = new ModelInventory();
             if (doc == null) return inv;
@@ -97,8 +141,81 @@ namespace StingTools.Commands.Baseline
                 if (!inv.FamilyTypesByCategory.TryGetValue(cat, out var list))
                     inv.FamilyTypesByCategory[cat] = list = new List<string>();
                 list.Add(s.Name ?? "");
+
+                // Layer 2 needs the FAMILY name as well as the type name: a
+                // type is minted inside a family, and which family hosts it is
+                // the difference between Missing and guidance.
+                string famName = SafeFamilyName(s);
+                if (!string.IsNullOrWhiteSpace(famName))
+                {
+                    if (!inv.FamilyNamesByCategory.TryGetValue(cat, out var fams))
+                        inv.FamilyNamesByCategory[cat] = fams = new List<string>();
+                    if (!fams.Contains(famName)) fams.Add(famName);
+
+                    if (!inv.FamilyParamNames.ContainsKey(famName))
+                        inv.FamilyParamNames[famName] = ParamNamesOf(s);
+                }
+
+                RecordTypeParams(inv, cat, s, baseline);
             }
             return inv;
+        }
+
+        private static string SafeFamilyName(FamilySymbol s)
+        {
+            try { return s?.Family?.Name; }
+            catch (Exception ex) { StingLog.Warn("SafeFamilyName: " + ex.Message); return null; }
+        }
+
+        /// <summary>Every parameter name the TYPE carries, shared ones included.
+        /// A type parameter is present on all types of a family, so one symbol
+        /// answers for the family without opening it.</summary>
+        private static HashSet<string> ParamNamesOf(FamilySymbol s)
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (Parameter prm in s.Parameters)
+                {
+                    string n = prm?.Definition?.Name;
+                    if (!string.IsNullOrWhiteSpace(n)) names.Add(n.Trim());
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ParamNamesOf: " + ex.Message); }
+            return names;
+        }
+
+        /// <summary>
+        /// Collect ONLY the parameters the baseline asks about, and only for the
+        /// types it names. Reading every parameter of every symbol in a large
+        /// model is a lot of work to answer a question nobody asked.
+        /// </summary>
+        private static void RecordTypeParams(ModelInventory inv, string cat,
+                                             FamilySymbol s, ProjectBaseline baseline)
+        {
+            if (baseline?.FamilyTypes == null || baseline.FamilyTypes.Count == 0) return;
+            string typeName = s?.Name;
+            if (string.IsNullOrWhiteSpace(typeName)) return;
+
+            var wanted = baseline.FamilyTypes.FirstOrDefault(f =>
+                f != null
+                && string.Equals(f.Category?.Trim(), cat, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(f.TypeName?.Trim(), typeName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (wanted == null) return;
+
+            var vals = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            foreach (var prm in wanted.Parameters ?? new List<BaselineFamilyTypeParam>())
+            {
+                if (prm == null || string.IsNullOrWhiteSpace(prm.Name)) continue;
+                try
+                {
+                    var got = s.LookupParameter(prm.Name.Trim());
+                    if (got == null || got.StorageType != StorageType.Double) continue;
+                    vals[prm.Name.Trim()] = got.AsDouble() * 304.8;   // feet -> mm
+                }
+                catch (Exception ex) { StingLog.Warn("RecordTypeParams: " + ex.Message); }
+            }
+            if (vals.Count > 0) inv.FamilyTypeParamsMm[cat + "|" + typeName.Trim()] = vals;
         }
 
         private static IEnumerable<T> Collect<T>(Document doc) where T : Element
@@ -157,11 +274,15 @@ namespace StingTools.Commands.Baseline
 
         /// <summary>Creates exactly the findings the auditor marked Missing.
         /// Caller owns the transaction.</summary>
-        public static MintResult Apply(Document doc, ProjectBaseline baseline, BaselineAuditResult audit)
+        public static MintResult Apply(Document doc, ProjectBaseline baseline, BaselineAuditResult audit,
+                                       ModelInventory model)
         {
             var r = new MintResult();
+            // MatchKey, not Group + Name: layer 2 findings carry an explicit Key
+            // because two categories can want the same type name. Findings with
+            // no Key fall back to Group|Name, so layer 1 is unaffected.
             var missing = new HashSet<string>(
-                audit.Missing.Select(f => f.Group + "|" + f.Name), StringComparer.OrdinalIgnoreCase);
+                audit.Missing.Select(f => f.MatchKey), StringComparer.OrdinalIgnoreCase);
 
             // Materials first: the host types reference them by name.
             foreach (var m in baseline.Materials ?? new List<BaselineMaterial>())
@@ -174,6 +295,8 @@ namespace StingTools.Commands.Baseline
             MintHosts<RoofType>(doc, r, missing, "Roof types", baseline.RoofTypes, byName);
             MintHosts<CeilingType>(doc, r, missing, "Ceiling types", baseline.CeilingTypes, byName);
 
+            MintFamilyTypes(doc, r, missing, baseline, model);
+
             foreach (var l in baseline.Levels ?? new List<BaselineLevel>())
                 if (l != null && missing.Contains("Levels|" + l.Name?.Trim()))
                     Try(r, $"level '{l.Name}'", () =>
@@ -183,6 +306,101 @@ namespace StingTools.Commands.Baseline
                     });
 
             return r;
+        }
+
+        /// <summary>
+        /// Layer 2 — mint a TYPE inside a family that is already loaded.
+        ///
+        /// Nothing in this codebase duplicated a FamilySymbol before this, so
+        /// treat every failure as expected rather than exceptional: catalog- and
+        /// formula-driven vendor families refuse to take a duplicated type whose
+        /// dimensions they did not sanction, and that is a reported per-type
+        /// failure, not a crash.
+        /// </summary>
+        private static void MintFamilyTypes(Document doc, MintResult r, HashSet<string> missing,
+                                            ProjectBaseline baseline, ModelInventory model)
+        {
+            foreach (var ft in baseline.FamilyTypes ?? new List<BaselineFamilyType>())
+            {
+                if (ft == null || string.IsNullOrWhiteSpace(ft.TypeName)) continue;
+                string cat = (ft.Category ?? "").Trim(), typeName = ft.TypeName.Trim();
+                if (!missing.Contains("Family types|" + cat + "|" + typeName)) continue;
+
+                string hostFamily = BaselineAuditor.HostFamilyFor(ft, model);
+                if (string.IsNullOrWhiteSpace(hostFamily))
+                {
+                    // The audit already reported this as guidance; reaching here
+                    // would mean the audit and the minter disagree.
+                    r.Failed.Add("Family types [" + typeName + "]: no loaded family hosts it");
+                    continue;
+                }
+
+                var source = FirstSymbolOf(doc, cat, hostFamily);
+                if (source == null)
+                {
+                    r.Failed.Add("Family types [" + typeName + "]: family [" + hostFamily
+                               + "] has no type to duplicate from");
+                    continue;
+                }
+
+                FamilySymbol created = null;
+                try
+                {
+                    created = source.Duplicate(typeName) as FamilySymbol;
+                    if (created == null) throw new InvalidOperationException("Duplicate returned null");
+
+                    foreach (var prm in ft.Parameters ?? new List<BaselineFamilyTypeParam>())
+                    {
+                        if (prm == null || string.IsNullOrWhiteSpace(prm.Name)) continue;
+                        var target = created.LookupParameter(prm.Name.Trim());
+                        if (target == null || target.IsReadOnly)
+                            throw new InvalidOperationException(
+                                "parameter [" + prm.Name + "] is absent or read-only on family ["
+                                + hostFamily + "]");
+                        target.Set(prm.ValueMm / 304.8);   // mm -> feet
+                    }
+                    r.Created++;
+                }
+                catch (Exception ex)
+                {
+                    // Duplicate commits before the parameter set runs. A
+                    // half-made type named for the baseline would be read as
+                    // conforming by the next audit and the failure would become
+                    // permanent — #798, exactly.
+                    if (created != null)
+                    {
+                        try { doc.Delete(created.Id); }
+                        catch (Exception delEx)
+                        {
+                            StingLog.Warn("MintFamilyTypes rollback [" + typeName + "]: " + delEx.Message);
+                            r.Failed.Add("Family types [" + typeName + "]: " + ex.Message
+                                       + " - AND the half-made type could not be removed, so delete it by hand");
+                            continue;
+                        }
+                    }
+                    r.Failed.Add("Family types [" + typeName + "]: " + ex.Message);
+                    StingLog.Warn("MintFamilyTypes [" + typeName + "]: " + ex.Message);
+                }
+            }
+        }
+
+        private static FamilySymbol FirstSymbolOf(Document doc, string category, string familyName)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault(s =>
+                        string.Equals(s.Category?.Name, category, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(SafeFamily(s), familyName, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex) { StingLog.Warn("FirstSymbolOf: " + ex.Message); return null; }
+        }
+
+        private static string SafeFamily(FamilySymbol s)
+        {
+            try { return s?.Family?.Name; }
+            catch (Exception ex) { StingLog.Warn("SafeFamily: " + ex.Message); return null; }
         }
 
         private static void Try(MintResult r, string what, Action a)
@@ -387,8 +605,15 @@ namespace StingTools.Commands.Baseline
                 return Result.Cancelled;
             }
 
-            var audit = BaselineAuditor.Audit(BaselineRegistry.Load(doc), BaselineModelReader.Read(doc));
-            TaskDialog.Show("STING Project Baseline — audit", BaselineAuditor.Report(audit));
+            var baseline = BaselineRegistry.Load(doc);
+            var adoption = BaselineRegistry.AdoptCatalogues(doc, baseline);
+            var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc, baseline));
+            audit.BaselineProblems.AddRange(BaselineAugmenter.UnresolvableParameters(doc, baseline));
+
+            string report = BaselineAuditor.Report(audit);
+            string adopted = adoption.Summary();
+            if (!string.IsNullOrEmpty(adopted)) report = adopted + "\n\n" + report;
+            TaskDialog.Show("STING Project Baseline — audit", report);
             return Result.Succeeded;
         }
     }
@@ -407,7 +632,18 @@ namespace StingTools.Commands.Baseline
             }
 
             var baseline = BaselineRegistry.Load(doc);
-            var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc));
+            var adoption = BaselineRegistry.AdoptCatalogues(doc, baseline);
+            // The SAME inventory feeds the audit and the mint. Reading twice
+            // would let the model change between them, so Apply could mint
+            // against facts the user never saw in the report.
+            var inventory = BaselineModelReader.Read(doc, baseline);
+            var audit = BaselineAuditor.Audit(baseline, inventory);
+
+            // A shared-parameter name that the FILE does not define cannot be
+            // added to anything. Resolving it here means Apply refuses before a
+            // single family is opened, rather than half-augmenting a model and
+            // reporting the rest as failures.
+            audit.BaselineProblems.AddRange(BaselineAugmenter.UnresolvableParameters(doc, baseline));
 
             if (audit.BaselineProblems.Count > 0)
             {
@@ -424,10 +660,12 @@ namespace StingTools.Commands.Baseline
 
             // Audit first, write on confirm. Nothing reaches a live model
             // without the full list of what will change being read first.
+            string adoptedNote = adoption.Summary();
             var dlg = new TaskDialog("STING Project Baseline — apply?")
             {
                 MainInstruction = $"Create {audit.MissingCount} missing item(s)?",
-                MainContent = BaselineAuditor.Report(audit),
+                MainContent = (string.IsNullOrEmpty(adoptedNote) ? "" : adoptedNote + "\n\n")
+                            + BaselineAuditor.Report(audit),
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No
             };
@@ -437,12 +675,24 @@ namespace StingTools.Commands.Baseline
             using (var tx = new Transaction(doc, "STING Apply Project Baseline"))
             {
                 tx.Start();
-                mint = BaselineMinter.Apply(doc, baseline, audit);
+                mint = BaselineMinter.Apply(doc, baseline, audit, inventory);
                 tx.Commit();
             }
 
-            StingLog.Info($"BaselineApply: created {mint.Created}, failed {mint.Failed.Count}");
-            TaskDialog.Show("STING Project Baseline", mint.Summary()
+            // AFTER the commit, and deliberately not inside it: Document.EditFamily
+            // cannot run within an open transaction, so layer 3 sequences itself
+            // the way VisibilityEngine.Reset sequences its two mechanisms.
+            var augment = BaselineAugmenter.Apply(doc, baseline, audit);
+
+            StingLog.Info($"BaselineApply: created {mint.Created}, failed {mint.Failed.Count}, "
+                        + $"families augmented {augment.FamiliesAugmented}, "
+                        + $"augment failures {augment.Failed.Count}");
+
+            string report = mint.Summary();
+            string aug = augment.Summary();
+            if (!string.IsNullOrEmpty(aug)) report += "\n\n" + aug;
+
+            TaskDialog.Show("STING Project Baseline", report
                 + "\n\nRe-run the audit to confirm, then export a material schedule: "
                 + "types carrying tiled finish layers are what make tiling measurable.");
             return Result.Succeeded;

@@ -330,7 +330,6 @@ def main():
     ap.add_argument('--dry-run', action='store_true',
                     help='report what would change; write nothing (no backup either)')
     args = ap.parse_args()
-
     src = ROOT / 'StingTools/Data/MR_PARAMETERS.txt'
     backup = src.with_suffix('.txt.bak')
 
@@ -483,9 +482,6 @@ def main():
         src.write_text(''.join(out_lines), encoding='utf-8')
 
     print(f"\nTransformation {'PREVIEW (nothing written)' if args.dry_run else 'complete'}:")
-    # ASCII "->", not an arrow. Windows consoles default to cp1252, which cannot
-    # encode U+2192, so this line raised UnicodeEncodeError *after* the file had
-    # already been written -- the run looked failed while the write had happened.
     print(f"  _BOOL TEXT->YESNO fixes : {bool_fixed}")
     print(f"  Native type fixes       : {native_fixed}")
     print(f"  Already correct (skip)  : {already_correct}")
