@@ -143,7 +143,9 @@
         "skirting",
         "screed",
         "screed_cement",
-        "screed_sand"
+        "screed_sand",
+        "ceiling_board",
+        "ceiling_furring"
       ],
       "categories": [
         "Ceilings"

@@ -395,3 +395,12 @@ TILE,MOSAIC,ADHESIVE_KG_PER_M2,3.5,kg/m2,Mosaic sheet at 4mm notch
 TILE,MOSAIC,GROUT_KG_PER_M2,1.5,kg/m2,Joint length per m2 is several times a 300mm tile
 TILE,DEFAULT,ADHESIVE_KG_PER_M2,4.5,kg/m2,Default: ceramic at 6mm notch
 TILE,DEFAULT,GROUT_KG_PER_M2,0.5,kg/m2,Default: 2-3mm joints
+# --- CEILING: suspension-grid / furring length per m2 (MATSCHED-T2) ------
+# RATIO-DERIVED, NOT MEASURED. The model does not state grid spacing, so
+# there is nothing in it to read; no measurement standard publishes this
+# figure either. 2.7 m/m2 is a 600x600 exposed grid: main tees at 1.2 m
+# centres give 0.83 m/m2, cross tees at 600 give ~1.87 m/m2.
+# Every export that uses it carries a banner saying so. Edit per project.
+# ONE key on purpose: an unreachable row advertises coverage the export
+# does not have, which is the defect Every_Rule_Is_Reachable exists for.
+CEILING,DEFAULT,FURRING_M_PER_M2,2.7,m/m2,600x600 exposed grid - practice ratio, not a standard

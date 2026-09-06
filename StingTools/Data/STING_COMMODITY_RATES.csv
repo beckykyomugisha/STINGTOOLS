@@ -34,3 +34,5 @@ wall-tile,Boxes,45000,Ceramic wall tile 300x600 box of 8 (1.44 m2)
 tile-adhesive,Bags,35000,Cementitious tile adhesive 20kg bag
 tile-grout,Bags,25000,Tile grout 5kg bag
 skirting,m,15000,Skirting per linear metre (tile / cement / timber, as scheduled)
+ceiling-board,Sheets,45000,Gypsum ceiling board 1200x2400x12.5mm per sheet
+ceiling-furring,Lengths,12000,Ceiling furring channel / T-grid 3.6 m length

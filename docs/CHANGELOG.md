@@ -2,6 +2,84 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 248 — ceilings decomposed into nothing at all)
+
+`CeilingType` appeared in **no branch** of `CompoundTakeoffBuilder.TryBuild`. Not mishandled —
+absent. `STING Suspended Gypsum Ceiling` produced no boards, no furring and no skim, and produced
+them silently, which is indistinguishable from a model that has no ceilings.
+
+Rides the `HostLayerCache` primitive extracted in Phase 247, which is why the three layer tasks are
+sequential and not parallel.
+
+**Emitted.** `ceiling_board` (m² → **Sheets** at 2.88 m² for a 1200×2400 board) ·
+`ceiling_furring` (m → **Lengths** of 3.6 m) · and for a wet coat, the existing `plaster` /
+`plaster_cement` / `plaster_sand` kinds rather than ceiling-only twins of them — a bag of cement is
+a bag of cement, and two commodities would split one order into two part-loads and round each up
+separately.
+
+**Board and plaster are two findings, not one classification.** Plasterboard skimmed after fixing
+carries both, and the model states both; collapsing them would drop whichever lost. They can
+nonetheless never accept the same layer: board wins outright inside `IsCeilingPlaster`.
+
+**Furring is ratio-derived and says so in three places.** The model does not state grid spacing and
+no measurement standard publishes the figure, so `CEILING,DEFAULT,FURRING_M_PER_M2` (2.7 m/m² for a
+600×600 exposed grid) is a practice ratio. It is qualified on the **row description**, on the
+**commodity rule's description** (which is what the workbook actually prints), and by a **banner**
+on the document — and the banner is conditional on furring having been derived at all, because a
+banner qualifying a row that was never emitted is noise, and noise is how real banners come to be
+ignored. Furring also rides on the **board**, not on the ceiling: a skim on a concrete soffit has
+no grid, and emitting one would invent a frame the model never described.
+
+**Nothing is invented when a driver is missing.** No furring ratio → board but no furring. No
+stated skim thickness → the plastered area but no cement and no sand. No recognised finish → the
+composite line, not an empty section. Ceiling **paint** is not emitted at all: nothing in the model
+says whether a ceiling is painted, and inferring it from the ceiling's existence is the guess that
+priced whole walls as paint in the rules withdrawn by #710.
+
+**Two defects were caught by tests before they shipped, and both are recorded in the code.**
+
+1. The board pattern matched bare `gypsum`, so **"Gypsum Skim" — a wet coat — classified as sheets
+   of plasterboard**, wrong in the count, the rate and the trade. A board *word* is now required.
+   Gypsum is the material; board is the product.
+2. The exclusion list carried bare `acoustic` and bare `metal`, which would have **rejected
+   "Acoustic Plasterboard", a genuine 1200×2400 sheet**. Over-exclusion is not the safe direction —
+   it drops a real material silently, which is precisely the omission this task exists to fix. It
+   now names product *forms*, not adjectives.
+
+**Two gates were found BLIND during the break-it pass, and that is the part worth reading.** Both
+passed with the thing they existed to protect deleted:
+
+* `Things_Not_Bought_By_The_Sheet_Are_Not_Board` was green with the entire exclusion list removed.
+  After the board pattern was narrowed, none of its inputs carried a board word, so they were turned
+  away by the positive pattern and **the exclusion never ran**. A second test now uses names that
+  *do* match the board pattern (`"PVC Wall Board"`, `"Timber Wall Board"`), so the exclusion is
+  load-bearing and can fail.
+* `Both_Ceiling_Kinds_Route_To_Finishes` was green with **both kinds deleted from the stage
+  library**, because the *category* `Ceilings` already routes to finishes. It now also resolves
+  against `Walls`, which routes to SUPERSTRUCTURE, so it proves what the cross-cutting requirement
+  actually asks: kind beats category.
+
+Both are the failure mode this codebase has been bitten by three times — a test that has only ever
+been seen passing, passing for a reason other than the one it claims.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 520 → **581 green**. All
+four gates pass. **Twenty-one deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored** — furring emitted for a soffit skim, an invented furring ratio, an invented
+skim thickness, the derived-row qualification dropped from the engine and again from the commodity
+rule, furring emitted in m², bare `gypsum` re-admitted as board, the exclusion list deleted, the
+exclusion over-widened, board/plaster disjointness removed, the lookup key misspelled, the ratio put
+outside any believable grid, the sheet size wrong, board sold in fractional sheets, furring's source
+unit changed, the baseline rate removed (which also fires the pre-existing
+`Every_Commodity_Rule_Has_A_Baseline_Rate`), the stage route dropped, `ceiling_board` wrongly
+declared an intermediate, and four ways of making the tally lie.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone.* `ReadCeilingFinish`,
+`BuildCeiling` and the `Ceilings` branch of `TryBuild` have **never executed against a real model**,
+and neither has the layer reader they sit on. The runner's opening gate — a real export showing
+tiling under FINISHES — **has not been satisfied**, so the whole layer-reading path is unverified
+and ceilings inherit that status in full. Proven here is the arithmetic, the two classifiers, the
+diagnostic message, the banner condition, and the four shipped-data seams.
+
 #### Completed (Phase 247 — the screed that contributed nothing)
 
 `STING RC Slab 150 - Ceramic Tiled` carries a 40 mm **Cement Screed** Substrate layer. It reached

@@ -26,7 +26,8 @@ namespace StingTools.BOQ.Takeoff
                                     // "plaster_cement" | "plaster_sand" | "concrete" |
                                     // "rebar" | "formwork" | "floor_tile" |
                                     // "wall_tile" | "tile_adhesive" | "tile_grout" |
-                                    // "screed" | "screed_cement" | "screed_sand"
+                                    // "screed" | "screed_cement" | "screed_sand" |
+                                    // "ceiling_board" | "ceiling_furring"
         public string Description;
         public string Unit;         // "m2" | "m3" | "nr" | "kg" | "bag"
         public double Quantity;
@@ -111,6 +112,41 @@ namespace StingTools.BOQ.Takeoff
         public string ScreedLabel;       // material name, for the description
         public double CementBagsPerM3;   // from the SCREED mix (MATERIAL_LOOKUP)
         public double SandRatio;         // m³ sand per m³ of screed
+    }
+
+    /// <summary>
+    /// MATSCHED-T2 — a ceiling, read from its own compound structure.
+    ///
+    /// `CeilingType` appeared NOWHERE in the take-off, so a suspended gypsum
+    /// ceiling yielded zero materials: no boards, no furring, no skim. It
+    /// yielded them silently, which looks exactly like a model with no ceilings.
+    ///
+    /// Board and plaster are two independent findings, not one classification.
+    /// A plasterboard ceiling skimmed after fixing genuinely carries both, and
+    /// the model states both; collapsing them into a single "ceiling finish"
+    /// would drop whichever lost.
+    /// </summary>
+    public struct CeilingInput
+    {
+        public double AreaM2;
+
+        /// <summary>Board material name, or "" when no board layer. Non-empty is
+        /// the ONLY condition under which furring is emitted — boards need a
+        /// frame to fix to, a skim on a concrete soffit does not.</summary>
+        public string BoardLabel;
+
+        /// <summary>RATIO-DERIVED, not measured: the model does not state grid
+        /// spacing. 0 emits no furring row at all.</summary>
+        public double FurringMPerM2;
+
+        /// <summary>Plaster/skim material name, or "" when no such layer.</summary>
+        public string PlasterLabel;
+        /// <summary>From the layer's own declared width. 0 emits the plastered
+        /// AREA but no cement and no sand — the volume driver is missing, and a
+        /// default coat thickness would be an invention.</summary>
+        public double PlasterThicknessM;
+        public double PlasterCementBagsPerM3;
+        public double PlasterSandRatio;
     }
 
     public struct RcElementInput
@@ -463,6 +499,60 @@ namespace StingTools.BOQ.Takeoff
             if (s.SandRatio > 0)
                 lines.Add(new CompoundLine("screed_sand", "Screed — sand", "m3",
                     vol * s.SandRatio, SecPlaster));
+
+            return lines;
+        }
+
+        /// <summary>
+        /// MATSCHED-T2 — ceiling constituents.
+        ///
+        /// Emits board (m², converted to sheets by the supplier rule), furring
+        /// (m, RATIO-DERIVED and flagged as such) and a wet plaster coat with
+        /// its cement and sand — reusing the existing plaster kinds rather than
+        /// minting ceiling-only twins of them, because a bag of cement is a bag
+        /// of cement and two commodities would split one order into two
+        /// part-loads and round each up separately.
+        ///
+        /// Ceiling PAINT is deliberately not emitted. Nothing in the model
+        /// states whether a ceiling is painted, and inferring it from the fact
+        /// that a ceiling exists is the same guess that priced whole walls as
+        /// paint in the rules withdrawn by #710.
+        /// </summary>
+        public static List<CompoundLine> Ceiling(CeilingInput c)
+        {
+            var lines = new List<CompoundLine>();
+            double area = Math.Max(0, c.AreaM2);
+            if (area <= 0) return lines;
+
+            string board = (c.BoardLabel ?? "").Trim();
+            if (board.Length > 0)
+            {
+                lines.Add(new CompoundLine("ceiling_board", $"Ceiling board — {board}",
+                    "m2", area, SecPlaster));
+
+                // Furring rides on the BOARD, not on the ceiling. A skim coat on
+                // a concrete soffit has no grid, and emitting one for it would
+                // invent a frame the model never described.
+                if (c.FurringMPerM2 > 0)
+                    lines.Add(new CompoundLine("ceiling_furring",
+                        "Ceiling furring / suspension grid (derived from area — not measured)",
+                        "m", area * c.FurringMPerM2, SecPlaster));
+            }
+
+            string plaster = (c.PlasterLabel ?? "").Trim();
+            if (plaster.Length > 0)
+            {
+                lines.Add(new CompoundLine("plaster", $"Ceiling plaster — {plaster}",
+                    "m2", area, SecPlaster));
+
+                double vol = area * Math.Max(0, c.PlasterThicknessM);
+                if (vol > 0 && c.PlasterCementBagsPerM3 > 0)
+                    lines.Add(new CompoundLine("plaster_cement", "Ceiling plaster — cement", "bag",
+                        vol * c.PlasterCementBagsPerM3, SecPlaster));
+                if (vol > 0 && c.PlasterSandRatio > 0)
+                    lines.Add(new CompoundLine("plaster_sand", "Ceiling plaster — sand", "m3",
+                        vol * c.PlasterSandRatio, SecPlaster));
+            }
 
             return lines;
         }
