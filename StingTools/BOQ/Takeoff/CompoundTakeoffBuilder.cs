@@ -221,17 +221,23 @@ namespace StingTools.BOQ.Takeoff
             // structure this path will not measure: a timber or screeded deck
             // still has a tiled area, and dropping the element wholesale would
             // lose it. MAT-SCHED-3.
-            var tiling = TilingConstituents(doc, el, areaM2, isWall: false, faces: 1);
+            var finishes = TilingConstituents(doc, el, areaM2, isWall: false, faces: 1);
+
+            // MATSCHED-T1 — the screed under that finish. Read from the same
+            // compound structure and, like tiling, independent of whether this
+            // path can measure the STRUCTURE: a timber deck still has a screed,
+            // and dropping the element wholesale would lose it.
+            finishes.AddRange(ScreedConstituents(doc, el, areaM2));
 
             if (!isRc)
-                return tiling.Count > 0
-                    ? Materialise(doc, el, tiling, csvRates, "A", new Resolution())
-                    : null;   // non-RC, untiled floor → composite fallback
+                return finishes.Count > 0
+                    ? Materialise(doc, el, finishes, csvRates, "A", new Resolution())
+                    : null;   // non-RC, unfinished floor → composite fallback
 
             double grossM3 = ReadVolumeM3(el);
             if (grossM3 <= 0)
-                return tiling.Count > 0
-                    ? Materialise(doc, el, tiling, csvRates, "A", new Resolution())
+                return finishes.Count > 0
+                    ? Materialise(doc, el, finishes, csvRates, "A", new Resolution())
                     : null;
 
             // MAT-4 — parameter-driven net-concrete resolution.
@@ -259,7 +265,7 @@ namespace StingTools.BOQ.Takeoff
                     FormworkM2 = net.IsVoid ? 0 : areaM2  // don't take gross soffit for void slabs
                 });
             }
-            constituents.AddRange(tiling);
+            constituents.AddRange(finishes);
             if (constituents.Count == 0) return null;
             return Materialise(doc, el, constituents, csvRates, "S", new Resolution());
         }
@@ -391,6 +397,9 @@ namespace StingTools.BOQ.Takeoff
                 case "mortar_cement": return "Cement";
                 case "mortar_sand": return "Sand";
                 case "plaster": return "Plaster";
+                case "screed": return "Screed";
+                case "screed_cement": return "Cement";
+                case "screed_sand": return "Sand";
                 case "paint_interior": return "Painting";
                 case "paint_exterior": return "Painting";
                 case "plaster_cement": return "Cement";
@@ -669,6 +678,242 @@ namespace StingTools.BOQ.Takeoff
             public static string Summary() => Tally.Summary();
         }
 
+        // -- the shared layer walk (MATSCHED-T1) -----------------------------
+        //
+        //  ReadTiledFinish used to own the CompoundStructure walk outright, and
+        //  it was tile-specific: it looked at Finish1/Finish2 only and asked one
+        //  question of each layer. A 40 mm Substrate screed sitting in the same
+        //  structure was therefore invisible, not by decision but by omission.
+        //
+        //  The walk is now a primitive that returns EVERY layer with its
+        //  function, its material name and its thickness; each consumer applies
+        //  its own predicate and keeps its own tally. Nothing about the tile
+        //  answer changed - the same layers, the same predicate, the same counts.
+
+        /// <summary>One compound-structure layer, as the take-off needs it.</summary>
+        internal struct HostLayer
+        {
+            public MaterialFunctionAssignment Function;
+            /// <summary>"" when the layer names no material - that is a distinct
+            /// finding from a material that failed a predicate, and the tallies
+            /// report the two separately.</summary>
+            public string MaterialName;
+            public double ThicknessM;
+        }
+
+        /// <summary>Feet to metres. Exact; CompoundStructureLayer.Width is internal units.</summary>
+        private const double FeetToM = 0.3048;
+
+        /// <summary>
+        /// Per-run compound-structure cache, keyed by TYPE. A compound structure
+        /// belongs to the type, so this stops re-walking the same layers once per
+        /// instance - the reason the tile scan was type-keyed in the first place.
+        /// </summary>
+        internal static class HostLayerCache
+        {
+            private static readonly Dictionary<long, List<HostLayer>> Cache =
+                new Dictionary<long, List<HostLayer>>();
+
+            public static void Reset() { Cache.Clear(); }
+
+            /// <summary>
+            /// The type's layers, or NULL when it declares no compound structure
+            /// at all. Null and empty are DIFFERENT answers: "the model does not
+            /// describe this build-up" is not "the build-up is empty", and only
+            /// the first is a reason for a consumer to report nothing inspected.
+            /// </summary>
+            public static List<HostLayer> Get(Document doc, Element el)
+            {
+                var typeId = el?.GetTypeId();
+                if (doc == null || typeId == null || typeId == ElementId.InvalidElementId) return null;
+                long key = typeId.Value;
+                if (Cache.TryGetValue(key, out var cached)) return cached;
+
+                List<HostLayer> hit = null;
+                try
+                {
+                    var hoa = doc.GetElement(typeId) as HostObjAttributes;
+                    var cs = hoa?.GetCompoundStructure();
+                    var layers = cs?.GetLayers();
+                    if (layers != null)
+                    {
+                        hit = new List<HostLayer>(layers.Count);
+                        foreach (var layer in layers)
+                        {
+                            if (layer == null) continue;
+                            string name = "";
+                            if (layer.MaterialId != null
+                             && layer.MaterialId != ElementId.InvalidElementId
+                             && doc.GetElement(layer.MaterialId) is Material mat
+                             && !string.IsNullOrWhiteSpace(mat.Name))
+                                name = mat.Name.Trim();
+                            hit.Add(new HostLayer
+                            {
+                                Function = layer.Function,
+                                MaterialName = name,
+                                ThicknessM = layer.Width * FeetToM
+                            });
+                        }
+                    }
+                    Cache[key] = hit;   // cached only on success
+                }
+                catch (Exception ex)
+                {
+                    // NOT cached: a failed read is not the same finding as a type
+                    // with no compound structure, and caching it as one would make
+                    // a transient failure look like a permanent fact about the model.
+                    StingLog.WarnRateLimited("HostLayers", $"HostLayerCache {el?.Id}: {ex.Message}");
+                    return null;
+                }
+                return hit;
+            }
+        }
+
+        // -- screed scan (MATSCHED-T1) ---------------------------------------
+
+        /// <summary>A type's screed thickness (summed over its screed layers) and its name.</summary>
+        internal struct ScreedHit
+        {
+            public double ThicknessM;
+            public string Label;
+        }
+
+        /// <summary>Per-run screed-scan cache and tally. See ScreedScanTally for
+        /// why the counts exist.</summary>
+        internal static class ScreedScan
+        {
+            private static readonly Dictionary<long, ScreedHit> Cache = new Dictionary<long, ScreedHit>();
+
+            public static readonly StingTools.Core.MaterialSchedule.ScreedScanTally Tally =
+                new StingTools.Core.MaterialSchedule.ScreedScanTally();
+
+            public static void Reset() { Cache.Clear(); Tally.Reset(); }
+
+            public static bool TryGet(long typeId, out ScreedHit hit) => Cache.TryGetValue(typeId, out hit);
+            public static void Store(long typeId, ScreedHit hit) { Cache[typeId] = hit; }
+            public static string Summary() => Tally.Summary();
+        }
+
+        /// <summary>Reset every per-run layer scan. Called once per material-schedule
+        /// build, before the take-off: a stale count from a previous export answers
+        /// the wrong question.</summary>
+        internal static void ResetLayerScans()
+        {
+            HostLayerCache.Reset();
+            TileFinishScan.Reset();
+            ScreedScan.Reset();
+        }
+
+        /// <summary>
+        /// Layer functions a screed can legitimately occupy. Substrate is the
+        /// ordinary case - a screed under a tiled or vinyl floor. Finish1/Finish2
+        /// are admitted too because a granolithic screed IS the wearing surface;
+        /// restricting to Substrate would silently drop it. There is no risk of
+        /// measuring a tiled face twice: FinishTextClassifier.IsScreed returns
+        /// false for anything IsTile accepts, by construction.
+        /// </summary>
+        private static bool IsScreedCandidateFunction(MaterialFunctionAssignment f)
+            => f == MaterialFunctionAssignment.Substrate
+            || f == MaterialFunctionAssignment.Finish1
+            || f == MaterialFunctionAssignment.Finish2;
+
+        /// <summary>Screed layers on a host type: total thickness, named by the first.</summary>
+        private static ScreedHit ReadScreed(Document doc, Element el)
+        {
+            try
+            {
+                var typeId = el?.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return default(ScreedHit);
+                long key = typeId.Value;
+                if (ScreedScan.TryGet(key, out var cached)) return cached;
+
+                var layers = HostLayerCache.Get(doc, el);
+                if (layers == null) { ScreedScan.Store(key, default(ScreedHit)); return default(ScreedHit); }
+
+                ScreedScan.Tally.TypesInspected++;
+                double thk = 0; string label = ""; bool anyCandidate = false;
+                foreach (var layer in layers)
+                {
+                    if (!IsScreedCandidateFunction(layer.Function)) continue;
+                    anyCandidate = true;
+                    if (string.IsNullOrEmpty(layer.MaterialName)) continue;
+                    if (!StingTools.Core.MaterialSchedule.FinishTextClassifier.IsScreed(layer.MaterialName))
+                    {
+                        // Recorded, not discarded: if the pattern is the thing
+                        // that is wrong, these names are the evidence for it.
+                        ScreedScan.Tally.RejectedMaterials.Add(layer.MaterialName);
+                        continue;
+                    }
+                    if (layer.ThicknessM <= 0)
+                    {
+                        // The name was right and the DRIVER is missing. Emit
+                        // nothing and say so, rather than assume a thickness.
+                        ScreedScan.Tally.MatchedButZeroThickness++;
+                        continue;
+                    }
+                    thk += layer.ThicknessM;
+                    if (label.Length == 0) label = layer.MaterialName;
+                }
+                if (anyCandidate) ScreedScan.Tally.TypesWithCandidateLayer++;
+                if (thk > 0) ScreedScan.Tally.TypesMatched++;
+
+                var hit = new ScreedHit { ThicknessM = thk, Label = label };
+                ScreedScan.Store(key, hit);
+                return hit;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("ScreedFinish", $"ReadScreed {el?.Id}: {ex.Message}");
+                return default(ScreedHit);
+            }
+        }
+
+        /// <summary>
+        /// Screed constituents for a host, or an empty list when it carries no
+        /// screed layer. Wired into the FLOOR/ROOF path only: a screed is laid on
+        /// a horizontal surface, and a wall's "sand-cement" substrate is its
+        /// render, which the wall path already measures as plaster.
+        /// </summary>
+        private static List<CompoundLine> ScreedConstituents(Document doc, Element el, double areaM2)
+        {
+            var empty = new List<CompoundLine>();
+            if (areaM2 <= 0) return empty;
+
+            var found = ReadScreed(doc, el);
+            if (found.ThicknessM <= 0) return empty;
+
+            var mix = ScreedMix(found.Label);
+            return CompoundTakeoff.Screed(new ScreedInput
+            {
+                AreaM2 = areaM2,
+                ThicknessM = found.ThicknessM,
+                ScreedLabel = found.Label,
+                CementBagsPerM3 = mix.CementBagsPerM3,
+                SandRatio = mix.SandRatio
+            });
+        }
+
+        /// <summary>
+        /// Screed mix ratios for a material name, from the SCREED rows that
+        /// MATERIAL_LOOKUP already ships. Internal so the shipped-data test
+        /// resolves the keys through the SAME key composition the builder uses —
+        /// a key the builder spells one way and the CSV another is not an error,
+        /// it is a zero, and a zero drops the cement and sand rows without a word.
+        ///
+        /// Two SCREED properties are deliberately NOT read:
+        ///   * THICKNESS_M — the compound-structure layer states the thickness,
+        ///     and falling back to a table default would invent a screed volume
+        ///     for a layer that declares none. A missing driver emits nothing.
+        ///   * WASTE_PCT — wastage lives in exactly one place, the supplier-unit
+        ///     rule. Applying it here as well is what put ~10% on blocks.
+        /// </summary>
+        internal static (double CementBagsPerM3, double SandRatio) ScreedMix(string screedName)
+        {
+            string key = StingTools.Core.MaterialSchedule.FinishTextClassifier.ScreedKey(screedName);
+            return (Prop($"SCREED {key}", "MIX_CEMENT_BAGS_PER_M3", "SCREED DEFAULT"),
+                    Prop($"SCREED {key}", "MIX_SAND_RATIO", "SCREED DEFAULT"));
+        }
+
         /// <summary>Tiled finish layers on a host type: how many, and named by the first.</summary>
         private static (int Faces, string Label) ReadTiledFinish(Document doc, Element el)
         {
@@ -679,34 +924,29 @@ namespace StingTools.BOQ.Takeoff
                 long key = typeId.Value;
                 if (TileFinishScan.TryGet(key, out var cached)) return cached;
 
-                var hoa = doc?.GetElement(typeId) as HostObjAttributes;
-                var cs = hoa?.GetCompoundStructure();
-                var layers = cs?.GetLayers();
+                var layers = HostLayerCache.Get(doc, el);
                 if (layers == null) { TileFinishScan.Store(key, (0, "")); return (0, ""); }
 
                 TileFinishScan.Tally.TypesInspected++;
                 int faces = 0; string label = ""; bool anyFinishLayer = false;
                 foreach (var layer in layers)
                 {
-                    if (layer == null) continue;
                     // Finish layers only. A tile is never Structure or Substrate,
                     // and admitting those would count a screed as tiling.
                     if (layer.Function != MaterialFunctionAssignment.Finish1
                      && layer.Function != MaterialFunctionAssignment.Finish2) continue;
                     anyFinishLayer = true;
-                    if (layer.MaterialId == null || layer.MaterialId == ElementId.InvalidElementId) continue;
-                    if (!(doc.GetElement(layer.MaterialId) is Material mat)) continue;
-                    if (string.IsNullOrWhiteSpace(mat.Name)) continue;
-                    if (!StingTools.Core.MaterialSchedule.FinishTextClassifier.IsTile(mat.Name))
+                    if (string.IsNullOrEmpty(layer.MaterialName)) continue;
+                    if (!StingTools.Core.MaterialSchedule.FinishTextClassifier.IsTile(layer.MaterialName))
                     {
                         // Recorded, not discarded: if the pattern is the thing
                         // that is wrong, these names are the evidence for it.
-                        TileFinishScan.Tally.RejectedMaterials.Add(mat.Name.Trim());
+                        TileFinishScan.Tally.RejectedMaterials.Add(layer.MaterialName);
                         continue;
                     }
 
                     faces++;
-                    if (label.Length == 0) label = mat.Name.Trim();
+                    if (label.Length == 0) label = layer.MaterialName;
                 }
                 if (anyFinishLayer) TileFinishScan.Tally.TypesWithFinishLayer++;
                 if (faces > 0) TileFinishScan.Tally.TypesMatched++;

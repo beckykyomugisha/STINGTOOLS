@@ -12,7 +12,8 @@
       "defaultWastagePct": 2.5,
       "matchKinds": [
         "mortar_cement",
-        "plaster_cement"
+        "plaster_cement",
+        "screed_cement"
       ],
       "matchCategories": [],
       "matchTypePatterns": [],
@@ -28,7 +29,8 @@
       "defaultWastagePct": 5.0,
       "matchKinds": [
         "mortar_sand",
-        "plaster_sand"
+        "plaster_sand",
+        "screed_sand"
       ],
       "matchCategories": [],
       "matchTypePatterns": [],

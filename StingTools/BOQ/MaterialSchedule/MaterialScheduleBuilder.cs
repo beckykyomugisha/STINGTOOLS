@@ -45,7 +45,7 @@ namespace StingTools.BOQ.MaterialSchedule
             // Before the take-off, not after: the scan counts what THIS run
             // inspected, and a stale count from a previous export would answer
             // the wrong question.
-            Takeoff.CompoundTakeoffBuilder.TileFinishScan.Reset();
+            Takeoff.CompoundTakeoffBuilder.ResetLayerScans();
 
             var boq = BOQCostManager.BuildBOQDocument(doc);
             var inputs = new AggregatorInputs
@@ -129,6 +129,12 @@ namespace StingTools.BOQ.MaterialSchedule
             // failed to recognise them, and only the denominator tells them apart.
             string tileScan = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Summary();
             if (!string.IsNullOrEmpty(tileScan)) result.Warnings.Add(tileScan);
+
+            // Same contract, same reason (MATSCHED-T1): a schedule with no screed
+            // cement means one of four unrelated things, and only the denominator
+            // tells them apart.
+            string screedScan = Takeoff.CompoundTakeoffBuilder.ScreedScan.Summary();
+            if (!string.IsNullOrEmpty(screedScan)) result.Warnings.Add(screedScan);
 
             string roomScan = roomTally.Summary();
             if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);

@@ -140,7 +140,10 @@
         "wall_tile",
         "tile_adhesive",
         "tile_grout",
-        "skirting"
+        "skirting",
+        "screed",
+        "screed_cement",
+        "screed_sand"
       ],
       "categories": [
         "Ceilings"
@@ -228,6 +231,14 @@
         "plaster_sand"
       ],
       "note": "plastered area; bought as cement and sand below"
+    },
+    {
+      "kind": "screed",
+      "children": [
+        "screed_cement",
+        "screed_sand"
+      ],
+      "note": "screeded area; bought as cement and sand below"
     }
   ]
 }
