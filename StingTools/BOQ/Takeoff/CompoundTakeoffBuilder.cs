@@ -94,6 +94,18 @@ namespace StingTools.BOQ.Takeoff
                     return BuildWall(doc, el, csvRates);
                 if (cat.IndexOf("Floor", StringComparison.OrdinalIgnoreCase) >= 0)
                     return BuildRcSlab(doc, el, csvRates);
+                // A concrete roof slab is a slab. Until now Roofs decomposed into
+                // nothing, so 856 m2 of 225mm roof reached one export as three
+                // unpriced area rows: the supplier table could not convert them
+                // (they are not sheets or tiles) and the take-off never offered
+                // concrete, rebar or formwork to price instead.
+                //
+                // requireExplicitConcrete, unlike the Floors path: a floor with no
+                // material assigned is almost always a slab, whereas an unassigned
+                // ROOF is just as likely to be sheeting, and calling that concrete
+                // would invent 137 m3 that does not exist.
+                if (cat.IndexOf("Roof", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return BuildRcSlab(doc, el, csvRates, requireExplicitConcrete: true);
                 if (cat.IndexOf("Structural Framing", StringComparison.OrdinalIgnoreCase) >= 0
                     || cat.IndexOf("Beam", StringComparison.OrdinalIgnoreCase) >= 0)
                     return BuildRcBeam(doc, el, csvRates);
@@ -188,10 +200,14 @@ namespace StingTools.BOQ.Takeoff
 
         // ── RC slab (concrete net + rebar + formwork) ───────────────────────
         private static List<BOQLineItem> BuildRcSlab(Document doc, Element el,
-            Dictionary<string, (double rate, string unit)> csvRates)
+            Dictionary<string, (double rate, string unit)> csvRates,
+            bool requireExplicitConcrete = false)
         {
             string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
-            if (!(material.Contains("concrete") || material.Contains("rc") || material.Length == 0))
+            bool isConcrete = material.Contains("concrete") || material.Contains("rc");
+            // Blank material reads as concrete for a FLOOR and as unknown for a
+            // roof — see the Roofs branch in TryBuild.
+            if (!isConcrete && (requireExplicitConcrete || material.Length != 0))
                 return null;   // non-RC floor (timber deck etc.) → composite fallback
 
             double grossM3 = ReadVolumeM3(el);

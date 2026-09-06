@@ -47,6 +47,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\Reconciler.cs" Link="MaterialSchedule\Reconciler.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ManualRowPlacer.cs" Link="MaterialSchedule\ManualRowPlacer.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\SiteToolsCalculator.cs" Link="MaterialSchedule\SiteToolsCalculator.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\IntermediateMeasures.cs" Link="MaterialSchedule\IntermediateMeasures.cs" />
     <Compile Include="..\StingTools\Core\ExportRouteMerge.cs" Link="ExportRouteMerge.cs" />
   </ItemGroup>
 

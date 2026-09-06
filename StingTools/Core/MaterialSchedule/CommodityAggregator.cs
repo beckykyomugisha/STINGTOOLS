@@ -34,6 +34,10 @@ namespace StingTools.Core.MaterialSchedule
         public List<string> ExcludedCategories = new List<string>();
         /// <summary>Description/type substrings that are never materials.</summary>
         public List<string> ExcludedDescriptionPatterns = new List<string>();
+        /// <summary>Categories no description pattern may exclude — see StageLibrary.</summary>
+        public List<string> ExclusionProtectedCategories = new List<string>();
+        /// <summary>Intermediate measures and their purchasable constituents.</summary>
+        public List<IntermediateMeasureRule> IntermediateMeasures = new List<IntermediateMeasureRule>();
         public CommodityRateResolver Rates;
         public MaterialScheduleOptions Options = new MaterialScheduleOptions();
     }
@@ -59,6 +63,9 @@ namespace StingTools.Core.MaterialSchedule
             var excluded = new HashSet<string>(
                 input.ExcludedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
 
+            var protectedCats = new HashSet<string>(
+                input.ExclusionProtectedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+
             foreach (var row in input.Constituents ?? new List<ConstituentInput>())
             {
                 if (row == null) continue;
@@ -77,7 +84,8 @@ namespace StingTools.Core.MaterialSchedule
                 // Not a material despite a legitimate category — an opening, a
                 // muntin pattern, a trim. Blank patterns are skipped: "".IndexOf
                 // returns 0 and would exclude the entire model.
-                if (patterns.Count > 0)
+                if (patterns.Count > 0
+                    && !(!string.IsNullOrWhiteSpace(row.Category) && protectedCats.Contains(row.Category.Trim())))
                 {
                     string hay = (row.Description ?? "") + " " + (row.TypeName ?? "");
                     bool hit = false;
@@ -103,7 +111,8 @@ namespace StingTools.Core.MaterialSchedule
                 // wall paint under the frame, because "Walls" routes there.
                 string stageId = !string.IsNullOrWhiteSpace(rule?.StageId)
                     ? rule.StageId
-                    : stageIndex.Resolve(row.ConstituentKind, row.Category, row.LevelCode);
+                    : stageIndex.Resolve(row.ConstituentKind, row.Category, row.LevelCode,
+                                         ((row.TypeName ?? "") + " " + (row.Description ?? "")).Trim());
 
                 // No rule → the row still appears, keyed by its own description and
                 // carrying its measured unit. Silently dropping it would lose real
@@ -119,7 +128,8 @@ namespace StingTools.Core.MaterialSchedule
                         Rule = rule,
                         Description = rule?.Description ?? row.Description ?? commodityKey,
                         Spec = rule?.Spec ?? "",
-                        FallbackUnit = row.Unit ?? ""
+                        FallbackUnit = row.Unit ?? "",
+                        SourceKind = row.ConstituentKind ?? ""
                     };
                     acc[k] = a;
                 }
@@ -193,6 +203,7 @@ namespace StingTools.Core.MaterialSchedule
                         RateUGX = rate.RateUGX,
                         RateSource = rate.Source,
                         TraceRefs = a.TraceRefs,
+                        SourceKind = a.SourceKind,
                         ConversionBlocked = a.ConversionBlocked,
                         ConversionNote = a.ConversionNote
                     });
@@ -202,6 +213,11 @@ namespace StingTools.Core.MaterialSchedule
             }
 
             StageMapper.AssignLetters(doc.Stages);
+
+            // AFTER assembly: a row is only an intermediate if the things bought
+            // in its place actually reached the document, which cannot be known
+            // while the rows are still being accumulated.
+            IntermediateMeasureMarker.Apply(doc, input.IntermediateMeasures);
             return doc;
         }
 
@@ -225,6 +241,7 @@ namespace StingTools.Core.MaterialSchedule
             public string Description = "";
             public string Spec = "";
             public string FallbackUnit = "";
+            public string SourceKind = "";
             public double SourceQuantity;
             public bool ConversionBlocked;
             public string ConversionNote = "";
