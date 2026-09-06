@@ -189,7 +189,6 @@ screens (`Planscape/app/deliverables/`, `Planscape/app/stages/`), the web app ha
 
 1. **L1 + L3** — the `"PM"` gate and the role vocabulary. Live permissions hole; fix the vocabulary
    once and L1 falls out.
-2. **L2** — seat-count inversion. Needs a product decision on which role consumes an author seat.
 2. ~~**L2** — seat-count inversion. Needs a product decision on which role consumes an author seat.~~ **CLOSED since this was measured.** The product decision went the other way: the Authors and Coordinators seat axes were deleted rather than corrected, so there is no author seat to invert. `QuotaGuardService` now counts projects and storage only, and a stray `[Quota(QuotaAxis.Authors)]` is a compile error. A characterisation test written for the old behaviour was drafted alongside this audit and is deliberately not landed — it cannot compile against a method that no longer exists.
 3. **W1** — close the transmittal loop. Smallest gap between "server-complete" and "user-visible".
 4. **N1** — rename, before anything else is built on either meaning of "deliverable".
