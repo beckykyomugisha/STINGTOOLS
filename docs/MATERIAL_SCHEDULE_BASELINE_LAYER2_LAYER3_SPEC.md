@@ -216,9 +216,11 @@ Family materials: 47 door/window type(s) inspected, 0 declare a leaf or frame ma
 |---|---|---|
 | **B1** | Layer 2 schema + audit + mint + rollback + tests | 5h |
 | **B2** | Layer 3 schema + shared-param resolution + augment + audit + tests | 5h |
-| **B3** | East African type catalogue as data — **after** B1, and after human sign-off on the list | 2h |
+| **B3** | Catalogue-pack mechanism + one provisional `EA-RESIDENTIAL-V1` pack (§10) | 3h |
+| **B4** | `Baseline_HarvestTypes` — read placed types, write a pack (§10.3) | 3h |
 
-B1 and B2 are independent. B3 is data only and must not begin before §8 D3.
+B1 and B2 are independent. B3 depends on B1 (it is layer-2 data). B4 depends on B3's schema
+but not on its content.
 
 ---
 
@@ -231,10 +233,10 @@ B1 and B2 are independent. B3 is data only and must not begin before §8 D3.
 - **D2** — Value-mapping table now, or leave the parameters empty for manual fill?
   *Recommendation: leave empty. The parameters are worthless until T6's emitter exists, and
   an empty parameter is honest where a guessed one is not.*
-- **D3** — The East African type catalogue in §3 of the advice needs your sign-off. Sizes,
-  naming, and which are STING standards versus project-specific.
-- **D4** — Should Layer 2 mint types in **vendor** families, or only in generic ones? Adding
-  a type to a manufacturer's family can conflict with their next release.
+- **D3 — DECIDED.** Not a fixed catalogue. Opt-in packs, seeded by harvesting real
+  projects. See §10.
+- **D4 — DECIDED: yes, vendor families included.** See §10.4 for why this is safe here and
+  what it requires.
 
 ---
 
@@ -246,3 +248,102 @@ B1 and B2 are independent. B3 is data only and must not begin before §8 D3.
 - Adding parameters as **local** family parameters (§4.1). They cannot be scheduled together.
 - A corporate value-mapping table (§5).
 - Any new top-level command. Layers 2 and 3 belong to `Baseline_Audit` / `Baseline_Apply`.
+
+---
+
+## 10. B3/D3 — the catalogue, decided
+
+### 10.1 Why not a fixed corporate catalogue
+
+The obvious move is to ship ~30 East African types in the corporate baseline. It is the wrong
+one. Those sizes would be **one person's reading of the market**, applied to every future
+project, and reported by the audit as though they were standards. A project whose doors are
+genuinely 850 wide would be told, on every run, that it is missing a type it does not want.
+
+The failure mode is familiar: a confident default nobody asked for, that nobody checks.
+
+### 10.2 The mechanism — opt-in named packs
+
+`StingTools/Data/STING_TYPE_CATALOGUES.json`, **none active by default**:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "note": "Catalogue packs are OPT-IN. No pack applies unless a project adopts it by id.",
+  "packs": [
+    {
+      "id": "EA-RESIDENTIAL-V1",
+      "title": "East African residential — provisional starter",
+      "status": "provisional",
+      "sourceNote": "Seeded from common Ugandan residential practice, NOT from a standard or a completed project. Replace by harvesting a delivered model (see 10.3).",
+      "familyTypes": [ /* layer-2 familyType entries */ ]
+    }
+  ]
+}
+```
+
+A project adopts packs in its own override:
+
+```json
+{ "adoptCatalogues": ["EA-RESIDENTIAL-V1"] }
+```
+
+Properties that make this sustainable:
+
+- **Adoption is a stated decision**, per project, and visible in the audit report.
+- **A pack is additive.** A project can adopt one and still override individual types by
+  declaring them in `familyTypes` — project entries win by name, as they already do.
+- **A new market is a new pack**, not a code change and not a change to the universal
+  baseline. `EA-COMMERCIAL-V1`, `RW-RESIDENTIAL-V1`, a client's own house standard.
+- **Packs are versioned in the id.** `-V1` → `-V2` is an explicit migration, never a silent
+  redefinition of what a project already adopted.
+- The **universal baseline stays minimal** — only what every project needs.
+
+### 10.3 The seeding engine — harvest, do not guess
+
+This is the part that makes the catalogue improve rather than ossify.
+
+`Baseline_HarvestTypes` (read-only) reads the types **actually placed** in a delivered model
+and writes a pack to `<project>/_BIM_COORD/harvested_catalogue.json`, ready to be reviewed,
+renamed and promoted to corporate.
+
+So the catalogue grows from **work that was actually built and paid for**, not from anyone's
+recollection of the market. After two or three delivered projects the provisional starter pack
+should be replaced outright.
+
+Harvest reports placed types only — a type nobody used is not evidence of practice.
+
+**It needs a handler case AND a button** (#792), and it is read-only: it writes a JSON file,
+never the model.
+
+### 10.4 D4 — vendor families: yes, and here is why it is safe
+
+Layer 2 mints types in vendor families as well as generic ones.
+
+The obvious objection is that a vendor's next release, reloaded with "overwrite existing",
+wipes the STING types. That is true — **and the audit/apply cycle already handles it.** After
+such a reload the next audit reports those types as Missing and Apply re-mints them. The
+system is idempotent and therefore self-healing; the loss is visible and one click from
+repaired.
+
+What it requires:
+
+1. **The `STING ` name prefix is the contract**, exactly as `"STING VIS - "` is for visibility
+   filters. It is what makes a minted type identifiable as ours after a reload.
+2. **Catalog-driven families will refuse.** Many vendor families are backed by a type catalog
+   (`.txt`) or driven by formulas, where duplicating a type and setting Width/Height violates
+   a constraint. That is a **per-type reported failure**, not a crash — and given §3.3, the
+   half-made duplicate must be rolled back.
+3. **Never edit an existing vendor type.** Minting a new one is additive; changing theirs is
+   not ours to do. This is already the CONFLICT rule.
+
+### 10.5 What ships now
+
+- The pack **mechanism** (10.2) and the **harvest** command (10.3) — B3 and B4.
+- **One** pack, `EA-RESIDENTIAL-V1`, marked `provisional`, adopted by **nobody** by default,
+  with a `sourceNote` on the pack saying where the sizes came from and that they are to be
+  replaced by harvest.
+
+A provisional pack that nobody has adopted can be wrong without costing anything. A corporate
+default cannot.
+
