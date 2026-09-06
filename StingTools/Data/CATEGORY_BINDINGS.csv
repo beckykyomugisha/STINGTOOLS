@@ -1,4 +1,4 @@
-# v3.9 | 20260906 | 1256 rows binding 125 _TXT mirror params to their source categories (Phase 188)
+# v3.9 | 20260906 | 1273 rows binding 130 _TXT mirror params to their source categories (Phase 188)
 # v3.8 | 20260708 | fix cross-discipline over-bindings: HVC_TERMINAL->Air Terminals; +LIG/ICT/COM/NCL/SEC/MED/MGS/RAD/CEQ/CLN discipline-scoped rows (param->category binding accuracy)
 # v3.7 | 20260630 | +5 STING_PLACER_* idempotency-stamp bindings (detail/annotation symbol categories)
 # v3.6 | 20260630 | +30 Tier-2 element-bound param bindings (electrical/plumbing/design-option/sheet/view/clash/IFC)
@@ -18537,3 +18537,20 @@ PLM_VNT_SZ_TXT,Sprinklers,Type,True
 RAD_LEAD_MM_TXT,Rooms,Instance,True
 RAD_LEAD_MM_TXT,Specialty Equipment,Instance,True
 SLV_SZ_TXT,Generic Models,Instance,True
+CLN_DESIGN_ACH_TXT,Rooms,Instance,True
+CLN_DESIGN_ACH_TXT,Specialty Equipment,Instance,True
+CLN_DESIGN_ACH_TXT,Medical Equipment,Instance,True
+CLN_DESIGN_ACH_TXT,Mechanical Equipment,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_TXT,Rooms,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_TXT,Specialty Equipment,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_TXT,Medical Equipment,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_TXT,Mechanical Equipment,Instance,True
+CLN_DESIGN_RH_PCT_TXT,Rooms,Instance,True
+CLN_DESIGN_RH_PCT_TXT,Specialty Equipment,Instance,True
+CLN_DESIGN_RH_PCT_TXT,Medical Equipment,Instance,True
+CLN_DESIGN_RH_PCT_TXT,Mechanical Equipment,Instance,True
+CLN_DESIGN_TEMP_C_TXT,Rooms,Instance,True
+CLN_DESIGN_TEMP_C_TXT,Specialty Equipment,Instance,True
+CLN_DESIGN_TEMP_C_TXT,Medical Equipment,Instance,True
+CLN_DESIGN_TEMP_C_TXT,Mechanical Equipment,Instance,True
+CLN_NOISE_NR_TXT,Rooms,Instance,True

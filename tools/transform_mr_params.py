@@ -27,6 +27,27 @@ def make_guid(name: str) -> str:
     return str(uuid.uuid5(NS, name))
 
 # ── Target native types ───────────────────────────────────────────────────────
+_LABEL_DEFS = ROOT / 'StingTools/Data/LABEL_DEFINITIONS.json'
+_label_cache = None
+
+
+def label_referenced():
+    """Every parameter a label tier references, read from LABEL_DEFINITIONS.json.
+
+    Read rather than listed, for the same reason the COBie exclusion is read:
+    a restated list is right until the day a label is added.
+    """
+    global _label_cache
+    if _label_cache is None:
+        if not _LABEL_DEFS.exists():
+            print('WARNING: %s not found; no label mirrors generated' % _LABEL_DEFS)
+            _label_cache = set()
+        else:
+            src = _LABEL_DEFS.read_text(encoding='utf-8-sig', errors='replace')
+            _label_cache = set(re.findall(r'"param"\s*:\s*"([^"]+)"', src))
+    return _label_cache
+
+
 _COBIE_MAP = ROOT / 'StingTools/Core/Cobie/CobieFieldMap.cs'
 _cobie_cache = None
 
@@ -252,6 +273,7 @@ SUFFIX_REPLACEMENTS = [
     ('_LM_W', '_TXT'), ('_SQ_M', '_TXT'), ('_CU_M', '_TXT'),
     ('_MM2', '_TXT'), ('_M2K_W', '_TXT'), ('_W_M2K', '_TXT'),
     ('_KN_M2', '_TXT'), ('_INT', '_TXT'), ('_NR', '_TXT'),
+    ('_DBL', '_TXT'),
     ('_MM', '_TXT'), ('_M2', '_TXT'), ('_KW', '_TXT'),
     ('_KPA', '_TXT'), ('_KNM', '_TXT'), ('_KA', '_TXT'),
     ('_KN', '_TXT'), ('_LPS', '_TXT'), ('_LPM', '_TXT'),
@@ -326,6 +348,7 @@ def main():
     bool_fixed = 0
     native_fixed = 0
     mirrors_added = 0
+    label_mirrors = []
     already_correct = 0
 
     # ── Second pass: transform ────────────────────────────────────────────────
@@ -399,6 +422,39 @@ def main():
             mirrors_added += 1
             continue
 
+        # ── Rule 4: already-native params that a LABEL references ─────────────
+        # A label needs something TEXT to read. Rules 2 and 3 only mirror params
+        # this script CONVERTS, so a parameter that was already INTEGER or NUMBER
+        # before Phase 188 never reached the mirror step -- and the label kept
+        # pointing straight at it. LabelParamTypeValidator states the rule these
+        # violate: "every parameter referenced by a label/calculated-value
+        # template must be TEXT, because Revit label formulas cannot use YESNO
+        # parameters as the condition of if(...)".
+        #
+        # Five clinical parameters were in that state: CLN_DESIGN_ACH_INT,
+        # CLN_DESIGN_PRESSURE_DELTA_PA_INT, CLN_DESIGN_RH_PCT_INT,
+        # CLN_DESIGN_TEMP_C_DBL and CLN_NOISE_NR_NR. They are not converted --
+        # they are correctly typed already, and the value belongs in a number --
+        # they gain the mirror the label should have been reading.
+        #
+        # _BOOL parameters are NOT handled here. fix_label_definitions.py leaves
+        # them alone by design, so remapping them would produce a mirror nothing
+        # points at. They are a separate decision.
+        if (current_type != 'TEXT' and not name.endswith('_BOOL')
+                and name in label_referenced()):
+            mirror_name = make_mirror_name(name)
+            out_lines.append(build_param_line(p))
+            if mirror_name != name and mirror_name not in existing_names:
+                mirror_parts = [
+                    'PARAM', make_guid(mirror_name), mirror_name, 'TEXT', '',
+                    p[5], '1', f'{name} display mirror [auto-generated]', '1',
+                ]
+                out_lines.append(build_param_line(mirror_parts))
+                existing_names[mirror_name] = mirror_parts[1]
+                mirrors_added += 1
+                label_mirrors.append((name, mirror_name))
+            continue
+
         # ── Passthrough ───────────────────────────────────────────────────────
         out_lines.append(build_param_line(p))
 
@@ -410,6 +466,10 @@ def main():
     print(f"  Native type fixes       : {native_fixed}")
     print(f"  Already correct (skip)  : {already_correct}")
     print(f"  _TXT mirrors added      : {mirrors_added}")
+    if label_mirrors:
+        print(f"  ...of which mirror an already-native, label-referenced param: {len(label_mirrors)}")
+        for src_name, mir in label_mirrors:
+            print(f"       {src_name:<40} -> {mir}")
     print(f"  Total output lines      : {len(out_lines)}")
     print(f"\nWritten: {src}")
 
