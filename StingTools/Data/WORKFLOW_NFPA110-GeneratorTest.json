@@ -2,6 +2,8 @@
   "id": "NFPA110-GeneratorTest",
   "name": "NFPA 110 generator + ATS log-freshness audit (BIM-side only)",
   "description": "Audits BIM parameter timestamps only — does NOT trigger physical tests. NFPA 110 weekly load tests and monthly ATS transfer tests must be conducted and logged manually by the facilities team; this workflow verifies that those logs have been recorded in the model within the required intervals (generator ≤ 35 days, ATS ≤ 35 days, UPS battery ≤ 4 years).",
+  "readOnly": true,
+  "_readOnlyNote": "Declared, and PROVEN by tools/check_smoke_test.py: every commandTag below resolves to a class carrying [Transaction(TransactionMode.ReadOnly)]. Adding a writer to this preset fails CI. Also checked by hand on 2026-08-22 for file I/O, because the gate only proves the Revit transaction mode: none of these commands writes a document, log or export to disk either. That second half is NOT enforced by CI - if you add a step that renders or exports, this note stops being true before the gate notices.",
   "steps": [
     { "commandTag": "Healthcare_EesResilience", "label": "EesResilienceValidator: check EES_GEN_TEST_LOG_DT, EES_ATS_TEST_LOG_DT, and EES_UPS_BATTERY_DT freshness against NFPA 110 intervals — flags overdue logs only, does not perform or schedule physical tests" }
   ]

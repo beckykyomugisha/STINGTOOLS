@@ -144,14 +144,14 @@ namespace StingTools.Core.Placement
 
                 try
                 {
-                    string baseDir = null;
-                    try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
-                    catch { }
-                    if (!string.IsNullOrEmpty(baseDir))
-                    {
-                        string ovr = Path.Combine(baseDir, "_BIM_COORD", "category_to_seed_map.json");
-                        if (File.Exists(ovr)) ParseEntriesInto(File.ReadAllText(ovr), entries);
-                    }
+                    // Resolved through StingPaths, not Path.Combine'd by hand: the
+                    // project override lives under the consolidated tree, and a
+                    // hand-built <projDir>/_BIM_COORD path misses it on any project
+                    // that has been consolidated. Line 93 above already does this;
+                    // this was the second, divergent copy of the same lookup.
+                    string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "category_to_seed_map.json");
+                    if (!string.IsNullOrEmpty(ovr) && File.Exists(ovr))
+                        ParseEntriesInto(File.ReadAllText(ovr), entries);
                 }
                 catch (Exception ex) { StingLog.Warn($"CategoryToSeedRegistry.GetEntries override: {ex.Message}"); }
 
