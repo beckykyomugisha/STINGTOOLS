@@ -166,4 +166,89 @@ namespace StingTools.Commands.MaterialSchedule
             }
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  MatSched_PriceCommodities — the rate editor's entry point.
+    //
+    //  READ-ONLY on the model. It builds the schedule to learn which
+    //  commodities exist and what they already cost, opens a grid, and writes
+    //  ONE file: the project override. The shipped corporate baseline is never
+    //  touched — ShippedDataIntegrityTests asserts its shape, and a project's
+    //  supplier quote is not a corporate standard.
+    //
+    //  It builds with compound take-off FORCED on, unconditionally and without
+    //  asking. The export asks because a user may legitimately want composite
+    //  rows; here there is no such choice — with the gate off the schedule
+    //  contains no cement, sand, blocks or bricks, so the editor would open
+    //  offering to price a handful of composite elements while silently
+    //  omitting every commodity the user came to price.
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class MaterialSchedulePriceCommoditiesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                string target = StingPaths.MetaFile(doc, "_BIM_COORD", "commodity_rates.csv");
+                if (string.IsNullOrEmpty(target))
+                {
+                    TaskDialog.Show("STING — Price commodities",
+                        "This project has not been saved, so there is no project folder to write "
+                      + "commodity_rates.csv into.\n\nSave the Revit project first.");
+                    return Result.Cancelled;
+                }
+
+                // Site tools need no programme here — the editor prices
+                // commodities, and a missing tools section changes none of them.
+                MaterialScheduleBuilder.DurationDaysOverride = 0;
+
+                MaterialScheduleBuildResult built;
+                using (StingTools.BOQ.Takeoff.CompoundTakeoffBuilder.ForceEnabled(doc))
+                    built = MaterialScheduleBuilder.Build(doc,
+                        new MaterialScheduleOptions { ShowPrices = true, ContingencyPct = 0 });
+
+                if (built?.Document == null || built.Document.Stages.Count == 0)
+                {
+                    TaskDialog.Show("STING — Price commodities",
+                        "No commodities were produced, so there is nothing to price.\n\n"
+                      + string.Join("\n\n", built?.Warnings
+                            ?? new System.Collections.Generic.List<string>()));
+                    return Result.Cancelled;
+                }
+
+                // Load whatever is already in the project file so the merge can
+                // preserve rows this model no longer produces. Parsed with the
+                // SAME parser the builder uses, so the editor and the export can
+                // never disagree about what the file says.
+                var existing = new System.Collections.Generic.List<CommodityRate>();
+                if (System.IO.File.Exists(target))
+                {
+                    existing = CommodityRateResolver.ParseCsv(
+                        System.IO.File.ReadAllLines(target), out var skipped);
+                    if (skipped.Count > 0)
+                        TaskDialog.Show("STING — Price commodities",
+                            $"{skipped.Count} row(s) in the existing commodity_rates.csv could not be "
+                          + "read, so they are NOT shown in the editor and saving would drop them.\n\n"
+                          + string.Join("\n", skipped.Take(5))
+                          + "\n\nCancel and fix them by hand if they matter.");
+                }
+
+                bool saved = StingTools.UI.CommodityRateEditor.ShowDialog(
+                    doc, built.Document, existing, target);
+
+                return saved ? Result.Succeeded : Result.Cancelled;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("MaterialSchedulePriceCommoditiesCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }
