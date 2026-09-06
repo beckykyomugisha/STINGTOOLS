@@ -80,16 +80,41 @@ def find_header(rows):
 
 
 def read_register(path: Path, sheet_name: str, source: str):
-    """Every non-empty deliverable row on one sheet."""
+    """Every non-empty deliverable row on one sheet.
+
+    The fallback used to take the FIRST sheet carrying a 'Ref' column. Once the
+    workbook grew one Task Information Delivery Plan sheet per appointed party,
+    the first such sheet became 'MIDP' -- so a consultant returning the whole
+    workbook had their entire register read back as their own return, silently,
+    and every row compared against itself. The fallback now looks only at plan
+    sheets, and refuses to guess between two of them.
+    """
     sheets = K.xlsx_sheets(path)
     rows = sheets.get(sheet_name)
     if rows is None:
-        # A consultant may return only their own sheet, or rename the tab.
+        candidates = []
         for name, candidate in sheets.items():
+            if name == S.MIDP_SHEET:
+                continue                  # never mistake the register for a return
             idx, _cols = find_header(candidate)
-            if idx is not None:
-                rows, sheet_name = candidate, name
-                break
+            if idx is None:
+                continue
+            # A plan sheet with nothing under its header has not been filled in.
+            if any(any((c or "").strip() for c in row) for row in candidate[idx + 1:]):
+                candidates.append((name, candidate))
+        # Prefer sheets named as delivery plans. Other sheets can carry a
+        # 'Ref' / 'Deliverable' header without being one -- the change log does
+        # -- so they are considered only when no plan sheet is present, which is
+        # what happens when a consultant renames their tab.
+        named = [c for c in candidates if c[0].upper().startswith(S.TIDP_SHEET)]
+        if named:
+            candidates = named
+        if len(candidates) > 1:
+            return None, ("contains %d delivery plan sheets (%s). Name the one to "
+                          "merge with --sheet." % (len(candidates),
+                                                   ", ".join(n for n, _ in candidates)))
+        if candidates:
+            sheet_name, rows = candidates[0][0], candidates[0][1]
     if rows is None:
         return None, "no sheet with a '%s' column" % S.KEY_COL
 
@@ -224,6 +249,9 @@ def main() -> int:
                     help="write the additions (default is preview only)")
     ap.add_argument("--overwrite-conflicts", action="store_true",
                     help="also replace register rows whose content differs")
+    ap.add_argument("--sheet", default=None,
+                    help="the delivery plan sheet to read, e.g. TIDP-M. Needed only "
+                         "when a returned workbook carries more than one.")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -248,7 +276,7 @@ def main() -> int:
 
     incoming, failed = [], []
     for p in paths:
-        rows, err = read_register(p, S.TIDP_SHEET, p.name)
+        rows, err = read_register(p, args.sheet or S.TIDP_SHEET, p.name)
         if err:
             failed.append((p, err))
             continue
