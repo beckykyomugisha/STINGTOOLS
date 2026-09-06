@@ -129,7 +129,7 @@ Add the two INT params to MR_PARAMETERS.txt (shared params, group STINGTags_ISO1
    - vis_qa_amber = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 1)
    - vis_qa_red   = and(TAG_WARN_VISIBLE_BOOL, STING_GATE_QA_STATUS_INT = 0)
 
-   If TAG_WARN_VISIBLE_BOOL is stored as TEXT, write the first argument as (TAG_WARN_VISIBLE_BOOL = "Yes"); if YESNO, use it bare.
+   TAG_WARN_VISIBLE_BOOL is YESNO — write it BARE. Comparing a YESNO gate to "Yes" fails the formula with Revit's "Inconsistent Units". (The "if stored as TEXT" branch came from a stale claim in LABEL_DEFINITIONS.json, corrected in 614aba59b.)
 
 ### Print-optional
 - Subcategory STING_TagStatus -> turn OFF in print / issue view templates (VG). On-screen QA views leave it ON. Revit has no per-element print flag; this subcategory switch is the clean equivalent.
