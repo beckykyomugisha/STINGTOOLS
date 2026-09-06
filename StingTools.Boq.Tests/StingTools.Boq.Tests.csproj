@@ -65,6 +65,8 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\RateEditorSeed.cs" Link="MaterialSchedule\RateEditorSeed.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RateProvenanceLabel.cs" Link="MaterialSchedule\RateProvenanceLabel.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RatePasteParser.cs" Link="MaterialSchedule\RatePasteParser.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\SupplierUnitPatch.cs" Link="MaterialSchedule\SupplierUnitPatch.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\TypePatternPlanner.cs" Link="MaterialSchedule\TypePatternPlanner.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ConsumablesTally.cs" Link="MaterialSchedule\ConsumablesTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />

@@ -27,6 +27,15 @@ namespace StingTools.BOQ.MaterialSchedule
         public int ConstituentRowsSeen;
         public int RowsWithoutKind;
         public List<string> Warnings = new List<string>();
+
+        /// <summary>
+        /// The merged, patched supplier-unit table this build used.
+        ///
+        /// Handed to the rate editor so its mapping preview and the schedule
+        /// cannot disagree about what converts — re-loading it there would be a
+        /// second copy of the same layering, and two copies of a merge drift.
+        /// </summary>
+        public SupplierUnitTable UnitsUsed = new SupplierUnitTable();
     }
 
     internal static class MaterialScheduleBuilder
@@ -54,6 +63,8 @@ namespace StingTools.BOQ.MaterialSchedule
                 StageDefs = new List<StageDefinition>(),
                 Options = options ?? new MaterialScheduleOptions()
             };
+
+            result.UnitsUsed = inputs.Units;
 
             var lib = LoadStages(doc);
             inputs.StageDefs = lib.Stages;
@@ -137,6 +148,13 @@ namespace StingTools.BOQ.MaterialSchedule
             // After every row exists and every rate is resolved, and after the
             // site-tools and manual rows are appended so their rates count too.
             // The column says it per row; this says it once.
+            // OUTSIDE the priced block. A type mapping changes a row's UNIT and
+            // QUANTITY, so it is exactly as relevant to a quantities-only
+            // buy-list as to a priced one — arguably more, since that list is
+            // what somebody orders against.
+            string mapped = SupplierUnitPatcher.Summary(LastPatchesApplied);
+            if (!string.IsNullOrEmpty(mapped)) msDoc.Warnings.Add(mapped);
+
             if (msDoc.Options.ShowPrices)
             {
                 string provenance = RateProvenanceLabel.Summary(
@@ -432,8 +450,30 @@ namespace StingTools.BOQ.MaterialSchedule
                     table.Rules.RemoveAll(x => string.Equals(x.CommodityKey, r.CommodityKey, StringComparison.OrdinalIgnoreCase));
                     table.Rules.Add(r);
                 }
+
+            // Type mappings, applied AFTER the wholesale override so a project
+            // that has both gets the patterns on top of its own rule.
+            //
+            // A separate file because the override above replaces a rule
+            // ENTIRELY: a file written to add one pattern would also reset
+            // SourceUnitsPerSupplierUnit to 1.0 and DefaultWastagePct to 0.
+            // A patch has nowhere to put either, so that is unrepresentable
+            // rather than merely discouraged.
+            var patches = ReadJson<SupplierUnitPatchFile>(
+                StingPaths.MetaFile(doc, "_BIM_COORD", "supplier_unit_patches.json"));
+            LastPatchesApplied = SupplierUnitPatcher.Apply(table, patches);
+            foreach (string problem in patches?.Validate(table) ?? new List<string>())
+                StingLog.Warn("supplier_unit_patches.json: " + problem);
+
             return table;
         }
+
+        /// <summary>
+        /// Mappings the last build applied, for the export notes. A mapping
+        /// changes a row's UNIT and quantity, so a reader comparing two exports
+        /// needs to know one was in force.
+        /// </summary>
+        internal static List<string> LastPatchesApplied = new List<string>();
 
         private static StageLibrary LoadStages(Document doc)
         {
