@@ -31,15 +31,10 @@ namespace StingTools.Commands.Baseline
             "Structural Columns", "Structural Foundations", "Structural Framing"
         };
 
-        /// <summary>
-        /// Dimension parameters worth recording. Deliberately a short list: a
-        /// pack carrying every parameter of every type would be unreviewable,
-        /// and the ones that define a type are its sizes.
-        /// </summary>
-        private static readonly string[] DimensionParams =
-        {
-            "Width", "Height", "Depth", "Thickness", "Diameter", "Length", "b", "h", "d"
-        };
+        // The dimension list is PER CATEGORY and lives in HarvestDimensionRules.
+        // A single flat list asked "Width" of a Concrete-Rectangular-Column and
+        // got 4500 x 12000 — the column's extents, not its 450 x 450 section —
+        // and wrote them into a pack that B1 would have minted from.
 
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
@@ -116,7 +111,7 @@ namespace StingTools.Commands.Baseline
                         h = new HarvestedType
                         {
                             Category = cat, FamilyName = famName ?? "", TypeName = typeName,
-                            ParametersMm = ReadDimensions(sym)
+                            ParametersMm = ReadDimensions(sym, cat)
                         };
                         byKey[key] = h;
                     }
@@ -130,10 +125,10 @@ namespace StingTools.Commands.Baseline
             return byKey.Values.ToList();
         }
 
-        private static Dictionary<string, double> ReadDimensions(FamilySymbol sym)
+        private static Dictionary<string, double> ReadDimensions(FamilySymbol sym, string category)
         {
             var vals = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            foreach (string name in DimensionParams)
+            foreach (string name in HarvestDimensionRules.For(category))
             {
                 try
                 {
