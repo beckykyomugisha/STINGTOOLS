@@ -2,6 +2,100 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 253 — pricing becomes possible, and the instruction that was impossible is retired)
+
+Ten PRs in one session, all of them started by reading a real export rather than
+by reasoning about the code. That is the through-line: **five of the six defects
+below were invisible from the source and obvious from the output.**
+
+**The roof deleted its own covering (#819).** Phase 251 routed Roofs through
+`BuildRcSlab` so a concrete roof would decompose. A roof that produced only a
+FASCIA then returned a non-empty decomposition, which suppressed the composite
+fallback — and 856 m² of roof covering left the schedule with no row, no flag and
+no warning. The fix is a rule, not a patch: an accessory-only decomposition does
+not measure its host, so the composite row still stands. Restored 3 rows and 6
+validation issues; the grand total did not move, because the rows were unpriced —
+which is exactly why nobody would have noticed.
+
+**A zero that lied about which zero it was (#820).** The same export said the
+roof-fastener driver was zero and explained "that is the intended behaviour —
+with no driver the quantity would be invented". True of a model with no roof.
+That model had 856 m² of roof, measured, three rows above the sentence.
+`SupplierUnitTable.Resolve` returns `CategoryTypeMismatch` with a NULL rule, and
+the driver sum only read `res.Rule`. **The quantity is still not derived, and
+that is correct** — 11 fasteners/m² is corrugated sheeting and the roof carries
+high-profile tiles, so the tempting fix would give a confident number for the
+wrong roof. That mutation fails four tests, which is the point of it being in the
+suite. What changed is the sentence: same zero, opposite action.
+
+**An instruction that could not be followed (#821).** The reconciler had been
+telling users to "add a row keyed 'RD_Breeze Block 01_Panel — Concrete' to
+commodity_rates.csv" — a file **nothing in the codebase had ever written**, in a
+folder named by an alias that resolved elsewhere, keyed by a string where 21 of
+25 carry a non-ASCII em dash against an exact `OrdinalIgnoreCase` lookup. Type a
+hyphen and the row stays unpriced with no error. So the keys come from the
+schedule and the user types only a number. Storage stays a plain CSV — diffable,
+hand-editable, and copyable to the next project, which Extensible Storage would
+not be. `ParseCsv` gained quote handling in the same pass: it had never been
+asked to read back anything it wrote, because there was no writer.
+
+**Rates that could not be told apart (#822).** `RateSource` had been populated
+since the first export and written to no sheet, so 28,000 against cement printed
+identically whether it was a supplier quote or the shipped guess. The labels are
+deliberately not the tokens: "baseline" reads as authority and the file it comes
+from says the opposite in its own header, so the sheet says **Indicative**.
+
+**The message, retired (#824), and the button, moved (#827).** The unpriced
+message now names the ACTION and the resolved path is stated once instead of 25
+times. Two regression tests assert it names neither `_BIM_COORD` nor the file.
+The editor had shipped with one button, on the dock panel; a QS pricing a job is
+in the BOQ & Cost Manager, and the first person to look for it did not find it.
+
+**Excel, because typing 58 numbers is the work the grid was meant to remove
+(#828).** Paste column, fill down, clear, copy keys. Three parsing decisions
+carry tests because each is a silent-failure route — a blank line consumes its
+row, a line with no number is reported rather than zeroed, and a multi-column
+paste takes the LAST numeric field.
+
+**Harvest read the wrong parameters (#830).** Found by running B4 on a real
+model: one flat list asked `Width` of a `Concrete-Rectangular-Column` and got
+4500 × 12000 — extents, beside the 450 × 450 section in `b`/`h`. The pack
+proposed minting a column 4.5 m wide, and a pack is DATA, so nothing downstream
+would have complained. Harmless only because packs are adopted by nobody, which
+is the property that bought the time to find it.
+
+**The grid says what a row IS (#833).** `ConstituentInput` carried `Category` and
+`TypeName` all along and aggregation dropped both. Carried through as SETS, with
+a From column, a tooltip and four collapsible detail columns. **No tag column**:
+a commodity is an aggregate and no single tag identifies one.
+
+**Mapping, in a file that cannot say more (#836).** `supplier_units.json`
+replaces a rule wholesale, so a file written to add one type pattern would also
+reset the conversion factor and wastage to their defaults — silently, across the
+schedule. A UI promising not to do that is a promise; a file shape that cannot
+express it is a guarantee. `supplier_unit_patches.json` carries a key, a pattern
+and a reason, and a test asserts by reflection that the type has no conversion
+field.
+
+**Tests 766 → 1,065.** Build 0/0 throughout, all four gates on every PR, and a
+mutation pass on every change that carried logic — **33 verified failing across
+eight PRs**, counted from the runs recorded in each PR body rather than estimated.
+
+**Six mutations proved nothing and are recorded rather than counted.** Three were
+redundant or behaviour-equivalent guards. One reported PASS because it had silently failed to apply —
+the source strips a non-breaking space and the mutation string carried an
+ordinary one, so the suite was green for the wrong reason; checking the bytes
+rather than the result found it. Two found REAL test gaps: assertions compared
+against a constant rather than the user-visible word, and every category test set
+`Categories` by hand so nothing exercised the aggregation that fills it. Both are
+closed. A mutation that proves nothing is worth less than no mutation, because
+it reads as evidence.
+
+**What ran in Revit, and what did not.** The T1-T5 readers, the harvest pass,
+#830's fix and the rate editor opening all executed against a real model. The
+paste path, the mapping dialog, `FamilySymbol.Duplicate`, the `EditFamily` round
+trip and catalogue adoption have still never run. See MATSCHED-T-VERIFY.
+
 #### Completed (Phase 224 — #338 native-type migration: measured, and recommended against)
 
 Compile-verified regeneration of the stale `claude/charming-fermi-5iafhf` branch
