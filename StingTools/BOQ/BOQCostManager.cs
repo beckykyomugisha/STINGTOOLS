@@ -250,8 +250,31 @@ namespace StingTools.BOQ
         {
             if (Takeoff.CompoundTakeoffBuilder.Enabled())
             {
-                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(doc, el, csvRates, cobieCostCodes, measStd);
-                if (compound != null && compound.Count > 0) return compound;
+                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(
+                    doc, el, csvRates, cobieCostCodes, measStd, out bool hostMeasured);
+                if (compound != null && compound.Count > 0)
+                {
+                    if (hostMeasured) return compound;
+
+                    // The decomposition produced accessories only — a fascia along
+                    // a roof's eaves, nothing describing the roof. A non-empty
+                    // decomposition normally REPLACES the composite row, and that
+                    // deleted 856 m² of roof covering from an issued schedule
+                    // without a warning of any kind: the row vanished, its two
+                    // unpriced-item flags vanished with it, and the consumable
+                    // driver it fed read zero, which printed as a considered
+                    // refusal rather than a missing measurement.
+                    //
+                    // So both rows stand. The composite carries the element's own
+                    // quantity and its writeback; the accessory rows must not also
+                    // claim the element, or the CST_* stamp becomes last-one-wins
+                    // between two rows describing different things.
+                    var host = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                    if (host == null) return compound;
+                    foreach (var c in compound) { c.RevitElementId = -1; c.UniqueId = ""; }
+                    compound.Insert(0, host);
+                    return compound;
+                }
             }
             var single = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
             return single != null ? new List<BOQLineItem> { single } : new List<BOQLineItem>();
