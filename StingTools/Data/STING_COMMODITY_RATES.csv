@@ -38,3 +38,10 @@ ceiling-board,Sheets,45000,Gypsum ceiling board 1200x2400x12.5mm per sheet
 ceiling-furring,Lengths,12000,Ceiling furring channel / T-grid 3.6 m length
 dpm,Rolls,250000,Damp-proof membrane 1000ga polythene 4m x 25m roll
 roof-underlay,Rolls,180000,Roof underlay / sarking membrane 1m x 45m roll
+# --- ratio-derived consumables (MATSCHED-T4). The RATIOS are heuristics
+#     and live in STING_CONSUMABLES.json; these are ordinary market rates.
+hoop-iron,Rolls,35000,Hoop iron 30 m roll
+binding-wire,Rolls,90000,Binding wire 20 kg roll
+formwork-nails,Kg,7000,Wire nails for formwork per kg
+roof-fastener,Packs,25000,Roofing screws / nails pack of 100
+fascia-board,Lengths,45000,Fascia board 4.2 m length (timber / fibre-cement as specified)
