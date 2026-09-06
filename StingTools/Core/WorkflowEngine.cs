@@ -1360,7 +1360,10 @@ namespace StingTools.Core
                 // Try plugin hook custom commands before failing
                 try
                 {
-                    var uiApp = data?.Application;
+                    // Not data?.Application: dispatched from the panel that is
+                    // always null, so plugin-hook commands were skipped in
+                    // silence — the tag simply "did not resolve".
+                    var uiApp = ParameterHelpers.GetApp(data);
                     if (uiApp != null)
                     {
                         var (found, result) = StingPluginHooks.TryExecuteCommand(tag, uiApp);

@@ -476,7 +476,7 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetUIDoc(commandData) == null)
                 {
                     TaskDialog.Show("Clash Detection", "No active document.");
                     return Result.Failed;
@@ -607,7 +607,7 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetUIDoc(commandData) == null)
                 {
                     TaskDialog.Show("Cross-Model Clash", "No active document.");
                     return Result.Failed;
@@ -823,7 +823,7 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetUIDoc(commandData) == null)
                 {
                     TaskDialog.Show("MEP Clearance", "No active document.");
                     return Result.Failed;
@@ -1152,7 +1152,7 @@ namespace StingTools.Clash
         {
             try
             {
-                if (commandData?.Application?.ActiveUIDocument == null)
+                if (ParameterHelpers.GetUIDoc(commandData) == null)
                 {
                     TaskDialog.Show("Naming Audit", "No active document.");
                     return Result.Failed;
