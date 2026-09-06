@@ -248,6 +248,22 @@
       "matchCategories": [],
       "matchTypePatterns": [],
       "stageId": ""
+    },
+    {
+      "commodityKey": "skirting",
+      "description": "Skirting",
+      "spec": "per linear metre, as scheduled",
+      "supplierUnit": "m",
+      "sourceUnit": "m",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": false,
+      "defaultWastagePct": 5,
+      "matchKinds": [
+        "skirting"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
     }
   ]
 }

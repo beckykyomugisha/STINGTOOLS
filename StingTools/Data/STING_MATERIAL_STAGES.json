@@ -139,7 +139,8 @@
         "floor_tile",
         "wall_tile",
         "tile_adhesive",
-        "tile_grout"
+        "tile_grout",
+        "skirting"
       ],
       "categories": [
         "Ceilings"

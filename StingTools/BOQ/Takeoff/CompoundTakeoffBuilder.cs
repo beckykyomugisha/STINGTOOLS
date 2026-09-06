@@ -632,17 +632,6 @@ namespace StingTools.BOQ.Takeoff
         // ── Tiling from the finish layer (MAT-SCHED-3) ──────────────────────
 
         /// <summary>
-        /// Material names that read as a tiled finish. Deliberately narrow: a
-        /// false positive prices a whole floor as tiling, which is the defect
-        /// the withdrawn unit-table rules produced.
-        /// </summary>
-        private static readonly System.Text.RegularExpressions.Regex TileMaterialPattern =
-            new System.Text.RegularExpressions.Regex(
-                @"tile|ceramic|porcelain|terrazzo|mosaic|vitrified|granite|marble",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase
-                | System.Text.RegularExpressions.RegexOptions.Compiled);
-
-        /// <summary>
         /// What the tile scan looked at, so "no tiling appeared" stops being
         /// silence and starts being evidence.
         ///
@@ -708,7 +697,7 @@ namespace StingTools.BOQ.Takeoff
                     if (layer.MaterialId == null || layer.MaterialId == ElementId.InvalidElementId) continue;
                     if (!(doc.GetElement(layer.MaterialId) is Material mat)) continue;
                     if (string.IsNullOrWhiteSpace(mat.Name)) continue;
-                    if (!TileMaterialPattern.IsMatch(mat.Name))
+                    if (!StingTools.Core.MaterialSchedule.FinishTextClassifier.IsTile(mat.Name))
                     {
                         // Recorded, not discarded: if the pattern is the thing
                         // that is wrong, these names are the evidence for it.
@@ -751,26 +740,29 @@ namespace StingTools.BOQ.Takeoff
             int measured = Math.Min(found.Faces, Math.Max(0, faces));
             if (measured <= 0) return empty;
 
-            string key = TileKeyFor(found.Label);
+            var cover = TileCoverages(found.Label);
             return CompoundTakeoff.TiledFinish(new TiledFinishInput
             {
                 AreaM2 = areaM2 * measured,
                 IsWall = isWall,
                 TileLabel = found.Label,
-                AdhesiveKgPerM2 = Prop($"TILE {key}", "ADHESIVE_KG_PER_M2", "TILE DEFAULT"),
-                GroutKgPerM2 = Prop($"TILE {key}", "GROUT_KG_PER_M2", "TILE DEFAULT")
+                AdhesiveKgPerM2 = cover.AdhesiveKgPerM2,
+                GroutKgPerM2 = cover.GroutKgPerM2
             });
         }
 
-        /// <summary>Material name → MATERIAL_LOOKUP TypeKey. Unmatched falls to DEFAULT.</summary>
-        private static string TileKeyFor(string materialName)
+
+        /// <summary>
+        /// Tile coverages for a finish name, from MATERIAL_LOOKUP. Internal so
+        /// the ROOM-driven source reads the same rows through the same key
+        /// composition — two lookups spelling the key differently is exactly the
+        /// silent-zero failure the tiling data test was written for.
+        /// </summary>
+        internal static (double AdhesiveKgPerM2, double GroutKgPerM2) TileCoverages(string finishName)
         {
-            string n = (materialName ?? "").ToLowerInvariant();
-            if (n.Contains("porcelain") || n.Contains("vitrified")) return "PORCELAIN";
-            if (n.Contains("terrazzo")) return "TERRAZZO";
-            if (n.Contains("granite") || n.Contains("marble")) return "STONE";
-            if (n.Contains("mosaic")) return "MOSAIC";
-            return "CERAMIC";
+            string key = StingTools.Core.MaterialSchedule.FinishTextClassifier.TileKey(finishName);
+            return (Prop($"TILE {key}", "ADHESIVE_KG_PER_M2", "TILE DEFAULT"),
+                    Prop($"TILE {key}", "GROUT_KG_PER_M2", "TILE DEFAULT"));
         }
 
         private static double Prop(string key, string property, string fallbackKey)
