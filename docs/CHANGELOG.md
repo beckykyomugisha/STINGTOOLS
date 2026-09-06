@@ -2,6 +2,72 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 253 — baseline layer 3: SHARED parameters, not local ones)
+
+Layer 3 adds the STING material parameters to families that are already loaded, so T6's emitter has
+something to read. The whole task turns on one word.
+
+**SHARED, not local.** `FamilyAugmentationEngine.AddTextParam` takes the name/spec overload of
+`FamilyManager.AddParameter`, which creates a **local** family parameter: no GUID, no shared
+identity. Two families given "the same" parameter that way hold two *unrelated* parameters — they
+cannot be scheduled together, and the material schedule cannot read them across a project. Layer 3
+takes the `ExternalDefinition` overload instead, from the definition file
+`BatchAddFamilyParamsCommand` already opens. And `isInstance: false`: a door type's leaf material
+does not vary per instance.
+
+**The names are checked against the real shared-parameter file BEFORE any family is opened.**
+`EditFamily` + `LoadFamily` across every door and window family is heavy and model-mutating; a
+misspelled name found halfway through it is the worst possible moment. `ProjectBaseline.Validate`
+now takes the set of names in `MR_PARAMETERS.txt`, and an unresolvable one is a **baseline** error
+that stops Apply — the same class as a layer naming an undeclared material.
+
+**That check earned its keep immediately.** The spec's own example names —
+`BLE_DOOR_LEAF_MATERIAL_TXT`, `BLE_DOOR_FRAME_MATERIAL_TXT`, `BLE_DOOR_IRONMONGERY_SET_TXT` — **are
+not in the shared-parameter file.** Shipping them would have failed the build gate. The **data** was
+fixed, not the assertion: the shipped sets use `BLE_DOOR_MAT_TXT`, `BLE_DOOR_FRAME_MAT_TXT`,
+`BLE_DOOR_HARDWARE_SPECIFICATION_TXT`, `BLE_WINDOW_FRAME_MAT_TXT` and
+`BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT`, all of which resolve.
+
+**Augmentation is counted separately, and says what it is.** Editing somebody's families is a bigger
+act than adding a wall type (§8 D1), so it gets its own finding kind, its own count, its own report
+section — *"WILL AUGMENT 12 famil(ies) — this EDITS and reloads each family"* — and its own clause in
+the confirm dialog. Folding it into the create count would hide the bigger act inside the smaller.
+
+**Four behaviours the audit had to get right.**
+
+* **Idempotent.** A family that already carries every parameter produces no finding at all, so a
+  re-run reports a clean model as clean rather than as a zero-family augmentation.
+* **Uneditable families are reported, never attempted.** In-place families, vendor-locked ones and
+  workshared families owned by another user are *expected*, not exceptional. When every family in a
+  category is uneditable the finding becomes guidance, not an augment of nobody.
+* **No families loaded is guidance**, exactly as layer 2 cannot conjure a family.
+* **The reload keeps the project's values.** `FamilyAugmentationEngine`'s options set
+  `overwriteParameterValues = true`; layer 3 uses its own `AddOnlyLoadOptions` with `false`, because
+  additive means additive and a value typed between the audit and the apply is not ours to discard.
+
+**The parameters are created EMPTY, and a corporate value map is unrepresentable rather than merely
+absent** — `BaselineFamilyParameterSet` has nowhere to put a value, and a test asserts that. Deciding
+a door type's leaf is "flush timber, hollow core" is a human declaration; inferring it from a type
+name is what PR #710 withdrew three rules for.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 744 → **786 green**. All
+four gates pass. **Twenty-nine deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored**, including the delete-the-thing-it-protects check on every new gate.
+
+One did not move a test at first: removing the not-found guard from the shared-parameter reader
+changed no *result*, because the catch below returns the same empty set. The two differ in their
+**message** — "the check was SKIPPED" sends a reader somewhere completely different from "the file is
+corrupt" — so the test was rewritten against the message and re-verified firing.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone.* `BaselineAugmenter`, its
+`EditFamily`/`AddParameter`/`LoadFamily` round trip, and `ReadFamilyParameterState` have **never
+executed against a real model**. The audit and validation halves are Revit-free and fully tested; the
+augment is the unproven half and says so in its own header.
+
+**`Baseline_RollbackParams` was not wired.** The spec conditions it on also giving it a button
+(#792), and it is outside this scope; the augmentation is additive and adds only empty parameters.
+Logged in ROADMAP rather than half-built.
+
 #### Completed (Phase 252 — baseline layer 2: types inside families that already exist)
 
 Layer 1 (#789) creates host types outright. **Layer 2 mints a TYPE inside a family that is already

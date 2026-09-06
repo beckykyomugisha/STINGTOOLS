@@ -60,6 +60,9 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
+    <!-- BASELINE LAYER 3 - the shared-parameter file reader, so Validate() can be
+         checked against the REAL MR_PARAMETERS.txt rather than a hand-made set. -->
+    <Compile Include="..\StingTools\Core\Baseline\SharedParameterNames.cs" Link="Baseline\SharedParameterNames.cs" />
     <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
          is testable, not just the model behind it. -->
     <Compile Include="..\StingTools\BOQ\BoqXlsxStyle.cs" Link="MaterialSchedule\BoqXlsxStyle.cs" />
@@ -98,6 +101,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_MATERIAL_STAGES.json" Link="Data\STING_MATERIAL_STAGES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- BASELINE LAYER 3 - the real shared-parameter file. A name the baseline
+         declares that is not in here becomes a LOCAL parameter with no shared
+         identity, so the seam is asserted against the shipped file itself. -->
+    <None Include="..\StingTools\Data\MR_PARAMETERS.txt" Link="Data\MR_PARAMETERS.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_PROJECT_BASELINE.json" Link="Data\STING_PROJECT_BASELINE.json">

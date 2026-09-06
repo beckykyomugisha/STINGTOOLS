@@ -28,7 +28,16 @@ namespace StingTools.Core.Baseline
         /// <summary>Present under the same name but built differently. Never overwritten.</summary>
         Conflict,
         /// <summary>Absent and NOT creatable — a family type. Guidance only.</summary>
-        Guidance
+        Guidance,
+        /// <summary>
+        /// LAYER 3 — a loaded family that will gain shared parameters.
+        ///
+        /// Counted SEPARATELY from Missing on purpose: editing somebody's
+        /// families is a bigger act than adding a wall type, and a confirm
+        /// dialog that folded the two together would hide the bigger one inside
+        /// the smaller (spec §8 D1).
+        /// </summary>
+        Augment
     }
 
     public sealed class BaselineFinding
@@ -44,7 +53,15 @@ namespace StingTools.Core.Baseline
         /// different family than the one the audit told the user about.</summary>
         public string HostFamily = "";
 
-        public bool IsActionable => Kind == BaselineFindingKind.Missing;
+        /// <summary>LAYER 3 — the loaded families this finding would augment,
+        /// and the parameters they lack. Empty for every other finding.</summary>
+        public List<string> Families = new List<string>();
+        public List<string> Parameters = new List<string>();
+
+        public int FamilyCount => Families?.Count ?? 0;
+
+        public bool IsActionable => Kind == BaselineFindingKind.Missing
+                                 || Kind == BaselineFindingKind.Augment;
     }
 
     /// <summary>Everything the Revit side found in the model, as plain names.</summary>
@@ -83,6 +100,19 @@ namespace StingTools.Core.Baseline
         public Dictionary<string, Dictionary<string, double>> FamilyTypeParametersMm =
             new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>LAYER 3 — family name → the parameter names it already
+        /// carries, for the names the baseline declares. A family absent from
+        /// this map has not been inspected; a family present with an empty set
+        /// carries none of them.</summary>
+        public Dictionary<string, HashSet<string>> FamilyParameterNames =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>LAYER 3 — families that CANNOT be edited: in-place families,
+        /// some vendor families, and workshared families owned by another user.
+        /// These are expected, not exceptional, and are reported rather than
+        /// attempted.</summary>
+        public HashSet<string> UneditableFamilies = New();
+
         public static string TypeKey(string category, string typeName)
             => (category ?? "").Trim() + "|" + (typeName ?? "").Trim();
 
@@ -98,9 +128,20 @@ namespace StingTools.Core.Baseline
         public int ConflictCount => Findings.Count(f => f.Kind == BaselineFindingKind.Conflict);
         public int GuidanceCount => Findings.Count(f => f.Kind == BaselineFindingKind.Guidance);
         public int PresentCount => Findings.Count(f => f.Kind == BaselineFindingKind.Present);
+        public int AugmentCount => Findings.Count(f => f.Kind == BaselineFindingKind.Augment);
 
-        /// <summary>True when there is nothing for Apply to do.</summary>
-        public bool NothingToMint => MissingCount == 0;
+        public IEnumerable<BaselineFinding> Augments =>
+            Findings.Where(f => f.Kind == BaselineFindingKind.Augment);
+
+        /// <summary>Families that would be edited, summed across categories.</summary>
+        public int FamiliesToAugment => Augments.Sum(f => f.FamilyCount);
+
+        /// <summary>True when there is nothing for Apply to do — mints AND
+        /// augments. Augments were a separate count from the start, and this
+        /// property is what the Apply command uses to decide whether to bother
+        /// asking; leaving them out would have made a model needing only
+        /// augmentation report "nothing to create" and stop.</summary>
+        public bool NothingToMint => MissingCount == 0 && AugmentCount == 0;
 
         public IEnumerable<BaselineFinding> Missing =>
             Findings.Where(f => f.Kind == BaselineFindingKind.Missing);
@@ -108,7 +149,11 @@ namespace StingTools.Core.Baseline
 
     public static class BaselineAuditor
     {
-        public static BaselineAuditResult Audit(ProjectBaseline baseline, ModelInventory model)
+        /// <summary><paramref name="knownSharedParameters"/> lets layer 3's
+        /// parameter names be checked against the shared-parameter file. Null
+        /// skips that one check; every other caller is unchanged.</summary>
+        public static BaselineAuditResult Audit(ProjectBaseline baseline, ModelInventory model,
+                                                ISet<string> knownSharedParameters = null)
         {
             var r = new BaselineAuditResult();
             if (baseline == null) return r;
@@ -116,7 +161,7 @@ namespace StingTools.Core.Baseline
 
             // The baseline is checked against ITSELF first. Auditing a model
             // with a broken baseline reports confident nonsense.
-            r.BaselineProblems.AddRange(baseline.Validate());
+            r.BaselineProblems.AddRange(baseline.Validate(knownSharedParameters));
 
             foreach (var m in baseline.Materials ?? new List<BaselineMaterial>())
             {
@@ -162,7 +207,94 @@ namespace StingTools.Core.Baseline
                 r.Findings.Add(AuditFamilyType(t, model));
             }
 
+            foreach (var fp in baseline.FamilyParameters ?? new List<BaselineFamilyParameterSet>())
+            {
+                if (fp == null || string.IsNullOrWhiteSpace(fp.Category)) continue;
+                var finding = AuditFamilyParameters(fp, model);
+                if (finding != null) r.Findings.Add(finding);
+            }
+
             return r;
+        }
+
+        /// <summary>LAYER 3 group label. One constant, for the same reason as
+        /// FamilyTypeGroup: the augmenter finds its work by Group.</summary>
+        public const string FamilyParameterGroup = "Family parameters";
+
+        /// <summary>
+        /// LAYER 3 — which loaded families in this category lack any of the
+        /// declared parameters.
+        ///
+        /// Returns NULL when there is nothing to say: no families in the
+        /// category at all, or every one already has every parameter. An
+        /// idempotent re-run must report a clean model as clean, not as a
+        /// zero-family augmentation.
+        /// </summary>
+        private static BaselineFinding AuditFamilyParameters(BaselineFamilyParameterSet fp,
+                                                             ModelInventory model)
+        {
+            string cat = fp.Category.Trim();
+            var wanted = fp.CleanParameters.ToList();
+            if (wanted.Count == 0) return null;
+
+            model.FamiliesByCategory.TryGetValue(cat, out var families);
+            families = (families ?? new List<string>())
+                .Where(f => !string.IsNullOrWhiteSpace(f)).Select(f => f.Trim()).ToList();
+
+            if (families.Count == 0)
+                return new BaselineFinding
+                {
+                    Kind = BaselineFindingKind.Guidance,
+                    Group = FamilyParameterGroup,
+                    Name = cat,
+                    Detail = $"no families loaded in {cat}, so there is nothing to add "
+                           + string.Join(", ", wanted) + " to. Load one, then re-run."
+                };
+
+            // A family that cannot be edited is reported, never attempted:
+            // in-place families, some vendor families, and workshared families
+            // owned by somebody else. Expected, not exceptional.
+            var editable = families.Where(f => !model.UneditableFamilies.Contains(f)).ToList();
+            var blocked = families.Where(f => model.UneditableFamilies.Contains(f)).ToList();
+
+            var needing = editable.Where(f =>
+            {
+                if (!model.FamilyParameterNames.TryGetValue(f, out var have)) return true;
+                return wanted.Any(w => !have.Contains(w));
+            }).ToList();
+
+            if (needing.Count == 0 && blocked.Count == 0) return null;   // idempotent: nothing to say
+
+            if (needing.Count == 0)
+                return new BaselineFinding
+                {
+                    Kind = BaselineFindingKind.Guidance,
+                    Group = FamilyParameterGroup,
+                    Name = cat,
+                    Detail = $"{blocked.Count} famil(ies) cannot be edited (in-place, vendor-locked or "
+                           + "owned by another user) and were not attempted: " + Names(blocked)
+                };
+
+            return new BaselineFinding
+            {
+                Kind = BaselineFindingKind.Augment,
+                Group = FamilyParameterGroup,
+                Name = cat,
+                Families = needing,
+                Parameters = wanted,
+                Detail = $"{needing.Count} famil(ies) would gain {wanted.Count} shared "
+                       + (fp.IsInstance ? "INSTANCE" : "type") + " parameter(s): "
+                       + string.Join(", ", wanted)
+                       + (blocked.Count > 0
+                            ? $". {blocked.Count} more cannot be edited and were skipped: " + Names(blocked)
+                            : "")
+            };
+        }
+
+        private static string Names(List<string> xs)
+        {
+            const int max = 6;
+            return string.Join(", ", xs.Take(max)) + (xs.Count > max ? $", …(+{xs.Count - max})" : "");
         }
 
         /// <summary>LAYER 2 group label. One constant so the auditor, the
@@ -374,11 +506,26 @@ namespace StingTools.Core.Baseline
 
             sb.AppendLine(r.NothingToMint
                 ? "Nothing to create — every creatable item in the baseline is already present."
-                : $"WILL CREATE {r.MissingCount} item(s):");
+                : r.MissingCount > 0
+                    ? $"WILL CREATE {r.MissingCount} item(s):"
+                    : "Nothing to create.");
             foreach (var g in r.Missing.GroupBy(f => f.Group))
             {
                 sb.AppendLine($"  {g.Key}:");
                 foreach (var f in g) sb.AppendLine($"    + {f.Name}   ({f.Detail})");
+            }
+
+            // A SEPARATE line, never folded into the create count. Editing
+            // somebody's families is a bigger act than adding a wall type, and
+            // a total that hid the bigger inside the smaller would be the kind
+            // of consent nobody actually gave.
+            if (r.AugmentCount > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"WILL AUGMENT {r.FamiliesToAugment} famil(ies) — this EDITS and reloads "
+                            + "each family, which is a larger change than creating a type:");
+                foreach (var f in r.Augments)
+                    sb.AppendLine($"    ~ {f.Name}: {f.Detail}");
             }
 
             if (r.ConflictCount > 0)

@@ -52,8 +52,17 @@ namespace StingTools.Commands.Baseline
             // Keyed on category+name: "STING 900x2100" may legitimately
             // exist for both a door and a window.
             Merge(b.FamilyTypes, over.FamilyTypes, t => t.Category + "|" + t.TypeName);
+            Merge(b.FamilyParameters, over.FamilyParameters, f => f.Category);
             return b;
         }
+
+        /// <summary>The names in the STING shared-parameter file, for layer 3's
+        /// validation. Empty when the file cannot be read, which SKIPS the check
+        /// rather than reporting every parameter as missing.</summary>
+        public static ISet<string> SharedParameterNames()
+            => Core.Baseline.SharedParameterNames.ParseFile(
+                   StingToolsApp.FindDataFile("MR_PARAMETERS.txt"),
+                   msg => StingLog.Warn($"BaselineRegistry: {msg}"));
 
         private static void Merge<T>(List<T> baseList, List<T> overrides, Func<T, string> key)
         {
@@ -119,7 +128,70 @@ namespace StingTools.Commands.Baseline
             }
 
             ReadDeclaredTypeParameters(doc, inv, baseline);
+            ReadFamilyParameterState(doc, inv, baseline);
             return inv;
+        }
+
+        /// <summary>
+        /// LAYER 3 — which loaded families already carry the declared parameters,
+        /// and which cannot be edited at all.
+        ///
+        /// The parameter read is done on a TYPE of the family rather than by
+        /// opening it: EditFamily is the expensive, model-mutating call this
+        /// whole audit exists to happen BEFORE. A shared parameter added to a
+        /// family shows on its symbols, so LookupParameter on one symbol answers
+        /// the question at a fraction of the cost.
+        /// </summary>
+        private static void ReadFamilyParameterState(Document doc, ModelInventory inv,
+                                                     ProjectBaseline baseline)
+        {
+            var sets = (baseline?.FamilyParameters ?? new List<BaselineFamilyParameterSet>())
+                .Where(f => f != null && !string.IsNullOrWhiteSpace(f.Category) && f.CleanParameters.Any())
+                .ToList();
+            if (sets.Count == 0) return;
+
+            // One symbol per family is enough, and far cheaper than all of them.
+            var oneSymbolPerFamily = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sym in Collect<FamilySymbol>(doc))
+            {
+                string fam = sym.Family?.Name;
+                if (string.IsNullOrWhiteSpace(fam)) continue;
+                if (!oneSymbolPerFamily.ContainsKey(fam.Trim())) oneSymbolPerFamily[fam.Trim()] = sym;
+            }
+
+            foreach (var fam in Collect<Family>(doc))
+            {
+                string cat = fam.FamilyCategory?.Name;
+                string name = fam.Name;
+                if (string.IsNullOrWhiteSpace(cat) || string.IsNullOrWhiteSpace(name)) continue;
+
+                var spec = sets.FirstOrDefault(f =>
+                    string.Equals(f.Category.Trim(), cat, StringComparison.OrdinalIgnoreCase));
+                if (spec == null) continue;
+
+                // An in-place family has no .rfa behind it and cannot be edited
+                // and reloaded. Reported, never attempted.
+                bool editable = true;
+                try { editable = fam.IsEditable && !fam.IsInPlace; }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BaselineModelReader editability '{name}': {ex.Message}");
+                    editable = false;
+                }
+                if (!editable) { inv.UneditableFamilies.Add(name.Trim()); continue; }
+
+                var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (oneSymbolPerFamily.TryGetValue(name.Trim(), out var sym))
+                    foreach (string wanted in spec.CleanParameters)
+                    {
+                        try { if (sym.LookupParameter(wanted) != null) have.Add(wanted); }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"BaselineModelReader param '{wanted}' on '{name}': {ex.Message}");
+                        }
+                    }
+                inv.FamilyParameterNames[name.Trim()] = have;
+            }
         }
 
         /// <summary>
@@ -536,6 +608,199 @@ namespace StingTools.Commands.Baseline
         }
     }
 
+    /// <summary>
+    /// LAYER 3 — add SHARED parameters to loaded families.
+    ///
+    /// SHARED, not local. FamilyAugmentationEngine.AddTextParam takes the
+    /// name/spec overload of FamilyManager.AddParameter, which creates a LOCAL
+    /// family parameter: no GUID, no shared identity, and two families given
+    /// "the same" one hold two unrelated parameters that cannot be scheduled
+    /// together. This takes the ExternalDefinition overload instead — the
+    /// definition-file path BatchAddFamilyParamsCommand already opens.
+    ///
+    /// And isInstance comes from the baseline, defaulting to FALSE: a door
+    /// type's leaf material does not vary per instance.
+    ///
+    /// The parameters are created EMPTY. Deciding what a given type's leaf
+    /// material IS remains a human declaration; inferring it from a type name
+    /// is what PR #710 withdrew three rules for.
+    ///
+    /// UNPROVEN, like the layer-2 mint: every family is attempted individually
+    /// and reported individually, and a family that cannot be edited is
+    /// expected rather than exceptional.
+    /// </summary>
+    internal static class BaselineAugmenter
+    {
+        public static void Apply(Document doc, UIApplication app, ProjectBaseline baseline,
+                                 BaselineAuditResult audit, MintResult r)
+        {
+            var work = audit.Augments.ToList();
+            if (work.Count == 0) return;
+
+            var sets = baseline.FamilyParameters ?? new List<BaselineFamilyParameterSet>();
+
+            string originalSpf = null;
+            DefinitionFile defFile = null;
+            try
+            {
+                string spf = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                if (string.IsNullOrWhiteSpace(spf))
+                {
+                    r.Failed.Add("family parameters: MR_PARAMETERS.txt not found, so no SHARED "
+                               + "parameter could be resolved. Nothing was added — a local "
+                               + "parameter would have no shared identity and could not be scheduled.");
+                    return;
+                }
+                originalSpf = app.Application.SharedParametersFilename;
+                app.Application.SharedParametersFilename = spf;
+                defFile = app.Application.OpenSharedParameterFile();
+                if (defFile == null)
+                {
+                    r.Failed.Add("family parameters: the shared-parameter file could not be opened.");
+                    return;
+                }
+
+                var defs = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
+                foreach (DefinitionGroup g in defFile.Groups)
+                    foreach (ExternalDefinition d in g.Definitions)
+                        if (!defs.ContainsKey(d.Name)) defs[d.Name] = d;
+
+                var familiesByName = new Dictionary<string, Family>(StringComparer.OrdinalIgnoreCase);
+                foreach (var fam in new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>())
+                    if (!string.IsNullOrWhiteSpace(fam.Name) && !familiesByName.ContainsKey(fam.Name.Trim()))
+                        familiesByName[fam.Name.Trim()] = fam;
+
+                foreach (var finding in work)
+                {
+                    var spec = sets.FirstOrDefault(x => x != null
+                        && string.Equals(x.Category?.Trim(), finding.Name, StringComparison.OrdinalIgnoreCase));
+                    if (spec == null) { r.Failed.Add($"family parameters '{finding.Name}': no baseline entry"); continue; }
+
+                    var wanted = new List<ExternalDefinition>();
+                    foreach (string name in finding.Parameters ?? new List<string>())
+                    {
+                        if (defs.TryGetValue(name, out var d)) { wanted.Add(d); continue; }
+                        // Validate() should have caught this before any model was
+                        // touched. Reaching here means the baseline and the file
+                        // disagree, and a LOCAL fallback is exactly what must not
+                        // happen.
+                        r.Failed.Add($"family parameters '{finding.Name}': '{name}' is not in the "
+                                   + "shared-parameter file — skipped rather than added as a LOCAL "
+                                   + "parameter, which could not be scheduled with its namesakes");
+                    }
+                    if (wanted.Count == 0) continue;
+
+                    var group = ResolveGroup(spec.Group);
+                    foreach (string famName in finding.Families ?? new List<string>())
+                    {
+                        if (!familiesByName.TryGetValue((famName ?? "").Trim(), out var fam))
+                        {
+                            r.Failed.Add($"family parameters: family '{famName}' is no longer loaded");
+                            continue;
+                        }
+                        AugmentOne(doc, fam, wanted, group, spec.IsInstance, r);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                r.Failed.Add($"family parameters: {ex.Message}");
+                StingLog.Warn($"BaselineAugmenter: {ex.Message}");
+            }
+            finally
+            {
+                try { if (originalSpf != null) app.Application.SharedParametersFilename = originalSpf; }
+                catch (Exception ex) { StingLog.Warn($"BaselineAugmenter restore SPF: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// One family, one EditFamily/LoadFamily round trip.
+        ///
+        /// Idempotent: a parameter the family already has is skipped, so a
+        /// re-run leaves it untouched. Families that cannot be edited — vendor-
+        /// locked, workshared and owned elsewhere — are REPORTED, not crashed
+        /// on; they are expected.
+        /// </summary>
+        private static void AugmentOne(Document doc, Family fam, List<ExternalDefinition> defs,
+                                       ForgeTypeId group, bool isInstance, MintResult r)
+        {
+            Document famDoc = null;
+            try
+            {
+                famDoc = doc.EditFamily(fam);
+                if (famDoc == null) throw new InvalidOperationException("EditFamily returned null");
+
+                int added = 0;
+                using (var tx = new Transaction(famDoc, "STING Baseline Family Parameters"))
+                {
+                    tx.Start();
+                    var fm = famDoc.FamilyManager;
+                    foreach (var d in defs)
+                    {
+                        if (fm.get_Parameter(d.Name) != null) continue;   // idempotent
+                        fm.AddParameter(d, group, isInstance);
+                        added++;
+                    }
+                    tx.Commit();
+                }
+
+                if (added > 0)
+                {
+                    famDoc.LoadFamily(doc, new AddOnlyLoadOptions());
+                    r.Created += added;
+                }
+            }
+            catch (Exception ex)
+            {
+                r.Failed.Add($"family '{fam?.Name}': {ex.Message}");
+                StingLog.Warn($"BaselineAugmenter '{fam?.Name}': {ex.Message}");
+            }
+            finally
+            {
+                try { famDoc?.Close(false); }
+                catch (Exception ex) { StingLog.Warn($"BaselineAugmenter close: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Reload the edited family, KEEPING the project's parameter values.
+        ///
+        /// FamilyAugmentationEngine's own options set overwriteParameterValues
+        /// to TRUE. Layer 3 only ADDS empty parameters, so overwriting values is
+        /// at best a no-op and at worst throws away something a user typed into
+        /// a type between the audit and the apply. Additive means additive.
+        /// </summary>
+        private sealed class AddOnlyLoadOptions : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            { overwriteParameterValues = false; return true; }
+
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
+                out FamilySource source, out bool overwriteParameterValues)
+            {
+                source = FamilySource.Family; overwriteParameterValues = false; return true;
+            }
+        }
+
+        /// <summary>Group name → ForgeTypeId. An unknown name never reaches here:
+        /// Validate() rejects it, so this cannot silently choose a default.</summary>
+        private static ForgeTypeId ResolveGroup(string name)
+        {
+            switch ((name ?? "").Trim().ToLowerInvariant())
+            {
+                case "construction": return GroupTypeId.Construction;
+                case "materials":    return GroupTypeId.Materials;
+                case "dimensions":   return GroupTypeId.Geometry;
+                case "general":      return GroupTypeId.General;
+                case "graphics":     return GroupTypeId.Graphics;
+                case "data":         return GroupTypeId.Data;
+                case "other":        return GroupTypeId.General;
+                default:             return GroupTypeId.IdentityData;
+            }
+        }
+    }
+
     internal static class BaselineDoc
     {
         /// <summary>
@@ -568,7 +833,9 @@ namespace StingTools.Commands.Baseline
             }
 
             var baselineForAudit = BaselineRegistry.Load(doc);
-            var audit = BaselineAuditor.Audit(baselineForAudit, BaselineModelReader.Read(doc, baselineForAudit));
+            var audit = BaselineAuditor.Audit(baselineForAudit,
+                                              BaselineModelReader.Read(doc, baselineForAudit),
+                                              BaselineRegistry.SharedParameterNames());
             TaskDialog.Show("STING Project Baseline — audit", BaselineAuditor.Report(audit));
             return Result.Succeeded;
         }
@@ -588,7 +855,8 @@ namespace StingTools.Commands.Baseline
             }
 
             var baseline = BaselineRegistry.Load(doc);
-            var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc, baseline));
+            var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc, baseline),
+                                              BaselineRegistry.SharedParameterNames());
 
             if (audit.BaselineProblems.Count > 0)
             {
@@ -607,7 +875,10 @@ namespace StingTools.Commands.Baseline
             // without the full list of what will change being read first.
             var dlg = new TaskDialog("STING Project Baseline — apply?")
             {
-                MainInstruction = $"Create {audit.MissingCount} missing item(s)?",
+                MainInstruction = audit.AugmentCount > 0
+                    ? $"Create {audit.MissingCount} missing item(s) AND edit "
+                      + $"{audit.FamiliesToAugment} famil(ies)?"
+                    : $"Create {audit.MissingCount} missing item(s)?",
                 MainContent = BaselineAuditor.Report(audit),
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No
@@ -620,6 +891,22 @@ namespace StingTools.Commands.Baseline
                 tx.Start();
                 mint = BaselineMinter.Apply(doc, baseline, audit);
                 tx.Commit();
+            }
+
+            // OUTSIDE the transaction: EditFamily cannot be called with one
+            // open, and LoadFamily commits into the project itself. Its own
+            // failures are collected into the same result so one report covers
+            // the whole run.
+            try
+            {
+                BaselineAugmenter.Apply(doc,
+                    data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp,
+                    baseline, audit, mint);
+            }
+            catch (Exception ex)
+            {
+                mint.Failed.Add($"family parameters: {ex.Message}");
+                StingLog.Warn($"BaselineApply augment: {ex.Message}");
             }
 
             StingLog.Info($"BaselineApply: created {mint.Created}, failed {mint.Failed.Count}");

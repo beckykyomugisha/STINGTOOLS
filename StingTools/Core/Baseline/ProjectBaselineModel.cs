@@ -156,6 +156,58 @@ namespace StingTools.Core.Baseline
         }
     }
 
+    /// <summary>
+    /// LAYER 3 — SHARED parameters to add to every loaded family in a category.
+    ///
+    /// SHARED, not local, and that is the load-bearing detail.
+    /// <c>FamilyAugmentationEngine.AddTextParam</c> calls the name/spec overload
+    /// of <c>FamilyManager.AddParameter</c>, which creates a LOCAL family
+    /// parameter: no GUID, no shared identity. Two families given "the same"
+    /// parameter that way hold two unrelated parameters — they cannot be
+    /// scheduled together, and the material schedule cannot read them reliably
+    /// across a project. Layer 3 must use the ExternalDefinition overload.
+    ///
+    /// And <c>isInstance: false</c>. A door type's leaf material does not vary
+    /// per instance.
+    ///
+    /// The parameters are created EMPTY. Deciding that a given door type's leaf
+    /// is "flush timber, hollow core" is a human declaration; inferring it from
+    /// the type name is what PR #710 withdrew three rules for.
+    /// </summary>
+    public sealed class BaselineFamilyParameterSet
+    {
+        /// <summary>Revit category display name, e.g. "Doors".</summary>
+        public string Category = "";
+
+        /// <summary>Shared-parameter names. Every one must resolve in the STING
+        /// shared-parameter file — see <see cref="ProjectBaseline.Validate"/>.</summary>
+        public List<string> Parameters = new List<string>();
+
+        /// <summary>Type parameters by default. T6 specifies type, not instance.</summary>
+        public bool IsInstance;
+
+        /// <summary>Parameter group name, e.g. "IdentityData". Resolved to a
+        /// ForgeTypeId on the Revit side; an unknown name is a validation
+        /// error rather than a silent fall to some default group.</summary>
+        public string Group = "IdentityData";
+
+        /// <summary>Group names the Revit side can resolve. Kept here, beside
+        /// the field it validates, so the two cannot drift.</summary>
+        public static readonly string[] KnownGroups =
+        {
+            "IdentityData", "Construction", "Materials", "Dimensions",
+            "General", "Graphics", "Data", "Other"
+        };
+
+        public bool HasKnownGroup =>
+            !string.IsNullOrWhiteSpace(Group)
+            && KnownGroups.Any(g => string.Equals(g, Group.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        public IEnumerable<string> CleanParameters =>
+            (Parameters ?? new List<string>())
+                .Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim());
+    }
+
     public sealed class ProjectBaseline
     {
         public string SchemaVersion = "1.0";
@@ -171,6 +223,10 @@ namespace StingTools.Core.Baseline
         /// <summary>LAYER 2 — types minted inside families already loaded.</summary>
         public List<BaselineFamilyType> FamilyTypes = new List<BaselineFamilyType>();
 
+        /// <summary>LAYER 3 — shared parameters added to loaded families.</summary>
+        public List<BaselineFamilyParameterSet> FamilyParameters =
+            new List<BaselineFamilyParameterSet>();
+
         public IEnumerable<BaselineHostType> AllHostTypes =>
             (WallTypes ?? new List<BaselineHostType>())
             .Concat(FloorTypes ?? new List<BaselineHostType>())
@@ -183,7 +239,17 @@ namespace StingTools.Core.Baseline
         /// type with an empty layer and no error — the same silent-zero class as
         /// a mistyped MATERIAL_LOOKUP key.
         /// </summary>
-        public List<string> Validate()
+        /// <summary>
+        /// <paramref name="knownSharedParameters"/> is the set of names in the
+        /// STING shared-parameter file. Pass it and layer 3's names are checked
+        /// against reality; omit it and that one check is skipped, which is what
+        /// every existing caller wants.
+        ///
+        /// A name that does not resolve is a BASELINE error, caught before any
+        /// model is touched — the same class as a layer naming an undeclared
+        /// material. Learning it from a live augment run is far more expensive.
+        /// </summary>
+        public List<string> Validate(ISet<string> knownSharedParameters = null)
         {
             var problems = new List<string>();
             var known = new HashSet<string>(
@@ -215,11 +281,63 @@ namespace StingTools.Core.Baseline
             }
 
             problems.AddRange(ValidateFamilyTypes());
+            problems.AddRange(ValidateFamilyParameters(knownSharedParameters));
 
             var dupes = AllHostTypes.Where(t => t != null && !string.IsNullOrWhiteSpace(t.Name))
                 .GroupBy(t => t.Name.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Where(g => g.Count() > 1).Select(g => g.Key);
             foreach (string d in dupes) problems.Add($"host type '{d}' is declared more than once");
+
+            return problems;
+        }
+
+        /// <summary>
+        /// LAYER 3 problems. The shared-parameter existence check is the one
+        /// that matters: EditFamily + LoadFamily across every door and window
+        /// family is a heavy, model-mutating operation, and discovering a
+        /// misspelled parameter name halfway through it is the worst possible
+        /// moment.
+        /// </summary>
+        private List<string> ValidateFamilyParameters(ISet<string> known)
+        {
+            var problems = new List<string>();
+            var sets = FamilyParameters ?? new List<BaselineFamilyParameterSet>();
+
+            foreach (var fp in sets)
+            {
+                if (fp == null) continue;
+                string label = string.IsNullOrWhiteSpace(fp.Category) ? "(no category)" : fp.Category.Trim();
+
+                if (string.IsNullOrWhiteSpace(fp.Category))
+                    problems.Add("a family parameter set names no category");
+
+                if (!fp.CleanParameters.Any())
+                    problems.Add($"family parameter set '{label}' lists no parameters");
+
+                if (!fp.HasKnownGroup)
+                    problems.Add($"family parameter set '{label}' names group '{fp.Group}', which is "
+                               + "not one of " + string.Join(", ", BaselineFamilyParameterSet.KnownGroups));
+
+                foreach (string name in fp.CleanParameters)
+                {
+                    if (known != null && !known.Contains(name))
+                        problems.Add($"family parameter set '{label}' names '{name}', which is not in "
+                                   + "the STING shared-parameter file — a LOCAL parameter would be "
+                                   + "created instead, and local parameters cannot be scheduled together");
+                }
+
+                var dupeNames = fp.CleanParameters
+                    .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1).Select(g => g.Key);
+                foreach (string d in dupeNames)
+                    problems.Add($"family parameter set '{label}' lists '{d}' more than once");
+            }
+
+            var dupeCats = sets.Where(f => f != null && !string.IsNullOrWhiteSpace(f.Category))
+                .GroupBy(f => f.Category.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1).Select(g => g.Key);
+            foreach (string d in dupeCats)
+                problems.Add($"family parameter set for '{d}' is declared more than once");
 
             return problems;
         }
