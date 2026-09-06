@@ -2,6 +2,99 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 245 — Material Schedule: what a model has to SAY before it can be measured)
+
+Phase 244 fixed the six defects the first real export exposed. Running it again exposed a
+different class of problem entirely — not wrong numbers, but **missing statements**. A take-off can
+only measure what the model describes, and this model described almost nothing about its finishes.
+Four exports were run against real work in one session; each one moved the question rather than
+answering it, which is itself the finding.
+
+**1 — Six more defects, and one of them was a claim I had written.** Three rows reported *"order
+quantity 174.60 is below the net measured 174.60"*, which reads as a false alarm and was not one:
+the model held **174.6044**. `MidpointRounding.AwayFromZero` decides only TIES, yet the comment
+claimed it meant a divisible order could never round below what was measured. Worse, the test
+written to catch exactly this compared the order against `Math.Round(net, 2)` — the rounding under
+test. **A gate compared with its own transformation cannot fail.** Ceiling at 2 dp; the test now
+compares against the raw net (#777).
+
+The defect that could have cost money was quieter. `Blockwork wall` 175 m² sat beside
+`Hollow blocks 2,292 No. @ 2,500` — the same wall, twice — with an R3 telling the reader the first
+was missing a rate. Intermediate measures are now **memoranda**: quantity kept (it is how the derived
+count is checked), amount hard-zero, no rate cell, no formula. Marking is **conditional on the
+children being present**, because turning a double-count into an omission is worse: a duplicated line
+is arguable, a missing one is invisible. Also: roofs decomposed into nothing (856 m² arrived as
+unpriced area), stage routing filed a roof cap and a gate under SUPERSTRUCTURE, and one Windows row
+was dropped by a pattern written for Generic Models voids (#777).
+
+**2 — Tiling, measured from the finish layer.** The first attempt at this matched whole ELEMENTS from
+the unit table and was withdrawn in #710 for pricing entire floors as tiling. The blocker was real: a
+floor's tiled area is not its slab area, and the RC-slab path knows only concrete, rebar and formwork.
+The compound structure answers it directly — a `Finish1`/`Finish2` layer whose material reads as tile
+IS the tiled area, and its absence means the surface is not tiled. Wall tiling also corrected the
+paint: a tiled face is plastered as backing but never painted, so tiled faces come off the painted
+area — the #777 double-count wearing different clothes (#780).
+
+**3 — Then the export said there was nothing to measure, and could not say why.** Zero tiling rows,
+no errors. Two incompatible causes fit that output exactly — the model describes no finish layers, or
+it describes them under names the pattern misses — and nothing separated them. **An absent side
+effect never tells you why.** The scan now reports its own denominator, and names every material it
+rejected, because if the pattern is what is wrong those names are the evidence for it. Caching the
+walk by TYPE fixed a real miscount on the way: walls read their finish twice, once for the paint
+deduction and once for the tiling (#783).
+
+The very next export answered it: *10 wall/floor types inspected, 1 carries a finish layer, and that
+one is `Gypsum Wall Board`.*
+
+**4 — So finishes gained a SECOND source.** That model is not broken; most architects never layer
+finishes, they record them on the ROOM — and this plugin has been harvesting `ROOM_FINISH_FLOOR` /
+`_WALL` / `_BASE` into `BLE_*` all along without anything reading them for quantities. The room source
+measures what the room states, from `Room.Area` and `Room.Perimeter`. If ANY type carried a tiled
+layer, room tiling is skipped whole and the export says so — otherwise a correctly-layered model shows
+zero room tiling and looks broken when it is the guard working. **Skirting arrived for free**, closing
+something recorded as out of reach: it needs a perimeter, and `Room.Perimeter` sits beside the
+base-finish field. Two guards worth naming — "carpet tile", "vinyl tile", "LVT", "ceiling tile", "roof
+tile" and "acoustic tile" all contain the word and would have been priced with adhesive and grout at
+ceramic rates; and rooms carry the literals "None", "N/A", "-" and "TBC" far more often than they
+carry nothing, each of which would mint skirting around a room that has none (#786).
+
+**5 — The diagnostic could not be recovered from the deliverable.** The scan lines lived only in the
+post-export dialog, so a workbook reviewed an hour later could not say why it looked the way it did —
+reviewing one meant asking for a screenshot. The same mistake one level up. Notes now travel on the
+document and are written to the Validation sheet above the issues they explain. The clean-run message
+was anchored at a hardcoded row 4, which notes push into; a test pinned to that was **confirmed to
+fail** against the old row before being kept. The XLSX writer turns out to be Revit-free — ClosedXML
+only — so those tests write a REAL workbook and read it back, the first time anything in this feature
+has been asserted on the deliverable rather than the model behind it (#788).
+
+With that in place the next export explained itself: *23 placed rooms read, 0 name a tiled floor,
+0 a tiled wall, 0 a skirting — the rooms carry no finish text.* Both sources ran, both found nothing,
+and neither guessed.
+
+**6 — Which is a model-authoring problem, so the baseline became data.** Fixing it one model at a time
+is not a system. `STING_PROJECT_BASELINE.json` declares the materials and host types a STING model is
+authored with, and two commands compare a project to it. **Not an `.rte`** — a Revit template is
+binary and only authorable inside Revit, and an `.rte` would only help NEW projects while this also
+fixes the ones already underway. Deliberately narrow, too: view templates, drawing types, view style
+packs, 290 AEC filters and material packs already exist as commands and none of that is repeated.
+
+The honest split is why there are two verbs. Materials, wall/floor/roof/ceiling types and levels are
+creatable; structural columns, framing, foundations, doors and windows are FAMILY types, so with no
+`.rfa` loaded there is nothing to create and they are reported as guidance, never as work Apply will
+do. **Audit first, write on confirm**; Apply mints only what the audit marked Missing, and a type whose
+name matches but whose build-up differs is a CONFLICT, never an overwrite — the model's version may be
+the correct one. Material names are load-bearing (the take-off infers brick vs block vs RC from them;
+the roof rules match on type name), so the shipped baseline is tested against the classifiers that
+consume it. Levels ship EMPTY: auditing every model against someone else's storey heights is noise
+(#789).
+
+**Tests 351 → 465.** Build 0/0 throughout. Six existing tests were corrected rather than loosened, and
+three separate gates — the rounding contract, the MATERIAL_LOOKUP key seam and the Validation row
+anchor — were each pointed at a deliberately wrong input and **confirmed to fail** before being kept.
+
+**Not verified.** The Revit-side halves — the tile-layer reader, the room-finish reader and the entire
+baseline minter — have never touched a real model. See MATSCHED-1.
+
 #### Completed (Phase 244 — Material Schedule: the first real export, and the six defects it exposed)
 
 Phase 236 left the material schedule merged but never run. It was run, and the export
