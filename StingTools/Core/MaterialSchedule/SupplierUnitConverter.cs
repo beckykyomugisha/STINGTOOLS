@@ -91,6 +91,7 @@ namespace StingTools.Core.MaterialSchedule
         None,                   // nothing matched — row keeps its measured unit, silently
         ByKind,                 // matched a CompoundTakeoff constituent kind
         ByCategory,             // matched a category (and its type pattern, if any)
+        ByMaterial,             // matched the element's MATERIAL name
         CategoryTypeMismatch    // category matched but the type did not — DO NOT convert
     }
 
@@ -144,7 +145,7 @@ namespace StingTools.Core.MaterialSchedule
                     if (!CategoryAllows(r, category)) continue;
                     if (r.MatchMaterialPatterns.Any(p => !string.IsNullOrWhiteSpace(p)
                             && mat.IndexOf(p.Trim(), StringComparison.OrdinalIgnoreCase) >= 0))
-                        return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
+                        return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByMaterial };
                 }
 
             // PERF: single pass, no LINQ closure and no candidates List per row.
