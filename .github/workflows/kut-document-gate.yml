@@ -41,6 +41,8 @@ on:
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'
+      - 'tools/build_document_control.py'
+      - 'tools/kut_naming.py'
       - 'tools/build_kut_lod_overlay.py'
       - 'tools/corporate_docx.py'
       - 'tools/kut_docs_lib.py'
@@ -59,6 +61,8 @@ on:
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'
+      - 'tools/build_document_control.py'
+      - 'tools/kut_naming.py'
       - 'tools/build_kut_lod_overlay.py'
       - 'tools/corporate_docx.py'
       - 'tools/kut_docs_lib.py'
@@ -115,6 +119,7 @@ jobs:
           python tools/build_bep.py
           python tools/build_team_playbook.py
           python tools/build_midp.py
+          python tools/build_document_control.py
           git diff --exit-code -- 'KUT_*.docx' 'KUT_*.xlsx' || {
             echo "--- which OPC parts actually differ ---"
             python tools/diff_ooxml.py

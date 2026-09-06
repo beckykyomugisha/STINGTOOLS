@@ -11,6 +11,8 @@ Stdlib-only: openpyxl is needed to WRITE the workbook, not to describe it.
 """
 from __future__ import annotations
 
+from kut_naming import TYPE_CODES as _TYPE_CODES
+
 # -- permitted values behind the drop-downs ---------------------------------
 # These are written to the 'Lists' sheet, one per column, in this key order.
 
@@ -27,8 +29,9 @@ LISTS = {
     'CDE State': ['WIP', 'Shared', 'Published', 'Archived'],
     'RAG': ['Green', 'Amber', 'Red', 'Complete'],
     'Volume': ['00', '01', '02', '03', '04', '05', '06', 'ZZ'],
-    'Type code': ['M3', 'M2', 'DR', 'SH', 'SC', 'SP', 'RP', 'CA', 'RD', 'MS', 'PP', 'CR',
-                  'BQ', 'TR'],
+    # From kut_naming, so the drop-down cannot offer a code the naming
+    # convention does not define -- it had already drifted once.
+    'Type code': list(_TYPE_CODES),
     'Yes/No': ['Y', 'N'],
 }
 

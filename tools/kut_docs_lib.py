@@ -91,18 +91,29 @@ _PARTS_RX = re.compile(re.escape(PARTS_PREFIX) + r"([0-9a-f]{64})")
 
 # The generated pack. Keyed by the committed filename; the value is every source
 # file whose content determines that document's bytes.
+# tools/kut_naming.py is an input to all three: the BEP renders the container
+# fields from it directly, and the playbook and the register reach it through
+# midp_schema. A file that changes a document's bytes must be listed, or the
+# staleness stamp says "current" about a document built from something else.
 GENERATED = {
     "KUT_BIM_Execution_Plan.docx": ("tools/build_bep.py", "tools/corporate_docx.py",
+                                    "tools/kut_naming.py",
                                     "tools/kut_docs_lib.py"),
     # The playbook renders the delivery-plan field list from midp_schema, so a
     # column added there changes the playbook's bytes.
     "KUT_Project_Delivery_Playbook.docx": ("tools/build_team_playbook.py",
                                            "tools/corporate_docx.py",
                                            "tools/midp_schema.py",
+                                           "tools/kut_naming.py",
+                                           "tools/kut_docs_lib.py"),
+    "KUT_Document_Control_Standard.docx": ("tools/build_document_control.py",
+                                           "tools/corporate_docx.py",
+                                           "tools/kut_naming.py",
                                            "tools/kut_docs_lib.py"),
     "KUT_Master_Information_Delivery_Plan.xlsx": ("tools/build_midp.py",
                                                   "tools/midp_rows.py",
                                                   "tools/midp_schema.py",
+                                                  "tools/kut_naming.py",
                                                   "tools/kut_docs_lib.py"),
 }
 

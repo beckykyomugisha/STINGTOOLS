@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
 import kut_docs_lib as K  # noqa: E402
 from midp_schema import COL_NAMES  # noqa: E402
+import kut_naming as N  # noqa: E402
 
 OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_Project_Delivery_Playbook.docx')
 c = CorporateDoc()
@@ -161,13 +162,7 @@ h2('2.3  Volumes')
 para('The project is divided into seven volumes. The volume is the second most significant field in every '
      'container name and every asset identifier, and it governs how models are split and federated.')
 table(['Volume code', 'Volume', 'Numbering value'],
-      [['BLD1', 'Temple', '01'],
-       ['BLD2', 'Meetinghouse', '02'],
-       ['BLD3', 'Housing and ancillary', '03'],
-       ['BLD4', 'Grounds', '04'],
-       ['BLD5', 'Utility', '05'],
-       ['BLD6', 'Guard house', '06'],
-       ['EXT', 'Site-wide and external works', '00']],
+      [[code, name, num] for num, code, name, _a in N.VOLUMES if code != 'ZZ'],
       widths=[3.4, 7.6, 5.6])
 
 h2('2.4  Stages and information gates')

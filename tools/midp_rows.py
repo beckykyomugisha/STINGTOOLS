@@ -71,8 +71,7 @@ row('Z-018', IM, 'ZZ', 'Standards localisation note (Owner standards to Ugandan 
 row('Z-019', IM, 'ZZ', 'Stage 0 gate record (test model shared by every appointed party)', 'Report', 'RP', MOB, 'n/a', 'PDF', 'S3', 'Shared', 1, 1, 'Information Manager', 'TIDP-Z', 2, 'Y', 'N', 'N', 'New P02', 'Added (A-02): the Stage 0 exit gate had no date', 'No discipline enters the fortnightly cycle before this')
 row('Z-020', IM, 'ZZ', 'Monthly BIM status report (design stage)', 'Report', 'RP', MOB, 'n/a', 'PDF', 'S2', 'Shared', 1, 11, 'Information Manager', 'TIDP-Z', 3, 'N', 'N', 'N', 'New P02', 'Added (D-05): proposal 4.5 requires monthly reporting throughout; Aug MIDP started at M12', 'KPIs per BEP 10.5')
 row('Z-021', IM, 'ZZ', 'Kickoff induction record and BEP acknowledgement', 'Document', 'RP', MOB, 'n/a', 'PDF', 'A1', 'Published', 0, 1, 'Information Manager', 'TIDP-Z', 3, 'N', 'N', 'N', 'Jun P01', 'June ref Z-007 "Kickoff training + signed BEP"; dropped in Aug', 'Attendance and signed acknowledgement from every task team')
-row('Z-022', IM, 'ZZ', 'Document Control Standard (reissued to P02 codes)', 'Document', 'RP', MOB, 'n/a', 'DOCX/PDF', 'A1', 'Published', 0, 0, 'Information Manager', 'TIDP-Z', 3, 'N', 'N', 'N', 'New P02', 'Added (I-02); June document RP-Z-0001 renumbered RP-Z-0003', 'Includes notice and number-retirement rules')
-row('Z-023', IM, 'ZZ', 'Drawing and document numbering convention (reissued)', 'Document', 'RP', MOB, 'n/a', 'DOCX/PDF', 'A1', 'Published', 0, 0, 'Information Manager', 'TIDP-Z', 3, 'N', 'N', 'N', 'New P02', 'Added (B-05); June RP-Z-0004 updated to P02 codes', 'Sheet banding to be confirmed at kickoff')
+row('Z-022', IM, 'ZZ', 'Document Control Standard (reissued to P02 codes)', 'Document', 'RP', MOB, 'n/a', 'DOCX/PDF', 'A1', 'Published', 0, 0, 'Information Manager', 'TIDP-Z', 3, 'N', 'N', 'N', 'New P02', 'Added (I-02); June document RP-Z-0001 renumbered RP-Z-0003. Absorbs the separate numbering convention (June RP-Z-0004), which would have been a second copy of the naming rules', 'KUT-SMB-ZZ-ZZ-RP-Z-0003. Container naming, sheet number bands, revision, authorisation, transmittal, superseded/cancelled/replaced notices, number retirement')
 row('Z-024', IM, 'ZZ', 'Drawing register, transmittal and notice templates', 'Document', 'TR', MOB, 'n/a', 'XLSX/DOCX', 'A1', 'Published', 0, 0, 'Information Manager', 'TIDP-Z', 3, 'N', 'N', 'N', 'Jun P01', 'June templates carried; Uniclass column replaced by CSI section (E-05)', '')
 
 # ── 2.1 Deliverable A ──────────────────────────────────────────────────────
@@ -185,6 +184,7 @@ row('Z-706', IM, 'ZZ', 'Final drawing register', 'Schedule', 'SC', DD, '500', 'X
 
 # Retired or merged rows (recorded for the change log only)
 RETIRED = [
+    ('Z-023', 'New P02', 'Drawing and document numbering convention (reissued)', 'Absorbed into Z-022, the Document Control Standard. A separate numbering convention would have been a third statement of the container naming rules, beside BEP 4.2 and the standard itself, and the June pair had already drifted apart'),
     ('ALL-500', 'Aug P01', 'Construction stage models (all disciplines)', 'Replaced by per-discipline rows A-500 to G-500 (G-02)'),
     ('Z-004 (June)', 'Jun P01', 'Naming and tagging standard', 'Merged into BEP 4.2 and Playbook s4; no separate document'),
     ('Z-005 (June)', 'Jun P01', 'CDE setup (four states + permissions)', 'Became Z-012 CDE folder structure and permission matrix'),
