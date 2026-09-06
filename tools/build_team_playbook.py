@@ -292,7 +292,8 @@ table(['Code', 'Type', 'Code', 'Type'],
        ['DR', 'Drawing', 'RD', 'Room data sheet'],
        ['SH', 'Sheet', 'MS', 'Method statement'],
        ['SC', 'Schedule', 'PP', 'Presentation'],
-       ['SP', 'Specification', 'CR', 'Clash or coordination report']],
+       ['SP', 'Specification', 'CR', 'Clash or coordination report'],
+       ['TR', 'Transmittal or notice', 'BQ', 'Bill of quantities']],
       widths=[2.0, 6.3, 2.0, 6.3])
 
 h2('4.5  Level codes')

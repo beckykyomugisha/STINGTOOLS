@@ -340,7 +340,7 @@ c.table(['Field', 'Length', 'Permitted values'],
          ['Originator', '[FILL — 3, subject to Section 4.2.1]', 'Per the originator register'],
          ['Volume', '2', '01 to 06 per Section 1.3; 00 site-wide; ZZ all volumes'],
          ['Level', '2', 'B1, GF, 01 upward, RF, ZZ all levels, XX not applicable'],
-         ['Type', '2', 'M3, M2, DR, SH, SC, SP, RP, CA, RD, MS, PP, CR'],
+         ['Type', '2', 'M3, M2, DR, SH, SC, SP, RP, CA, RD, MS, PP, CR, TR, BQ'],
          ['Role', '1 to 2', 'A, S, M, E, P, FP, LV, G. Z is used for multi-discipline and federated containers'],
          ['Number', '4', 'Sequential within the set']],
         widths=[2.6, 3.6, 10.4])

@@ -167,6 +167,114 @@ def check_freshness(root: Path, f: Findings, verbose: bool):
 
 # -- 2. the three documents agree with each other ----------------------------
 
+OVERLAY_DIR = "project-templates/KUT/_BIM_COORD"
+
+
+def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
+    """The machine config must accept the naming the BEP declares.
+
+    WHY. owner_standards.json listed FP and LV as valid discipline codes and,
+    four lines above, used a sheet-number pattern whose role field was a single
+    [A-Z]. Every fire-protection and low-voltage sheet would have been reported
+    non-compliant against a standard that expressly permits them -- and no check
+    noticed, because no such sheet exists yet. The contradiction was sitting in
+    one file, between two rules, waiting for the first FP sheet to be drawn.
+
+    A rule that cannot accept the values its own document authorises is a
+    defect whether or not anything has tripped over it yet, so the BEP's
+    container-naming table is now the thing the config is measured against.
+    """
+    path = root / OVERLAY_DIR / "owner_standards.json"
+    if not path.exists():
+        f.fail(str(path), "missing -- the BEP's naming convention has no machine counterpart")
+        return
+    try:
+        rules = json.loads(path.read_text(encoding="utf-8")).get("rules", [])
+    except (OSError, ValueError) as exc:
+        f.fail(str(path), "unreadable: %s" % exc)
+        return
+
+    t = find_table(bep_t, "Field", "Length", "Permitted values")
+    if t is None:
+        f.fail(BEP, 'no "Field / Length / Permitted values" table -- container naming is '
+                    "the one convention every other document depends on")
+        return
+
+    declared = {}
+    for row in t[1:]:
+        declared[cell(row, 0).strip().lower()] = cell(row, 2)
+
+    # Role codes as the BEP states them: standalone one- or two-letter tokens.
+    roles = set(re.findall(r"\b([A-Z]{1,2})\b", declared.get("role", "")))
+    if not roles:
+        f.fail(BEP, "the Role row of the container-naming table lists no codes")
+        return
+
+    pattern = next((r.get("pattern") for r in rules
+                    if r.get("type") == "sheetNumberPattern" and r.get("enabled")), None)
+    if pattern is None:
+        f.note("no enabled sheetNumberPattern in owner_standards.json; "
+               "container names are not machine-checked at all")
+    else:
+        rejected = sorted(c for c in roles
+                          if not re.match(pattern, "KUT-SMB-01-GF-M3-%s-0001" % c))
+        if rejected:
+            f.fail(str(path),
+                   "sheetNumberPattern rejects role code(s) %s that BEP 4.2 authorises. "
+                   "The pattern and the BEP must permit the same set."
+                   % ", ".join(rejected))
+        f.ok()
+
+    # Asset discipline codes are a SUBSET of container role codes: BEP 4.2.2
+    # keeps them distinct, and Z is deliberately a container role only.
+    values = next((set(r.get("values", [])) for r in rules
+                   if r.get("id") == "discipline-code-valid"), None)
+    if values is not None:
+        stray = sorted(values - roles)
+        if stray:
+            f.fail(str(path), "discipline-code-valid allows %s, which BEP 4.2 does not list"
+                              % ", ".join(stray))
+        f.ok()
+
+    if verbose:
+        print("  naming: BEP roles %s; pattern %s" % (",".join(sorted(roles)), pattern))
+
+
+def check_type_codes(bep_t, pb_t, f: Findings, verbose: bool):
+    """The BEP's type-code list and the playbook's type-code table are one set.
+
+    The BEP states the codes as a bare list inside the container-naming table;
+    the playbook expands them with meanings, because that is the document a
+    task team actually works from. Two hand-maintained copies of the same
+    vocabulary, which is the drift this gate exists to stop.
+    """
+    t = find_table(bep_t, "Field", "Length", "Permitted values")
+    if t is None:
+        return                                # already reported by check_naming_config
+    bep_codes = set()
+    for row in t[1:]:
+        if cell(row, 0).strip().lower() == "type":
+            bep_codes = {c.strip() for c in cell(row, 2).split(",") if c.strip()}
+    t = find_table(pb_t, "Code", "Type", "Code", "Type")
+    if t is None:
+        f.fail(PLAYBOOK, 'no "Code / Type" table -- the type codes the BEP lists are '
+                         "not explained anywhere a task team reads")
+        return
+    pb_codes = {cell(row, i) for row in t[1:] for i in (0, 2) if cell(row, i)}
+
+    missing = sorted(bep_codes - pb_codes)
+    extra = sorted(pb_codes - bep_codes)
+    if missing:
+        f.fail(PLAYBOOK, "type code(s) %s are permitted by BEP 4.2 but carry no "
+                         "definition here" % ", ".join(missing))
+    if extra:
+        f.fail(BEP, "type code(s) %s are defined in the playbook but not permitted "
+                    "by BEP 4.2" % ", ".join(extra))
+    f.ok()
+    if verbose:
+        print("  type codes: %d, agreed across both documents" % len(bep_codes))
+
+
 def check_programme(bep_t, pb_t, f: Findings, verbose: bool):
     """Stage months in the issued documents must match the Owner's durations.
 
@@ -797,6 +905,8 @@ def main() -> int:
     pb_t = K.docx_tables(root / PLAYBOOK)
     midp_path = root / MIDP
 
+    check_naming_config(root, bep_t, f, args.verbose)
+    check_type_codes(bep_t, pb_t, f, args.verbose)
     check_programme(bep_t, pb_t, f, args.verbose)
     check_stages(bep_t, pb_t, midp_path, f, args.verbose)
     check_suitability(bep_t, pb_t, midp_path, f, args.verbose)
