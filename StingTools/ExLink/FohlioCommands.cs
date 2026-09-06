@@ -231,7 +231,7 @@ namespace StingTools.ExLink
                         costWritten++;
                     if (!string.IsNullOrEmpty(kv.Value.cur))
                         ParameterHelpers.SetString(el, ParamRegistry.FOHLIO_CURRENCY, kv.Value.cur, overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_CST_FX_DATE_DT", fxDate, overwrite: true);
+                    ParameterHelpers.SetString(el, ParamRegistry.CST_FX_DATE_DT, fxDate, overwrite: true);
                 }
                 // Snapshot every matched element (for the staleness + cost audit), even
                 // those with no change. Carries the cost fields for the rate fallback.
@@ -253,7 +253,8 @@ namespace StingTools.ExLink
                 MainContent = $"Matched: {matched}\nUnmatched: {unmatched}\nSnapshots stored: {snapshots.Count}\n" +
                               $"Procurement costs written: {costWritten}\n\n" +
                               "FOHLIO_REF_TXT links each item to Fohlio; FOHLIO_UNIT_COST_NR feeds the BOQ " +
-                              "(FohlioRateProvider), and ASS_CST_FX_DATE_DT records the FX-fixing date."
+                              "(FohlioRateProvider), and ASS_CST_FX_DATE_DT records the FX-fixing date, which the " +
+                              "BOQ Item Schedule reports beside the converted rate."
             }.Show();
             StingLog.Info($"Fohlio_Import: matched={matched} wrote={written} costs={costWritten} snapshots={snapshots.Count}");
             return Result.Succeeded;

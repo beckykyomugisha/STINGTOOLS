@@ -711,7 +711,8 @@ namespace StingTools.BOQ
             int rateConfidence;
             (double rate, string unit, string description) picked = ResolveRate(
                 doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence,
-                out double? splitLabour, out double? splitPlant, out double? splitMaterial);
+                out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+                out string rateSourceCurrency);
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
@@ -851,6 +852,7 @@ namespace StingTools.BOQ
                 RateConfidence = rateConfidence,
                 CsiSection = csiSection,
                 CsiTitle = csiTitle,
+                RateSourceCurrency = rateSourceCurrency,
                 LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
                 PlantUGX = splitPlant,
                 MaterialUGX = splitMaterial,
@@ -939,6 +941,23 @@ namespace StingTools.BOQ
                 string pcNote = "PC sum — Fohlio FF&E register" +
                     (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
                 line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
+            }
+
+            // FX provenance. ASS_CST_FX_DATE_DT records WHEN the exchange rate behind a
+            // foreign-currency rate was fixed — the fact a QS is asked to defend at
+            // valuation, and until now written by Fohlio_Import, CostStamp and
+            // Cost_MigrateCurrencyParams and read by nothing.
+            //
+            // Only carried when an FX conversion actually happened. Stamping a fixing date
+            // on a line whose rate was already in the document currency would imply a
+            // conversion that did not occur, which is worse than showing nothing.
+            if (BoqFxProvenance.WasConverted(rateSourceCurrency))
+            {
+                string stamped = ParameterHelpers.GetString(el, ParamRegistry.CST_FX_DATE_DT);
+                line.RateFxDate = BoqFxProvenance.FxDateFor(rateSourceCurrency, stamped);
+                string fxNote = BoqFxProvenance.MissingFixingDateNote(rateSourceCurrency, stamped);
+                if (fxNote != null)
+                    line.Note = string.IsNullOrEmpty(line.Note) ? fxNote : line.Note + "; " + fxNote;
             }
 
             // Mark provisional sums on the element if configured via existing parameter.
@@ -1033,9 +1052,11 @@ namespace StingTools.BOQ
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence,
-            out double? splitLabour, out double? splitPlant, out double? splitMaterial)
+            out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+            out string rateSourceCurrency)
         {
             splitLabour = splitPlant = splitMaterial = null;
+            rateSourceCurrency = "";
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -1071,6 +1092,7 @@ namespace StingTools.BOQ
             // working without changes.
             rateSource = MapProviderIdToLegacySource(lookup.SourceId);
             rateConfidence = lookup.Confidence;
+            rateSourceCurrency = lookup.SourceCurrencyCode ?? "";
             splitLabour = lookup.LabourRate;     // G4 — propagate optional L/P/M split
             splitPlant = lookup.PlantRate;
             splitMaterial = lookup.MaterialRate;

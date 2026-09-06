@@ -310,6 +310,19 @@ namespace StingTools.BOQ
         /// base: the work is still contractor-executed and still carries risk.</summary>
         public bool RateIncludesOhp;
 
+        // -- FX provenance ------------------------------------------------------
+        /// <summary>The currency this line's rate was QUOTED in, when it had to be converted
+        /// to the document currency (e.g. "USD" for a Fohlio purchase-order price). Empty
+        /// when the rate was already in the document currency and no FX was applied.</summary>
+        public string RateSourceCurrency;
+
+        /// <summary>The date the FX rate behind this line was fixed, read from the element's
+        /// ASS_CST_FX_DATE_DT stamp. Only populated when an FX conversion actually happened —
+        /// showing a fixing date on a line that was never converted would imply a conversion
+        /// that did not occur. Empty here on a converted line is itself the finding, and the
+        /// line carries a note saying so.</summary>
+        public string RateFxDate;
+
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
 
@@ -338,6 +351,8 @@ namespace StingTools.BOQ
                 CsiSection = this.CsiSection,
                 CsiTitle = this.CsiTitle,
                 CsiUnit = this.CsiUnit,
+                RateSourceCurrency = this.RateSourceCurrency,
+                RateFxDate = this.RateFxDate,
                 SpecSourced = this.SpecSourced,             // a clone must not become re-enhanceable
                 FfeOwnerProcured = this.FfeOwnerProcured,
                 RateUGX = this.RateUGX,
